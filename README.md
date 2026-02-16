@@ -11,7 +11,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Tests](https://img.shields.io/badge/tests-45%20passing-brightgreen)](tests)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](docs/CONTRIBUTING.md)
 
 [Features](#-features) •
 [Quick Start](#-quick-start) •
@@ -107,8 +107,8 @@ Built with Laravel 11 (backend) and React 18 (frontend), OpenMES provides real-t
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/openmmes.git
-cd openmmes
+git clone git@github.com:Mes-Open/OpenMes.git
+cd OpenMes
 
 # 2. Copy environment file
 cp .env.example .env
@@ -211,15 +211,15 @@ docker-compose exec backend php artisan migrate:fresh --seed
 - [Admin Guide](docs/admin-guide.md) - System administrators
 
 ### Technical Documentation
-- [API Documentation](API_DOCUMENTATION.md) - REST API reference
-- [Testing Guide](TESTING.md) - Running automated tests
+- [API Documentation](docs/API_DOCUMENTATION.md) - REST API reference
+- [Testing Guide](docs/TESTING.md) - Running automated tests
 - [Deployment Guide](docs/deployment.md) - Production deployment
 - [Development Guide](docs/development.md) - Contributing to OpenMES
 
 ### Quick References
-- [QUICKSTART.md](QUICKSTART.md) - Get started in 5 minutes
-- [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) - Development progress
-- [PHASE2_COMPLETE.md](PHASE2_COMPLETE.md) - Phase 2 summary
+- [Quick Start Guide](docs/QUICKSTART.md) - Get started in 5 minutes
+- [Implementation Status](docs/IMPLEMENTATION_STATUS.md) - Development progress
+- [Phase 2 Complete](docs/PHASE2_COMPLETE.md) - Phase 2 summary
 
 ---
 
@@ -253,7 +253,7 @@ curl -X POST http://localhost:8000/api/v1/batch-steps/1/start \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-📖 **Full API documentation:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md)
+📖 **Full API documentation:** [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)
 
 ---
 
@@ -280,7 +280,7 @@ php artisan test --coverage
 - ✅ Batch Steps (11 tests)
 - ✅ Service Layer (10 tests)
 
-📖 **Full testing guide:** [TESTING.md](TESTING.md)
+📖 **Full testing guide:** [TESTING.md](docs/TESTING.md)
 
 ---
 
@@ -357,13 +357,13 @@ We welcome contributions from the community! Whether it's:
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
 
-📖 **Read our [Contributing Guide](CONTRIBUTING.md)** for detailed instructions.
+📖 **Read our [Contributing Guide](docs/CONTRIBUTING.md)** for detailed instructions.
 
 ### Development Setup
 
 ```bash
 # Clone your fork
-git clone https://github.com/your-username/openmmes.git
+git clone git@github.com:YOUR-USERNAME/OpenMes.git
 
 # Install backend dependencies
 cd backend
@@ -383,8 +383,8 @@ cd ../frontend && npm run dev       # Terminal 2
 
 ## 👥 Community
 
-- 💬 **Discussions** - [GitHub Discussions](https://github.com/yourusername/openmmes/discussions)
-- 🐛 **Issues** - [GitHub Issues](https://github.com/yourusername/openmmes/issues)
+- 💬 **Discussions** - [GitHub Discussions](https://github.com/Mes-Open/OpenMes/discussions)
+- 🐛 **Issues** - [GitHub Issues](https://github.com/Mes-Open/OpenMes/issues)
 - 📧 **Email** - openmmes@example.com
 
 ---
@@ -413,7 +413,7 @@ OpenMES is inspired by and builds upon the work of many great open-source projec
 - **[qcadoo MES](https://github.com/qcadoo/mes)** - Inspiration for manufacturing workflows
 - **PostgreSQL Community** - For the world's most advanced open-source database
 
-Special thanks to all our [contributors](https://github.com/yourusername/openmmes/graphs/contributors)!
+Special thanks to all our [contributors](https://github.com/Mes-Open/OpenMes/graphs/contributors)!
 
 ---
 
@@ -429,8 +429,8 @@ It helps the project gain visibility and encourages continued development.
 
 ### Free Support
 - 📖 Read the [documentation](docs/)
-- 🔍 Search [existing issues](https://github.com/yourusername/openmmes/issues)
-- 💬 Ask in [discussions](https://github.com/yourusername/openmmes/discussions)
+- 🔍 Search [existing issues](https://github.com/Mes-Open/OpenMes/issues)
+- 💬 Ask in [discussions](https://github.com/Mes-Open/OpenMes/discussions)
 
 ### Commercial Support
 Need help with deployment, customization, or training? Contact us at **support@openmmes.com**
@@ -443,6 +443,6 @@ Need help with deployment, customization, or training? Contact us at **support@o
 
 Made by manufacturers, for manufacturers
 
-[⬆ Back to Top](#-openmmes)
+[⬆ Back to Top](#-openmes)
 
 </div>
