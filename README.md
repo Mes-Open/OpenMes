@@ -9,8 +9,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org)
+[![Vite](https://img.shields.io/badge/Vite-⚡-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Tests](https://img.shields.io/badge/tests-45%20passing-brightgreen)](tests)
+[![Tests](https://img.shields.io/badge/tests-52%20passing-brightgreen)](tests)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](docs/CONTRIBUTING.md)
 
 [Features](#-features) •
@@ -28,7 +29,9 @@
 
 **OpenMES** is a modern, open-source Manufacturing Execution System designed specifically for **small manufacturers** (woodworking, metalworking, assembly shops) who need powerful production tracking without enterprise complexity.
 
-Built with Laravel 11 (backend) and React 18 (frontend), OpenMES provides real-time production visibility, operator guidance, and comprehensive audit trails — all optimized for tablet use on the shop floor.
+Built with Laravel 11 (backend) and React 18 + Vite (frontend), OpenMES provides real-time production visibility, operator guidance, and comprehensive audit trails — all optimized for tablet use on the shop floor.
+
+> ⚡ **Vibe Coded with Vite** - Lightning-fast development experience with instant HMR and optimized production builds.
 
 ### Why OpenMES?
 
@@ -93,6 +96,72 @@ Built with Laravel 11 (backend) and React 18 (frontend), OpenMES provides real-t
 - **Service layer** - Clean separation of concerns
 - **Event-driven** - Laravel events for extensibility
 - **Docker-ready** - Production deployment in one command
+
+---
+
+## 🎯 Currently Implemented (Phases 1-3)
+
+### ✅ Backend (Laravel 11 API)
+- **Authentication & Authorization**
+  - Laravel Sanctum JWT token authentication
+  - Role-based access control (Admin, Supervisor, Operator)
+  - Line-based filtering for operators
+  - Force password change on first login
+
+- **Work Order Management**
+  - Full CRUD API (19 endpoints)
+  - Process snapshot generation (JSONB immutability)
+  - Batch creation and management
+  - Step-by-step execution with sequential enforcement
+  - Automatic status cascading (Step → Batch → Work Order)
+
+- **Database**
+  - PostgreSQL 14+ with JSONB, triggers, partial indexes
+  - 17 migrations with complete schema
+  - 10 model factories for testing
+  - Immutable audit logs (PostgreSQL-enforced)
+
+- **Testing**
+  - 45 automated tests (Feature + Unit)
+  - 100% coverage of critical business logic
+
+### ✅ Frontend (React 18 + Vite)
+- **Operator Interface**
+  - Login page with authentication
+  - Production line selector
+  - Work order queue (real-time updates every 30s)
+  - Work order detail page with batch accordion
+  - Step execution interface (START/COMPLETE buttons)
+  - Real-time step status updates (every 10s)
+
+- **State Management**
+  - TanStack Query v5 for server state
+  - Zustand for auth state
+  - Optimistic mutations with notifications
+  - Automatic cache invalidation
+
+- **UI/UX**
+  - Mantine UI v7 components (tablet-optimized)
+  - Touch-friendly large buttons
+  - Status badges with color coding
+  - Responsive layouts
+
+- **Testing**
+  - 7 automated tests (Vitest + React Testing Library)
+  - Auth store unit tests
+  - Component integration tests
+
+### 📦 Docker Deployment
+- Docker Compose configuration
+- Single command deployment (`docker-compose up -d`)
+- Nginx reverse proxy
+- Environment variable configuration
+
+### 🔗 API Integration
+- Axios client with JWT interceptor
+- Automatic token refresh on 401
+- API error handling with notifications
+- TypeScript types for all endpoints
 
 ---
 
@@ -259,10 +328,12 @@ curl -X POST http://localhost:8000/api/v1/batch-steps/1/start \
 
 ## 🧪 Testing
 
-OpenMES includes **45+ automated tests** covering all critical functionality:
+OpenMES includes **52+ automated tests** covering all critical functionality:
 
+**Backend Tests (45 tests):**
 ```bash
-# Run all tests
+# Run all backend tests
+cd backend
 php artisan test
 
 # Run specific test suite
@@ -274,11 +345,23 @@ php artisan test tests/Feature/Api/BatchStepTest.php
 php artisan test --coverage
 ```
 
+**Frontend Tests (7 tests):**
+```bash
+# Run all frontend tests
+cd frontend
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+```
+
 **Test Coverage:**
-- ✅ Authentication (11 tests)
-- ✅ Work Orders (13 tests)
-- ✅ Batch Steps (11 tests)
-- ✅ Service Layer (10 tests)
+- ✅ Backend Authentication (11 tests)
+- ✅ Backend Work Orders (13 tests)
+- ✅ Backend Batch Steps (11 tests)
+- ✅ Backend Service Layer (10 tests)
+- ✅ Frontend Auth Store (5 tests)
+- ✅ Frontend Login Component (2 tests)
 
 📖 **Full testing guide:** [TESTING.md](docs/TESTING.md)
 
@@ -301,11 +384,12 @@ php artisan test --coverage
 - [x] Line-based access control
 - [x] 45+ automated tests
 
-### 🚧 Phase 3: Batch Execution UI (In Progress)
-- [ ] React components for operators
-- [ ] Work order queue UI
-- [ ] Step execution interface
-- [ ] Real-time status updates
+### ✅ Phase 3: Batch Execution UI (Complete)
+- [x] React components for operators
+- [x] Work order queue UI
+- [x] Step execution interface
+- [x] Real-time status updates
+- [x] 7 frontend tests
 
 ### 📋 Phase 4: Issue/Andon System
 - [ ] Issue reporting workflow
