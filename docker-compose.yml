@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: openmmes-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: openmmes
+      POSTGRES_USER: openmmes_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-openmmes_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openmmes_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - openmmes-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: openmmes-backend
+    ports:
+      - "8000:8000"
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: openmmes
+      DB_USERNAME: openmmes_user
+      DB_PASSWORD: ${DB_PASSWORD:-openmmes_secure_password}
+      APP_KEY: ${APP_KEY}
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/var/www/html
+      - backend_storage:/var/www/html/storage
+      - backend_cache:/var/www/html/bootstrap/cache
+    networks:
+      - openmmes-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: openmmes-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - openmmes-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: openmmes-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./backend/public:/var/www/html/public:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - openmmes-network
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_storage:
+    driver: local
+  backend_cache:
+    driver: local
+
+networks:
+  openmmes-network:
+    driver: bridge
