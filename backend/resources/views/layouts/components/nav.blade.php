@@ -21,6 +21,7 @@
 
             <!-- Desktop Navigation -->
             <div class="hidden md:flex items-center space-x-4">
+                @auth
                 <!-- User Info -->
                 <div class="flex items-center space-x-2">
                     <span class="text-sm text-gray-600">{{ auth()->user()->name }}</span>
@@ -28,6 +29,7 @@
                         {{ auth()->user()->roles->first()->name ?? 'User' }}
                     </span>
                 </div>
+                @endauth
 
                 <!-- Navigation Links based on role -->
                 @hasrole('Operator')
@@ -81,11 +83,13 @@
 
         <!-- Mobile Navigation Menu -->
         <div x-show="mobileMenuOpen" x-transition class="md:hidden mt-4 pb-2 space-y-2">
+            @auth
             <!-- User Info -->
             <div class="px-3 py-2 border-b border-gray-200">
                 <p class="text-sm font-medium text-gray-800">{{ auth()->user()->name }}</p>
                 <p class="text-xs text-gray-600">{{ auth()->user()->roles->first()->name ?? 'User' }}</p>
             </div>
+            @endauth
 
             <!-- Navigation Links -->
             @hasrole('Operator')
