@@ -43,6 +43,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/var/www/html
+      - /var/www/html/vendor
       - backend_storage:/var/www/html/storage
       - backend_cache:/var/www/html/bootstrap/cache
     networks:
