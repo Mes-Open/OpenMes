@@ -80,15 +80,5 @@
             </span>
         </button>
     </form>
-
-    <!-- Info Box -->
-    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p class="text-sm text-blue-800">
-            <strong>Default Credentials:</strong><br>
-            Admin: admin / admin123<br>
-            Supervisor: supervisor / supervisor123<br>
-            Operator: operator / operator123
-        </p>
-    </div>
 </div>
 @endsection

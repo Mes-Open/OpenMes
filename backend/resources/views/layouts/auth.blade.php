@@ -13,7 +13,7 @@
     <div class="w-full max-w-md">
         <!-- Logo / Header -->
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800">OpenMES</h1>
+            <img src="/logo_open_mes.png" alt="OpenMES" class="h-16 md:h-20 mx-auto mb-2">
             <p class="text-gray-600 mt-2">Manufacturing Execution System</p>
         </div>
 
@@ -48,7 +48,7 @@
 
         <!-- Footer -->
         <div class="text-center mt-6 text-sm text-gray-600">
-            <p>&copy; {{ date('Y') }} OpenMES. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} All rights reserved.</p>
         </div>
     </div>
 

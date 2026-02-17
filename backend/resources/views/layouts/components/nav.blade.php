@@ -3,8 +3,8 @@
         <div class="flex items-center justify-between">
             <!-- Logo / Brand -->
             <div class="flex items-center space-x-4">
-                <a href="{{ route('operator.select-line') }}" class="text-xl font-bold text-gray-800">
-                    OpenMES
+                <a href="{{ route('operator.select-line') }}" class="flex items-center">
+                    <img src="/logo_open_mes.png" alt="OpenMES" class="h-8 md:h-10">
                 </a>
 
                 @if(session('selected_line_id'))

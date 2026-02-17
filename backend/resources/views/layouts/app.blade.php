@@ -53,7 +53,7 @@
 
         <!-- Footer -->
         <footer class="bg-white border-t border-gray-200 py-4 px-6 text-center text-sm text-gray-600">
-            <p>&copy; {{ date('Y') }} OpenMES. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} All rights reserved.</p>
         </footer>
     </div>
 
