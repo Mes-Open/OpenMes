@@ -74,6 +74,10 @@ Route::middleware('auth')->group(function () {
         // User Management
         Route::resource('users', \App\Http\Controllers\Web\Admin\UserManagementController::class);
 
+        // Production Lines Management
+        Route::resource('lines', \App\Http\Controllers\Web\Admin\LineManagementController::class);
+        Route::post('/lines/{line}/toggle-active', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'toggleActive'])->name('lines.toggle-active');
+
         // CSV Import
         Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
 
