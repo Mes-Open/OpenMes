@@ -5,13 +5,15 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\BatchStep;
 use App\Services\WorkOrder\BatchService;
+use App\Services\IssueService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class BatchStepController extends Controller
 {
     public function __construct(
-        protected BatchService $batchService
+        protected BatchService $batchService,
+        protected IssueService $issueService
     ) {}
 
     /**
@@ -79,7 +81,7 @@ class BatchStepController extends Controller
     }
 
     /**
-     * Report a problem on a step.
+     * Report a problem on a step (creates an issue).
      *
      * @param Request $request
      * @param BatchStep $batchStep
@@ -89,9 +91,39 @@ class BatchStepController extends Controller
     {
         $this->authorize('view', $batchStep->batch->workOrder);
 
-        // This will be implemented in Phase 4: Issue/Andon
-        return response()->json([
-            'message' => 'Issue reporting will be implemented in Phase 4',
-        ], 501);
+        $validated = $request->validate([
+            'issue_type_id' => 'required|integer|exists:issue_types,id',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:5000',
+        ]);
+
+        try {
+            $batch = $batchStep->batch;
+            $workOrder = $batch->workOrder;
+
+            $issue = $this->issueService->createIssue([
+                'work_order_id' => $workOrder->id,
+                'batch_step_id' => $batchStep->id,
+                'issue_type_id' => $validated['issue_type_id'],
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'reported_by_id' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Issue reported successfully',
+                'data' => [
+                    'issue' => $issue,
+                    'work_order_blocked' => $issue->issueType->is_blocking,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to report issue',
+                'errors' => [
+                    'issue' => [$e->getMessage()],
+                ],
+            ], 422);
+        }
     }
 }

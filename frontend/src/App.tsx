@@ -8,8 +8,14 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { SelectLinePage } from './pages/operator/SelectLinePage';
 import { QueuePage } from './pages/operator/QueuePage';
 import { WorkOrderDetailPage } from './pages/operator/WorkOrderDetailPage';
+import { SupervisorDashboard } from './pages/supervisor/Dashboard';
+import { CsvImportPage } from './pages/admin/CsvImport';
+import { AuditLogsPage } from './pages/admin/AuditLogs';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { useAuthStore } from './stores/authStore';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
+import { useOfflineSync } from './hooks/useOfflineSync';
 
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
@@ -26,6 +32,10 @@ const queryClient = new QueryClient({
 function App() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
+  // Initialize network status monitoring and offline sync
+  useNetworkStatus();
+  useOfflineSync();
+
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
@@ -34,6 +44,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <MantineProvider>
         <Notifications position="top-right" />
+        <OfflineIndicator />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
@@ -58,6 +69,30 @@ function App() {
               element={
                 <ProtectedRoute requireRole="Operator">
                   <WorkOrderDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/supervisor/dashboard"
+              element={
+                <ProtectedRoute requireRole="Supervisor">
+                  <SupervisorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/csv-import"
+              element={
+                <ProtectedRoute requireRole="Admin">
+                  <CsvImportPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/audit-logs"
+              element={
+                <ProtectedRoute requireRole="Admin">
+                  <AuditLogsPage />
                 </ProtectedRoute>
               }
             />
