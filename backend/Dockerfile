@@ -11,7 +11,9 @@ RUN apk add --no-cache \
     unzip \
     git \
     curl \
-    oniguruma-dev
+    oniguruma-dev \
+    nodejs \
+    npm
 
 # Configure GD extension
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg
@@ -34,8 +36,14 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . .
 
-# Install dependencies
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# Install Node dependencies and build assets
+RUN npm ci && npm run build
+
+# Clean up node_modules to reduce image size
+RUN rm -rf node_modules
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
