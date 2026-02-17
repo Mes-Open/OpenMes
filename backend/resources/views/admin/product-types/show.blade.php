@@ -90,13 +90,23 @@
         <div class="card">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-bold text-gray-800">Process Templates</h2>
-                <!-- Note: Process template creation will be added when we create ProcessTemplateManagementController -->
+                <div class="flex gap-2">
+                    <a href="{{ route('admin.product-types.process-templates.index', $productType) }}" class="btn-touch btn-secondary text-sm">
+                        View All
+                    </a>
+                    <a href="{{ route('admin.product-types.process-templates.create', $productType) }}" class="btn-touch btn-primary text-sm">
+                        <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Create
+                    </a>
+                </div>
             </div>
 
             @if($productType->processTemplates->count() > 0)
                 <div class="space-y-2">
                     @foreach($productType->processTemplates as $template)
-                        <div class="p-3 bg-gray-50 rounded-lg">
+                        <a href="{{ route('admin.product-types.process-templates.show', [$productType, $template]) }}" class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
                                     <div class="flex items-center gap-2 mb-1">
@@ -109,8 +119,11 @@
                                     </div>
                                     <p class="text-xs text-gray-600">Version {{ $template->version }} • {{ $template->steps->count() }} steps</p>
                                 </div>
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
                             </div>
-                        </div>
+                        </a>
                     @endforeach
                 </div>
             @else

@@ -95,6 +95,25 @@ Route::middleware('auth')->group(function () {
         Route::resource('product-types', \App\Http\Controllers\Web\Admin\ProductTypeManagementController::class);
         Route::post('/product-types/{product_type}/toggle-active', [\App\Http\Controllers\Web\Admin\ProductTypeManagementController::class, 'toggleActive'])->name('product-types.toggle-active');
 
+        // Process Templates Management (nested under product types)
+        Route::prefix('product-types/{product_type}/process-templates')->name('product-types.process-templates.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'index'])->name('index');
+            Route::get('/create', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'store'])->name('store');
+            Route::get('/{process_template}', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'show'])->name('show');
+            Route::get('/{process_template}/edit', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'edit'])->name('edit');
+            Route::put('/{process_template}', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'update'])->name('update');
+            Route::delete('/{process_template}', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'destroy'])->name('destroy');
+            Route::post('/{process_template}/toggle-active', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'toggleActive'])->name('toggle-active');
+
+            // Template steps management
+            Route::post('/{process_template}/steps', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'addStep'])->name('add-step');
+            Route::put('/{process_template}/steps/{step}', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'updateStep'])->name('update-step');
+            Route::delete('/{process_template}/steps/{step}', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'deleteStep'])->name('delete-step');
+            Route::post('/{process_template}/steps/{step}/move-up', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'moveStepUp'])->name('move-step-up');
+            Route::post('/{process_template}/steps/{step}/move-down', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'moveStepDown'])->name('move-step-down');
+        });
+
         // CSV Import
         Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
 
