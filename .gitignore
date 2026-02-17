@@ -62,3 +62,4 @@ yarn-error.log*
 
 # Project-specific
 .init_prompt
+/reference-app

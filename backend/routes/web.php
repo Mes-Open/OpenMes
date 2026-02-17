@@ -41,9 +41,19 @@ Route::middleware('auth')->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // Change Password
-    Route::get('/change-password', [AuthController::class, 'showChangePasswordForm'])->name('change-password');
-    Route::post('/change-password', [AuthController::class, 'changePassword']);
+    // Settings
+    Route::prefix('settings')->name('settings.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Web\SettingsController::class, 'index'])->name('index');
+        Route::get('/change-password', [\App\Http\Controllers\Web\SettingsController::class, 'showChangePasswordForm'])->name('change-password');
+        Route::post('/change-password', [\App\Http\Controllers\Web\SettingsController::class, 'updatePassword'])->name('update-password');
+        Route::get('/profile', [\App\Http\Controllers\Web\SettingsController::class, 'showProfileForm'])->name('profile');
+        Route::post('/profile', [\App\Http\Controllers\Web\SettingsController::class, 'updateProfile'])->name('update-profile');
+    });
+
+    // Legacy change password route (redirect to settings)
+    Route::get('/change-password', function () {
+        return redirect()->route('settings.change-password');
+    })->name('change-password');
 
     // Operator routes
     Route::prefix('operator')->name('operator.')->middleware('role:Operator')->group(function () {
@@ -61,7 +71,13 @@ Route::middleware('auth')->group(function () {
 
     // Admin routes
     Route::prefix('admin')->name('admin.')->middleware('role:Admin')->group(function () {
+        // User Management
+        Route::resource('users', \App\Http\Controllers\Web\Admin\UserManagementController::class);
+
+        // CSV Import
         Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
+
+        // Audit Logs
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');
         Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');
     });
