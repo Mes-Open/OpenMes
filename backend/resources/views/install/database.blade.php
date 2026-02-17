@@ -10,8 +10,24 @@
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-2xl">
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800">🏭 OpenMES Installation</h1>
+            <img src="/logo_open_mes.png" alt="OpenMES" class="h-16 md:h-20 mx-auto mb-2">
+            <h1 class="text-2xl font-bold text-gray-800">Installation Wizard</h1>
             <p class="text-gray-600 mt-2">Step 1 of 2: Database Configuration</p>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="mb-8">
+            <div class="flex items-center justify-center space-x-4">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                    <span class="ml-2 text-sm font-medium text-gray-800">Database</span>
+                </div>
+                <div class="w-12 h-1 bg-gray-300"></div>
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center font-bold">2</div>
+                    <span class="ml-2 text-sm font-medium text-gray-500">Admin Account</span>
+                </div>
+            </div>
         </div>
 
         <div class="bg-white rounded-lg shadow-xl p-8">
@@ -27,7 +43,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('install.database.setup') }}" x-data="{ testing: false }">
+            <form method="POST" action="{{ route('install.database.setup') }}" x-data="{ testing: false }" @submit="testing = true">
                 @csrf
 
                 <div class="mb-4">
@@ -36,7 +52,7 @@
                         type="text"
                         id="db_host"
                         name="db_host"
-                        value="{{ old('db_host', 'postgres') }}"
+                        value="{{ old('db_host', $dbConfig['db_host']) }}"
                         class="form-input w-full"
                         required
                     >
@@ -49,7 +65,7 @@
                         type="number"
                         id="db_port"
                         name="db_port"
-                        value="{{ old('db_port', '5432') }}"
+                        value="{{ old('db_port', $dbConfig['db_port']) }}"
                         class="form-input w-full"
                         required
                     >
@@ -62,7 +78,7 @@
                         type="text"
                         id="db_database"
                         name="db_database"
-                        value="{{ old('db_database', 'openmmes') }}"
+                        value="{{ old('db_database', $dbConfig['db_database']) }}"
                         class="form-input w-full"
                         required
                     >
@@ -75,7 +91,7 @@
                         type="text"
                         id="db_username"
                         name="db_username"
-                        value="{{ old('db_username', 'openmmes_user') }}"
+                        value="{{ old('db_username', $dbConfig['db_username']) }}"
                         class="form-input w-full"
                         required
                     >
@@ -87,7 +103,7 @@
                         type="password"
                         id="db_password"
                         name="db_password"
-                        value="{{ old('db_password') }}"
+                        value="{{ old('db_password', $dbConfig['db_password']) }}"
                         class="form-input w-full"
                         required
                     >
@@ -106,7 +122,6 @@
                     <button
                         type="submit"
                         class="btn-touch btn-primary"
-                        @click="testing = true"
                         :disabled="testing"
                     >
                         <span x-show="!testing">Continue →</span>

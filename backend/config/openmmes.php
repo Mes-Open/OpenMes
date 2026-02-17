@@ -32,18 +32,4 @@ return [
     |
     */
     'default_token_ttl_minutes' => env('DEFAULT_TOKEN_TTL_MINUTES', 15),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Default Admin Credentials
-    |--------------------------------------------------------------------------
-    |
-    | Default administrator account credentials for initial setup.
-    |
-    */
-    'default_admin' => [
-        'username' => env('DEFAULT_ADMIN_USERNAME', 'admin'),
-        'email' => env('DEFAULT_ADMIN_EMAIL', 'admin@openmmes.local'),
-        'password' => env('DEFAULT_ADMIN_PASSWORD', 'admin123'),
-    ],
 ];

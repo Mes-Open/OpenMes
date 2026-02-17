@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\CheckInstallation::class);
+        $middleware->validateCsrfTokens(except: [
+            'install/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -9,12 +9,12 @@
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-2xl">
         <div class="text-center mb-8">
-            <h1 class="text-5xl font-bold text-gray-800 mb-2">🏭 OpenMES</h1>
+            <img src="/logo_open_mes.png" alt="OpenMES" class="h-20 md:h-24 mx-auto mb-2">
             <p class="text-xl text-gray-600">Manufacturing Execution System</p>
         </div>
 
         <div class="bg-white rounded-lg shadow-xl p-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Welcome to OpenMES Installation</h2>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Welcome to Installation Wizard</h2>
 
             <div class="space-y-4 mb-8">
                 <div class="flex items-start gap-3">
@@ -65,7 +65,7 @@
         </div>
 
         <div class="text-center mt-6 text-sm text-gray-600">
-            <p>OpenMES v1.0 - Open Source Manufacturing Execution System</p>
+            <p>Open Source Manufacturing Execution System v1.0</p>
         </div>
     </div>
 </body>
