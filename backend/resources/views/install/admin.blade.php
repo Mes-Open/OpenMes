@@ -12,20 +12,25 @@
         <div class="text-center mb-8">
             <img src="/logo_open_mes.png" alt="OpenMES" class="h-16 md:h-20 mx-auto mb-2">
             <h1 class="text-2xl font-bold text-gray-800">Installation Wizard</h1>
-            <p class="text-gray-600 mt-2">Step 2 of 2: Create Admin Account</p>
+            <p class="text-gray-600 mt-2">Step 3 of 3: Create Admin Account</p>
         </div>
 
         <!-- Progress Indicator -->
         <div class="mb-8">
-            <div class="flex items-center justify-center space-x-4">
+            <div class="flex items-center justify-center space-x-2">
+                <div class="flex items-center">
+                    <a href="{{ route('install.environment') }}" class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold hover:bg-green-700 transition" title="Edit basic configuration">✓</a>
+                    <a href="{{ route('install.environment') }}" class="ml-2 text-sm font-medium text-green-700 hover:text-green-800">Basic</a>
+                </div>
+                <div class="w-8 h-1 bg-green-600"></div>
                 <div class="flex items-center">
                     <a href="{{ route('install.database') }}" class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold hover:bg-green-700 transition" title="Edit database configuration">✓</a>
                     <a href="{{ route('install.database') }}" class="ml-2 text-sm font-medium text-green-700 hover:text-green-800">Database</a>
                 </div>
-                <div class="w-12 h-1 bg-green-600"></div>
+                <div class="w-8 h-1 bg-green-600"></div>
                 <div class="flex items-center">
-                    <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">2</div>
-                    <span class="ml-2 text-sm font-medium text-gray-800">Admin Account</span>
+                    <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                    <span class="ml-2 text-sm font-medium text-gray-800">Admin</span>
                 </div>
             </div>
         </div>

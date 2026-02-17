@@ -118,79 +118,69 @@ OpenMES uses a **dead-simple** Laravel monolith architecture - like WordPress or
 - Docker & Docker Compose (20.10+)
 - Git
 
-### One-Command Installation 🎯
+### WordPress-Style Installation 🎯
 
-Like WordPress, but for manufacturing! Just run:
+**Just like WordPress - clone, open browser, configure!** No CLI commands required!
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/Mes-Open/OpenMes.git
 cd OpenMes
 
-# 2. Run the installer (interactive wizard)
-./install.sh
+# 2. Start Docker containers
+docker-compose up -d
 ```
 
-The installer will ask you:
-- Database password (or use default)
-- Admin password (or use default)
-- Application URL (e.g., http://localhost)
-- Environment (local/production)
+**That's it!** Now open **http://localhost** in your browser.
 
-Then it automatically:
-- ✅ Creates configuration files
+### Web-Based Installation Wizard
+
+You'll see a friendly 3-step installation wizard:
+
+**Step 1: Basic Configuration**
+- Site Name (e.g., "My Factory")
+- Site URL (e.g., http://localhost)
+
+**Step 2: Database Configuration**
+- Host: `postgres` (for Docker)
+- Port: `5432`
+- Database: `openmmes`
+- Username: `openmmes_user`
+- Password: `openmmes_secret` (from docker-compose.yml)
+
+**Step 3: Create Admin Account**
+- Username (your choice)
+- Email (your choice)
+- Password (your choice - secure it!)
+
+Click "Complete Installation" → **Done!** 🎉
+
+### Quick Setup Script (Optional)
+
+For even faster setup with default database credentials:
+
+```bash
+# Clone and run one-command setup
+git clone https://github.com/Mes-Open/OpenMes.git
+cd OpenMes
+./setup.sh
+```
+
+This automatically:
+- ✅ Creates .env file
 - ✅ Builds Docker containers
-- ✅ Sets up database
-- ✅ Creates admin user
+- ✅ Generates encryption key
+- ✅ Opens http://localhost in your browser
 
-**That's it!** 🎉 OpenMES is ready in ~2 minutes.
-
-### Alternative: Docker-Only (No Configuration)
-
-Want even simpler? Just start Docker with defaults:
-
-```bash
-git clone https://github.com/Mes-Open/OpenMes.git
-cd OpenMes
-cp .env.example .env
-cp backend/.env.example backend/.env
-docker-compose up -d
-```
-
-Access at: **http://localhost**
-Login: `admin` / `admin123`
-
-### Manual Setup (Alternative)
-
-If you prefer manual setup:
-
-```bash
-# 1. Clone repository
-git clone https://github.com/Mes-Open/OpenMes.git
-cd OpenMes
-
-# 2. Copy environment files
-cp .env.example .env
-cp backend/.env.example backend/.env
-
-# 3. Generate APP_KEY
-docker-compose run --rm backend php artisan key:generate
-
-# 4. Update .env with your passwords
-nano .env
-
-# 5. Continue from step 4 above
-docker-compose up -d
-```
+Then just complete the 3-step wizard!
 
 ### First Steps After Installation
 
-1. **Login** with default credentials (admin / CHANGE_ON_FIRST_LOGIN)
-2. **Change your password** when prompted
-3. **Create production lines** in the admin panel
-4. **Add operators** and assign them to lines
-5. **Import work orders** via CSV or create manually
-6. **Install PWA on tablets** for offline support
+1. **Login** with your admin credentials
+2. **Create production lines** in the admin panel
+3. **Add users** (operators, supervisors) and assign them to lines
+4. **Import work orders** via CSV or create manually
+5. **Install PWA on tablets** for offline support
 
 ### Troubleshooting
 

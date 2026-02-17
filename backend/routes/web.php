@@ -13,6 +13,8 @@ use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController
 // Installation routes (no middleware)
 Route::prefix('install')->name('install.')->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('index');
+    Route::get('/environment', [InstallController::class, 'showEnvironmentForm'])->name('environment');
+    Route::post('/environment', [InstallController::class, 'setupEnvironment'])->name('environment.setup');
     Route::get('/database', [InstallController::class, 'showDatabaseForm'])->name('database');
     Route::post('/database', [InstallController::class, 'setupDatabase'])->name('database.setup');
     Route::get('/admin', [InstallController::class, 'showAdminForm'])->name('admin');

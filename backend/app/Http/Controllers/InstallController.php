@@ -20,12 +20,32 @@ class InstallController extends Controller
     }
 
     /**
+     * Check if .env exists and has APP_KEY
+     */
+    protected function needsEnvironmentSetup()
+    {
+        $envPath = base_path('.env');
+
+        if (!file_exists($envPath)) {
+            return true;
+        }
+
+        $envContent = file_get_contents($envPath);
+        return !preg_match('/APP_KEY=base64:.+/', $envContent);
+    }
+
+    /**
      * Show installation wizard
      */
     public function index()
     {
         if ($this->isInstalled()) {
             return redirect('/')->with('info', 'Application is already installed.');
+        }
+
+        // Check if .env needs to be created first
+        if ($this->needsEnvironmentSetup()) {
+            return redirect()->route('install.environment');
         }
 
         // Check if user is in the middle of installation
@@ -38,6 +58,51 @@ class InstallController extends Controller
         }
 
         return view('install.welcome');
+    }
+
+    /**
+     * Step 0: Environment setup (.env creation)
+     */
+    public function showEnvironmentForm()
+    {
+        if ($this->isInstalled()) {
+            return redirect('/');
+        }
+
+        return view('install.environment');
+    }
+
+    /**
+     * Step 0: Create .env file and generate APP_KEY
+     */
+    public function setupEnvironment(Request $request)
+    {
+        $validated = $request->validate([
+            'app_name' => 'required|string|max:255',
+            'app_url' => 'required|url',
+        ]);
+
+        // Create .env from .env.example if it doesn't exist
+        $envPath = base_path('.env');
+        if (!file_exists($envPath)) {
+            copy(base_path('.env.example'), $envPath);
+        }
+
+        // Update basic settings
+        $this->updateEnvFile([
+            'APP_NAME' => $validated['app_name'],
+            'APP_URL' => $validated['app_url'],
+            'APP_ENV' => 'production',
+            'APP_DEBUG' => 'false',
+        ]);
+
+        // Generate APP_KEY
+        Artisan::call('key:generate', ['--force' => true]);
+
+        // Clear config cache
+        Artisan::call('config:clear');
+
+        return redirect()->route('install.database');
     }
 
     /**

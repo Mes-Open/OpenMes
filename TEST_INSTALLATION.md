@@ -34,53 +34,15 @@ ls -la
 
 **Oczekiwany output:**
 Powinieneś zobaczyć:
-- `setup.sh` (skrypt instalacyjny)
+- `setup.sh` (opcjonalny skrypt instalacyjny)
 - `docker-compose.yml` (konfiguracja Docker)
-- `.env.example` (przykładowy plik środowiskowy)
-- katalogi: `backend/`, `frontend/`, `nginx/`, `docs/`
+- katalogi: `backend/`, `nginx/`, `docs/`
 
 ---
 
-## Krok 3: Uruchom skrypt setup
+## Krok 3: Uruchom Docker Compose
 
-```bash
-./setup.sh
-```
-
-**Oczekiwany output:**
-```
-🏭 OpenMES Setup Script
-======================
-
-Creating .env file from .env.example...
-✓ .env file created
-Creating backend/.env file...
-✓ backend/.env file created
-Generating Laravel APP_KEY...
-✓ APP_KEY generated
-Syncing database credentials...
-✓ Database credentials synced
-
-Setup complete!
-```
-
----
-
-## Krok 4: (Opcjonalne) Zmień hasła
-
-```bash
-nano .env
-```
-
-Zmień:
-- `DB_PASSWORD=CHANGE_ME_SECURE_PASSWORD` → Twoje hasło do bazy
-- `DEFAULT_ADMIN_PASSWORD=CHANGE_ON_FIRST_LOGIN` → Twoje hasło admina
-
-Zapisz (Ctrl+O, Enter) i wyjdź (Ctrl+X)
-
----
-
-## Krok 5: Uruchom Docker Compose
+**WAŻNE:** Instalacja jest w 100% przez przeglądarkę - jak WordPress!
 
 ```bash
 docker-compose up -d
@@ -92,130 +54,172 @@ Creating network "openmmes-network" with driver "bridge"
 Creating volume "openmmes_postgres_data" with local driver
 Creating openmmes-postgres ... done
 Creating openmmes-backend  ... done
-Creating openmmes-frontend ... done
 Creating openmmes-nginx    ... done
 ```
 
 ---
 
-## Krok 6: Sprawdź status kontenerów
+## Krok 4: Sprawdź status kontenerów
 
 ```bash
 docker-compose ps
 ```
 
 **Oczekiwany output:**
-Wszystkie kontenery powinny mieć status `Up` i `healthy`:
+Wszystkie kontenery (3 sztuki) powinny mieć status `Up`:
 ```
 NAME                 STATUS                   PORTS
 openmmes-postgres    Up (healthy)            5432/tcp
 openmmes-backend     Up                      8000/tcp
-openmmes-frontend    Up                      5173/tcp
-openmmes-nginx       Up                      80/tcp
+openmmes-nginx       Up                      0.0.0.0:80->80/tcp
 ```
 
 **Jeśli któryś kontener nie działa:**
 ```bash
 # Zobacz logi
 docker-compose logs backend
-docker-compose logs frontend
 docker-compose logs postgres
 ```
 
 ---
 
-## Krok 7: Poczekaj na inicjalizację (30-60 sekund)
+## Krok 5: Poczekaj na inicjalizację (10-20 sekund)
 
-Zaczekaj chwilę, aż wszystkie serwisy się uruchomią.
+Zaczekaj chwilę, aż backend zbuduje assety i uruchomi się.
 
 Możesz sprawdzić logi:
 ```bash
-# Backend
 docker-compose logs -f backend
+```
 
-# Frontend
-docker-compose logs -f frontend
+Poczekaj aż zobaczysz:
+```
+INFO  Server running on [http://0.0.0.0:8000]
 ```
 
 Przerwij przeglądanie logów: `Ctrl+C`
 
 ---
 
-## Krok 8: Uruchom migracje bazy danych
+## Krok 6: Instalacja przez przeglądarkę (jak WordPress!)
 
-```bash
-docker-compose exec backend php artisan migrate:fresh --seed
-```
-
-**Oczekiwany output:**
-```
-Dropping all tables ............................. DONE
-Migration table created successfully.
-Migrating: ...
-Migrated:  ... (0.XX seconds)
-...
-Database seeding completed successfully.
-```
-
-**To polecenie:**
-- Tworzy wszystkie tabele w bazie danych
-- Dodaje dane testowe (admin user, przykładowe linie produkcyjne, itp.)
-
----
-
-## Krok 9: Testowanie dostępu
-
-### 9.1 Sprawdź Backend API
-
-```bash
-curl http://localhost:8000/api/health
-```
-
-**Oczekiwany output:**
-```json
-{"status":"ok","timestamp":"2024-..."}
-```
-
-### 9.2 Sprawdź Frontend
+### 6.1 Otwórz instalator
 
 Otwórz w przeglądarce:
 ```
 http://localhost
 ```
 
-**Powinieneś zobaczyć:**
-- Stronę logowania OpenMES
-- Pola: Username, Password
-- Przycisk "Login"
-
-### 9.3 Zaloguj się
-
-**Dane logowania:**
-- Username: `admin`
-- Password: `CHANGE_ON_FIRST_LOGIN` (lub to co ustawiłeś w .env)
-
-**Po zalogowaniu:**
-- System powinien poprosić o zmianę hasła
-- Ustaw nowe hasło
-- Zostaniesz przekierowany do panelu operatora
+**Zostaniesz automatycznie przekierowany do instalatora.**
 
 ---
 
-## Krok 10: Testy funkcjonalne
+### 6.2 Krok 1 z 3: Podstawowa konfiguracja
 
-### 10.1 Test: Lista linii produkcyjnych
+**Formularz:**
+- **Site Name**: `OpenMES` (lub dowolna nazwa)
+- **Site URL**: `http://localhost` (lub twój adres)
 
-Po zalogowaniu powinieneś zobaczyć:
-- Ekran wyboru linii produkcyjnej
-- Lista dostępnych linii (jeśli są w bazie)
+**Kliknij:** `Continue →`
 
-### 10.2 Test: Kolejka zleceń
+System automatycznie:
+- ✅ Utworzy plik `.env`
+- ✅ Wygeneruje klucz szyfrowania (APP_KEY)
+- ✅ Skonfiguruje podstawowe ustawienia
 
+---
+
+### 6.3 Krok 2 z 3: Konfiguracja bazy danych
+
+**Formularz:**
+- **Database Host**: `postgres`
+- **Database Port**: `5432`
+- **Database Name**: `openmmes`
+- **Database Username**: `openmmes_user`
+- **Database Password**: `openmmes_secret`
+
+> **Dane z `docker-compose.yml`** - używaj dokładnie tych wartości!
+
+**Kliknij:** `Continue →`
+
+System automatycznie:
+- ✅ Testuje połączenie (30 sekund timeout)
+- ✅ Tworzy wszystkie tabele (migracje)
+- ✅ Dodaje podstawowe dane (role, uprawnienia, typy problemów)
+
+**Jeśli widzisz błąd:**
+- Sprawdź czy postgres jest `healthy`: `docker-compose ps`
+- Sprawdź czy hasło się zgadza z `docker-compose.yml`
+
+---
+
+### 6.4 Krok 3 z 3: Konto administratora
+
+**Formularz - Informacje o stronie:**
+- **Site Name**: `OpenMES` (potwierdź lub zmień)
+- **Site URL**: `http://localhost` (potwierdź lub zmień)
+
+**Formularz - Konto administratora:**
+- **Username**: Twoja nazwa użytkownika (np. `admin`)
+- **Email Address**: Twój email (np. `admin@example.com`)
+- **Password**: Silne hasło (min. 8 znaków)
+- **Confirm Password**: Powtórz hasło
+
+**Kliknij:** `Complete Installation →`
+
+System automatycznie:
+- ✅ Tworzy konto administratora
+- ✅ Przypisuje rolę Admin
+- ✅ Zapisuje konfigurację do `.env`
+- ✅ Oznacza instalację jako zakończoną
+
+---
+
+### 6.5 Instalacja zakończona! 🎉
+
+Zobaczysz stronę potwierdzenia z linkiem do logowania.
+
+**Kliknij:** `Go to Login →`
+
+---
+
+## Krok 7: Pierwsze logowanie
+
+### 7.1 Zaloguj się
+
+**Dane logowania:**
+- **Username**: To co wpisałeś w kroku 6.4
+- **Password**: To co wpisałeś w kroku 6.4
+
+**Kliknij:** `Login`
+
+### 7.2 Wybierz linię produkcyjną
+
+Po zalogowaniu zobaczysz ekran wyboru linii.
+
+> **Na razie lista będzie pusta** - to normalne!
+> Najpierw musisz dodać linie produkcyjne w panelu admina.
+
+---
+
+## Krok 8: Testy funkcjonalne
+
+### 8.1 Test: Panel admina
+
+Aby dodać pierwszą linię produkcyjną:
+1. Zaloguj się jako admin
+2. Kliknij swoje imię w prawym górnym rogu
+3. Wybierz "Admin Panel" (gdy będzie dostępny)
+4. Dodaj linię produkcyjną
+
+### 8.2 Test: Kolejka zleceń
+
+Po dodaniu linii:
 - Wybierz linię produkcyjną
-- Powinieneś zobaczyć listę Work Orders
-- Kliknij na Work Order, aby zobaczyć szczegóły
+- Powinieneś zobaczyć pustą listę Work Orders
+- Import CSV lub ręczne dodawanie Work Orders w panelu admina
 
-### 10.3 Test: PWA (Opcjonalne)
+### 8.3 Test: PWA (Opcjonalne)
 
 W Chrome/Edge:
 - Kliknij ikonę instalacji w pasku adresu (⊕ lub ikona komputera)
@@ -304,24 +308,29 @@ grep DB_PASSWORD backend/.env
 docker-compose restart backend
 ```
 
-### ❌ Frontend pokazuje błąd 404 dla API
+### ❌ Błąd 500 po instalacji
 
 ```bash
-# Sprawdź VITE_API_URL
-grep VITE_API .env
+# Sprawdź logi backend
+docker-compose logs backend | tail -50
 
-# Powinno być:
-VITE_API_URL=http://localhost:8000
+# Zrestartuj backend
+docker-compose restart backend
 
-# Rebuild frontend
-docker-compose build frontend
-docker-compose up -d frontend
+# Jeśli problem nadal występuje, przebuduj
+docker-compose build --no-cache backend
+docker-compose up -d backend
 ```
 
-### ❌ Brak permisji do setup.sh
+### ❌ Nie można otworzyć instalatora (błąd APP_KEY)
 
 ```bash
-chmod +x setup.sh
+# Przebuduj kontener (APP_KEY jest generowany podczas budowania)
+docker-compose down
+docker-compose build --no-cache backend
+docker-compose up -d
+
+# Lub użyj skryptu setup.sh
 ./setup.sh
 ```
 
@@ -332,17 +341,19 @@ chmod +x setup.sh
 Jeśli coś poszło nie tak i chcesz zacząć od początku:
 
 ```bash
-# Zatrzymaj wszystko
+# Zatrzymaj wszystko i usuń dane
 docker-compose down -v
 
-# Usuń pliki .env
-rm .env backend/.env
+# Usuń plik installed (oznaczenie instalacji)
+docker-compose run --rm backend rm -f storage/installed
 
-# Uruchom setup ponownie
-./setup.sh
+# Usuń plik .env jeśli istnieje
+rm -f backend/.env
 
-# Kontynuuj od kroku 5
+# Uruchom ponownie
 docker-compose up -d
+
+# Otwórz http://localhost i przejdź przez instalator ponownie
 ```
 
 ---
@@ -351,11 +362,11 @@ docker-compose up -d
 
 Instalacja powiodła się, jeśli:
 
-1. ✅ `docker-compose ps` pokazuje wszystkie kontenery jako `Up`
-2. ✅ `curl http://localhost:8000/api/health` zwraca JSON
-3. ✅ `http://localhost` pokazuje stronę logowania
-4. ✅ Możesz się zalogować jako admin
-5. ✅ Widzisz panel operatora po zalogowaniu
+1. ✅ `docker-compose ps` pokazuje 3 kontenery jako `Up` (postgres, backend, nginx)
+2. ✅ `http://localhost` przekierowuje do instalatora (przed instalacją)
+3. ✅ Po zakończeniu instalatora widzisz stronę logowania
+4. ✅ Możesz się zalogować swoimi danymi
+5. ✅ Widzisz ekran wyboru linii produkcyjnej po zalogowaniu
 
 ---
 
@@ -373,8 +384,7 @@ docker-compose logs postgres | tail -50
 
 2. Sprawdź konfigurację:
 ```bash
-cat .env
-cat backend/.env
+docker-compose exec backend cat .env
 ```
 
 3. Zgłoś problem na GitHub: https://github.com/Mes-Open/OpenMes/issues
