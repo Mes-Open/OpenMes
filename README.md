@@ -80,35 +80,61 @@
 
 ### Prerequisites
 
-- Docker & Docker Compose
+- Docker & Docker Compose (20.10+)
 - Git
 
-### Quick Start
+### Quick Start (Recommended)
 
 ```bash
 # 1. Clone the repository
-git clone git@github.com:Mes-Open/OpenMes.git
+git clone https://github.com/Mes-Open/OpenMes.git
 cd OpenMes
 
-# 2. Copy environment file
-cp .env.example .env
+# 2. Run setup script
+./setup.sh
 
-# 3. Update credentials in .env
+# 3. (Optional) Edit .env to change passwords
 nano .env  # Set DB_PASSWORD and DEFAULT_ADMIN_PASSWORD
 
 # 4. Start all services
 docker-compose up -d
 
-# 5. Run database migrations and seed data
+# 5. Wait for containers to be healthy (30-60 seconds)
+docker-compose ps
+
+# 6. Run database migrations and seed data
 docker-compose exec backend php artisan migrate:fresh --seed
 
-# 6. Access the application
+# 7. Access the application
 # Frontend: http://localhost
-# API: http://localhost:8000
+# API: http://localhost:8000/api
 # Default login: admin / CHANGE_ON_FIRST_LOGIN
 ```
 
 **That's it!** 🎉 OpenMES is now running.
+
+### Manual Setup (Alternative)
+
+If you prefer manual setup:
+
+```bash
+# 1. Clone repository
+git clone https://github.com/Mes-Open/OpenMes.git
+cd OpenMes
+
+# 2. Copy environment files
+cp .env.example .env
+cp backend/.env.example backend/.env
+
+# 3. Generate APP_KEY
+docker-compose run --rm backend php artisan key:generate
+
+# 4. Update .env with your passwords
+nano .env
+
+# 5. Continue from step 4 above
+docker-compose up -d
+```
 
 ### First Steps After Installation
 
@@ -118,6 +144,56 @@ docker-compose exec backend php artisan migrate:fresh --seed
 4. **Add operators** and assign them to lines
 5. **Import work orders** via CSV or create manually
 6. **Install PWA on tablets** for offline support
+
+### Troubleshooting
+
+**Containers not starting?**
+```bash
+# Check container logs
+docker-compose logs backend
+docker-compose logs frontend
+docker-compose logs postgres
+
+# Restart containers
+docker-compose restart
+
+# Rebuild containers
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+**Database connection errors?**
+```bash
+# Make sure postgres is healthy
+docker-compose ps
+
+# Check database credentials in .env match docker-compose.yml
+grep DB_PASSWORD .env
+
+# Restart backend
+docker-compose restart backend
+```
+
+**Frontend not loading?**
+```bash
+# Check if frontend is running
+curl http://localhost:5173
+
+# Rebuild frontend
+docker-compose build frontend
+docker-compose up -d frontend
+```
+
+**Port conflicts?**
+```bash
+# Check if ports are already in use
+sudo lsof -i :80    # nginx
+sudo lsof -i :8000  # backend
+sudo lsof -i :5432  # postgres
+
+# Change ports in docker-compose.yml if needed
+```
 
 ---
 
