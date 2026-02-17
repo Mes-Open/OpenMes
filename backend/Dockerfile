@@ -1,14 +1,20 @@
-FROM php:8.2-fpm-alpine
+FROM php:8.3-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
     postgresql-dev \
     libzip-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
     zip \
     unzip \
     git \
     curl \
     oniguruma-dev
+
+# Configure GD extension
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
 
 # Install PHP extensions
 RUN docker-php-ext-install \
@@ -16,7 +22,8 @@ RUN docker-php-ext-install \
     pgsql \
     zip \
     mbstring \
-    opcache
+    opcache \
+    gd
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
