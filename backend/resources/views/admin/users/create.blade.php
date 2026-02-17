@@ -19,7 +19,8 @@
             password: '',
             passwordConfirmation: '',
             showPassword: false,
-            showConfirm: false
+            showConfirm: false,
+            accountType: '{{ old('account_type', 'user') }}'
         }">
             @csrf
 
@@ -69,6 +70,50 @@
                     required
                 >
                 @error('email')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <!-- Account Type -->
+            <div class="mb-6">
+                <label for="account_type" class="form-label">Account Type</label>
+                <select
+                    id="account_type"
+                    name="account_type"
+                    x-model="accountType"
+                    class="form-input w-full @error('account_type') border-red-500 @enderror"
+                    required
+                >
+                    <option value="user">User Account (Personal)</option>
+                    <option value="workstation">Workstation Account (Shared)</option>
+                </select>
+                <p class="text-sm text-gray-500 mt-1">
+                    <span x-show="accountType === 'user'">Personal account for individual users</span>
+                    <span x-show="accountType === 'workstation'">Shared account for a specific workstation</span>
+                </p>
+                @error('account_type')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <!-- Workstation (only for workstation accounts) -->
+            <div class="mb-6" x-show="accountType === 'workstation'" x-cloak>
+                <label for="workstation_id" class="form-label">Workstation</label>
+                <select
+                    id="workstation_id"
+                    name="workstation_id"
+                    class="form-input w-full @error('workstation_id') border-red-500 @enderror"
+                    :required="accountType === 'workstation'"
+                >
+                    <option value="">Select a workstation</option>
+                    @foreach($workstations as $workstation)
+                        <option value="{{ $workstation->id }}" {{ old('workstation_id') == $workstation->id ? 'selected' : '' }}>
+                            {{ $workstation->name }} ({{ $workstation->line->name }})
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-sm text-gray-500 mt-1">Assign this account to a specific workstation</p>
+                @error('workstation_id')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
@@ -192,4 +237,8 @@
         </form>
     </div>
 </div>
+
+<style>
+    [x-cloak] { display: none !important; }
+</style>
 @endsection
