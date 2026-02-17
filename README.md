@@ -7,8 +7,8 @@
 *Powerful, flexible, and tablet-ready MES for small manufacturers*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org)
+[![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
+[![Livewire](https://img.shields.io/badge/Livewire-4-4E56A6?logo=livewire&logoColor=white)](https://livewire.laravel.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 
 </div>
@@ -76,6 +76,27 @@
 
 ---
 
+## 🏗️ Architecture
+
+OpenMES uses a traditional Laravel monolith architecture optimized for simplicity and ease of deployment:
+
+- **Backend**: Laravel 12 with Blade templates for server-side rendering
+- **Frontend**: Tailwind CSS 4 + Alpine.js for interactivity
+- **Real-time Updates**: Livewire 4 for dynamic components (batch steps, dashboards)
+- **Charts**: Chart.js for analytics visualization
+- **Database**: PostgreSQL 14+ with immutable audit logs
+- **Deployment**: Docker Compose (3 containers: nginx, backend, postgres)
+
+### Why This Architecture?
+
+- **Simple Deployment**: 3 containers instead of 4 (no separate frontend)
+- **Fast Installation**: No frontend build step in development
+- **Easier Maintenance**: Single codebase, traditional Laravel patterns
+- **Better for LAN**: Server-rendered pages work reliably in local networks
+- **Still Mobile-Ready**: Responsive Blade templates work perfectly on tablets
+
+---
+
 ## 🚀 Installation
 
 ### Prerequisites
@@ -106,8 +127,7 @@ docker-compose ps
 docker-compose exec backend php artisan migrate:fresh --seed
 
 # 7. Access the application
-# Frontend: http://localhost
-# API: http://localhost:8000/api
+# Application: http://localhost
 # Default login: admin / CHANGE_ON_FIRST_LOGIN
 ```
 
@@ -151,7 +171,7 @@ docker-compose up -d
 ```bash
 # Check container logs
 docker-compose logs backend
-docker-compose logs frontend
+docker-compose logs nginx
 docker-compose logs postgres
 
 # Restart containers
@@ -175,14 +195,17 @@ grep DB_PASSWORD .env
 docker-compose restart backend
 ```
 
-**Frontend not loading?**
+**Application not loading?**
 ```bash
-# Check if frontend is running
-curl http://localhost:5173
+# Check if all services are running
+docker-compose ps
 
-# Rebuild frontend
-docker-compose build frontend
-docker-compose up -d frontend
+# Rebuild backend (includes asset build)
+docker-compose build backend
+docker-compose up -d backend
+
+# Check nginx logs
+docker-compose logs nginx
 ```
 
 **Port conflicts?**
