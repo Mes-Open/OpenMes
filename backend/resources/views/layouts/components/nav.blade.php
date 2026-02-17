@@ -50,6 +50,9 @@
                 @endhasrole
 
                 @hasrole('Admin')
+                    <a href="{{ route('admin.users.index') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        Users
+                    </a>
                     <a href="{{ route('admin.csv-import') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                         CSV Import
                     </a>
@@ -58,9 +61,9 @@
                     </a>
                 @endhasrole
 
-                <!-- Change Password -->
-                <a href="{{ route('change-password') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
-                    Change Password
+                <!-- Settings -->
+                <a href="{{ route('settings.index') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                    Settings
                 </a>
 
                 <!-- Logout -->
@@ -110,6 +113,9 @@
             @endhasrole
 
             @hasrole('Admin')
+                <a href="{{ route('admin.users.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
+                    Users
+                </a>
                 <a href="{{ route('admin.csv-import') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
                     CSV Import
                 </a>
@@ -118,8 +124,8 @@
                 </a>
             @endhasrole
 
-            <a href="{{ route('change-password') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
-                Change Password
+            <a href="{{ route('settings.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
+                Settings
             </a>
 
             <!-- Logout -->
