@@ -76,6 +76,52 @@
 
 ---
 
+## 🔌 Extensibility & Modules
+
+OpenMES is built to be extended! Use our comprehensive **hook system** to add custom functionality without modifying core code.
+
+### Hook System
+
+- **40+ events** covering the entire production lifecycle
+- **Work Order hooks** - Created, Updated, Completed, Blocked
+- **Batch hooks** - Created, Completed, Cancelled
+- **Step hooks** - Started, Completed, Problem Reported
+- **User hooks** - Assigned to Line, Created, Updated
+- **Line hooks** - Created, Activated, Deactivated
+- **Process Template hooks** - Template & Step management
+- **CSV Import hooks** - Started, Completed, Failed
+
+### Create Custom Modules
+
+```php
+// Listen to work order completion
+Event::listen(WorkOrderCompleted::class, function ($event) {
+    // Send notification to ERP system
+    ExternalAPI::notifyCompletion($event->workOrder);
+
+    // Update inventory
+    Inventory::increment($event->workOrder->product_type_id);
+
+    // Send email to warehouse
+    Mail::to('warehouse@company.com')->send(/* ... */);
+});
+```
+
+### Example Use Cases
+
+- **ERP Integration** - Sync with SAP, Odoo, or custom systems
+- **Custom Notifications** - Email, SMS, Slack, Teams
+- **Quality Control** - Automated inspections and checks
+- **IoT Integration** - Connect machines and sensors
+- **Custom Reports** - Generate PDFs, Excel, or API exports
+- **Inventory Management** - Auto-update stock levels
+- **Barcode/RFID** - Track materials and products
+
+📚 **Full Documentation**: [HOOKS.md](HOOKS.md)
+📁 **Module Examples**: [modules/](modules/)
+
+---
+
 ## 🏗️ Architecture
 
 OpenMES uses a **dead-simple** Laravel monolith architecture - like WordPress or PrestaShop:

@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# User modules (keep README but ignore actual modules)
+/modules/*
+!/modules/README.md
+!/modules/.gitkeep
