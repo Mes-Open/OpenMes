@@ -3,7 +3,17 @@
         <div class="flex items-center justify-between">
             <!-- Logo / Brand -->
             <div class="flex items-center space-x-4">
-                <a href="{{ route('operator.select-line') }}" class="flex items-center">
+                <a href="@auth
+                    @if(auth()->user()->hasRole('Admin'))
+                        {{ route('admin.lines.index') }}
+                    @elseif(auth()->user()->hasRole('Supervisor'))
+                        {{ route('supervisor.dashboard') }}
+                    @else
+                        {{ route('operator.select-line') }}
+                    @endif
+                @else
+                    {{ route('login') }}
+                @endauth" class="flex items-center">
                     <img src="/logo_open_mes.png" alt="OpenMES" class="h-8 md:h-10">
                 </a>
 
