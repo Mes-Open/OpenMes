@@ -41,9 +41,11 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./backend:/var/www/html
-      - /var/www/html/vendor
-      - /var/www/html/public/build
+      # For development: Uncomment to mount local code
+      # - ./backend:/var/www/html
+      # - /var/www/html/vendor
+      # - /var/www/html/public/build
+      # For production: Only persist storage and cache
       - backend_storage:/var/www/html/storage
       - backend_cache:/var/www/html/bootstrap/cache
     networks:
