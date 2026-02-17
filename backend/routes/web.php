@@ -91,6 +91,10 @@ Route::middleware('auth')->group(function () {
             Route::post('/{workstation}/toggle-active', [\App\Http\Controllers\Web\Admin\WorkstationManagementController::class, 'toggleActive'])->name('toggle-active');
         });
 
+        // Product Types Management
+        Route::resource('product-types', \App\Http\Controllers\Web\Admin\ProductTypeManagementController::class);
+        Route::post('/product-types/{product_type}/toggle-active', [\App\Http\Controllers\Web\Admin\ProductTypeManagementController::class, 'toggleActive'])->name('product-types.toggle-active');
+
         // CSV Import
         Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
 
