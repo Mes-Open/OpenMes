@@ -54,13 +54,19 @@ class LineManagementController extends Controller
      */
     public function show(Line $line)
     {
-        $line->load(['workstations', 'users']);
+        $line->load(['workstations', 'users.roles']);
         $workOrders = $line->workOrders()
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
 
-        return view('admin.lines.show', compact('line', 'workOrders'));
+        // Get operators not assigned to this line
+        $availableOperators = \App\Models\User::role('Operator')
+            ->whereNotIn('id', $line->users->pluck('id'))
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.lines.show', compact('line', 'workOrders', 'availableOperators'));
     }
 
     /**
@@ -119,5 +125,47 @@ class LineManagementController extends Controller
 
         return redirect()->route('admin.lines.index')
             ->with('success', "Production line {$status} successfully.");
+    }
+
+    /**
+     * Assign an operator to the line
+     */
+    public function assignOperator(Request $request, Line $line)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $user = \App\Models\User::findOrFail($validated['user_id']);
+
+        // Check if user is an operator
+        if (!$user->hasRole('Operator')) {
+            return redirect()->route('admin.lines.show', $line)
+                ->with('error', 'Only operators can be assigned to production lines.');
+        }
+
+        // Check if already assigned
+        if ($line->users()->where('user_id', $user->id)->exists()) {
+            return redirect()->route('admin.lines.show', $line)
+                ->with('error', 'Operator is already assigned to this line.');
+        }
+
+        $line->users()->attach($user->id);
+
+        return redirect()->route('admin.lines.show', $line)
+            ->with('success', "Operator {$user->name} assigned successfully.");
+    }
+
+    /**
+     * Unassign an operator from the line
+     */
+    public function unassignOperator(Line $line, $userId)
+    {
+        $user = \App\Models\User::findOrFail($userId);
+
+        $line->users()->detach($user->id);
+
+        return redirect()->route('admin.lines.show', $line)
+            ->with('success', "Operator {$user->name} unassigned successfully.");
     }
 }
