@@ -67,7 +67,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <a href="{{ route('admin.lines.workstations.index', $line) }}" class="card hover:shadow-lg transition-shadow block">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-600">Workstations</p>
@@ -79,7 +79,7 @@
                     </svg>
                 </div>
             </div>
-        </div>
+        </a>
 
         <div class="card">
             <div class="flex items-center justify-between">
