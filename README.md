@@ -9,29 +9,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org)
-[![Vite](https://img.shields.io/badge/Vite-⚡-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Tests](https://img.shields.io/badge/tests-52%20passing-brightgreen)](tests)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](docs/CONTRIBUTING.md)
-
-[Features](#-features) •
-[Quick Start](#-quick-start) •
-[Documentation](#-documentation) •
-[API](#-api) •
-[Contributing](#-contributing) •
-[License](#-license)
 
 </div>
 
 ---
 
-## 📋 About
+## 📋 What is OpenMES?
 
 **OpenMES** is a modern, open-source Manufacturing Execution System designed specifically for **small manufacturers** (woodworking, metalworking, assembly shops) who need powerful production tracking without enterprise complexity.
-
-Built with Laravel 11 (backend) and React 18 + Vite (frontend), OpenMES provides real-time production visibility, operator guidance, and comprehensive audit trails — all optimized for tablet use on the shop floor.
-
-> ⚡ **Vibe Coded with Vite** - Lightning-fast development experience with instant HMR and optimized production builds.
 
 ### Why OpenMES?
 
@@ -41,7 +27,6 @@ Built with Laravel 11 (backend) and React 18 + Vite (frontend), OpenMES provides
 - 📊 **Real-time visibility** - Know exactly what's happening on every line
 - 🆓 **Truly open-source** - MIT licensed, no vendor lock-in
 - 🚀 **Deploy in minutes** - Single command Docker deployment
-- 🔧 **Extensible** - Plugin architecture for custom workflows
 
 ---
 
@@ -50,129 +35,55 @@ Built with Laravel 11 (backend) and React 18 + Vite (frontend), OpenMES provides
 ### 🏭 Production Management
 
 - **Multi-line production** - Manage multiple production lines simultaneously
-- **Work order tracking** - CSV import with flexible column mapping
+- **Work order tracking** - Complete work order lifecycle management
 - **Batch production** - Support partial completion with multiple batches
-- **Process templates** - Versioned, reusable process definitions
-- **Real-time status** - Live production status on every line
+- **Process templates** - Reusable, step-by-step process definitions
+- **CSV Import** - Bulk import work orders with flexible column mapping
+- **Real-time status** - Live production status updates
 
 ### 👷 Operator Experience
 
 - **Step-by-step guidance** - Clear instructions for every operation
-- **Sequential workflow** - Enforce process order (optional)
+- **Sequential workflow** - Enforce process order to prevent mistakes
 - **One-tap actions** - Start, complete, report issues with single tap
 - **PWA support** - Install on tablets, works offline
-- **Tablet-optimized UI** - Large touch targets, minimal text input
+- **Offline mode** - Queue actions when network is unavailable
+- **Tablet-optimized** - Large touch targets (48px+), minimal text input
 
 ### 🔔 Issue & Andon System
 
-- **Problem reporting** - Operators report issues instantly
+- **Problem reporting** - Operators report issues instantly from any step
 - **Automatic blocking** - Critical issues halt production automatically
-- **Issue escalation** - Route problems to supervisors
-- **Resolution tracking** - Complete issue lifecycle management
+- **Issue escalation** - Route problems to supervisors with notifications
+- **Resolution tracking** - Complete issue lifecycle (Open → Acknowledged → Resolved → Closed)
 - **Predefined categories** - Material shortage, quality issues, tool failures, etc.
 
-### 📊 Traceability & Audit
+### 📊 Analytics & Reporting
+
+- **Supervisor Dashboard** - Real-time KPIs and production metrics
+- **Interactive Charts** - Throughput, cycle time, issue trends, step performance
+- **Production Reports** - Summary, batch completion, downtime reports
+- **CSV Export** - Export all reports for further analysis
+- **Traceability** - Complete audit trail for every action
+
+### 🔐 Security & Compliance
 
 - **Immutable audit logs** - PostgreSQL-enforced, cannot be altered
-- **Complete traceability** - Track every action, every user, every timestamp
-- **Event logging** - Domain events for system integration
-- **Process snapshots** - Work orders immune to template changes
-- **Compliance-ready** - ISO 9001, AS9100 compatible audit trail
-
-### 🔐 Security & Access Control
-
+- **Complete traceability** - Track every action, user, and timestamp
 - **Role-based access** - Admin, Supervisor, Operator roles
 - **Line-based filtering** - Operators only see assigned lines
-- **API authentication** - Sanctum token-based auth
-- **Permission granularity** - 25+ granular permissions
-- **Force password change** - Security flag for first login
-- **Rate limiting** - Protection against brute force attacks
-
-### 🛠️ Developer-Friendly
-
-- **REST API** - Complete API with OpenAPI documentation
-- **45+ automated tests** - Feature, unit, and integration tests
-- **Factory pattern** - Test data generation built-in
-- **Service layer** - Clean separation of concerns
-- **Event-driven** - Laravel events for extensibility
-- **Docker-ready** - Production deployment in one command
+- **Compliance-ready** - ISO 9001, AS9100 compatible audit trail
 
 ---
 
-## 🎯 Currently Implemented (Phases 1-3)
-
-### ✅ Backend (Laravel 11 API)
-- **Authentication & Authorization**
-  - Laravel Sanctum JWT token authentication
-  - Role-based access control (Admin, Supervisor, Operator)
-  - Line-based filtering for operators
-  - Force password change on first login
-
-- **Work Order Management**
-  - Full CRUD API (19 endpoints)
-  - Process snapshot generation (JSONB immutability)
-  - Batch creation and management
-  - Step-by-step execution with sequential enforcement
-  - Automatic status cascading (Step → Batch → Work Order)
-
-- **Database**
-  - PostgreSQL 14+ with JSONB, triggers, partial indexes
-  - 17 migrations with complete schema
-  - 10 model factories for testing
-  - Immutable audit logs (PostgreSQL-enforced)
-
-- **Testing**
-  - 45 automated tests (Feature + Unit)
-  - 100% coverage of critical business logic
-
-### ✅ Frontend (React 18 + Vite)
-- **Operator Interface**
-  - Login page with authentication
-  - Production line selector
-  - Work order queue (real-time updates every 30s)
-  - Work order detail page with batch accordion
-  - Step execution interface (START/COMPLETE buttons)
-  - Real-time step status updates (every 10s)
-
-- **State Management**
-  - TanStack Query v5 for server state
-  - Zustand for auth state
-  - Optimistic mutations with notifications
-  - Automatic cache invalidation
-
-- **UI/UX**
-  - Mantine UI v7 components (tablet-optimized)
-  - Touch-friendly large buttons
-  - Status badges with color coding
-  - Responsive layouts
-
-- **Testing**
-  - 7 automated tests (Vitest + React Testing Library)
-  - Auth store unit tests
-  - Component integration tests
-
-### 📦 Docker Deployment
-- Docker Compose configuration
-- Single command deployment (`docker-compose up -d`)
-- Nginx reverse proxy
-- Environment variable configuration
-
-### 🔗 API Integration
-- Axios client with JWT interceptor
-- Automatic token refresh on 401
-- API error handling with notifications
-- TypeScript types for all endpoints
-
----
-
-## 🚀 Quick Start
+## 🚀 Installation
 
 ### Prerequisites
 
 - Docker & Docker Compose
 - Git
 
-### Installation
+### Quick Start
 
 ```bash
 # 1. Clone the repository
@@ -188,7 +99,7 @@ nano .env  # Set DB_PASSWORD and DEFAULT_ADMIN_PASSWORD
 # 4. Start all services
 docker-compose up -d
 
-# 5. Run database migrations
+# 5. Run database migrations and seed data
 docker-compose exec backend php artisan migrate:fresh --seed
 
 # 6. Access the application
@@ -199,277 +110,61 @@ docker-compose exec backend php artisan migrate:fresh --seed
 
 **That's it!** 🎉 OpenMES is now running.
 
----
+### First Steps After Installation
 
-## 📸 Screenshots
-
-<div align="center">
-
-### Operator View - Work Order Queue
-*Touch-optimized queue showing active work orders sorted by priority*
-
-![Work Order Queue](docs/screenshots/queue-placeholder.png)
-
-### Batch Execution - Step by Step
-*Clear instructions with START/COMPLETE buttons for step execution*
-
-![Step Execution](docs/screenshots/steps-placeholder.png)
-
-### Supervisor Dashboard
-*Real-time overview of all production lines*
-
-![Dashboard](docs/screenshots/dashboard-placeholder.png)
-
-### Issue Reporting (Andon)
-*Quick problem reporting with predefined categories*
-
-![Issue Report](docs/screenshots/issue-placeholder.png)
-
-</div>
+1. **Login** with default credentials (admin / CHANGE_ON_FIRST_LOGIN)
+2. **Change your password** when prompted
+3. **Create production lines** in the admin panel
+4. **Add operators** and assign them to lines
+5. **Import work orders** via CSV or create manually
+6. **Install PWA on tablets** for offline support
 
 ---
 
-## 🏗️ Architecture
+## 📱 PWA Installation (Tablets)
 
-```
-┌─────────────────────────────────────────────┐
-│           React PWA (Frontend)              │
-│  Mantine UI · TanStack Query · Zustand     │
-└─────────────────┬───────────────────────────┘
-                  │ REST API (JSON)
-┌─────────────────▼───────────────────────────┐
-│          Laravel 11 (Backend)               │
-│  Sanctum Auth · Service Layer · Events     │
-└─────────────────┬───────────────────────────┘
-                  │ Eloquent ORM
-┌─────────────────▼───────────────────────────┐
-│         PostgreSQL 14+ (Database)           │
-│  JSONB · Triggers · Partial Indexes         │
-└─────────────────────────────────────────────┘
-```
+### iOS (iPad)
+1. Open Safari and navigate to OpenMES
+2. Tap the Share button
+3. Select "Add to Home Screen"
+4. Name it "OpenMES" and tap Add
+5. Launch from home screen
 
-### Tech Stack
+### Android (Tablets)
+1. Open Chrome and navigate to OpenMES
+2. Tap the menu (⋮)
+3. Select "Install app" or "Add to Home Screen"
+4. Confirm installation
+5. Launch from home screen
 
-**Backend:**
-- Laravel 11 (PHP 8.2+)
-- PostgreSQL 14+
-- Laravel Sanctum (API Auth)
-- Spatie Laravel Permission (RBAC)
-- Maatwebsite Excel (CSV import)
-
-**Frontend:**
-- React 18 + TypeScript
-- Vite (build tool)
-- Mantine UI (component library)
-- TanStack Query (server state)
-- Zustand (client state)
-- React Router (routing)
-- Axios (HTTP client)
-
-**Infrastructure:**
-- Docker & Docker Compose
-- Nginx (reverse proxy)
+**Benefits:**
+- Full-screen mode (no browser chrome)
+- Works offline with automatic sync
+- Native app-like experience
+- Touch-optimized for manufacturing floor
 
 ---
 
 ## 📚 Documentation
 
-### User Guides
-- [Operator Guide](docs/operator-guide.md) - Shop floor operators
-- [Supervisor Guide](docs/supervisor-guide.md) - Production supervisors
-- [Admin Guide](docs/admin-guide.md) - System administrators
-
-### Technical Documentation
+- [User Guides](docs/) - Operator, Supervisor, and Admin guides
 - [API Documentation](docs/API_DOCUMENTATION.md) - REST API reference
-- [Testing Guide](docs/TESTING.md) - Running automated tests
-- [Deployment Guide](docs/deployment.md) - Production deployment
-- [Development Guide](docs/development.md) - Contributing to OpenMES
-
-### Quick References
-- [Quick Start Guide](docs/QUICKSTART.md) - Get started in 5 minutes
-- [Implementation Status](docs/IMPLEMENTATION_STATUS.md) - Development progress
-- [Phase 2 Complete](docs/PHASE2_COMPLETE.md) - Phase 2 summary
-
----
-
-## 🔌 API
-
-OpenMES provides a complete REST API for integration with ERP systems, data analytics, and custom applications.
-
-### Authentication
-```bash
-curl -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"your_password"}'
-```
-
-### Create Work Order
-```bash
-curl -X POST http://localhost:8000/api/v1/work-orders \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "order_no": "WO-001",
-    "line_id": 1,
-    "product_type_id": 1,
-    "planned_qty": 100
-  }'
-```
-
-### Start Batch Step
-```bash
-curl -X POST http://localhost:8000/api/v1/batch-steps/1/start \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-📖 **Full API documentation:** [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)
-
----
-
-## 🧪 Testing
-
-OpenMES includes **52+ automated tests** covering all critical functionality:
-
-**Backend Tests (45 tests):**
-```bash
-# Run all backend tests
-cd backend
-php artisan test
-
-# Run specific test suite
-php artisan test tests/Feature/Api/AuthTest.php
-php artisan test tests/Feature/Api/WorkOrderTest.php
-php artisan test tests/Feature/Api/BatchStepTest.php
-
-# Run with coverage
-php artisan test --coverage
-```
-
-**Frontend Tests (7 tests):**
-```bash
-# Run all frontend tests
-cd frontend
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-```
-
-**Test Coverage:**
-- ✅ Backend Authentication (11 tests)
-- ✅ Backend Work Orders (13 tests)
-- ✅ Backend Batch Steps (11 tests)
-- ✅ Backend Service Layer (10 tests)
-- ✅ Frontend Auth Store (5 tests)
-- ✅ Frontend Login Component (2 tests)
-
-📖 **Full testing guide:** [TESTING.md](docs/TESTING.md)
-
----
-
-## 🗺️ Roadmap
-
-### ✅ Phase 1: Foundation (Complete)
-- [x] Laravel 11 backend setup
-- [x] PostgreSQL schema with migrations
-- [x] Authentication with Sanctum
-- [x] Role-based access control
-- [x] Docker deployment
-
-### ✅ Phase 2: Work Order Core (Complete)
-- [x] Work order CRUD API
-- [x] Process snapshot generation
-- [x] Batch creation and management
-- [x] Step-by-step execution
-- [x] Line-based access control
-- [x] 45+ automated tests
-
-### ✅ Phase 3: Batch Execution UI (Complete)
-- [x] React components for operators
-- [x] Work order queue UI
-- [x] Step execution interface
-- [x] Real-time status updates
-- [x] 7 frontend tests
-
-### 📋 Phase 4: Issue/Andon System
-- [ ] Issue reporting workflow
-- [ ] Work order blocking logic
-- [ ] Supervisor dashboard
-- [ ] Issue resolution tracking
-
-### 📋 Phase 5: CSV Import
-- [ ] CSV upload and parsing
-- [ ] Visual column mapper
-- [ ] Import preview
-- [ ] Idempotency strategies
-
-### 📋 Phase 6: Audit & Events
-- [ ] Audit log viewer
-- [ ] Event timeline
-- [ ] Export functionality
-
-### 📋 Phase 7: PWA & Offline
-- [ ] Service worker
-- [ ] Offline queue
-- [ ] Background sync
-- [ ] Push notifications
-
-### 📋 Phase 8: Analytics
-- [ ] Production dashboards
-- [ ] KPI tracking
-- [ ] Reporting engine
-- [ ] Data export
+- [PWA Testing Guide](frontend/PWA_TESTING_GUIDE.md) - Offline functionality testing
+- [Technical Documentation](docs/development.md) - For developers
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions from the community! Whether it's:
-
-- 🐛 **Bug reports** - Found an issue? Open a GitHub issue
-- 💡 **Feature requests** - Have an idea? We'd love to hear it
-- 📝 **Documentation** - Help improve our docs
-- 🔧 **Code contributions** - Submit a pull request
-
-### Getting Started
+We welcome contributions! Whether it's bug reports, feature requests, documentation, or code - we'd love your help.
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+2. Create a feature branch
 3. Make your changes
-4. Run tests (`php artisan test`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+4. Run tests
+5. Submit a pull request
 
-📖 **Read our [Contributing Guide](docs/CONTRIBUTING.md)** for detailed instructions.
-
-### Development Setup
-
-```bash
-# Clone your fork
-git clone git@github.com:YOUR-USERNAME/OpenMes.git
-
-# Install backend dependencies
-cd backend
-composer install
-php artisan migrate:fresh --seed
-
-# Install frontend dependencies
-cd ../frontend
-npm install
-
-# Start development servers
-cd ../backend && php artisan serve  # Terminal 1
-cd ../frontend && npm run dev       # Terminal 2
-```
-
----
-
-## 👥 Community
-
-- 💬 **Discussions** - [GitHub Discussions](https://github.com/Mes-Open/OpenMes/discussions)
-- 🐛 **Issues** - [GitHub Issues](https://github.com/Mes-Open/OpenMes/issues)
-- 📧 **Email** - openmmes@example.com
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details.
 
 ---
 
@@ -487,28 +182,6 @@ See [LICENSE](LICENSE) for full details.
 
 ---
 
-## 🙏 Acknowledgments
-
-OpenMES is inspired by and builds upon the work of many great open-source projects:
-
-- **[Laravel](https://laravel.com)** - The PHP framework that powers our backend
-- **[React](https://reactjs.org)** - The UI library that powers our frontend
-- **[Mantine](https://mantine.dev)** - Beautiful, accessible components
-- **[qcadoo MES](https://github.com/qcadoo/mes)** - Inspiration for manufacturing workflows
-- **PostgreSQL Community** - For the world's most advanced open-source database
-
-Special thanks to all our [contributors](https://github.com/Mes-Open/OpenMes/graphs/contributors)!
-
----
-
-## ⭐ Star History
-
-If you find OpenMES useful, please consider giving it a star! ⭐
-
-It helps the project gain visibility and encourages continued development.
-
----
-
 ## 📞 Support
 
 ### Free Support
@@ -517,7 +190,8 @@ It helps the project gain visibility and encourages continued development.
 - 💬 Ask in [discussions](https://github.com/Mes-Open/OpenMes/discussions)
 
 ### Commercial Support
-Need help with deployment, customization, or training? Contact us at **support@openmmes.com**
+Need help with deployment, customization, or training?
+Contact us at **support@openmmes.com**
 
 ---
 
@@ -527,6 +201,6 @@ Need help with deployment, customization, or training? Contact us at **support@o
 
 Made by manufacturers, for manufacturers
 
-[⬆ Back to Top](#-openmes)
+⭐ If you find OpenMES useful, please give it a star!
 
 </div>
