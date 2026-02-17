@@ -14,8 +14,9 @@
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                 </svg>
             </div>
+            <img src="/logo_open_mes.png" alt="OpenMES" class="h-20 md:h-24 mx-auto mb-4">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Installation Complete!</h1>
-            <p class="text-xl text-gray-600">OpenMES is ready to use 🎉</p>
+            <p class="text-xl text-gray-600">System is ready to use 🎉</p>
         </div>
 
         <div class="bg-white rounded-lg shadow-xl p-8">
@@ -25,7 +26,7 @@
                 <div class="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
                     <span class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold">1</span>
                     <div class="flex-1">
-                        <h3 class="font-semibold text-gray-800">Login to OpenMES</h3>
+                        <h3 class="font-semibold text-gray-800">Login to System</h3>
                         <p class="text-gray-600 text-sm">Use the admin credentials you just created to log in</p>
                     </div>
                 </div>

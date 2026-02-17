@@ -10,8 +10,24 @@
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-2xl">
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800">🏭 OpenMES Installation</h1>
+            <img src="/logo_open_mes.png" alt="OpenMES" class="h-16 md:h-20 mx-auto mb-2">
+            <h1 class="text-2xl font-bold text-gray-800">Installation Wizard</h1>
             <p class="text-gray-600 mt-2">Step 2 of 2: Create Admin Account</p>
+        </div>
+
+        <!-- Progress Indicator -->
+        <div class="mb-8">
+            <div class="flex items-center justify-center space-x-4">
+                <div class="flex items-center">
+                    <a href="{{ route('install.database') }}" class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold hover:bg-green-700 transition" title="Edit database configuration">✓</a>
+                    <a href="{{ route('install.database') }}" class="ml-2 text-sm font-medium text-green-700 hover:text-green-800">Database</a>
+                </div>
+                <div class="w-12 h-1 bg-green-600"></div>
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                    <span class="ml-2 text-sm font-medium text-gray-800">Admin Account</span>
+                </div>
+            </div>
         </div>
 
         <div class="bg-white rounded-lg shadow-xl p-8">
@@ -47,7 +63,7 @@
                         type="text"
                         id="site_name"
                         name="site_name"
-                        value="{{ old('site_name', 'OpenMES') }}"
+                        value="{{ old('site_name', $adminConfig['site_name']) }}"
                         class="form-input w-full"
                         required
                     >
@@ -60,11 +76,11 @@
                         type="url"
                         id="site_url"
                         name="site_url"
-                        value="{{ old('site_url', 'http://localhost') }}"
+                        value="{{ old('site_url', $adminConfig['site_url']) }}"
                         class="form-input w-full"
                         required
                     >
-                    <p class="text-sm text-gray-500 mt-1">The URL where OpenMES will be accessed</p>
+                    <p class="text-sm text-gray-500 mt-1">The URL where the application will be accessed</p>
                 </div>
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-4 mt-8">Administrator Account</h3>
@@ -75,7 +91,7 @@
                         type="text"
                         id="admin_username"
                         name="admin_username"
-                        value="{{ old('admin_username') }}"
+                        value="{{ old('admin_username', $adminConfig['admin_username']) }}"
                         class="form-input w-full"
                         required
                     >
@@ -88,7 +104,7 @@
                         type="email"
                         id="admin_email"
                         name="admin_email"
-                        value="{{ old('admin_email') }}"
+                        value="{{ old('admin_email', $adminConfig['admin_email']) }}"
                         class="form-input w-full"
                         required
                     >
@@ -158,7 +174,7 @@
 
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                     <p class="text-blue-800 text-sm">
-                        <strong>Important:</strong> Save these credentials securely! You will need them to access OpenMES.
+                        <strong>Important:</strong> Save these credentials securely! You will need them to access the system.
                     </p>
                 </div>
 
