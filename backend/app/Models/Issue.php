@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Issue extends Model
 {
+    use Auditable;
     const STATUS_OPEN = 'OPEN';
     const STATUS_ACKNOWLEDGED = 'ACKNOWLEDGED';
     const STATUS_RESOLVED = 'RESOLVED';
