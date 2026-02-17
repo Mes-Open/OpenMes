@@ -50,6 +50,9 @@
                 @endhasrole
 
                 @hasrole('Admin')
+                    <a href="{{ route('admin.lines.index') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        Lines
+                    </a>
                     <a href="{{ route('admin.users.index') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                         Users
                     </a>
@@ -113,6 +116,9 @@
             @endhasrole
 
             @hasrole('Admin')
+                <a href="{{ route('admin.lines.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
+                    Lines
+                </a>
                 <a href="{{ route('admin.users.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
                     Users
                 </a>
