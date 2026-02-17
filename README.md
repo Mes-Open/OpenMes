@@ -78,22 +78,36 @@
 
 ## 🏗️ Architecture
 
-OpenMES uses a traditional Laravel monolith architecture optimized for simplicity and ease of deployment:
+OpenMES uses a **dead-simple** Laravel monolith architecture - like WordPress or PrestaShop:
 
-- **Backend**: Laravel 12 with Blade templates for server-side rendering
+```
+┌─────────────────┐
+│  Laravel App    │  :80 (serves everything)
+│  (Blade + API)  │
+└────────┬────────┘
+         │
+    ┌────▼─────┐
+    │ PostgreSQL│
+    └──────────┘
+```
+
+**Stack:**
+- **Backend**: Laravel 12 with Blade templates
 - **Frontend**: Tailwind CSS 4 + Alpine.js for interactivity
-- **Real-time Updates**: Livewire 4 for dynamic components (batch steps, dashboards)
-- **Charts**: Chart.js for analytics visualization
+- **Real-time**: Livewire 4 for dynamic components
+- **Charts**: Chart.js for analytics
 - **Database**: PostgreSQL 14+ with immutable audit logs
-- **Deployment**: Docker Compose (3 containers: nginx, backend, postgres)
+- **Deployment**: Docker Compose (2 containers only!)
 
 ### Why This Architecture?
 
-- **Simple Deployment**: 3 containers instead of 4 (no separate frontend)
-- **Fast Installation**: No frontend build step in development
-- **Easier Maintenance**: Single codebase, traditional Laravel patterns
-- **Better for LAN**: Server-rendered pages work reliably in local networks
-- **Still Mobile-Ready**: Responsive Blade templates work perfectly on tablets
+- **Ultra Simple**: Just 2 containers (Laravel + PostgreSQL)
+- **One-Command Install**: Like WordPress - clone, run installer, done
+- **No Reverse Proxy**: Laravel serves directly on port 80
+- **Easy Maintenance**: Single codebase, traditional Laravel patterns
+- **LAN Optimized**: Server-rendered pages, perfect for local networks
+- **Mobile Ready**: Responsive Blade templates work on tablets
+- **Fast**: Built-in assets compilation with Vite
 
 ---
 
@@ -104,34 +118,47 @@ OpenMES uses a traditional Laravel monolith architecture optimized for simplicit
 - Docker & Docker Compose (20.10+)
 - Git
 
-### Quick Start (Recommended)
+### One-Command Installation 🎯
+
+Like WordPress, but for manufacturing! Just run:
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/Mes-Open/OpenMes.git
 cd OpenMes
 
-# 2. Run setup script
-./setup.sh
-
-# 3. (Optional) Edit .env to change passwords
-nano .env  # Set DB_PASSWORD and DEFAULT_ADMIN_PASSWORD
-
-# 4. Start all services
-docker-compose up -d
-
-# 5. Wait for containers to be healthy (30-60 seconds)
-docker-compose ps
-
-# 6. Run database migrations and seed data
-docker-compose exec backend php artisan migrate:fresh --seed
-
-# 7. Access the application
-# Application: http://localhost
-# Default login: admin / CHANGE_ON_FIRST_LOGIN
+# 2. Run the installer (interactive wizard)
+./install.sh
 ```
 
-**That's it!** 🎉 OpenMES is now running.
+The installer will ask you:
+- Database password (or use default)
+- Admin password (or use default)
+- Application URL (e.g., http://localhost)
+- Environment (local/production)
+
+Then it automatically:
+- ✅ Creates configuration files
+- ✅ Builds Docker containers
+- ✅ Sets up database
+- ✅ Creates admin user
+
+**That's it!** 🎉 OpenMES is ready in ~2 minutes.
+
+### Alternative: Docker-Only (No Configuration)
+
+Want even simpler? Just start Docker with defaults:
+
+```bash
+git clone https://github.com/Mes-Open/OpenMes.git
+cd OpenMes
+cp .env.example .env
+cp backend/.env.example backend/.env
+docker-compose up -d
+```
+
+Access at: **http://localhost**
+Login: `admin` / `admin123`
 
 ### Manual Setup (Alternative)
 
@@ -171,13 +198,12 @@ docker-compose up -d
 ```bash
 # Check container logs
 docker-compose logs backend
-docker-compose logs nginx
 docker-compose logs postgres
 
 # Restart containers
 docker-compose restart
 
-# Rebuild containers
+# Rebuild containers (if needed)
 docker-compose down
 docker-compose build --no-cache
 docker-compose up -d
@@ -188,8 +214,8 @@ docker-compose up -d
 # Make sure postgres is healthy
 docker-compose ps
 
-# Check database credentials in .env match docker-compose.yml
-grep DB_PASSWORD .env
+# Check database credentials
+grep DB_PASSWORD .env backend/.env
 
 # Restart backend
 docker-compose restart backend
@@ -197,25 +223,25 @@ docker-compose restart backend
 
 **Application not loading?**
 ```bash
-# Check if all services are running
+# Check if services are running
 docker-compose ps
 
-# Rebuild backend (includes asset build)
-docker-compose build backend
-docker-compose up -d backend
+# View backend logs
+docker-compose logs -f backend
 
-# Check nginx logs
-docker-compose logs nginx
+# Rebuild backend (includes asset build)
+docker-compose build --no-cache backend
+docker-compose up -d
 ```
 
-**Port conflicts?**
+**Port 80 already in use?**
 ```bash
-# Check if ports are already in use
-sudo lsof -i :80    # nginx
-sudo lsof -i :8000  # backend
-sudo lsof -i :5432  # postgres
+# Check what's using port 80
+sudo lsof -i :80
 
-# Change ports in docker-compose.yml if needed
+# Edit docker-compose.yml to use different port:
+# Change: - "80:8000" to "8080:8000"
+# Then access at: http://localhost:8080
 ```
 
 ---
