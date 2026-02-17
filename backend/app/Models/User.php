@@ -28,6 +28,8 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'account_type',
+        'workstation_id',
         'force_password_change',
         'last_login_at',
     ];
@@ -62,5 +64,29 @@ class User extends Authenticatable
     public function lines(): BelongsToMany
     {
         return $this->belongsToMany(Line::class, 'line_user');
+    }
+
+    /**
+     * Get the workstation for workstation-type accounts.
+     */
+    public function workstation(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Workstation::class);
+    }
+
+    /**
+     * Check if this is a workstation account.
+     */
+    public function isWorkstationAccount(): bool
+    {
+        return $this->account_type === 'workstation';
+    }
+
+    /**
+     * Check if this is a user account.
+     */
+    public function isUserAccount(): bool
+    {
+        return $this->account_type === 'user';
     }
 }
