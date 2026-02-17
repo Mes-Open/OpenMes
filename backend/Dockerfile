@@ -45,11 +45,18 @@ RUN npm ci && npm run build
 # Clean up node_modules to reduce image size
 RUN rm -rf node_modules
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Expose port
 EXPOSE 8000
 
+# Set entrypoint
+ENTRYPOINT ["docker-entrypoint.sh"]
+
 # Start Laravel development server
-CMD php artisan serve --host=0.0.0.0 --port=8000
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
