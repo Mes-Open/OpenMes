@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: openmmes
       POSTGRES_USER: openmmes_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-openmmes_secret}
+      POSTGRES_PASSWORD: openmmes_secret
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -33,11 +33,10 @@ services:
       DB_PORT: 5432
       DB_DATABASE: openmmes
       DB_USERNAME: openmmes_user
-      DB_PASSWORD: ${DB_PASSWORD:-openmmes_secret}
-      APP_KEY: ${APP_KEY}
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-true}
-      APP_URL: ${APP_URL:-http://localhost}
+      DB_PASSWORD: openmmes_secret
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost
     depends_on:
       postgres:
         condition: service_healthy
