@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('action', 50); // created, updated, deleted
             $table->json('before_state')->nullable();
             $table->json('after_state')->nullable();
-            $table->inet('ip_address')->nullable();
+            $table->string('ip_address', 45)->nullable(); // Changed from inet for SQLite compatibility
             $table->text('user_agent')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
@@ -29,21 +29,23 @@ return new class extends Migration
             $table->index('created_at');
         });
 
-        // Create immutability trigger for PostgreSQL
-        DB::statement("
-            CREATE OR REPLACE FUNCTION prevent_audit_log_modification()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                RAISE EXCEPTION 'Audit logs are immutable';
-            END;
-            $$ LANGUAGE plpgsql;
-        ");
+        // Create immutability trigger for PostgreSQL only
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement("
+                CREATE OR REPLACE FUNCTION prevent_audit_log_modification()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    RAISE EXCEPTION 'Audit logs are immutable';
+                END;
+                $$ LANGUAGE plpgsql;
+            ");
 
-        DB::statement("
-            CREATE TRIGGER prevent_audit_update
-            BEFORE UPDATE OR DELETE ON audit_logs
-            FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_modification();
-        ");
+            DB::statement("
+                CREATE TRIGGER prevent_audit_update
+                BEFORE UPDATE OR DELETE ON audit_logs
+                FOR EACH ROW EXECUTE FUNCTION prevent_audit_log_modification();
+            ");
+        }
     }
 
     /**
@@ -51,8 +53,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("DROP TRIGGER IF EXISTS prevent_audit_update ON audit_logs;");
-        DB::statement("DROP FUNCTION IF EXISTS prevent_audit_log_modification();");
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement("DROP TRIGGER IF EXISTS prevent_audit_update ON audit_logs;");
+            DB::statement("DROP FUNCTION IF EXISTS prevent_audit_log_modification();");
+        }
         Schema::dropIfExists('audit_logs');
     }
 };

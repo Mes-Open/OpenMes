@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Stack, Title, Text, Badge, Card, Button, Group, Loader, Accordion } from '@mantine/core';
+import { Stack, Title, Text, Badge, Card, Button, Group, Loader, Accordion, Alert } from '@mantine/core';
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { useWorkOrder, useBatches, useCreateBatch } from '../../hooks/useWorkOrders';
+import { useIssues } from '../../hooks/useIssues';
 import { BatchStepList } from './BatchStepList';
 import type { Batch } from '../../types';
 
@@ -28,7 +30,10 @@ export const WorkOrderDetail = () => {
 
   const { data: workOrder, isLoading: isLoadingWO } = useWorkOrder(workOrderId);
   const { data: batches, isLoading: isLoadingBatches } = useBatches(workOrderId);
+  const { data: issuesData } = useIssues({ work_order_id: workOrderId, status: 'OPEN' });
   const createBatch = useCreateBatch();
+
+  const openIssues = issuesData?.data || [];
 
   const handleCreateBatch = () => {
     if (!workOrder) return;
@@ -62,27 +67,60 @@ export const WorkOrderDetail = () => {
   const canCreateBatch = workOrder.produced_qty < workOrder.planned_qty && workOrder.status !== 'BLOCKED';
 
   return (
-    <Stack gap="lg" style={{ padding: '1rem' }}>
+    <Stack gap="xl" style={{ padding: '1rem' }}>
       <Group>
-        <Button variant="subtle" onClick={() => navigate('/operator/queue')}>
+        <Button
+          variant="subtle"
+          onClick={() => navigate('/operator/queue')}
+          size="lg"
+          style={{ minHeight: '48px' }}
+        >
           ← Back to Queue
         </Button>
       </Group>
 
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Stack gap="sm">
-          <Group justify="space-between">
+      {workOrder.status === 'BLOCKED' && openIssues.length > 0 && (
+        <Alert
+          icon={<IconAlertTriangle size={24} />}
+          title="Production Blocked"
+          color="red"
+          variant="filled"
+        >
+          <Stack gap="xs">
+            <Text size="sm" fw={500}>
+              This work order is blocked due to {openIssues.length} open issue(s):
+            </Text>
+            {openIssues.slice(0, 3).map((issue) => (
+              <Text key={issue.id} size="sm">
+                • {issue.title} ({issue.issue_type?.name || 'Unknown type'})
+              </Text>
+            ))}
+            {openIssues.length > 3 && (
+              <Text size="sm" fs="italic">
+                ... and {openIssues.length - 3} more issue(s)
+              </Text>
+            )}
+            <Text size="sm" mt="xs">
+              A supervisor must resolve these issues before production can continue.
+            </Text>
+          </Stack>
+        </Alert>
+      )}
+
+      <Card shadow="sm" padding="xl" radius="md" withBorder>
+        <Stack gap="md">
+          <Group justify="space-between" wrap="nowrap">
             <Title order={2}>{workOrder.order_no}</Title>
-            <Badge color={getStatusColor(workOrder.status)} size="lg">
+            <Badge color={getStatusColor(workOrder.status)} size="xl" style={{ padding: '10px 20px', fontSize: '16px' }}>
               {workOrder.status}
             </Badge>
           </Group>
 
-          <Text size="lg" fw={500}>
+          <Text size="xl" fw={500}>
             {workOrder.product_type.name}
           </Text>
 
-          <Group gap="xl">
+          <Group gap="xl" wrap="wrap">
             <div>
               <Text size="sm" c="dimmed">
                 Planned Quantity
@@ -123,12 +161,17 @@ export const WorkOrderDetail = () => {
         </Stack>
       </Card>
 
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Stack gap="md">
-          <Group justify="space-between">
+      <Card shadow="sm" padding="xl" radius="md" withBorder>
+        <Stack gap="lg">
+          <Group justify="space-between" align="center">
             <Title order={3}>Batches</Title>
             {canCreateBatch && (
-              <Button onClick={handleCreateBatch} loading={createBatch.isPending}>
+              <Button
+                onClick={handleCreateBatch}
+                loading={createBatch.isPending}
+                size="lg"
+                style={{ minHeight: '52px', fontSize: '16px' }}
+              >
                 Create New Batch
               </Button>
             )}
