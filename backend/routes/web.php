@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
@@ -9,8 +10,21 @@ use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboa
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
 
-// Redirect root to login
+// Installation routes (no middleware)
+Route::prefix('install')->name('install.')->group(function () {
+    Route::get('/', [InstallController::class, 'index'])->name('index');
+    Route::get('/database', [InstallController::class, 'showDatabaseForm'])->name('database');
+    Route::post('/database', [InstallController::class, 'setupDatabase'])->name('database.setup');
+    Route::get('/admin', [InstallController::class, 'showAdminForm'])->name('admin');
+    Route::post('/admin', [InstallController::class, 'createAdmin'])->name('admin.create');
+    Route::get('/complete', [InstallController::class, 'complete'])->name('complete');
+});
+
+// Redirect root to installer or login
 Route::get('/', function () {
+    if (!file_exists(storage_path('installed'))) {
+        return redirect()->route('install.index');
+    }
     return redirect()->route('login');
 });
 
