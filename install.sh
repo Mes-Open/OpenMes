@@ -54,10 +54,6 @@ echo ""
 read -p "Database Password [default: openmmes_secure_password]: " DB_PASSWORD
 DB_PASSWORD=${DB_PASSWORD:-openmmes_secure_password}
 
-# Admin Password
-read -p "Admin Password [default: admin123]: " ADMIN_PASSWORD
-ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-
 # Application URL
 read -p "Application URL [default: http://localhost]: " APP_URL
 APP_URL=${APP_URL:-http://localhost}
@@ -75,7 +71,6 @@ fi
 echo ""
 echo "Configuration summary:"
 echo "  - Database Password: ********"
-echo "  - Admin Password: ********"
 echo "  - Application URL: $APP_URL"
 echo "  - Environment: $APP_ENV"
 echo ""
@@ -90,12 +85,11 @@ echo ""
 echo "Installing OpenMES..."
 echo ""
 
-# Create root .env
+# Create root .env (used as reference; Docker Compose reads backend/.env directly)
 cat > .env << EOF
 # Application
 APP_NAME=OpenMES
 APP_ENV=$APP_ENV
-APP_KEY=
 APP_DEBUG=$APP_DEBUG
 APP_URL=$APP_URL
 
@@ -106,20 +100,6 @@ DB_PORT=5432
 DB_DATABASE=openmmes
 DB_USERNAME=openmmes_user
 DB_PASSWORD=$DB_PASSWORD
-
-# Authentication
-SANCTUM_STATEFUL_DOMAINS=localhost,192.168.1.*
-SESSION_DRIVER=cookie
-SESSION_LIFETIME=120
-
-# Default Admin
-DEFAULT_ADMIN_USERNAME=admin
-DEFAULT_ADMIN_EMAIL=admin@openmmes.local
-DEFAULT_ADMIN_PASSWORD=$ADMIN_PASSWORD
-
-# System Settings
-ALLOW_OVERPRODUCTION=false
-FORCE_SEQUENTIAL_STEPS=true
 EOF
 
 echo -e "${GREEN}✓ Created root .env file${NC}"
@@ -221,10 +201,9 @@ echo ""
 echo "Your OpenMES installation is ready!"
 echo ""
 echo "  🌐 URL: $APP_URL"
-echo "  👤 Username: admin"
-echo "  🔑 Password: $ADMIN_PASSWORD"
 echo ""
-echo -e "${YELLOW}⚠️  IMPORTANT: Change the admin password after first login!${NC}"
+echo "  Open the URL above in your browser to complete setup"
+echo "  (create admin account and configure the system)."
 echo ""
 echo "To start/stop OpenMES:"
 echo "  docker-compose up -d    # Start"
