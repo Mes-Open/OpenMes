@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
+use App\Models\IssueType;
 use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
@@ -34,9 +35,9 @@ class WorkOrderController extends Controller
             ->get();
 
         $completedWorkOrders = WorkOrder::where('line_id', $lineId)
-            ->where('status', WorkOrder::STATUS_COMPLETED)
+            ->where('status', WorkOrder::STATUS_DONE)
             ->with(['productType', 'batches'])
-            ->orderBy('completed_at', 'desc')
+            ->orderBy('updated_at', 'desc')
             ->limit(10)
             ->get();
 
@@ -67,6 +68,8 @@ class WorkOrderController extends Controller
             'issues.reportedBy',
         ]);
 
-        return view('operator.work-order-detail', compact('workOrder'));
+        $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
+
+        return view('operator.work-order-detail', compact('workOrder', 'issueTypes'));
     }
 }

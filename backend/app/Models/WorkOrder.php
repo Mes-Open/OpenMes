@@ -28,13 +28,15 @@ class WorkOrder extends Model
         'priority',
         'due_date',
         'description',
+        'extra_data',
         'completed_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'process_snapshot' => 'array', // JSONB field
+            'process_snapshot' => 'array',
+            'extra_data' => 'array',
             'planned_qty' => 'decimal:2',
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
