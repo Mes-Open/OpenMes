@@ -6,9 +6,14 @@ use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
+use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
+use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
+use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
+use App\Http\Controllers\Web\IssueManagementController;
 
 // Installation routes (no middleware)
 Route::prefix('install')->name('install.')->group(function () {
@@ -62,15 +67,39 @@ Route::middleware('auth')->group(function () {
         Route::get('/queue', [OperatorWorkOrderController::class, 'queue'])->name('queue');
         Route::get('/work-order/{workOrder}', [OperatorWorkOrderController::class, 'show'])->name('work-order.detail');
         Route::post('/batch', [OperatorBatchController::class, 'store'])->name('batch.store');
+        Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
     });
 
     // Supervisor routes
     Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor')->group(function () {
         Route::get('/dashboard', [SupervisorDashboardController::class, 'index'])->name('dashboard');
+
+        // Issues management
+        Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+        Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
+        Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
+        Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
     });
 
     // Admin routes
     Route::prefix('admin')->name('admin.')->middleware('role:Admin')->group(function () {
+        // Dashboard
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        // Work Orders
+        Route::resource('work-orders', AdminWorkOrderController::class);
+        Route::post('/work-orders/{workOrder}/cancel', [AdminWorkOrderController::class, 'cancel'])->name('work-orders.cancel');
+
+        // Issue Types
+        Route::resource('issue-types', AdminIssueTypeController::class);
+        Route::post('/issue-types/{issueType}/toggle-active', [AdminIssueTypeController::class, 'toggleActive'])->name('issue-types.toggle-active');
+
+        // Issues Management
+        Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
+        Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
+        Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
+        Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+
         // User Management
         Route::resource('users', \App\Http\Controllers\Web\Admin\UserManagementController::class);
 
@@ -116,6 +145,9 @@ Route::middleware('auth')->group(function () {
 
         // CSV Import
         Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
+        Route::post('/csv-import/upload', [AdminCsvImportController::class, 'upload'])->name('csv-import.upload');
+        Route::post('/csv-import/process', [AdminCsvImportController::class, 'process'])->name('csv-import.process');
+        Route::delete('/csv-import/mappings/{mapping}', [AdminCsvImportController::class, 'destroyMapping'])->name('csv-import.mappings.destroy');
 
         // Audit Logs
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');

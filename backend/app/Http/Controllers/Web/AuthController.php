@@ -114,7 +114,7 @@ class AuthController extends Controller
         $user = auth()->user();
 
         if ($user->hasRole('Admin')) {
-            return redirect()->route('admin.csv-import');
+            return redirect()->route('admin.dashboard');
         }
 
         if ($user->hasRole('Supervisor')) {

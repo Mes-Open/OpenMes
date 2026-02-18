@@ -5,7 +5,7 @@
             <div class="flex items-center space-x-4">
                 <a href="@auth
                     @if(auth()->user()->hasRole('Admin'))
-                        {{ route('admin.lines.index') }}
+                        {{ route('admin.dashboard') }}
                     @elseif(auth()->user()->hasRole('Supervisor'))
                         {{ route('supervisor.dashboard') }}
                     @else
@@ -57,9 +57,18 @@
                     <a href="{{ route('supervisor.dashboard') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                         Dashboard
                     </a>
+                    <a href="{{ route('supervisor.issues.index') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        Issues
+                    </a>
                 @endhasrole
 
                 @hasrole('Admin')
+                    <a href="{{ route('admin.work-orders.index') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        Work Orders
+                    </a>
+                    <a href="{{ route('admin.issues.index') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        Issues
+                    </a>
                     <a href="{{ route('admin.lines.index') }}" class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">
                         Lines
                     </a>
@@ -126,9 +135,18 @@
                 <a href="{{ route('supervisor.dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
                     Dashboard
                 </a>
+                <a href="{{ route('supervisor.issues.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
+                    Issues
+                </a>
             @endhasrole
 
             @hasrole('Admin')
+                <a href="{{ route('admin.work-orders.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
+                    Work Orders
+                </a>
+                <a href="{{ route('admin.issues.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
+                    Issues
+                </a>
                 <a href="{{ route('admin.lines.index') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
                     Lines
                 </a>
