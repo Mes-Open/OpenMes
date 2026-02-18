@@ -13,6 +13,7 @@ use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
+use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\IssueManagementController;
 
 // Installation routes (no middleware)
@@ -152,5 +153,12 @@ Route::middleware('auth')->group(function () {
         // Audit Logs
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');
         Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');
+
+        // Modules
+        Route::get('/modules', [AdminModulesController::class, 'index'])->name('modules.index');
+        Route::post('/modules/upload', [AdminModulesController::class, 'upload'])->name('modules.upload');
+        Route::post('/modules/{name}/enable', [AdminModulesController::class, 'enable'])->name('modules.enable');
+        Route::post('/modules/{name}/disable', [AdminModulesController::class, 'disable'])->name('modules.disable');
+        Route::delete('/modules/{name}', [AdminModulesController::class, 'destroy'])->name('modules.destroy');
     });
 });
