@@ -27,17 +27,8 @@ backend/Homestead.yaml
 backend/npm-debug.log
 backend/yarn-error.log
 
-# Frontend (React)
-frontend/node_modules/
-frontend/dist/
-frontend/.env
-frontend/.env.local
-frontend/.env.production.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/coverage/
-frontend/.vite/
-frontend/.DS_Store
+# Frontend directory (removed — Blade templates used instead)
+/frontend/
 
 # IDE
 .vscode/
