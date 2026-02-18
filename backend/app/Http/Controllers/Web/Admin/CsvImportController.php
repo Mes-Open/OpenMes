@@ -9,6 +9,7 @@ use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -30,9 +31,11 @@ class CsvImportController extends Controller
             ->orderBy('name')
             ->get();
 
-        $systemFields = CsvImportMapping::systemFields();
+        $systemFields      = CsvImportMapping::systemFields();
+        $lines             = Line::where('is_active', true)->orderBy('name')->get();
+        $productionPeriod  = $this->getProductionPeriod();
 
-        return view('admin.csv-import', compact('recentImports', 'savedMappings', 'systemFields'));
+        return view('admin.csv-import', compact('recentImports', 'savedMappings', 'systemFields', 'lines', 'productionPeriod'));
     }
 
     /**
@@ -44,6 +47,10 @@ class CsvImportController extends Controller
             'csv_file'        => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
             'import_strategy' => 'required|in:update_or_create,skip_existing,error_on_duplicate',
             'mapping_id'      => 'nullable|exists:csv_import_mappings,id',
+            'target_line_id'  => 'nullable|exists:lines,id',
+            'import_week'     => 'nullable|integer|min:1|max:53',
+            'import_month'    => 'nullable|integer|min:1|max:12',
+            'production_year' => 'nullable|integer|min:2000|max:2100',
         ]);
 
         $file = $request->file('csv_file');
@@ -65,13 +72,19 @@ class CsvImportController extends Controller
             ->orderBy('name')
             ->get();
 
-        $systemFields   = CsvImportMapping::systemFields();
-        $importStrategy = $request->import_strategy;
+        $systemFields     = CsvImportMapping::systemFields();
+        $importStrategy   = $request->import_strategy;
+        $targetLineId     = $request->input('target_line_id');
+        $importWeek       = $request->input('import_week');
+        $importMonth      = $request->input('import_month');
+        $productionYear   = $request->input('production_year', now()->year);
+        $productionPeriod = $this->getProductionPeriod();
 
         return view('admin.csv-import-mapping', compact(
             'headers', 'previewRows', 'totalRows',
             'path', 'savedMappings', 'systemFields',
-            'existingMapping', 'importStrategy'
+            'existingMapping', 'importStrategy',
+            'targetLineId', 'importWeek', 'importMonth', 'productionYear', 'productionPeriod'
         ));
     }
 
@@ -84,11 +97,50 @@ class CsvImportController extends Controller
             'file_path'       => 'required|string',
             'import_strategy' => 'required|in:update_or_create,skip_existing,error_on_duplicate',
             'mapping'         => 'required|array',
+            'target_line_id'  => 'nullable|exists:lines,id',
+            'import_week'     => 'nullable|integer|min:1|max:53',
+            'import_month'    => 'nullable|integer|min:1|max:12',
+            'production_year' => 'nullable|integer|min:2000|max:2100',
         ]);
 
-        $filePath = $request->input('file_path');
-        $strategy = $request->input('import_strategy');
-        $mapping  = $request->input('mapping');
+        $filePath       = $request->input('file_path');
+        $strategy       = $request->input('import_strategy');
+        $mapping        = $request->input('mapping');
+        $targetLineId   = $request->input('target_line_id');
+        $importWeek     = $request->input('import_week') ? (int) $request->input('import_week') : null;
+        $importMonth    = $request->input('import_month') ? (int) $request->input('import_month') : null;
+        $productionYear = $request->input('production_year') ? (int) $request->input('production_year') : null;
+
+        // --- Server-side pre-validation: required fields must be mapped ---
+        $mappedTargets   = array_filter(array_values($mapping), fn($v) => $v && $v !== '_ignore');
+        $missingRequired = [];
+        if (!in_array('order_no', $mappedTargets)) $missingRequired[] = 'order_no';
+        if (!in_array('quantity', $mappedTargets))  $missingRequired[] = 'quantity';
+
+        if (!empty($missingRequired)) {
+            $fullPath = Storage::disk('local')->path($filePath);
+            if (file_exists($fullPath)) {
+                [$headers, $allRows] = $this->parseFile($fullPath);
+                $previewRows      = array_slice($allRows, 0, 5);
+                $totalRows        = count($allRows);
+                $savedMappings    = CsvImportMapping::where('user_id', auth()->id())->orWhere('is_default', true)->orderBy('name')->get();
+                $systemFields     = CsvImportMapping::systemFields();
+                $existingMapping  = null;
+                $importStrategy   = $strategy;
+                $productionPeriod = $this->getProductionPeriod();
+
+                return view('admin.csv-import-mapping', compact(
+                    'headers', 'previewRows', 'totalRows',
+                    'path', 'savedMappings', 'systemFields',
+                    'existingMapping', 'importStrategy',
+                    'targetLineId', 'importWeek', 'importMonth', 'productionYear', 'productionPeriod'
+                ))->with('mapping_error', 'Required fields not mapped: ' . implode(', ', $missingRequired) . '. Please assign these columns before importing.')
+                  ->with('prev_mapping', $mapping);
+            }
+
+            return redirect()->route('admin.csv-import')
+                ->with('error', 'Required fields (order_no, quantity) were not mapped. Please upload the file again.');
+        }
 
         // Save mapping profile if requested
         if ($request->filled('save_mapping_name')) {
@@ -132,6 +184,17 @@ class CsvImportController extends Controller
             $total++;
             try {
                 $workOrderData = $this->mapRow($rowData, $mapping, $lines, $productTypes);
+
+                // Apply target line (overrides column-mapped line if set)
+                if ($targetLineId) {
+                    $workOrderData['line_id'] = (int) $targetLineId;
+                }
+
+                // Apply planning period fields
+                if ($importWeek)     $workOrderData['week_number']    = $importWeek;
+                if ($importMonth)    $workOrderData['month_number']   = $importMonth;
+                if ($productionYear) $workOrderData['production_year'] = $productionYear;
+
                 $this->importRow($workOrderData, $strategy);
                 $success++;
             } catch (\Exception $e) {
@@ -353,5 +416,15 @@ class CsvImportController extends Controller
                 WorkOrder::create($data);
             })(),
         };
+    }
+
+    private function getProductionPeriod(): string
+    {
+        try {
+            $row = DB::table('system_settings')->where('key', 'production_period')->first();
+            return json_decode($row->value ?? '"none"', true) ?? 'none';
+        } catch (\Throwable) {
+            return 'none';
+        }
     }
 }

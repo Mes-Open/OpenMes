@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto"
-     x-data="csvMapper({{ json_encode($headers) }}, {{ json_encode($existingMapping?->mapping_config['column_mappings'] ?? []) }})">
+     x-data="csvMapper({{ json_encode($headers) }}, {{ json_encode(session('prev_mapping', $existingMapping?->mapping_config['column_mappings'] ?? [])) }})">
 
     <div class="flex justify-between items-center mb-6">
         <div>
@@ -20,10 +20,25 @@
         </a>
     </div>
 
-    <form method="POST" action="{{ route('admin.csv-import.process') }}" id="mapping-form">
+    {{-- Server-side mapping validation error --}}
+    @if(session('mapping_error'))
+        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+            <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
+            </svg>
+            <p class="text-sm text-red-700">{{ session('mapping_error') }}</p>
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('admin.csv-import.process') }}" id="mapping-form"
+          @submit.prevent="submitForm()">
         @csrf
         <input type="hidden" name="file_path" value="{{ $path }}">
         <input type="hidden" name="import_strategy" value="{{ $importStrategy }}">
+        <input type="hidden" name="target_line_id" value="{{ $targetLineId ?? '' }}">
+        <input type="hidden" name="import_week" value="{{ $importWeek ?? '' }}">
+        <input type="hidden" name="import_month" value="{{ $importMonth ?? '' }}">
+        <input type="hidden" name="production_year" value="{{ $productionYear ?? now()->year }}">
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -204,6 +219,26 @@
                             <span class="text-gray-600">Strategy:</span>
                             <span class="font-medium capitalize">{{ str_replace('_', ' ', $importStrategy) }}</span>
                         </div>
+                        @if(!empty($targetLineId))
+                            @php $tLine = \App\Models\Line::find($targetLineId); @endphp
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Target line:</span>
+                                <span class="font-medium text-blue-700">{{ $tLine?->name ?? '—' }}</span>
+                            </div>
+                        @endif
+                        @if(!empty($importWeek))
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Week:</span>
+                                <span class="font-medium">W{{ $importWeek }} / {{ $productionYear ?? now()->year }}</span>
+                            </div>
+                        @endif
+                        @if(!empty($importMonth))
+                            @php $monthName = \Carbon\Carbon::create(null, $importMonth)->format('F'); @endphp
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Month:</span>
+                                <span class="font-medium">{{ $monthName }} {{ $productionYear ?? now()->year }}</span>
+                            </div>
+                        @endif
                         <div class="flex justify-between">
                             <span class="text-gray-600">Columns:</span>
                             <span class="font-medium">{{ count($headers) }}</span>
@@ -221,7 +256,6 @@
                     class="btn-touch btn-primary w-full"
                     :disabled="!hasRequired()"
                     :class="!hasRequired() ? 'opacity-50 cursor-not-allowed' : ''"
-                    @click.prevent="submitForm()"
                 >
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -332,8 +366,6 @@ function csvMapper(headers, existingMappings) {
         submitForm() {
             if (!this.hasRequired()) return;
 
-            // For custom fields, update the hidden inputs with the custom:key value
-            // We do this by setting the select value back to custom:key before submit
             const form = document.getElementById('mapping-form');
 
             // Remove old dynamic custom inputs
@@ -342,37 +374,22 @@ function csvMapper(headers, existingMappings) {
             headers.forEach(h => {
                 if (this.mappings[h] === '__custom__') {
                     const key = (this.customKeys[h] || '').trim();
-                    if (key) {
-                        // Add a hidden input with the resolved custom:key value
-                        const hidden = document.createElement('input');
-                        hidden.type = 'hidden';
-                        hidden.name = `mapping[${h}]`;
-                        hidden.value = `custom:${key}`;
-                        hidden.dataset.customField = '1';
-                        form.appendChild(hidden);
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = `mapping[${h}]`;
+                    hidden.value = key ? `custom:${key}` : '_ignore';
+                    hidden.dataset.customField = '1';
+                    form.appendChild(hidden);
 
-                        // Disable the select so it doesn't conflict
-                        const sel = form.querySelector(`select[name="mapping[${h}]"]`);
-                        if (sel) sel.disabled = true;
+                    const sel = form.querySelector(`select[name="mapping[${h}]"]`);
+                    if (sel) sel.disabled = true;
 
-                        // Also disable the text input for this custom key
-                        const txt = form.querySelector(`input[name="mapping[${h}]"]:not([data-custom-field])`);
-                        if (txt) txt.disabled = true;
-                    } else {
-                        // No key entered → ignore
-                        const hidden = document.createElement('input');
-                        hidden.type = 'hidden';
-                        hidden.name = `mapping[${h}]`;
-                        hidden.value = '_ignore';
-                        hidden.dataset.customField = '1';
-                        form.appendChild(hidden);
-
-                        const sel = form.querySelector(`select[name="mapping[${h}]"]`);
-                        if (sel) sel.disabled = true;
-                    }
+                    const txt = form.querySelector(`input[name="mapping[${h}]"]:not([data-custom-field])`);
+                    if (txt) txt.disabled = true;
                 }
             });
 
+            // form.submit() does not fire the submit event, so @submit.prevent won't loop
             form.submit();
         },
     };

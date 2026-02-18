@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
@@ -74,5 +75,49 @@ class SettingsController extends Controller
 
         return redirect()->route('settings.index')
             ->with('success', 'Profile updated successfully.');
+    }
+
+    /**
+     * Show admin-only system settings page.
+     */
+    public function showSystemSettings()
+    {
+        $rows = DB::table('system_settings')->get()->keyBy('key');
+
+        $settings = [
+            'production_period' => json_decode($rows['production_period']->value ?? '"none"', true) ?? 'none',
+            'allow_overproduction' => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
+            'force_sequential_steps' => json_decode($rows['force_sequential_steps']->value ?? 'true', true) ?? true,
+        ];
+
+        return view('settings.system', compact('settings'));
+    }
+
+    /**
+     * Update system settings (admin only).
+     */
+    public function updateSystemSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'production_period'     => 'required|in:none,weekly,monthly',
+            'allow_overproduction'  => 'nullable|boolean',
+            'force_sequential_steps' => 'nullable|boolean',
+        ]);
+
+        $map = [
+            'production_period'      => $validated['production_period'],
+            'allow_overproduction'   => (bool) ($validated['allow_overproduction'] ?? false),
+            'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
+        ];
+
+        foreach ($map as $key => $value) {
+            DB::table('system_settings')->updateOrInsert(
+                ['key' => $key],
+                ['value' => json_encode($value)]
+            );
+        }
+
+        return redirect()->route('settings.system')
+            ->with('success', 'System settings updated.');
     }
 }
