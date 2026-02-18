@@ -129,6 +129,8 @@ class CsvImportController extends Controller
                 $importStrategy   = $strategy;
                 $productionPeriod = $this->getProductionPeriod();
 
+                $path = $filePath; // view expects $path (the stored file path)
+
                 return view('admin.csv-import-mapping', compact(
                     'headers', 'previewRows', 'totalRows',
                     'path', 'savedMappings', 'systemFields',
