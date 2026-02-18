@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Map CSV Columns')
+@section('title', 'Map Columns')
 
 @section('content')
 <div class="max-w-7xl mx-auto"
@@ -8,7 +8,7 @@
 
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Map CSV Columns</h1>
+            <h1 class="text-3xl font-bold text-gray-800">Map Columns</h1>
             <p class="text-gray-600 mt-1">
                 Assign each CSV column to a system field or a custom key.
                 <span class="font-medium text-blue-700">{{ $totalRows }} rows</span> to import ·
