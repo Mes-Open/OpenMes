@@ -143,8 +143,9 @@
                         @endif
 
                         @if($module['name'] !== 'ExampleHooks')
+                            @php $confirmLabel = addslashes($module['display_name'] ?? $module['name']); @endphp
                             <form method="POST" action="{{ route('admin.modules.destroy', $module['name']) }}"
-                                  onsubmit="return confirm('Uninstall module {{ addslashes($module[\'display_name\'] ?? $module[\'name\']) }}? This will delete its files.')">
+                                  onsubmit="return confirm('Uninstall module {{ $confirmLabel }}? This will delete its files.')">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn-touch btn-secondary text-sm text-red-500 hover:text-red-700">Uninstall</button>
