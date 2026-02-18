@@ -89,7 +89,7 @@
                     <p class="text-red-600 text-sm -mt-4 mb-4">{{ $message }}</p>
                 @enderror
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="form-label">Duplicate Strategy</label>
                         <select name="import_strategy" class="form-input w-full" required>
@@ -109,6 +109,53 @@
                         </select>
                     </div>
                 </div>
+
+                {{-- Target line --}}
+                <div class="mb-4">
+                    <label class="form-label">Assign all rows to Production Line (optional)</label>
+                    <select name="target_line_id" class="form-input w-full">
+                        <option value="">— Use line_code column from file —</option>
+                        @foreach($lines as $line)
+                            <option value="{{ $line->id }}">{{ $line->name }}</option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.</p>
+                </div>
+
+                {{-- Planning period fields --}}
+                @if($productionPeriod !== 'none')
+                    <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
+                            Planning Period
+                            <span class="font-normal normal-case">
+                                — system is configured for <strong>{{ $productionPeriod }}</strong> production split
+                            </span>
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            @if($productionPeriod === 'weekly')
+                                <div>
+                                    <label class="form-label text-xs">Week Number (1–53)</label>
+                                    <input type="number" name="import_week" min="1" max="53"
+                                           class="form-input w-full"
+                                           placeholder="e.g. {{ now()->isoWeek() }}">
+                                </div>
+                            @else
+                                <div>
+                                    <label class="form-label text-xs">Month Number (1–12)</label>
+                                    <input type="number" name="import_month" min="1" max="12"
+                                           class="form-input w-full"
+                                           placeholder="e.g. {{ now()->month }}">
+                                </div>
+                            @endif
+                            <div>
+                                <label class="form-label text-xs">Year</label>
+                                <input type="number" name="production_year" min="2000" max="2100"
+                                       class="form-input w-full"
+                                       value="{{ now()->year }}">
+                            </div>
+                        </div>
+                    </div>
+                @endif
 
                 <button type="submit" class="btn-touch btn-primary w-full">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
