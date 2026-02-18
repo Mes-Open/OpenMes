@@ -78,25 +78,27 @@
                                     <select
                                         :name="`mapping[${header}]`"
                                         class="form-input w-full text-sm"
-                                        x-model="mappings[header]"
-                                        @change="onMappingChange(header)"
+                                        @change="setMapping(header, $event.target.value)"
                                     >
-                                        <option value="_ignore">— Ignore this column —</option>
+                                        <option value="_ignore"
+                                                :selected="getMapping(header) === '_ignore'">— Ignore this column —</option>
                                         <optgroup label="System Fields">
                                             @foreach($systemFields as $key => $label)
-                                                <option value="{{ $key }}">
+                                                <option value="{{ $key }}"
+                                                        :selected="getMapping(header) === '{{ $key }}'">
                                                     {{ $label }}
                                                     @if(in_array($key, ['order_no', 'quantity'])) (required) @endif
                                                 </option>
                                             @endforeach
                                         </optgroup>
                                         <optgroup label="Custom Field">
-                                            <option value="__custom__">Custom key…</option>
+                                            <option value="__custom__"
+                                                    :selected="getMapping(header) === '__custom__'">Custom key…</option>
                                         </optgroup>
                                     </select>
 
                                     {{-- Custom key input --}}
-                                    <div x-show="mappings[header] === '__custom__'" x-cloak class="mt-2">
+                                    <div x-show="getMapping(header) === '__custom__'" x-cloak class="mt-2">
                                         <input
                                             type="text"
                                             :name="`mapping[${header}]`"
@@ -109,10 +111,10 @@
                                     </div>
 
                                     {{-- Badge --}}
-                                    <div class="mt-1" x-show="mappings[header] && mappings[header] !== '_ignore' && mappings[header] !== '__custom__'">
-                                        <template x-if="isRequired(mappings[header])">
-                                            <span class="text-xs text-red-600 font-medium">required field</span>
-                                        </template>
+                                    <div class="mt-1"
+                                         x-show="getMapping(header) && getMapping(header) !== '_ignore' && getMapping(header) !== '__custom__'">
+                                        <span x-show="isRequired(getMapping(header))"
+                                              class="text-xs text-red-600 font-medium">required field</span>
                                     </div>
                                 </div>
 
@@ -308,12 +310,19 @@ function csvMapper(headers, existingMappings) {
         mappings: initMappings,
         customKeys: initCustomKeys,
         previewRows,
+        mappingVersion: 0,
 
-        onMappingChange(header) {
-            // If user deselects custom, clear custom key
-            if (this.mappings[header] !== '__custom__') {
+        setMapping(header, value) {
+            this.mappings[header] = value;
+            if (value !== '__custom__') {
                 delete this.customKeys[header];
             }
+            this.mappingVersion++;
+        },
+
+        getMapping(header) {
+            void this.mappingVersion; // reactive dependency
+            return this.mappings[header] || '_ignore';
         },
 
         getSample(header) {
@@ -326,11 +335,13 @@ function csvMapper(headers, existingMappings) {
         },
 
         hasRequired() {
+            void this.mappingVersion; // reactive dependency
             const mapped = Object.values(this.mappings);
             return requiredFields.every(f => mapped.includes(f));
         },
 
         countMapped() {
+            void this.mappingVersion; // reactive dependency
             return Object.values(this.mappings).filter(v => v && v !== '_ignore').length;
         },
 
@@ -344,11 +355,13 @@ function csvMapper(headers, existingMappings) {
                     }
                 }
             });
+            this.mappingVersion++;
         },
 
         clearAll() {
             headers.forEach(h => { this.mappings[h] = '_ignore'; });
             this.customKeys = {};
+            this.mappingVersion++;
         },
 
         loadProfile(profileMappings) {
@@ -361,6 +374,7 @@ function csvMapper(headers, existingMappings) {
                     this.mappings[h] = val || '_ignore';
                 }
             });
+            this.mappingVersion++;
         },
 
         submitForm() {
