@@ -1,0 +1,17 @@
+{
+    "name": "ExampleHooks",
+    "display_name": "Example Hooks Module",
+    "version": "1.0.0",
+    "description": "Demonstrates the OpenMES hooks/events system. Logs work order and batch events to the Laravel log. Use as a starting point for your own module.",
+    "author": "OpenMES Team",
+    "homepage": "https://github.com/Mes-Open/OpenMes",
+    "provider": "Modules\\ExampleHooks\\Providers\\ExampleHooksServiceProvider",
+    "hooks": [
+        "WorkOrder\\WorkOrderCreated",
+        "WorkOrder\\WorkOrderCompleted",
+        "Batch\\BatchCreated",
+        "BatchStep\\StepStarted",
+        "BatchStep\\StepCompleted"
+    ],
+    "requires": []
+}

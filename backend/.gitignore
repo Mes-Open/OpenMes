@@ -23,7 +23,8 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
-# User modules (keep README but ignore actual modules)
+# User modules — ship the example, ignore user-installed ones
 /modules/*
 !/modules/README.md
 !/modules/.gitkeep
+!/modules/ExampleHooks
