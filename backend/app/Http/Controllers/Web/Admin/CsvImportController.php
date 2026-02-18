@@ -10,6 +10,7 @@ use App\Models\ProductType;
 use App\Models\WorkOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class CsvImportController extends Controller
 {
@@ -35,12 +36,12 @@ class CsvImportController extends Controller
     }
 
     /**
-     * Handle CSV file upload and show mapping UI.
+     * Handle file upload (CSV / XLS / XLSX) and show the column-mapping UI.
      */
     public function upload(Request $request)
     {
         $request->validate([
-            'csv_file'        => 'required|file|mimes:csv,txt|max:5120',
+            'csv_file'        => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
             'import_strategy' => 'required|in:update_or_create,skip_existing,error_on_duplicate',
             'mapping_id'      => 'nullable|exists:csv_import_mappings,id',
         ]);
@@ -48,28 +49,10 @@ class CsvImportController extends Controller
         $file = $request->file('csv_file');
         $path = $file->store('csv-imports', 'local');
 
-        // Parse headers and first 5 preview rows
-        $handle      = fopen(Storage::disk('local')->path($path), 'r');
-        $headers     = fgetcsv($handle);
-        $previewRows = [];
-        $rowCount    = 0;
-        while (($row = fgetcsv($handle)) !== false && $rowCount < 5) {
-            $previewRows[] = array_combine(
-                $headers,
-                array_pad($row, count($headers), '')
-            );
-            $rowCount++;
-        }
-        fclose($handle);
+        [$headers, $allRows] = $this->parseFile(Storage::disk('local')->path($path));
 
-        // Count total rows
-        $totalRows    = 0;
-        $countHandle  = fopen(Storage::disk('local')->path($path), 'r');
-        fgetcsv($countHandle); // skip header
-        while (fgetcsv($countHandle) !== false) {
-            $totalRows++;
-        }
-        fclose($countHandle);
+        $previewRows = array_slice($allRows, 0, 5);
+        $totalRows   = count($allRows);
 
         // Load existing mapping if selected
         $existingMapping = null;
@@ -82,8 +65,8 @@ class CsvImportController extends Controller
             ->orderBy('name')
             ->get();
 
-        $systemFields    = CsvImportMapping::systemFields();
-        $importStrategy  = $request->import_strategy;
+        $systemFields   = CsvImportMapping::systemFields();
+        $importStrategy = $request->import_strategy;
 
         return view('admin.csv-import-mapping', compact(
             'headers', 'previewRows', 'totalRows',
@@ -143,13 +126,10 @@ class CsvImportController extends Controller
                 ->with('error', 'Upload file not found. Please upload again.');
         }
 
-        $handle  = fopen($fullPath, 'r');
-        $headers = fgetcsv($handle);
+        [, $rows] = $this->parseFile($fullPath);
 
-        while (($row = fgetcsv($handle)) !== false) {
+        foreach ($rows as $rowData) {
             $total++;
-            $rowData = array_combine($headers, array_pad($row, count($headers), ''));
-
             try {
                 $workOrderData = $this->mapRow($rowData, $mapping, $lines, $productTypes);
                 $this->importRow($workOrderData, $strategy);
@@ -159,7 +139,6 @@ class CsvImportController extends Controller
                 $errors[] = "Row {$total}: " . $e->getMessage();
             }
         }
-        fclose($handle);
 
         Storage::disk('local')->delete($filePath);
 
@@ -198,6 +177,74 @@ class CsvImportController extends Controller
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Dispatch to the correct parser based on file extension.
+     * Returns [$headers, $dataRows] where each $dataRow is an assoc array.
+     */
+    private function parseFile(string $fullPath): array
+    {
+        $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+
+        if (in_array($ext, ['xlsx', 'xls'])) {
+            return $this->parseSpreadsheet($fullPath);
+        }
+
+        return $this->parseCsv($fullPath);
+    }
+
+    private function parseCsv(string $fullPath): array
+    {
+        $handle  = fopen($fullPath, 'r');
+        $headers = fgetcsv($handle) ?: [];
+        $rows    = [];
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $rows[] = array_combine($headers, array_pad($row, count($headers), ''));
+        }
+
+        fclose($handle);
+
+        return [$headers, $rows];
+    }
+
+    private function parseSpreadsheet(string $fullPath): array
+    {
+        $spreadsheet = IOFactory::load($fullPath);
+        $sheet       = $spreadsheet->getActiveSheet();
+
+        // toArray(nullValue, calculateFormulas, formatData, returnCellRef)
+        $rawData = $sheet->toArray(null, true, true, false);
+
+        if (empty($rawData)) {
+            return [[], []];
+        }
+
+        // First row is headers; normalise to strings, skip empty columns
+        $rawHeaders = array_map(fn($v) => trim((string) ($v ?? '')), array_shift($rawData));
+        $headerMap  = [];
+        foreach ($rawHeaders as $i => $h) {
+            if ($h !== '') {
+                $headerMap[$i] = $h;
+            }
+        }
+        $headers = array_values($headerMap);
+
+        $rows = [];
+        foreach ($rawData as $rawRow) {
+            $assoc = [];
+            foreach ($headerMap as $i => $header) {
+                $assoc[$header] = trim((string) ($rawRow[$i] ?? ''));
+            }
+            // Skip completely empty rows (e.g. trailing blank rows in Excel)
+            if (empty(array_filter($assoc, fn($v) => $v !== ''))) {
+                continue;
+            }
+            $rows[] = $assoc;
+        }
+
+        return [$headers, $rows];
+    }
 
     private function mapRow(array $rowData, array $mapping, $lines, $productTypes): array
     {

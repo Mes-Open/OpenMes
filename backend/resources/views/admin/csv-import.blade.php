@@ -6,8 +6,8 @@
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">CSV Import</h1>
-            <p class="text-gray-600 mt-1">Import work orders from a CSV file with custom column mapping</p>
+            <h1 class="text-3xl font-bold text-gray-800">Import</h1>
+            <p class="text-gray-600 mt-1">Import work orders from a CSV, XLS or XLSX file with custom column mapping</p>
         </div>
     </div>
 
@@ -55,7 +55,7 @@
 
         {{-- Upload Form --}}
         <div class="lg:col-span-2 card">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Upload CSV File</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Upload File</h2>
             <form method="POST" action="{{ route('admin.csv-import.upload') }}" enctype="multipart/form-data"
                   x-data="{ dragging: false, filename: '' }">
                 @csrf
@@ -72,13 +72,13 @@
                     <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <p class="text-gray-600 font-medium">Drop CSV file here or <span class="text-blue-600">browse</span></p>
-                    <p class="text-sm text-gray-400 mt-1">Max 5 MB · .csv or .txt</p>
+                    <p class="text-gray-600 font-medium">Drop file here or <span class="text-blue-600">browse</span></p>
+                    <p class="text-sm text-gray-400 mt-1">Max 10 MB · .csv, .txt, .xlsx, .xls</p>
                     <input
                         type="file"
                         name="csv_file"
                         x-ref="fileInput"
-                        accept=".csv,.txt"
+                        accept=".csv,.txt,.xlsx,.xls"
                         class="hidden"
                         @change="filename = $refs.fileInput.files[0]?.name || ''"
                         required
