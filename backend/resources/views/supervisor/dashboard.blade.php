@@ -161,10 +161,10 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($cycleTimeData->take(10) as $batch)
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $batch['batch_no'] }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $batch['batch_number'] }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $batch['work_order_no'] }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $batch['product_type'] }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ number_format($batch['actual_qty'], 2) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ number_format($batch['produced_qty'], 2) }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $batch['cycle_time_hours'] }} hrs</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ \Carbon\Carbon::parse($batch['completed_at'])->format('M d, H:i') }}</td>
                             </tr>
