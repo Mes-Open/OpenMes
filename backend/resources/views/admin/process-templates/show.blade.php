@@ -121,11 +121,11 @@
         <span x-data="{ show: false }" class="relative inline-flex items-center" @mouseenter="show = true" @mouseleave="show = false">
             <span class="w-5 h-5 rounded-full bg-gray-200 text-gray-500 text-xs flex items-center justify-center cursor-default select-none font-bold hover:bg-blue-100 hover:text-blue-600 transition-colors">i</span>
             <div x-show="show" x-cloak class="absolute left-7 top-0 z-20 w-72 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-xl leading-relaxed">
-                <strong class="block mb-1 text-white">Kroki produkcji</strong>
-                Lista operacji wykonywanych podczas produkcji — w kolejności od góry do dołu (krok 1 = pierwszy do wykonania). Użyj strzałek ↑↓ aby zmienić kolejność. Nowy krok zawsze trafia na koniec listy. Szacowany czas służy do rozliczania wydajności operatora.
+                <strong class="block mb-1 text-white">Production Steps</strong>
+                List of operations performed during production — ordered top to bottom (step 1 = first to execute). Use ↑↓ arrows to reorder. New steps are always added at the end. Estimated time is used to calculate operator efficiency.
             </div>
         </span>
-        <span class="text-sm text-gray-500">(od pierwszego do ostatniego)</span>
+        <span class="text-sm text-gray-500">(first to last)</span>
     </div>
 
     @if($processTemplate->steps->count() > 0)
