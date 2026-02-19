@@ -20,7 +20,7 @@ class BatchController extends Controller
     {
         $request->validate([
             'work_order_id' => 'required|exists:work_orders,id',
-            'actual_qty' => 'required|numeric|min:0.01',
+            'target_qty' => 'required|numeric|min:0.01',
         ]);
 
         $workOrder = WorkOrder::find($request->input('work_order_id'));
@@ -34,7 +34,7 @@ class BatchController extends Controller
         try {
             $batch = $this->workOrderService->createBatch(
                 $workOrder,
-                $request->input('actual_qty')
+                $request->input('target_qty')
             );
 
             return redirect()->route('operator.work-order.detail', $workOrder)

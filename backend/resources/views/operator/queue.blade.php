@@ -34,7 +34,11 @@
                         <!-- Header -->
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-lg font-bold text-gray-800">{{ $workOrder->order_no }}</h3>
-                            @if($workOrder->status === 'IN_PROGRESS')
+                            @if($workOrder->status === 'PENDING')
+                                <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                                    Pending
+                                </span>
+                            @elseif($workOrder->status === 'IN_PROGRESS')
                                 <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                                     In Progress
                                 </span>
@@ -55,9 +59,9 @@
                         <div class="mb-3">
                             <p class="text-sm text-gray-600">Quantity</p>
                             <p class="font-medium text-gray-800">
-                                {{ number_format($workOrder->completed_qty, 2) }} / {{ number_format($workOrder->planned_qty, 2) }}
+                                {{ number_format($workOrder->produced_qty, 2) }} / {{ number_format($workOrder->planned_qty, 2) }}
                                 <span class="text-sm text-gray-500">
-                                    ({{ number_format(($workOrder->completed_qty / $workOrder->planned_qty) * 100, 1) }}%)
+                                    ({{ number_format(($workOrder->produced_qty / $workOrder->planned_qty) * 100, 1) }}%)
                                 </span>
                             </p>
                         </div>
@@ -122,7 +126,7 @@
                         <!-- Quantity -->
                         <div class="mb-3">
                             <p class="text-sm text-gray-600">Completed</p>
-                            <p class="font-medium text-gray-800">{{ number_format($workOrder->completed_qty, 2) }}</p>
+                            <p class="font-medium text-gray-800">{{ number_format($workOrder->produced_qty, 2) }}</p>
                         </div>
 
                         <!-- Completed At -->
