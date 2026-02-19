@@ -1,0 +1,22 @@
+services:
+  backend:
+    volumes:
+      - ./backend:/var/www/html   # live source mount — Blade changes visible on refresh
+      - vendor_cache:/var/www/html/vendor  # keep vendor built into the image
+
+  vite:
+    image: node:22-alpine
+    container_name: openmmes-vite
+    working_dir: /app
+    volumes:
+      - ./backend:/app             # shares source with backend
+      - node_modules_cache:/app/node_modules
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install --silent && npm run dev"
+    networks:
+      - openmmes-network
+
+volumes:
+  vendor_cache:
+  node_modules_cache:
