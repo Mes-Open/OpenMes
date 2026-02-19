@@ -258,7 +258,7 @@
     @apply self-stretch w-px bg-gray-200 mx-1;
 }
 .dd-item {
-    @apply px-5 py-3 hover:bg-blue-50 transition-colors;
+    @apply px-6 py-3.5 hover:bg-blue-50 transition-colors;
 }
 .dd-item a {
     @apply block text-sm text-gray-700 hover:text-blue-700 whitespace-nowrap;
