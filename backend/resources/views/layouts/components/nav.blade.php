@@ -252,7 +252,7 @@
 
 <style>
 .nav-link {
-    @apply text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap;
+    @apply text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap;
 }
 .nav-sep {
     @apply self-stretch w-px bg-gray-200 mx-1;
