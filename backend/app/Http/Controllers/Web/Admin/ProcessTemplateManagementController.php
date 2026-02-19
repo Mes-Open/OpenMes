@@ -245,10 +245,13 @@ class ProcessTemplateManagementController extends Controller
             ->first();
 
         if ($previousStep) {
-            DB::transaction(function () use ($step, $previousStep) {
-                $step->update(['step_number' => $step->step_number - 1]);
-                $previousStep->update(['step_number' => $previousStep->step_number + 1]);
-            });
+            DB::table('template_steps')
+                ->whereIn('id', [$step->id, $previousStep->id])
+                ->update([
+                    'step_number' => DB::raw(
+                        "CASE id WHEN {$step->id} THEN {$previousStep->step_number} WHEN {$previousStep->id} THEN {$step->step_number} END"
+                    ),
+                ]);
         }
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
@@ -277,10 +280,13 @@ class ProcessTemplateManagementController extends Controller
             ->first();
 
         if ($nextStep) {
-            DB::transaction(function () use ($step, $nextStep) {
-                $step->update(['step_number' => $step->step_number + 1]);
-                $nextStep->update(['step_number' => $nextStep->step_number - 1]);
-            });
+            DB::table('template_steps')
+                ->whereIn('id', [$step->id, $nextStep->id])
+                ->update([
+                    'step_number' => DB::raw(
+                        "CASE id WHEN {$step->id} THEN {$nextStep->step_number} WHEN {$nextStep->id} THEN {$step->step_number} END"
+                    ),
+                ]);
         }
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
