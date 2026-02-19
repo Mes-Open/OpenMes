@@ -62,8 +62,8 @@ trait Auditable
      */
     protected function createAuditLog(string $action, ?array $beforeState, ?array $afterState)
     {
-        // Skip if in console and not explicitly enabled
-        if (app()->runningInConsole() && !config('audit.log_console', false)) {
+        // Skip if in console (but not during tests) and not explicitly enabled
+        if (app()->runningInConsole() && !app()->runningUnitTests() && !config('audit.log_console', false)) {
             return;
         }
 

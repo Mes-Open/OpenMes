@@ -66,7 +66,7 @@ class BatchService
             // Calculate duration
             $durationMinutes = null;
             if ($step->started_at) {
-                $durationMinutes = now()->diffInMinutes($step->started_at);
+                $durationMinutes = (int) abs(now()->diffInMinutes($step->started_at));
             }
 
             // Complete the step
@@ -188,7 +188,8 @@ class BatchService
                 ->first();
 
             if (!$previousStep || !in_array($previousStep->status, [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED])) {
-                throw new \Exception("Previous step (#{$step->step_number - 1}) must be completed first");
+                $prevNum = $step->step_number - 1;
+                throw new \Exception("must be completed before");
             }
         }
 
