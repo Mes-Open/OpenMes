@@ -54,8 +54,8 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <a href="{{ route('admin.work-orders.index') }}" class="dd-item">Work Orders</a>
-                        <a href="{{ route('admin.csv-import') }}" class="dd-item">Import CSV</a>
+                        <div class="dd-item"><a href="{{ route('admin.work-orders.index') }}">Work Orders</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.csv-import') }}">Import CSV</a></div>
                     </div>
                 </div>
 
@@ -69,12 +69,12 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <a href="{{ route('admin.product-types.index') }}" class="dd-item">Product Types</a>
-                        <a href="{{ route('admin.lines.index') }}" class="dd-item">Lines</a>
-                        <a href="{{ route('admin.issues.index') }}" class="dd-item">Issues</a>
+                        <div class="dd-item"><a href="{{ route('admin.product-types.index') }}">Product Types</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.lines.index') }}">Lines</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.issues.index') }}">Issues</a></div>
                         <div class="my-1 border-t border-gray-100"></div>
-                        <a href="{{ route('admin.companies.index') }}" class="dd-item">Companies</a>
-                        <a href="{{ route('admin.anomaly-reasons.index') }}" class="dd-item">Anomaly Reasons</a>
+                        <div class="dd-item"><a href="{{ route('admin.companies.index') }}">Companies</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.anomaly-reasons.index') }}">Anomaly Reasons</a></div>
                     </div>
                 </div>
 
@@ -88,10 +88,10 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <a href="{{ route('admin.factories.index') }}" class="dd-item">Factories</a>
-                        <a href="{{ route('admin.divisions.index') }}" class="dd-item">Divisions</a>
-                        <a href="{{ route('admin.workstation-types.index') }}" class="dd-item">Workstation Types</a>
-                        <a href="{{ route('admin.subassemblies.index') }}" class="dd-item">Subassemblies</a>
+                        <div class="dd-item"><a href="{{ route('admin.factories.index') }}">Factories</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.divisions.index') }}">Divisions</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.workstation-types.index') }}">Workstation Types</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.subassemblies.index') }}">Subassemblies</a></div>
                     </div>
                 </div>
 
@@ -107,10 +107,10 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <a href="{{ route('admin.workers.index') }}" class="dd-item">Workers</a>
-                        <a href="{{ route('admin.crews.index') }}" class="dd-item">Crews</a>
-                        <a href="{{ route('admin.skills.index') }}" class="dd-item">Skills</a>
-                        <a href="{{ route('admin.wage-groups.index') }}" class="dd-item">Wage Groups</a>
+                        <div class="dd-item"><a href="{{ route('admin.workers.index') }}">Workers</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.crews.index') }}">Crews</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.skills.index') }}">Skills</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.wage-groups.index') }}">Wage Groups</a></div>
                     </div>
                 </div>
 
@@ -124,10 +124,10 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <a href="{{ route('admin.maintenance-events.index') }}" class="dd-item">Events</a>
-                        <a href="{{ route('admin.tools.index') }}" class="dd-item">Tools</a>
-                        <a href="{{ route('admin.cost-sources.index') }}" class="dd-item">Cost Sources</a>
-                        <a href="{{ route('admin.production-anomalies.index') }}" class="dd-item">Anomalies</a>
+                        <div class="dd-item"><a href="{{ route('admin.maintenance-events.index') }}">Events</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.tools.index') }}">Tools</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.cost-sources.index') }}">Cost Sources</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.production-anomalies.index') }}">Anomalies</a></div>
                     </div>
                 </div>
 
@@ -141,10 +141,10 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <a href="{{ route('admin.users.index') }}" class="dd-item">Users</a>
-                        <a href="{{ route('admin.reports') }}" class="dd-item">Reports</a>
-                        <a href="{{ route('admin.audit-logs') }}" class="dd-item">Audit Logs</a>
-                        <a href="{{ route('admin.modules.index') }}" class="dd-item">Modules</a>
+                        <div class="dd-item"><a href="{{ route('admin.users.index') }}">Users</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.reports') }}">Reports</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.audit-logs') }}">Audit Logs</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.modules.index') }}">Modules</a></div>
                     </div>
                 </div>
 
@@ -258,7 +258,10 @@
     @apply self-stretch w-px bg-gray-200 mx-1;
 }
 .dd-item {
-    @apply block px-5 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors whitespace-nowrap;
+    @apply px-5 py-3 hover:bg-blue-50 transition-colors;
+}
+.dd-item a {
+    @apply block text-sm text-gray-700 hover:text-blue-700 whitespace-nowrap;
 }
 .mobile-link {
     @apply block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100;
