@@ -1,5 +1,11 @@
 services:
+  postgres:
+    ports:
+      - "5433:5432"    # avoid conflict with local system postgres on 5432
+
   backend:
+    ports:
+      - "8080:8000"    # avoid conflict with local system service on port 80
     volumes:
       - ./backend:/var/www/html   # live source mount — Blade changes visible on refresh
       - vendor_cache:/var/www/html/vendor  # keep vendor built into the image
