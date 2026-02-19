@@ -245,13 +245,11 @@ class ProcessTemplateManagementController extends Controller
             ->first();
 
         if ($previousStep) {
-            DB::table('template_steps')
-                ->whereIn('id', [$step->id, $previousStep->id])
-                ->update([
-                    'step_number' => DB::raw(
-                        "CASE id WHEN {$step->id} THEN {$previousStep->step_number} WHEN {$previousStep->id} THEN {$step->step_number} END"
-                    ),
-                ]);
+            $origStep     = $step->step_number;
+            $origPrevious = $previousStep->step_number;
+            DB::table('template_steps')->where('id', $step->id)->update(['step_number' => -1]);
+            DB::table('template_steps')->where('id', $previousStep->id)->update(['step_number' => $origStep]);
+            DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origPrevious]);
         }
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
@@ -280,13 +278,11 @@ class ProcessTemplateManagementController extends Controller
             ->first();
 
         if ($nextStep) {
-            DB::table('template_steps')
-                ->whereIn('id', [$step->id, $nextStep->id])
-                ->update([
-                    'step_number' => DB::raw(
-                        "CASE id WHEN {$step->id} THEN {$nextStep->step_number} WHEN {$nextStep->id} THEN {$step->step_number} END"
-                    ),
-                ]);
+            $origStep     = $step->step_number;
+            $origNext     = $nextStep->step_number;
+            DB::table('template_steps')->where('id', $step->id)->update(['step_number' => -1]);
+            DB::table('template_steps')->where('id', $nextStep->id)->update(['step_number' => $origStep]);
+            DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origNext]);
         }
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
