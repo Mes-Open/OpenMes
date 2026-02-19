@@ -117,7 +117,7 @@
                 {{-- Maintenance ▼ --}}
                 <div class="relative" x-data="{ open: false }" @keydown.escape="open = false">
                     <button @click="open = !open" @click.outside="open = false" class="nav-link flex items-center gap-1" :class="{ 'text-blue-600 bg-blue-50': open }">
-                        Maint.
+                        Maintenance
                         <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
                     <div x-show="open" x-cloak @click="open = false"
@@ -252,7 +252,7 @@
 
 <style>
 .nav-link {
-    @apply text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap;
+    @apply text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-5 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap;
 }
 .nav-sep {
     @apply self-stretch w-px bg-gray-200 mx-1;
