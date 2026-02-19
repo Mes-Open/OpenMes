@@ -43,6 +43,7 @@ class ProductTypeManagementController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['unit_of_measure'] = $validated['unit_of_measure'] ?? 'pcs';
 
         ProductType::create($validated);
 
@@ -86,6 +87,7 @@ class ProductTypeManagementController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['unit_of_measure'] = $validated['unit_of_measure'] ?? 'pcs';
 
         $productType->update($validated);
 
