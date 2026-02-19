@@ -28,7 +28,10 @@ class IssueTest extends TestCase
     {
         parent::setUp();
 
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
         $this->user = User::factory()->create();
+        $this->user->assignRole('Operator');
         $this->line = Line::factory()->create();
         $this->user->lines()->attach($this->line);
 
