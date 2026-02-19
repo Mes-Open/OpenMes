@@ -62,15 +62,15 @@ class DashboardController extends Controller
 
         return [
             'total_work_orders' => (clone $query)->count(),
-            'active_work_orders' => (clone $query)->whereIn('status', ['PENDING', 'IN_PROGRESS'])->count(),
-            'completed_work_orders' => (clone $query)->where('status', 'COMPLETED')->count(),
-            'blocked_work_orders' => (clone $query)->where('status', 'BLOCKED')->count(),
+            'active_work_orders' => (clone $query)->whereIn('status', [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_IN_PROGRESS])->count(),
+            'completed_work_orders' => (clone $query)->where('status', WorkOrder::STATUS_DONE)->count(),
+            'blocked_work_orders' => (clone $query)->where('status', WorkOrder::STATUS_BLOCKED)->count(),
             'open_issues' => Issue::where('status', 'OPEN')
                 ->when($lineId, function ($q) use ($lineId) {
                     $q->whereHas('workOrder', fn($wo) => $wo->where('line_id', $lineId));
                 })->count(),
             'blocking_issues' => Issue::where('status', 'OPEN')
-                ->where('is_blocking', true)
+                ->whereHas('issueType', fn($q) => $q->where('is_blocking', true))
                 ->when($lineId, function ($q) use ($lineId) {
                     $q->whereHas('workOrder', fn($wo) => $wo->where('line_id', $lineId));
                 })->count(),
@@ -81,10 +81,10 @@ class DashboardController extends Controller
     {
         $startDate = Carbon::now()->subDays($days)->startOfDay();
 
-        $dailyProduction = WorkOrder::selectRaw('DATE(updated_at) as date, SUM(completed_qty) as total_produced')
+        $dailyProduction = WorkOrder::selectRaw('DATE(updated_at) as date, SUM(produced_qty) as total_produced')
             ->when($lineId, fn($q) => $q->where('line_id', $lineId))
             ->whereBetween('updated_at', [$startDate, Carbon::now()->endOfDay()])
-            ->where('completed_qty', '>', 0)
+            ->where('produced_qty', '>', 0)
             ->groupBy(DB::raw('DATE(updated_at)'))
             ->orderBy('date')
             ->get();
@@ -98,7 +98,7 @@ class DashboardController extends Controller
 
     protected function getCycleTimeData($lineId, $days = 30)
     {
-        $completedBatches = Batch::where('status', 'COMPLETED')
+        $completedBatches = Batch::where('status', Batch::STATUS_DONE)
             ->whereNotNull('started_at')
             ->whereNotNull('completed_at')
             ->when($lineId, function ($q) use ($lineId) {
@@ -109,15 +109,15 @@ class DashboardController extends Controller
             ->get();
 
         return $completedBatches->map(function ($batch) {
-            $startedAt = Carbon::parse($batch->started_at);
-            $completedAt = Carbon::parse($batch->completed_at);
-            $cycleTimeMinutes = $startedAt->diffInMinutes($completedAt);
+            $cycleTimeMinutes = (int) abs(
+                Carbon::parse($batch->started_at)->diffInMinutes(Carbon::parse($batch->completed_at))
+            );
 
             return [
-                'batch_no' => $batch->batch_no,
+                'batch_number' => $batch->batch_number,
                 'work_order_no' => $batch->workOrder->order_no,
-                'product_type' => $batch->workOrder->productType->name,
-                'actual_qty' => $batch->actual_qty,
+                'product_type' => optional($batch->workOrder->productType)->name ?? '—',
+                'produced_qty' => $batch->produced_qty,
                 'cycle_time_minutes' => $cycleTimeMinutes,
                 'cycle_time_hours' => round($cycleTimeMinutes / 60, 2),
                 'completed_at' => $batch->completed_at,
@@ -129,7 +129,6 @@ class DashboardController extends Controller
     {
         $startDate = Carbon::now()->subDays($days);
 
-        // Issues by type
         $issuesByType = Issue::selectRaw('issue_types.name as type_name, COUNT(*) as count')
             ->join('issue_types', 'issues.issue_type_id', '=', 'issue_types.id')
             ->when($lineId, function ($q) use ($lineId) {
@@ -139,7 +138,6 @@ class DashboardController extends Controller
             ->groupBy('issue_types.name')
             ->get();
 
-        // Issues by status
         $issuesByStatus = Issue::selectRaw('status, COUNT(*) as count')
             ->when($lineId, function ($q) use ($lineId) {
                 $q->whereHas('workOrder', fn($wo) => $wo->where('line_id', $lineId));

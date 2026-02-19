@@ -84,8 +84,8 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('settings.change-password');
     })->name('change-password');
 
-    // Operator routes
-    Route::prefix('operator')->name('operator.')->middleware('role:Operator')->group(function () {
+    // Operator routes (Operator, Supervisor, Admin)
+    Route::prefix('operator')->name('operator.')->middleware('role:Operator|Supervisor|Admin')->group(function () {
         Route::get('/select-line', [OperatorLineController::class, 'index'])->name('select-line');
         Route::post('/select-line', [OperatorLineController::class, 'select'])->name('select-line.post');
         Route::get('/queue', [OperatorWorkOrderController::class, 'queue'])->name('queue');
@@ -94,8 +94,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
     });
 
-    // Supervisor routes
-    Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor')->group(function () {
+    // Supervisor routes (Supervisor and Admin)
+    Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor|Admin')->group(function () {
         Route::get('/dashboard', [SupervisorDashboardController::class, 'index'])->name('dashboard');
 
         // Issues management
