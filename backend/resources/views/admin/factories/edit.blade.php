@@ -3,6 +3,12 @@
 @section('title', 'Edit Factory')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Factories', 'url' => route('admin.factories.index')],
+    ['label' => 'Edit Factory', 'url' => null],
+]" />
+
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>

@@ -3,6 +3,12 @@
 @section('title', 'New Cost Source')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Cost Sources', 'url' => route('admin.cost-sources.index')],
+    ['label' => 'New Cost Source', 'url' => null],
+]" />
+
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>

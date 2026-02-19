@@ -3,6 +3,12 @@
 @section('title', 'New Subassembly')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Subassemblies', 'url' => route('admin.subassemblies.index')],
+    ['label' => 'New Subassembly', 'url' => null],
+]" />
+
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>

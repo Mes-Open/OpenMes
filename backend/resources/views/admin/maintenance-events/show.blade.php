@@ -3,6 +3,12 @@
 @section('title', 'Maintenance Event')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Maintenance Events', 'url' => route('admin.maintenance-events.index')],
+    ['label' => $event->title, 'url' => null],
+]" />
+
 <div class="max-w-4xl mx-auto">
     <div class="flex justify-between items-start mb-6">
         <div>

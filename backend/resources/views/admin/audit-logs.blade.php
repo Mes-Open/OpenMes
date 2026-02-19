@@ -3,6 +3,11 @@
 @section('title', 'Audit Logs')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Audit Logs', 'url' => null],
+]" />
+
 <div class="max-w-7xl mx-auto">
     <!-- Header -->
     <div class="mb-6">

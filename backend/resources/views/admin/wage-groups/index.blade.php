@@ -3,6 +3,11 @@
 @section('title', 'Wage Groups')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Wage Groups', 'url' => null],
+]" />
+
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-800">Wage Groups</h1>
