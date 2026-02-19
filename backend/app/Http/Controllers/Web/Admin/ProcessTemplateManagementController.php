@@ -65,7 +65,10 @@ class ProcessTemplateManagementController extends Controller
             abort(404);
         }
 
-        $processTemplate->load(['steps.workstation']);
+        $processTemplate->load([
+            'steps' => fn($q) => $q->orderBy('step_number', 'asc'),
+            'steps.workstation',
+        ]);
         $workstations = Workstation::active()->orderBy('name')->get();
 
         return view('admin.process-templates.show', compact('productType', 'processTemplate', 'workstations'));

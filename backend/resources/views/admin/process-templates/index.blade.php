@@ -13,7 +13,16 @@
         </a>
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-3xl font-bold text-gray-800">Process Templates</h1>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-3xl font-bold text-gray-800">Process Templates</h1>
+                    <span x-data="{ show: false }" class="relative inline-flex items-center" @mouseenter="show = true" @mouseleave="show = false">
+                        <span class="w-5 h-5 rounded-full bg-gray-200 text-gray-500 text-xs flex items-center justify-center cursor-default select-none font-bold hover:bg-blue-100 hover:text-blue-600 transition-colors">i</span>
+                        <div x-show="show" x-cloak class="absolute left-7 top-0 z-20 w-72 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-xl leading-relaxed">
+                            <strong class="block mb-1 text-white">Process Template</strong>
+                            Definiuje kolejność kroków technologicznych dla danego typu produktu. Każdy szablon to przepis na to, jak wyprodukować dany produkt — krok po kroku. Jeden typ produktu może mieć wiele szablonów (np. różne wersje procesu).
+                        </div>
+                    </span>
+                </div>
                 <p class="text-sm text-gray-600 mt-1">{{ $productType->name }}</p>
             </div>
             <a href="{{ route('admin.product-types.process-templates.create', $productType) }}" class="btn-touch btn-primary">
