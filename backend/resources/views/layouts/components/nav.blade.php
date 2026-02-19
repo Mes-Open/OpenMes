@@ -250,24 +250,4 @@
     </div>
 </nav>
 
-<style>
-.nav-link {
-    @apply text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-5 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap;
-}
-.nav-sep {
-    @apply self-stretch w-px bg-gray-200 mx-1;
-}
-.dd-item {
-    @apply px-6 py-3.5 hover:bg-blue-50 transition-colors;
-}
-.dd-item a {
-    @apply block text-sm text-gray-700 hover:text-blue-700 whitespace-nowrap;
-}
-.mobile-link {
-    @apply block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100;
-}
-.mobile-group-label {
-    @apply px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider;
-}
-[x-cloak] { display: none !important; }
-</style>
+<style>[x-cloak] { display: none !important; }</style>
