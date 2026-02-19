@@ -211,7 +211,7 @@ class ReportTest extends TestCase
             ]));
 
         $response->assertStatus(200)
-            ->assertHeader('Content-Type', 'text/csv');
+            ->assertHeader('Content-Type', 'text/csv; charset=utf-8');
 
         $csv = $response->getContent();
         $this->assertStringContainsString('Batch ID', $csv);
@@ -243,7 +243,7 @@ class ReportTest extends TestCase
             ]));
 
         $response->assertStatus(200)
-            ->assertHeader('Content-Type', 'text/csv');
+            ->assertHeader('Content-Type', 'text/csv; charset=utf-8');
 
         $csv = $response->getContent();
         $this->assertStringContainsString('Issue ID', $csv);

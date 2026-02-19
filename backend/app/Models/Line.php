@@ -4,13 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Line extends Model
 {
     use HasFactory;
+
     protected $fillable = [
+        'division_id',
         'code',
         'name',
         'description',
@@ -22,6 +25,14 @@ class Line extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Get the division this line belongs to.
+     */
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class);
     }
 
     /**

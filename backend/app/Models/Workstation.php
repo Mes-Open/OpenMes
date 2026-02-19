@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Workstation extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'line_id',
+        'workstation_type_id',
         'code',
         'name',
         'workstation_type',
@@ -29,6 +33,14 @@ class Workstation extends Model
     public function line(): BelongsTo
     {
         return $this->belongsTo(Line::class);
+    }
+
+    /**
+     * Get the workstation type for this workstation.
+     */
+    public function workstationType(): BelongsTo
+    {
+        return $this->belongsTo(WorkstationType::class);
     }
 
     /**

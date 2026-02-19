@@ -4,8 +4,6 @@ services:
   postgres:
     image: postgres:14-alpine
     container_name: openmmes-postgres
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_DB: openmmes
       POSTGRES_USER: openmmes_user
@@ -25,8 +23,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: openmmes-backend
-    ports:
-      - "80:8000"
     environment:
       DB_CONNECTION: pgsql
       DB_HOST: postgres

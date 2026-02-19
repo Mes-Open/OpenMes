@@ -15,6 +15,26 @@ use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrd
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\IssueManagementController;
+// Gate 2 — Company structure
+use App\Http\Controllers\Web\Admin\FactoryController;
+use App\Http\Controllers\Web\Admin\DivisionController;
+use App\Http\Controllers\Web\Admin\WorkstationTypeController;
+use App\Http\Controllers\Web\Admin\SubassemblyController;
+// Gate 3 — Basics
+use App\Http\Controllers\Web\Admin\CompanyController;
+use App\Http\Controllers\Web\Admin\AnomalyReasonController;
+// Gate 4 — HR
+use App\Http\Controllers\Web\Admin\WageGroupController;
+use App\Http\Controllers\Web\Admin\CrewController;
+use App\Http\Controllers\Web\Admin\SkillController;
+use App\Http\Controllers\Web\Admin\WorkerController;
+// Gate 5 — Tracking advanced
+use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
+// Gate 6 — Costing
+use App\Http\Controllers\Web\Admin\CostSourceController;
+// Gate 7 — Maintenance
+use App\Http\Controllers\Web\Admin\ToolController;
+use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 
 // Installation routes (no middleware)
 Route::prefix('install')->name('install.')->group(function () {
@@ -163,5 +183,70 @@ Route::middleware('auth')->group(function () {
         Route::post('/modules/{name}/enable', [AdminModulesController::class, 'enable'])->name('modules.enable');
         Route::post('/modules/{name}/disable', [AdminModulesController::class, 'disable'])->name('modules.disable');
         Route::delete('/modules/{name}', [AdminModulesController::class, 'destroy'])->name('modules.destroy');
+
+        // ── Gate 2: Company Structure ────────────────────────────────────────
+        // Factories
+        Route::resource('factories', FactoryController::class)->except(['show']);
+        Route::post('/factories/{factory}/toggle-active', [FactoryController::class, 'toggleActive'])->name('factories.toggle-active');
+
+        // Divisions
+        Route::resource('divisions', DivisionController::class)->except(['show']);
+        Route::post('/divisions/{division}/toggle-active', [DivisionController::class, 'toggleActive'])->name('divisions.toggle-active');
+
+        // Workstation Types
+        Route::resource('workstation-types', WorkstationTypeController::class)->except(['show']);
+        Route::post('/workstation-types/{workstationType}/toggle-active', [WorkstationTypeController::class, 'toggleActive'])->name('workstation-types.toggle-active');
+
+        // Subassemblies
+        Route::resource('subassemblies', SubassemblyController::class)->except(['show']);
+        Route::post('/subassemblies/{subassembly}/toggle-active', [SubassemblyController::class, 'toggleActive'])->name('subassemblies.toggle-active');
+
+        // ── Gate 3: Basics / Dictionaries ────────────────────────────────────
+        // Companies (contractors)
+        Route::resource('companies', CompanyController::class)->except(['show']);
+        Route::post('/companies/{company}/toggle-active', [CompanyController::class, 'toggleActive'])->name('companies.toggle-active');
+
+        // Anomaly Reasons
+        Route::resource('anomaly-reasons', AnomalyReasonController::class)->except(['show']);
+        Route::post('/anomaly-reasons/{anomalyReason}/toggle-active', [AnomalyReasonController::class, 'toggleActive'])->name('anomaly-reasons.toggle-active');
+
+        // ── Gate 4: HR ───────────────────────────────────────────────────────
+        // Wage Groups
+        Route::resource('wage-groups', WageGroupController::class)->except(['show']);
+        Route::post('/wage-groups/{wageGroup}/toggle-active', [WageGroupController::class, 'toggleActive'])->name('wage-groups.toggle-active');
+
+        // Crews
+        Route::resource('crews', CrewController::class)->except(['show']);
+        Route::post('/crews/{crew}/toggle-active', [CrewController::class, 'toggleActive'])->name('crews.toggle-active');
+
+        // Skills
+        Route::resource('skills', SkillController::class)->except(['show']);
+
+        // Workers
+        Route::resource('workers', WorkerController::class)->except(['show']);
+        Route::post('/workers/{worker}/toggle-active', [WorkerController::class, 'toggleActive'])->name('workers.toggle-active');
+
+        // ── Gate 5: Tracking Advanced ─────────────────────────────────────────
+        // Production Anomalies
+        Route::get('/production-anomalies', [ProductionAnomalyController::class, 'index'])->name('production-anomalies.index');
+        Route::get('/production-anomalies/create', [ProductionAnomalyController::class, 'create'])->name('production-anomalies.create');
+        Route::post('/production-anomalies', [ProductionAnomalyController::class, 'store'])->name('production-anomalies.store');
+        Route::post('/production-anomalies/{productionAnomaly}/process', [ProductionAnomalyController::class, 'process'])->name('production-anomalies.process');
+        Route::delete('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'destroy'])->name('production-anomalies.destroy');
+
+        // ── Gate 6: Costing ───────────────────────────────────────────────────
+        // Cost Sources
+        Route::resource('cost-sources', CostSourceController::class)->except(['show']);
+        Route::post('/cost-sources/{costSource}/toggle-active', [CostSourceController::class, 'toggleActive'])->name('cost-sources.toggle-active');
+
+        // ── Gate 7: Maintenance ───────────────────────────────────────────────
+        // Tools
+        Route::resource('tools', ToolController::class)->except(['show']);
+
+        // Maintenance Events
+        Route::resource('maintenance-events', MaintenanceEventController::class)->except(['destroy']);
+        Route::post('/maintenance-events/{maintenanceEvent}/start', [MaintenanceEventController::class, 'start'])->name('maintenance-events.start');
+        Route::post('/maintenance-events/{maintenanceEvent}/complete', [MaintenanceEventController::class, 'complete'])->name('maintenance-events.complete');
+        Route::post('/maintenance-events/{maintenanceEvent}/cancel', [MaintenanceEventController::class, 'cancel'])->name('maintenance-events.cancel');
     });
 });

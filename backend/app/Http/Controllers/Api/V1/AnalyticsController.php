@@ -232,7 +232,10 @@ class AnalyticsController extends Controller
             ->when($lineId, function ($q) use ($lineId) {
                 $q->whereHas('batch.workOrder', fn($wo) => $wo->where('line_id', $lineId));
             })
-            ->where('completed_at', '>=', $startDate)
+            ->where(function ($q) use ($startDate) {
+                $q->whereNull('completed_at')
+                    ->orWhere('completed_at', '>=', $startDate);
+            })
             ->selectRaw('name, AVG(duration_minutes) as avg_duration, COUNT(*) as count')
             ->groupBy('name')
             ->orderBy('avg_duration', 'desc')
