@@ -20,14 +20,16 @@ class WorkOrderService
     public function createWorkOrder(array $data): WorkOrder
     {
         return DB::transaction(function () use ($data) {
-            // Get the active process template for this product type
-            $processTemplate = ProcessTemplate::where('product_type_id', $data['product_type_id'])
-                ->where('is_active', true)
-                ->orderBy('version', 'desc')
-                ->firstOrFail();
+            // Get the active process template for this product type (optional)
+            $processTemplate = isset($data['product_type_id'])
+                ? ProcessTemplate::where('product_type_id', $data['product_type_id'])
+                    ->where('is_active', true)
+                    ->orderBy('version', 'desc')
+                    ->first()
+                : null;
 
-            // Generate process snapshot (immutable copy)
-            $processSnapshot = $processTemplate->toSnapshot();
+            // Generate process snapshot (immutable copy) — null if no template
+            $processSnapshot = $processTemplate?->toSnapshot();
 
             // Create work order
             $workOrder = WorkOrder::create([
@@ -94,8 +96,10 @@ class WorkOrderService
                 'status' => Batch::STATUS_PENDING,
             ]);
 
-            // Create batch steps from process snapshot
-            $this->createBatchStepsFromSnapshot($batch, $workOrder->process_snapshot);
+            // Create batch steps from process snapshot (skipped if no snapshot)
+            if (!empty($workOrder->process_snapshot)) {
+                $this->createBatchStepsFromSnapshot($batch, $workOrder->process_snapshot);
+            }
 
             return $batch;
         });

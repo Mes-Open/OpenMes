@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
+use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 
 class WorkOrderManagementController extends Controller
 {
+    public function __construct(protected WorkOrderService $workOrderService) {}
+
     public function index(Request $request)
     {
         $query = WorkOrder::with(['line', 'productType'])->withCount('batches')
@@ -57,13 +60,15 @@ class WorkOrderManagementController extends Controller
             'description'     => 'nullable|string|max:2000',
         ]);
 
-        $validated['status']      = WorkOrder::STATUS_PENDING;
-        $validated['produced_qty'] = 0;
-
-        WorkOrder::create($validated);
+        try {
+            $workOrder = $this->workOrderService->createWorkOrder($validated);
+        } catch (\Exception $e) {
+            return back()->withInput()
+                ->with('error', 'Failed to create work order: ' . $e->getMessage());
+        }
 
         return redirect()->route('admin.work-orders.index')
-            ->with('success', "Work order {$validated['order_no']} created.");
+            ->with('success', "Work order {$workOrder->order_no} created.");
     }
 
     public function show(WorkOrder $workOrder)
