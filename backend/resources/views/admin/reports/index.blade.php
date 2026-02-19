@@ -3,6 +3,11 @@
 @section('title', 'Production Reports')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Reports', 'url' => null],
+]" />
+
 <div class="max-w-7xl mx-auto" x-data>
 
     {{-- Page header --}}

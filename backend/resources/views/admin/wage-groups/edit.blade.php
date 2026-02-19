@@ -3,6 +3,12 @@
 @section('title', 'Edit Wage Group')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Wage Groups', 'url' => route('admin.wage-groups.index')],
+    ['label' => 'Edit Wage Group', 'url' => null],
+]" />
+
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>

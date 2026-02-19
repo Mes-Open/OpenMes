@@ -3,6 +3,11 @@
 @section('title', 'Issue Types')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Issue Types', 'url' => null],
+]" />
+
 <div class="max-w-4xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>

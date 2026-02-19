@@ -3,6 +3,13 @@
 @section('title', 'Workstations - ' . $line->name)
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Lines', 'url' => route('admin.lines.index')],
+    ['label' => $line->name, 'url' => route('admin.lines.show', $line)],
+    ['label' => 'Workstations', 'url' => null],
+]" />
+
 <div class="max-w-7xl mx-auto">
     <div class="mb-6">
         <a href="{{ route('admin.lines.show', $line) }}" class="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">

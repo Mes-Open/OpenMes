@@ -3,6 +3,13 @@
 @section('title', 'Edit Production Line')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Lines', 'url' => route('admin.lines.index')],
+    ['label' => $line->name, 'url' => route('admin.lines.show', $line)],
+    ['label' => 'Edit', 'url' => null],
+]" />
+
 <div class="max-w-2xl mx-auto">
     <div class="mb-6">
         <a href="{{ route('admin.lines.index') }}" class="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">

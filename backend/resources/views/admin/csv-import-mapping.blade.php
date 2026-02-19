@@ -3,6 +3,12 @@
 @section('title', 'Map Columns')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'CSV Import', 'url' => route('admin.csv-import')],
+    ['label' => 'Map Columns', 'url' => null],
+]" />
+
 <div class="max-w-7xl mx-auto"
      x-data="csvMapper({{ json_encode($headers) }}, {{ json_encode(session('prev_mapping', $existingMapping?->mapping_config['column_mappings'] ?? [])) }})">
 

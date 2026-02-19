@@ -3,6 +3,12 @@
 @section('title', 'New Workstation Type')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Workstation Types', 'url' => route('admin.workstation-types.index')],
+    ['label' => 'New Workstation Type', 'url' => null],
+]" />
+
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>

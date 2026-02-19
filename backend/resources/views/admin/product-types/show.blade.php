@@ -3,6 +3,12 @@
 @section('title', 'Product Type Details')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Product Types', 'url' => route('admin.product-types.index')],
+    ['label' => $productType->name, 'url' => null],
+]" />
+
 <div class="max-w-7xl mx-auto">
     <div class="mb-6">
         <a href="{{ route('admin.product-types.index') }}" class="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">

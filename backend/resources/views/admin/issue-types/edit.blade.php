@@ -3,6 +3,12 @@
 @section('title', 'Edit Issue Type')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Issue Types', 'url' => route('admin.issue-types.index')],
+    ['label' => 'Edit Issue Type', 'url' => null],
+]" />
+
 <div class="max-w-xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-800">Edit Issue Type</h1>

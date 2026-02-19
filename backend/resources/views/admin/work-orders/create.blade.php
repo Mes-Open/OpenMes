@@ -3,6 +3,12 @@
 @section('title', 'New Work Order')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Work Orders', 'url' => route('admin.work-orders.index')],
+    ['label' => 'New Work Order', 'url' => null],
+]" />
+
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>

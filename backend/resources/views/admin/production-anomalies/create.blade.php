@@ -3,6 +3,12 @@
 @section('title', 'Record Production Anomaly')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Production Anomalies', 'url' => route('admin.production-anomalies.index')],
+    ['label' => 'Record Anomaly', 'url' => null],
+]" />
+
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>
