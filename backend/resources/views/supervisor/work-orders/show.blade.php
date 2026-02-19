@@ -7,7 +7,7 @@
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-            <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex items-center gap-3">
                 <h1 class="text-3xl font-bold text-gray-800 font-mono">{{ $workOrder->order_no }}</h1>
                 @include('components.wo-status-badge', ['status' => $workOrder->status])
             </div>
@@ -16,45 +16,37 @@
                 @if($workOrder->productType) · {{ $workOrder->productType->name }} @endif
             </p>
         </div>
-        <div class="flex flex-wrap gap-2">
+        <div class="flex gap-2">
+            {{-- Status action buttons --}}
             @if($workOrder->status === 'PENDING')
-                <form method="POST" action="{{ route('admin.work-orders.accept', $workOrder) }}">@csrf
+                <form method="POST" action="{{ route('supervisor.work-orders.accept', $workOrder) }}">@csrf
                     <button class="btn-touch btn-primary text-sm">Accept</button>
                 </form>
-                <form method="POST" action="{{ route('admin.work-orders.reject', $workOrder) }}"
+                <form method="POST" action="{{ route('supervisor.work-orders.reject', $workOrder) }}"
                       onsubmit="return confirm('Reject this work order?')">@csrf
                     <button class="btn-touch btn-secondary text-sm text-red-600">Reject</button>
                 </form>
             @elseif($workOrder->status === 'ACCEPTED')
-                <form method="POST" action="{{ route('admin.work-orders.reject', $workOrder) }}"
+                <form method="POST" action="{{ route('supervisor.work-orders.reject', $workOrder) }}"
                       onsubmit="return confirm('Reject this work order?')">@csrf
                     <button class="btn-touch btn-secondary text-sm text-red-600">Reject</button>
                 </form>
             @elseif($workOrder->status === 'IN_PROGRESS')
-                <form method="POST" action="{{ route('admin.work-orders.pause', $workOrder) }}">@csrf
+                <form method="POST" action="{{ route('supervisor.work-orders.pause', $workOrder) }}">@csrf
                     <button class="btn-touch btn-secondary text-sm text-yellow-700">Pause</button>
                 </form>
             @elseif($workOrder->status === 'PAUSED')
-                <form method="POST" action="{{ route('admin.work-orders.resume', $workOrder) }}">@csrf
+                <form method="POST" action="{{ route('supervisor.work-orders.resume', $workOrder) }}">@csrf
                     <button class="btn-touch btn-primary text-sm">Resume</button>
                 </form>
             @endif
-            @if(!in_array($workOrder->status, ['DONE', 'REJECTED', 'CANCELLED']))
-                <a href="{{ route('admin.work-orders.edit', $workOrder) }}" class="btn-touch btn-secondary text-sm">Edit</a>
-                <form method="POST" action="{{ route('admin.work-orders.cancel', $workOrder) }}"
-                      onsubmit="return confirm('Cancel this work order?')">@csrf
-                    <button class="btn-touch btn-secondary text-sm text-orange-600">Cancel</button>
-                </form>
-            @endif
-            <a href="{{ route('admin.work-orders.index') }}" class="btn-touch btn-secondary text-sm">← Back</a>
+            <a href="{{ route('supervisor.work-orders.index') }}" class="btn-touch btn-secondary text-sm">← Back</a>
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
         {{-- Main --}}
         <div class="lg:col-span-2 space-y-6">
-
             {{-- Details --}}
             <div class="card">
                 <h2 class="text-lg font-bold text-gray-800 mb-4">Details</h2>
@@ -97,19 +89,6 @@
                             <p class="font-medium text-gray-800">{{ $workOrder->description }}</p>
                         </div>
                     @endif
-                    @if(!empty($workOrder->extra_data))
-                        <div class="col-span-2 md:col-span-3">
-                            <p class="text-gray-500 mb-1">Extra Data</p>
-                            <div class="grid grid-cols-2 gap-2">
-                                @foreach($workOrder->extra_data as $key => $val)
-                                    <div class="bg-gray-50 rounded px-2 py-1">
-                                        <span class="text-xs text-gray-400">{{ $key }}</span>
-                                        <p class="text-gray-700 font-medium">{{ $val }}</p>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
                 </div>
             </div>
 
@@ -124,6 +103,10 @@
                 @else
                     <div class="space-y-3">
                         @foreach($workOrder->batches as $batch)
+                            @php
+                                $snapshotSteps = collect($workOrder->process_snapshot['steps'] ?? [])
+                                    ->keyBy('step_number');
+                            @endphp
                             <div class="border border-gray-100 rounded-lg p-3" x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }">
                                 <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
                                     <div class="flex items-center gap-3">
@@ -146,8 +129,9 @@
                                 </div>
                                 <div x-show="open" x-transition class="mt-3 space-y-1">
                                     @foreach($batch->steps as $step)
-                                        <div class="flex items-center gap-3 py-1 px-2 rounded text-sm">
-                                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs
+                                        @php $estimated = $snapshotSteps->get($step->step_number)['estimated_duration_minutes'] ?? null; @endphp
+                                        <div class="flex items-center gap-3 py-1.5 px-2 rounded text-sm">
+                                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0
                                                 @if($step->status === 'DONE')        bg-green-100 text-green-700
                                                 @elseif($step->status === 'IN_PROGRESS') bg-blue-100 text-blue-700
                                                 @else                                bg-gray-100 text-gray-500
@@ -156,6 +140,14 @@
                                             </span>
                                             <span class="flex-1 text-gray-700">{{ $step->name }}</span>
                                             <span class="text-xs text-gray-400">{{ str_replace('_', ' ', $step->status) }}</span>
+                                            @if($step->duration_minutes !== null)
+                                                <span class="text-xs {{ $estimated && $step->duration_minutes > $estimated ? 'text-red-500' : 'text-green-600' }} font-medium">
+                                                    {{ $step->duration_minutes }}min
+                                                    @if($estimated) / est. {{ $estimated }}min @endif
+                                                </span>
+                                            @elseif($estimated)
+                                                <span class="text-xs text-gray-400">est. {{ $estimated }}min</span>
+                                            @endif
                                         </div>
                                     @endforeach
                                     @if($batch->started_at)
@@ -170,12 +162,10 @@
                     </div>
                 @endif
             </div>
-
         </div>
 
         {{-- Sidebar --}}
         <div class="space-y-6">
-
             {{-- Progress --}}
             <div class="card">
                 <h3 class="text-base font-bold text-gray-800 mb-3">Progress</h3>
@@ -209,14 +199,14 @@
             <div class="card">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-base font-bold text-gray-800">Issues</h3>
-                    <a href="{{ route('admin.issues.index', ['search' => $workOrder->order_no]) }}" class="text-xs text-blue-600 hover:underline">Manage →</a>
+                    <a href="{{ route('supervisor.issues.index') }}" class="text-xs text-blue-600 hover:underline">Manage →</a>
                 </div>
                 @if($workOrder->issues->isEmpty())
                     <p class="text-sm text-gray-400 text-center py-3">No issues.</p>
                 @else
                     <div class="space-y-2">
                         @foreach($workOrder->issues as $issue)
-                            <div class="p-2 rounded-lg text-xs {{ in_array($issue->status, ['OPEN','ACKNOWLEDGED']) && $issue->isBlocking() ? 'bg-red-50' : 'bg-gray-50' }}">
+                            <div class="p-2 rounded-lg text-xs {{ in_array($issue->status, ['OPEN','ACKNOWLEDGED']) && $issue->issueType->is_blocking ? 'bg-red-50' : 'bg-gray-50' }}">
                                 <div class="flex justify-between">
                                     <span class="font-medium text-gray-800">{{ $issue->issueType->name }}</span>
                                     <span class="px-1.5 py-0.5 rounded text-xs
@@ -234,7 +224,6 @@
                     </div>
                 @endif
             </div>
-
         </div>
     </div>
 </div>

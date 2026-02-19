@@ -60,29 +60,29 @@ trait Auditable
     /**
      * Create an audit log entry.
      */
-    protected function createAuditLog(string $action, ?array $beforeState, ?array $afterState)
+    protected function createAuditLog(string $action, ?array $beforeState, ?array $afterState): void
     {
-        // Skip if in console (but not during tests) and not explicitly enabled
-        if (app()->runningInConsole() && !app()->runningUnitTests() && !config('audit.log_console', false)) {
+        // Skip if in console (seeding, migrations) but not during unit tests
+        if (app()->runningInConsole() && !app()->runningUnitTests()) {
             return;
         }
 
         // Get current user if authenticated
         $userId = auth()->id();
 
-        // Get request data
-        $ipAddress = request()->ip();
-        $userAgent = request()->userAgent();
+        // Get request data safely (skip in console/test contexts)
+        $ipAddress = app()->runningInConsole() ? null : request()->ip();
+        $userAgent = app()->runningInConsole() ? null : request()->userAgent();
 
         AuditLog::create([
-            'user_id' => $userId,
-            'entity_type' => get_class($this),
-            'entity_id' => $this->getKey(),
-            'action' => $action,
+            'user_id'      => $userId,
+            'entity_type'  => get_class($this),
+            'entity_id'    => $this->getKey(),
+            'action'       => $action,
             'before_state' => $beforeState,
-            'after_state' => $afterState,
-            'ip_address' => $ipAddress,
-            'user_agent' => $userAgent,
+            'after_state'  => $afterState,
+            'ip_address'   => $ipAddress,
+            'user_agent'   => $userAgent,
         ]);
     }
 

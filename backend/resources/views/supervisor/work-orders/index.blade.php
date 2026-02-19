@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Work Orders')
+@section('title', 'Work Orders — Supervisor')
 
 @section('content')
 <div class="max-w-7xl mx-auto">
@@ -9,13 +9,10 @@
             <h1 class="text-3xl font-bold text-gray-800">Work Orders</h1>
             <p class="text-gray-600 mt-1">{{ $workOrders->total() }} orders total</p>
         </div>
-        <a href="{{ route('admin.work-orders.create') }}" class="btn-touch btn-primary">
-            + New Work Order
-        </a>
     </div>
 
     {{-- Filters --}}
-    <form method="GET" action="{{ route('admin.work-orders.index') }}" class="card mb-6">
+    <form method="GET" action="{{ route('supervisor.work-orders.index') }}" class="card mb-6">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
                 <label class="form-label">Search order #</label>
@@ -42,7 +39,7 @@
         </div>
         <div class="flex gap-2 mt-4">
             <button type="submit" class="btn-touch btn-primary text-sm">Filter</button>
-            <a href="{{ route('admin.work-orders.index') }}" class="btn-touch btn-secondary text-sm">Clear</a>
+            <a href="{{ route('supervisor.work-orders.index') }}" class="btn-touch btn-secondary text-sm">Clear</a>
         </div>
     </form>
 
@@ -65,7 +62,7 @@
                     @forelse($workOrders as $wo)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3">
-                                <a href="{{ route('admin.work-orders.show', $wo) }}" class="font-mono font-semibold text-blue-700 hover:underline">
+                                <a href="{{ route('supervisor.work-orders.show', $wo) }}" class="font-mono font-semibold text-blue-700 hover:underline">
                                     {{ $wo->order_no }}
                                 </a>
                                 @if($wo->priority > 0)
@@ -97,43 +94,27 @@
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap items-center gap-1">
-                                    <a href="{{ route('admin.work-orders.show', $wo) }}" class="text-sm text-blue-600 hover:underline">View</a>
-                                    @if(!in_array($wo->status, ['DONE', 'REJECTED', 'CANCELLED']))
-                                        <a href="{{ route('admin.work-orders.edit', $wo) }}" class="text-sm text-gray-600 hover:underline">Edit</a>
-                                    @endif
+                                    <a href="{{ route('supervisor.work-orders.show', $wo) }}" class="text-sm text-blue-600 hover:underline">View</a>
                                     @if($wo->status === 'PENDING')
-                                        <form method="POST" action="{{ route('admin.work-orders.accept', $wo) }}">@csrf
+                                        <form method="POST" action="{{ route('supervisor.work-orders.accept', $wo) }}">@csrf
                                             <button class="text-sm text-green-600 hover:underline font-medium">Accept</button>
                                         </form>
-                                        <form method="POST" action="{{ route('admin.work-orders.reject', $wo) }}"
+                                        <form method="POST" action="{{ route('supervisor.work-orders.reject', $wo) }}"
                                               onsubmit="return confirm('Reject work order {{ $wo->order_no }}?')">@csrf
                                             <button class="text-sm text-red-500 hover:underline">Reject</button>
                                         </form>
                                     @elseif($wo->status === 'ACCEPTED')
-                                        <form method="POST" action="{{ route('admin.work-orders.reject', $wo) }}"
+                                        <form method="POST" action="{{ route('supervisor.work-orders.reject', $wo) }}"
                                               onsubmit="return confirm('Reject work order {{ $wo->order_no }}?')">@csrf
                                             <button class="text-sm text-red-500 hover:underline">Reject</button>
                                         </form>
                                     @elseif($wo->status === 'IN_PROGRESS')
-                                        <form method="POST" action="{{ route('admin.work-orders.pause', $wo) }}">@csrf
+                                        <form method="POST" action="{{ route('supervisor.work-orders.pause', $wo) }}">@csrf
                                             <button class="text-sm text-yellow-600 hover:underline">Pause</button>
                                         </form>
                                     @elseif($wo->status === 'PAUSED')
-                                        <form method="POST" action="{{ route('admin.work-orders.resume', $wo) }}">@csrf
+                                        <form method="POST" action="{{ route('supervisor.work-orders.resume', $wo) }}">@csrf
                                             <button class="text-sm text-blue-600 hover:underline font-medium">Resume</button>
-                                        </form>
-                                    @endif
-                                    @if(!in_array($wo->status, ['DONE', 'REJECTED', 'CANCELLED']))
-                                        <form method="POST" action="{{ route('admin.work-orders.cancel', $wo) }}"
-                                              onsubmit="return confirm('Cancel this work order?')">@csrf
-                                            <button class="text-sm text-orange-600 hover:underline">Cancel</button>
-                                        </form>
-                                    @endif
-                                    @if(!$wo->batches_count && in_array($wo->status, ['PENDING','REJECTED','CANCELLED']))
-                                        <form method="POST" action="{{ route('admin.work-orders.destroy', $wo) }}"
-                                              onsubmit="return confirm('Delete work order {{ $wo->order_no }}?')">@csrf
-                                            @method('DELETE')
-                                            <button class="text-sm text-red-500 hover:underline">Delete</button>
                                         </form>
                                     @endif
                                 </div>
@@ -143,8 +124,6 @@
                         <tr>
                             <td colspan="7" class="px-4 py-10 text-center text-gray-400">
                                 No work orders found.
-                                <a href="{{ route('admin.work-orders.create') }}" class="text-blue-600 hover:underline ml-1">Create one</a>
-                                or <a href="{{ route('admin.csv-import') }}" class="text-blue-600 hover:underline">import from CSV</a>.
                             </td>
                         </tr>
                     @endforelse

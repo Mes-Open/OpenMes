@@ -96,7 +96,7 @@ class WorkOrderManagementController extends Controller
             'priority'        => 'nullable|integer|min:0|max:100',
             'due_date'        => 'nullable|date',
             'description'     => 'nullable|string|max:2000',
-            'status'          => 'required|in:PENDING,IN_PROGRESS,BLOCKED,DONE,CANCELLED',
+            'status'          => 'required|in:PENDING,ACCEPTED,IN_PROGRESS,PAUSED,BLOCKED,DONE,REJECTED,CANCELLED',
         ]);
 
         $workOrder->update($validated);
@@ -121,14 +121,50 @@ class WorkOrderManagementController extends Controller
 
     public function cancel(WorkOrder $workOrder)
     {
-        if (in_array($workOrder->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED])) {
+        if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
             return redirect()->back()
-                ->with('error', 'Cannot cancel a completed or already cancelled work order.');
+                ->with('error', 'Cannot cancel a work order that is already in a terminal state.');
         }
 
         $workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
 
         return redirect()->back()
             ->with('success', "Work order {$workOrder->order_no} cancelled.");
+    }
+
+    public function accept(WorkOrder $workOrder)
+    {
+        if ($workOrder->status !== WorkOrder::STATUS_PENDING) {
+            return redirect()->back()->with('error', 'Only PENDING work orders can be accepted.');
+        }
+        $workOrder->update(['status' => WorkOrder::STATUS_ACCEPTED]);
+        return redirect()->back()->with('success', "Work order {$workOrder->order_no} accepted.");
+    }
+
+    public function reject(WorkOrder $workOrder)
+    {
+        if (!in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
+            return redirect()->back()->with('error', 'Only PENDING or ACCEPTED work orders can be rejected.');
+        }
+        $workOrder->update(['status' => WorkOrder::STATUS_REJECTED]);
+        return redirect()->back()->with('success', "Work order {$workOrder->order_no} rejected.");
+    }
+
+    public function pause(WorkOrder $workOrder)
+    {
+        if ($workOrder->status !== WorkOrder::STATUS_IN_PROGRESS) {
+            return redirect()->back()->with('error', 'Only IN_PROGRESS work orders can be paused.');
+        }
+        $workOrder->update(['status' => WorkOrder::STATUS_PAUSED]);
+        return redirect()->back()->with('success', "Work order {$workOrder->order_no} paused.");
+    }
+
+    public function resume(WorkOrder $workOrder)
+    {
+        if ($workOrder->status !== WorkOrder::STATUS_PAUSED) {
+            return redirect()->back()->with('error', 'Only PAUSED work orders can be resumed.');
+        }
+        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+        return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
     }
 }

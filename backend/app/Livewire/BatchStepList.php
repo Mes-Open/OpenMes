@@ -18,6 +18,9 @@ class BatchStepList extends Component
         $this->loadBatch();
     }
 
+    /** Estimated durations keyed by step_number, from process_snapshot */
+    public array $estimatedDurations = [];
+
     public function loadBatch(): void
     {
         $this->batch = Batch::with([
@@ -25,6 +28,13 @@ class BatchStepList extends Component
             'steps.completedBy',
             'workOrder.productType',
         ])->find($this->batchId);
+
+        if ($this->batch) {
+            $snapshot = $this->batch->workOrder->process_snapshot ?? [];
+            $this->estimatedDurations = collect($snapshot['steps'] ?? [])
+                ->pluck('estimated_duration_minutes', 'step_number')
+                ->toArray();
+        }
     }
 
     public function startStep(int $stepId): void

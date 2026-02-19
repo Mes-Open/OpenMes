@@ -28,7 +28,7 @@
                 <div>
                     <label class="form-label">Status <span class="text-red-500">*</span></label>
                     <select name="status" class="form-input w-full" required>
-                        @foreach(['PENDING','IN_PROGRESS','BLOCKED','DONE','CANCELLED'] as $s)
+                        @foreach(['PENDING','ACCEPTED','IN_PROGRESS','PAUSED','BLOCKED','DONE','REJECTED','CANCELLED'] as $s)
                             <option value="{{ $s }}" @selected(old('status', $workOrder->status) === $s)>{{ str_replace('_', ' ', $s) }}</option>
                         @endforeach
                     </select>

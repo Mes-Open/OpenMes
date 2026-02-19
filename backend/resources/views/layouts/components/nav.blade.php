@@ -51,6 +51,7 @@
                 {{-- Supervisor links --}}
                 @hasrole('Supervisor')
                     <a href="{{ route('supervisor.dashboard') }}" class="nav-link">Dashboard</a>
+                    <a href="{{ route('supervisor.work-orders.index') }}" class="nav-link">Work Orders</a>
                     <a href="{{ route('supervisor.issues.index') }}" class="nav-link">Issues</a>
                     <a href="{{ route('supervisor.reports') }}" class="nav-link">Reports</a>
                 @endhasrole
@@ -277,6 +278,7 @@
 
             @hasrole('Supervisor')
                 <a href="{{ route('supervisor.dashboard') }}" class="mobile-link">Dashboard</a>
+                <a href="{{ route('supervisor.work-orders.index') }}" class="mobile-link">Work Orders</a>
                 <a href="{{ route('supervisor.issues.index') }}" class="mobile-link">Issues</a>
                 <a href="{{ route('supervisor.reports') }}" class="mobile-link">Reports</a>
             @endhasrole

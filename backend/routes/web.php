@@ -99,6 +99,14 @@ Route::middleware('auth')->group(function () {
     Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor|Admin')->group(function () {
         Route::get('/dashboard', [SupervisorDashboardController::class, 'index'])->name('dashboard');
 
+        // Work Orders (supervisor can manage status)
+        Route::get('/work-orders', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'index'])->name('work-orders.index');
+        Route::get('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'show'])->name('work-orders.show');
+        Route::post('/work-orders/{workOrder}/accept', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'accept'])->name('work-orders.accept');
+        Route::post('/work-orders/{workOrder}/reject', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'reject'])->name('work-orders.reject');
+        Route::post('/work-orders/{workOrder}/pause', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'pause'])->name('work-orders.pause');
+        Route::post('/work-orders/{workOrder}/resume', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'resume'])->name('work-orders.resume');
+
         // Issues management
         Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
@@ -118,6 +126,10 @@ Route::middleware('auth')->group(function () {
         // Work Orders
         Route::resource('work-orders', AdminWorkOrderController::class);
         Route::post('/work-orders/{workOrder}/cancel', [AdminWorkOrderController::class, 'cancel'])->name('work-orders.cancel');
+        Route::post('/work-orders/{workOrder}/accept', [AdminWorkOrderController::class, 'accept'])->name('work-orders.accept');
+        Route::post('/work-orders/{workOrder}/reject', [AdminWorkOrderController::class, 'reject'])->name('work-orders.reject');
+        Route::post('/work-orders/{workOrder}/pause', [AdminWorkOrderController::class, 'pause'])->name('work-orders.pause');
+        Route::post('/work-orders/{workOrder}/resume', [AdminWorkOrderController::class, 'resume'])->name('work-orders.resume');
 
         // Issue Types
         Route::resource('issue-types', AdminIssueTypeController::class);

@@ -34,19 +34,7 @@
                         <!-- Header -->
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-lg font-bold text-gray-800">{{ $workOrder->order_no }}</h3>
-                            @if($workOrder->status === 'PENDING')
-                                <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-                                    Pending
-                                </span>
-                            @elseif($workOrder->status === 'IN_PROGRESS')
-                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                                    In Progress
-                                </span>
-                            @elseif($workOrder->status === 'BLOCKED')
-                                <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
-                                    Blocked
-                                </span>
-                            @endif
+                            @include('components.wo-status-badge', ['status' => $workOrder->status])
                         </div>
 
                         <!-- Product Type -->
