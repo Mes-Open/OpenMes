@@ -2,21 +2,22 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Workstation extends Model
+class Crew extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $fillable = [
-        'line_id',
-        'workstation_type_id',
         'code',
         'name',
-        'workstation_type',
+        'leader_id',
+        'division_id',
+        'description',
         'is_active',
     ];
 
@@ -28,31 +29,31 @@ class Workstation extends Model
     }
 
     /**
-     * Get the line that owns this workstation.
+     * Get the user who leads this crew.
      */
-    public function line(): BelongsTo
+    public function leader(): BelongsTo
     {
-        return $this->belongsTo(Line::class);
+        return $this->belongsTo(User::class, 'leader_id');
     }
 
     /**
-     * Get the workstation type for this workstation.
+     * Get the division this crew belongs to.
      */
-    public function workstationType(): BelongsTo
+    public function division(): BelongsTo
     {
-        return $this->belongsTo(WorkstationType::class);
+        return $this->belongsTo(Division::class);
     }
 
     /**
-     * Get the template steps for this workstation.
+     * Get the workers in this crew.
      */
-    public function templateSteps(): HasMany
+    public function workers(): HasMany
     {
-        return $this->hasMany(TemplateStep::class);
+        return $this->hasMany(Worker::class);
     }
 
     /**
-     * Scope to get only active workstations.
+     * Scope to get only active crews.
      */
     public function scopeActive($query)
     {

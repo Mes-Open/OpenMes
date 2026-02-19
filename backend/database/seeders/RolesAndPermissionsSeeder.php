@@ -8,101 +8,105 @@ use Spatie\Permission\Models\Permission;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create permissions
         $permissions = [
-            // Work Order permissions
-            'view work orders',
-            'create work orders',
-            'edit work orders',
-            'delete work orders',
+            // Work Orders
+            'view work orders', 'create work orders', 'edit work orders', 'delete work orders',
 
-            // Batch & Step permissions
-            'start batch step',
-            'complete batch step',
-            'skip batch step',
+            // Batch & Steps
+            'start batch step', 'complete batch step', 'skip batch step',
 
-            // Issue permissions
-            'view issues',
-            'create issues',
-            'assign issues',
-            'resolve issues',
-            'close issues',
+            // Issues
+            'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
 
-            // Line permissions
-            'view lines',
-            'manage lines',
+            // Lines & Workstations
+            'view lines', 'manage lines',
 
-            // Product & Process permissions
-            'view products',
-            'manage products',
-            'view process templates',
-            'manage process templates',
+            // Product & Process
+            'view products', 'manage products', 'view process templates', 'manage process templates',
 
-            // CSV Import permissions
-            'import csv',
-            'view import history',
+            // CSV Import
+            'import csv', 'view import history',
 
-            // User permissions
-            'view users',
-            'manage users',
+            // Users
+            'view users', 'manage users',
 
-            // Audit permissions
-            'view audit logs',
-            'view event logs',
+            // Audit
+            'view audit logs', 'view event logs',
 
-            // System permissions
+            // System
             'manage system settings',
+
+            // Gate 2 — Company structure
+            'view factories', 'manage factories',
+            'view divisions', 'manage divisions',
+            'view workstation types', 'manage workstation types',
+            'view subassemblies', 'manage subassemblies',
+
+            // Gate 3 — Basics
+            'view companies', 'manage companies',
+            'view anomaly reasons', 'manage anomaly reasons',
+
+            // Gate 4 — HR
+            'view wage groups', 'manage wage groups',
+            'view crews', 'manage crews',
+            'view skills', 'manage skills',
+            'view workers', 'manage workers',
+
+            // Gate 5 — Tracking advanced
+            'view production anomalies', 'manage production anomalies',
+
+            // Gate 6 — Costing
+            'view cost sources', 'manage cost sources',
+
+            // Gate 7 — Maintenance
+            'view tools', 'manage tools',
+            'view maintenance events', 'manage maintenance events',
+
+            // Attachments (cross-cutting)
+            'manage attachments',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission, 'guard_name' => 'sanctum']);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'sanctum']);
         }
 
-        // Create roles and assign permissions
+        // Admin — all permissions
+        $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'sanctum']);
+        $adminRole->syncPermissions(Permission::all());
 
-        // Admin role - all permissions
-        $adminRole = Role::create(['name' => 'Admin', 'guard_name' => 'sanctum']);
-        $adminRole->givePermissionTo(Permission::all());
-
-        // Supervisor role
-        $supervisorRole = Role::create(['name' => 'Supervisor', 'guard_name' => 'sanctum']);
-        $supervisorRole->givePermissionTo([
-            'view work orders',
-            'create work orders',
-            'edit work orders',
-            'start batch step',
-            'complete batch step',
-            'view issues',
-            'create issues',
-            'assign issues',
-            'resolve issues',
-            'close issues',
-            'view lines',
-            'view products',
-            'view process templates',
-            'import csv',
-            'view import history',
-            'view users',
-            'view audit logs',
-            'view event logs',
+        // Supervisor — operational read + production management
+        $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'sanctum']);
+        $supervisorRole->syncPermissions([
+            'view work orders', 'create work orders', 'edit work orders',
+            'start batch step', 'complete batch step',
+            'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
+            'view lines', 'view products', 'view process templates',
+            'import csv', 'view import history',
+            'view users', 'view audit logs', 'view event logs',
+            // Gate 2
+            'view factories', 'view divisions', 'view workstation types', 'view subassemblies',
+            // Gate 3
+            'view companies', 'view anomaly reasons',
+            // Gate 4
+            'view wage groups', 'view crews', 'view skills', 'view workers',
+            // Gate 5
+            'view production anomalies', 'manage production anomalies',
+            // Gate 6
+            'view cost sources',
+            // Gate 7
+            'view tools', 'view maintenance events',
         ]);
 
-        // Operator role
-        $operatorRole = Role::create(['name' => 'Operator', 'guard_name' => 'sanctum']);
-        $operatorRole->givePermissionTo([
+        // Operator — minimal: view queue + execute steps + report issues
+        $operatorRole = Role::firstOrCreate(['name' => 'Operator', 'guard_name' => 'sanctum']);
+        $operatorRole->syncPermissions([
             'view work orders',
-            'start batch step',
-            'complete batch step',
-            'view issues',
-            'create issues',
+            'start batch step', 'complete batch step',
+            'view issues', 'create issues',
         ]);
     }
 }
