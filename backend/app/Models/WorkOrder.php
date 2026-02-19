@@ -12,10 +12,19 @@ class WorkOrder extends Model
 {
     use HasFactory, Auditable;
     const STATUS_PENDING = 'PENDING';
+    const STATUS_ACCEPTED = 'ACCEPTED';
     const STATUS_IN_PROGRESS = 'IN_PROGRESS';
     const STATUS_BLOCKED = 'BLOCKED';
+    const STATUS_PAUSED = 'PAUSED';
     const STATUS_DONE = 'DONE';
+    const STATUS_REJECTED = 'REJECTED';
     const STATUS_CANCELLED = 'CANCELLED';
+
+    /** Statuses that allow operators to work on the order */
+    const ACTIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_ACCEPTED, self::STATUS_IN_PROGRESS, self::STATUS_BLOCKED];
+
+    /** Terminal statuses - no further transitions */
+    const TERMINAL_STATUSES = [self::STATUS_DONE, self::STATUS_REJECTED, self::STATUS_CANCELLED];
 
     protected $fillable = [
         'order_no',
