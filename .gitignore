@@ -30,6 +30,15 @@ backend/yarn-error.log
 # Frontend directory (removed — Blade templates used instead)
 /frontend/
 
+# AI assistant context files (local only — never commit)
+CLAUDE.md
+.cursorrules
+.cursorignore
+.windsurfrules
+.aiderrules
+.copilot-instructions.md
+.github/copilot-instructions.md
+
 # IDE
 .vscode/
 .idea/
