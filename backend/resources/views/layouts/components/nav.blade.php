@@ -52,6 +52,7 @@
                 @hasrole('Supervisor')
                     <a href="{{ route('supervisor.dashboard') }}" class="nav-link">Dashboard</a>
                     <a href="{{ route('supervisor.issues.index') }}" class="nav-link">Issues</a>
+                    <a href="{{ route('supervisor.reports') }}" class="nav-link">Reports</a>
                 @endhasrole
 
                 {{-- Admin links with dropdowns --}}
@@ -231,6 +232,7 @@
                     </div>
 
                     {{-- Flat links --}}
+                    <a href="{{ route('admin.reports') }}" class="nav-link">Reports</a>
                     <a href="{{ route('admin.users.index') }}" class="nav-link">Users</a>
                     <a href="{{ route('admin.audit-logs') }}" class="nav-link">Audit Logs</a>
                     <a href="{{ route('admin.modules.index') }}" class="nav-link">Modules</a>
@@ -276,6 +278,7 @@
             @hasrole('Supervisor')
                 <a href="{{ route('supervisor.dashboard') }}" class="mobile-link">Dashboard</a>
                 <a href="{{ route('supervisor.issues.index') }}" class="mobile-link">Issues</a>
+                <a href="{{ route('supervisor.reports') }}" class="mobile-link">Reports</a>
             @endhasrole
 
             @hasrole('Admin')
@@ -317,6 +320,7 @@
                 <a href="{{ route('admin.production-anomalies.index') }}" class="mobile-link pl-6">Anomalies</a>
 
                 {{-- Other --}}
+                <a href="{{ route('admin.reports') }}" class="mobile-link pl-6">Reports</a>
                 <p class="px-3 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</p>
                 <a href="{{ route('admin.users.index') }}" class="mobile-link pl-6">Users</a>
                 <a href="{{ route('admin.audit-logs') }}" class="mobile-link pl-6">Audit Logs</a>

@@ -4,112 +4,62 @@ namespace App\Livewire;
 
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Services\WorkOrder\BatchService;
 use Livewire\Component;
 
 class BatchStepList extends Component
 {
-    public $batchId;
-    public $batch;
+    public int $batchId;
+    public ?Batch $batch = null;
 
-    public function mount($batchId)
+    public function mount(int $batchId): void
     {
         $this->batchId = $batchId;
         $this->loadBatch();
     }
 
-    public function loadBatch()
+    public function loadBatch(): void
     {
         $this->batch = Batch::with([
             'steps.startedBy',
             'steps.completedBy',
-            'workOrder.productType'
+            'workOrder.productType',
         ])->find($this->batchId);
     }
 
-    public function startStep($stepId)
+    public function startStep(int $stepId): void
     {
         $step = BatchStep::find($stepId);
 
-        if (!$step || $step->batch_id != $this->batchId) {
+        if (!$step || $step->batch_id !== $this->batchId) {
             session()->flash('error', 'Step not found.');
             return;
         }
 
-        if ($step->status !== 'PENDING') {
-            session()->flash('error', 'Step is not in pending status.');
-            return;
+        try {
+            app(BatchService::class)->startStep($step, auth()->user());
+            $this->loadBatch();
+            session()->flash('success', 'Step started.');
+        } catch (\Exception $e) {
+            session()->flash('error', $e->getMessage());
         }
-
-        $step->update([
-            'status' => 'IN_PROGRESS',
-            'started_at' => now(),
-            'started_by' => auth()->id(),
-        ]);
-
-        $this->loadBatch();
-        session()->flash('success', 'Step started successfully.');
     }
 
-    public function completeStep($stepId)
+    public function completeStep(int $stepId): void
     {
         $step = BatchStep::find($stepId);
 
-        if (!$step || $step->batch_id != $this->batchId) {
+        if (!$step || $step->batch_id !== $this->batchId) {
             session()->flash('error', 'Step not found.');
             return;
         }
 
-        if ($step->status !== 'IN_PROGRESS') {
-            session()->flash('error', 'Step is not in progress.');
-            return;
-        }
-
-        $step->update([
-            'status' => 'COMPLETED',
-            'completed_at' => now(),
-            'completed_by' => auth()->id(),
-        ]);
-
-        // Update batch and work order status
-        $this->updateBatchStatus();
-        $this->loadBatch();
-        session()->flash('success', 'Step completed successfully.');
-    }
-
-    protected function updateBatchStatus()
-    {
-        $batch = Batch::find($this->batchId);
-
-        $allSteps = $batch->steps;
-        $completedSteps = $allSteps->where('status', 'COMPLETED')->count();
-        $totalSteps = $allSteps->count();
-
-        if ($completedSteps === $totalSteps) {
-            $batch->update([
-                'status' => 'COMPLETED',
-                'completed_at' => now(),
-            ]);
-
-            // Update work order completed qty
-            $workOrder = $batch->workOrder;
-            $workOrder->increment('completed_qty', $batch->actual_qty);
-
-            // Check if all batches are completed
-            $allBatches = $workOrder->batches;
-            $completedBatches = $allBatches->where('status', 'COMPLETED')->count();
-
-            if ($completedBatches === $allBatches->count() && $workOrder->completed_qty >= $workOrder->planned_qty) {
-                $workOrder->update([
-                    'status' => 'COMPLETED',
-                    'completed_at' => now(),
-                ]);
-            }
-        } elseif ($batch->status === 'PENDING') {
-            $batch->update(['status' => 'IN_PROGRESS']);
-
-            if ($batch->workOrder->status === 'PENDING') {
-                $batch->workOrder->update(['status' => 'IN_PROGRESS']);
-            }
+        try {
+            app(BatchService::class)->completeStep($step, auth()->user());
+            $this->loadBatch();
+            session()->flash('success', 'Step completed.');
+        } catch (\Exception $e) {
+            session()->flash('error', $e->getMessage());
         }
     }
 
