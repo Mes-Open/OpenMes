@@ -33,6 +33,8 @@ services:
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
