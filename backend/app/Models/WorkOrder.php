@@ -112,7 +112,7 @@ class WorkOrder extends Model
             return $this->produced_qty >= $this->planned_qty;
         }
 
-        return bccomp($this->produced_qty, $this->planned_qty, 2) >= 0;
+        return (float) $this->produced_qty >= (float) $this->planned_qty;
     }
 
     /**
@@ -136,6 +136,11 @@ class WorkOrder extends Model
      */
     public function scopeForUser($query, User $user)
     {
+        // Admins and Supervisors see all work orders regardless of line assignment
+        if ($user->hasAnyRole(['Admin', 'Supervisor'])) {
+            return $query;
+        }
+
         $lineIds = $user->lines()->pluck('lines.id');
         return $query->whereIn('line_id', $lineIds);
     }

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Batch extends Model
 {
+    use HasFactory;
+
     const STATUS_PENDING = 'PENDING';
     const STATUS_IN_PROGRESS = 'IN_PROGRESS';
     const STATUS_DONE = 'DONE';

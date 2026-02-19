@@ -82,7 +82,7 @@ class WorkOrderService
     {
         return DB::transaction(function () use ($workOrder, $targetQty) {
             // Calculate next batch number
-            $lastBatch = $workOrder->batches()->orderBy('batch_number', 'desc')->first();
+            $lastBatch = $workOrder->batches()->reorder('batch_number', 'desc')->first();
             $batchNumber = $lastBatch ? $lastBatch->batch_number + 1 : 1;
 
             // Create batch

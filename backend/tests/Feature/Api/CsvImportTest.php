@@ -214,6 +214,9 @@ class CsvImportTest extends TestCase
 
         $uploadId = $uploadResponse->json('data.upload_id');
 
+        // Fake the queue so the job is NOT dispatched automatically
+        Queue::fake();
+
         $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v1/csv-imports/execute', [
                 'upload_id' => $uploadId,
@@ -276,6 +279,9 @@ class CsvImportTest extends TestCase
             ->postJson('/api/v1/csv-imports/upload', ['file' => $file]);
 
         $uploadId = $uploadResponse->json('data.upload_id');
+
+        // Fake the queue so the job is NOT dispatched automatically
+        Queue::fake();
 
         $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/v1/csv-imports/execute', [
