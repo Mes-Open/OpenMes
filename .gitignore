@@ -32,6 +32,7 @@ backend/yarn-error.log
 
 # AI assistant context files (local only — never commit)
 CLAUDE.md
+**/.openmus_conversation*.txt
 .cursorrules
 .cursorignore
 .windsurfrules
