@@ -241,7 +241,7 @@
                     <input type="hidden" name="work_order_id" value="{{ $workOrder->id }}">
                     <div class="mb-4">
                         <label class="form-label">Quantity</label>
-                        <input type="number" name="actual_qty" x-model="quantity"
+                        <input type="number" name="target_qty" x-model="quantity"
                                step="0.01" min="0.01" max="{{ $remaining }}"
                                class="form-input w-full" required>
                         <p class="mt-1 text-sm text-gray-500">

@@ -10,6 +10,7 @@ use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController
 use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
+use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
@@ -103,12 +104,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+        Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
     });
 
     // Admin routes
     Route::prefix('admin')->name('admin.')->middleware('role:Admin')->group(function () {
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        // Reports
+        Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
 
         // Work Orders
         Route::resource('work-orders', AdminWorkOrderController::class);
