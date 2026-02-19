@@ -79,7 +79,10 @@ class IssueTypesSeeder extends Seeder
         ];
 
         foreach ($issueTypes as $issueType) {
-            DB::table('issue_types')->insert($issueType);
+            DB::table('issue_types')->updateOrInsert(
+                ['code' => $issueType['code']],
+                $issueType
+            );
         }
     }
 }
