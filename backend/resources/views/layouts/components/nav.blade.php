@@ -22,7 +22,7 @@
             </div>
 
             {{-- Desktop nav --}}
-            <div class="hidden md:flex items-center gap-0.5">
+            <div class="hidden md:flex items-center gap-1.5">
                 @auth
 
                 {{-- OPERATOR --}}
@@ -95,6 +95,8 @@
                     </div>
                 </div>
 
+                <span class="nav-sep"></span>
+
                 {{-- HR ▼ --}}
                 <div class="relative" x-data="{ open: false }" @keydown.escape="open = false">
                     <button @click="open = !open" @click.outside="open = false" class="nav-link flex items-center gap-1" :class="{ 'text-blue-600 bg-blue-50': open }">
@@ -148,8 +150,7 @@
 
                 @endhasrole
 
-                {{-- Divider --}}
-                <span class="mx-1.5 h-5 w-px bg-gray-200 shrink-0"></span>
+                <span class="nav-sep"></span>
 
                 {{-- Settings icon --}}
                 <a href="{{ route('settings.index') }}" class="nav-link p-2" title="Settings">
@@ -251,7 +252,10 @@
 
 <style>
 .nav-link {
-    @apply text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-2.5 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap;
+    @apply text-gray-700 hover:text-blue-600 hover:bg-gray-50 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap;
+}
+.nav-sep {
+    @apply self-stretch w-px bg-gray-200 mx-1;
 }
 .dd-item {
     @apply block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors whitespace-nowrap;
