@@ -30,9 +30,12 @@ class ProcessTemplateFactory extends Factory
     public function withSteps(int $count = 3): static
     {
         return $this->afterCreating(function ($template) use ($count) {
-            \App\Models\TemplateStep::factory($count)->create([
-                'process_template_id' => $template->id,
-            ]);
+            for ($i = 1; $i <= $count; $i++) {
+                \App\Models\TemplateStep::factory()->create([
+                    'process_template_id' => $template->id,
+                    'step_number' => $i,
+                ]);
+            }
         });
     }
 }

@@ -54,7 +54,7 @@ class CsvParserService
         $filename = uniqid('csv_') . '_' . $file->getClientOriginalName();
         $path = $file->storeAs('csv-imports', $filename, 'local');
 
-        return storage_path('app/' . $path);
+        return \Illuminate\Support\Facades\Storage::disk('local')->path($path);
     }
 
     /**
@@ -62,7 +62,7 @@ class CsvParserService
      */
     public function getFullPath(string $storagePath): string
     {
-        return storage_path('app/' . $storagePath);
+        return \Illuminate\Support\Facades\Storage::disk('local')->path($storagePath);
     }
 
     /**
