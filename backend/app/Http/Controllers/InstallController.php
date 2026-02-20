@@ -168,20 +168,19 @@ class InstallController extends Controller
             $errorCode = $e->getCode();
             $errorMessage = $e->getMessage();
 
-            // Provide specific error messages in Polish
             if (str_contains($errorMessage, 'timeout') || str_contains($errorMessage, 'timed out')) {
-                return back()->withErrors(['db_connection' => 'Przekroczono limit czasu połączenia (30 sekund). Sprawdź, czy baza danych jest dostępna.'])->withInput();
+                return back()->withErrors(['db_connection' => 'Connection timed out (30 s). Check that the database server is reachable.'])->withInput();
             } elseif (str_contains($errorMessage, 'password authentication failed') || $errorCode === '28P01') {
-                return back()->withErrors(['db_connection' => 'Nieprawidłowa nazwa użytkownika lub hasło do bazy danych.'])->withInput();
+                return back()->withErrors(['db_connection' => 'Invalid database username or password.'])->withInput();
             } elseif (str_contains($errorMessage, 'database') && str_contains($errorMessage, 'does not exist')) {
-                return back()->withErrors(['db_connection' => 'Baza danych "' . $validated['db_database'] . '" nie istnieje. Utwórz ją przed kontynuowaniem.'])->withInput();
+                return back()->withErrors(['db_connection' => 'Database "' . $validated['db_database'] . '" does not exist. Create it before continuing.'])->withInput();
             } elseif (str_contains($errorMessage, 'could not translate host name') || str_contains($errorMessage, 'Connection refused')) {
-                return back()->withErrors(['db_connection' => 'Nie można połączyć się z serwerem bazy danych. Sprawdź adres hosta i port.'])->withInput();
+                return back()->withErrors(['db_connection' => 'Could not connect to the database server. Check the host and port.'])->withInput();
             } else {
-                return back()->withErrors(['db_connection' => 'Błąd połączenia z bazą danych: ' . $errorMessage])->withInput();
+                return back()->withErrors(['db_connection' => 'Database connection error: ' . $errorMessage])->withInput();
             }
         } catch (\Exception $e) {
-            return back()->withErrors(['db_connection' => 'Nieoczekiwany błąd: ' . $e->getMessage()])->withInput();
+            return back()->withErrors(['db_connection' => 'Unexpected error: ' . $e->getMessage()])->withInput();
         }
 
         // Run migrations
