@@ -44,7 +44,7 @@ class CsvImportController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'csv_file'        => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
+            'csv_file'        => 'required|file|mimes:csv,txt,xlsx,xls|max:32768',
             'import_strategy' => 'required|in:update_or_create,skip_existing,error_on_duplicate',
             'mapping_id'      => 'nullable|exists:csv_import_mappings,id',
             'target_line_id'  => 'nullable|exists:lines,id',
