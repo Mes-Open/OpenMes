@@ -13,10 +13,9 @@ if ! grep -q "APP_KEY=base64:" .env; then
     php artisan key:generate --force
 fi
 
-# Run migrations and seeders if not installed
-if [ ! -f storage/installed ]; then
-    echo "First run detected - preparing for installation..."
-fi
+# Run any pending migrations automatically
+echo "Running database migrations..."
+php artisan migrate --force
 
 # Start Laravel server
 exec "$@"
