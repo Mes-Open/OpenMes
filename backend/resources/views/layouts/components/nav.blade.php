@@ -56,6 +56,10 @@
                          class="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
                         <div class="dd-item"><a href="{{ route('admin.work-orders.index') }}">Work Orders</a></div>
                         <div class="dd-item"><a href="{{ route('admin.csv-import') }}">Import CSV</a></div>
+                        @foreach($menuRegistry->getItems('orders') as $item)
+                            @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
+                            <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
+                        @endforeach
                     </div>
                 </div>
 
@@ -75,6 +79,10 @@
                         <div class="my-1 border-t border-gray-100"></div>
                         <div class="dd-item"><a href="{{ route('admin.companies.index') }}">Companies</a></div>
                         <div class="dd-item"><a href="{{ route('admin.anomaly-reasons.index') }}">Anomaly Reasons</a></div>
+                        @foreach($menuRegistry->getItems('production') as $item)
+                            @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
+                            <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
+                        @endforeach
                     </div>
                 </div>
 
@@ -92,6 +100,10 @@
                         <div class="dd-item"><a href="{{ route('admin.divisions.index') }}">Divisions</a></div>
                         <div class="dd-item"><a href="{{ route('admin.workstation-types.index') }}">Workstation Types</a></div>
                         <div class="dd-item"><a href="{{ route('admin.subassemblies.index') }}">Subassemblies</a></div>
+                        @foreach($menuRegistry->getItems('structure') as $item)
+                            @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
+                            <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
+                        @endforeach
                     </div>
                 </div>
 
@@ -111,6 +123,10 @@
                         <div class="dd-item"><a href="{{ route('admin.crews.index') }}">Crews</a></div>
                         <div class="dd-item"><a href="{{ route('admin.skills.index') }}">Skills</a></div>
                         <div class="dd-item"><a href="{{ route('admin.wage-groups.index') }}">Wage Groups</a></div>
+                        @foreach($menuRegistry->getItems('hr') as $item)
+                            @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
+                            <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
+                        @endforeach
                     </div>
                 </div>
 
@@ -128,6 +144,10 @@
                         <div class="dd-item"><a href="{{ route('admin.tools.index') }}">Tools</a></div>
                         <div class="dd-item"><a href="{{ route('admin.cost-sources.index') }}">Cost Sources</a></div>
                         <div class="dd-item"><a href="{{ route('admin.production-anomalies.index') }}">Anomalies</a></div>
+                        @foreach($menuRegistry->getItems('maintenance') as $item)
+                            @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
+                            <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
+                        @endforeach
                     </div>
                 </div>
 
@@ -145,8 +165,30 @@
                         <div class="dd-item"><a href="{{ route('admin.reports') }}">Reports</a></div>
                         <div class="dd-item"><a href="{{ route('admin.audit-logs') }}">Audit Logs</a></div>
                         <div class="dd-item"><a href="{{ route('admin.modules.index') }}">Modules</a></div>
+                        @foreach($menuRegistry->getItems('admin') as $item)
+                            @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
+                            <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
+                        @endforeach
                     </div>
                 </div>
+
+                {{-- Custom groups registered by modules --}}
+                @foreach($menuRegistry->getGroups() as $group)
+                <div class="relative" x-data="{ open: false }" @keydown.escape="open = false">
+                    <button @click="open = !open" @click.outside="open = false" class="nav-link flex items-center gap-1" :class="{ 'text-blue-600 bg-blue-50': open }">
+                        {{ $group['label'] }}
+                        <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="open" x-cloak @click="open = false"
+                         x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute right-0 top-full mt-1 min-w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+                        @foreach($group['items'] as $item)
+                            <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
+                        @endforeach
+                    </div>
+                </div>
+                @endforeach
 
                 @endhasrole
 
@@ -206,6 +248,9 @@
                 <p class="mobile-group-label">Orders</p>
                 <a href="{{ route('admin.work-orders.index') }}" class="mobile-link pl-6">Work Orders</a>
                 <a href="{{ route('admin.csv-import') }}" class="mobile-link pl-6">Import CSV</a>
+                @foreach($menuRegistry->getItems('orders') as $item)
+                    <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
+                @endforeach
 
                 <p class="mobile-group-label">Production</p>
                 <a href="{{ route('admin.product-types.index') }}" class="mobile-link pl-6">Product Types</a>
@@ -213,30 +258,53 @@
                 <a href="{{ route('admin.issues.index') }}" class="mobile-link pl-6">Issues</a>
                 <a href="{{ route('admin.companies.index') }}" class="mobile-link pl-6">Companies</a>
                 <a href="{{ route('admin.anomaly-reasons.index') }}" class="mobile-link pl-6">Anomaly Reasons</a>
+                @foreach($menuRegistry->getItems('production') as $item)
+                    <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
+                @endforeach
 
                 <p class="mobile-group-label">Structure</p>
                 <a href="{{ route('admin.factories.index') }}" class="mobile-link pl-6">Factories</a>
                 <a href="{{ route('admin.divisions.index') }}" class="mobile-link pl-6">Divisions</a>
                 <a href="{{ route('admin.workstation-types.index') }}" class="mobile-link pl-6">Workstation Types</a>
                 <a href="{{ route('admin.subassemblies.index') }}" class="mobile-link pl-6">Subassemblies</a>
+                @foreach($menuRegistry->getItems('structure') as $item)
+                    <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
+                @endforeach
 
                 <p class="mobile-group-label">HR</p>
                 <a href="{{ route('admin.workers.index') }}" class="mobile-link pl-6">Workers</a>
                 <a href="{{ route('admin.crews.index') }}" class="mobile-link pl-6">Crews</a>
                 <a href="{{ route('admin.skills.index') }}" class="mobile-link pl-6">Skills</a>
                 <a href="{{ route('admin.wage-groups.index') }}" class="mobile-link pl-6">Wage Groups</a>
+                @foreach($menuRegistry->getItems('hr') as $item)
+                    <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
+                @endforeach
 
                 <p class="mobile-group-label">Maintenance</p>
                 <a href="{{ route('admin.maintenance-events.index') }}" class="mobile-link pl-6">Events</a>
                 <a href="{{ route('admin.tools.index') }}" class="mobile-link pl-6">Tools</a>
                 <a href="{{ route('admin.cost-sources.index') }}" class="mobile-link pl-6">Cost Sources</a>
                 <a href="{{ route('admin.production-anomalies.index') }}" class="mobile-link pl-6">Anomalies</a>
+                @foreach($menuRegistry->getItems('maintenance') as $item)
+                    <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
+                @endforeach
 
                 <p class="mobile-group-label">Admin</p>
                 <a href="{{ route('admin.users.index') }}" class="mobile-link pl-6">Users</a>
                 <a href="{{ route('admin.reports') }}" class="mobile-link pl-6">Reports</a>
                 <a href="{{ route('admin.audit-logs') }}" class="mobile-link pl-6">Audit Logs</a>
                 <a href="{{ route('admin.modules.index') }}" class="mobile-link pl-6">Modules</a>
+                @foreach($menuRegistry->getItems('admin') as $item)
+                    <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
+                @endforeach
+
+                {{-- Custom groups registered by modules --}}
+                @foreach($menuRegistry->getGroups() as $group)
+                    <p class="mobile-group-label">{{ $group['label'] }}</p>
+                    @foreach($group['items'] as $item)
+                        <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
+                    @endforeach
+                @endforeach
             @endhasrole
 
             <div class="border-t border-gray-200 mt-2 pt-2">

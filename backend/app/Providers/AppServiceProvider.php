@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,6 +15,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ModuleManager::class, fn() => new ModuleManager());
+        $this->app->singleton(MenuRegistry::class, fn() => new MenuRegistry());
     }
 
     /**
@@ -20,6 +23,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Share the menu registry with every view so nav.blade.php can render
+        // items and groups registered by modules without additional controller work.
+        View::share('menuRegistry', $this->app->make(MenuRegistry::class));
+
         // Load enabled modules — wrapped in try/catch so a bad module
         // never prevents the application from booting.
         try {
