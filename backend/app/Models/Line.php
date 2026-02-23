@@ -60,6 +60,14 @@ class Line extends Model
     }
 
     /**
+     * Get the custom statuses defined for this line.
+     */
+    public function lineStatuses(): HasMany
+    {
+        return $this->hasMany(LineStatus::class);
+    }
+
+    /**
      * Scope to get only active lines.
      */
     public function scopeActive($query)

@@ -34,6 +34,7 @@ class WorkOrder extends Model
         'planned_qty',
         'produced_qty',
         'status',
+        'line_status_id',
         'priority',
         'due_date',
         'week_number',
@@ -71,6 +72,14 @@ class WorkOrder extends Model
     public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductType::class);
+    }
+
+    /**
+     * Get the line status (kanban status) for this work order.
+     */
+    public function lineStatus(): BelongsTo
+    {
+        return $this->belongsTo(LineStatus::class);
     }
 
     /**
