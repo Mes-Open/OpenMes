@@ -3,7 +3,12 @@
 @section('title', 'Work Order Queue')
 
 @section('content')
-<div class="max-w-7xl mx-auto" x-data="{ view: localStorage.getItem('queueView') || 'table' }" x-init="$watch('view', v => localStorage.setItem('queueView', v))">
+<div class="max-w-7xl mx-auto"
+     x-data="{
+         view: localStorage.getItem('queueView') || 'table',
+         report: { open: false, woId: null, woNo: '', title: '', typeId: '', desc: '' }
+     }"
+     x-init="$watch('view', v => localStorage.setItem('queueView', v))">
 
     <!-- Header -->
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -73,6 +78,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Batches</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Due</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                                 <th class="px-4 py-3"></th>
                             </tr>
                         </thead>
@@ -135,6 +141,18 @@
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                                         {{ $workOrder->due_date ? \Carbon\Carbon::parse($workOrder->due_date)->format('d M') : '—' }}
+                                    </td>
+                                    {{-- Actions cell — does NOT cycle status --}}
+                                    <td class="px-3 py-2 whitespace-nowrap" data-actions-cell="1">
+                                        <button type="button"
+                                                @click.stop="report.open = true; report.woId = {{ $workOrder->id }}; report.woNo = '{{ addslashes($workOrder->order_no) }}'; report.title = ''; report.typeId = ''; report.desc = ''"
+                                                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 transition-colors"
+                                                title="Report issue">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
+                                            </svg>
+                                            Report
+                                        </button>
                                     </td>
                                     <td class="px-4 py-3 text-right" data-detail-link="1">
                                         <svg class="w-6 h-6 text-blue-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,11 +221,21 @@
                                         <span class="text-gray-600">Due: <span class="font-medium">{{ \Carbon\Carbon::parse($workOrder->due_date)->format('M d') }}</span></span>
                                     @endif
                                 </div>
-                                <div class="mt-4 flex items-center justify-end text-blue-600">
-                                    <span class="text-sm font-medium">View Details</span>
-                                    <svg class="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
+                                <div class="mt-4 flex items-center justify-between">
+                                    <button type="button"
+                                            @click.stop="report.open = true; report.woId = {{ $workOrder->id }}; report.woNo = '{{ addslashes($workOrder->order_no) }}'; report.title = ''; report.typeId = ''; report.desc = ''"
+                                            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
+                                        </svg>
+                                        Report
+                                    </button>
+                                    <span class="flex items-center gap-1 text-blue-600 text-sm font-medium">
+                                        View Details
+                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                        </svg>
+                                    </span>
                                 </div>
                             </a>
                         </div>
@@ -318,9 +346,120 @@ td[data-detail-link] {
 td[data-detail-link]:hover svg { color: #2563eb; }
 </style>
 
-@if($lineStatuses->isNotEmpty())
+{{-- ── REPORT ISSUE MODAL (shared, Alpine-driven) ── --}}
+@if($issueTypes->isNotEmpty())
+<div x-show="report.open" x-cloak class="fixed inset-0 z-50 overflow-y-auto"
+     x-transition:enter="transition ease-out duration-150"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-100"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0">
+    <div class="fixed inset-0 bg-black/50" @click="report.open = false"></div>
+    <div class="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="relative bg-white w-full sm:max-w-lg sm:rounded-xl shadow-2xl"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0 translate-y-4"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             @click.stop>
+
+            {{-- Drag handle on mobile --}}
+            <div class="flex justify-center pt-3 pb-1 sm:hidden">
+                <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+            </div>
+
+            <div class="px-5 pt-3 pb-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">Report Issue</h3>
+                        <p class="text-sm text-gray-500 font-mono" x-text="report.woNo"></p>
+                    </div>
+                    <button type="button" @click="report.open = false"
+                            class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form action="{{ route('operator.issue.store') }}" method="POST" class="space-y-4">
+                    @csrf
+                    <input type="hidden" name="work_order_id" :value="report.woId">
+
+                    {{-- Issue type selector --}}
+                    <div>
+                        <label class="form-label">Type <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            @foreach($issueTypes as $type)
+                                <label class="flex items-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-colors"
+                                       :class="report.typeId == '{{ $type->id }}'
+                                           ? 'border-orange-400 bg-orange-50'
+                                           : 'border-gray-200 hover:border-gray-300'">
+                                    <input type="radio" name="issue_type_id" value="{{ $type->id }}"
+                                           x-model="report.typeId"
+                                           @change="if (!report.title || issueTypeNames.includes(report.title)) report.title = '{{ addslashes($type->name) }}'"
+                                           class="sr-only" required>
+                                    <span class="flex-1 text-sm font-medium text-gray-700 leading-tight">
+                                        {{ $type->name }}
+                                        @if($type->is_blocking)
+                                            <span class="block text-xs text-red-500 font-normal">⚠ blocking</span>
+                                        @endif
+                                    </span>
+                                    <svg x-show="report.typeId == '{{ $type->id }}'" class="w-4 h-4 text-orange-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- Title --}}
+                    <div>
+                        <label class="form-label">Title <span class="text-red-500">*</span></label>
+                        <input type="text" name="title" x-model="report.title"
+                               class="form-input w-full" placeholder="Brief summary…"
+                               required maxlength="255">
+                    </div>
+
+                    {{-- Description --}}
+                    <div>
+                        <label class="form-label">Details <span class="text-gray-400 font-normal text-xs">(optional)</span></label>
+                        <textarea name="description" x-model="report.desc"
+                                  rows="3" class="form-input w-full resize-none"
+                                  placeholder="Additional details, photos description, measurements…"
+                                  maxlength="2000"></textarea>
+                    </div>
+
+                    <div class="flex gap-3 pt-1">
+                        <button type="button" @click="report.open = false"
+                                class="btn-touch btn-secondary flex-1">Cancel</button>
+                        <button type="submit"
+                                class="btn-touch flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg"
+                                :disabled="!report.typeId || !report.title">
+                            <svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
+                            </svg>
+                            Submit Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Issue type names — used to detect if title was auto-filled (so re-selecting a type overwrites it)
+const issueTypeNames = @json($issueTypes->pluck('name')->values());
+</script>
+@endif
+
+<script>
+@if($lineStatuses->isNotEmpty())
 const WO_STATUSES = @json($lineStatuses->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'color' => $s->color])->values());
+@else
+const WO_STATUSES = [];
+@endif
 
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('tr.wo-row').forEach(function (row) {
@@ -330,7 +469,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 location.href = row.dataset.detailUrl;
                 return;
             }
-            // Cycle board status
+            // Actions cell → handled by Alpine buttons, stop here
+            if (e.target.closest('[data-actions-cell]')) {
+                return;
+            }
+            // Cycle board status (if statuses configured)
             if (row.dataset.cycle === '1') {
                 cycleStatus(row);
             } else {
@@ -367,6 +510,5 @@ function cycleStatus(row) {
     form.submit();
 }
 </script>
-@endif
 
 @endsection
