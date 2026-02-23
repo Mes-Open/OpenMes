@@ -37,7 +37,7 @@
     @endif
 
     <form method="POST" action="{{ route('admin.csv-import.process') }}" id="mapping-form"
-          @submit.prevent="submitForm()">
+          @submit="handleSubmit($event)">
         @csrf
         <input type="hidden" name="file_path" value="{{ $path }}">
         <input type="hidden" name="import_strategy" value="{{ $importStrategy }}">
@@ -134,7 +134,7 @@
                     </div>
 
                     {{-- Validation warning --}}
-                    <div x-show="!hasRequired()" x-cloak class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div id="mapping-warning" x-show="!hasRequired()" x-cloak class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <p class="text-sm text-yellow-800">
                             <strong>Warning:</strong> <code>order_no</code> and <code>quantity</code> are required. Please map these columns before importing.
                         </p>
@@ -262,8 +262,6 @@
                 <button
                     type="submit"
                     class="btn-touch btn-primary w-full"
-                    :disabled="!hasRequired()"
-                    :class="!hasRequired() ? 'opacity-50 cursor-not-allowed' : ''"
                 >
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -383,14 +381,23 @@ function csvMapper(headers, existingMappings) {
             this.mappingVersion++;
         },
 
-        submitForm() {
-            if (!this.hasRequired()) return;
+        handleSubmit(event) {
+            if (!this.hasRequired()) {
+                event.preventDefault();
+                // Scroll the warning into view so the user knows what to fix
+                const warning = document.querySelector('#mapping-warning');
+                if (warning) warning.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
 
-            const form = document.getElementById('mapping-form');
+            const form = event.target;
 
             // Remove old dynamic custom inputs
             form.querySelectorAll('input[data-custom-field]').forEach(el => el.remove());
 
+            // For columns mapped to a custom key, inject a hidden input with the
+            // "custom:key" value and disable the corresponding select/text inputs
+            // so they are not double-submitted.
             headers.forEach(h => {
                 if (this.mappings[h] === '__custom__') {
                     const key = (this.customKeys[h] || '').trim();
@@ -409,8 +416,7 @@ function csvMapper(headers, existingMappings) {
                 }
             });
 
-            // form.submit() does not fire the submit event, so @submit.prevent won't loop
-            form.submit();
+            // Allow native form submission to proceed
         },
     };
 }
