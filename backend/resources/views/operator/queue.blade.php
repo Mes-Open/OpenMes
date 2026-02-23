@@ -40,7 +40,7 @@
                         <!-- Product Type -->
                         <div class="mb-3">
                             <p class="text-sm text-gray-600">Product</p>
-                            <p class="font-medium text-gray-800">{{ $workOrder->productType->name }}</p>
+                            <p class="font-medium text-gray-800">{{ $workOrder->productType?->name ?? '—' }}</p>
                         </div>
 
                         <!-- Quantity -->
@@ -108,7 +108,7 @@
                         <!-- Product Type -->
                         <div class="mb-3">
                             <p class="text-sm text-gray-600">Product</p>
-                            <p class="font-medium text-gray-800">{{ $workOrder->productType->name }}</p>
+                            <p class="font-medium text-gray-800">{{ $workOrder->productType?->name ?? '—' }}</p>
                         </div>
 
                         <!-- Quantity -->
