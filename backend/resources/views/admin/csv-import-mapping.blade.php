@@ -9,8 +9,12 @@
     ['label' => 'Map Columns', 'url' => null],
 ]" />
 
-<div class="max-w-7xl mx-auto"
-     x-data="csvMapper({{ json_encode($headers) }}, {{ json_encode(session('prev_mapping', $existingMapping?->mapping_config['column_mappings'] ?? [])) }})">
+@php
+    $prevMapping    = session('prev_mapping', $existingMapping?->mapping_config['column_mappings'] ?? []);
+    $requiredFields = ['order_no', 'quantity'];
+@endphp
+
+<div class="max-w-7xl mx-auto">
 
     <div class="flex justify-between items-center mb-6">
         <div>
@@ -36,8 +40,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('admin.csv-import.process') }}" id="mapping-form"
-          @submit="handleSubmit($event)">
+    <form method="POST" action="{{ route('admin.csv-import.process') }}" id="mapping-form">
         @csrf
         <input type="hidden" name="file_path" value="{{ $path }}">
         <input type="hidden" name="import_strategy" value="{{ $importStrategy }}">
@@ -55,24 +58,31 @@
                         <h2 class="text-xl font-bold text-gray-800">Column Mapping</h2>
                         <div class="flex items-center gap-2">
                             <span class="text-xs text-gray-500">Quick-fill:</span>
-                            <button type="button" @click="autoMap()"
+                            <button type="button" onclick="autoMap()"
                                     class="text-xs text-blue-600 hover:text-blue-800 underline">
                                 Auto-detect
                             </button>
                             <span class="text-gray-300">|</span>
-                            <button type="button" @click="clearAll()"
+                            <button type="button" onclick="clearAll()"
                                     class="text-xs text-red-500 hover:text-red-700 underline">
                                 Clear all
                             </button>
                         </div>
                     </div>
 
-                    <div class="space-y-3">
-                        <template x-for="header in headers" :key="header">
-                            <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div class="space-y-3" id="mapping-rows">
+                        @foreach($headers as $h)
+                            @php
+                                $raw       = $prevMapping[$h] ?? '_ignore';
+                                $isCustom  = str_starts_with($raw, 'custom:');
+                                $customKey = $isCustom ? substr($raw, 7) : '';
+                                $selValue  = $isCustom ? '__custom__' : $raw;
+                            @endphp
+                            <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg" data-header="{{ $h }}">
+
                                 {{-- CSV column name --}}
                                 <div class="flex-shrink-0 w-40">
-                                    <p class="text-sm font-mono font-medium text-gray-800 truncate" x-text="header" :title="header"></p>
+                                    <p class="text-sm font-mono font-medium text-gray-800 truncate" title="{{ $h }}">{{ $h }}</p>
                                     <p class="text-xs text-gray-400">CSV column</p>
                                 </div>
 
@@ -82,62 +92,51 @@
                                 {{-- Target field selector --}}
                                 <div class="flex-1 min-w-0">
                                     <select
-                                        :name="`mapping[${header}]`"
-                                        class="form-input w-full text-sm"
-                                        @change="setMapping(header, $event.target.value)"
+                                        name="mapping[{{ $h }}]"
+                                        class="form-input w-full text-sm mapping-select"
+                                        onchange="onSelectChange(this)"
                                     >
-                                        <option value="_ignore"
-                                                :selected="getMapping(header) === '_ignore'">— Ignore this column —</option>
+                                        <option value="_ignore" {{ $selValue === '_ignore' ? 'selected' : '' }}>— Ignore this column —</option>
                                         <optgroup label="System Fields">
                                             @foreach($systemFields as $key => $label)
-                                                <option value="{{ $key }}"
-                                                        :selected="getMapping(header) === '{{ $key }}'">
-                                                    {{ $label }}
-                                                    @if(in_array($key, ['order_no', 'quantity'])) (required) @endif
+                                                <option value="{{ $key }}" {{ $selValue === $key ? 'selected' : '' }}>
+                                                    {{ $label }}@if(in_array($key, $requiredFields)) (required)@endif
                                                 </option>
                                             @endforeach
                                         </optgroup>
                                         <optgroup label="Custom Field">
-                                            <option value="__custom__"
-                                                    :selected="getMapping(header) === '__custom__'">Custom key…</option>
+                                            <option value="__custom__" {{ $selValue === '__custom__' ? 'selected' : '' }}>Custom key…</option>
                                         </optgroup>
                                     </select>
 
                                     {{-- Custom key input --}}
-                                    <div x-show="getMapping(header) === '__custom__'" x-cloak class="mt-2">
+                                    <div class="custom-key-area mt-2" style="{{ $selValue === '__custom__' ? '' : 'display:none' }}">
                                         <input
                                             type="text"
-                                            :name="`mapping[${header}]`"
-                                            class="form-input w-full text-sm"
+                                            class="form-input w-full text-sm custom-key-input"
                                             placeholder="e.g. batch_code, color, weight_kg"
-                                            :value="customKeys[header] || ''"
-                                            @input="customKeys[header] = $event.target.value"
+                                            value="{{ $customKey }}"
                                         >
                                         <p class="text-xs text-gray-400 mt-1">Stored as <code class="text-purple-700">custom:your_key</code></p>
                                     </div>
 
-                                    {{-- Badge --}}
-                                    <div class="mt-1"
-                                         x-show="getMapping(header) && getMapping(header) !== '_ignore' && getMapping(header) !== '__custom__'">
-                                        <span x-show="isRequired(getMapping(header))"
-                                              class="text-xs text-red-600 font-medium">required field</span>
-                                    </div>
+                                    {{-- Required badge (shown for required system fields) --}}
+                                    @if(in_array($selValue, $requiredFields))
+                                        <div class="mt-1">
+                                            <span class="text-xs text-red-600 font-medium">required field</span>
+                                        </div>
+                                    @endif
                                 </div>
 
                                 {{-- Sample value --}}
                                 <div class="flex-shrink-0 w-32 hidden md:block">
                                     <p class="text-xs text-gray-400 mb-1">Sample</p>
-                                    <p class="text-xs text-gray-600 font-mono truncate" x-text="getSample(header)" :title="getSample(header)"></p>
+                                    <p class="text-xs text-gray-600 font-mono truncate" title="{{ $previewRows[0][$h] ?? '' }}">
+                                        {{ $previewRows[0][$h] ?? '—' }}
+                                    </p>
                                 </div>
                             </div>
-                        </template>
-                    </div>
-
-                    {{-- Validation warning --}}
-                    <div id="mapping-warning" x-show="!hasRequired()" x-cloak class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p class="text-sm text-yellow-800">
-                            <strong>Warning:</strong> <code>order_no</code> and <code>quantity</code> are required. Please map these columns before importing.
-                        </p>
+                        @endforeach
                     </div>
                 </div>
 
@@ -183,7 +182,7 @@
                         @foreach($savedMappings as $m)
                             <button
                                 type="button"
-                                @click="loadProfile({{ json_encode($m->mapping_config['column_mappings'] ?? []) }})"
+                                onclick="loadProfile({{ json_encode($m->mapping_config['column_mappings'] ?? []) }})"
                                 class="w-full text-left px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors"
                             >
                                 <p class="text-sm font-medium text-gray-800">{{ $m->name }}{{ $m->is_default ? ' ✓' : '' }}</p>
@@ -253,16 +252,13 @@
                         </div>
                         <div class="border-t pt-2 flex justify-between">
                             <span class="text-gray-600">Mapped:</span>
-                            <span class="font-medium" x-text="countMapped()"></span>
+                            <span class="font-medium" id="mapped-count">0</span>
                         </div>
                     </div>
                 </div>
 
                 {{-- Submit --}}
-                <button
-                    type="submit"
-                    class="btn-touch btn-primary w-full"
-                >
+                <button type="submit" class="btn-touch btn-primary w-full">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                     </svg>
@@ -277,148 +273,111 @@
 <style>[x-cloak]{display:none!important}</style>
 
 <script>
-function csvMapper(headers, existingMappings) {
-    // Build sample values from preview rows passed as PHP JSON
-    const previewRows = @json($previewRows);
-    const systemFields = @json(array_keys($systemFields));
-    const requiredFields = ['order_no', 'quantity'];
+const autoDetectMap = {
+    'order_no':           ['order_no', 'order no', 'orderno', 'order number', 'order_number', 'wo_no', 'work_order', 'wo no'],
+    'product_name':       ['product_name', 'product name', 'productname', 'product', 'item', 'item name', 'description product'],
+    'quantity':           ['quantity', 'qty', 'planned_qty', 'planned qty', 'amount'],
+    'line_code':          ['line_code', 'line code', 'linecode', 'line', 'production_line'],
+    'product_type_code':  ['product_type_code', 'product type code', 'product_type', 'product type', 'type code', 'type'],
+    'priority':           ['priority', 'prio'],
+    'due_date':           ['due_date', 'due date', 'duedate', 'deadline', 'target date', 'delivery_date'],
+    'description':        ['description', 'desc', 'notes', 'comment', 'remarks'],
+};
 
-    // Auto-detect: normalize header → try to match system field
-    const autoDetectMap = {
-        'order_no': ['order_no', 'order no', 'orderno', 'order number', 'order_number', 'wo_no', 'work_order', 'wo no'],
-        'product_name': ['product_name', 'product name', 'productname', 'product', 'item', 'item name', 'description product'],
-        'quantity': ['quantity', 'qty', 'planned_qty', 'planned qty', 'amount'],
-        'line_code': ['line_code', 'line code', 'linecode', 'line', 'production_line'],
-        'product_type_code': ['product_type_code', 'product type code', 'product_type', 'product type', 'type code', 'type'],
-        'priority': ['priority', 'prio'],
-        'due_date': ['due_date', 'due date', 'duedate', 'deadline', 'target date', 'delivery_date'],
-        'description': ['description', 'desc', 'notes', 'comment', 'remarks'],
-    };
+// Show/hide the custom key text input when the select changes, and refresh counter.
+function onSelectChange(sel) {
+    const row = sel.closest('[data-header]');
+    const customArea = row.querySelector('.custom-key-area');
+    if (customArea) {
+        customArea.style.display = sel.value === '__custom__' ? '' : 'none';
+    }
+    updateMappedCount();
+}
 
-    // Initialise mappings from existingMappings (loaded profile) or empty
-    const initMappings = {};
-    const initCustomKeys = {};
+// Update the "Mapped: N" sidebar counter.
+function updateMappedCount() {
+    const count = Array.from(document.querySelectorAll('.mapping-select'))
+        .filter(s => s.value && s.value !== '_ignore').length;
+    const el = document.getElementById('mapped-count');
+    if (el) el.textContent = count;
+}
 
-    headers.forEach(h => {
-        const existing = existingMappings[h];
-        if (existing && existing.startsWith('custom:')) {
-            initMappings[h] = '__custom__';
-            initCustomKeys[h] = existing.slice(7);
-        } else {
-            initMappings[h] = existing || '_ignore';
-        }
-    });
+// Set a select to a given value and sync the UI.
+function applyMapping(row, value, customKey) {
+    const sel = row.querySelector('.mapping-select');
+    if (!sel) return;
+    if (value && value.startsWith('custom:')) {
+        sel.value = '__custom__';
+        const txt = row.querySelector('.custom-key-input');
+        if (txt) txt.value = value.slice(7);
+    } else {
+        sel.value = value || '_ignore';
+        const txt = row.querySelector('.custom-key-input');
+        if (txt) txt.value = '';
+    }
+    onSelectChange(sel);
+}
 
-    return {
-        headers,
-        mappings: initMappings,
-        customKeys: initCustomKeys,
-        previewRows,
-        mappingVersion: 0,
-
-        setMapping(header, value) {
-            this.mappings[header] = value;
-            if (value !== '__custom__') {
-                delete this.customKeys[header];
-            }
-            this.mappingVersion++;
-        },
-
-        getMapping(header) {
-            void this.mappingVersion; // reactive dependency
-            return this.mappings[header] || '_ignore';
-        },
-
-        getSample(header) {
-            if (!previewRows.length) return '—';
-            return previewRows[0][header] ?? '—';
-        },
-
-        isRequired(field) {
-            return requiredFields.includes(field);
-        },
-
-        hasRequired() {
-            void this.mappingVersion; // reactive dependency
-            const mapped = Object.values(this.mappings);
-            return requiredFields.every(f => mapped.includes(f));
-        },
-
-        countMapped() {
-            void this.mappingVersion; // reactive dependency
-            return Object.values(this.mappings).filter(v => v && v !== '_ignore').length;
-        },
-
-        autoMap() {
-            headers.forEach(h => {
-                const norm = h.toLowerCase().trim();
-                for (const [field, aliases] of Object.entries(autoDetectMap)) {
-                    if (aliases.includes(norm)) {
-                        this.mappings[h] = field;
-                        return;
-                    }
-                }
-            });
-            this.mappingVersion++;
-        },
-
-        clearAll() {
-            headers.forEach(h => { this.mappings[h] = '_ignore'; });
-            this.customKeys = {};
-            this.mappingVersion++;
-        },
-
-        loadProfile(profileMappings) {
-            headers.forEach(h => {
-                const val = profileMappings[h];
-                if (val && val.startsWith('custom:')) {
-                    this.mappings[h] = '__custom__';
-                    this.customKeys[h] = val.slice(7);
-                } else {
-                    this.mappings[h] = val || '_ignore';
-                }
-            });
-            this.mappingVersion++;
-        },
-
-        handleSubmit(event) {
-            if (!this.hasRequired()) {
-                event.preventDefault();
-                // Scroll the warning into view so the user knows what to fix
-                const warning = document.querySelector('#mapping-warning');
-                if (warning) warning.scrollIntoView({ behavior: 'smooth', block: 'center' });
+// Auto-detect: match header name against known aliases.
+function autoMap() {
+    document.querySelectorAll('[data-header]').forEach(row => {
+        const header = row.dataset.header;
+        const norm   = header.toLowerCase().trim();
+        for (const [field, aliases] of Object.entries(autoDetectMap)) {
+            if (aliases.includes(norm)) {
+                applyMapping(row, field, '');
                 return;
             }
-
-            const form = event.target;
-
-            // Remove old dynamic custom inputs
-            form.querySelectorAll('input[data-custom-field]').forEach(el => el.remove());
-
-            // For columns mapped to a custom key, inject a hidden input with the
-            // "custom:key" value and disable the corresponding select/text inputs
-            // so they are not double-submitted.
-            headers.forEach(h => {
-                if (this.mappings[h] === '__custom__') {
-                    const key = (this.customKeys[h] || '').trim();
-                    const hidden = document.createElement('input');
-                    hidden.type = 'hidden';
-                    hidden.name = `mapping[${h}]`;
-                    hidden.value = key ? `custom:${key}` : '_ignore';
-                    hidden.dataset.customField = '1';
-                    form.appendChild(hidden);
-
-                    const sel = form.querySelector(`select[name="mapping[${h}]"]`);
-                    if (sel) sel.disabled = true;
-
-                    const txt = form.querySelector(`input[name="mapping[${h}]"]:not([data-custom-field])`);
-                    if (txt) txt.disabled = true;
-                }
-            });
-
-            // Allow native form submission to proceed
-        },
-    };
+        }
+    });
 }
+
+// Reset all selects to "Ignore".
+function clearAll() {
+    document.querySelectorAll('[data-header]').forEach(row => {
+        applyMapping(row, '_ignore', '');
+    });
+}
+
+// Load a saved mapping profile (object: { header: value }).
+function loadProfile(profileMappings) {
+    document.querySelectorAll('[data-header]').forEach(row => {
+        const header = row.dataset.header;
+        applyMapping(row, profileMappings[header] || '_ignore', '');
+    });
+}
+
+// On submit: convert any __custom__ selects into the expected "custom:key" value,
+// then let the form submit natively. Server validates required fields.
+document.getElementById('mapping-form').addEventListener('submit', function (event) {
+    const form = event.target;
+
+    // Remove previously injected hidden inputs
+    form.querySelectorAll('input[data-custom-field]').forEach(el => el.remove());
+
+    Array.from(form.querySelectorAll('.mapping-select')).forEach(sel => {
+        if (sel.value !== '__custom__') return;
+
+        const row = sel.closest('[data-header]');
+        const txt = row ? row.querySelector('.custom-key-input') : null;
+        const key = (txt ? txt.value : '').trim();
+
+        // Inject a hidden input with the resolved "custom:key" value
+        const hidden = document.createElement('input');
+        hidden.type  = 'hidden';
+        hidden.name  = sel.name;
+        hidden.value = key ? `custom:${key}` : '_ignore';
+        hidden.dataset.customField = '1';
+        form.appendChild(hidden);
+
+        // Disable the original select (and text) so they are not double-submitted
+        sel.disabled = true;
+        if (txt) txt.disabled = true;
+    });
+    // Form submits naturally; the server validates that order_no and quantity are mapped.
+});
+
+// Initialise counter on load.
+document.addEventListener('DOMContentLoaded', updateMappedCount);
 </script>
 @endsection
