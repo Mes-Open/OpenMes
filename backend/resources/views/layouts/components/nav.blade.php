@@ -75,6 +75,7 @@
                          class="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
                         <div class="dd-item"><a href="{{ route('admin.product-types.index') }}">Product Types</a></div>
                         <div class="dd-item"><a href="{{ route('admin.lines.index') }}">Lines</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.line-statuses.index') }}">Line Statuses</a></div>
                         <div class="dd-item"><a href="{{ route('admin.issues.index') }}">Issues</a></div>
                         <div class="my-1 border-t border-gray-100"></div>
                         <div class="dd-item"><a href="{{ route('admin.companies.index') }}">Companies</a></div>
@@ -255,6 +256,7 @@
                 <p class="mobile-group-label">Production</p>
                 <a href="{{ route('admin.product-types.index') }}" class="mobile-link pl-6">Product Types</a>
                 <a href="{{ route('admin.lines.index') }}" class="mobile-link pl-6">Lines</a>
+                <a href="{{ route('admin.line-statuses.index') }}" class="mobile-link pl-6">Line Statuses</a>
                 <a href="{{ route('admin.issues.index') }}" class="mobile-link pl-6">Issues</a>
                 <a href="{{ route('admin.companies.index') }}" class="mobile-link pl-6">Companies</a>
                 <a href="{{ route('admin.anomaly-reasons.index') }}" class="mobile-link pl-6">Anomaly Reasons</a>

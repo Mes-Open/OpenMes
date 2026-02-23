@@ -62,6 +62,9 @@
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order No</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                @if($lineStatuses->isNotEmpty())
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Board Status</th>
+                                @endif
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Qty (done / planned)</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Batches</th>
@@ -72,18 +75,41 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
                             @foreach($activeWorkOrders as $workOrder)
-                                <tr class="hover:bg-blue-50 transition-colors cursor-pointer"
-                                    onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
-                                    <td class="px-4 py-3 font-mono font-semibold text-gray-800 whitespace-nowrap">
+                                <tr class="hover:bg-blue-50 transition-colors">
+                                    <td class="px-4 py-3 font-mono font-semibold text-gray-800 whitespace-nowrap cursor-pointer"
+                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
                                         {{ $workOrder->order_no }}
                                     </td>
-                                    <td class="px-4 py-3 whitespace-nowrap">
+                                    <td class="px-4 py-3 whitespace-nowrap cursor-pointer"
+                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
                                         @include('components.wo-status-badge', ['status' => $workOrder->status])
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">
+                                    @if($lineStatuses->isNotEmpty())
+                                    <td class="px-4 py-3 whitespace-nowrap" onclick="event.stopPropagation()">
+                                        <form method="POST" action="{{ route('operator.work-order.line-status', $workOrder) }}">
+                                            @csrf
+                                            <select name="line_status_id"
+                                                    onchange="this.form.submit()"
+                                                    class="text-xs rounded-full border-0 font-medium py-1 pl-2 pr-6 cursor-pointer focus:ring-1 focus:ring-blue-400"
+                                                    style="background-color: {{ $workOrder->lineStatus?->color ?? '#E5E7EB' }}; color: {{ $workOrder->lineStatus ? '#fff' : '#374151' }}">
+                                                <option value="">— none —</option>
+                                                @foreach($lineStatuses as $ls)
+                                                    <option value="{{ $ls->id }}"
+                                                            {{ $workOrder->line_status_id == $ls->id ? 'selected' : '' }}
+                                                            style="background-color: {{ $ls->color }}; color: #fff">
+                                                        {{ $ls->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </form>
+                                    </td>
+                                    @endif
+                                    <td class="px-4 py-3 text-sm text-gray-700 cursor-pointer"
+                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
                                         {{ $workOrder->productType?->name ?? '—' }}
                                     </td>
-                                    <td class="px-4 py-3 text-sm whitespace-nowrap">
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap cursor-pointer"
+                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
                                         <span class="font-medium text-gray-800">
                                             {{ number_format($workOrder->produced_qty, 0) }} / {{ number_format($workOrder->planned_qty, 0) }}
                                         </span>
@@ -95,16 +121,20 @@
                                             </div>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-600 text-center">
+                                    <td class="px-4 py-3 text-sm text-gray-600 text-center cursor-pointer"
+                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
                                         {{ $workOrder->batches->count() }}
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-600 text-center">
+                                    <td class="px-4 py-3 text-sm text-gray-600 text-center cursor-pointer"
+                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
                                         {{ $workOrder->priority ?: '—' }}
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                                    <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap cursor-pointer"
+                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
                                         {{ $workOrder->due_date ? \Carbon\Carbon::parse($workOrder->due_date)->format('d M') : '—' }}
                                     </td>
-                                    <td class="px-4 py-3 text-right">
+                                    <td class="px-4 py-3 text-right cursor-pointer"
+                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
                                         <svg class="w-5 h-5 text-blue-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                         </svg>
@@ -120,43 +150,65 @@
             <div x-show="view === 'cards'" x-cloak>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @foreach($activeWorkOrders as $workOrder)
-                        <a href="{{ route('operator.work-order.detail', $workOrder) }}" class="card hover:shadow-xl cursor-pointer transition-all">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-bold text-gray-800">{{ $workOrder->order_no }}</h3>
+                        <div class="card hover:shadow-xl transition-all">
+                            <div class="flex items-center justify-between mb-3">
+                                <a href="{{ route('operator.work-order.detail', $workOrder) }}"
+                                   class="text-lg font-bold text-gray-800 hover:text-blue-700">{{ $workOrder->order_no }}</a>
                                 @include('components.wo-status-badge', ['status' => $workOrder->status])
                             </div>
-                            <div class="mb-3">
-                                <p class="text-sm text-gray-600">Product</p>
-                                <p class="font-medium text-gray-800">{{ $workOrder->productType?->name ?? '—' }}</p>
+                            @if($lineStatuses->isNotEmpty())
+                            <div class="mb-3" onclick="event.stopPropagation()">
+                                <p class="text-xs text-gray-500 mb-1">Board Status</p>
+                                <form method="POST" action="{{ route('operator.work-order.line-status', $workOrder) }}">
+                                    @csrf
+                                    <select name="line_status_id"
+                                            onchange="this.form.submit()"
+                                            class="w-full text-sm rounded-lg border border-gray-200 font-medium py-1.5 px-3 cursor-pointer">
+                                        <option value="">— none —</option>
+                                        @foreach($lineStatuses as $ls)
+                                            <option value="{{ $ls->id }}"
+                                                    {{ $workOrder->line_status_id == $ls->id ? 'selected' : '' }}>
+                                                {{ $ls->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </form>
                             </div>
-                            <div class="mb-3">
-                                <p class="text-sm text-gray-600">Quantity</p>
-                                <p class="font-medium text-gray-800">
-                                    {{ number_format($workOrder->produced_qty, 2) }} / {{ number_format($workOrder->planned_qty, 2) }}
-                                    @if($workOrder->planned_qty > 0)
-                                        <span class="text-sm text-gray-500">
-                                            ({{ number_format(($workOrder->produced_qty / $workOrder->planned_qty) * 100, 1) }}%)
-                                        </span>
+                            @endif
+                            <a href="{{ route('operator.work-order.detail', $workOrder) }}" class="block">
+                                <div class="mb-3">
+                                    <p class="text-sm text-gray-600">Product</p>
+                                    <p class="font-medium text-gray-800">{{ $workOrder->productType?->name ?? '—' }}</p>
+                                </div>
+                                <div class="mb-3">
+                                    <p class="text-sm text-gray-600">Quantity</p>
+                                    <p class="font-medium text-gray-800">
+                                        {{ number_format($workOrder->produced_qty, 2) }} / {{ number_format($workOrder->planned_qty, 2) }}
+                                        @if($workOrder->planned_qty > 0)
+                                            <span class="text-sm text-gray-500">
+                                                ({{ number_format(($workOrder->produced_qty / $workOrder->planned_qty) * 100, 1) }}%)
+                                            </span>
+                                        @endif
+                                    </p>
+                                </div>
+                                <div class="mb-3">
+                                    <p class="text-sm text-gray-600">Batches</p>
+                                    <p class="font-medium text-gray-800">{{ $workOrder->batches->count() }}</p>
+                                </div>
+                                <div class="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center text-sm">
+                                    <span class="text-gray-600">Priority: <span class="font-medium">{{ $workOrder->priority }}</span></span>
+                                    @if($workOrder->due_date)
+                                        <span class="text-gray-600">Due: <span class="font-medium">{{ \Carbon\Carbon::parse($workOrder->due_date)->format('M d') }}</span></span>
                                     @endif
-                                </p>
-                            </div>
-                            <div class="mb-3">
-                                <p class="text-sm text-gray-600">Batches</p>
-                                <p class="font-medium text-gray-800">{{ $workOrder->batches->count() }}</p>
-                            </div>
-                            <div class="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center text-sm">
-                                <span class="text-gray-600">Priority: <span class="font-medium">{{ $workOrder->priority }}</span></span>
-                                @if($workOrder->due_date)
-                                    <span class="text-gray-600">Due: <span class="font-medium">{{ \Carbon\Carbon::parse($workOrder->due_date)->format('M d') }}</span></span>
-                                @endif
-                            </div>
-                            <div class="mt-4 flex items-center justify-end text-blue-600">
-                                <span class="text-sm font-medium">View Details</span>
-                                <svg class="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                </svg>
-                            </div>
-                        </a>
+                                </div>
+                                <div class="mt-4 flex items-center justify-end text-blue-600">
+                                    <span class="text-sm font-medium">View Details</span>
+                                    <svg class="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </div>
+                            </a>
+                        </div>
                     @endforeach
                 </div>
             </div>

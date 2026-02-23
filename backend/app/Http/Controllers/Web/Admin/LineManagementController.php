@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Line;
+use App\Models\LineStatus;
 use Illuminate\Http\Request;
 
 class LineManagementController extends Controller
@@ -66,7 +67,9 @@ class LineManagementController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.lines.show', compact('line', 'workOrders', 'availableOperators'));
+        $lineStatuses = LineStatus::forLine($line->id)->get();
+
+        return view('admin.lines.show', compact('line', 'workOrders', 'availableOperators', 'lineStatuses'));
     }
 
     /**

@@ -102,6 +102,77 @@
         </div>
     </div>
 
+    <!-- Line Statuses -->
+    <div class="card mb-6" x-data="{}">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">Line Statuses</h2>
+                <p class="text-sm text-gray-500 mt-0.5">Kanban statuses available for work orders on this line. Global statuses are shown in gray.</p>
+            </div>
+            <a href="{{ route('admin.line-statuses.index') }}" class="text-sm text-blue-600 hover:underline">Manage global statuses →</a>
+        </div>
+
+        @if(session('success'))
+            <div class="mb-3 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-sm">{{ session('success') }}</div>
+        @endif
+
+        <div class="flex flex-wrap gap-2 mb-4">
+            @forelse($lineStatuses as $status)
+                <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white"
+                     style="background-color: {{ $status->color }}">
+                    {{ $status->name }}
+                    @if($status->is_default)
+                        <span class="text-xs opacity-75">(default)</span>
+                    @endif
+                    @if($status->line_id === null)
+                        <span class="text-xs opacity-60">global</span>
+                    @else
+                        <form method="POST" action="{{ route('admin.line-statuses.destroy', $status) }}"
+                              onsubmit="return confirm('Delete status \'{{ $status->name }}\'?')"
+                              class="inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="ml-1 opacity-75 hover:opacity-100" title="Delete">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            @empty
+                <p class="text-sm text-gray-500">No statuses yet. Add one below or <a href="{{ route('admin.line-statuses.index') }}" class="text-blue-600 hover:underline">manage global statuses</a>.</p>
+            @endforelse
+        </div>
+
+        <!-- Add line-specific status -->
+        <form method="POST" action="{{ route('admin.lines.statuses.store', $line) }}"
+              class="border-t border-gray-100 pt-4 flex items-end gap-3 flex-wrap">
+            @csrf
+            <div class="flex flex-col gap-1">
+                <label class="form-label text-xs">Color</label>
+                <input type="color" name="color" value="#F59E0B"
+                       class="w-10 h-10 rounded cursor-pointer border border-gray-300 p-0.5" required>
+            </div>
+            <div class="flex flex-col gap-1 flex-1 min-w-[160px]">
+                <label class="form-label text-xs">Status name (line-specific)</label>
+                <input type="text" name="name" placeholder="e.g. Waiting for parts"
+                       class="form-input py-1.5 text-sm" maxlength="100" required>
+            </div>
+            <div class="flex flex-col gap-1 w-20">
+                <label class="form-label text-xs">Order</label>
+                <input type="number" name="sort_order" value="10" min="0"
+                       class="form-input py-1.5 text-sm">
+            </div>
+            <button type="submit" class="btn-touch btn-secondary py-1.5 text-sm">
+                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add to this line
+            </button>
+        </form>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Assigned Operators -->
         <div class="card">

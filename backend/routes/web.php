@@ -36,6 +36,7 @@ use App\Http\Controllers\Web\Admin\CostSourceController;
 // Gate 7 — Maintenance
 use App\Http\Controllers\Web\Admin\ToolController;
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
+use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
 
 // Installation routes (no middleware)
 Route::prefix('install')->name('install.')->group(function () {
@@ -90,6 +91,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/select-line', [OperatorLineController::class, 'index'])->name('select-line');
         Route::post('/select-line', [OperatorLineController::class, 'select'])->name('select-line.post');
         Route::get('/queue', [OperatorWorkOrderController::class, 'queue'])->name('queue');
+        Route::post('/work-order/{workOrder}/line-status', [OperatorWorkOrderController::class, 'updateLineStatus'])->name('work-order.line-status');
         Route::get('/work-order/{workOrder}', [OperatorWorkOrderController::class, 'show'])->name('work-order.detail');
         Route::post('/batch', [OperatorBatchController::class, 'store'])->name('batch.store');
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
@@ -149,6 +151,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/lines/{line}/toggle-active', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'toggleActive'])->name('lines.toggle-active');
         Route::post('/lines/{line}/assign-operator', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'assignOperator'])->name('lines.assign-operator');
         Route::delete('/lines/{line}/unassign-operator/{user}', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'unassignOperator'])->name('lines.unassign-operator');
+        // Per-line statuses
+        Route::post('/lines/{line}/statuses', [AdminLineStatusController::class, 'storeForLine'])->name('lines.statuses.store');
+
+        // Global line statuses management
+        Route::get('/line-statuses', [AdminLineStatusController::class, 'index'])->name('line-statuses.index');
+        Route::post('/line-statuses', [AdminLineStatusController::class, 'store'])->name('line-statuses.store');
+        Route::put('/line-statuses/{lineStatus}', [AdminLineStatusController::class, 'update'])->name('line-statuses.update');
+        Route::delete('/line-statuses/{lineStatus}', [AdminLineStatusController::class, 'destroy'])->name('line-statuses.destroy');
 
         // Workstations Management (nested under lines)
         Route::prefix('lines/{line}/workstations')->name('lines.workstations.')->group(function () {
