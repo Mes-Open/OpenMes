@@ -46,7 +46,9 @@ class WorkOrderController extends Controller
 
         $lineStatuses = LineStatus::forLine($lineId)->get();
 
-        return view('operator.queue', compact('activeWorkOrders', 'completedWorkOrders', 'line', 'lineStatuses'));
+        $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
+
+        return view('operator.queue', compact('activeWorkOrders', 'completedWorkOrders', 'line', 'lineStatuses', 'issueTypes'));
     }
 
     /**
