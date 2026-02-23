@@ -8,12 +8,8 @@ on:
 
 jobs:
   test:
-    name: PHP ${{ matrix.php }} — Laravel tests
+    name: Laravel tests (PHP 8.3)
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        php: [ '8.3' ]
 
     steps:
       - name: Checkout
@@ -22,21 +18,26 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
+          php-version: '8.3'
           extensions: pdo, pdo_sqlite, mbstring, zip, gd, bcmath
           coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
 
       - name: Install Composer dependencies
         working-directory: backend
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Copy .env
+      - name: Copy .env and generate key
         working-directory: backend
-        run: cp .env.example .env
-
-      - name: Generate application key
-        working-directory: backend
-        run: php artisan key:generate
+        run: |
+          cp .env.example .env
+          php artisan key:generate
 
       - name: Run tests
         working-directory: backend
