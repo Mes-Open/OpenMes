@@ -11,7 +11,10 @@
         "WorkOrder\\WorkOrderCompleted",
         "Batch\\BatchCreated",
         "BatchStep\\StepStarted",
-        "BatchStep\\StepCompleted"
+        "BatchStep\\StepCompleted",
+        "Menu\\addItem",
+        "Menu\\addGroup",
+        "Menu\\addGroupItem"
     ],
     "requires": []
 }
