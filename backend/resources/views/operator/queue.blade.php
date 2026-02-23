@@ -48,9 +48,11 @@
                             <p class="text-sm text-gray-600">Quantity</p>
                             <p class="font-medium text-gray-800">
                                 {{ number_format($workOrder->produced_qty, 2) }} / {{ number_format($workOrder->planned_qty, 2) }}
+                                @if($workOrder->planned_qty > 0)
                                 <span class="text-sm text-gray-500">
                                     ({{ number_format(($workOrder->produced_qty / $workOrder->planned_qty) * 100, 1) }}%)
                                 </span>
+                                @endif
                             </p>
                         </div>
 
