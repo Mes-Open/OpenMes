@@ -329,24 +329,8 @@
 
         @endif
     </div>
-</div>
 
-<style>
-[x-cloak]{display:none!important}
-
-/* Row hover: darken slightly without disturbing the status tint */
-.wo-row:hover { filter: brightness(0.93); }
-.wo-row:active { filter: brightness(0.85); }
-
-/* Arrow cell — large touch target, separate action */
-td[data-detail-link] {
-    min-width: 48px;
-    cursor: pointer;
-}
-td[data-detail-link]:hover svg { color: #2563eb; }
-</style>
-
-{{-- ── REPORT ISSUE MODAL (shared, Alpine-driven) ── --}}
+    {{-- ── REPORT ISSUE MODAL (shared, Alpine-driven) ── inside x-data scope --}}
 @if($issueTypes->isNotEmpty())
 <div x-show="report.open" x-cloak class="fixed inset-0 z-50 overflow-y-auto"
      x-transition:enter="transition ease-out duration-150"
@@ -446,15 +430,22 @@ td[data-detail-link]:hover svg { color: #2563eb; }
             </div>
         </div>
     </div>
-</div>
-
-<script>
-// Issue type names — used to detect if title was auto-filled (so re-selecting a type overwrites it)
-const issueTypeNames = @json($issueTypes->pluck('name')->values());
-</script>
 @endif
 
+</div>{{-- end x-data --}}
+
+<style>
+[x-cloak]{display:none!important}
+.wo-row:hover { filter: brightness(0.93); }
+.wo-row:active { filter: brightness(0.85); }
+td[data-detail-link] { min-width: 48px; cursor: pointer; }
+td[data-detail-link]:hover svg { color: #2563eb; }
+</style>
+
 <script>
+@if($issueTypes->isNotEmpty())
+const issueTypeNames = @json($issueTypes->pluck('name')->values());
+@endif
 @if($lineStatuses->isNotEmpty())
 const WO_STATUSES = @json($lineStatuses->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'color' => $s->color])->values());
 @else
