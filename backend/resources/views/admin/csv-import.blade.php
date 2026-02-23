@@ -243,6 +243,18 @@
                             @endif
                             · {{ $imp->created_at->diffForHumans() }}
                         </p>
+                        @if(!empty($imp->error_log))
+                            <details class="mt-1">
+                                <summary class="text-xs text-red-600 cursor-pointer hover:text-red-800">
+                                    Show errors ({{ count($imp->error_log) }})
+                                </summary>
+                                <ul class="mt-1 space-y-0.5 bg-red-50 rounded p-2 max-h-40 overflow-y-auto">
+                                    @foreach($imp->error_log as $err)
+                                        <li class="text-xs text-red-700 font-mono break-all">{{ $err }}</li>
+                                    @endforeach
+                                </ul>
+                            </details>
+                        @endif
                     </div>
                 @empty
                     <p class="text-sm text-gray-500">No imports yet.</p>
