@@ -63,7 +63,10 @@
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order No</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                                 @if($lineStatuses->isNotEmpty())
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Board Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    Board Status
+                                    <span class="ml-1 text-gray-400 font-normal normal-case text-xs" title="Tap row to cycle">↻</span>
+                                </th>
                                 @endif
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Qty (done / planned)</th>
@@ -73,43 +76,46 @@
                                 <th class="px-4 py-3"></th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
+                        <tbody class="divide-y divide-gray-200">
                             @foreach($activeWorkOrders as $workOrder)
-                                <tr class="hover:bg-blue-50 transition-colors">
-                                    <td class="px-4 py-3 font-mono font-semibold text-gray-800 whitespace-nowrap cursor-pointer"
-                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
+                                @php
+                                    $ls = $workOrder->lineStatus;
+                                    $rowStyle = 'border-left: 4px solid transparent';
+                                    if ($ls && strlen($ls->color) === 7) {
+                                        $r = hexdec(substr($ls->color, 1, 2));
+                                        $g = hexdec(substr($ls->color, 3, 2));
+                                        $b = hexdec(substr($ls->color, 5, 2));
+                                        $rowStyle = "background-color:rgba($r,$g,$b,0.12);border-left:4px solid {$ls->color}";
+                                    }
+                                @endphp
+                                <tr class="wo-row cursor-pointer transition-all"
+                                    style="{{ $rowStyle }}"
+                                    data-cycle="{{ $lineStatuses->isNotEmpty() ? '1' : '0' }}"
+                                    data-status-id="{{ $workOrder->line_status_id ?? '' }}"
+                                    data-status-url="{{ route('operator.work-order.line-status', $workOrder) }}"
+                                    data-detail-url="{{ route('operator.work-order.detail', $workOrder) }}">
+                                    <td class="px-4 py-3 font-mono font-semibold text-gray-800 whitespace-nowrap">
                                         {{ $workOrder->order_no }}
                                     </td>
-                                    <td class="px-4 py-3 whitespace-nowrap cursor-pointer"
-                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
+                                    <td class="px-4 py-3 whitespace-nowrap">
                                         @include('components.wo-status-badge', ['status' => $workOrder->status])
                                     </td>
                                     @if($lineStatuses->isNotEmpty())
-                                    <td class="px-4 py-3 whitespace-nowrap" onclick="event.stopPropagation()">
-                                        <form method="POST" action="{{ route('operator.work-order.line-status', $workOrder) }}">
-                                            @csrf
-                                            <select name="line_status_id"
-                                                    onchange="this.form.submit()"
-                                                    class="text-xs rounded-full border-0 font-medium py-1 pl-2 pr-6 cursor-pointer focus:ring-1 focus:ring-blue-400"
-                                                    style="background-color: {{ $workOrder->lineStatus?->color ?? '#E5E7EB' }}; color: {{ $workOrder->lineStatus ? '#fff' : '#374151' }}">
-                                                <option value="">— none —</option>
-                                                @foreach($lineStatuses as $ls)
-                                                    <option value="{{ $ls->id }}"
-                                                            {{ $workOrder->line_status_id == $ls->id ? 'selected' : '' }}
-                                                            style="background-color: {{ $ls->color }}; color: #fff">
-                                                        {{ $ls->name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </form>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        @if($ls)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-white"
+                                                  style="background-color: {{ $ls->color }}">
+                                                {{ $ls->name }}
+                                            </span>
+                                        @else
+                                            <span class="text-gray-400 text-sm">—</span>
+                                        @endif
                                     </td>
                                     @endif
-                                    <td class="px-4 py-3 text-sm text-gray-700 cursor-pointer"
-                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
+                                    <td class="px-4 py-3 text-sm text-gray-700">
                                         {{ $workOrder->productType?->name ?? '—' }}
                                     </td>
-                                    <td class="px-4 py-3 text-sm whitespace-nowrap cursor-pointer"
-                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
+                                    <td class="px-4 py-3 text-sm whitespace-nowrap">
                                         <span class="font-medium text-gray-800">
                                             {{ number_format($workOrder->produced_qty, 0) }} / {{ number_format($workOrder->planned_qty, 0) }}
                                         </span>
@@ -121,21 +127,17 @@
                                             </div>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-600 text-center cursor-pointer"
-                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
+                                    <td class="px-4 py-3 text-sm text-gray-600 text-center">
                                         {{ $workOrder->batches->count() }}
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-600 text-center cursor-pointer"
-                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
+                                    <td class="px-4 py-3 text-sm text-gray-600 text-center">
                                         {{ $workOrder->priority ?: '—' }}
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap cursor-pointer"
-                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
+                                    <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                                         {{ $workOrder->due_date ? \Carbon\Carbon::parse($workOrder->due_date)->format('d M') : '—' }}
                                     </td>
-                                    <td class="px-4 py-3 text-right cursor-pointer"
-                                        onclick="location.href='{{ route('operator.work-order.detail', $workOrder) }}'">
-                                        <svg class="w-5 h-5 text-blue-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <td class="px-4 py-3 text-right" data-detail-link="1">
+                                        <svg class="w-6 h-6 text-blue-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                         </svg>
                                     </td>
@@ -301,5 +303,70 @@
     </div>
 </div>
 
-<style>[x-cloak]{display:none!important}</style>
+<style>
+[x-cloak]{display:none!important}
+
+/* Row hover: darken slightly without disturbing the status tint */
+.wo-row:hover { filter: brightness(0.93); }
+.wo-row:active { filter: brightness(0.85); }
+
+/* Arrow cell — large touch target, separate action */
+td[data-detail-link] {
+    min-width: 48px;
+    cursor: pointer;
+}
+td[data-detail-link]:hover svg { color: #2563eb; }
+</style>
+
+@if($lineStatuses->isNotEmpty())
+<script>
+const WO_STATUSES = @json($lineStatuses->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'color' => $s->color])->values());
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('tr.wo-row').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            // Arrow cell → navigate to detail
+            if (e.target.closest('[data-detail-link]')) {
+                location.href = row.dataset.detailUrl;
+                return;
+            }
+            // Cycle board status
+            if (row.dataset.cycle === '1') {
+                cycleStatus(row);
+            } else {
+                location.href = row.dataset.detailUrl;
+            }
+        });
+    });
+});
+
+function cycleStatus(row) {
+    const currentId = row.dataset.statusId ? parseInt(row.dataset.statusId) : null;
+    const ids = [null, ...WO_STATUSES.map(s => s.id)];
+    const currentIdx = ids.indexOf(currentId);
+    const nextId = ids[(currentIdx + 1) % ids.length];
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = row.dataset.statusUrl;
+    form.style.display = 'none';
+
+    const token = document.createElement('input');
+    token.type = 'hidden';
+    token.name = '_token';
+    token.value = (document.querySelector('input[name="_token"]') || {}).value || '';
+    form.appendChild(token);
+
+    const field = document.createElement('input');
+    field.type = 'hidden';
+    field.name = 'line_status_id';
+    field.value = nextId !== null ? nextId : '';
+    form.appendChild(field);
+
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+@endif
+
 @endsection
