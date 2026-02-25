@@ -85,9 +85,10 @@ class SettingsController extends Controller
         $rows = DB::table('system_settings')->get()->keyBy('key');
 
         $settings = [
-            'production_period' => json_decode($rows['production_period']->value ?? '"none"', true) ?? 'none',
-            'allow_overproduction' => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
+            'production_period'     => json_decode($rows['production_period']->value ?? '"none"', true) ?? 'none',
+            'allow_overproduction'  => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']->value ?? 'true', true) ?? true,
+            'workflow_mode'         => json_decode($rows['workflow_mode']->value ?? '"status"', true) ?? 'status',
         ];
 
         return view('settings.system', compact('settings'));
@@ -99,15 +100,17 @@ class SettingsController extends Controller
     public function updateSystemSettings(Request $request)
     {
         $validated = $request->validate([
-            'production_period'     => 'required|in:none,weekly,monthly',
-            'allow_overproduction'  => 'nullable|boolean',
+            'production_period'      => 'required|in:none,weekly,monthly',
+            'allow_overproduction'   => 'nullable|boolean',
             'force_sequential_steps' => 'nullable|boolean',
+            'workflow_mode'          => 'required|in:status,board_status',
         ]);
 
         $map = [
             'production_period'      => $validated['production_period'],
             'allow_overproduction'   => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
+            'workflow_mode'          => $validated['workflow_mode'],
         ];
 
         foreach ($map as $key => $value) {

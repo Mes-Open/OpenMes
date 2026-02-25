@@ -53,6 +53,39 @@
             </div>
         </div>
 
+        {{-- Workflow Mode --}}
+        <div class="card">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">Workflow Mode</h2>
+            <p class="text-xs text-gray-500 mb-4">
+                Defines how work order completion is tracked. In <strong>Board Status</strong> mode the operator must enter a produced quantity when moving a work order to a "Done" board status.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                @foreach([
+                    'status' => [
+                        'label' => 'Status',
+                        'desc'  => 'Work order status is changed manually through the work order actions. Board statuses are purely visual labels.',
+                    ],
+                    'board_status' => [
+                        'label' => 'Board Status',
+                        'desc'  => 'Moving a work order to a "Done" board status automatically closes the work order and records produced quantity.',
+                    ],
+                ] as $value => $opt)
+                    <label class="relative flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors workflow-mode-card
+                        {{ ($settings['workflow_mode'] ?? 'status') === $value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
+                        <input type="radio" name="workflow_mode" value="{{ $value }}"
+                               class="sr-only workflow-mode-radio"
+                               {{ ($settings['workflow_mode'] ?? 'status') === $value ? 'checked' : '' }}>
+                        <span class="font-medium text-sm text-gray-800">{{ $opt['label'] }}</span>
+                        <span class="text-xs text-gray-500">{{ $opt['desc'] }}</span>
+                    </label>
+                @endforeach
+            </div>
+            @error('workflow_mode')
+                <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+            @enderror
+        </div>
+
         {{-- Production Rules --}}
         <div class="card">
             <h2 class="text-lg font-bold text-gray-800 mb-4">Production Rules</h2>
@@ -93,18 +126,21 @@
 </div>
 
 <script>
-// Highlight selected radio card
-document.querySelectorAll('input[name="production_period"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-        document.querySelectorAll('input[name="production_period"]').forEach(r => {
-            r.closest('label').classList.remove('border-blue-500', 'bg-blue-50');
-            r.closest('label').classList.add('border-gray-200');
+function initRadioHighlight(name) {
+    document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
+        radio.addEventListener('change', () => {
+            document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+                r.closest('label').classList.remove('border-blue-500', 'bg-blue-50');
+                r.closest('label').classList.add('border-gray-200');
+            });
+            if (radio.checked) {
+                radio.closest('label').classList.add('border-blue-500', 'bg-blue-50');
+                radio.closest('label').classList.remove('border-gray-200');
+            }
         });
-        if (radio.checked) {
-            radio.closest('label').classList.add('border-blue-500', 'bg-blue-50');
-            radio.closest('label').classList.remove('border-gray-200');
-        }
     });
-});
+}
+initRadioHighlight('production_period');
+initRadioHighlight('workflow_mode');
 </script>
 @endsection

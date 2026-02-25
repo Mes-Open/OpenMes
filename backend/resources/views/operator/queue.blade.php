@@ -6,9 +6,18 @@
 <div class="max-w-7xl mx-auto"
      x-data="{
          view: localStorage.getItem('queueView') || 'table',
-         report: { open: false, woId: null, woNo: '', title: '', typeId: '', desc: '' }
+         report:  { open: false, woId: null, woNo: '', title: '', typeId: '', desc: '' },
+         doneQty: { open: false, woId: null, woNo: '', statusId: null, statusUrl: '', qty: '' }
      }"
-     x-init="$watch('view', v => localStorage.setItem('queueView', v))">
+     x-init="$watch('view', v => localStorage.setItem('queueView', v))"
+     x-on:open-done-qty-modal.window="
+         doneQty.woId      = $event.detail.woId;
+         doneQty.woNo      = $event.detail.woNo;
+         doneQty.statusId  = $event.detail.statusId;
+         doneQty.statusUrl = $event.detail.statusUrl;
+         doneQty.qty       = '';
+         doneQty.open      = true;
+     ">
 
     <!-- Header -->
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -99,7 +108,9 @@
                                     data-cycle="{{ $lineStatuses->isNotEmpty() ? '1' : '0' }}"
                                     data-status-id="{{ $workOrder->line_status_id ?? '' }}"
                                     data-status-url="{{ route('operator.work-order.line-status', $workOrder) }}"
-                                    data-detail-url="{{ route('operator.work-order.detail', $workOrder) }}">
+                                    data-detail-url="{{ route('operator.work-order.detail', $workOrder) }}"
+                                    data-wo-id="{{ $workOrder->id }}"
+                                    data-wo-no="{{ addslashes($workOrder->order_no) }}">
                                     <td class="px-4 py-3 font-mono font-semibold text-gray-800 whitespace-nowrap">
                                         {{ $workOrder->order_no }}
                                     </td>
@@ -182,7 +193,10 @@
                                 <form method="POST" action="{{ route('operator.work-order.line-status', $workOrder) }}">
                                     @csrf
                                     <select name="line_status_id"
-                                            onchange="this.form.submit()"
+                                            data-wo-id="{{ $workOrder->id }}"
+                                            data-wo-no="{{ addslashes($workOrder->order_no) }}"
+                                            data-current-id="{{ $workOrder->line_status_id ?? '' }}"
+                                            onchange="handleBoardStatusChange(this)"
                                             class="w-full text-sm rounded-lg border border-gray-200 font-medium py-1.5 px-3 cursor-pointer">
                                         <option value="">— none —</option>
                                         @foreach($lineStatuses as $ls)
@@ -330,6 +344,72 @@
         @endif
     </div>
 
+    {{-- ── DONE QTY MODAL (board_status mode) ── inside x-data scope --}}
+@if($workflowMode === 'board_status')
+<div x-show="doneQty.open" x-cloak class="fixed inset-0 z-50 overflow-y-auto"
+     x-transition:enter="transition ease-out duration-150"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-100"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0">
+    <div class="fixed inset-0 bg-black/50" @click="doneQty.open = false"></div>
+    <div class="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="relative bg-white w-full sm:max-w-sm sm:rounded-xl shadow-2xl"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0 translate-y-4"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             @click.stop>
+
+            <div class="flex justify-center pt-3 pb-1 sm:hidden">
+                <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+            </div>
+
+            <div class="px-5 pt-3 pb-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">Complete Work Order</h3>
+                        <p class="text-sm text-gray-500 font-mono" x-text="doneQty.woNo"></p>
+                    </div>
+                    <button type="button" @click="doneQty.open = false"
+                            class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form :action="doneQty.statusUrl" method="POST">
+                    @csrf
+                    <input type="hidden" name="line_status_id" :value="doneQty.statusId">
+
+                    <div class="mb-4">
+                        <label class="form-label">Produced quantity <span class="text-red-500">*</span></label>
+                        <input type="number" name="produced_qty" x-model="doneQty.qty"
+                               class="form-input w-full text-2xl font-bold text-center py-4"
+                               placeholder="0" min="0" step="0.01" required autofocus>
+                        <p class="text-xs text-gray-500 mt-1">Enter the number of units actually produced.</p>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button type="button" @click="doneQty.open = false"
+                                class="btn-touch btn-secondary flex-1">Cancel</button>
+                        <button type="submit"
+                                :disabled="doneQty.qty === '' || doneQty.qty < 0"
+                                class="btn-touch flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg disabled:opacity-40">
+                            <svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Mark as Done
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
     {{-- ── REPORT ISSUE MODAL (shared, Alpine-driven) ── inside x-data scope --}}
 @if($issueTypes->isNotEmpty())
 <div x-show="report.open" x-cloak class="fixed inset-0 z-50 overflow-y-auto"
@@ -451,6 +531,8 @@ const WO_STATUSES = @json($lineStatuses->map(fn($s) => ['id' => $s->id, 'name' =
 @else
 const WO_STATUSES = [];
 @endif
+const WORKFLOW_MODE  = @json($workflowMode);
+const DONE_STATUS_IDS = @json($doneStatusIds->values());
 
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('tr.wo-row').forEach(function (row) {
@@ -480,9 +562,26 @@ function cycleStatus(row) {
     const currentIdx = ids.indexOf(currentId);
     const nextId = ids[(currentIdx + 1) % ids.length];
 
+    // In board_status mode, prompt for qty when landing on a done status
+    if (WORKFLOW_MODE === 'board_status' && nextId !== null && DONE_STATUS_IDS.includes(nextId)) {
+        window.dispatchEvent(new CustomEvent('open-done-qty-modal', {
+            detail: {
+                woId:      parseInt(row.dataset.woId),
+                woNo:      row.dataset.woNo,
+                statusId:  nextId,
+                statusUrl: row.dataset.statusUrl,
+            }
+        }));
+        return;
+    }
+
+    submitLineStatusForm(row.dataset.statusUrl, nextId);
+}
+
+function submitLineStatusForm(url, statusId) {
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = row.dataset.statusUrl;
+    form.action = url;
     form.style.display = 'none';
 
     const token = document.createElement('input');
@@ -494,11 +593,31 @@ function cycleStatus(row) {
     const field = document.createElement('input');
     field.type = 'hidden';
     field.name = 'line_status_id';
-    field.value = nextId !== null ? nextId : '';
+    field.value = statusId !== null ? statusId : '';
     form.appendChild(field);
 
     document.body.appendChild(form);
     form.submit();
+}
+
+function handleBoardStatusChange(select) {
+    const selectedId = select.value ? parseInt(select.value) : null;
+
+    if (WORKFLOW_MODE === 'board_status' && selectedId !== null && DONE_STATUS_IDS.includes(selectedId)) {
+        window.dispatchEvent(new CustomEvent('open-done-qty-modal', {
+            detail: {
+                woId:      parseInt(select.dataset.woId),
+                woNo:      select.dataset.woNo,
+                statusId:  selectedId,
+                statusUrl: select.closest('form').action,
+            }
+        }));
+        // Revert select to its previous value so user sees original state
+        select.value = select.dataset.currentId || '';
+        return;
+    }
+
+    select.closest('form').submit();
 }
 </script>
 

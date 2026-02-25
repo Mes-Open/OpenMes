@@ -5,8 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class Line extends Model
 {
@@ -65,6 +66,38 @@ class Line extends Model
     public function lineStatuses(): HasMany
     {
         return $this->hasMany(LineStatus::class);
+    }
+
+    /**
+     * Get product types assigned to this line.
+     */
+    public function productTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductType::class, 'line_product_type');
+    }
+
+    /**
+     * Returns active workstations for this line.
+     * If none are configured, returns a virtual stand-in representing the line itself.
+     */
+    public function effectiveWorkstations(): Collection
+    {
+        $ws = $this->workstations()->where('is_active', true)->get();
+
+        if ($ws->isEmpty()) {
+            return collect([(object) [
+                'id'             => null,
+                'name'           => $this->name,
+                'code'           => $this->code,
+                'is_active'      => true,
+                'is_line_itself' => true,
+            ]]);
+        }
+
+        return $ws->map(function ($w) {
+            $w->is_line_itself = false;
+            return $w;
+        });
     }
 
     /**

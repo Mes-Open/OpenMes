@@ -78,7 +78,28 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
                     <p class="text-gray-600 font-medium">Drop file here or <span class="text-blue-600">browse</span></p>
-                    <p class="text-sm text-gray-400 mt-1">Max 32 MB · .csv, .txt, .xlsx, .xls</p>
+                        <p class="text-sm text-gray-400 mt-1">Max 32 MB · .csv, .txt, .xlsx, .xls</p>
+                    <div class="mt-3 flex items-center justify-center gap-3 text-xs">
+                        <span class="text-gray-400">Sample files:</span>
+                        <a href="/samples/zlecenia-import.xlsx"
+                           download
+                           class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                           @click.stop>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            XLSX
+                        </a>
+                        <a href="/samples/zlecenia-import.csv"
+                           download
+                           class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                           @click.stop>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            CSV
+                        </a>
+                    </div>
                     <input
                         type="file"
                         name="csv_file"

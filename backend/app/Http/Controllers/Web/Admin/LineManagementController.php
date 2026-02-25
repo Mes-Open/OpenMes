@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\LineStatus;
+use App\Models\ProductType;
 use Illuminate\Http\Request;
 
 class LineManagementController extends Controller
@@ -55,21 +56,25 @@ class LineManagementController extends Controller
      */
     public function show(Line $line)
     {
-        $line->load(['workstations', 'users.roles']);
+        $line->load(['workstations', 'users.roles', 'productTypes']);
         $workOrders = $line->workOrders()
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
 
-        // Get operators not assigned to this line
         $availableOperators = \App\Models\User::role('Operator')
             ->whereNotIn('id', $line->users->pluck('id'))
             ->orderBy('name')
             ->get();
 
-        $lineStatuses = LineStatus::forLine($line->id)->get();
+        $lineStatuses      = LineStatus::forLine($line->id)->get();
+        $allProductTypes   = ProductType::active()->orderBy('name')->get();
+        $assignedTypeIds   = $line->productTypes->pluck('id')->toArray();
 
-        return view('admin.lines.show', compact('line', 'workOrders', 'availableOperators', 'lineStatuses'));
+        return view('admin.lines.show', compact(
+            'line', 'workOrders', 'availableOperators',
+            'lineStatuses', 'allProductTypes', 'assignedTypeIds'
+        ));
     }
 
     /**
@@ -157,6 +162,21 @@ class LineManagementController extends Controller
 
         return redirect()->route('admin.lines.show', $line)
             ->with('success', "Operator {$user->name} assigned successfully.");
+    }
+
+    /**
+     * Sync assigned product types for a line
+     */
+    public function syncProductTypes(Request $request, Line $line)
+    {
+        $validated = $request->validate([
+            'product_type_ids'   => 'nullable|array',
+            'product_type_ids.*' => 'exists:product_types,id',
+        ]);
+
+        $line->productTypes()->sync($validated['product_type_ids'] ?? []);
+
+        return back()->with('success', 'Product types updated.');
     }
 
     /**

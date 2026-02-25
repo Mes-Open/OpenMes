@@ -30,6 +30,7 @@ class User extends Authenticatable
         'password',
         'account_type',
         'workstation_id',
+        'worker_id',
         'force_password_change',
         'last_login_at',
     ];
@@ -72,6 +73,14 @@ class User extends Authenticatable
     public function workstation(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Workstation::class);
+    }
+
+    /**
+     * Get the worker profile linked to this user account.
+     */
+    public function worker(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Worker::class);
     }
 
     /**
