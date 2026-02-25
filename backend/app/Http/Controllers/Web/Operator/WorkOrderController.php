@@ -8,6 +8,7 @@ use App\Models\LineStatus;
 use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WorkOrderController extends Controller
 {
@@ -48,7 +49,14 @@ class WorkOrderController extends Controller
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
 
-        return view('operator.queue', compact('activeWorkOrders', 'completedWorkOrders', 'line', 'lineStatuses', 'issueTypes'));
+        $settingRows = DB::table('system_settings')->get()->keyBy('key');
+        $workflowMode = json_decode($settingRows['workflow_mode']->value ?? '"status"', true) ?? 'status';
+        $doneStatusIds = $lineStatuses->where('is_done_status', true)->pluck('id')->values();
+
+        return view('operator.queue', compact(
+            'activeWorkOrders', 'completedWorkOrders', 'line',
+            'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds'
+        ));
     }
 
     /**
@@ -64,9 +72,29 @@ class WorkOrderController extends Controller
 
         $validated = $request->validate([
             'line_status_id' => 'nullable|exists:line_statuses,id',
+            'produced_qty'   => 'nullable|numeric|min:0',
         ]);
 
-        $workOrder->update(['line_status_id' => $validated['line_status_id']]);
+        $updates = ['line_status_id' => $validated['line_status_id']];
+
+        // In board_status mode: if the selected status is a "done" status, complete the work order
+        if ($validated['line_status_id']) {
+            $settingRows = DB::table('system_settings')->get()->keyBy('key');
+            $workflowMode = json_decode($settingRows['workflow_mode']->value ?? '"status"', true) ?? 'status';
+
+            if ($workflowMode === 'board_status') {
+                $newStatus = LineStatus::find($validated['line_status_id']);
+                if ($newStatus && $newStatus->is_done_status) {
+                    $updates['status']       = WorkOrder::STATUS_DONE;
+                    $updates['completed_at'] = now();
+                    if (isset($validated['produced_qty'])) {
+                        $updates['produced_qty'] = $validated['produced_qty'];
+                    }
+                }
+            }
+        }
+
+        $workOrder->update($updates);
 
         return back()->with('success', 'Status updated.');
     }

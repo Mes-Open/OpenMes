@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class LineStatus extends Model
 {
-    protected $fillable = ['name', 'color', 'sort_order', 'line_id', 'is_default'];
+    protected $fillable = ['name', 'color', 'sort_order', 'line_id', 'is_default', 'is_done_status'];
 
     protected function casts(): array
     {
-        return ['is_default' => 'boolean'];
+        return [
+            'is_default'     => 'boolean',
+            'is_done_status' => 'boolean',
+        ];
     }
 
     public function line(): \Illuminate\Database\Eloquent\Relations\BelongsTo

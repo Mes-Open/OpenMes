@@ -46,6 +46,14 @@ class Worker extends Model
     }
 
     /**
+     * Get the user account linked to this worker.
+     */
+    public function user(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(User::class);
+    }
+
+    /**
      * Get the skills for this worker.
      */
     public function skills(): BelongsToMany

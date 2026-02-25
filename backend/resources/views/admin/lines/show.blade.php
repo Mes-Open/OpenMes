@@ -173,6 +173,106 @@
         </form>
     </div>
 
+    {{-- ── Product Types ── --}}
+    <div class="card mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">Assigned Product Types</h2>
+                <p class="text-sm text-gray-500 mt-0.5">Product types that can be produced on this line.</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-4">
+            @forelse($line->productTypes as $pt)
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-sm font-medium rounded-lg">
+                    <span class="font-mono text-xs text-blue-500">{{ $pt->code }}</span>
+                    {{ $pt->name }}
+                </span>
+            @empty
+                <p class="text-sm text-gray-400">No product types assigned — all types are allowed.</p>
+            @endforelse
+        </div>
+
+        <form method="POST" action="{{ route('admin.lines.product-types.sync', $line) }}"
+              class="border-t border-gray-100 pt-4"
+              x-data="{ open: false }">
+            @csrf
+            <button type="button" @click="open = !open"
+                    class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span x-text="open ? 'Hide selector' : 'Change assignment'"></span>
+            </button>
+
+            <div x-show="open" x-cloak class="mt-3">
+                @if($allProductTypes->isEmpty())
+                    <p class="text-sm text-gray-500">No active product types defined yet.</p>
+                @else
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
+                        @foreach($allProductTypes as $pt)
+                            <label class="flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors
+                                {{ in_array($pt->id, $assignedTypeIds) ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
+                                <input type="checkbox" name="product_type_ids[]" value="{{ $pt->id }}"
+                                       class="rounded border-gray-300 text-blue-600"
+                                       {{ in_array($pt->id, $assignedTypeIds) ? 'checked' : '' }}>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-gray-800 truncate">{{ $pt->name }}</p>
+                                    <p class="text-xs text-gray-400 font-mono">{{ $pt->code }}</p>
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                    <p class="text-xs text-gray-400 mb-3">Leave all unchecked to allow all product types on this line.</p>
+                    <button type="submit" class="btn-touch btn-primary py-1.5 text-sm">Save Assignment</button>
+                @endif
+            </div>
+        </form>
+    </div>
+
+    {{-- ── Workstations ── --}}
+    <div class="card mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">Workstations</h2>
+                @if($line->workstations->isEmpty())
+                    <p class="text-sm text-amber-600 mt-0.5 font-medium">
+                        No workstations configured — line itself acts as a single workstation.
+                    </p>
+                @else
+                    <p class="text-sm text-gray-500 mt-0.5">{{ $line->workstations->count() }} workstation(s) on this line.</p>
+                @endif
+            </div>
+            <a href="{{ route('admin.lines.workstations.index', $line) }}" class="btn-touch btn-secondary text-sm">
+                Manage
+            </a>
+        </div>
+
+        @php $effective = $line->effectiveWorkstations(); @endphp
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            @foreach($effective as $ws)
+                <div class="flex items-center gap-3 p-3 rounded-lg border
+                    {{ $ws->is_line_itself ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50' }}">
+                    <div class="{{ $ws->is_line_itself ? 'bg-amber-100' : 'bg-green-100' }} rounded-full p-2 flex-shrink-0">
+                        <svg class="w-5 h-5 {{ $ws->is_line_itself ? 'text-amber-600' : 'text-green-600' }}"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-gray-800 truncate">{{ $ws->name }}</p>
+                        <p class="text-xs text-gray-400 font-mono">{{ $ws->code }}</p>
+                        @if($ws->is_line_itself)
+                            <p class="text-xs text-amber-600">virtual (line = workstation)</p>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Assigned Operators -->
         <div class="card">

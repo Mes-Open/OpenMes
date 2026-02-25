@@ -10,9 +10,9 @@ class LineStatusSeeder extends Seeder
     public function run(): void
     {
         $defaults = [
-            ['name' => 'Todo',        'color' => '#6B7280', 'sort_order' => 1, 'is_default' => true],
-            ['name' => 'In Progress', 'color' => '#3B82F6', 'sort_order' => 2, 'is_default' => false],
-            ['name' => 'Done',        'color' => '#22C55E', 'sort_order' => 3, 'is_default' => false],
+            ['name' => 'Todo',        'color' => '#6B7280', 'sort_order' => 1, 'is_default' => true,  'is_done_status' => false],
+            ['name' => 'In Progress', 'color' => '#3B82F6', 'sort_order' => 2, 'is_default' => false, 'is_done_status' => false],
+            ['name' => 'Done',        'color' => '#22C55E', 'sort_order' => 3, 'is_default' => false, 'is_done_status' => true],
         ];
 
         foreach ($defaults as $data) {
@@ -21,5 +21,8 @@ class LineStatusSeeder extends Seeder
                 $data
             );
         }
+
+        // Ensure existing "Done" rows have is_done_status = true
+        LineStatus::where('name', 'Done')->whereNull('line_id')->update(['is_done_status' => true]);
     }
 }

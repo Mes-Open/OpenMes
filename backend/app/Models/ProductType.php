@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductType extends Model
@@ -49,6 +50,14 @@ class ProductType extends Model
     public function workOrders(): HasMany
     {
         return $this->hasMany(WorkOrder::class);
+    }
+
+    /**
+     * Get the lines this product type is assigned to.
+     */
+    public function lines(): BelongsToMany
+    {
+        return $this->belongsToMany(Line::class, 'line_product_type');
     }
 
     /**

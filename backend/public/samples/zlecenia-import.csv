@@ -1,0 +1,11 @@
+Numer_zlecenia,Nazwa_produktu,Ilosc,Linia,Typ_produktu,Priorytet,Termin,Opis
+ZL-2026-001,Panel Boczny Lewy,250,L1,PANEL,3,2026-03-10,Seria wiosenna
+ZL-2026-002,Panel Boczny Prawy,250,L1,PANEL,3,2026-03-10,Seria wiosenna
+ZL-2026-003,Pokrywa Silnika,100,L2,POKRYWA,5,2026-03-05,Priorytet ekspres
+ZL-2026-004,Rama Glowna A,60,L2,RAMA,4,2026-03-12,
+ZL-2026-005,Chlodnica Oleju,80,L3,CHLODNICA,2,2026-03-20,Normalny bieg
+ZL-2026-006,Uszczelka Pokrywy,500,,USZCZELKA,1,2026-03-31,Duza partia
+ZL-2026-007,Wspornik Przedni,120,L1,,3,2026-03-15,
+ZL-2026-008,Tuleja Stabilizatora,300,L2,TULEJA,2,2026-03-25,Tygodniowy plan
+ZL-2026-009,Kolnierz Wydechowy,90,L3,KOLNIERZ,4,2026-03-08,Pilne
+ZL-2026-010,Przewod Hamulcowy,200,,PRZEWOD,1,,Brak terminu

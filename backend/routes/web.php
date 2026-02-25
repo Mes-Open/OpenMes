@@ -153,6 +153,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/lines/{line}/unassign-operator/{user}', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'unassignOperator'])->name('lines.unassign-operator');
         // Per-line statuses
         Route::post('/lines/{line}/statuses', [AdminLineStatusController::class, 'storeForLine'])->name('lines.statuses.store');
+        // Per-line product types
+        Route::post('/lines/{line}/product-types', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'syncProductTypes'])->name('lines.product-types.sync');
 
         // Global line statuses management
         Route::get('/line-statuses', [AdminLineStatusController::class, 'index'])->name('line-statuses.index');
