@@ -12,6 +12,7 @@ use App\Models\Issue;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class IssueTest extends TestCase
@@ -61,7 +62,7 @@ class IssueTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_create_a_blocking_issue_and_block_work_order()
     {
         $response = $this->actingAs($this->user, 'sanctum')
@@ -97,7 +98,7 @@ class IssueTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_create_a_non_blocking_issue_without_blocking_work_order()
     {
         $response = $this->actingAs($this->user, 'sanctum')
@@ -121,7 +122,7 @@ class IssueTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_acknowledge_an_issue()
     {
         $issue = Issue::factory()->create([
@@ -146,7 +147,7 @@ class IssueTest extends TestCase
         $this->assertNotNull($issue->acknowledged_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_resolve_an_issue_and_unblock_work_order()
     {
         $issue = Issue::factory()->create([
@@ -180,7 +181,7 @@ class IssueTest extends TestCase
         $this->assertNotNull($issue->resolved_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_does_not_unblock_work_order_if_other_blocking_issues_exist()
     {
         $issue1 = Issue::factory()->create([
@@ -222,7 +223,7 @@ class IssueTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_close_a_resolved_issue()
     {
         $issue = Issue::factory()->create([
@@ -245,7 +246,7 @@ class IssueTest extends TestCase
         $this->assertNotNull($issue->closed_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_cannot_close_an_unresolved_issue()
     {
         $issue = Issue::factory()->create([
@@ -265,7 +266,7 @@ class IssueTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_report_problem_on_batch_step()
     {
         $batch = Batch::factory()->create([
@@ -293,7 +294,7 @@ class IssueTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_filter_issues_by_work_order()
     {
         $workOrder2 = WorkOrder::factory()->create([
@@ -317,7 +318,7 @@ class IssueTest extends TestCase
         $this->assertCount(1, $response->json('data'));
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_line_issue_stats()
     {
         Issue::factory()->create([

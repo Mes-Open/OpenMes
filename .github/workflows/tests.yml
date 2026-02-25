@@ -22,6 +22,11 @@ jobs:
           extensions: pdo, pdo_sqlite, mbstring, zip, gd, bcmath
           coverage: none
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Cache Composer packages
         uses: actions/cache@v4
         with:
@@ -29,9 +34,20 @@ jobs:
           key: composer-${{ hashFiles('backend/composer.lock') }}
           restore-keys: composer-
 
+      - name: Cache npm packages
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: npm-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: npm-
+
       - name: Install Composer dependencies
         working-directory: backend
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install npm dependencies and build assets
+        working-directory: backend
+        run: npm ci && npm run build
 
       - name: Copy .env and generate key
         working-directory: backend
