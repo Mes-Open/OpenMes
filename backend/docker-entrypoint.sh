@@ -9,7 +9,13 @@ fi
 
 if ! grep -q "APP_KEY=base64:" .env; then
     echo "[OpenMES] Generating APP_KEY..."
-    php artisan key:generate --force
+    NEW_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
+    if grep -q "^APP_KEY=" .env; then
+        sed -i "s|^APP_KEY=.*|APP_KEY=$NEW_KEY|" .env
+    else
+        echo "APP_KEY=$NEW_KEY" >> .env
+    fi
+    echo "[OpenMES] APP_KEY set successfully."
 fi
 
 # ── Migrations ───────────────────────────────────────────────────────────────
