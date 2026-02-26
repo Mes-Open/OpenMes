@@ -10,6 +10,7 @@
 <aside
     class="fixed inset-y-0 left-0 z-40 flex flex-col shrink-0 bg-slate-900 text-slate-100
            -translate-x-full lg:translate-x-0 w-64
+           lg:relative lg:inset-auto lg:z-auto
            transition-[width,transform] duration-300 ease-in-out overflow-hidden"
     :class="{
         '-translate-x-full': !mobileOpen,
