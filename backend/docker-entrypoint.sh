@@ -1,21 +1,62 @@
 #!/bin/sh
 set -e
 
-# Copy .env.example to .env if .env doesn't exist
+# ── .env ────────────────────────────────────────────────────────────────────
 if [ ! -f .env ]; then
-    echo "Creating .env from .env.example..."
+    echo "[OpenMES] Creating .env from .env.example..."
     cp .env.example .env
 fi
 
-# Generate APP_KEY if not set
 if ! grep -q "APP_KEY=base64:" .env; then
-    echo "Generating APP_KEY..."
+    echo "[OpenMES] Generating APP_KEY..."
     php artisan key:generate --force
 fi
 
-# Run any pending migrations automatically
-echo "Running database migrations..."
+# ── Migrations ───────────────────────────────────────────────────────────────
+echo "[OpenMES] Running migrations..."
 php artisan migrate --force
 
-# Start Laravel server
+# ── Seeders (idempotent) ─────────────────────────────────────────────────────
+echo "[OpenMES] Running seeders..."
+php artisan db:seed --class=RolesAndPermissionsSeeder --force
+php artisan db:seed --class=IssueTypesSeeder --force
+php artisan db:seed --class=LineStatusSeeder --force
+
+# ── Default admin (only if no users exist) ───────────────────────────────────
+USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null | tail -n1 | tr -d '[:space:]')
+
+if [ "$USER_COUNT" = "0" ]; then
+    echo "[OpenMES] Creating default admin account..."
+    php artisan tinker --execute="
+        \$u = \App\Models\User::create([
+            'name'                  => 'Administrator',
+            'username'              => 'admin',
+            'email'                 => 'admin@openmmes.local',
+            'password'              => bcrypt('Admin1234!'),
+            'force_password_change' => true,
+        ]);
+        \$u->assignRole('Admin');
+    "
+    echo ""
+    echo "╔══════════════════════════════════════════╗"
+    echo "║         OpenMES — domyślny admin         ║"
+    echo "║                                          ║"
+    echo "║  URL:      http://localhost:8080         ║"
+    echo "║  Login:    admin                         ║"
+    echo "║  Hasło:    Admin1234!                    ║"
+    echo "║                                          ║"
+    echo "║  Zmień hasło przy pierwszym logowaniu!   ║"
+    echo "╚══════════════════════════════════════════╝"
+    echo ""
+else
+    echo "[OpenMES] Admin already exists, skipping default user creation."
+fi
+
+# ── Cache ────────────────────────────────────────────────────────────────────
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+echo "[OpenMES] Ready at http://localhost:8080"
+
 exec "$@"
