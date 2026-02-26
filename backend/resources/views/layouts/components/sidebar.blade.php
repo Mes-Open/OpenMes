@@ -12,6 +12,8 @@
            -translate-x-full lg:translate-x-0 w-64
            lg:relative lg:inset-auto lg:z-auto
            transition-[width,transform] duration-300 ease-in-out overflow-hidden"
+    style="transition: none"
+    x-init="$nextTick(() => { $el.style.removeProperty('transition') })"
     :class="{
         '-translate-x-full': !mobileOpen,
         'translate-x-0':     mobileOpen,
