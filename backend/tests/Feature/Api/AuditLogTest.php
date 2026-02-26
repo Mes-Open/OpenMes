@@ -179,14 +179,10 @@ class AuditLogTest extends TestCase
             ->where('entity_id', $workOrder->id)
             ->first();
 
-        $this->expectException(\Exception::class);
+        $this->expectException(\RuntimeException::class);
 
-        // Attempt to update should trigger exception (PostgreSQL only)
-        if (config('database.default') === 'pgsql') {
-            $auditLog->update(['action' => 'modified']);
-        } else {
-            throw new \Exception('Simulated immutability check');
-        }
+        // Attempt to update must throw — enforced at application level on all drivers
+        $auditLog->update(['action' => 'modified']);
     }
 
     public function test_can_export_audit_logs_to_csv()
