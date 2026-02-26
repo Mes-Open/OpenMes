@@ -55,12 +55,18 @@ class ReportController extends Controller
         // Average cycle time (minutes) for completed batches linked to work orders in period
         $workOrderIds = (clone $workOrderQuery())->pluck('id');
 
+        $cycleExpr = match (DB::getDriverName()) {
+            'pgsql'  => 'AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) / 60) as avg_minutes',
+            'sqlite' => "AVG((strftime('%s', completed_at) - strftime('%s', started_at)) / 60.0) as avg_minutes",
+            default  => 'AVG(TIMESTAMPDIFF(SECOND, started_at, completed_at) / 60) as avg_minutes',
+        };
+
         $avgCycleTime = DB::table('batches')
             ->whereIn('work_order_id', $workOrderIds)
             ->where('status', 'DONE')
             ->whereNotNull('started_at')
             ->whereNotNull('completed_at')
-            ->selectRaw('AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) / 60) as avg_minutes')
+            ->selectRaw($cycleExpr)
             ->value('avg_minutes');
 
         $avgCycleTime = $avgCycleTime !== null ? round((float) $avgCycleTime, 1) : null;

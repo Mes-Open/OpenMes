@@ -9,6 +9,20 @@ class AuditLog extends Model
 {
     const UPDATED_AT = null; // Audit logs are immutable, no updated_at
 
+    /**
+     * Enforce immutability on all database drivers.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function () {
+            throw new \RuntimeException('Audit logs are immutable and cannot be modified.');
+        });
+
+        static::deleting(function () {
+            throw new \RuntimeException('Audit logs are immutable and cannot be deleted.');
+        });
+    }
+
     protected $fillable = [
         'user_id',
         'entity_type',
