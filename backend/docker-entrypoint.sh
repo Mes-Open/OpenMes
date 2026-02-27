@@ -29,29 +29,32 @@ php artisan db:seed --class=IssueTypesSeeder --force
 php artisan db:seed --class=LineStatusSeeder --force
 
 # ── Default admin (only if no users exist) ───────────────────────────────────
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@openmmes.local}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin1234!}"
+
 USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null | tail -n1 | tr -d '[:space:]')
 
 if [ "$USER_COUNT" = "0" ]; then
-    echo "[OpenMES] Creating default admin account..."
+    echo "[OpenMES] Creating admin account (username: ${ADMIN_USERNAME})..."
     php artisan tinker --execute="
         \$u = \App\Models\User::create([
             'name'                  => 'Administrator',
-            'username'              => 'admin',
-            'email'                 => 'admin@openmmes.local',
-            'password'              => bcrypt('Admin1234!'),
-            'force_password_change' => true,
+            'username'              => '${ADMIN_USERNAME}',
+            'email'                 => '${ADMIN_EMAIL}',
+            'password'              => bcrypt('${ADMIN_PASSWORD}'),
+            'force_password_change' => false,
         ]);
         \$u->assignRole('Admin');
     "
     echo ""
     echo "╔══════════════════════════════════════════╗"
-    echo "║         OpenMES — domyślny admin         ║"
+    echo "║            OpenMES — admin               ║"
     echo "║                                          ║"
-    echo "║  URL:      http://localhost:8080         ║"
-    echo "║  Login:    admin                         ║"
-    echo "║  Hasło:    Admin1234!                    ║"
+    echo "║  URL:      ${APP_URL:-http://localhost}"
+    echo "║  Login:    ${ADMIN_USERNAME}"
+    echo "║  Hasło:    ${ADMIN_PASSWORD}"
     echo "║                                          ║"
-    echo "║  Zmień hasło przy pierwszym logowaniu!   ║"
     echo "╚══════════════════════════════════════════╝"
     echo ""
 else
