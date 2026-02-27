@@ -1,0 +1,35 @@
+name: Deploy to Production
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to server
+    runs-on: self-hosted
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Pull latest code
+        working-directory: /opt/openmmes
+        run: git pull origin main
+
+      - name: Build and restart containers
+        working-directory: /opt/openmmes
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+      - name: Verify deployment
+        run: |
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost)
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "302" ]; then
+            echo "Deployment verification failed!"
+            exit 1
+          fi
+          echo "Deployment successful!"
