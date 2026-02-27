@@ -1,216 +1,156 @@
 #!/bin/bash
-
-# OpenMES - Simple Installation Script
-# Like WordPress, but for Manufacturing :)
+# OpenMES — Installer
+# Generates .env with secure defaults and starts the stack.
+# Run once on a fresh server: bash install.sh
 
 set -e
 
-echo "=========================================="
-echo "   OpenMES - Installation Wizard"
-echo "=========================================="
-echo ""
-
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-# Check if Docker is installed
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}Error: Docker is not installed!${NC}"
-    echo "Please install Docker first: https://docs.docker.com/get-docker/"
-    exit 1
-fi
+ok()   { echo -e "${GREEN}✓ $*${NC}"; }
+warn() { echo -e "${YELLOW}! $*${NC}"; }
+err()  { echo -e "${RED}✗ $*${NC}"; exit 1; }
+info() { echo -e "${CYAN}→ $*${NC}"; }
 
-if ! command -v docker-compose &> /dev/null; then
-    echo -e "${RED}Error: Docker Compose is not installed!${NC}"
-    echo "Please install Docker Compose first: https://docs.docker.com/compose/install/"
-    exit 1
-fi
-
-echo -e "${GREEN}✓ Docker is installed${NC}"
+echo ""
+echo "  ██████╗ ██████╗ ███████╗███╗   ██╗███╗   ███╗███████╗███████╗"
+echo "  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║████╗ ████║██╔════╝██╔════╝"
+echo "  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║██╔████╔██║█████╗  ███████╗"
+echo "  ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██║╚██╔╝██║██╔══╝  ╚════██║"
+echo "  ╚██████╔╝██║     ███████╗██║ ╚████║██║ ╚═╝ ██║███████╗███████║"
+echo "   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝     ╚═╝╚══════╝╚══════╝"
+echo ""
+echo "  Manufacturing Execution System"
+echo "  ──────────────────────────────────────────────────────────────"
 echo ""
 
-# Check if already installed
-if [ -f ".env" ] && [ -f "backend/.env" ]; then
-    echo -e "${YELLOW}Warning: OpenMES appears to be already installed.${NC}"
-    read -p "Do you want to reinstall? This will DELETE all data! (yes/no): " REINSTALL
-    if [ "$REINSTALL" != "yes" ]; then
-        echo "Installation cancelled."
-        exit 0
-    fi
+# ── Prerequisites ─────────────────────────────────────────────────────────────
+
+if ! command -v docker &>/dev/null; then
+    err "Docker is not installed. See: https://docs.docker.com/get-docker/"
+fi
+
+if ! docker compose version &>/dev/null; then
+    err "Docker Compose plugin not found. Install docker-compose-plugin."
+fi
+
+ok "Docker $(docker --version | awk '{print $3}' | tr -d ',')"
+ok "Docker Compose $(docker compose version --short)"
+echo ""
+
+# ── Existing installation check ───────────────────────────────────────────────
+
+if [ -f ".env" ]; then
+    warn ".env already exists — OpenMES may already be installed."
+    read -rp "  Re-run setup? This will NOT delete existing data. (yes/no): " CONFIRM
+    [ "$CONFIRM" = "yes" ] || { echo "Aborted."; exit 0; }
     echo ""
-    echo "Stopping and removing existing containers..."
-    docker-compose down -v
-    echo ""
 fi
 
-# Configuration prompts
-echo "Let's configure your OpenMES installation:"
+# ── Helper: generate random password ─────────────────────────────────────────
+
+gen_pass() {
+    # 24 chars, alphanumeric + symbols safe for shell/env files
+    tr -dc 'A-Za-z0-9@#%^&*_+=' </dev/urandom 2>/dev/null | head -c24 || \
+    python3 -c "import secrets,string; print(secrets.token_urlsafe(18))"
+}
+
+# ── Collect configuration ─────────────────────────────────────────────────────
+
+info "Configure your installation (press Enter to accept defaults):"
 echo ""
 
-# Database Password
-read -p "Database Password [default: openmmes_secure_password]: " DB_PASSWORD
-DB_PASSWORD=${DB_PASSWORD:-openmmes_secure_password}
+read -rp "  Application URL [http://localhost]: " APP_URL
+APP_URL="${APP_URL:-http://localhost}"
 
-# Application URL
-read -p "Application URL [default: http://localhost]: " APP_URL
-APP_URL=${APP_URL:-http://localhost}
+read -rp "  HTTP port [80]: " APP_PORT
+APP_PORT="${APP_PORT:-80}"
 
-# Environment (local/production)
-read -p "Environment (local/production) [default: local]: " APP_ENV
-APP_ENV=${APP_ENV:-local}
+read -rp "  Admin username [admin]: " ADMIN_USERNAME
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 
-if [ "$APP_ENV" = "production" ]; then
-    APP_DEBUG=false
-else
-    APP_DEBUG=true
-fi
+read -rp "  Admin email [admin@example.com]: " ADMIN_EMAIL
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 
 echo ""
-echo "Configuration summary:"
-echo "  - Database Password: ********"
-echo "  - Application URL: $APP_URL"
-echo "  - Environment: $APP_ENV"
-echo ""
+info "Generating secure passwords..."
 
-read -p "Proceed with installation? (yes/no): " CONFIRM
-if [ "$CONFIRM" != "yes" ]; then
-    echo "Installation cancelled."
-    exit 0
-fi
+DB_PASSWORD="$(gen_pass)"
+ADMIN_PASSWORD="$(gen_pass)"
 
 echo ""
-echo "Installing OpenMES..."
+echo "  Generated credentials (save these now):"
+echo "  ┌─────────────────────────────────────────┐"
+echo "  │  Admin login:    ${ADMIN_USERNAME}"
+echo "  │  Admin password: ${ADMIN_PASSWORD}"
+echo "  │  DB password:    ${DB_PASSWORD}"
+echo "  └─────────────────────────────────────────┘"
 echo ""
 
-# Create root .env (used as reference; Docker Compose reads backend/.env directly)
+read -rp "  Saved? Proceed with installation? (yes/no): " CONFIRM
+[ "$CONFIRM" = "yes" ] || { echo "Aborted."; exit 0; }
+echo ""
+
+# ── Write .env ────────────────────────────────────────────────────────────────
+
 cat > .env << EOF
-# Application
-APP_NAME=OpenMES
-APP_ENV=$APP_ENV
-APP_DEBUG=$APP_DEBUG
-APP_URL=$APP_URL
+# OpenMES — Docker Compose configuration
+# Generated by install.sh on $(date '+%Y-%m-%d %H:%M:%S')
+# DO NOT commit this file to version control.
 
-# Database
-DB_CONNECTION=pgsql
-DB_HOST=postgres
-DB_PORT=5432
-DB_DATABASE=openmmes
-DB_USERNAME=openmmes_user
-DB_PASSWORD=$DB_PASSWORD
+# ── Database ──────────────────────────────────────────────────────────────────
+POSTGRES_DB=openmmes
+POSTGRES_USER=openmmes_user
+POSTGRES_PASSWORD=${DB_PASSWORD}
+
+# ── Application ───────────────────────────────────────────────────────────────
+APP_NAME=OpenMES
+APP_URL=${APP_URL}
+APP_PORT=${APP_PORT}
+
+# ── Admin account (created automatically on first run) ────────────────────────
+ADMIN_USERNAME=${ADMIN_USERNAME}
+ADMIN_EMAIL=${ADMIN_EMAIL}
+ADMIN_PASSWORD=${ADMIN_PASSWORD}
 EOF
 
-echo -e "${GREEN}✓ Created root .env file${NC}"
+ok ".env created"
 
-# Create backend .env
-cat > backend/.env << EOF
-APP_NAME=OpenMES
-APP_ENV=$APP_ENV
-APP_KEY=
-APP_DEBUG=$APP_DEBUG
-APP_URL=$APP_URL
+# ── Build and start ───────────────────────────────────────────────────────────
 
-APP_LOCALE=en
-APP_FALLBACK_LOCALE=en
-APP_FAKER_LOCALE=en_US
-
-APP_MAINTENANCE_DRIVER=file
-
-BCRYPT_ROUNDS=12
-
-LOG_CHANNEL=stack
-LOG_STACK=single
-LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=debug
-
-DB_CONNECTION=pgsql
-DB_HOST=postgres
-DB_PORT=5432
-DB_DATABASE=openmmes
-DB_USERNAME=openmmes_user
-DB_PASSWORD=$DB_PASSWORD
-
-SESSION_DRIVER=cookie
-SESSION_LIFETIME=120
-SESSION_ENCRYPT=false
-SESSION_PATH=/
-SESSION_DOMAIN=null
-
-BROADCAST_CONNECTION=log
-FILESYSTEM_DISK=local
-QUEUE_CONNECTION=database
-
-CACHE_STORE=database
-
-REDIS_CLIENT=phpredis
-REDIS_HOST=127.0.0.1
-REDIS_PASSWORD=null
-REDIS_PORT=6379
-
-MAIL_MAILER=log
-MAIL_SCHEME=null
-MAIL_HOST=127.0.0.1
-MAIL_PORT=2525
-MAIL_USERNAME=null
-MAIL_PASSWORD=null
-MAIL_FROM_ADDRESS="hello@example.com"
-MAIL_FROM_NAME="\${APP_NAME}"
-
-VITE_APP_NAME="\${APP_NAME}"
-EOF
-
-echo -e "${GREEN}✓ Created backend .env file${NC}"
-
-# Build containers
+info "Building and starting containers (first build may take a few minutes)..."
 echo ""
-echo "Building Docker containers (this may take a few minutes)..."
-docker-compose build --no-cache backend
 
-echo -e "${GREEN}✓ Backend container built${NC}"
-
-# Start containers
-echo ""
-echo "Starting containers..."
-docker-compose up -d
-
-echo -e "${GREEN}✓ Containers started${NC}"
-
-# Wait for database
-echo ""
-echo "Waiting for database to be ready..."
-sleep 10
-
-# Generate APP_KEY
-echo "Generating application key..."
-docker-compose exec -T backend php artisan key:generate --force
-
-echo -e "${GREEN}✓ Application key generated${NC}"
-
-# Run migrations
-echo ""
-echo "Setting up database..."
-docker-compose exec -T backend php artisan migrate:fresh --seed --force
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 echo ""
-echo -e "${GREEN}=========================================="
-echo "   ✓ Installation Complete!"
-echo "==========================================${NC}"
+ok "Containers started"
+info "Waiting for application to be ready..."
+
+ATTEMPTS=0
+until curl -sf -o /dev/null "${APP_URL}" 2>/dev/null || curl -sf -o /dev/null "http://localhost:${APP_PORT}" 2>/dev/null; do
+    ATTEMPTS=$((ATTEMPTS + 1))
+    [ $ATTEMPTS -gt 30 ] && { warn "App not responding after 60s — check: docker compose logs backend"; break; }
+    sleep 2
+done
+
 echo ""
-echo "Your OpenMES installation is ready!"
+echo "  ╔══════════════════════════════════════════════════════════╗"
+echo "  ║            OpenMES is ready!                             ║"
+echo "  ║                                                          ║"
+printf  "  ║  URL:      %-46s║\n" "${APP_URL}"
+printf  "  ║  Login:    %-46s║\n" "${ADMIN_USERNAME}"
+printf  "  ║  Password: %-46s║\n" "${ADMIN_PASSWORD}"
+echo "  ║                                                          ║"
+echo "  ║  Credentials are saved in .env (do not share this file) ║"
+echo "  ╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "  🌐 URL: $APP_URL"
-echo ""
-echo "  Open the URL above in your browser to complete setup"
-echo "  (create admin account and configure the system)."
-echo ""
-echo "To start/stop OpenMES:"
-echo "  docker-compose up -d    # Start"
-echo "  docker-compose down     # Stop"
-echo ""
-echo "To view logs:"
-echo "  docker-compose logs -f backend"
-echo ""
-echo "Enjoy OpenMES! 🏭"
+echo "  Useful commands:"
+echo "    docker compose logs -f backend       # Live logs"
+echo "    docker compose down                  # Stop"
+echo "    docker compose up -d                 # Start"
 echo ""
