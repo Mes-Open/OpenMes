@@ -58,6 +58,12 @@ else
     echo "[OpenMES] Admin already exists, skipping default user creation."
 fi
 
+# ── Mark as installed (skip web installer) ───────────────────────────────────
+if [ ! -f storage/installed ]; then
+    echo "[OpenMES] Marking application as installed..."
+    date '+%Y-%m-%d %H:%M:%S' > storage/installed
+fi
+
 # ── Cache ────────────────────────────────────────────────────────────────────
 php artisan config:cache
 php artisan route:cache
