@@ -127,5 +127,25 @@
 <style>[x-cloak]{display:none!important}</style>
 @livewireScripts
 @stack('scripts')
+<script>
+(function(){
+    var t=document.createElement('div');
+    t.style.cssText='position:fixed;padding:3px 10px;background:#111827;color:#fff;font-size:11px;border-radius:5px;white-space:nowrap;z-index:9999;pointer-events:none;opacity:0;transition:opacity .15s;';
+    document.body.appendChild(t);
+    document.addEventListener('mouseover',function(e){
+        var el=e.target.closest('[data-tip]');
+        if(!el){t.style.opacity='0';return;}
+        t.textContent=el.dataset.tip;
+        var r=el.getBoundingClientRect();
+        t.style.left=(r.left+r.width/2)+'px';
+        t.style.top=(r.top-6)+'px';
+        t.style.transform='translate(-50%,-100%)';
+        t.style.opacity='1';
+    });
+    document.addEventListener('mouseout',function(e){
+        if(e.target.closest('[data-tip]'))t.style.opacity='0';
+    });
+})();
+</script>
 </body>
 </html>
