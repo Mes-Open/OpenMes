@@ -93,28 +93,47 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3">
-                                <div class="flex flex-wrap items-center gap-1">
-                                    <a href="{{ route('supervisor.work-orders.show', $wo) }}" class="text-sm text-blue-600 hover:underline">View</a>
+                                <div class="flex items-center gap-0.5">
+                                    {{-- View --}}
+                                    <a href="{{ route('supervisor.work-orders.show', $wo) }}" data-tip="View"
+                                       class="inline-flex items-center justify-center w-8 h-8 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </a>
+                                    {{-- Accept --}}
                                     @if($wo->status === 'PENDING')
                                         <form method="POST" action="{{ route('supervisor.work-orders.accept', $wo) }}">@csrf
-                                            <button class="text-sm text-green-600 hover:underline font-medium">Accept</button>
+                                            <button type="submit" data-tip="Accept"
+                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-md text-green-600 hover:bg-green-50 transition-colors">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            </button>
                                         </form>
+                                    @endif
+                                    {{-- Reject --}}
+                                    @if(in_array($wo->status, ['PENDING', 'ACCEPTED']))
                                         <form method="POST" action="{{ route('supervisor.work-orders.reject', $wo) }}"
                                               onsubmit="return confirm('Reject work order {{ $wo->order_no }}?')">@csrf
-                                            <button class="text-sm text-red-500 hover:underline">Reject</button>
+                                            <button type="submit" data-tip="Reject"
+                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </button>
                                         </form>
-                                    @elseif($wo->status === 'ACCEPTED')
-                                        <form method="POST" action="{{ route('supervisor.work-orders.reject', $wo) }}"
-                                              onsubmit="return confirm('Reject work order {{ $wo->order_no }}?')">@csrf
-                                            <button class="text-sm text-red-500 hover:underline">Reject</button>
-                                        </form>
-                                    @elseif($wo->status === 'IN_PROGRESS')
+                                    @endif
+                                    {{-- Pause --}}
+                                    @if($wo->status === 'IN_PROGRESS')
                                         <form method="POST" action="{{ route('supervisor.work-orders.pause', $wo) }}">@csrf
-                                            <button class="text-sm text-yellow-600 hover:underline">Pause</button>
+                                            <button type="submit" data-tip="Pause"
+                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-md text-yellow-600 hover:bg-yellow-50 transition-colors">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"/></svg>
+                                            </button>
                                         </form>
-                                    @elseif($wo->status === 'PAUSED')
+                                    @endif
+                                    {{-- Resume --}}
+                                    @if($wo->status === 'PAUSED')
                                         <form method="POST" action="{{ route('supervisor.work-orders.resume', $wo) }}">@csrf
-                                            <button class="text-sm text-blue-600 hover:underline font-medium">Resume</button>
+                                            <button type="submit" data-tip="Resume"
+                                                    class="inline-flex items-center justify-center w-8 h-8 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg>
+                                            </button>
                                         </form>
                                     @endif
                                 </div>
