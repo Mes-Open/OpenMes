@@ -35,8 +35,8 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@openmmes.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
-    ports:
-      - "${APP_PORT:-80}:8000"
+    expose:
+      - "8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,10 +47,30 @@ services:
     networks:
       - openmmes-network
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: openmmes-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+
 volumes:
   postgres_data:
   backend_storage:
   backend_cache:
+  caddy_data:
+  caddy_config:
 
 networks:
   openmmes-network:
