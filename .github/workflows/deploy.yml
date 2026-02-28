@@ -21,7 +21,7 @@ jobs:
 
       - name: Build and restart containers
         working-directory: /opt/openmmes
-        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+        run: docker compose up -d --build
 
       - name: Verify deployment
         run: |

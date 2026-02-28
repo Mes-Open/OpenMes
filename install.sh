@@ -125,7 +125,7 @@ ok ".env created"
 info "Building and starting containers (first build may take a few minutes)..."
 echo ""
 
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 
 echo ""
 ok "Containers started"

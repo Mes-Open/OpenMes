@@ -22,43 +22,35 @@ services:
       dockerfile: Dockerfile
     container_name: openmmes-backend
     environment:
-      # Application
       APP_NAME: ${APP_NAME:-OpenMES}
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-"true"}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost}
-      # Database — must match postgres service above
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: ${POSTGRES_DB:-openmmes}
       DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
-      # Admin account created on first run (if no users exist)
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@openmmes.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+    ports:
+      - "${APP_PORT:-80}:8000"
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      # For development: Uncomment to mount local code
-      # - ./backend:/var/www/html
-      # - /var/www/html/vendor
-      # - /var/www/html/public/build
-      # For production: Only persist storage and cache
       - backend_storage:/var/www/html/storage
       - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
     networks:
       - openmmes-network
 
 volumes:
   postgres_data:
-    driver: local
   backend_storage:
-    driver: local
   backend_cache:
-    driver: local
 
 networks:
   openmmes-network:
