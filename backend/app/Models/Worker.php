@@ -19,6 +19,7 @@ class Worker extends Model
         'phone',
         'crew_id',
         'wage_group_id',
+        'workstation_id',
         'is_active',
     ];
 
@@ -27,6 +28,14 @@ class Worker extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Get the workstation this worker is assigned to.
+     */
+    public function workstation(): BelongsTo
+    {
+        return $this->belongsTo(Workstation::class);
     }
 
     /**

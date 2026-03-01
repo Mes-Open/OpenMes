@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Line;
+use App\Models\Worker;
 use App\Models\Workstation;
 use Illuminate\Http\Request;
 
@@ -15,7 +16,7 @@ class WorkstationManagementController extends Controller
     public function index(Line $line)
     {
         $workstations = $line->workstations()
-            ->withCount('templateSteps')
+            ->withCount(['templateSteps', 'workers'])
             ->orderBy('code')
             ->get();
 
@@ -56,12 +57,13 @@ class WorkstationManagementController extends Controller
      */
     public function edit(Line $line, Workstation $workstation)
     {
-        // Ensure workstation belongs to this line
         if ($workstation->line_id !== $line->id) {
             abort(404);
         }
 
-        return view('admin.workstations.edit', compact('line', 'workstation'));
+        $workers = Worker::active()->orderBy('name')->with('workstation')->get();
+
+        return view('admin.workstations.edit', compact('line', 'workstation', 'workers'));
     }
 
     /**
@@ -75,15 +77,28 @@ class WorkstationManagementController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:workstations,code,' . $workstation->id,
-            'name' => 'required|string|max:255',
+            'code'             => 'required|string|max:50|unique:workstations,code,' . $workstation->id,
+            'name'             => 'required|string|max:255',
             'workstation_type' => 'nullable|string|max:100',
-            'is_active' => 'boolean',
+            'is_active'        => 'boolean',
+            'worker_ids'       => 'nullable|array',
+            'worker_ids.*'     => 'exists:workers,id',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
 
         $workstation->update($validated);
+
+        // Update worker assignments
+        $workerIds = $request->input('worker_ids', []);
+        // Un-assign workers no longer selected (only those currently at THIS workstation)
+        Worker::where('workstation_id', $workstation->id)
+            ->whereNotIn('id', $workerIds)
+            ->update(['workstation_id' => null]);
+        // Assign selected workers (may move them from another workstation)
+        if (!empty($workerIds)) {
+            Worker::whereIn('id', $workerIds)->update(['workstation_id' => $workstation->id]);
+        }
 
         return redirect()->route('admin.lines.workstations.index', $line)
             ->with('success', 'Workstation updated successfully.');

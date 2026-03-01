@@ -91,6 +91,37 @@
                 </label>
             </div>
 
+            {{-- Assigned Workers --}}
+            <div class="mb-6 border-t border-gray-100 pt-6">
+                <h2 class="text-base font-semibold text-gray-800 mb-1">Assigned Workers</h2>
+                <p class="text-sm text-gray-500 mb-3">Workers regularly operating at this workstation.</p>
+
+                @if($workers->isEmpty())
+                    <p class="text-sm text-gray-400 italic">No active workers in the system.</p>
+                @else
+                    <div class="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
+                        @foreach($workers as $worker)
+                            @php $isAssigned = $worker->workstation_id === $workstation->id; @endphp
+                            <label class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50 {{ $isAssigned ? 'bg-blue-50' : '' }}">
+                                <input type="checkbox" name="worker_ids[]" value="{{ $worker->id }}"
+                                       class="rounded border-gray-300 text-blue-600"
+                                       {{ $isAssigned ? 'checked' : '' }}>
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-sm font-medium text-gray-800">{{ $worker->name }}</span>
+                                    <span class="text-xs text-gray-400 font-mono ml-2">{{ $worker->code }}</span>
+                                    @if($worker->workstation_id && !$isAssigned)
+                                        <span class="text-xs text-orange-500 ml-2">(currently at: {{ $worker->workstation->name }})</span>
+                                    @endif
+                                </div>
+                                @if($worker->crew)
+                                    <span class="text-xs text-gray-400 shrink-0">{{ $worker->crew->name }}</span>
+                                @endif
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
             <div class="flex justify-end gap-3">
                 <a href="{{ route('admin.lines.workstations.index', $line) }}" class="btn-touch btn-secondary">
                     Cancel

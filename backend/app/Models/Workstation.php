@@ -52,6 +52,14 @@ class Workstation extends Model
     }
 
     /**
+     * Get the workers assigned to this workstation.
+     */
+    public function workers(): HasMany
+    {
+        return $this->hasMany(Worker::class);
+    }
+
+    /**
      * Scope to get only active workstations.
      */
     public function scopeActive($query)

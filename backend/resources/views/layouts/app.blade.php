@@ -16,6 +16,7 @@
          mobileOpen: false,
          orders: false,
          production: false,
+         linesGroup: false,
          structure: false,
          hr: false,
          maintenance: false,
@@ -23,7 +24,7 @@
          toggle() {
              this.collapsed = !this.collapsed;
              if (this.collapsed) {
-                 this.orders = this.production = this.structure =
+                 this.orders = this.production = this.linesGroup = this.structure =
                  this.hr = this.maintenance = this.adminGroup = false;
              }
              localStorage.setItem('sb', this.collapsed ? '1' : '0');
@@ -44,6 +45,9 @@
              @endif
              @if(request()->routeIs('admin.product-types.*', 'admin.lines.*', 'admin.line-statuses.*', 'admin.issues.*', 'admin.companies.*', 'admin.anomaly-reasons.*'))
                  production = true;
+             @endif
+             @if(request()->routeIs('admin.lines.*', 'admin.line-statuses.*'))
+                 linesGroup = true;
              @endif
              @if(request()->routeIs('admin.factories.*', 'admin.divisions.*', 'admin.workstation-types.*', 'admin.subassemblies.*'))
                  structure = true;
