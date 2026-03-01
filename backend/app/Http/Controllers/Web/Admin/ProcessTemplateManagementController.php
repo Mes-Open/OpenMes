@@ -225,6 +225,46 @@ class ProcessTemplateManagementController extends Controller
     }
 
     /**
+     * Reorder steps via drag and drop (expects JSON body: {order: [id, id, ...]})
+     */
+    public function reorderSteps(Request $request, ProductType $productType, ProcessTemplate $processTemplate)
+    {
+        if ($processTemplate->product_type_id !== $productType->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'order'   => 'required|array|min:1',
+            'order.*' => 'integer',
+        ]);
+
+        $stepIds = $validated['order'];
+
+        // Verify every submitted ID belongs to this template
+        $validCount = DB::table('template_steps')
+            ->where('process_template_id', $processTemplate->id)
+            ->whereIn('id', $stepIds)
+            ->count();
+
+        if ($validCount !== count($stepIds)) {
+            return response()->json(['error' => 'Invalid step IDs'], 422);
+        }
+
+        // Use large offset first to avoid unique(process_template_id, step_number) violations
+        DB::transaction(function () use ($stepIds) {
+            $offset = 10000;
+            foreach ($stepIds as $i => $id) {
+                DB::table('template_steps')->where('id', $id)->update(['step_number' => $offset + $i + 1]);
+            }
+            foreach ($stepIds as $i => $id) {
+                DB::table('template_steps')->where('id', $id)->update(['step_number' => $i + 1]);
+            }
+        });
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * Move a step up in the order
      */
     public function moveStepUp(ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)

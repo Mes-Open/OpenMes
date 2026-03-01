@@ -129,14 +129,22 @@
     </div>
 
     @if($processTemplate->steps->count() > 0)
-        <div class="space-y-3">
+        <div class="space-y-3" id="sortable-steps">
             @foreach($processTemplate->steps as $step)
-                <div class="card">
+                <div class="card" data-step-id="{{ $step->id }}">
                     <!-- View Mode -->
                     <div x-show="editingStep !== {{ $step->id }}">
                         <div class="flex items-start justify-between">
                             <div class="flex gap-4 flex-1">
-                                <div class="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                {{-- Drag handle --}}
+                                <div class="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 transition-colors px-1 self-start mt-3" title="Drag to reorder">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                        <circle cx="9"  cy="5"  r="1.5"/><circle cx="15" cy="5"  r="1.5"/>
+                                        <circle cx="9"  cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                                        <circle cx="9"  cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+                                    </svg>
+                                </div>
+                                <div class="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center step-number-badge">
                                     <span class="text-lg font-bold text-blue-600">{{ $step->step_number }}</span>
                                 </div>
                                 <div class="flex-1">
@@ -286,5 +294,71 @@
 
 <style>
     [x-cloak] { display: none !important; }
+    .sortable-ghost  { opacity: 0.4; }
+    .sortable-drag   { opacity: 0.9; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+    .sortable-chosen { background: #f0f7ff; }
 </style>
+
+@push('scripts')
+<script src="{{ asset('vendor/sortable.min.js') }}"></script>
+<script>
+(function () {
+    const list = document.getElementById('sortable-steps');
+    if (!list) return;
+
+    const reorderUrl = @json(route('admin.product-types.process-templates.reorder-steps', [$productType, $processTemplate]));
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // Status indicator
+    const status = document.createElement('div');
+    status.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;transition:opacity .3s;opacity:0;pointer-events:none;';
+    document.body.appendChild(status);
+
+    function showStatus(msg, color) {
+        status.textContent = msg;
+        status.style.background = color;
+        status.style.color = '#fff';
+        status.style.opacity = '1';
+        clearTimeout(status._t);
+        status._t = setTimeout(() => { status.style.opacity = '0'; }, 2000);
+    }
+
+    Sortable.create(list, {
+        animation: 150,
+        handle: '.drag-handle',
+        ghostClass: 'sortable-ghost',
+        dragClass: 'sortable-drag',
+        chosenClass: 'sortable-chosen',
+
+        onEnd: function () {
+            const order = Array.from(list.children).map(el => parseInt(el.dataset.stepId));
+
+            // Update step number badges optimistically
+            list.querySelectorAll('.step-number-badge span').forEach((el, i) => {
+                el.textContent = i + 1;
+            });
+
+            showStatus('Saving…', '#6366f1');
+
+            fetch(reorderUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ order }),
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Server error');
+                showStatus('Saved', '#16a34a');
+            })
+            .catch(() => {
+                showStatus('Error — reload page', '#dc2626');
+            });
+        },
+    });
+})();
+</script>
+@endpush
 @endsection

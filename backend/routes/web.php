@@ -192,6 +192,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/{process_template}/steps', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'addStep'])->name('add-step');
             Route::put('/{process_template}/steps/{step}', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'updateStep'])->name('update-step');
             Route::delete('/{process_template}/steps/{step}', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'deleteStep'])->name('delete-step');
+            Route::post('/{process_template}/steps/reorder', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'reorderSteps'])->name('reorder-steps');
             Route::post('/{process_template}/steps/{step}/move-up', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'moveStepUp'])->name('move-step-up');
             Route::post('/{process_template}/steps/{step}/move-down', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'moveStepDown'])->name('move-step-down');
         });
