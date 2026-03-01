@@ -52,7 +52,7 @@ class UserManagementController extends Controller
             'username'             => 'required|string|max:255|unique:users',
             'email'                => 'required|string|email|max:255|unique:users',
             'password'             => ['required', 'confirmed', Password::defaults()],
-            'role'                 => 'required|exists:roles,name',
+            'role'                 => 'required_if:account_type,user|nullable|exists:roles,name',
             'account_type'         => 'required|in:user,workstation',
             'workstation_id'       => 'nullable|exists:workstations,id|required_if:account_type,workstation',
             'worker_code'          => 'nullable|string|max:50|unique:workers,code',
@@ -74,7 +74,9 @@ class UserManagementController extends Controller
             'force_password_change' => $request->boolean('force_password_change'),
         ]);
 
-        $user->assignRole($validated['role']);
+        if ($validated['account_type'] === 'user' && !empty($validated['role'])) {
+            $user->assignRole($validated['role']);
+        }
 
         // Create worker profile when code is provided and account is personal
         if (!empty($validated['worker_code']) && $validated['account_type'] === 'user') {
@@ -125,7 +127,7 @@ class UserManagementController extends Controller
             'username'             => 'required|string|max:255|unique:users,username,' . $user->id,
             'email'                => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'password'             => ['nullable', 'confirmed', Password::defaults()],
-            'role'                 => 'required|exists:roles,name',
+            'role'                 => 'required_if:account_type,user|nullable|exists:roles,name',
             'account_type'         => 'required|in:user,workstation',
             'workstation_id'       => 'nullable|exists:workstations,id|required_if:account_type,workstation',
             'worker_code'          => 'nullable|string|max:50|unique:workers,code,' . ($user->worker_id ?? 'NULL'),
@@ -152,7 +154,11 @@ class UserManagementController extends Controller
 
         DB::transaction(function () use ($request, $user, $validated, $updateData) {
             $user->update($updateData);
-            $user->syncRoles([$validated['role']]);
+            if ($validated['account_type'] === 'user' && !empty($validated['role'])) {
+                $user->syncRoles([$validated['role']]);
+            } else {
+                $user->syncRoles([]);
+            }
 
             if ($validated['account_type'] === 'user' && !empty($validated['worker_code'])) {
                 $workerData = [

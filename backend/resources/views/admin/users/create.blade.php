@@ -69,9 +69,10 @@
                     @error('account_type') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
 
-                <div>
+                <div x-show="accountType === 'user'" x-cloak>
                     <label class="form-label">Role <span class="text-red-500">*</span></label>
-                    <select name="role" class="form-input w-full @error('role') border-red-500 @enderror" required>
+                    <select name="role" class="form-input w-full @error('role') border-red-500 @enderror"
+                            :required="accountType === 'user'">
                         <option value="">Select a role</option>
                         @foreach($roles as $role)
                             <option value="{{ $role->name }}" {{ old('role') === $role->name ? 'selected' : '' }}>
