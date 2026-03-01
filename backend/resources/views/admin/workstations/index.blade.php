@@ -55,10 +55,14 @@
                     </div>
 
                     <!-- Stats -->
-                    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <div class="mb-4 p-3 bg-gray-50 rounded-lg grid grid-cols-2 gap-3">
                         <div class="text-center">
                             <p class="text-2xl font-bold text-purple-600">{{ $workstation->template_steps_count }}</p>
                             <p class="text-xs text-gray-600">Template Steps</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-blue-600">{{ $workstation->workers_count }}</p>
+                            <p class="text-xs text-gray-600">Workers</p>
                         </div>
                     </div>
 
