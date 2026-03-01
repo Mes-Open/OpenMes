@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Class-based dark mode: toggle .dark on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
@@ -32,7 +35,6 @@
         @apply px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider;
     }
 
-
     .btn-touch {
         @apply min-h-[48px] min-w-[48px] text-lg px-4 py-3 rounded-lg font-medium transition-colors;
     }
@@ -42,7 +44,7 @@
     }
 
     .btn-secondary {
-        @apply bg-gray-600 text-white hover:bg-gray-700 active:bg-gray-800;
+        @apply bg-gray-600 text-white hover:bg-gray-700 active:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600;
     }
 
     .btn-success {
@@ -58,14 +60,50 @@
     }
 
     .card {
-        @apply bg-white rounded-lg shadow-md p-4;
+        @apply bg-white rounded-lg shadow-md p-4 dark:bg-gray-800 dark:shadow-gray-900/50 dark:text-gray-100;
     }
 
     .form-input {
-        @apply min-h-[48px] px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+        @apply min-h-[48px] px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+               dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-400;
     }
 
     .form-label {
-        @apply block text-sm font-medium text-gray-700 mb-2;
+        @apply block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300;
     }
 }
+
+/* ── Global dark mode overrides for inline Tailwind classes ─────────────── */
+/* Cover hardcoded classes in blade templates without modifying each file    */
+
+html.dark { color-scheme: dark; }
+
+/* Backgrounds */
+html.dark .bg-white       { background-color: rgb(31 41 55)  !important; }
+html.dark .bg-gray-50     { background-color: rgb(17 24 39)  !important; }
+html.dark .bg-gray-100    { background-color: rgb(31 41 55)  !important; }
+html.dark .bg-gray-200    { background-color: rgb(55 65 81)  !important; }
+
+/* Text */
+html.dark .text-gray-900  { color: rgb(243 244 246) !important; }
+html.dark .text-gray-800  { color: rgb(229 231 235) !important; }
+html.dark .text-gray-700  { color: rgb(209 213 219) !important; }
+html.dark .text-gray-600  { color: rgb(156 163 175) !important; }
+html.dark .text-gray-500  { color: rgb(107 114 128) !important; }
+
+/* Borders */
+html.dark .border-gray-100 { border-color: rgb(55 65 81)  !important; }
+html.dark .border-gray-200 { border-color: rgb(75 85 99)  !important; }
+html.dark .border-gray-300 { border-color: rgb(75 85 99)  !important; }
+
+/* Dividers (table rows, list separators) */
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(55 65 81) !important; }
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(55 65 81) !important; }
+
+/* Table header */
+html.dark thead,
+html.dark thead th { background-color: rgb(17 24 39) !important; color: rgb(209 213 219) !important; }
+
+/* Hover states */
+html.dark .hover\:bg-gray-50:hover  { background-color: rgb(55 65 81) !important; }
+html.dark .hover\:bg-gray-100:hover { background-color: rgb(55 65 81) !important; }

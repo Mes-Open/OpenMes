@@ -5,15 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'OpenMES') }} — @yield('title', 'Manufacturing Execution System')</title>
+    <script>
+        /* Apply dark class immediately to avoid flash */
+        (function(){
+            var t = localStorage.getItem('theme');
+            if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="bg-gray-100 overflow-hidden">
+<body class="bg-gray-100 overflow-hidden dark:bg-gray-900">
 
 <div class="flex h-screen"
      x-data="{
          collapsed: localStorage.getItem('sb') === '1',
          mobileOpen: false,
+         darkMode: document.documentElement.classList.contains('dark'),
+         toggleDark() {
+             this.darkMode = !this.darkMode;
+             document.documentElement.classList.toggle('dark', this.darkMode);
+             localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+         },
          orders: false,
          production: false,
          linesGroup: false,
