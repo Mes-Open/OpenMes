@@ -88,7 +88,7 @@
 
                 {{-- Submit (fallback for no-JS) --}}
                 <div>
-                    <button type="submit" class="btn-primary">Apply</button>
+                    <button type="submit" class="btn-touch btn-primary text-sm">Apply</button>
                 </div>
 
                 {{-- Period label badge --}}
