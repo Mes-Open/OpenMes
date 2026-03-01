@@ -304,12 +304,26 @@
                     <a href="{{ route('admin.product-types.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.product-types.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Product Types
                     </a>
-                    <a href="{{ route('admin.lines.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lines.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Lines
-                    </a>
-                    <a href="{{ route('admin.line-statuses.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.line-statuses.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Line Statuses
-                    </a>
+                    {{-- Production Lines sub-group --}}
+                    <div>
+                        <button @click="linesGroup = !linesGroup"
+                                class="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lines.*', 'admin.line-statuses.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                            <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>
+                            Production Lines
+                            <svg class="w-3 h-3 ml-auto shrink-0 transition-transform" :class="{'rotate-180': linesGroup}"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <div x-show="linesGroup" x-cloak class="ml-3 mt-0.5 space-y-0.5 border-l border-slate-700/40 pl-3">
+                            <a href="{{ route('admin.lines.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lines.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>All Lines
+                            </a>
+                            <a href="{{ route('admin.line-statuses.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.line-statuses.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>Line Statuses
+                            </a>
+                        </div>
+                    </div>
                     <a href="{{ route('admin.issues.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.issues.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Issues
                     </a>
