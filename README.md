@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏭 OpenMES
+# OpenMES
 
 ### Open-Source Manufacturing Execution System
 
@@ -15,7 +15,7 @@
 
 ---
 
-## 📋 What is OpenMES?
+## What is OpenMES?
 
 **OpenMES** is a modern, open-source Manufacturing Execution System designed specifically for **small manufacturers** (woodworking, metalworking, assembly shops) who need powerful production tracking without enterprise complexity.
 
@@ -30,9 +30,9 @@
 
 ---
 
-## ✨ Features
+## Features
 
-### 🏭 Production Management
+### Production Management
 
 - **Multi-line production** - Manage multiple production lines simultaneously
 - **Work order tracking** - Complete work order lifecycle management
@@ -41,7 +41,7 @@
 - **CSV Import** - Bulk import work orders with flexible column mapping
 - **Real-time status** - Live production status updates
 
-### 👷 Operator Experience
+### Operator Experience
 
 - **Step-by-step guidance** - Clear instructions for every operation
 - **Sequential workflow** - Enforce process order to prevent mistakes
@@ -50,7 +50,7 @@
 - **Offline mode** - Queue actions when network is unavailable
 - **Tablet-optimized** - Large touch targets (48px+), minimal text input
 
-### 🔔 Issue & Andon System
+### Issue & Andon System
 
 - **Problem reporting** - Operators report issues instantly from any step
 - **Automatic blocking** - Critical issues halt production automatically
@@ -58,7 +58,7 @@
 - **Resolution tracking** - Complete issue lifecycle (Open → Acknowledged → Resolved → Closed)
 - **Predefined categories** - Material shortage, quality issues, tool failures, etc.
 
-### 📊 Analytics & Reporting
+### Analytics & Reporting
 
 - **Supervisor Dashboard** - Real-time KPIs and production metrics
 - **Interactive Charts** - Throughput, cycle time, issue trends, step performance
@@ -66,7 +66,7 @@
 - **CSV Export** - Export all reports for further analysis
 - **Traceability** - Complete audit trail for every action
 
-### 🔐 Security & Compliance
+### Security & Compliance
 
 - **Immutable audit logs** - PostgreSQL-enforced, cannot be altered
 - **Complete traceability** - Track every action, user, and timestamp
@@ -76,7 +76,7 @@
 
 ---
 
-## 🔌 Extensibility & Modules
+## Extensibility & Modules
 
 OpenMES is built to be extended! Use our comprehensive **hook system** to add custom functionality without modifying core code.
 
@@ -122,7 +122,7 @@ Event::listen(WorkOrderCompleted::class, function ($event) {
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 OpenMES uses a **dead-simple** Laravel monolith architecture - like WordPress or PrestaShop:
 
