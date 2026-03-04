@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class SettingsController extends Controller
 {
@@ -92,6 +93,47 @@ class SettingsController extends Controller
         ];
 
         return view('settings.system', compact('settings'));
+    }
+
+    /**
+     * Show API tokens management page (admin only).
+     */
+    public function showApiTokens()
+    {
+        $tokens = PersonalAccessToken::where('tokenable_type', 'App\Models\User')
+            ->with('tokenable')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('settings.api-tokens', compact('tokens'));
+    }
+
+    /**
+     * Create a new API token (admin only).
+     */
+    public function createApiToken(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+        ]);
+
+        $user = auth()->user();
+        $token = $user->createToken($validated['name']);
+
+        return redirect()->route('settings.api-tokens')
+            ->with('new_token', $token->plainTextToken)
+            ->with('new_token_name', $validated['name']);
+    }
+
+    /**
+     * Revoke (delete) an API token (admin only).
+     */
+    public function revokeApiToken(Request $request, PersonalAccessToken $token)
+    {
+        $token->delete();
+
+        return redirect()->route('settings.api-tokens')
+            ->with('success', 'Token revoked successfully.');
     }
 
     /**
