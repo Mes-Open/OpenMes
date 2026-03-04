@@ -7,7 +7,7 @@
     <h1 class="text-3xl font-bold text-gray-800 mb-6">Settings</h1>
 
     @hasrole('Admin')
-    <div class="mb-6">
+    <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <a href="{{ route('settings.system') }}" class="card hover:shadow-lg transition-shadow cursor-pointer flex items-start gap-4 border-l-4 border-blue-400">
             <div class="bg-blue-100 rounded-full p-3 flex-shrink-0">
                 <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -18,6 +18,20 @@
             <div class="flex-1">
                 <h3 class="text-lg font-bold text-gray-800 mb-1">System Settings</h3>
                 <p class="text-gray-600 text-sm">Production period split, overproduction rules, step sequencing</p>
+            </div>
+            <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+        <a href="{{ route('settings.api-tokens') }}" class="card hover:shadow-lg transition-shadow cursor-pointer flex items-start gap-4 border-l-4 border-purple-400">
+            <div class="bg-purple-100 rounded-full p-3 flex-shrink-0">
+                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-bold text-gray-800 mb-1">API Tokens</h3>
+                <p class="text-gray-600 text-sm">Manage tokens for external integrations (PrestaShop, ERP, etc.)</p>
             </div>
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>

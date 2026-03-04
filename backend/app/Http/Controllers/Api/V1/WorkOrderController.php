@@ -69,12 +69,13 @@ class WorkOrderController extends Controller
 
         $validated = $request->validate([
             'order_no' => 'required|string|max:100|unique:work_orders,order_no',
-            'line_id' => 'required|exists:lines,id',
-            'product_type_id' => 'required|exists:product_types,id',
+            'line_id' => 'nullable|exists:lines,id',
+            'product_type_id' => 'nullable|exists:product_types,id',
             'planned_qty' => 'required|numeric|min:0.01',
             'priority' => 'nullable|integer',
             'due_date' => 'nullable|date',
             'description' => 'nullable|string',
+            'extra_data' => 'nullable|array',
         ]);
 
         $workOrder = $this->workOrderService->createWorkOrder($validated);
