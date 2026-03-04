@@ -34,8 +34,8 @@ class WorkOrderService
             // Create work order
             $workOrder = WorkOrder::create([
                 'order_no' => $data['order_no'],
-                'line_id' => $data['line_id'],
-                'product_type_id' => $data['product_type_id'],
+                'line_id' => $data['line_id'] ?? null,
+                'product_type_id' => $data['product_type_id'] ?? null,
                 'process_snapshot' => $processSnapshot,
                 'planned_qty' => $data['planned_qty'],
                 'produced_qty' => 0,
@@ -43,6 +43,7 @@ class WorkOrderService
                 'priority' => $data['priority'] ?? 0,
                 'due_date' => $data['due_date'] ?? null,
                 'description' => $data['description'] ?? null,
+                'extra_data' => $data['extra_data'] ?? null,
             ]);
 
             return $workOrder;
