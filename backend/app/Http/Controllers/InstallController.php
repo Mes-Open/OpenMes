@@ -321,6 +321,10 @@ class InstallController extends Controller
         $adminRole = Role::where('name', 'Admin')->first();
         $admin->assignRole($adminRole);
 
+        if ($request->boolean('seed_demo_data')) {
+            Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+        }
+
         file_put_contents(storage_path('installed'), date('Y-m-d H:i:s'));
 
         session()->forget([

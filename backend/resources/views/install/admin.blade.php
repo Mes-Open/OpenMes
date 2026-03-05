@@ -183,6 +183,31 @@
                     </p>
                 </div>
 
+                {{-- Sample data --}}
+                <div class="mb-6" x-data="{ demo: false }">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Sample Data</h3>
+                    <label class="flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-colors"
+                           :class="demo ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'">
+                        <input type="checkbox" name="seed_demo_data" value="1"
+                               x-model="demo" class="mt-1 w-4 h-4 text-indigo-600 rounded">
+                        <div class="flex-1">
+                            <p class="font-semibold text-gray-800">Load example data — Print Shop</p>
+                            <p class="text-sm text-gray-500 mt-1">
+                                Populates the system with a ready-to-explore configuration for a garment decoration company:
+                            </p>
+                            <ul class="mt-2 text-sm text-gray-600 space-y-0.5 list-none">
+                                <li>🏭 <strong>5 production lines</strong> — DTG, Screen Print, Embroidery, Heat Transfer, Packing</li>
+                                <li>🖨️ <strong>16 workstations</strong> — DTG printers, embroidery machines, heat presses, etc.</li>
+                                <li>👕 <strong>10 product types</strong> — T-shirts, hoodies, caps, mugs, tote bags, and more</li>
+                                <li>📋 <strong>7 process templates</strong> with full step-by-step instructions</li>
+                                <li>👷 <strong>5 demo users</strong> — 1 supervisor + 4 operators (password: <code class="bg-gray-100 px-1 rounded">Operator1!</code>)</li>
+                                <li>📦 <strong>7 example work orders</strong> in various statuses (pending, in progress, done)</li>
+                            </ul>
+                            <p class="text-xs text-gray-400 mt-2">You can delete or modify all sample data after logging in.</p>
+                        </div>
+                    </label>
+                </div>
+
                 <div class="flex justify-end">
                     <button
                         type="submit"
