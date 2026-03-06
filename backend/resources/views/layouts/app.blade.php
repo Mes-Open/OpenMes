@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'OpenMES') }} — @yield('title', 'Manufacturing Execution System')</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OpenMES">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <script>
         /* Apply dark class immediately to avoid flash */
         (function(){
@@ -144,6 +150,13 @@
 </div>
 
 <style>[x-cloak]{display:none!important}</style>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+}
+</script>
 @livewireScripts
 @stack('scripts')
 <script>

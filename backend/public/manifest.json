@@ -1,0 +1,37 @@
+{
+    "name": "OpenMES",
+    "short_name": "OpenMES",
+    "description": "Manufacturing Execution System",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#111827",
+    "theme_color": "#1e40af",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Work Orders",
+            "url": "/admin/work-orders",
+            "description": "View work orders"
+        },
+        {
+            "name": "Dashboard",
+            "url": "/admin/dashboard",
+            "description": "Go to dashboard"
+        }
+    ],
+    "categories": ["productivity", "business"]
+}

@@ -89,9 +89,9 @@
                             <span>
                                 Work Order:
                                 @if($isAdmin)
-                                    <a href="{{ route('admin.work-orders.show', $issue->workOrder) }}" class="text-blue-600 hover:underline font-mono">{{ $issue->workOrder->order_no }}</a>
+                                    <a href="{{ route('admin.work-orders.show', $issue->workOrder) }}" class="inline-flex items-center font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">{{ $issue->workOrder->order_no }}</a>
                                 @else
-                                    <span class="font-mono">{{ $issue->workOrder->order_no }}</span>
+                                    <span class="inline-flex items-center font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5">{{ $issue->workOrder->order_no }}</span>
                                 @endif
                             </span>
                             @if($issue->workOrder->line)

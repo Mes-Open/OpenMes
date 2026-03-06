@@ -62,7 +62,7 @@
                     @forelse($workOrders as $wo)
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3">
-                                <a href="{{ route('supervisor.work-orders.show', $wo) }}" class="font-mono font-semibold text-blue-700 hover:underline">
+                                <a href="{{ route('supervisor.work-orders.show', $wo) }}" class="inline-flex items-center font-mono text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">
                                     {{ $wo->order_no }}
                                 </a>
                                 @if($wo->priority > 0)
