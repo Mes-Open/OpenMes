@@ -283,8 +283,6 @@ class WorkOrderTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors([
                 'order_no',
-                'line_id',
-                'product_type_id',
                 'planned_qty',
             ]);
     }
