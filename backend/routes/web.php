@@ -58,6 +58,10 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+Route::get('/offline', function () {
+    return view('offline');
+})->name('offline');
+
 // Guest routes (unauthenticated)
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
