@@ -22,25 +22,12 @@ class PrintShopDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        // ── 1. Extra issue types for print shop ─────────────────────────────
         $this->seedIssueTypes();
-
-        // ── 2. Production lines ──────────────────────────────────────────────
-        $lines = $this->seedLines();
-
-        // ── 3. Workstations ──────────────────────────────────────────────────
+        $lines        = $this->seedLines();
         $workstations = $this->seedWorkstations($lines);
-
-        // ── 4. Product types ─────────────────────────────────────────────────
         $productTypes = $this->seedProductTypes();
-
-        // ── 5. Process templates + steps ─────────────────────────────────────
         $this->seedProcessTemplates($productTypes, $workstations, $lines);
-
-        // ── 6. Users (supervisor + operators) ────────────────────────────────
-        $users = $this->seedUsers($lines);
-
-        // ── 7. Example work orders ────────────────────────────────────────────
+        $this->seedUsers($lines);
         $this->seedWorkOrders($productTypes, $lines);
     }
 
@@ -49,16 +36,16 @@ class PrintShopDemoSeeder extends Seeder
     private function seedIssueTypes(): void
     {
         $types = [
-            ['code' => 'PRINT_COLOR_MISMATCH', 'name' => 'Błąd koloru nadruku',           'severity' => 'HIGH',     'is_blocking' => false],
-            ['code' => 'PRINT_SMEAR',          'name' => 'Rozmazanie nadruku',             'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'SUBSTRATE_DAMAGE',     'name' => 'Uszkodzenie podłoża (wyrób)',    'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'PRINT_HEAD_FAILURE',   'name' => 'Awaria głowicy drukarki DTG',   'severity' => 'CRITICAL', 'is_blocking' => true],
-            ['code' => 'THREAD_BREAK',         'name' => 'Zerwanie nici hafciarskiej',     'severity' => 'MEDIUM',   'is_blocking' => false],
-            ['code' => 'SCREEN_CLOGGED',       'name' => 'Zapchanie sita / matrycy',       'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'INK_SHORTAGE',         'name' => 'Brak farby / tuszów',            'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'ARTWORK_ERROR',        'name' => 'Błąd pliku graficznego',         'severity' => 'MEDIUM',   'is_blocking' => true],
-            ['code' => 'PRESS_TEMP_ERROR',     'name' => 'Nieprawidłowa temperatura prasy','severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'SIZE_MISMATCH',        'name' => 'Błędny rozmiar / pozycja nadruku','severity' => 'MEDIUM',  'is_blocking' => false],
+            ['code' => 'PRINT_COLOR_MISMATCH', 'name' => 'Print Color Mismatch',        'severity' => 'HIGH',     'is_blocking' => false],
+            ['code' => 'PRINT_SMEAR',          'name' => 'Print Smear / Bleed',          'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'SUBSTRATE_DAMAGE',     'name' => 'Substrate / Garment Damaged',  'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'PRINT_HEAD_FAILURE',   'name' => 'DTG Print Head Failure',       'severity' => 'CRITICAL', 'is_blocking' => true],
+            ['code' => 'THREAD_BREAK',         'name' => 'Embroidery Thread Break',      'severity' => 'MEDIUM',   'is_blocking' => false],
+            ['code' => 'SCREEN_CLOGGED',       'name' => 'Screen / Stencil Clogged',     'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'INK_SHORTAGE',         'name' => 'Ink / Toner Shortage',         'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'ARTWORK_ERROR',        'name' => 'Artwork File Error',            'severity' => 'MEDIUM',   'is_blocking' => true],
+            ['code' => 'PRESS_TEMP_ERROR',     'name' => 'Heat Press Temperature Error', 'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'SIZE_MISMATCH',        'name' => 'Wrong Print Size / Position',  'severity' => 'MEDIUM',   'is_blocking' => false],
         ];
 
         foreach ($types as $type) {
@@ -74,11 +61,11 @@ class PrintShopDemoSeeder extends Seeder
     private function seedLines(): array
     {
         $defs = [
-            ['code' => 'DTG',       'name' => 'Druk DTG',          'description' => 'Druk cyfrowy bezpośredni na tkaninie (Direct-to-Garment)'],
-            ['code' => 'SITO',      'name' => 'Sitodruk',          'description' => 'Druk sitowy (screen printing) — serie od 12 szt.'],
-            ['code' => 'HAFT',      'name' => 'Haft Komputerowy',  'description' => 'Haft maszynowy — koszulki, czapki, bluzy'],
-            ['code' => 'TRANSFER',  'name' => 'Transfer Termiczny', 'description' => 'Nadruk transferowy (flex, folia, sublimacja)'],
-            ['code' => 'PAKOWANIE', 'name' => 'Pakowanie i Wysyłka','description' => 'Pakowanie gotowych wyrobów, etykietowanie, wysyłka'],
+            ['code' => 'DTG',      'name' => 'DTG Printing',       'description' => 'Direct-to-Garment digital printing line'],
+            ['code' => 'SITO',     'name' => 'Screen Printing',     'description' => 'Screen printing — minimum run of 12 pcs'],
+            ['code' => 'HAFT',     'name' => 'Embroidery',          'description' => 'Computerised machine embroidery — shirts, caps, hoodies'],
+            ['code' => 'TRANSFER', 'name' => 'Heat Transfer',       'description' => 'Heat transfer printing — flex, foil, sublimation'],
+            ['code' => 'PACKING',  'name' => 'Packing & Shipping',  'description' => 'Finished goods packing, labelling, and dispatch'],
         ];
 
         $result = [];
@@ -96,26 +83,26 @@ class PrintShopDemoSeeder extends Seeder
     {
         $defs = [
             // DTG line
-            ['line' => 'DTG',       'code' => 'DTG-PRE-1',  'name' => 'Stacja Pretreating #1',       'workstation_type' => 'pretreat'],
-            ['line' => 'DTG',       'code' => 'DTG-1',       'name' => 'Drukarka DTG #1 (Epson F2100)','workstation_type' => 'printer'],
-            ['line' => 'DTG',       'code' => 'DTG-2',       'name' => 'Drukarka DTG #2 (Epson F2100)','workstation_type' => 'printer'],
-            ['line' => 'DTG',       'code' => 'DTG-CURE-1', 'name' => 'Piec Utrwalający #1',          'workstation_type' => 'curing'],
-            // Sitodruk line
-            ['line' => 'SITO',      'code' => 'SITO-EXP-1', 'name' => 'Naświetlarka Sita #1',        'workstation_type' => 'exposure'],
-            ['line' => 'SITO',      'code' => 'SITO-1',      'name' => 'Stół Sitodruku #1',           'workstation_type' => 'press'],
-            ['line' => 'SITO',      'code' => 'SITO-2',      'name' => 'Stół Sitodruku #2',           'workstation_type' => 'press'],
-            ['line' => 'SITO',      'code' => 'SITO-DRY-1', 'name' => 'Suszarka Taśmowa',            'workstation_type' => 'dryer'],
-            // Haft line
-            ['line' => 'HAFT',      'code' => 'HAFT-1',      'name' => 'Maszyna Hafciarska #1 (Barudan)','workstation_type' => 'embroidery'],
-            ['line' => 'HAFT',      'code' => 'HAFT-2',      'name' => 'Maszyna Hafciarska #2 (Barudan)','workstation_type' => 'embroidery'],
-            ['line' => 'HAFT',      'code' => 'HAFT-3',      'name' => 'Maszyna Hafciarska #3 (Tajima)', 'workstation_type' => 'embroidery'],
-            // Transfer line
-            ['line' => 'TRANSFER',  'code' => 'TRANS-1',     'name' => 'Prasa Termotransferowa #1',   'workstation_type' => 'heat_press'],
-            ['line' => 'TRANSFER',  'code' => 'TRANS-2',     'name' => 'Prasa Termotransferowa #2',   'workstation_type' => 'heat_press'],
-            ['line' => 'TRANSFER',  'code' => 'TRANS-SUB-1','name' => 'Piec Sublimacyjny #1',         'workstation_type' => 'sublimation'],
-            // Pakowanie
-            ['line' => 'PAKOWANIE', 'code' => 'PAK-1',       'name' => 'Stanowisko Pakowania #1',     'workstation_type' => 'packing'],
-            ['line' => 'PAKOWANIE', 'code' => 'PAK-2',       'name' => 'Stanowisko Pakowania #2',     'workstation_type' => 'packing'],
+            ['line' => 'DTG',      'code' => 'DTG-PRE-1',  'name' => 'Pretreat Station #1',            'workstation_type' => 'pretreat'],
+            ['line' => 'DTG',      'code' => 'DTG-1',       'name' => 'DTG Printer #1 (Epson F2100)',   'workstation_type' => 'printer'],
+            ['line' => 'DTG',      'code' => 'DTG-2',       'name' => 'DTG Printer #2 (Epson F2100)',   'workstation_type' => 'printer'],
+            ['line' => 'DTG',      'code' => 'DTG-CURE-1',  'name' => 'Conveyor Curing Oven #1',        'workstation_type' => 'curing'],
+            // Screen Printing line
+            ['line' => 'SITO',     'code' => 'SITO-EXP-1', 'name' => 'Screen Exposure Unit #1',        'workstation_type' => 'exposure'],
+            ['line' => 'SITO',     'code' => 'SITO-1',      'name' => 'Screen Printing Table #1',       'workstation_type' => 'press'],
+            ['line' => 'SITO',     'code' => 'SITO-2',      'name' => 'Screen Printing Table #2',       'workstation_type' => 'press'],
+            ['line' => 'SITO',     'code' => 'SITO-DRY-1',  'name' => 'Conveyor Dryer',                 'workstation_type' => 'dryer'],
+            // Embroidery line
+            ['line' => 'HAFT',     'code' => 'HAFT-1',      'name' => 'Embroidery Machine #1 (Barudan)','workstation_type' => 'embroidery'],
+            ['line' => 'HAFT',     'code' => 'HAFT-2',      'name' => 'Embroidery Machine #2 (Barudan)','workstation_type' => 'embroidery'],
+            ['line' => 'HAFT',     'code' => 'HAFT-3',      'name' => 'Embroidery Machine #3 (Tajima)', 'workstation_type' => 'embroidery'],
+            // Heat Transfer line
+            ['line' => 'TRANSFER', 'code' => 'TRANS-1',     'name' => 'Heat Press #1',                  'workstation_type' => 'heat_press'],
+            ['line' => 'TRANSFER', 'code' => 'TRANS-2',     'name' => 'Heat Press #2',                  'workstation_type' => 'heat_press'],
+            ['line' => 'TRANSFER', 'code' => 'TRANS-SUB-1', 'name' => 'Sublimation Oven #1',            'workstation_type' => 'sublimation'],
+            // Packing
+            ['line' => 'PACKING',  'code' => 'PAK-1',       'name' => 'Packing Station #1',             'workstation_type' => 'packing'],
+            ['line' => 'PACKING',  'code' => 'PAK-2',       'name' => 'Packing Station #2',             'workstation_type' => 'packing'],
         ];
 
         $result = [];
@@ -140,16 +127,16 @@ class PrintShopDemoSeeder extends Seeder
     private function seedProductTypes(): array
     {
         $defs = [
-            ['code' => 'TSHIRT',     'name' => 'Koszulka T-Shirt',          'description' => 'Koszulka z krótkim rękawem, bawełna 100%',           'unit_of_measure' => 'szt'],
-            ['code' => 'HOODIE',     'name' => 'Bluza z Kapturem',          'description' => 'Hoodie / bluza kangurka z kapturem',                  'unit_of_measure' => 'szt'],
-            ['code' => 'SWEATSHIRT', 'name' => 'Bluza bez Kaptura',        'description' => 'Klasyczna bluza (crewneck), bawełna/poliester',        'unit_of_measure' => 'szt'],
-            ['code' => 'POLO',       'name' => 'Koszulka Polo',            'description' => 'Polo z kołnierzykiem, piqué',                          'unit_of_measure' => 'szt'],
-            ['code' => 'CAP',        'name' => 'Czapka z Daszkiem',        'description' => 'Czapka typu baseball / snapback',                      'unit_of_measure' => 'szt'],
-            ['code' => 'BEANIE',     'name' => 'Czapka Zimowa (Beanie)',   'description' => 'Czapka dziana, haft lub naszywka',                     'unit_of_measure' => 'szt'],
-            ['code' => 'TOTE',       'name' => 'Torba Bawełniana',         'description' => 'Torba tote bag, bawełna naturalna',                    'unit_of_measure' => 'szt'],
-            ['code' => 'JACKET',     'name' => 'Kurtka / Wiatrówka',       'description' => 'Kurtka softshell lub wiatrówka z nadrukiem',           'unit_of_measure' => 'szt'],
-            ['code' => 'MUG',        'name' => 'Kubek Sublimacyjny',       'description' => 'Kubek ceramiczny do sublimacji (330 ml)',               'unit_of_measure' => 'szt'],
-            ['code' => 'PILLOW',     'name' => 'Poduszka z Nadrukiem',     'description' => 'Poszewka na poduszkę z nadrukiem sublimacyjnym',        'unit_of_measure' => 'szt'],
+            ['code' => 'TSHIRT',     'name' => 'T-Shirt',              'description' => 'Short-sleeve t-shirt, 100% cotton',                   'unit_of_measure' => 'pcs'],
+            ['code' => 'HOODIE',     'name' => 'Hoodie',               'description' => 'Pullover hoodie with kangaroo pocket',                 'unit_of_measure' => 'pcs'],
+            ['code' => 'SWEATSHIRT', 'name' => 'Crewneck Sweatshirt',  'description' => 'Classic crewneck sweatshirt, cotton/polyester blend',  'unit_of_measure' => 'pcs'],
+            ['code' => 'POLO',       'name' => 'Polo Shirt',           'description' => 'Polo shirt with collar, piqué fabric',                 'unit_of_measure' => 'pcs'],
+            ['code' => 'CAP',        'name' => 'Baseball Cap',         'description' => 'Structured baseball / snapback cap',                   'unit_of_measure' => 'pcs'],
+            ['code' => 'BEANIE',     'name' => 'Beanie Hat',           'description' => 'Knit beanie, embroidery or patch decoration',          'unit_of_measure' => 'pcs'],
+            ['code' => 'TOTE',       'name' => 'Cotton Tote Bag',      'description' => 'Natural cotton tote bag',                              'unit_of_measure' => 'pcs'],
+            ['code' => 'JACKET',     'name' => 'Softshell Jacket',     'description' => 'Softshell or windbreaker jacket with print',           'unit_of_measure' => 'pcs'],
+            ['code' => 'MUG',        'name' => 'Sublimation Mug',      'description' => 'Ceramic mug for sublimation printing (330 ml)',        'unit_of_measure' => 'pcs'],
+            ['code' => 'PILLOW',     'name' => 'Printed Pillow Cover', 'description' => 'Pillow cover with sublimation print',                  'unit_of_measure' => 'pcs'],
         ];
 
         $result = [];
@@ -165,77 +152,70 @@ class PrintShopDemoSeeder extends Seeder
 
     private function seedProcessTemplates(array $pt, array $ws, array $lines): void
     {
-        // T-Shirt — druk DTG
-        $this->createTemplate($pt['TSHIRT'], 'T-Shirt — Druk DTG', [
-            [1, 'Weryfikacja pliku graficznego',   'Sprawdź rozdzielczość (min 150 dpi), profil kolorów, brak elementów zbyt blisko krawędzi.', 10, null],
-            [2, 'Pranie i prasowanie podłoża',     'Wypierz koszulkę jeśli nowa z metką "wash before print". Wygładź gorącą prasą.', 5, $ws['DTG-PRE-1'] ?? null],
-            [3, 'Pretreating',                     'Nałóż pretreat równomiernie na obszar nadruku. Wymieszaj butelkę przed użyciem.', 10, $ws['DTG-PRE-1'] ?? null],
-            [4, 'Druk DTG',                        'Umieść koszulkę na palecie, wycentruj nadruk. Uruchom wydruk zgodnie z profilem koloru.', 15, $ws['DTG-1'] ?? null],
-            [5, 'Utrwalanie w piecu',               'Przesuń przez piec taśmowy: temperatura 165°C, czas ok. 90 sek. Sprawdź wilgotność.', 8, $ws['DTG-CURE-1'] ?? null],
-            [6, 'Kontrola jakości nadruku',        'Oceń krycie kolorów, ostrość krawędzi, brak smug. Odrzuć braki.', 5, null],
-            [7, 'Pakowanie',                       'Złóż starannie, włóż do woreczka foliowego, naklejj etykietę z numerem zlecenia.', 5, $ws['PAK-1'] ?? null],
+        $this->createTemplate($pt['TSHIRT'], 'T-Shirt — DTG Printing', [
+            [1, 'Artwork verification',      'Check resolution (min 150 dpi), colour profile, no elements too close to edges.', 10, null],
+            [2, 'Pre-wash and press',        'Pre-wash garment if label says "wash before print". Press flat with heat press.', 5, $ws['DTG-PRE-1'] ?? null],
+            [3, 'Pretreating',               'Apply pretreat solution evenly over print area. Shake bottle well before use.', 10, $ws['DTG-PRE-1'] ?? null],
+            [4, 'DTG printing',              'Place shirt on platen, centre artwork. Run print using correct colour profile.', 15, $ws['DTG-1'] ?? null],
+            [5, 'Curing',                    'Pass through conveyor oven: 165 °C, approx. 90 sec. Check moisture level first.', 8, $ws['DTG-CURE-1'] ?? null],
+            [6, 'Quality control',           'Check colour coverage, edge sharpness, no smearing. Reject any defects.', 5, null],
+            [7, 'Packing',                   'Fold neatly, place in poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
 
-        // Hoodie — haft
-        $this->createTemplate($pt['HOODIE'], 'Bluza — Haft Komputerowy', [
-            [1, 'Weryfikacja projektu haftu',       'Otwórz plik DST/PES, sprawdź liczbę kolorów nici, punkty startowe i zatrzymania.', 15, null],
-            [2, 'Przygotowanie maszyny i nici',     'Nawlecz nici zgodnie z kartą kolorów. Zamontuj odpowiedni stabilizator (tearaway / cutaway).', 10, $ws['HAFT-1'] ?? null],
-            [3, 'Napinanie materiału w tamborku',   'Naciągnij bluzę na tamborek. Materiał musi być równy, bez zagięć.', 8, $ws['HAFT-1'] ?? null],
-            [4, 'Haft',                             'Uruchom maszynę. Monitoruj pierwsze 10 ściegów. Sprawdź naprężenie nici co 5 min.', 25, $ws['HAFT-1'] ?? null],
-            [5, 'Czyszczenie i wykończenie haftu',  'Usuń nadmiar stabilizatora, wytnij luźne nici, wyparuj haft jeśli potrzeba.', 10, null],
-            [6, 'Kontrola jakości haftu',           'Sprawdź gęstość ściegów, brak skoków, wyrównanie kolorów z projektem.', 5, null],
-            [7, 'Pakowanie',                        'Złóż bluzę, woreczek foliowy, etykieta z zamówieniem.', 5, $ws['PAK-1'] ?? null],
+        $this->createTemplate($pt['HOODIE'], 'Hoodie — Machine Embroidery', [
+            [1, 'Embroidery file check',     'Open DST/PES file, verify thread colours, start/stop points and density.', 15, null],
+            [2, 'Machine & thread setup',    'Thread machine per colour card. Mount correct stabiliser (tearaway / cutaway).', 10, $ws['HAFT-1'] ?? null],
+            [3, 'Hooping',                   'Hoop the hoodie taut and flat — no wrinkles or puckers.', 8, $ws['HAFT-1'] ?? null],
+            [4, 'Embroidery run',            'Start machine. Monitor first 10 stitches. Check thread tension every 5 min.', 25, $ws['HAFT-1'] ?? null],
+            [5, 'Trim and finish',           'Remove excess stabiliser, trim jump stitches, steam if required.', 10, null],
+            [6, 'Quality control',           'Check stitch density, no jumps, colour alignment against artwork.', 5, null],
+            [7, 'Packing',                   'Fold hoodie, poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
 
-        // Polo — sitodruk
-        $this->createTemplate($pt['POLO'], 'Polo — Sitodruk', [
-            [1, 'Przygotowanie matrycy (sita)',     'Wywoła sitodruk z przygotowanego filmu. Sprawdź drożność sita po wywołaniu.', 20, $ws['SITO-EXP-1'] ?? null],
-            [2, 'Rejestracja i pozycjonowanie',     'Zamocuj sito na stole. Ustaw rejestrację (pozycję) za pomocą linijek i taśmy.', 10, $ws['SITO-1'] ?? null],
-            [3, 'Próbna odbitka',                   'Wykonaj 1 odbitkę próbną. Sprawdź krycie, rejestrację i kolor. Zatwierdź do produkcji.', 10, $ws['SITO-1'] ?? null],
-            [4, 'Sitodruk — produkcja seryjna',    'Drukuj partię. Uzupełniaj farbę co ~30 szt. Sprawdzaj co 10. szt. jakość.', 30, $ws['SITO-1'] ?? null],
-            [5, 'Suszenie',                         'Przepuść przez suszarkę taśmową: 160°C / 60 sek. Test zrywania taśmy klejącej.', 10, $ws['SITO-DRY-1'] ?? null],
-            [6, 'Kontrola jakości',                 'Skontroluj próbkę co 20 szt.: krycie, ostrość, brak śladów fleksu/tuszu.', 5, null],
-            [7, 'Pakowanie',                        'Złóż koszulki polo, pakuj po 12 szt. (1 tuzin). Naklejaj etykiety seryjne.', 8, $ws['PAK-2'] ?? null],
+        $this->createTemplate($pt['POLO'], 'Polo Shirt — Screen Printing', [
+            [1, 'Screen preparation',        'Expose screen from film positive. Check open areas after washing out.', 20, $ws['SITO-EXP-1'] ?? null],
+            [2, 'Registration setup',        'Mount screen on press. Set registration using rulers and tape.', 10, $ws['SITO-1'] ?? null],
+            [3, 'Test print',                'Pull one test print. Check coverage, registration and colour. Sign off before production.', 10, $ws['SITO-1'] ?? null],
+            [4, 'Production run',            'Print full batch. Top up ink every ~30 pcs. Spot-check every 10th piece.', 30, $ws['SITO-1'] ?? null],
+            [5, 'Curing',                    'Pass through conveyor dryer: 160 °C / 60 sec. Tape-peel adhesion test.', 10, $ws['SITO-DRY-1'] ?? null],
+            [6, 'Quality control',           'Sample-check every 20 pcs: coverage, sharpness, no ink haze.', 5, null],
+            [7, 'Packing',                   'Fold polo shirts, pack in dozens (12 pcs). Apply batch labels.', 8, $ws['PAK-2'] ?? null],
         ]);
 
-        // Czapka — haft
-        $this->createTemplate($pt['CAP'], 'Czapka — Haft na Daszku', [
-            [1, 'Weryfikacja projektu haftu na czapkę', 'Sprawdź plik: projekt przystosowany do haftu na daszku (płaskie pole, maks 80 mm szerokości).', 10, null],
-            [2, 'Montaż kaptura w rammie do czapek',    'Zamontuj ramę do czapek. Naciągnij daszek czapki.', 8, $ws['HAFT-2'] ?? null],
-            [3, 'Haft',                                  'Uruchom program. Pilnuj stabilności materiału przy hafcie na krzywiźnie.', 20, $ws['HAFT-2'] ?? null],
-            [4, 'Wykończenie i czyszczenie',             'Usuń stabilizator, wytnij nici, sprawdź odwrotną stronę daszka.', 5, null],
-            [5, 'Kontrola jakości',                      'Sprawdź centrowanie haftu na daszku, krycie kolorów.', 5, null],
-            [6, 'Pakowanie',                             'Umieść czapkę w woreczku, naklejj etykietę z zamówieniem.', 3, $ws['PAK-1'] ?? null],
+        $this->createTemplate($pt['CAP'], 'Baseball Cap — Embroidery', [
+            [1, 'Embroidery file check',     'Verify file is adapted for cap embroidery (flat area, max 80 mm width).', 10, null],
+            [2, 'Cap frame setup',           'Mount cap frame on machine. Stretch cap brim flat in frame.', 8, $ws['HAFT-2'] ?? null],
+            [3, 'Embroidery run',            'Start machine. Monitor carefully — curved surface needs stable hooping.', 20, $ws['HAFT-2'] ?? null],
+            [4, 'Trim and finish',           'Remove stabiliser, trim threads, inspect back of brim.', 5, null],
+            [5, 'Quality control',           'Check embroidery centring on brim, colour accuracy.', 5, null],
+            [6, 'Packing',                   'Place cap in poly bag, attach order label.', 3, $ws['PAK-1'] ?? null],
         ]);
 
-        // Torba — sitodruk lub transfer
-        $this->createTemplate($pt['TOTE'], 'Torba Bawełniana — Transfer Termiczny', [
-            [1, 'Wydruk transferu (folia/flex)',   'Wydrukuj transfer na ploterze lub w druku transferowym. Poczekaj na wyschnięcie.', 10, null],
-            [2, 'Przygotowanie prasy termicznej',  'Ustaw temperaturę: 160°C, czas 15 sek., nacisk średni. Rozgrzej prasę 5 min.', 5, $ws['TRANS-1'] ?? null],
-            [3, 'Pozycjonowanie na torbie',        'Rozłóż torbę na płycie prasy, wycentruj transfer. Użyj linijki lub szablonu.', 5, $ws['TRANS-1'] ?? null],
-            [4, 'Prasowanie transferu',            'Przyłóż folię ochronną, zamknij prasę. Odczekaj 15 sek. Oderwij folię zimno lub gorąco wg. instrukcji producenta.', 5, $ws['TRANS-1'] ?? null],
-            [5, 'Kontrola jakości',                'Sprawdź krawędzie transferu, brak pęcherzy powietrza, krycie.', 3, null],
-            [6, 'Pakowanie',                       'Złóż torbę, włóż do woreczka z nadrukiem na wierzchu.', 3, $ws['PAK-2'] ?? null],
+        $this->createTemplate($pt['TOTE'], 'Cotton Tote Bag — Heat Transfer', [
+            [1, 'Print transfer film',       'Print transfer on plotter or transfer printer. Allow to dry fully.', 10, null],
+            [2, 'Heat press setup',          'Set temperature: 160 °C, time 15 sec, medium pressure. Pre-heat 5 min.', 5, $ws['TRANS-1'] ?? null],
+            [3, 'Position transfer',         'Lay bag flat on press platen, centre transfer. Use ruler or template.', 5, $ws['TRANS-1'] ?? null],
+            [4, 'Press transfer',            'Apply cover sheet, close press. Hold 15 sec. Peel film cold or hot per manufacturer instructions.', 5, $ws['TRANS-1'] ?? null],
+            [5, 'Quality control',           'Check transfer edges, no air bubbles, full coverage.', 3, null],
+            [6, 'Packing',                   'Fold bag, place in poly bag with print facing out.', 3, $ws['PAK-2'] ?? null],
         ]);
 
-        // Kubek — sublimacja
-        $this->createTemplate($pt['MUG'], 'Kubek — Sublimacja', [
-            [1, 'Wydruk transferu sublimacyjnego', 'Wydrukuj projekt lustrzanie na papierze sublimacyjnym. Przytnij z zapasem 5 mm.', 10, null],
-            [2, 'Owijanie kubka transferem',       'Owij kubek papierem, dociskaj taśmą termoodporną. Papier musi przylegać bez fałd.', 5, $ws['TRANS-SUB-1'] ?? null],
-            [3, 'Sublimacja w piecu',              'Umieść w piecu sublimacyjnym: 200°C / 4 min. Nie otwierać przedwcześnie.', 5, $ws['TRANS-SUB-1'] ?? null],
-            [4, 'Chłodzenie i zdejmowanie papieru','Wyjmij kubek, odstaw do przestygnięcia 2 min. Zdejmij papier.', 3, null],
-            [5, 'Kontrola jakości',                'Sprawdź nasycenie kolorów, brak białych plam (niedostateczny nacisk), ostrość.', 5, null],
-            [6, 'Pakowanie',                       'Umieść kubek w pudełku z wypełnieniem chroniącym przed stłuczeniem.', 3, $ws['PAK-1'] ?? null],
+        $this->createTemplate($pt['MUG'], 'Sublimation Mug', [
+            [1, 'Print sublimation transfer','Print artwork mirrored on sublimation paper. Trim with 5 mm margin.', 10, null],
+            [2, 'Wrap mug',                  'Wrap mug with transfer paper, secure with heat-resistant tape. No wrinkles.', 5, $ws['TRANS-SUB-1'] ?? null],
+            [3, 'Sublimation in oven',       'Place in sublimation oven: 200 °C / 4 min. Do not open early.', 5, $ws['TRANS-SUB-1'] ?? null],
+            [4, 'Cool and unwrap',           'Remove mug, allow to cool 2 min. Peel paper.', 3, null],
+            [5, 'Quality control',           'Check colour saturation, no white spots (insufficient pressure), sharpness.', 5, null],
+            [6, 'Packing',                   'Place mug in box with protective padding to prevent breakage.', 3, $ws['PAK-1'] ?? null],
         ]);
 
-        // Bluza bez kaptura — DTG
-        $this->createTemplate($pt['SWEATSHIRT'], 'Bluza bez Kaptura — Druk DTG', [
-            [1, 'Weryfikacja pliku graficznego',   'Sprawdź rozdzielczość, profil kolorów, wymiary nadruku (max A3).', 10, null],
-            [2, 'Pretreating',                     'Nałóż pretreat na bluzę. Uwaga na grubszy materiał — zwiększ dawkę 15%.', 12, $ws['DTG-PRE-1'] ?? null],
-            [3, 'Druk DTG',                        'Ustaw bluzę na palecie, wycentruj. Użyj profilu dla grubszych tkanin.', 18, $ws['DTG-2'] ?? null],
-            [4, 'Utrwalanie',                      'Przesuń przez piec: 165°C, 100 sek. (dłużej niż koszulka — grubszy materiał).', 10, $ws['DTG-CURE-1'] ?? null],
-            [5, 'Kontrola jakości',                'Sprawdź krycie, brak smug, brak przerw w nadruku.', 5, null],
-            [6, 'Pakowanie',                       'Złóż, zapakuj w woreczek foliowy, naklejj etykietę.', 5, $ws['PAK-1'] ?? null],
+        $this->createTemplate($pt['SWEATSHIRT'], 'Crewneck Sweatshirt — DTG Printing', [
+            [1, 'Artwork verification',      'Check resolution, colour profile, print dimensions (max A3).', 10, null],
+            [2, 'Pretreating',               'Apply pretreat to sweatshirt. Heavier fabric — increase dose by 15%.', 12, $ws['DTG-PRE-1'] ?? null],
+            [3, 'DTG printing',              'Load sweatshirt on platen, centre artwork. Use heavy-fabric print profile.', 18, $ws['DTG-2'] ?? null],
+            [4, 'Curing',                    'Pass through oven: 165 °C, 100 sec (longer than t-shirt — thicker fabric).', 10, $ws['DTG-CURE-1'] ?? null],
+            [5, 'Quality control',           'Check coverage, no smearing, no gaps in print.', 5, null],
+            [6, 'Packing',                   'Fold, place in poly bag, attach order label.', 5, $ws['PAK-1'] ?? null],
         ]);
     }
 
@@ -269,12 +249,11 @@ class PrintShopDemoSeeder extends Seeder
 
         $users = [];
 
-        // Supervisor
         $supervisor = User::updateOrCreate(
-            ['username' => 'piotr.wisniewsk'],
+            ['username' => 'peter.wilson'],
             [
-                'name'                  => 'Piotr Wiśniewski',
-                'email'                 => 'piotr.wisniewsk@printshop.local',
+                'name'                  => 'Peter Wilson',
+                'email'                 => 'peter.wilson@printshop.local',
                 'password'              => Hash::make('Supervisor1!'),
                 'account_type'          => 'user',
                 'force_password_change' => false,
@@ -283,16 +262,14 @@ class PrintShopDemoSeeder extends Seeder
         if ($supervisorRole && !$supervisor->hasRole('Supervisor')) {
             $supervisor->assignRole($supervisorRole);
         }
-        // Assign all lines
         $supervisor->lines()->syncWithoutDetaching(array_map(fn($l) => $l->id, $lines));
         $users[] = $supervisor;
 
-        // Operators
         $operatorDefs = [
-            ['username' => 'anna.kowalczyk',  'name' => 'Anna Kowalczyk',  'email' => 'anna.kowalczyk@printshop.local',  'lines' => ['DTG', 'TRANSFER']],
-            ['username' => 'marek.nowak',     'name' => 'Marek Nowak',     'email' => 'marek.nowak@printshop.local',     'lines' => ['SITO']],
-            ['username' => 'julia.kaminska',  'name' => 'Julia Kamińska',  'email' => 'julia.kaminska@printshop.local',  'lines' => ['HAFT']],
-            ['username' => 'tomasz.zielinski','name' => 'Tomasz Zieliński','email' => 'tomasz.zielinski@printshop.local','lines' => ['PAKOWANIE', 'DTG']],
+            ['username' => 'anna.smith',    'name' => 'Anna Smith',    'email' => 'anna.smith@printshop.local',    'lines' => ['DTG', 'TRANSFER']],
+            ['username' => 'mark.johnson',  'name' => 'Mark Johnson',  'email' => 'mark.johnson@printshop.local',  'lines' => ['SITO']],
+            ['username' => 'julia.white',   'name' => 'Julia White',   'email' => 'julia.white@printshop.local',   'lines' => ['HAFT']],
+            ['username' => 'tom.green',     'name' => 'Tom Green',     'email' => 'tom.green@printshop.local',     'lines' => ['PACKING', 'DTG']],
         ];
 
         foreach ($operatorDefs as $def) {
@@ -323,75 +300,75 @@ class PrintShopDemoSeeder extends Seeder
     {
         $orders = [
             [
-                'order_no'    => 'WO-2026-001',
-                'line_id'     => $lines['DTG']->id,
+                'order_no'        => 'WO-2026-001',
+                'line_id'         => $lines['DTG']->id,
                 'product_type_id' => $pt['TSHIRT']->id,
-                'planned_qty' => 50,
-                'status'      => WorkOrder::STATUS_IN_PROGRESS,
-                'priority'    => 3,
-                'due_date'    => now()->addDays(2),
-                'description' => 'Koszulki firmowe — logo klienta XYZ Sp. z o.o. (druk DTG, kolor biały, rozmiary M/L/XL)',
+                'planned_qty'     => 50,
+                'status'          => WorkOrder::STATUS_IN_PROGRESS,
+                'priority'        => 3,
+                'due_date'        => now()->addDays(2),
+                'description'     => 'Corporate t-shirts — XYZ Ltd. logo, white base, DTG print, sizes M/L/XL',
             ],
             [
-                'order_no'    => 'WO-2026-002',
-                'line_id'     => $lines['HAFT']->id,
+                'order_no'        => 'WO-2026-002',
+                'line_id'         => $lines['HAFT']->id,
                 'product_type_id' => $pt['CAP']->id,
-                'planned_qty' => 30,
-                'status'      => WorkOrder::STATUS_PENDING,
-                'priority'    => 2,
-                'due_date'    => now()->addDays(5),
-                'description' => 'Czapki z haftem — logo drużyny sportowej, haft 3D, kolor granatowy',
+                'planned_qty'     => 30,
+                'status'          => WorkOrder::STATUS_PENDING,
+                'priority'        => 2,
+                'due_date'        => now()->addDays(5),
+                'description'     => 'Sports team caps — 3D embroidery logo, navy blue',
             ],
             [
-                'order_no'    => 'WO-2026-003',
-                'line_id'     => $lines['SITO']->id,
+                'order_no'        => 'WO-2026-003',
+                'line_id'         => $lines['SITO']->id,
                 'product_type_id' => $pt['POLO']->id,
-                'planned_qty' => 100,
-                'status'      => WorkOrder::STATUS_ACCEPTED,
-                'priority'    => 4,
-                'due_date'    => now()->addDay(),
-                'description' => 'Koszulki polo sitodruk 2 kolory — odzież robocza firma budowlana',
+                'planned_qty'     => 100,
+                'status'          => WorkOrder::STATUS_ACCEPTED,
+                'priority'        => 4,
+                'due_date'        => now()->addDay(),
+                'description'     => 'Polo shirts screen print 2 colours — workwear for construction company',
             ],
             [
-                'order_no'    => 'WO-2026-004',
-                'line_id'     => $lines['TRANSFER']->id,
+                'order_no'        => 'WO-2026-004',
+                'line_id'         => $lines['TRANSFER']->id,
                 'product_type_id' => $pt['TOTE']->id,
-                'planned_qty' => 200,
-                'status'      => WorkOrder::STATUS_PENDING,
-                'priority'    => 1,
-                'due_date'    => now()->addDays(7),
-                'description' => 'Torby bawełniane transfer flex — gadżety konferencyjne, nadruk 1 kolor',
+                'planned_qty'     => 200,
+                'status'          => WorkOrder::STATUS_PENDING,
+                'priority'        => 1,
+                'due_date'        => now()->addDays(7),
+                'description'     => 'Conference tote bags — flex transfer, single colour print',
             ],
             [
-                'order_no'    => 'WO-2026-005',
-                'line_id'     => $lines['DTG']->id,
+                'order_no'        => 'WO-2026-005',
+                'line_id'         => $lines['DTG']->id,
                 'product_type_id' => $pt['HOODIE']->id,
-                'planned_qty' => 25,
-                'status'      => WorkOrder::STATUS_DONE,
-                'priority'    => 2,
-                'due_date'    => now()->subDay(),
-                'description' => 'Bluzy z kapturem — projekt artystyczny, limitowana edycja, druk full-color DTG',
-                'completed_at' => now()->subHours(3),
+                'planned_qty'     => 25,
+                'status'          => WorkOrder::STATUS_DONE,
+                'priority'        => 2,
+                'due_date'        => now()->subDay(),
+                'description'     => 'Artist hoodies — limited edition, full-colour DTG print',
+                'completed_at'    => now()->subHours(3),
             ],
             [
-                'order_no'    => 'WO-2026-006',
-                'line_id'     => $lines['TRANSFER']->id,
+                'order_no'        => 'WO-2026-006',
+                'line_id'         => $lines['TRANSFER']->id,
                 'product_type_id' => $pt['MUG']->id,
-                'planned_qty' => 48,
-                'status'      => WorkOrder::STATUS_IN_PROGRESS,
-                'priority'    => 3,
-                'due_date'    => now()->addDays(3),
-                'description' => 'Kubki sublimacyjne — zdjęcia klientów indywidualnych (zamówienie świąteczne)',
+                'planned_qty'     => 48,
+                'status'          => WorkOrder::STATUS_IN_PROGRESS,
+                'priority'        => 3,
+                'due_date'        => now()->addDays(3),
+                'description'     => 'Sublimation mugs — personalised customer photos, gift order',
             ],
             [
-                'order_no'    => 'WO-2026-007',
-                'line_id'     => $lines['HAFT']->id,
+                'order_no'        => 'WO-2026-007',
+                'line_id'         => $lines['HAFT']->id,
                 'product_type_id' => $pt['SWEATSHIRT']->id,
-                'planned_qty' => 15,
-                'status'      => WorkOrder::STATUS_PENDING,
-                'priority'    => 2,
-                'due_date'    => now()->addDays(4),
-                'description' => 'Bluzy bez kaptura — haft logo uczelni, kolor czarny, rozmiary S-XXL',
+                'planned_qty'     => 15,
+                'status'          => WorkOrder::STATUS_PENDING,
+                'priority'        => 2,
+                'due_date'        => now()->addDays(4),
+                'description'     => 'University crewneck sweatshirts — embroidered crest, black, sizes S–XXL',
             ],
         ];
 
