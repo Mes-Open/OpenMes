@@ -125,9 +125,9 @@
     </form>
 
     {{-- Sample Data --}}
-    <div class="card mt-6 border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40">
-        <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">Sample Data</h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+    <div class="card mt-6 border-amber-200 bg-amber-50">
+        <h2 class="text-lg font-bold text-gray-800 mb-1">Sample Data</h2>
+        <p class="text-sm text-gray-600 mb-4">
             Load a pre-built demo dataset (Print Shop scenario): production lines, workstations, product types, process templates, operators and example work orders.
             This is safe to run multiple times — existing records will not be duplicated.
         </p>
@@ -135,8 +135,8 @@
               x-data="{ confirm: false }">
             @csrf
             <div class="flex items-center gap-4">
-                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <input type="checkbox" x-model="confirm" class="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-amber-500">
+                <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" x-model="confirm" class="rounded border-gray-300 text-amber-500">
                     I understand this will add demo data to the system
                 </label>
                 <button type="submit"
@@ -144,8 +144,6 @@
                         class="btn-touch px-4 py-2 text-sm font-medium rounded-lg border
                                border-amber-400 bg-amber-100 text-amber-800
                                hover:bg-amber-200
-                               dark:border-amber-600 dark:bg-amber-900/50 dark:text-amber-300
-                               dark:hover:bg-amber-900/80
                                disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                     Load Sample Data
                 </button>
