@@ -21,10 +21,10 @@ class LineController extends Controller
 
         // Admin and Supervisor can see all lines
         if ($user->hasAnyRole(['Admin', 'Supervisor'])) {
-            $lines = Line::active()->with('workstations')->get();
+            $lines = Line::active()->with('workstations')->orderBy('name')->get();
         } else {
             // Operators only see assigned lines
-            $lines = $user->lines()->where('is_active', true)->with('workstations')->get();
+            $lines = $user->lines()->where('is_active', true)->with('workstations')->orderBy('name')->get();
         }
 
         return response()->json([
