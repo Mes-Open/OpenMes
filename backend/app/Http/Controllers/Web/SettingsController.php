@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -134,6 +135,17 @@ class SettingsController extends Controller
 
         return redirect()->route('settings.api-tokens')
             ->with('success', 'Token revoked successfully.');
+    }
+
+    /**
+     * Load sample data (admin only).
+     */
+    public function loadSampleData()
+    {
+        Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+
+        return redirect()->route('settings.system')
+            ->with('success', 'Sample data loaded successfully. Lines, work orders, operators and product types have been created.');
     }
 
     /**
