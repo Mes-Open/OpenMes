@@ -214,6 +214,61 @@
                 </span>
             </div>
 
+            {{-- Alerts --}}
+            @php $a = request()->routeIs('admin.alerts'); @endphp
+            <div class="relative group px-2">
+                <a href="{{ route('admin.alerts') }}"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                          {{ $a ? 'bg-red-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }}"
+                   :class="{'justify-center !px-0': collapsed && !mobileOpen}">
+                    <span class="relative shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        @if(($alertCount ?? 0) > 0)
+                            <span class="absolute -top-1.5 -right-1.5 flex items-center justify-center
+                                         w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                                {{ $alertCount > 9 ? '9+' : $alertCount }}
+                            </span>
+                        @endif
+                    </span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak class="flex items-center gap-2">
+                        Alerts
+                        @if(($alertCount ?? 0) > 0)
+                            <span class="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                                {{ $alertCount }}
+                            </span>
+                        @endif
+                    </span>
+                </a>
+                <span x-show="collapsed && !mobileOpen" x-cloak
+                      class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
+                             text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
+                             group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+                    Alerts @if(($alertCount ?? 0) > 0)({{ $alertCount }})@endif
+                </span>
+            </div>
+
+            {{-- Schedule --}}
+            @php $a = request()->routeIs('admin.schedule'); @endphp
+            <div class="relative group px-2">
+                <a href="{{ route('admin.schedule') }}"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                          {{ $a ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }}"
+                   :class="{'justify-center !px-0': collapsed && !mobileOpen}">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>Schedule</span>
+                </a>
+                <span x-show="collapsed && !mobileOpen" x-cloak
+                      class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
+                             text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
+                             group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+                    Schedule
+                </span>
+            </div>
+
             {{-- Separator --}}
             <div x-show="!collapsed || mobileOpen" x-cloak class="mx-4 my-2 border-t border-slate-700/60"></div>
 
@@ -332,6 +387,9 @@
                     </a>
                     <a href="{{ route('admin.anomaly-reasons.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.anomaly-reasons.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Anomaly Reasons
+                    </a>
+                    <a href="{{ route('admin.shifts.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.shifts.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Shifts
                     </a>
                     @foreach($menuRegistry->getItems('production') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
