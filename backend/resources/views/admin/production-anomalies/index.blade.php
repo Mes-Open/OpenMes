@@ -70,8 +70,12 @@
                                 : 0;
                         @endphp
                         <tr class="hover:bg-gray-50">
-                            <td class="py-3 px-4 font-mono text-gray-700 font-medium">
-                                {{ $anomaly->workOrder->order_no ?? '—' }}
+                            <td class="py-3 px-4">
+                                @if($anomaly->workOrder)
+                                    <a href="{{ route('admin.work-orders.show', $anomaly->workOrder) }}" class="inline-flex items-center font-mono text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">{{ $anomaly->workOrder->order_no }}</a>
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
                             </td>
                             <td class="py-3 px-4 text-gray-800">{{ $anomaly->product_name }}</td>
                             <td class="py-3 px-4 text-right text-gray-600">{{ number_format($anomaly->planned_qty, 2) }}</td>
