@@ -122,7 +122,7 @@
                                 <tr class="hover:bg-gray-50 cursor-pointer"
                                     onclick="location.href='{{ route('admin.work-orders.show', $wo) }}'">
                                     <td class="py-2">
-                                        <span class="font-mono font-medium text-blue-700">{{ $wo->order_no }}</span>
+                                        <span class="inline-flex items-center font-mono text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">{{ $wo->order_no }}</span>
                                         @if($wo->productType)
                                             <p class="text-xs text-gray-400">{{ $wo->productType->name }}</p>
                                         @endif
