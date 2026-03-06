@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\Web\Admin\AlertController;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -29,6 +31,17 @@ class AppServiceProvider extends ServiceProvider
         // items registered by modules without additional controller work.
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
         View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
+
+        // Alert badge count — only computed when user is authenticated Admin/Supervisor
+        View::composer('layouts.components.sidebar', function ($view) {
+            $alertCount = 0;
+            try {
+                if (Auth::check() && Auth::user()->hasAnyRole(['Admin', 'Supervisor'])) {
+                    $alertCount = AlertController::totalCount();
+                }
+            } catch (\Throwable) {}
+            $view->with('alertCount', $alertCount);
+        });
 
         // Load enabled modules — wrapped in try/catch so a bad module
         // never prevents the application from booting.

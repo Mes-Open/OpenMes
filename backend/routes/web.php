@@ -135,6 +135,18 @@ Route::middleware('auth')->group(function () {
         // Reports
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
 
+        // Alerts
+        Route::get('/alerts', [\App\Http\Controllers\Web\Admin\AlertController::class, 'index'])->name('alerts');
+
+        // Schedule
+        Route::get('/schedule', [\App\Http\Controllers\Web\Admin\ScheduleController::class, 'index'])->name('schedule');
+
+        // Shifts
+        Route::get('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'index'])->name('shifts.index');
+        Route::post('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'store'])->name('shifts.store');
+        Route::put('/shifts/{shift}', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'update'])->name('shifts.update');
+        Route::delete('/shifts/{shift}', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'destroy'])->name('shifts.destroy');
+
         // Work Orders
         Route::resource('work-orders', AdminWorkOrderController::class);
         Route::post('/work-orders/{workOrder}/cancel', [AdminWorkOrderController::class, 'cancel'])->name('work-orders.cancel');
