@@ -45,6 +45,7 @@ class IssueTypeController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $this->authorize('create', IssueType::class);
         $validated = $request->validate([
             'code' => 'required|string|max:50|unique:issue_types,code',
             'name' => 'required|string|max:255',
@@ -66,6 +67,7 @@ class IssueTypeController extends Controller
      */
     public function update(Request $request, IssueType $issueType): JsonResponse
     {
+        $this->authorize('update', $issueType);
         $validated = $request->validate([
             'code' => 'sometimes|string|max:50|unique:issue_types,code,' . $issueType->id,
             'name' => 'sometimes|string|max:255',
@@ -87,6 +89,7 @@ class IssueTypeController extends Controller
      */
     public function destroy(IssueType $issueType): JsonResponse
     {
+        $this->authorize('delete', $issueType);
         // Soft delete by setting is_active to false
         $issueType->update(['is_active' => false]);
 
