@@ -11,7 +11,7 @@
             <p class="text-sm text-gray-500 mt-0.5">Define morning, afternoon and night shifts per line.</p>
         </div>
         <button @click="showForm = !showForm; editId = null; form = { days_of_week: [1,2,3,4,5] }"
-                class="btn-touch btn-primary text-sm px-4 py-2">
+                class="btn-touch btn-primary">
             + New Shift
         </button>
     </div>
