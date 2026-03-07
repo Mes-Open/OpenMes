@@ -32,7 +32,7 @@ class BatchApiTest extends TestCase
         $this->operator->assignRole('Operator');
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
 
-        $this->workOrder = WorkOrder::factory()->create();
+        $this->workOrder = WorkOrder::factory()->create(['planned_qty' => 200]);
         $this->operator->lines()->attach($this->workOrder->line_id);
     }
 
