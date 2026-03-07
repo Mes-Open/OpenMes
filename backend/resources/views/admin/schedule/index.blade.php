@@ -43,7 +43,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
             <p class="text-gray-500">No work orders scheduled for this week.</p>
-            <a href="{{ route('admin.work-orders.create') }}" class="mt-4 btn-touch btn-primary text-sm px-4 py-2">
+            <a href="{{ route('admin.work-orders.create') }}" class="mt-4 btn-touch btn-primary">
                 Create Work Order
             </a>
         </div>

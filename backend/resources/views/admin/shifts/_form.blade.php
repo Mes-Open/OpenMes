@@ -71,7 +71,7 @@
     </div>
 
     <div class="mt-4">
-        <button type="submit" class="btn-touch btn-primary text-sm px-4 py-2">
+        <button type="submit" class="btn-touch btn-primary">
             {{ $shift ? 'Save Changes' : 'Create Shift' }}
         </button>
     </div>
