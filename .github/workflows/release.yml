@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v1.2.0)'
+        required: true
+      notes:
+        description: 'Release notes (optional)'
+        required: false
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        run: |
+          if ! echo "${{ github.event.inputs.version }}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Invalid version format. Use semver: v1.2.3"
+            exit 1
+          fi
+
+      - name: Generate changelog since last tag
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            LOG=$(git log --pretty=format:"- %s (%h)" | head -30)
+          else
+            LOG=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%h)")
+          fi
+          echo "log<<EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Build release notes
+        id: notes
+        run: |
+          CUSTOM="${{ github.event.inputs.notes }}"
+          LOG="${{ steps.changelog.outputs.log }}"
+          BODY=""
+          if [ -n "$CUSTOM" ]; then
+            BODY="${CUSTOM}"$'\n\n'
+          fi
+          BODY="${BODY}## Changes"$'\n'"${LOG}"
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: OpenMES ${{ github.event.inputs.version }}
+          body: ${{ steps.notes.outputs.body }}
+          draft: false
+          prerelease: false
