@@ -124,7 +124,7 @@ Event::listen(WorkOrderCompleted::class, function ($event) {
 
 ## Architecture
 
-OpenMES uses a **dead-simple** Laravel monolith architecture - like WordPress or PrestaShop:
+OpenMES uses a **dead-simple** Laravel monolith architecture:
 
 ```
 ┌─────────────────┐
@@ -148,7 +148,7 @@ OpenMES uses a **dead-simple** Laravel monolith architecture - like WordPress or
 ### Why This Architecture?
 
 - **Ultra Simple**: Just 2 containers (Laravel + PostgreSQL)
-- **One-Command Install**: Like WordPress - clone, run installer, done
+- **One-Command Install**: clone, run installer, done
 - **No Reverse Proxy**: Laravel serves directly on port 80
 - **Easy Maintenance**: Single codebase, traditional Laravel patterns
 - **LAN Optimized**: Server-rendered pages, perfect for local networks
@@ -164,9 +164,9 @@ OpenMES uses a **dead-simple** Laravel monolith architecture - like WordPress or
 - Docker & Docker Compose (20.10+)
 - Git
 
-### WordPress-Style Installation 🎯
+### Installation 🎯
 
-**Just like WordPress - clone, open browser, configure!** No CLI commands required!
+** Clone, open browser, configure!** No CLI commands required!
 
 ```bash
 # 1. Clone the repository
