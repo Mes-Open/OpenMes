@@ -55,6 +55,16 @@ jobs:
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Bump version in config/version.php
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          sed -i "s/'current' => '.*'/'current' => '${VERSION}'/" backend/config/version.php
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/config/version.php
+          git commit -m "chore: bump version to ${VERSION}"
+          git push
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
