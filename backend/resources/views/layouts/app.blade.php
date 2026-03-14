@@ -136,6 +136,9 @@
             @endif @endauth
         </header>
 
+        {{-- Update banner --}}
+        @include('layouts.components.update-banner')
+
         {{-- Scrollable content --}}
         <main class="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
             @if(session('success'))
