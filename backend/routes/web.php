@@ -138,6 +138,10 @@ Route::middleware('auth')->group(function () {
         // Alerts
         Route::get('/alerts', [\App\Http\Controllers\Web\Admin\AlertController::class, 'index'])->name('alerts');
 
+        // Update
+        Route::get('/update/check', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'check'])->name('update.check');
+        Route::post('/update/apply', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'apply'])->name('update.apply');
+
         // Schedule
         Route::get('/schedule', [\App\Http\Controllers\Web\Admin\ScheduleController::class, 'index'])->name('schedule');
 
