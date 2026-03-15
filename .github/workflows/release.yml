@@ -83,7 +83,9 @@ jobs:
 
       - name: Install PHP dependencies
         working-directory: backend
-        run: composer install --no-dev --optimize-autoloader --no-interaction
+        run: |
+          composer config platform.php 8.2.0
+          composer install --no-dev --optimize-autoloader --no-interaction
 
       - name: Install JS dependencies and build assets
         working-directory: backend
