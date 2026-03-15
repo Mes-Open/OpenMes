@@ -26,15 +26,26 @@ jobs:
 
       - name: Validate version format
         run: |
-          if ! echo "${{ github.event.inputs.version }}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Invalid version format. Use semver: v1.2.3"
+          if ! echo "${{ github.event.inputs.version }}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$'; then
+            echo "Invalid version format. Use semver: v1.2.3 or v1.2.3-alpha"
             exit 1
           fi
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo, pgsql, mbstring, zip, gd, bcmath
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Generate changelog since last tag
         id: changelog
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "${{ github.event.inputs.version }}" | head -1 || echo "")
           if [ -z "$PREV_TAG" ]; then
             LOG=$(git log --pretty=format:"- %s (%h)" | head -30)
           else
@@ -70,6 +81,45 @@ jobs:
           git diff --cached --quiet && echo "No change needed" || git commit -m "chore: bump version to ${VERSION}"
           git push origin main
 
+      - name: Install PHP dependencies
+        working-directory: backend
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Install JS dependencies and build assets
+        working-directory: backend
+        run: npm ci && npm run build
+
+      - name: Build distributable ZIP
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          DIST="openmmes-${VERSION}"
+          mkdir -p "${DIST}"
+
+          # Copy root files
+          cp index.php "${DIST}/"
+          cp docker-compose.yml "${DIST}/"
+          cp Caddyfile "${DIST}/"
+          cp .env.example "${DIST}/" 2>/dev/null || true
+          cp README.md "${DIST}/" 2>/dev/null || true
+
+          # Copy backend (with vendor and built assets, without dev files)
+          rsync -a backend/ "${DIST}/backend/" \
+            --exclude='.env' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='.git' \
+            --exclude='storage/logs/*.log'
+
+          # Ensure storage directories exist
+          mkdir -p "${DIST}/backend/storage/logs"
+          mkdir -p "${DIST}/backend/storage/framework/cache"
+          mkdir -p "${DIST}/backend/storage/framework/sessions"
+          mkdir -p "${DIST}/backend/storage/framework/views"
+          touch "${DIST}/backend/storage/logs/.gitkeep"
+
+          zip -r "${DIST}.zip" "${DIST}/"
+          echo "zip_name=${DIST}.zip" >> $GITHUB_ENV
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -78,3 +128,4 @@ jobs:
           body: ${{ steps.notes.outputs.body }}
           draft: false
           prerelease: false
+          files: ${{ env.zip_name }}
