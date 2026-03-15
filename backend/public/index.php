@@ -50,10 +50,20 @@ if (!file_exists(__DIR__.'/../vendor/autoload.php')) {
 require __DIR__.'/../vendor/autoload.php';
 
 // Auto-create .env from .env.example if missing so Laravel can boot into the installer
-$envPath     = __DIR__.'/../.env';
-$envExample  = __DIR__.'/../.env.example';
+$envPath    = __DIR__.'/../.env';
+$envExample = __DIR__.'/../.env.example';
 if (!file_exists($envPath) && file_exists($envExample)) {
     copy($envExample, $envPath);
+}
+
+// Auto-generate APP_KEY if missing so Laravel can boot without "No application encryption key" error
+if (file_exists($envPath)) {
+    $envContent = file_get_contents($envPath);
+    if (!preg_match('/^APP_KEY=base64:.+/m', $envContent)) {
+        $key        = 'base64:' . base64_encode(random_bytes(32));
+        $envContent = preg_replace('/^APP_KEY=.*$/m', 'APP_KEY=' . $key, $envContent);
+        file_put_contents($envPath, $envContent);
+    }
 }
 
 // Bootstrap Laravel and handle the request...
