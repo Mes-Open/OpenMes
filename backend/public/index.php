@@ -10,6 +10,24 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
     require $maintenance;
 }
 
+// Check PHP version requirement
+if (version_compare(PHP_VERSION, '8.3.0', '<')) {
+    http_response_code(503);
+    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>OpenMES — PHP upgrade required</title>
+    <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f3f4f6}
+    .box{background:#fff;border-radius:8px;padding:40px;max-width:520px;box-shadow:0 2px 12px rgba(0,0,0,.1)}
+    h1{color:#b91c1c;margin:0 0 12px}p{color:#374151;line-height:1.6}
+    code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:.9em}
+    .badge{display:inline-block;background:#fee2e2;color:#b91c1c;padding:4px 12px;border-radius:20px;font-weight:bold}</style>
+    </head><body><div class="box">
+    <h1>PHP upgrade required</h1>
+    <p>OpenMES requires <strong>PHP 8.3 or higher</strong>.</p>
+    <p>You are running: <span class="badge">PHP '.PHP_VERSION.'</span></p>
+    <p>Please upgrade PHP in your XAMPP / server settings, or use the <strong>Docker</strong> installation which includes the correct PHP version automatically.</p>
+    </div></body></html>';
+    exit;
+}
+
 // Register the Composer autoloader...
 if (!file_exists(__DIR__.'/../vendor/autoload.php')) {
     http_response_code(503);
