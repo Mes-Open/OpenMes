@@ -11,7 +11,7 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
 }
 
 // Check PHP version requirement
-if (version_compare(PHP_VERSION, '8.3.0', '<')) {
+if (version_compare(PHP_VERSION, '8.2.0', '<')) {
     http_response_code(503);
     echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>OpenMES — PHP upgrade required</title>
     <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f3f4f6}
@@ -21,7 +21,7 @@ if (version_compare(PHP_VERSION, '8.3.0', '<')) {
     .badge{display:inline-block;background:#fee2e2;color:#b91c1c;padding:4px 12px;border-radius:20px;font-weight:bold}</style>
     </head><body><div class="box">
     <h1>PHP upgrade required</h1>
-    <p>OpenMES requires <strong>PHP 8.3 or higher</strong>.</p>
+    <p>OpenMES requires <strong>PHP 8.2 or higher</strong>.</p>
     <p>You are running: <span class="badge">PHP '.PHP_VERSION.'</span></p>
     <p>Please upgrade PHP in your XAMPP / server settings, or use the <strong>Docker</strong> installation which includes the correct PHP version automatically.</p>
     </div></body></html>';
