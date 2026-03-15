@@ -61,13 +61,13 @@ jobs:
       - name: Bump version in config/version.php
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          sed -i "s/'current' => '.*'/'current' => '${VERSION}'/" backend/config/version.php
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git pull origin main
+          sed -i "s/'current' => '.*'/'current' => '${VERSION}'/" backend/config/version.php
           git add backend/config/version.php
-          git commit -m "chore: bump version to ${VERSION}"
-          git pull --rebase origin main
+          git diff --cached --quiet && echo "No change needed" || git commit -m "chore: bump version to ${VERSION}"
           git push origin main
 
       - name: Create GitHub Release
