@@ -67,6 +67,7 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git add backend/config/version.php
           git commit -m "chore: bump version to ${VERSION}"
+          git pull --rebase origin main
           git push origin main
 
       - name: Create GitHub Release
