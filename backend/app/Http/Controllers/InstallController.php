@@ -205,6 +205,24 @@ class InstallController extends Controller
             return back()->withErrors(['db_connection' => 'Unexpected error: ' . $e->getMessage()])->withInput();
         }
 
+        // Write DB config to .env NOW so migrate:fresh reads the correct driver
+        if ($driver === 'sqlite') {
+            $this->updateEnvFile([
+                'DB_CONNECTION' => $driver,
+                'DB_DATABASE'   => $validated['db_database'],
+            ]);
+        } else {
+            $this->updateEnvFile([
+                'DB_CONNECTION' => $driver,
+                'DB_HOST'       => $validated['db_host'],
+                'DB_PORT'       => $validated['db_port'],
+                'DB_DATABASE'   => $validated['db_database'],
+                'DB_USERNAME'   => $validated['db_username'],
+                'DB_PASSWORD'   => $validated['db_password'],
+            ]);
+        }
+        Artisan::call('config:clear');
+
         // Run migrations
         try {
             Artisan::call('migrate:fresh', ['--force' => true]);
