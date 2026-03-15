@@ -49,6 +49,13 @@ if (!file_exists(__DIR__.'/../vendor/autoload.php')) {
 }
 require __DIR__.'/../vendor/autoload.php';
 
+// Auto-create .env from .env.example if missing so Laravel can boot into the installer
+$envPath     = __DIR__.'/../.env';
+$envExample  = __DIR__.'/../.env.example';
+if (!file_exists($envPath) && file_exists($envExample)) {
+    copy($envExample, $envPath);
+}
+
 // Bootstrap Laravel and handle the request...
 /** @var Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
