@@ -16,15 +16,13 @@ class FaultIntelligenceService
     {
         $faults = MachineEvent::where('workstation_id', $workstation->id)
             ->where('event_type', 'FAULT')
-            ->whereBetween('event_timestamp', [$startDate, $endDate])
             ->count();
 
         if ($faults === 0) {
-            return 0; // Or return total time if always running
+            return 0;
         }
 
         $totalRunTimeSecs = CycleTimeLog::where('workstation_id', $workstation->id)
-            ->whereBetween('completed_at', [$startDate, $endDate])
             ->sum('cycle_time_secs');
 
         return (float)($totalRunTimeSecs / $faults);

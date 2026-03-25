@@ -18,12 +18,25 @@ class Workstation extends Model
         'name',
         'workstation_type',
         'is_active',
+        'state',
+        'ideal_cycle_time_secs',
+        'min_cycle_time_secs',
+        'config',
+        'last_heartbeat_at',
+        'maintenance_threshold',
+        'failure_probability',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'config' => 'array',
+            'last_heartbeat_at' => 'datetime',
+            'ideal_cycle_time_secs' => 'float',
+            'min_cycle_time_secs' => 'float',
+            'maintenance_threshold' => 'float',
+            'failure_probability' => 'float',
         ];
     }
 

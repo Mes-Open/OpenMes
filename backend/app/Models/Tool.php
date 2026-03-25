@@ -24,12 +24,26 @@ class Tool extends Model
         'workstation_type_id',
         'status',
         'next_service_at',
+        'max_cycles',
+        'current_cycles',
+        'wear_percentage',
+        'last_maintenance_at',
+        'decommissioned_at',
+        'specs',
+        'maintenance_threshold',
+        'failure_probability',
     ];
 
     protected function casts(): array
     {
         return [
             'next_service_at' => 'date',
+            'last_maintenance_at' => 'datetime',
+            'decommissioned_at' => 'datetime',
+            'specs' => 'array',
+            'wear_percentage' => 'float',
+            'maintenance_threshold' => 'float',
+            'failure_probability' => 'float',
         ];
     }
 
