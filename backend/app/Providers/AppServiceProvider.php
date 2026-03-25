@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\Admin\AlertController;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
+use App\Services\Security\FactorySecurityService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +28,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Initialize shop-floor security gates
+        app(FactorySecurityService::class)->defineGates();
+
         // Share registries with every view so layouts and dashboards can render
         // items registered by modules without additional controller work.
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));

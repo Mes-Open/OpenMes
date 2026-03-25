@@ -8,12 +8,12 @@
     {{-- Header + Line Filter --}}
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Dashboard') }}</h1>
             <p class="text-gray-500 mt-1 text-sm">{{ now()->format('d M Y, H:i') }}
                 @if($selectedLineId)
                     &mdash; <span class="font-medium text-blue-600">{{ $lines->find($selectedLineId)?->name }}</span>
                 @else
-                    &mdash; all lines
+                    &mdash; {{ __('all lines') }}
                 @endif
             </p>
         </div>
@@ -22,7 +22,7 @@
         <form method="GET" action="{{ route('admin.dashboard') }}" class="flex items-center gap-2">
             <select name="line_id" onchange="this.form.submit()"
                     class="form-input py-1.5 text-sm pr-8 min-w-[180px]">
-                <option value="">All lines</option>
+                <option value="">{{ __('All lines') }}</option>
                 @foreach($lines as $line)
                     <option value="{{ $line->id }}" {{ $selectedLineId == $line->id ? 'selected' : '' }}>
                         {{ $line->name }}
@@ -31,7 +31,7 @@
             </select>
             @if($selectedLineId)
                 <a href="{{ route('admin.dashboard') }}"
-                   class="text-xs text-gray-400 hover:text-gray-700 whitespace-nowrap">✕ Clear</a>
+                   class="text-xs text-gray-400 hover:text-gray-700 whitespace-nowrap">✕ {{ __('Clear') }}</a>
             @endif
         </form>
     </div>
@@ -41,51 +41,51 @@
 
         <a href="{{ route('admin.work-orders.index', $selectedLineId ? ['line_id' => $selectedLineId] : []) }}"
            class="card hover:shadow-md transition-shadow">
-            <p class="text-sm text-gray-500 mb-1">Total Work Orders</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Total Work Orders') }}</p>
             <p class="text-3xl font-bold text-gray-800">{{ $stats['total_work_orders'] }}</p>
         </a>
 
         <a href="{{ route('admin.work-orders.index', array_filter(['status' => 'IN_PROGRESS', 'line_id' => $selectedLineId])) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-blue-400">
-            <p class="text-sm text-gray-500 mb-1">In Progress</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('In Progress') }}</p>
             <p class="text-3xl font-bold text-blue-600">{{ $stats['in_progress'] }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">incl. accepted</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ __('incl. accepted') }}</p>
         </a>
 
         <a href="{{ route('admin.work-orders.index', array_filter(['status' => 'PENDING', 'line_id' => $selectedLineId])) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-gray-300">
-            <p class="text-sm text-gray-500 mb-1">Pending</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Pending') }}</p>
             <p class="text-3xl font-bold text-gray-600">{{ $stats['pending'] }}</p>
         </a>
 
         <a href="{{ route('admin.work-orders.index', array_filter(['status' => 'BLOCKED', 'line_id' => $selectedLineId])) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-red-400">
-            <p class="text-sm text-gray-500 mb-1">Blocked</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Blocked') }}</p>
             <p class="text-3xl font-bold text-red-600">{{ $stats['blocked'] }}</p>
         </a>
 
         <a href="{{ route('admin.work-orders.index', array_filter(['status' => 'DONE', 'line_id' => $selectedLineId])) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-green-400">
-            <p class="text-sm text-gray-500 mb-1">Done Today</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Done Today') }}</p>
             <p class="text-3xl font-bold text-green-600">{{ $stats['done_today'] }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">{{ $stats['done'] }} total done</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ $stats['done'] }} {{ __('total done') }}</p>
         </a>
 
         <a href="{{ route('admin.issues.index') }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-yellow-400">
-            <p class="text-sm text-gray-500 mb-1">Open Issues</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Open Issues') }}</p>
             <p class="text-3xl font-bold text-yellow-600">{{ $stats['open_issues'] }}</p>
         </a>
 
         <a href="{{ route('admin.issues.index', ['blocking' => 1]) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-red-600">
-            <p class="text-sm text-gray-500 mb-1">Blocking Issues</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Blocking Issues') }}</p>
             <p class="text-3xl font-bold text-red-700">{{ $stats['blocking_issues'] }}</p>
         </a>
 
         <a href="{{ route('admin.lines.index') }}"
            class="card hover:shadow-md transition-shadow">
-            <p class="text-sm text-gray-500 mb-1">Active Lines</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Active Lines') }}</p>
             <p class="text-3xl font-bold text-purple-600">{{ $stats['active_lines'] }}</p>
         </a>
 
@@ -101,20 +101,20 @@
         {{-- Recent Work Orders --}}
         <div class="lg:col-span-2 card">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-gray-800">Recent Work Orders</h2>
-                <a href="{{ route('admin.work-orders.index') }}" class="text-sm text-blue-600 hover:underline">View all →</a>
+                <h2 class="text-lg font-bold text-gray-800">{{ __('Recent Work Orders') }}</h2>
+                <a href="{{ route('admin.work-orders.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('View all') }} →</a>
             </div>
             @if($recentWorkOrders->isEmpty())
-                <p class="text-sm text-gray-500 py-4 text-center">No work orders yet.</p>
+                <p class="text-sm text-gray-500 py-4 text-center">{{ __('No work orders yet.') }}</p>
             @else
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead>
                             <tr class="border-b border-gray-100 text-left">
-                                <th class="pb-2 text-gray-500 font-medium">Order #</th>
-                                <th class="pb-2 text-gray-500 font-medium">Line</th>
-                                <th class="pb-2 text-gray-500 font-medium">Status</th>
-                                <th class="pb-2 text-gray-500 font-medium">Progress</th>
+                                <th class="pb-2 text-gray-500 font-medium">{{ __('Order #') }}</th>
+                                <th class="pb-2 text-gray-500 font-medium">{{ __('Line') }}</th>
+                                <th class="pb-2 text-gray-500 font-medium">{{ __('Status') }}</th>
+                                <th class="pb-2 text-gray-500 font-medium">{{ __('Progress') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50">
@@ -138,7 +138,7 @@
                                             @elseif($wo->status === 'PAUSED')   bg-yellow-100 text-yellow-700
                                             @else                               bg-gray-100 text-gray-500
                                             @endif">
-                                            {{ str_replace('_', ' ', $wo->status) }}
+                                            {{ __($wo->status) }}
                                         </span>
                                     </td>
                                     <td class="py-2 text-gray-600">
@@ -168,11 +168,11 @@
             {{-- Open Issues --}}
             <div class="card">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-base font-bold text-gray-800">Open Issues</h2>
-                    <a href="{{ route('admin.issues.index') }}" class="text-xs text-blue-600 hover:underline">View all →</a>
+                    <h2 class="text-base font-bold text-gray-800">{{ __('Open Issues') }}</h2>
+                    <a href="{{ route('admin.issues.index') }}" class="text-xs text-blue-600 hover:underline">{{ __('View all') }} →</a>
                 </div>
                 @if($recentIssues->isEmpty())
-                    <p class="text-sm text-gray-500 text-center py-3">No open issues.</p>
+                    <p class="text-sm text-gray-500 text-center py-3">{{ __('No open issues.') }}</p>
                 @else
                     <div class="space-y-2">
                         @foreach($recentIssues as $issue)
@@ -197,16 +197,16 @@
 
             {{-- Quick Links --}}
             <div class="card">
-                <h2 class="text-base font-bold text-gray-800 mb-3">Quick Links</h2>
+                <h2 class="text-base font-bold text-gray-800 mb-3">{{ __('Quick Links') }}</h2>
                 <div class="space-y-1">
                     @foreach([
-                        ['route' => 'admin.work-orders.create', 'label' => '+ New Work Order'],
-                        ['route' => 'admin.lines.index',        'label' => 'Production Lines'],
-                        ['route' => 'admin.product-types.index','label' => 'Product Types'],
-                        ['route' => 'admin.users.index',        'label' => 'User Management'],
-                        ['route' => 'admin.issue-types.index',  'label' => 'Issue Types'],
-                        ['route' => 'admin.csv-import',         'label' => 'CSV Import'],
-                        ['route' => 'admin.audit-logs',         'label' => 'Audit Logs'],
+                        ['route' => 'admin.work-orders.create', 'label' => '+ ' . __('New Work Order')],
+                        ['route' => 'admin.lines.index',        'label' => __('Production Lines')],
+                        ['route' => 'admin.product-types.index','label' => __('Product Types')],
+                        ['route' => 'admin.users.index',        'label' => __('User Management')],
+                        ['route' => 'admin.issue-types.index',  'label' => __('Issue Types')],
+                        ['route' => 'admin.csv-import',         'label' => __('CSV Import')],
+                        ['route' => 'admin.audit-logs',         'label' => __('Audit Logs')],
                     ] as $link)
                         <a href="{{ route($link['route']) }}"
                            class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
