@@ -46,6 +46,8 @@ class WorkOrderService
                 'extra_data' => $data['extra_data'] ?? null,
             ]);
 
+            event(new \App\Events\WorkOrder\WorkOrderCreated($workOrder));
+
             return $workOrder;
         });
     }
@@ -97,6 +99,8 @@ class WorkOrderService
                 'status' => Batch::STATUS_PENDING,
             ]);
 
+            event(new \App\Events\Batch\BatchCreated($batch));
+
             // Create batch steps from process snapshot (skipped if no snapshot)
             if (!empty($workOrder->process_snapshot)) {
                 $this->createBatchStepsFromSnapshot($batch, $workOrder->process_snapshot);
@@ -136,35 +140,44 @@ class WorkOrderService
      */
     public function updateWorkOrderStatus(WorkOrder $workOrder): void
     {
+        $oldStatus = $workOrder->status;
+        $newStatus = $oldStatus;
+
         // Check if blocked by issues
         if ($workOrder->isBlocked()) {
-            $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
-            return;
+            $newStatus = WorkOrder::STATUS_BLOCKED;
+        } elseif ($workOrder->isComplete()) {
+            $newStatus = WorkOrder::STATUS_DONE;
+        } else {
+            // Check if any batch is in progress
+            $hasInProgressBatch = $workOrder->batches()
+                ->where('status', Batch::STATUS_IN_PROGRESS)
+                ->exists();
+
+            if ($hasInProgressBatch) {
+                $newStatus = WorkOrder::STATUS_IN_PROGRESS;
+            } elseif ($oldStatus !== WorkOrder::STATUS_PENDING && !in_array($oldStatus, WorkOrder::TERMINAL_STATUSES)) {
+                $newStatus = WorkOrder::STATUS_PENDING;
+            }
         }
 
-        // Check if complete
-        if ($workOrder->isComplete()) {
+        if ($newStatus !== $oldStatus) {
             $workOrder->update([
-                'status' => WorkOrder::STATUS_DONE,
-                'completed_at' => now(),
+                'status' => $newStatus,
+                'completed_at' => ($newStatus === WorkOrder::STATUS_DONE) ? now() : $workOrder->completed_at,
             ]);
-            return;
-        }
 
-        // Check if any batch is in progress
-        $hasInProgressBatch = $workOrder->batches()
-            ->where('status', Batch::STATUS_IN_PROGRESS)
-            ->exists();
+            event(new \App\Events\WorkOrder\WorkOrderUpdated($workOrder, ['status' => $newStatus]));
 
-        if ($hasInProgressBatch) {
-            $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-            return;
-        }
+            if ($newStatus === WorkOrder::STATUS_DONE) {
+                event(new \App\Events\WorkOrder\WorkOrderCompleted($workOrder));
+            }
 
-        // Otherwise keep as pending
-        if ($workOrder->status !== WorkOrder::STATUS_PENDING &&
-            $workOrder->status !== WorkOrder::STATUS_DONE) {
-            $workOrder->update(['status' => WorkOrder::STATUS_PENDING]);
+            if ($newStatus === WorkOrder::STATUS_BLOCKED) {
+                event(new \App\Events\WorkOrder\WorkOrderBlocked($workOrder));
+            } elseif ($oldStatus === WorkOrder::STATUS_BLOCKED) {
+                event(new \App\Events\WorkOrder\WorkOrderUnblocked($workOrder));
+            }
         }
     }
 
