@@ -32,4 +32,14 @@ return [
     |
     */
     'default_token_ttl_minutes' => env('DEFAULT_TOKEN_TTL_MINUTES', 15),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Edge Node Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Unique identifier for this factory-side edge node.
+    |
+    */
+    'edge_id' => env('OPENMES_EDGE_ID', 'edge-01'),
 ];

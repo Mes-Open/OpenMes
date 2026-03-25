@@ -36,6 +36,8 @@ class BatchService
                 'started_by_id' => $user->id,
             ]);
 
+            event(new \App\Events\BatchStep\StepStarted($step));
+
             // Update batch status
             $this->updateBatchStatus($step->batch);
 
@@ -77,6 +79,8 @@ class BatchService
                 'duration_minutes' => $durationMinutes,
             ]);
 
+            event(new \App\Events\BatchStep\StepCompleted($step));
+
             // Update batch status
             $batch = $step->batch;
             $this->updateBatchStatus($batch);
@@ -115,12 +119,18 @@ class BatchService
      */
     protected function updateBatchStatus(Batch $batch): void
     {
+        $oldStatus = $batch->status;
+
         // Check if all steps are complete
         if ($batch->allStepsComplete()) {
             $batch->update([
                 'status' => Batch::STATUS_DONE,
                 'completed_at' => now(),
             ]);
+
+            if ($oldStatus !== Batch::STATUS_DONE) {
+                event(new \App\Events\Batch\BatchCompleted($batch));
+            }
             return;
         }
 

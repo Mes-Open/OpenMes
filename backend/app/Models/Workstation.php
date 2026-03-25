@@ -60,6 +60,30 @@ class Workstation extends Model
     }
 
     /**
+     * Get the state history for this workstation.
+     */
+    public function states(): HasMany
+    {
+        return $this->hasMany(WorkstationState::class);
+    }
+
+    /**
+     * Get the downtime events for this workstation.
+     */
+    public function downtimeEvents(): HasMany
+    {
+        return $this->hasMany(DowntimeEvent::class);
+    }
+
+    /**
+     * Get the current state of the workstation.
+     */
+    public function currentState(): ?WorkstationState
+    {
+        return $this->states()->whereNull('ended_at')->latest('started_at')->first();
+    }
+
+    /**
      * Scope to get only active workstations.
      */
     public function scopeActive($query)

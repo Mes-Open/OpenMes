@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'Work Orders')
+@section('title', __('Work Orders'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Work Orders', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Work Orders'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Work Orders</h1>
-            <p class="text-gray-600 mt-1">{{ $workOrders->total() }} orders total</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Work Orders') }}</h1>
+            <p class="text-gray-600 mt-1">{{ $workOrders->total() }} {{ __('orders total') }}</p>
         </div>
         <a href="{{ route('admin.work-orders.create') }}" class="btn-touch btn-primary">
-            + New Work Order
+            + {{ __('New Work Order') }}
         </a>
     </div>
 
@@ -23,22 +23,22 @@
     <form method="GET" action="{{ route('admin.work-orders.index') }}" class="card mb-6">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-                <label class="form-label">Search order #</label>
-                <input type="text" name="search" value="{{ request('search') }}" class="form-input w-full" placeholder="Order number…">
+                <label class="form-label">{{ __('Search order #') }}</label>
+                <input type="text" name="search" value="{{ request('search') }}" class="form-input w-full" placeholder="{{ __('Order number…') }}">
             </div>
             <div>
-                <label class="form-label">Status</label>
+                <label class="form-label">{{ __('Status') }}</label>
                 <select name="status" class="form-input w-full">
-                    <option value="">All statuses</option>
+                    <option value="">{{ __('All statuses') }}</option>
                     @foreach(['PENDING','ACCEPTED','IN_PROGRESS','PAUSED','BLOCKED','DONE','REJECTED','CANCELLED'] as $s)
-                        <option value="{{ $s }}" @selected(request('status') === $s)>{{ str_replace('_', ' ', $s) }}</option>
+                        <option value="{{ $s }}" @selected(request('status') === $s)>{{ __($s) }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label class="form-label">Line</label>
+                <label class="form-label">{{ __('Line') }}</label>
                 <select name="line_id" class="form-input w-full">
-                    <option value="">All lines</option>
+                    <option value="">{{ __('All lines') }}</option>
                     @foreach($lines as $line)
                         <option value="{{ $line->id }}" @selected(request('line_id') == $line->id)>{{ $line->name }}</option>
                     @endforeach
@@ -46,8 +46,8 @@
             </div>
         </div>
         <div class="flex gap-2 mt-4">
-            <button type="submit" class="btn-touch btn-primary text-sm">Filter</button>
-            <a href="{{ route('admin.work-orders.index') }}" class="btn-touch btn-secondary text-sm">Clear</a>
+            <button type="submit" class="btn-touch btn-primary text-sm">{{ __('Filter') }}</button>
+            <a href="{{ route('admin.work-orders.index') }}" class="btn-touch btn-secondary text-sm">{{ __('Clear') }}</a>
         </div>
     </form>
 
@@ -57,13 +57,13 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Order #') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Line') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product Type') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Status') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Progress') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Due Date') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
@@ -103,13 +103,13 @@
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-0.5">
                                     {{-- View --}}
-                                    <a href="{{ route('admin.work-orders.show', $wo) }}" data-tip="View"
+                                    <a href="{{ route('admin.work-orders.show', $wo) }}" data-tip="{{ __('View') }}"
                                        class="inline-flex items-center justify-center w-8 h-8 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </a>
                                     {{-- Edit --}}
                                     @if(!in_array($wo->status, ['DONE', 'REJECTED', 'CANCELLED']))
-                                        <a href="{{ route('admin.work-orders.edit', $wo) }}" data-tip="Edit"
+                                        <a href="{{ route('admin.work-orders.edit', $wo) }}" data-tip="{{ __('Edit') }}"
                                            class="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-500 hover:bg-gray-100 transition-colors">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                         </a>
@@ -117,7 +117,7 @@
                                     {{-- Accept --}}
                                     @if($wo->status === 'PENDING')
                                         <form method="POST" action="{{ route('admin.work-orders.accept', $wo) }}">@csrf
-                                            <button type="submit" data-tip="Accept"
+                                            <button type="submit" data-tip="{{ __('Accept') }}"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-green-600 hover:bg-green-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                             </button>
@@ -127,7 +127,7 @@
                                     @if(in_array($wo->status, ['PENDING', 'ACCEPTED']))
                                         <form method="POST" action="{{ route('admin.work-orders.reject', $wo) }}"
                                               onsubmit="return confirm('Reject work order {{ $wo->order_no }}?')">@csrf
-                                            <button type="submit" data-tip="Reject"
+                                            <button type="submit" data-tip="{{ __('Reject') }}"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                             </button>
@@ -136,7 +136,7 @@
                                     {{-- Pause --}}
                                     @if($wo->status === 'IN_PROGRESS')
                                         <form method="POST" action="{{ route('admin.work-orders.pause', $wo) }}">@csrf
-                                            <button type="submit" data-tip="Pause"
+                                            <button type="submit" data-tip="{{ __('Pause') }}"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-yellow-600 hover:bg-yellow-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6"/></svg>
                                             </button>
@@ -145,7 +145,7 @@
                                     {{-- Resume --}}
                                     @if($wo->status === 'PAUSED')
                                         <form method="POST" action="{{ route('admin.work-orders.resume', $wo) }}">@csrf
-                                            <button type="submit" data-tip="Resume"
+                                            <button type="submit" data-tip="{{ __('Resume') }}"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg>
                                             </button>
@@ -155,7 +155,7 @@
                                     @if(!in_array($wo->status, ['DONE', 'REJECTED', 'CANCELLED']))
                                         <form method="POST" action="{{ route('admin.work-orders.cancel', $wo) }}"
                                               onsubmit="return confirm('Cancel this work order?')">@csrf
-                                            <button type="submit" data-tip="Cancel"
+                                            <button type="submit" data-tip="{{ __('Cancel') }}"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-orange-500 hover:bg-orange-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                                             </button>
@@ -166,7 +166,7 @@
                                         <form method="POST" action="{{ route('admin.work-orders.destroy', $wo) }}"
                                               onsubmit="return confirm('Delete work order {{ $wo->order_no }}?')">@csrf
                                             @method('DELETE')
-                                            <button type="submit" data-tip="Delete"
+                                            <button type="submit" data-tip="{{ __('Delete') }}"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-600 hover:bg-red-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                             </button>
@@ -178,9 +178,9 @@
                     @empty
                         <tr>
                             <td colspan="7" class="px-4 py-10 text-center text-gray-400">
-                                No work orders found.
-                                <a href="{{ route('admin.work-orders.create') }}" class="text-blue-600 hover:underline ml-1">Create one</a>
-                                or <a href="{{ route('admin.csv-import') }}" class="text-blue-600 hover:underline">import from CSV</a>.
+                                {{ __('No work orders found.') }}
+                                <a href="{{ route('admin.work-orders.create') }}" class="text-blue-600 hover:underline ml-1">{{ __('Create one') }}</a>
+                                or <a href="{{ route('admin.csv-import') }}" class="text-blue-600 hover:underline">{{ __('import from CSV') }}</a>.
                             </td>
                         </tr>
                     @endforelse
