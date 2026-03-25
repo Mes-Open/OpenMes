@@ -12,16 +12,19 @@ class OeeCalculationService
      */
     public function calculateOee(Workstation $workstation, $startDate, $endDate): array
     {
-        $cacheKey = "oee_workstation_{$workstation->id}_{$startDate}_{$endDate}";
+        // Round timestamps to the nearest minute to ensure cache hits
+        $roundedStart = \Carbon\Carbon::parse($startDate)->startOfMinute()->toDateTimeString();
+        $roundedEnd = \Carbon\Carbon::parse($endDate)->startOfMinute()->toDateTimeString();
+        $cacheKey = "oee_workstation_{$workstation->id}_{$roundedStart}_{$roundedEnd}";
 
-        return Cache::remember($cacheKey, now()->addMinutes(1), function () use ($workstation, $startDate, $endDate) {
-            $totalTime = max(1, \Carbon\Carbon::parse($endDate)->diffInSeconds(\Carbon\Carbon::parse($startDate)));
+        return Cache::remember($cacheKey, now()->addMinutes(1), function () use ($workstation, $roundedStart, $roundedEnd) {
+            $totalTime = max(1, \Carbon\Carbon::parse($roundedEnd)->diffInSeconds(\Carbon\Carbon::parse($roundedStart)));
 
             // 1. Availability = (Total Time - Unplanned Downtime) / Total Time
             $unplannedDowntimeSeconds = $workstation->downtimeEvents()
                 ->where('downtime_category', 'Unplanned')
-                ->where('started_at', '>=', $startDate)
-                ->where('ended_at', '<=', $endDate)
+                ->where('started_at', '>=', $roundedStart)
+                ->where('ended_at', '<=', $roundedEnd)
                 ->sum('duration_minutes') * 60;
 
             $availability = max(0, min(1, ($totalTime - $unplannedDowntimeSeconds) / $totalTime));
@@ -30,8 +33,8 @@ class OeeCalculationService
             // Simplified: (Run Time / Total Scheduled Run Time)
             $runTimeSeconds = $workstation->states()
                 ->where('state', 'RUNNING')
-                ->where('started_at', '>=', $startDate)
-                ->where('ended_at', '<=', $endDate)
+                ->where('started_at', '>=', $roundedStart)
+                ->where('ended_at', '<=', $roundedEnd)
                 ->sum('duration_seconds');
 
             $performance = $runTimeSeconds > 0 ? min(1, $runTimeSeconds / max(1, $totalTime - $unplannedDowntimeSeconds)) : 0;
