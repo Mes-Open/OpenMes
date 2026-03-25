@@ -2,11 +2,13 @@
 
 # OpenMES
 
-### Açık Kaynak Üretim Yürütme Sistemi (MES)
+### Industrial-Grade Open-Source Manufacturing Execution System
+### Endüstriyel Sınıf Açık Kaynak Üretim Yürütme Sistemi
 
-*Küçük üreticiler için güçlü, esnek ve tablet uyumlu MES*
+*Advanced, flexible, and tablet-ready MES for small to medium manufacturers*
+*Küçük ve orta ölçekli üreticiler için gelişmiş, esnek ve tablet uyumlu MES*
 
-[![Lisans: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
 [![Livewire](https://img.shields.io/badge/Livewire-4-4E56A6?logo=livewire&logoColor=white)](https://livewire.laravel.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
@@ -15,156 +17,98 @@
 
 ---
 
-## OpenMES Nedir?
+## 🇺🇸 What is OpenMES?
 
-**OpenMES**, kurumsal karmaşıklığa ihtiyaç duymadan güçlü üretim takibine ihtiyaç duyan **küçük üreticiler** (ahşap işleme, metal işleme, montaj atölyeleri) için özel olarak tasarlanmış modern, açık kaynaklı bir Üretim Yürütme Sistemidir (Manufacturing Execution System).
+**OpenMES** is a high-precision Manufacturing Execution System designed for modern workshops and factories. Transformed from a simple tracking app into an industrial platform, OpenMES solves real-world production challenges with its event-sourcing architecture, real-time machine integration, and advanced analytics engine.
+
+### Why OpenMES?
+
+- 🏭 **Industrial Strength** - Machine state tracking, tool lifecycle management, and high-precision OEE.
+- 📱 **Tablet-First Design** - Touch-optimized for operators, even with gloves.
+- 🔒 **Security & Compliance** - Granular RBAC, audit trails, and industrial-standard security gates.
+- 📊 **Digital Twin & Simulation** - Virtualize production flow and predict bottlenecks before they happen.
+- 🚀 **Fast Deployment** - Deploy an industrial MES in minutes with Docker.
+
+## 🇹🇷 OpenMES Nedir?
+
+**OpenMES**, modern atölyeler ve fabrikalar için tasarlanmış, yüksek hassasiyetli bir Üretim Yürütme Sistemidir. Basit bir iş takibi uygulamasından endüstriyel bir platforma dönüştürülen OpenMES; olay kaynaklı mimarisi, gerçek zamanlı makine entegrasyonu ve gelişmiş analitik motoruyla gerçek dünya üretim zorluklarını çözer.
 
 ### Neden OpenMES?
 
-- 🎯 **Küçük Üreticiler İçin Tasarlandı** - Gereksiz özellikler yok, sadece ihtiyacınız olanlar var.
+- 🏭 **Endüstriyel Güç** - Makine durumu takibi, araç ömür yönetimi ve yüksek hassasiyetli OEE.
 - 📱 **Önce Tablet Tasarımı** - Atölye operatörleri için dokunmatik optimizasyon.
-- 🔒 **Güvenlik Odaklı** - İlk günden itibaren OWASP Top 10 uyumlu.
-- 📊 **Gerçek Zamanlı Görünürlük** - Her hatta neler olduğunu anında görün.
-- 🆓 **Tamamen Açık Kaynak** - MIT lisanslı, hiçbir firmaya bağımlılık yok.
-- 🚀 **Dakikalar İçinde Kurulum** - Tek bir Docker komutuyla yayına alın.
+- 🔒 **Güvenlik & Uyum** - Granüler RBAC, denetim izleri ve güvenlik kapıları.
+- 📊 **Dijital İkiz & Simülasyon** - Üretim akışını sanallaştırın ve darboğazları tahmin edin.
+- 🚀 **Hızlı Kurulum** - Docker ile dakikalar içinde yayına alın.
 
 ---
 
-## Özellikler
+## Features / Özellikler
 
-### Üretim Yönetimi
+### Industrial Integration / Endüstriyel Entegrasyon
+- **Multi-Protocol Support**: Direct communication via MQTT and Modbus TCP.
+- **Machine State Tracking**: Real-time monitoring (RUNNING, FAULT, SETUP, IDLE).
+- **Event-Sourced Core**: Microsecond precision for total data integrity.
+- **Edge Computing**: Local buffering and cloud synchronization for unreliable networks.
 
-- **Çoklu Hat Üretimi** - Aynı anda birden fazla üretim hattını yönetin.
-- **İş Emri Takibi** - Tam iş emri yaşam döngüsü yönetimi.
-- **Parti Üretimi** - Birden fazla parti ile kısmi tamamlama desteği.
-- **Süreç Şablonları** - Yeniden kullanılabilir, adım adım süreç tanımları.
-- **CSV İçe Aktarma** - Esnek sütun eşleme ile toplu iş emri içe aktarma.
-- **Gerçek Zamanlı Durum** - Canlı üretim durumu güncellemeleri.
-
-### Operatör Deneyimi
-
-- **Adım Adım Rehberlik** - Her operasyon için net talimatlar.
-- **Sıralı İş Akışı** - Hataları önlemek için süreç sırasını zorunlu kılın.
-- **Tek Dokunuşla İşlemler** - Başlat, tamamla, sorun bildir işlemlerini tek dokunuşla yapın.
-- **PWA Desteği** - Tabletlerinize kurun, çevrimdışı çalışın.
-- **Çevrimdışı Mod** - Ağ olmadığında işlemleri kuyruğa alın.
-- **Tablet Optimizasyonu** - Büyük dokunma hedefleri (48px+), minimum metin girişi.
-
-### Sorun & Andon Sistemi
-
-- **Sorun Raporlama** - Operatörler her adımdan anında sorun bildirebilir.
-- **Otomatik Engelleme** - Kritik sorunlar üretimi otomatik olarak durdurur.
-- **Sorun Eskalasyonu** - Sorunları bildirimlerle amirlere iletin.
-- **Çözüm Takibi** - Tam sorun yaşam döngüsü (Açık → Onaylandı → Çözüldü → Kapalı).
-- **Ön Tanımlı Kategoriler** - Malzeme eksikliği, kalite sorunları, araç arızaları vb.
-
-### Analiz & Raporlama
-
-- **Amir Paneli** - Gerçek zamanlı KPI'lar ve üretim metrikleri.
-- **Etkileşimli Grafikler** - Çıktı, döngü süresi, sorun eğilimleri, adım performansı.
-- **Üretim Raporları** - Özet, parti tamamlama, duruş süresi raporları.
-- **CSV Dışa Aktarma** - Daha fazla analiz için tüm raporları dışa aktarın.
-- **İzlenebilirlik** - Her eylem için tam denetim izi.
-
-### Güvenlik & Uyum
-
-- **Değiştirilemez Denetim Günlükleri** - PostgreSQL tarafından zorunlu kılınır, değiştirilemez.
-- **Tam İzlenebilirlik** - Her eylemi, kullanıcıyı ve zaman damgasını takip edin.
-- **Rol Tabanlı Erişim** - Admin, Amir, Operatör rolleri.
-- **Hat Bazlı Filtreleme** - Operatörler sadece atandıkları hatları görür.
-- **Uyumluluk Hazır** - ISO 9001, AS9100 uyumlu denetim izi.
+### Analytics & Traceability / Analiz ve İzlenebilirlik
+- **Real-Time OEE**: Automatic Availability, Performance, and Quality calculation.
+- **Fault Intelligence**: MTBF and MTTR analytics for maintenance planning.
+- **Traceability Graph**: Full "Birth Certificate" tracking from lot to serial number.
+- **Constraint-Based Scheduling**: Intelligent planning based on machine, tool, and skill.
 
 ---
 
-## Genişletilebilirlik ve Modüller
-
-OpenMES genişletilmek üzere tasarlanmıştır! Çekirdek kodu değiştirmeden özel işlevler eklemek için kapsamlı **kanca (hook) sistemimizi** kullanın.
-
-### Kanca (Hook) Sistemi
-
-- Üretim yaşam döngüsünün tamamını kapsayan **40'tan fazla etkinlik**.
-- **İş Emri kancaları** - Oluşturuldu, Güncellendi, Tamamlandı, Engellendi.
-- **Parti kancaları** - Oluşturuldu, Tamamlandı, İptal Edildi.
-- **Adım kancaları** - Başlatıldı, Tamamlandı, Sorun Bildirildi.
-- **Kullanıcı kancaları** - Hatta Atandı, Oluşturuldu, Güncellendi.
-- **Hat kancaları** - Oluşturuldu, Etkinleştirildi, Devre Dışı Bırakıldı.
-- **Süreç Şablonu kancaları** - Şablon ve Adım yönetimi.
-- **CSV İçe Aktarma kancaları** - Başlatıldı, Tamamlandı, Başarısız Oldu.
-
-📚 **Tam Dokümantasyon**: [HOOKS.md](HOOKS.md)
-📁 **Modül Örnekleri**: [modules/](modules/)
-
----
-
-## Mimari
-
-OpenMES **çok basit** bir Laravel monolit mimarisi kullanır:
+## Architecture / Mimari
 
 ```
-┌─────────────────┐
-│  Laravel Uyg.   │  :80 (her şeye hizmet eder)
-│  (Blade + API)  │
-└────────┬────────┘
-         │
-    ┌────▼─────┐
-    │ PostgreSQL│
-    └──────────┘
+┌────────────────────────────────┐
+│   Industrial User Dashboard    │  (Real-time Dashboard / Livewire)
+└───────────────┬────────────────┘
+                ▼
+┌────────────────────────────────┐
+│     OpenMES Core Engine        │  (Event Store / OEE Engine / Traceability)
+└───────────────┬────────────────┘
+                ▼
+┌───────────────┴────────────────┐
+│ Communication & Adapter Layer  │  (MQTT / Modbus / OPC-UA Abstraction)
+└───────────────┬────────────────┘
+                ▼
+┌───────────────┴────────────────┐
+│     Physical Factory Floor     │  (CNC / PLC / Assembly Stations)
+└────────────────────────────────┘
 ```
-
-**Teknoloji Yığını:**
-- **Arka Uç (Backend)**: Blade şablonlarıyla Laravel 12
-- **Ön Uç (Frontend)**: Tailwind CSS 4 + etkileşim için Alpine.js
-- **Gerçek Zamanlı**: Dinamik bileşenler için Livewire 4
-- **Grafikler**: Analizler için Chart.js
-- **Veritabanı**: Değiştirilemez denetim günlükleriyle PostgreSQL 14+
-- **Kurulum**: Docker Compose (Sadece 2 konteyner!)
 
 ---
 
-## 🚀 Kurulum
-
-### Gereksinimler
-
-- Docker ve Docker Compose (20.10+)
-- Git
-
-### Kurulum 🎯
-
-**Klonlayın, tarayıcıyı açın, yapılandırın!** Hiçbir CLI komutu gerekmez!
+## 🚀 Installation / Kurulum
 
 ```bash
-# 1. Depoyu klonlayın
+# 1. Clone repository / Depoyu klonlayın
 git clone https://github.com/Mes-Open/OpenMes.git
 cd OpenMes
 
-# 2. Docker konteynerlerini başlatın
+# 2. Start containers / Konteynerleri başlatın
 docker-compose up -d
 ```
 
-**İşte bu kadar!** Şimdi tarayıcınızda **http://localhost** adresini açın.
-
 ---
 
-## 📄 Lisans
+## 📄 License / Lisans
 
-OpenMES, **MIT Lisansı** ile lisanslanmış açık kaynaklı bir yazılımdır.
-
-Bu, şunları yapabileceğiniz anlamına gelir:
-- ✅ Ticari olarak kullanın
-- ✅ Değiştirin
-- ✅ Dağıtın
-- ✅ Özel olarak kullanın
-
-Tam ayrıntılar için [LICENSE](LICENSE) dosyasına bakın.
+OpenMES is open-source software licensed under the **MIT License**.
 
 ---
 
 <div align="center">
 
-**Üretim topluluğu için ❤️ ile inşa edildi**
+**Built with ❤️ for the factories of the future**
+**Geleceğin fabrikaları için ❤️ ile inşa edildi**
 
+Made by manufacturers, for manufacturers
 Üreticiler tarafından, üreticiler için yapıldı
 
+⭐ If you find OpenMES useful, please give it a star!
 ⭐ OpenMES'i yararlı bulursanız lütfen bir yıldız verin!
 
 </div>
