@@ -2,15 +2,16 @@
 
 namespace App\Services\WorkOrder;
 
+use App\Contracts\Services\BatchServiceInterface;
 use App\Models\BatchStep;
 use App\Models\Batch;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
-class BatchService
+class BatchService implements BatchServiceInterface
 {
     public function __construct(
-        protected WorkOrderService $workOrderService
+        protected \App\Contracts\Services\WorkOrderServiceInterface $workOrderService
     ) {}
 
     /**
@@ -144,6 +145,8 @@ class BatchService
                 'status' => Batch::STATUS_IN_PROGRESS,
                 'started_at' => $batch->started_at ?? now(),
             ]);
+
+            event(new \App\Events\Batch\BatchStarted($batch));
         }
     }
 

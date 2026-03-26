@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\IssueType;
+use App\Http\Resources\IssueTypeResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class IssueTypeController extends Controller
 {
+    use StandardApiResponse;
+
     /**
      * Get all issue types (active by default).
      */
@@ -25,9 +29,7 @@ class IssueTypeController extends Controller
             ->orderBy('name')
             ->get();
 
-        return response()->json([
-            'data' => $issueTypes,
-        ]);
+        return IssueTypeResource::collection($issueTypes)->response();
     }
 
     /**
@@ -35,9 +37,7 @@ class IssueTypeController extends Controller
      */
     public function show(IssueType $issueType): JsonResponse
     {
-        return response()->json([
-            'data' => $issueType,
-        ]);
+        return (new IssueTypeResource($issueType))->response();
     }
 
     /**
@@ -56,10 +56,11 @@ class IssueTypeController extends Controller
 
         $issueType = IssueType::create($validated);
 
-        return response()->json([
-            'data' => $issueType,
-            'message' => 'Issue type created successfully',
-        ], 201);
+        return $this->success(
+            new IssueTypeResource($issueType),
+            'Issue type created successfully',
+            201
+        );
     }
 
     /**
@@ -78,10 +79,10 @@ class IssueTypeController extends Controller
 
         $issueType->update($validated);
 
-        return response()->json([
-            'data' => $issueType->fresh(),
-            'message' => 'Issue type updated successfully',
-        ]);
+        return $this->success(
+            new IssueTypeResource($issueType->fresh()),
+            'Issue type updated successfully'
+        );
     }
 
     /**
@@ -93,8 +94,6 @@ class IssueTypeController extends Controller
         // Soft delete by setting is_active to false
         $issueType->update(['is_active' => false]);
 
-        return response()->json([
-            'message' => 'Issue type deactivated successfully',
-        ]);
+        return $this->success(null, 'Issue type deactivated successfully');
     }
 }

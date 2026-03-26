@@ -2,11 +2,12 @@
 
 namespace App\Services\Security;
 
+use App\Contracts\Services\FactorySecurityServiceInterface;
 use App\Models\User;
 use App\Models\Line;
 use Illuminate\Support\Facades\Gate;
 
-class FactorySecurityService
+class FactorySecurityService implements FactorySecurityServiceInterface
 {
     /**
      * Define the shop-floor security gates.

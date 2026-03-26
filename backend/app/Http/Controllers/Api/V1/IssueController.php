@@ -7,14 +7,18 @@ use App\Http\Requests\CreateIssueRequest;
 use App\Http\Requests\UpdateIssueRequest;
 use App\Http\Requests\ResolveIssueRequest;
 use App\Models\Issue;
-use App\Services\IssueService;
+use App\Contracts\Services\IssueServiceInterface;
+use App\Http\Resources\IssueResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class IssueController extends Controller
 {
+    use StandardApiResponse;
+
     public function __construct(
-        protected IssueService $issueService
+        protected IssueServiceInterface $issueService
     ) {}
 
     /**
@@ -50,15 +54,7 @@ class IssueController extends Controller
 
         $issues = $query->paginate(20);
 
-        return response()->json([
-            'data' => $issues->items(),
-            'meta' => [
-                'current_page' => $issues->currentPage(),
-                'per_page' => $issues->perPage(),
-                'total' => $issues->total(),
-                'last_page' => $issues->lastPage(),
-            ],
-        ]);
+        return $this->paginated($issues, IssueResource::class);
     }
 
     /**
@@ -68,9 +64,7 @@ class IssueController extends Controller
     {
         $issue->load(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'batchStep']);
 
-        return response()->json([
-            'data' => $issue,
-        ]);
+        return (new IssueResource($issue))->response();
     }
 
     /**
@@ -83,10 +77,11 @@ class IssueController extends Controller
 
         $issue = $this->issueService->createIssue($data);
 
-        return response()->json([
-            'data' => $issue,
-            'message' => 'Issue reported successfully',
-        ], 201);
+        return $this->success(
+            new IssueResource($issue),
+            'Issue reported successfully',
+            201
+        );
     }
 
     /**
@@ -96,10 +91,10 @@ class IssueController extends Controller
     {
         $issue->update($request->validated());
 
-        return response()->json([
-            'data' => $issue->fresh(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'batchStep']),
-            'message' => 'Issue updated successfully',
-        ]);
+        return $this->success(
+            new IssueResource($issue->fresh(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'batchStep'])),
+            'Issue updated successfully'
+        );
     }
 
     /**
@@ -110,14 +105,12 @@ class IssueController extends Controller
         try {
             $updatedIssue = $this->issueService->acknowledgeIssue($issue, $request->user()->id);
 
-            return response()->json([
-                'data' => $updatedIssue,
-                'message' => 'Issue acknowledged successfully',
-            ]);
+            return $this->success(
+                new IssueResource($updatedIssue),
+                'Issue acknowledged successfully'
+            );
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
+            return $this->error($e->getMessage(), 422);
         }
     }
 
@@ -132,14 +125,12 @@ class IssueController extends Controller
                 $request->validated()['resolution_notes']
             );
 
-            return response()->json([
-                'data' => $updatedIssue,
-                'message' => 'Issue resolved successfully',
-            ]);
+            return $this->success(
+                new IssueResource($updatedIssue),
+                'Issue resolved successfully'
+            );
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
+            return $this->error($e->getMessage(), 422);
         }
     }
 
@@ -151,14 +142,12 @@ class IssueController extends Controller
         try {
             $updatedIssue = $this->issueService->closeIssue($issue);
 
-            return response()->json([
-                'data' => $updatedIssue,
-                'message' => 'Issue closed successfully',
-            ]);
+            return $this->success(
+                new IssueResource($updatedIssue),
+                'Issue closed successfully'
+            );
         } catch (\InvalidArgumentException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
+            return $this->error($e->getMessage(), 422);
         }
     }
 
@@ -173,8 +162,6 @@ class IssueController extends Controller
 
         $stats = $this->issueService->getLineIssueStats($request->line_id);
 
-        return response()->json([
-            'data' => $stats,
-        ]);
+        return $this->success($stats);
     }
 }

@@ -2,12 +2,13 @@
 
 namespace App\Services\Analytics;
 
+use App\Contracts\Services\FaultIntelligenceServiceInterface;
 use App\Models\Workstation;
 use App\Models\DowntimeEvent;
 use App\Models\MachineEvent;
 use App\Models\CycleTimeLog;
 
-class FaultIntelligenceService
+class FaultIntelligenceService implements FaultIntelligenceServiceInterface
 {
     /**
      * Calculate Mean Time Between Failures (MTBF) for a workstation.

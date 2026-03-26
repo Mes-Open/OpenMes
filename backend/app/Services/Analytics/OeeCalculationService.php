@@ -2,10 +2,11 @@
 
 namespace App\Services\Analytics;
 
+use App\Contracts\Services\OeeCalculationServiceInterface;
 use App\Models\Workstation;
 use Illuminate\Support\Facades\Cache;
 
-class OeeCalculationService
+class OeeCalculationService implements OeeCalculationServiceInterface
 {
     /**
      * Calculate OEE for a specific workstation based on state history and downtime.

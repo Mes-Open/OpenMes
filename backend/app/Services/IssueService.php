@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\Services\IssueServiceInterface;
 use App\Models\Issue;
 use App\Models\WorkOrder;
 use App\Models\BatchStep;
@@ -9,7 +10,7 @@ use App\Models\IssueType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class IssueService
+class IssueService implements IssueServiceInterface
 {
     /**
      * Create a new issue and optionally block the work order.
@@ -27,10 +28,7 @@ class IssueService
             // Load the issue type to check if it's blocking
             $issue->load('issueType');
 
-            // If this is a blocking issue, block the work order
-            if ($issue->issueType->is_blocking) {
-                $this->blockWorkOrder($issue->work_order_id);
-            }
+            event(new \App\Events\Issue\IssueCreated($issue));
 
             Log::info('Issue created', [
                 'issue_id' => $issue->id,
@@ -58,6 +56,8 @@ class IssueService
                 'assigned_to_id' => $userId,
             ]);
 
+            event(new \App\Events\Issue\IssueAcknowledged($issue));
+
             Log::info('Issue acknowledged', [
                 'issue_id' => $issue->id,
                 'acknowledged_by' => $userId,
@@ -83,10 +83,7 @@ class IssueService
                 'resolution_notes' => $resolutionNotes,
             ]);
 
-            // If this was a blocking issue, check if we should unblock the work order
-            if ($issue->issueType->is_blocking) {
-                $this->checkAndUnblockWorkOrder($issue->work_order_id);
-            }
+            event(new \App\Events\Issue\IssueResolved($issue));
 
             Log::info('Issue resolved', [
                 'issue_id' => $issue->id,
@@ -120,59 +117,6 @@ class IssueService
         });
     }
 
-    /**
-     * Block a work order.
-     */
-    protected function blockWorkOrder(int $workOrderId): void
-    {
-        $workOrder = WorkOrder::findOrFail($workOrderId);
-
-        // Only block if not already blocked or done
-        if (!in_array($workOrder->status, [WorkOrder::STATUS_BLOCKED, WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED])) {
-            $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
-
-            Log::info('Work order blocked due to issue', [
-                'work_order_id' => $workOrderId,
-            ]);
-        }
-    }
-
-    /**
-     * Check if work order should be unblocked (no more blocking issues).
-     */
-    protected function checkAndUnblockWorkOrder(int $workOrderId): void
-    {
-        $workOrder = WorkOrder::findOrFail($workOrderId);
-
-        // Only process if currently blocked
-        if ($workOrder->status !== WorkOrder::STATUS_BLOCKED) {
-            return;
-        }
-
-        // Check if there are any remaining blocking issues
-        $hasBlockingIssues = Issue::where('work_order_id', $workOrderId)
-            ->blocking()
-            ->exists();
-
-        if (!$hasBlockingIssues) {
-            // Determine the appropriate status to restore
-            // If there are in-progress batches, set to IN_PROGRESS, otherwise PENDING
-            $hasBatchesInProgress = $workOrder->batches()
-                ->where('status', 'IN_PROGRESS')
-                ->exists();
-
-            $newStatus = $hasBatchesInProgress
-                ? WorkOrder::STATUS_IN_PROGRESS
-                : WorkOrder::STATUS_PENDING;
-
-            $workOrder->update(['status' => $newStatus]);
-
-            Log::info('Work order unblocked', [
-                'work_order_id' => $workOrderId,
-                'new_status' => $newStatus,
-            ]);
-        }
-    }
 
     /**
      * Get all issues for a work order.

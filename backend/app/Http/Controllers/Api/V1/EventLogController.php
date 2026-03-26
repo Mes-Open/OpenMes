@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\EventLog;
+use App\Http\Resources\EventLogResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class EventLogController extends Controller
 {
+    use StandardApiResponse;
+
     /**
      * Get event logs with filters.
      */
@@ -47,15 +51,7 @@ class EventLogController extends Controller
         $perPage = $request->input('per_page', 20);
         $eventLogs = $query->paginate($perPage);
 
-        return response()->json([
-            'data' => $eventLogs->items(),
-            'meta' => [
-                'current_page' => $eventLogs->currentPage(),
-                'per_page' => $eventLogs->perPage(),
-                'total' => $eventLogs->total(),
-                'last_page' => $eventLogs->lastPage(),
-            ],
-        ]);
+        return $this->paginated($eventLogs, EventLogResource::class);
     }
 
     /**
@@ -73,8 +69,6 @@ class EventLogController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json([
-            'data' => $eventLogs,
-        ]);
+        return EventLogResource::collection($eventLogs)->response();
     }
 }

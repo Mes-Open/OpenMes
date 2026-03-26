@@ -2,13 +2,14 @@
 
 namespace App\Services\Traceability;
 
+use App\Contracts\Services\LineageGraphServiceInterface;
 use App\Models\MaterialLineage;
 use App\Models\Workstation;
 use App\Models\User;
 use App\Models\Batch;
 use App\Models\BatchStep;
 
-class LineageGraphService
+class LineageGraphService implements LineageGraphServiceInterface
 {
     /**
      * Record the birth certificate for a single unit at a workstation.

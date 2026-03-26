@@ -2,13 +2,14 @@
 
 namespace App\Services\WorkOrder;
 
+use App\Contracts\Services\WorkOrderServiceInterface;
 use App\Models\WorkOrder;
 use App\Models\ProcessTemplate;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use Illuminate\Support\Facades\DB;
 
-class WorkOrderService
+class WorkOrderService implements WorkOrderServiceInterface
 {
     /**
      * Create a new work order with process snapshot.

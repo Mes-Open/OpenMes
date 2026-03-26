@@ -83,6 +83,7 @@ trait Auditable
             'after_state'  => $afterState,
             'ip_address'   => $ipAddress,
             'user_agent'   => $userAgent,
+            'correlation_id' => request()->header('X-Correlation-ID'),
         ]);
     }
 

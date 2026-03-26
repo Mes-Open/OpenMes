@@ -2,6 +2,7 @@
 
 namespace App\Services\CsvImport;
 
+use App\Contracts\Services\WorkOrderImportServiceInterface;
 use App\Models\WorkOrder;
 use App\Models\Line;
 use App\Models\ProductType;
@@ -9,11 +10,11 @@ use App\Services\ProcessTemplate\SnapshotService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class WorkOrderImportService
+class WorkOrderImportService implements WorkOrderImportServiceInterface
 {
     public function __construct(
-        protected CsvParserService $csvParser,
-        protected SnapshotService $snapshotService
+        protected \App\Contracts\Services\CsvParserServiceInterface $csvParser,
+        protected \App\Contracts\Services\SnapshotServiceInterface $snapshotService
     ) {}
 
     /**

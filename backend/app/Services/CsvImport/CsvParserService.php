@@ -2,11 +2,12 @@
 
 namespace App\Services\CsvImport;
 
+use App\Contracts\Services\CsvParserServiceInterface;
 use Illuminate\Support\Facades\Storage;
 use League\Csv\Reader;
 use League\Csv\Exception as CsvException;
 
-class CsvParserService
+class CsvParserService implements CsvParserServiceInterface
 {
     /**
      * Parse a CSV file and return headers + preview rows.
