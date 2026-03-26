@@ -14,11 +14,21 @@ class SetLocaleMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $locale = $request->header('Accept-Language');
+        // 1. Check if session has a locale (set via UI switch)
+        if ($request->hasSession() && $request->session()->has('locale')) {
+            $sessionLocale = $request->session()->get('locale');
+            if (in_array($sessionLocale, ['en', 'tr'])) {
+                App::setLocale($sessionLocale);
+                return $next($request);
+            }
+        }
+
+        // 2. Fallback to Accept-Language header
+        $localeHeader = $request->header('Accept-Language');
 
         // Simple parsing for first language code (e.g. 'en-US,en;q=0.9' -> 'en')
-        if ($locale) {
-            $parts = explode(',', $locale);
+        if ($localeHeader) {
+            $parts = explode(',', $localeHeader);
             $primary = explode(';', $parts[0])[0];
             $lang = substr($primary, 0, 2);
 

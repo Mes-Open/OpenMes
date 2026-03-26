@@ -76,6 +76,36 @@
                 </svg>
             </div>
         </a>
+
+        <!-- Language Card -->
+        <div class="card" x-data="{ open: false }">
+            <div class="flex items-start gap-4">
+                <div class="bg-yellow-100 rounded-full p-3">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 11.37 9.198 15.53 5.347 18"/>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __('Language') }}</h3>
+                    <div class="flex gap-2 mt-2">
+                        <form action="{{ route('settings.set-language') }}" method="POST" class="inline">
+                            @csrf
+                            <button name="locale" value="en" type="submit"
+                                    class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ app()->getLocale() == 'en' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                                English
+                            </button>
+                        </form>
+                        <form action="{{ route('settings.set-language') }}" method="POST" class="inline">
+                            @csrf
+                            <button name="locale" value="tr" type="submit"
+                                    class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors {{ app()->getLocale() == 'tr' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                                Türkçe
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- User Info -->

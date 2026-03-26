@@ -14,7 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
         $middleware->append(\App\Http\Middleware\CorrelationIdMiddleware::class);
-        $middleware->append(\App\Http\Middleware\SetLocaleMiddleware::class);
+        $middleware->web(append: [
+            \App\Http\Middleware\SetLocaleMiddleware::class,
+        ]);
         $middleware->append(\App\Http\Middleware\CheckInstallation::class);
         $middleware->validateCsrfTokens(except: [
             'install/*',
