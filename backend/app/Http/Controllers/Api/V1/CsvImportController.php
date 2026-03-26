@@ -57,7 +57,7 @@ class CsvImportController extends Controller
                     'preview' => $parseResult['preview'],
                     'total_rows' => $parseResult['total_rows'],
                 ],
-                'CSV uploaded successfully'
+                __('CSV uploaded successfully')
             );
         } catch (\Exception $e) {
             Log::error('CSV upload failed', [
@@ -86,7 +86,7 @@ class CsvImportController extends Controller
         $uploadData = cache()->get("csv_upload_{$validated['upload_id']}");
 
         if (!$uploadData) {
-            return $this->error('Upload session expired. Please re-upload the CSV file.', 404);
+            return $this->error(__('Upload session expired. Please re-upload the CSV file.'), 404);
         }
 
         try {
@@ -97,7 +97,7 @@ class CsvImportController extends Controller
             );
 
             if (!empty($errors)) {
-                return $this->error('Invalid column mapping', 422, ['errors' => $errors]);
+                return $this->error(__('Invalid column mapping'), 422, ['errors' => $errors]);
             }
 
             // Save mapping template if requested
@@ -135,7 +135,7 @@ class CsvImportController extends Controller
                     'status' => 'PENDING',
                     'total_rows' => $uploadData['total_rows'],
                 ],
-                'CSV import started. You will be notified when it completes.',
+                __('CSV import started. You will be notified when it completes.'),
                 202
             );
         } catch (\Exception $e) {
@@ -203,6 +203,6 @@ class CsvImportController extends Controller
             ]
         );
 
-        return $this->success($mapping, 'Mapping template saved successfully');
+        return $this->success($mapping, __('Mapping template saved successfully'));
     }
 }

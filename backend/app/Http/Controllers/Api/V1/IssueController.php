@@ -79,7 +79,7 @@ class IssueController extends Controller
 
         return $this->success(
             new IssueResource($issue),
-            'Issue reported successfully',
+            __('Issue reported successfully'),
             201
         );
     }
@@ -93,7 +93,7 @@ class IssueController extends Controller
 
         return $this->success(
             new IssueResource($issue->fresh(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'batchStep'])),
-            'Issue updated successfully'
+            __('Issue updated successfully')
         );
     }
 
@@ -107,7 +107,7 @@ class IssueController extends Controller
 
             return $this->success(
                 new IssueResource($updatedIssue),
-                'Issue acknowledged successfully'
+                __('Issue acknowledged successfully')
             );
         } catch (\InvalidArgumentException $e) {
             return $this->error($e->getMessage(), 422);
@@ -127,7 +127,7 @@ class IssueController extends Controller
 
             return $this->success(
                 new IssueResource($updatedIssue),
-                'Issue resolved successfully'
+                __('Issue resolved successfully')
             );
         } catch (\InvalidArgumentException $e) {
             return $this->error($e->getMessage(), 422);
@@ -144,7 +144,7 @@ class IssueController extends Controller
 
             return $this->success(
                 new IssueResource($updatedIssue),
-                'Issue closed successfully'
+                __('Issue closed successfully')
             );
         } catch (\InvalidArgumentException $e) {
             return $this->error($e->getMessage(), 422);

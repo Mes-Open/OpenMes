@@ -77,16 +77,14 @@ class BatchController extends Controller
         $allowOverproduction = config('openmmes.allow_overproduction', false);
 
         if (!$allowOverproduction && ($totalTargetQty - $workOrder->planned_qty) > 0.001) {
-            return response()->json([
-                'message' => 'Total batch quantity would exceed planned quantity',
-            ], 422);
+            return $this->error(__('Total batch quantity would exceed planned quantity'), 422);
         }
 
         $batch = $this->workOrderService->createBatch($workOrder, $validated['target_qty']);
 
         return $this->success(
             new BatchResource($batch->load('steps')),
-            'Batch created successfully',
+            __('Batch created successfully'),
             201
         );
     }

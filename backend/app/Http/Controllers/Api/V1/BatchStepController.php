@@ -37,7 +37,7 @@ class BatchStepController extends Controller
 
             return $this->success(
                 new BatchStepResource($step->load(['startedBy', 'batch.workOrder'])),
-                'Step started successfully'
+                __('Step started successfully')
             );
         } catch (\Exception $e) {
             return $this->error($e->getMessage(), 422, ['step' => [$e->getMessage()]]);
@@ -68,7 +68,7 @@ class BatchStepController extends Controller
 
             return $this->success(
                 new BatchStepResource($step->load(['completedBy', 'batch.workOrder'])),
-                'Step completed successfully'
+                __('Step completed successfully')
             );
         } catch (\Exception $e) {
             return $this->error($e->getMessage(), 422, ['step' => [$e->getMessage()]]);
@@ -110,7 +110,7 @@ class BatchStepController extends Controller
                     'issue' => new IssueResource($issue),
                     'work_order_blocked' => $issue->issueType->is_blocking,
                 ],
-                'Issue reported successfully',
+                __('Issue reported successfully'),
                 201
             );
         } catch (\Exception $e) {

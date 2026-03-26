@@ -58,7 +58,7 @@ class IssueTypeController extends Controller
 
         return $this->success(
             new IssueTypeResource($issueType),
-            'Issue type created successfully',
+            __('Issue type created successfully'),
             201
         );
     }
@@ -81,7 +81,7 @@ class IssueTypeController extends Controller
 
         return $this->success(
             new IssueTypeResource($issueType->fresh()),
-            'Issue type updated successfully'
+            __('Issue type updated successfully')
         );
     }
 
@@ -94,6 +94,6 @@ class IssueTypeController extends Controller
         // Soft delete by setting is_active to false
         $issueType->update(['is_active' => false]);
 
-        return $this->success(null, 'Issue type deactivated successfully');
+        return $this->success(null, __('Issue type deactivated successfully'));
     }
 }

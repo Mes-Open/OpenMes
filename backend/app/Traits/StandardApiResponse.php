@@ -16,6 +16,7 @@ trait StandardApiResponse
             'status' => 'success',
             'message' => $message,
             'data' => $data,
+            'locale' => app()->getLocale(),
             'correlation_id' => request()->header('X-Correlation-ID'),
         ], $code);
     }
@@ -29,6 +30,7 @@ trait StandardApiResponse
             'status' => 'error',
             'message' => $message,
             'errors' => $errors,
+            'locale' => app()->getLocale(),
             'correlation_id' => request()->header('X-Correlation-ID'),
         ], $code);
     }
@@ -51,6 +53,7 @@ trait StandardApiResponse
                 'per_page' => $paginator->perPage(),
                 'total' => $paginator->total(),
             ],
+            'locale' => app()->getLocale(),
             'correlation_id' => request()->header('X-Correlation-ID'),
         ]);
     }

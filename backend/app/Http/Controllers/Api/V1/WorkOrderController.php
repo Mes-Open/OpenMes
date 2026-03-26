@@ -82,7 +82,7 @@ class WorkOrderController extends Controller
 
         return $this->success(
             new WorkOrderResource($workOrder->load(['line', 'productType'])),
-            'Work order created successfully',
+            __('Work order created successfully'),
             201
         );
     }
@@ -109,7 +109,7 @@ class WorkOrderController extends Controller
 
         return $this->success(
             new WorkOrderResource($workOrder->load(['line', 'productType'])),
-            'Work order updated successfully'
+            __('Work order updated successfully')
         );
     }
 
@@ -125,13 +125,11 @@ class WorkOrderController extends Controller
 
         // Only allow deletion of pending work orders
         if ($workOrder->status !== WorkOrder::STATUS_PENDING) {
-            return response()->json([
-                'message' => 'Only pending work orders can be deleted',
-            ], 422);
+            return $this->error(__('Only pending work orders can be deleted'), 422);
         }
 
         $workOrder->delete();
 
-        return $this->success(null, 'Work order deleted successfully');
+        return $this->success(null, __('Work order deleted successfully'));
     }
 }
