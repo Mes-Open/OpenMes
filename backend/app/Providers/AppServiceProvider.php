@@ -18,6 +18,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(\App\Contracts\Services\WorkOrderServiceInterface::class, \App\Services\WorkOrder\WorkOrderService::class);
+        $this->app->singleton(\App\Contracts\Services\IssueServiceInterface::class, \App\Services\IssueService::class);
+        $this->app->singleton(\App\Contracts\Services\BatchServiceInterface::class, \App\Services\WorkOrder\BatchService::class);
+        $this->app->singleton(\App\Contracts\Services\CsvParserServiceInterface::class, \App\Services\CsvImport\CsvParserService::class);
+        $this->app->singleton(\App\Contracts\Services\WorkOrderImportServiceInterface::class, \App\Services\CsvImport\WorkOrderImportService::class);
+        $this->app->singleton(\App\Contracts\Services\SnapshotServiceInterface::class, \App\Services\ProcessTemplate\SnapshotService::class);
+        $this->app->singleton(\App\Contracts\Services\AuthServiceInterface::class, \App\Services\Auth\AuthService::class);
+        $this->app->singleton(\App\Contracts\Services\FactorySecurityServiceInterface::class, \App\Services\Security\FactorySecurityService::class);
+        $this->app->singleton(\App\Contracts\Services\MachineMonitorServiceInterface::class, \App\Services\Industrial\MachineMonitorService::class);
+        $this->app->singleton(\App\Contracts\Services\LineageGraphServiceInterface::class, \App\Services\Traceability\LineageGraphService::class);
+        $this->app->singleton(\App\Contracts\Services\OeeCalculationServiceInterface::class, \App\Services\Analytics\OeeCalculationService::class);
+        $this->app->singleton(\App\Contracts\Services\FaultIntelligenceServiceInterface::class, \App\Services\Analytics\FaultIntelligenceService::class);
+        $this->app->singleton(\App\Contracts\Services\EdgeNodeSyncServiceInterface::class, \App\Services\Edge\EdgeNodeSyncService::class);
+        $this->app->singleton(\App\Contracts\Services\ConstraintSchedulerInterface::class, \App\Services\Scheduling\ConstraintScheduler::class);
+
         $this->app->singleton(ModuleManager::class, fn() => new ModuleManager());
         $this->app->singleton(MenuRegistry::class, fn() => new MenuRegistry());
         $this->app->singleton(WidgetRegistry::class, fn() => new WidgetRegistry());
@@ -28,6 +43,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register event subscribers
+        \Illuminate\Support\Facades\Event::subscribe(\App\Listeners\UpdateWorkOrderStatusOnIssueChange::class);
+
         // Initialize shop-floor security gates
         app(FactorySecurityService::class)->defineGates();
 

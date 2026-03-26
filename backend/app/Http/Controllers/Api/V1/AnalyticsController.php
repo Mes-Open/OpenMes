@@ -8,12 +8,15 @@ use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\BatchStep;
 use App\Models\Line;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class AnalyticsController extends Controller
 {
+    use StandardApiResponse;
+
     /**
      * Get overview statistics for supervisor dashboard
      */
@@ -54,7 +57,7 @@ class AnalyticsController extends Controller
                 })->count(),
         ];
 
-        return response()->json(['data' => $stats]);
+        return $this->success($stats);
     }
 
     /**
@@ -66,7 +69,8 @@ class AnalyticsController extends Controller
         $endDate = $request->query('end_date', Carbon::now()->toDateString());
 
         $metrics = Line::with(['workOrders' => function ($query) use ($startDate, $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
+            $query->whereBetween('created_at', [$startDate, $endDate])
+                  ->with(['productType']);
         }])
         ->get()
         ->map(function ($line) {
@@ -84,7 +88,7 @@ class AnalyticsController extends Controller
             ];
         });
 
-        return response()->json(['data' => $metrics]);
+        return $this->success($metrics);
     }
 
     /**
@@ -124,13 +128,11 @@ class AnalyticsController extends Controller
 
         $avgCycleTime = $cycleTimeData->avg('cycle_time_minutes');
 
-        return response()->json([
-            'data' => [
-                'batches' => $cycleTimeData->values(),
-                'average_cycle_time_minutes' => round($avgCycleTime, 2),
-                'average_cycle_time_hours' => round($avgCycleTime / 60, 2),
-                'total_batches' => $cycleTimeData->count(),
-            ]
+        return $this->success([
+            'batches' => $cycleTimeData->values(),
+            'average_cycle_time_minutes' => round($avgCycleTime, 2),
+            'average_cycle_time_hours' => round($avgCycleTime / 60, 2),
+            'total_batches' => $cycleTimeData->count(),
         ]);
     }
 
@@ -155,13 +157,11 @@ class AnalyticsController extends Controller
 
         $avgThroughput = $dailyProduction->avg('total_produced');
 
-        return response()->json([
-            'data' => [
-                'daily_production' => $dailyProduction,
-                'average_daily_throughput' => round($avgThroughput, 2),
-                'period_start' => $startDate->toDateString(),
-                'period_end' => $endDate->toDateString(),
-            ]
+        return $this->success([
+            'daily_production' => $dailyProduction,
+            'average_daily_throughput' => round($avgThroughput, 2),
+            'period_start' => $startDate->toDateString(),
+            'period_end' => $endDate->toDateString(),
         ]);
     }
 
@@ -207,13 +207,11 @@ class AnalyticsController extends Controller
             })
             ->avg();
 
-        return response()->json([
-            'data' => [
-                'by_type' => $issuesByType,
-                'by_status' => $issuesByStatus,
-                'average_resolution_time_minutes' => round($avgResolutionTime ?? 0, 2),
-                'average_resolution_time_hours' => round(($avgResolutionTime ?? 0) / 60, 2),
-            ]
+        return $this->success([
+            'by_type' => $issuesByType,
+            'by_status' => $issuesByStatus,
+            'average_resolution_time_minutes' => round($avgResolutionTime ?? 0, 2),
+            'average_resolution_time_hours' => round(($avgResolutionTime ?? 0) / 60, 2),
         ]);
     }
 
@@ -241,14 +239,12 @@ class AnalyticsController extends Controller
             ->orderBy('avg_duration', 'desc')
             ->get();
 
-        return response()->json([
-            'data' => $stepStats->map(function ($stat) {
-                return [
-                    'step_name' => $stat->name,
-                    'average_duration_minutes' => round($stat->avg_duration, 2),
-                    'total_completions' => $stat->count,
-                ];
-            })
-        ]);
+        return $this->success($stepStats->map(function ($stat) {
+            return [
+                'step_name' => $stat->name,
+                'average_duration_minutes' => round($stat->avg_duration, 2),
+                'total_completions' => $stat->count,
+            ];
+        }));
     }
 }

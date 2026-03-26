@@ -50,7 +50,7 @@ class MachineEventStore
 
     protected function dispatchProjections(MachineEvent $event): void
     {
-        // In a real industrial environment, this would push to Redis/Kafka/RabbitMQ
-        // event(new \App\Events\Industrial\MachineEventRecorded($event));
+        // Emit industrial domain event for real-time projections (OEE, dashboards, alerts)
+        event(new \App\Events\Industrial\MachineEventRecorded($event));
     }
 }

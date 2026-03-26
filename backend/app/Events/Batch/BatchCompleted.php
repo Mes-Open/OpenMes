@@ -10,7 +10,5 @@ class BatchCompleted
 {
     use Dispatchable, SerializesModels;
 
-    public function __construct(
-        public Batch $batch
-    ) {}
+    public function __construct(public Batch $batch) {}
 }

@@ -2,12 +2,13 @@
 
 namespace App\Services\Industrial;
 
+use App\Contracts\Services\MachineMonitorServiceInterface;
 use App\Contracts\Industrial\MachineInterface;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
 use Illuminate\Support\Facades\Log;
 
-class MachineMonitorService
+class MachineMonitorService implements MachineMonitorServiceInterface
 {
     /**
      * Update the workstation state based on machine telemetry.
@@ -49,7 +50,29 @@ class MachineMonitorService
 
             // If state is STOPPED or FAULTED, trigger a potential downtime event
             if (in_array($machineState, ['STOPPED', 'FAULTED'])) {
-                // Logic to start a DowntimeEvent (Phase 2)
+                \App\Models\DowntimeEvent::create([
+                    'workstation_id' => $workstation->id,
+                    'started_at' => now(),
+                    'downtime_category' => $machineState === 'FAULTED' ? 'Unplanned' : 'Planned',
+                    'description' => "Automated downtime record from machine telemetry ({$machineState})",
+                    'metadata' => ['telemetry' => $machine->getTelemetry()],
+                ]);
+            }
+
+            // If we transitioned AWAY from STOPPED/FAULTED, close recent open downtime events
+            if (!in_array($machineState, ['STOPPED', 'FAULTED'])) {
+                $openDowntime = \App\Models\DowntimeEvent::where('workstation_id', $workstation->id)
+                    ->whereNull('ended_at')
+                    ->latest()
+                    ->first();
+
+                if ($openDowntime) {
+                    $now = now();
+                    $openDowntime->update([
+                        'ended_at' => $now,
+                        'duration_minutes' => (int) ceil($now->diffInMinutes($openDowntime->started_at)),
+                    ]);
+                }
             }
 
         } catch (\Exception $e) {

@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\BatchStep;
-use App\Services\WorkOrder\BatchService;
-use App\Services\IssueService;
+use App\Contracts\Services\BatchServiceInterface;
+use App\Contracts\Services\IssueServiceInterface;
+use App\Http\Resources\BatchStepResource;
+use App\Http\Resources\IssueResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class BatchStepController extends Controller
 {
+    use StandardApiResponse;
+
     public function __construct(
-        protected BatchService $batchService,
-        protected IssueService $issueService
+        protected BatchServiceInterface $batchService,
+        protected IssueServiceInterface $issueService
     ) {}
 
     /**
@@ -30,17 +35,12 @@ class BatchStepController extends Controller
         try {
             $step = $this->batchService->startStep($batchStep, $request->user());
 
-            return response()->json([
-                'message' => 'Step started successfully',
-                'data' => $step->load(['startedBy', 'batch.workOrder']),
-            ]);
+            return $this->success(
+                new BatchStepResource($step->load(['startedBy', 'batch.workOrder'])),
+                __('Step started successfully')
+            );
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => [
-                    'step' => [$e->getMessage()],
-                ],
-            ], 422);
+            return $this->error($e->getMessage(), 422, ['step' => [$e->getMessage()]]);
         }
     }
 
@@ -66,17 +66,12 @@ class BatchStepController extends Controller
                 $validated
             );
 
-            return response()->json([
-                'message' => 'Step completed successfully',
-                'data' => $step->load(['completedBy', 'batch.workOrder']),
-            ]);
+            return $this->success(
+                new BatchStepResource($step->load(['completedBy', 'batch.workOrder'])),
+                __('Step completed successfully')
+            );
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => [
-                    'step' => [$e->getMessage()],
-                ],
-            ], 422);
+            return $this->error($e->getMessage(), 422, ['step' => [$e->getMessage()]]);
         }
     }
 
@@ -110,20 +105,16 @@ class BatchStepController extends Controller
                 'reported_by_id' => $request->user()->id,
             ]);
 
-            return response()->json([
-                'message' => 'Issue reported successfully',
-                'data' => [
-                    'issue' => $issue,
+            return $this->success(
+                [
+                    'issue' => new IssueResource($issue),
                     'work_order_blocked' => $issue->issueType->is_blocking,
                 ],
-            ], 201);
+                __('Issue reported successfully'),
+                201
+            );
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to report issue',
-                'errors' => [
-                    'issue' => [$e->getMessage()],
-                ],
-            ], 422);
+            return $this->error('Failed to report issue', 422, ['issue' => [$e->getMessage()]]);
         }
     }
 }

@@ -2,11 +2,12 @@
 
 namespace App\Services\Auth;
 
+use App\Contracts\Services\AuthServiceInterface;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
-class AuthService
+class AuthService implements AuthServiceInterface
 {
     /**
      * Authenticate a user and generate API token.

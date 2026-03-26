@@ -2,9 +2,10 @@
 
 namespace App\Services\ProcessTemplate;
 
+use App\Contracts\Services\SnapshotServiceInterface;
 use App\Models\ProcessTemplate;
 
-class SnapshotService
+class SnapshotService implements SnapshotServiceInterface
 {
     /**
      * Create a JSONB snapshot of a process template.

@@ -5,14 +5,18 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\WorkOrder;
 use App\Models\Batch;
-use App\Services\WorkOrder\WorkOrderService;
+use App\Contracts\Services\WorkOrderServiceInterface;
+use App\Http\Resources\BatchResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class BatchController extends Controller
 {
+    use StandardApiResponse;
+
     public function __construct(
-        protected WorkOrderService $workOrderService
+        protected WorkOrderServiceInterface $workOrderService
     ) {}
 
     /**
@@ -30,9 +34,7 @@ class BatchController extends Controller
             ->orderBy('batch_number')
             ->get();
 
-        return response()->json([
-            'data' => $batches,
-        ]);
+        return BatchResource::collection($batches)->response();
     }
 
     /**
@@ -52,9 +54,7 @@ class BatchController extends Controller
             'steps.completedBy',
         ]);
 
-        return response()->json([
-            'data' => $batch,
-        ]);
+        return (new BatchResource($batch))->response();
     }
 
     /**
@@ -77,16 +77,15 @@ class BatchController extends Controller
         $allowOverproduction = config('openmmes.allow_overproduction', false);
 
         if (!$allowOverproduction && ($totalTargetQty - $workOrder->planned_qty) > 0.001) {
-            return response()->json([
-                'message' => 'Total batch quantity would exceed planned quantity',
-            ], 422);
+            return $this->error(__('Total batch quantity would exceed planned quantity'), 422);
         }
 
         $batch = $this->workOrderService->createBatch($workOrder, $validated['target_qty']);
 
-        return response()->json([
-            'message' => 'Batch created successfully',
-            'data' => $batch->load('steps'),
-        ], 201);
+        return $this->success(
+            new BatchResource($batch->load('steps')),
+            __('Batch created successfully'),
+            201
+        );
     }
 }

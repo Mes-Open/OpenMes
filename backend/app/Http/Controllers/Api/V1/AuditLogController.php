@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Http\Resources\AuditLogResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Response;
 
 class AuditLogController extends Controller
 {
+    use StandardApiResponse;
+
     /**
      * Get audit logs with filters.
      */
@@ -52,15 +56,7 @@ class AuditLogController extends Controller
         $perPage = $request->input('per_page', 20);
         $auditLogs = $query->paginate($perPage);
 
-        return response()->json([
-            'data' => $auditLogs->items(),
-            'meta' => [
-                'current_page' => $auditLogs->currentPage(),
-                'per_page' => $auditLogs->perPage(),
-                'total' => $auditLogs->total(),
-                'last_page' => $auditLogs->lastPage(),
-            ],
-        ]);
+        return $this->paginated($auditLogs, AuditLogResource::class);
     }
 
     /**
@@ -79,9 +75,7 @@ class AuditLogController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json([
-            'data' => $auditLogs,
-        ]);
+        return AuditLogResource::collection($auditLogs)->response();
     }
 
     /**

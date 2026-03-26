@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Line;
+use App\Http\Resources\LineResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class LineController extends Controller
 {
+    use StandardApiResponse;
+
     /**
      * Get list of lines (filtered by user's assigned lines for operators).
      *
@@ -27,9 +31,7 @@ class LineController extends Controller
             $lines = $user->lines()->where('is_active', true)->with('workstations')->orderBy('name')->get();
         }
 
-        return response()->json([
-            'data' => $lines,
-        ]);
+        return LineResource::collection($lines)->response();
     }
 
     /**
@@ -42,8 +44,6 @@ class LineController extends Controller
     {
         $line->load(['workstations', 'users']);
 
-        return response()->json([
-            'data' => $line,
-        ]);
+        return (new LineResource($line))->response();
     }
 }

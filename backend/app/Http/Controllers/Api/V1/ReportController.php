@@ -7,12 +7,15 @@ use App\Models\WorkOrder;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    use StandardApiResponse;
+
     /**
      * Generate production summary report
      */
@@ -67,7 +70,7 @@ class ReportController extends Controller
             'generated_at' => now()->toIso8601String(),
         ];
 
-        return response()->json(['data' => $summary]);
+        return $this->success($summary);
     }
 
     /**
@@ -125,7 +128,7 @@ class ReportController extends Controller
             'generated_at' => now()->toIso8601String(),
         ];
 
-        return response()->json(['data' => $report]);
+        return $this->success($report);
     }
 
     /**
@@ -201,7 +204,7 @@ class ReportController extends Controller
             'generated_at' => now()->toIso8601String(),
         ];
 
-        return response()->json(['data' => $report]);
+        return $this->success($report);
     }
 
     /**

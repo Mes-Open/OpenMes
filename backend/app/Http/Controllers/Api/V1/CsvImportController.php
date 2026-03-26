@@ -3,19 +3,23 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Services\CsvImport\CsvParserService;
-use App\Services\CsvImport\WorkOrderImportService;
+use App\Contracts\Services\CsvParserServiceInterface;
+use App\Contracts\Services\WorkOrderImportServiceInterface;
 use App\Models\CsvImport;
 use App\Models\CsvImportMapping;
+use App\Http\Resources\CsvImportResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
 class CsvImportController extends Controller
 {
+    use StandardApiResponse;
+
     public function __construct(
-        protected CsvParserService $csvParser,
-        protected WorkOrderImportService $importService
+        protected CsvParserServiceInterface $csvParser,
+        protected WorkOrderImportServiceInterface $importService
     ) {}
 
     /**
@@ -45,25 +49,22 @@ class CsvImportController extends Controller
                 'total_rows' => $parseResult['total_rows'],
             ], now()->addHours(2));
 
-            return response()->json([
-                'data' => [
+            return $this->success(
+                [
                     'upload_id' => $uploadId,
                     'filename' => $file->getClientOriginalName(),
                     'headers' => $parseResult['headers'],
                     'preview' => $parseResult['preview'],
                     'total_rows' => $parseResult['total_rows'],
                 ],
-                'message' => 'CSV uploaded successfully',
-            ]);
+                __('CSV uploaded successfully')
+            );
         } catch (\Exception $e) {
             Log::error('CSV upload failed', [
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json([
-                'message' => 'Failed to process CSV file',
-                'error' => $e->getMessage(),
-            ], 422);
+            return $this->error('Failed to process CSV file', 422, ['error' => $e->getMessage()]);
         }
     }
 
@@ -85,9 +86,7 @@ class CsvImportController extends Controller
         $uploadData = cache()->get("csv_upload_{$validated['upload_id']}");
 
         if (!$uploadData) {
-            return response()->json([
-                'message' => 'Upload session expired. Please re-upload the CSV file.',
-            ], 404);
+            return $this->error(__('Upload session expired. Please re-upload the CSV file.'), 404);
         }
 
         try {
@@ -98,10 +97,7 @@ class CsvImportController extends Controller
             );
 
             if (!empty($errors)) {
-                return response()->json([
-                    'message' => 'Invalid column mapping',
-                    'errors' => $errors,
-                ], 422);
+                return $this->error(__('Invalid column mapping'), 422, ['errors' => $errors]);
             }
 
             // Save mapping template if requested
@@ -133,24 +129,22 @@ class CsvImportController extends Controller
                 $validated['mapping']
             );
 
-            return response()->json([
-                'data' => [
+            return $this->success(
+                [
                     'import_id' => $csvImport->id,
                     'status' => 'PENDING',
                     'total_rows' => $uploadData['total_rows'],
                 ],
-                'message' => 'CSV import started. You will be notified when it completes.',
-            ], 202);
+                __('CSV import started. You will be notified when it completes.'),
+                202
+            );
         } catch (\Exception $e) {
             Log::error('CSV import execution failed', [
                 'upload_id' => $validated['upload_id'],
                 'error' => $e->getMessage(),
             ]);
 
-            return response()->json([
-                'message' => 'Failed to start CSV import',
-                'error' => $e->getMessage(),
-            ], 422);
+            return $this->error('Failed to start CSV import', 422, ['error' => $e->getMessage()]);
         }
     }
 
@@ -159,19 +153,7 @@ class CsvImportController extends Controller
      */
     public function status(CsvImport $csvImport): JsonResponse
     {
-        return response()->json([
-            'data' => [
-                'id' => $csvImport->id,
-                'filename' => $csvImport->filename,
-                'status' => $csvImport->status,
-                'total_rows' => $csvImport->total_rows,
-                'successful_rows' => $csvImport->successful_rows,
-                'failed_rows' => $csvImport->failed_rows,
-                'error_log' => $csvImport->error_log,
-                'started_at' => $csvImport->started_at,
-                'completed_at' => $csvImport->completed_at,
-            ],
-        ]);
+        return (new CsvImportResource($csvImport))->response();
     }
 
     /**
@@ -183,14 +165,7 @@ class CsvImportController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-        return response()->json([
-            'data' => $imports->items(),
-            'meta' => [
-                'current_page' => $imports->currentPage(),
-                'per_page' => $imports->perPage(),
-                'total' => $imports->total(),
-            ],
-        ]);
+        return $this->paginated($imports, CsvImportResource::class);
     }
 
     /**
@@ -203,9 +178,7 @@ class CsvImportController extends Controller
             ->orderBy('name')
             ->get();
 
-        return response()->json([
-            'data' => $mappings,
-        ]);
+        return $this->success($mappings);
     }
 
     /**
@@ -230,9 +203,6 @@ class CsvImportController extends Controller
             ]
         );
 
-        return response()->json([
-            'data' => $mapping,
-            'message' => 'Mapping template saved successfully',
-        ]);
+        return $this->success($mapping, __('Mapping template saved successfully'));
     }
 }

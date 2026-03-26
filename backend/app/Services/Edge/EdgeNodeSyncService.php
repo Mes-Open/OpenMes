@@ -2,11 +2,12 @@
 
 namespace App\Services\Edge;
 
+use App\Contracts\Services\EdgeNodeSyncServiceInterface;
 use App\Models\MachineEvent;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class EdgeNodeSyncService
+class EdgeNodeSyncService implements EdgeNodeSyncServiceInterface
 {
     /**
      * Process offline buffer and sync to Cloud backend.

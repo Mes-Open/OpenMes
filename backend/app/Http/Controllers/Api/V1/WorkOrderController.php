@@ -4,14 +4,18 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\WorkOrder;
-use App\Services\WorkOrder\WorkOrderService;
+use App\Contracts\Services\WorkOrderServiceInterface;
+use App\Http\Resources\WorkOrderResource;
+use App\Traits\StandardApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class WorkOrderController extends Controller
 {
+    use StandardApiResponse;
+
     public function __construct(
-        protected WorkOrderService $workOrderService
+        protected WorkOrderServiceInterface $workOrderService
     ) {}
 
     /**
@@ -29,9 +33,7 @@ class WorkOrderController extends Controller
 
         $workOrders = $this->workOrderService->getWorkOrdersForUser($user, $filters);
 
-        return response()->json([
-            'data' => $workOrders,
-        ]);
+        return WorkOrderResource::collection($workOrders)->response();
     }
 
     /**
@@ -52,9 +54,7 @@ class WorkOrderController extends Controller
             'issues.issueType',
         ]);
 
-        return response()->json([
-            'data' => $workOrder,
-        ]);
+        return (new WorkOrderResource($workOrder))->response();
     }
 
     /**
@@ -80,10 +80,11 @@ class WorkOrderController extends Controller
 
         $workOrder = $this->workOrderService->createWorkOrder($validated);
 
-        return response()->json([
-            'message' => 'Work order created successfully',
-            'data' => $workOrder->load(['line', 'productType']),
-        ], 201);
+        return $this->success(
+            new WorkOrderResource($workOrder->load(['line', 'productType'])),
+            __('Work order created successfully'),
+            201
+        );
     }
 
     /**
@@ -106,10 +107,10 @@ class WorkOrderController extends Controller
 
         $workOrder = $this->workOrderService->updateWorkOrder($workOrder, $validated);
 
-        return response()->json([
-            'message' => 'Work order updated successfully',
-            'data' => $workOrder->load(['line', 'productType']),
-        ]);
+        return $this->success(
+            new WorkOrderResource($workOrder->load(['line', 'productType'])),
+            __('Work order updated successfully')
+        );
     }
 
     /**
@@ -124,15 +125,11 @@ class WorkOrderController extends Controller
 
         // Only allow deletion of pending work orders
         if ($workOrder->status !== WorkOrder::STATUS_PENDING) {
-            return response()->json([
-                'message' => 'Only pending work orders can be deleted',
-            ], 422);
+            return $this->error(__('Only pending work orders can be deleted'), 422);
         }
 
         $workOrder->delete();
 
-        return response()->json([
-            'message' => 'Work order deleted successfully',
-        ]);
+        return $this->success(null, __('Work order deleted successfully'));
     }
 }

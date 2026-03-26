@@ -9,7 +9,7 @@ class LogWorkOrderCreated
 {
     public function handle(WorkOrderCreated $event): void
     {
-        Log::channel('daily')->info('[ExampleHooks] Work order created', [
+        Log::channel('daily')->info('[ExampleHooks] ' . __('Work order created'), [
             'order_no'    => $event->workOrder->order_no,
             'planned_qty' => $event->workOrder->planned_qty,
             'line_id'     => $event->workOrder->line_id,
