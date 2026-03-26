@@ -3,10 +3,8 @@
 # OpenMES
 
 ### Industrial-Grade Open-Source Manufacturing Execution System
-### Endüstriyel Sınıf Açık Kaynak Üretim Yürütme Sistemi
 
 *Advanced, flexible, and tablet-ready MES for small to medium manufacturers*
-*Küçük ve orta ölçekli üreticiler için gelişmiş, esnek ve tablet uyumlu MES*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
@@ -17,7 +15,7 @@
 
 ---
 
-## 🇺🇸 What is OpenMES?
+## What is OpenMES?
 
 **OpenMES** is a high-precision Manufacturing Execution System designed for modern workshops and factories. Transformed from a simple tracking app into an industrial platform, OpenMES solves real-world production challenges with its event-sourcing architecture, real-time machine integration, and advanced analytics engine.
 
@@ -29,29 +27,17 @@
 - 📊 **Digital Twin & Simulation** - Virtualize production flow and predict bottlenecks before they happen.
 - 🚀 **Fast Deployment** - Deploy an industrial MES in minutes with Docker.
 
-## 🇹🇷 OpenMES Nedir?
-
-**OpenMES**, modern atölyeler ve fabrikalar için tasarlanmış, yüksek hassasiyetli bir Üretim Yürütme Sistemidir. Basit bir iş takibi uygulamasından endüstriyel bir platforma dönüştürülen OpenMES; olay kaynaklı mimarisi, gerçek zamanlı makine entegrasyonu ve gelişmiş analitik motoruyla gerçek dünya üretim zorluklarını çözer.
-
-### Neden OpenMES?
-
-- 🏭 **Endüstriyel Güç** - Makine durumu takibi, araç ömür yönetimi ve yüksek hassasiyetli OEE.
-- 📱 **Önce Tablet Tasarımı** - Atölye operatörleri için dokunmatik optimizasyon.
-- 🔒 **Güvenlik & Uyum** - Granüler RBAC, denetim izleri ve güvenlik kapıları.
-- 📊 **Dijital İkiz & Simülasyon** - Üretim akışını sanallaştırın ve darboğazları tahmin edin.
-- 🚀 **Hızlı Kurulum** - Docker ile dakikalar içinde yayına alın.
-
 ---
 
-## Features / Özellikler
+## Features
 
-### Industrial Integration / Endüstriyel Entegrasyon
+### Industrial Integration
 - **Multi-Protocol Support**: Direct communication via MQTT and Modbus TCP.
 - **Machine State Tracking**: Real-time monitoring (RUNNING, FAULT, SETUP, IDLE).
 - **Event-Sourced Core**: Microsecond precision for total data integrity.
 - **Edge Computing**: Local buffering and cloud synchronization for unreliable networks.
 
-### Analytics & Traceability / Analiz ve İzlenebilirlik
+### Analytics & Traceability
 - **Real-Time OEE**: Automatic Availability, Performance, and Quality calculation.
 - **Fault Intelligence**: MTBF and MTTR analytics for maintenance planning.
 - **Traceability Graph**: Full "Birth Certificate" tracking from lot to serial number.
@@ -59,7 +45,7 @@
 
 ---
 
-## Architecture / Mimari
+## Architecture
 
 ```
 ┌────────────────────────────────┐
@@ -81,20 +67,20 @@
 
 ---
 
-## 🚀 Installation / Kurulum
+## 🚀 Installation
 
 ```bash
-# 1. Clone repository / Depoyu klonlayın
+# 1. Clone repository
 git clone https://github.com/Mes-Open/OpenMes.git
 cd OpenMes
 
-# 2. Start containers / Konteynerleri başlatın
+# 2. Start containers
 docker-compose up -d
 ```
 
 ---
 
-## 📄 License / Lisans
+## 📄 License
 
 OpenMES is open-source software licensed under the **MIT License**.
 
@@ -103,12 +89,9 @@ OpenMES is open-source software licensed under the **MIT License**.
 <div align="center">
 
 **Built with ❤️ for the factories of the future**
-**Geleceğin fabrikaları için ❤️ ile inşa edildi**
 
 Made by manufacturers, for manufacturers
-Üreticiler tarafından, üreticiler için yapıldı
 
 ⭐ If you find OpenMES useful, please give it a star!
-⭐ OpenMES'i yararlı bulursanız lütfen bir yıldız verin!
 
 </div>
