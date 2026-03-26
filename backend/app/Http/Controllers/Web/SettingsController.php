@@ -21,6 +21,20 @@ class SettingsController extends Controller
     }
 
     /**
+     * Set application language
+     */
+    public function setLanguage(Request $request)
+    {
+        $validated = $request->validate([
+            'locale' => 'required|in:en,tr',
+        ]);
+
+        $request->session()->put('locale', $validated['locale']);
+
+        return back()->with('success', __('Language changed successfully.'));
+    }
+
+    /**
      * Show change password form
      */
     public function showChangePasswordForm()

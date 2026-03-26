@@ -633,6 +633,50 @@
     {{-- ── Footer ────────────────────────────────────────────────── --}}
     <div class="border-t border-slate-700/60 shrink-0">
 
+        {{-- Language switcher --}}
+        <div class="relative group px-2 pt-2">
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open"
+                        class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium
+                               transition-colors text-slate-300 hover:bg-slate-700 hover:text-white"
+                        :class="{'justify-center !px-0': collapsed && !mobileOpen}">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 11.37 9.198 15.53 5.347 18"/>
+                    </svg>
+                    <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left uppercase">
+                        {{ app()->getLocale() }}
+                    </span>
+                    <svg x-show="!collapsed || mobileOpen" x-cloak
+                         class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': open}"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+
+                {{-- Dropdown --}}
+                <div x-show="open" @click.away="open = false"
+                     class="absolute bottom-full left-0 w-full mb-1 bg-slate-800 rounded-lg shadow-xl overflow-hidden z-50 border border-slate-700">
+                    <form action="{{ route('settings.set-language') }}" method="POST">
+                        @csrf
+                        <button name="locale" value="en" type="submit"
+                                class="flex items-center w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white {{ app()->getLocale() == 'en' ? 'bg-blue-600/20 text-blue-400' : '' }}">
+                            English
+                        </button>
+                        <button name="locale" value="tr" type="submit"
+                                class="flex items-center w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white {{ app()->getLocale() == 'tr' ? 'bg-blue-600/20 text-blue-400' : '' }}">
+                            Türkçe
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <span x-show="collapsed && !mobileOpen" x-cloak
+                  class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
+                         text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
+                         group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+                {{ __('Language') }} ({{ strtoupper(app()->getLocale()) }})
+            </span>
+        </div>
+
         {{-- Dark mode toggle --}}
         <div class="relative group px-2 pt-2">
             <button @click="toggleDark()"

@@ -75,6 +75,7 @@ Route::middleware('auth')->group(function () {
 
     // Settings
     Route::prefix('settings')->name('settings.')->group(function () {
+        Route::post('/language', [\App\Http\Controllers\Web\SettingsController::class, 'setLanguage'])->name('set-language');
         Route::get('/', [\App\Http\Controllers\Web\SettingsController::class, 'index'])->name('index');
         Route::get('/change-password', [\App\Http\Controllers\Web\SettingsController::class, 'showChangePasswordForm'])->name('change-password');
         Route::post('/change-password', [\App\Http\Controllers\Web\SettingsController::class, 'updatePassword'])->name('update-password');
