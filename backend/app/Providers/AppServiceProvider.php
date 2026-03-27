@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Contracts\Services\AuthServiceInterface::class, \App\Services\Auth\AuthService::class);
         $this->app->singleton(\App\Contracts\Services\FactorySecurityServiceInterface::class, \App\Services\Security\FactorySecurityService::class);
         $this->app->singleton(\App\Contracts\Services\MachineMonitorServiceInterface::class, \App\Services\Industrial\MachineMonitorService::class);
+        $this->app->singleton(\App\Services\Industrial\MachineAdapterFactory::class, fn() => new \App\Services\Industrial\MachineAdapterFactory());
         $this->app->singleton(\App\Contracts\Services\LineageGraphServiceInterface::class, \App\Services\Traceability\LineageGraphService::class);
         $this->app->singleton(\App\Contracts\Services\OeeCalculationServiceInterface::class, \App\Services\Analytics\OeeCalculationService::class);
         $this->app->singleton(\App\Contracts\Services\FaultIntelligenceServiceInterface::class, \App\Services\Analytics\FaultIntelligenceService::class);

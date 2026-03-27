@@ -64,7 +64,7 @@ class IssueController extends Controller
     {
         $issue->load(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'batchStep']);
 
-        return (new IssueResource($issue))->response();
+        return $this->success(new IssueResource($issue));
     }
 
     /**

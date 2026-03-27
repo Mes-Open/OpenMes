@@ -153,7 +153,7 @@ class CsvImportController extends Controller
      */
     public function status(CsvImport $csvImport): JsonResponse
     {
-        return (new CsvImportResource($csvImport))->response();
+        return $this->success(new CsvImportResource($csvImport));
     }
 
     /**

@@ -173,10 +173,14 @@ class ModuleManager
             if (!is_file($manifestPath)) continue;
 
             $manifest = json_decode(file_get_contents($manifestPath), true);
-            $provider  = $manifest['provider'] ?? null;
+            $providerClass  = $manifest['provider'] ?? null;
 
-            if ($provider && class_exists($provider)) {
-                $app->register($provider);
+            if ($providerClass && class_exists($providerClass)) {
+                $provider = $app->register($providerClass);
+
+                // If the provider implements ModuleContract, we can call boot/register explicitly
+                // although Laravel already calls register/boot on providers.
+                // This ensures consistency with our formalized module structure.
             }
         }
     }

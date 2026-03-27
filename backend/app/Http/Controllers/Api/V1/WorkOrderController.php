@@ -33,7 +33,7 @@ class WorkOrderController extends Controller
 
         $workOrders = $this->workOrderService->getWorkOrdersForUser($user, $filters);
 
-        return WorkOrderResource::collection($workOrders)->response();
+        return $this->success(WorkOrderResource::collection($workOrders));
     }
 
     /**
@@ -54,7 +54,7 @@ class WorkOrderController extends Controller
             'issues.issueType',
         ]);
 
-        return (new WorkOrderResource($workOrder))->response();
+        return $this->success(new WorkOrderResource($workOrder));
     }
 
     /**

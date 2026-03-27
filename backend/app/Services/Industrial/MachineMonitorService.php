@@ -31,7 +31,9 @@ class MachineMonitorService implements MachineMonitorServiceInterface
             }
 
             // State changed - end the current state and start a new one
+            $oldStateName = 'IDLE';
             if ($currentState) {
+                $oldStateName = $currentState->state;
                 $now = now();
                 $currentState->update([
                     'ended_at' => $now,
@@ -39,7 +41,7 @@ class MachineMonitorService implements MachineMonitorServiceInterface
                 ]);
             }
 
-            WorkstationState::create([
+            $newStateRecord = WorkstationState::create([
                 'workstation_id' => $workstation->id,
                 'state' => $machineState,
                 'started_at' => now(),
@@ -47,6 +49,13 @@ class MachineMonitorService implements MachineMonitorServiceInterface
                     'telemetry' => $machine->getTelemetry(),
                 ],
             ]);
+
+            event(new \App\Events\Industrial\MachineStateChanged(
+                $workstation,
+                $oldStateName,
+                $machineState,
+                $newStateRecord
+            ));
 
             // If state is STOPPED or FAULTED, trigger a potential downtime event
             if (in_array($machineState, ['STOPPED', 'FAULTED'])) {

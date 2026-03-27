@@ -31,7 +31,7 @@ class LineController extends Controller
             $lines = $user->lines()->where('is_active', true)->with('workstations')->orderBy('name')->get();
         }
 
-        return LineResource::collection($lines)->response();
+        return $this->success(LineResource::collection($lines));
     }
 
     /**
@@ -44,6 +44,6 @@ class LineController extends Controller
     {
         $line->load(['workstations', 'users']);
 
-        return (new LineResource($line))->response();
+        return $this->success(new LineResource($line));
     }
 }

@@ -75,7 +75,7 @@ class AuditLogController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return AuditLogResource::collection($auditLogs)->response();
+        return $this->success(AuditLogResource::collection($auditLogs));
     }
 
     /**

@@ -109,6 +109,8 @@ class IssueService implements IssueServiceInterface
                 'closed_at' => now(),
             ]);
 
+            event(new \App\Events\Issue\IssueClosed($issue));
+
             Log::info('Issue closed', [
                 'issue_id' => $issue->id,
             ]);

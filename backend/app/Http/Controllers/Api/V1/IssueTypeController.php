@@ -29,7 +29,7 @@ class IssueTypeController extends Controller
             ->orderBy('name')
             ->get();
 
-        return IssueTypeResource::collection($issueTypes)->response();
+        return $this->success(IssueTypeResource::collection($issueTypes));
     }
 
     /**
@@ -37,7 +37,7 @@ class IssueTypeController extends Controller
      */
     public function show(IssueType $issueType): JsonResponse
     {
-        return (new IssueTypeResource($issueType))->response();
+        return $this->success(new IssueTypeResource($issueType));
     }
 
     /**

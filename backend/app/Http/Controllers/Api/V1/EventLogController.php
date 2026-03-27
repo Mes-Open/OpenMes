@@ -69,6 +69,6 @@ class EventLogController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return EventLogResource::collection($eventLogs)->response();
+        return $this->success(EventLogResource::collection($eventLogs));
     }
 }
