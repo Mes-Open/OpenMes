@@ -77,6 +77,22 @@ class Workstation extends Model
     }
 
     /**
+     * Get the production cycles for this workstation.
+     */
+    public function productionCycles(): HasMany
+    {
+        return $this->hasMany(ProductionCycle::class);
+    }
+
+    /**
+     * Get the quality events for this workstation.
+     */
+    public function qualityEvents(): HasMany
+    {
+        return $this->hasMany(QualityEvent::class);
+    }
+
+    /**
      * Get the current state of the workstation.
      */
     public function currentState(): ?WorkstationState

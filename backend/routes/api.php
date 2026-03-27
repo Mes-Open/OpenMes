@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ProductionIntelligenceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,4 +107,15 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/reports/batch-completion', [ReportController::class, 'batchCompletion']);
     Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
     Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
+
+    // Production Intelligence (Industrial Analytics)
+    Route::prefix('pi')->group(function () {
+        Route::get('/kpi/oee/{workstation}', [ProductionIntelligenceController::class, 'getOee']);
+        Route::get('/kpi/ooe/{workstation}', [ProductionIntelligenceController::class, 'getOoe']);
+        Route::get('/kpi/teep/{workstation}', [ProductionIntelligenceController::class, 'getTeep']);
+        Route::get('/losses/summary/{workstation}', [ProductionIntelligenceController::class, 'getLossSummary']);
+        Route::get('/losses/pareto/{workstation}', [ProductionIntelligenceController::class, 'getParetoAnalysis']);
+        Route::get('/trends/oee/{workstation}', [ProductionIntelligenceController::class, 'getTrends']);
+        Route::get('/tools/performance/{tool}', [ProductionIntelligenceController::class, 'getToolPerformance']);
+    });
 });
