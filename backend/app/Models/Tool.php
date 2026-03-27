@@ -48,4 +48,20 @@ class Tool extends Model
     {
         return $this->hasMany(MaintenanceEvent::class);
     }
+
+    /**
+     * Get the events for this tool.
+     */
+    public function events(): HasMany
+    {
+        return $this->hasMany(ToolEvent::class);
+    }
+
+    /**
+     * Get the production cycles using this tool.
+     */
+    public function productionCycles(): HasMany
+    {
+        return $this->hasMany(ProductionCycle::class);
+    }
 }
