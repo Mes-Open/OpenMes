@@ -9,12 +9,24 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tools', function (Blueprint $table) {
-            $table->integer('max_cycles')->nullable(); // Max uses before maintenance
-            $table->integer('current_cycles')->default(0);
-            $table->float('wear_percentage')->default(0);
-            $table->timestamp('last_maintenance_at')->nullable();
-            $table->timestamp('decommissioned_at')->nullable();
-            $table->jsonb('specs')->nullable(); // Industrial specs (RPM, Pressure, etc.)
+            if (!Schema::hasColumn('tools', 'max_cycles')) {
+                $table->integer('max_cycles')->nullable();
+            }
+            if (!Schema::hasColumn('tools', 'current_cycles')) {
+                $table->integer('current_cycles')->default(0);
+            }
+            if (!Schema::hasColumn('tools', 'wear_percentage')) {
+                $table->float('wear_percentage')->default(0);
+            }
+            if (!Schema::hasColumn('tools', 'last_maintenance_at')) {
+                $table->timestamp('last_maintenance_at')->nullable();
+            }
+            if (!Schema::hasColumn('tools', 'decommissioned_at')) {
+                $table->timestamp('decommissioned_at')->nullable();
+            }
+            if (!Schema::hasColumn('tools', 'specs')) {
+                $table->jsonb('specs')->nullable();
+            }
         });
     }
 

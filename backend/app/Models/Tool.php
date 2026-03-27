@@ -24,6 +24,12 @@ class Tool extends Model
         'workstation_type_id',
         'status',
         'next_service_at',
+        'max_cycles',
+        'current_cycles',
+        'wear_percentage',
+        'last_maintenance_at',
+        'decommissioned_at',
+        'specs',
     ];
 
     protected function casts(): array
