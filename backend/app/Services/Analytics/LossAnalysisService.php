@@ -34,7 +34,7 @@ class LossAnalysisService
         ];
 
         foreach ($downtimeEvents as $event) {
-            $durationSecs = ($event->ended_at ? Carbon::parse($event->ended_at) : now())->diffInSeconds(Carbon::parse($event->started_at));
+            $durationSecs = abs(($event->ended_at ? Carbon::parse($event->ended_at) : now())->diffInSeconds(Carbon::parse($event->started_at)));
 
             // Map anomaly reasons to loss categories if possible
             $category = $event->loss_category ?? $event->downtime_category;

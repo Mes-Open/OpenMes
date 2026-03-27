@@ -41,8 +41,16 @@ class OeeCalculationService implements OeeCalculationServiceInterface
             $performance = $runTimeSeconds > 0 ? min(1, $runTimeSeconds / max(1, $totalTime - $unplannedDowntimeSeconds)) : 0;
 
             // 3. Quality = Good Parts / Total Parts
-            // In a real MES, this would pull from scrap/reject logs
-            $quality = 0.98; // Defaulting to 98% quality as a baseline for calculation
+            $scrapQuantity = $workstation->qualityEvents()
+                ->whereIn('event_type', ['SCRAP', 'REJECTED'])
+                ->whereBetween('occurred_at', [$roundedStart, $roundedEnd])
+                ->sum('quantity');
+
+            $totalProduced = $workstation->productionCycles()
+                ->whereBetween('started_at', [$roundedStart, $roundedEnd])
+                ->count();
+
+            $quality = $totalProduced > 0 ? max(0, ($totalProduced - $scrapQuantity) / $totalProduced) : 1.0;
 
             $oee = $availability * $performance * $quality;
 

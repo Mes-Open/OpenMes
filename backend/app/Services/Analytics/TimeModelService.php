@@ -67,7 +67,8 @@ class TimeModelService
                 'performance_loss_secs' => (float)$performanceLoss,
                 'quality_loss_secs' => (float)$qualityLoss,
                 'minor_stops_secs' => (float)$minorStopsTime,
-                'idle_gaps_secs' => max(0, $performanceLoss - $minorStopsTime), // Estimation of idle time not captured by cycles or downtime
+                'reduced_speed_secs' => max(0, $performanceLoss - $minorStopsTime), // Estimation of idle time not captured by cycles or downtime
+                'idle_gaps_secs' => max(0, $performanceLoss - $minorStopsTime), // Alias for reduced speed in some contexts
             ]
         ];
     }
