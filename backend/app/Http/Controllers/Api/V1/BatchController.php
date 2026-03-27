@@ -34,7 +34,7 @@ class BatchController extends Controller
             ->orderBy('batch_number')
             ->get();
 
-        return BatchResource::collection($batches)->response();
+        return $this->success(BatchResource::collection($batches));
     }
 
     /**
@@ -54,7 +54,7 @@ class BatchController extends Controller
             'steps.completedBy',
         ]);
 
-        return (new BatchResource($batch))->response();
+        return $this->success(new BatchResource($batch));
     }
 
     /**

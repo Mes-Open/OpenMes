@@ -74,7 +74,10 @@ class WorkOrderService implements WorkOrderServiceInterface
             'description' => $data['description'] ?? $workOrder->description,
         ]);
 
-        return $workOrder->fresh();
+        $freshWorkOrder = $workOrder->fresh();
+        event(new \App\Events\WorkOrder\WorkOrderUpdated($freshWorkOrder, $data));
+
+        return $freshWorkOrder;
     }
 
     /**

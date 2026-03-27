@@ -16,7 +16,7 @@ class LineageGraphService implements LineageGraphServiceInterface
      */
     public function recordLineage(Workstation $workstation, User $operator, Batch $batch, BatchStep $step, array $data): MaterialLineage
     {
-        return MaterialLineage::create([
+        $lineage = MaterialLineage::create([
             'material_lot_no' => $data['material_lot_no'],
             'final_unit_no' => $data['final_unit_no'] ?? null,
             'workstation_id' => $workstation->id,
@@ -27,6 +27,10 @@ class LineageGraphService implements LineageGraphServiceInterface
             'parameters' => $data['parameters'], // Sensor snapshots at processing time
             'processed_at' => now()->format('Y-m-d H:i:s.u'),
         ]);
+
+        event(new \App\Events\Traceability\LineageRecorded($lineage));
+
+        return $lineage;
     }
 
     /**

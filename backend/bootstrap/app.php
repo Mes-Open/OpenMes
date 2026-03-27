@@ -33,29 +33,31 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
             if ($request->is('api/*')) {
                 $status = 500;
-                $message = $e->getMessage() ?: 'Internal Server Error';
+                $message = $e->getMessage() ?: __('Internal Server Error');
+                $errors = null;
 
                 if ($e instanceof \Illuminate\Validation\ValidationException) {
                     $status = 422;
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Validation Failed',
-                        'errors' => $e->errors(),
-                        'correlation_id' => $request->header('X-Correlation-ID'),
-                    ], $status);
-                }
-
-                if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
-                    $status = $e->getStatusCode();
-                }
-
-                if ($e instanceof \Illuminate\Auth\AuthenticationException) {
+                    $message = __('Validation Failed');
+                    $errors = $e->errors();
+                } elseif ($e instanceof \Illuminate\Auth\AuthenticationException) {
                     $status = 401;
+                    $message = __('Unauthenticated');
+                } elseif ($e instanceof \Illuminate\Auth\Access\AuthorizationException || $e instanceof \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException) {
+                    $status = 403;
+                    $message = __('This action is unauthorized.');
+                } elseif ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException || $e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
+                    $status = 404;
+                    $message = __('Resource not found.');
+                } elseif ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                    $status = $e->getStatusCode();
                 }
 
                 return response()->json([
                     'status' => 'error',
                     'message' => $message,
+                    'errors' => $errors,
+                    'locale' => app()->getLocale(),
                     'correlation_id' => $request->header('X-Correlation-ID'),
                 ], $status);
             }
