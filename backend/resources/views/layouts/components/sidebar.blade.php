@@ -558,6 +558,50 @@
                 </div>
             </div>
 
+            {{-- ── CONNECTIVITY ─── --}}
+            @hasrole('Admin|Supervisor')
+            <div class="px-2">
+                <div class="relative group">
+                    <button @click="expandGroup('connectivity')"
+                            class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium
+                                   transition-colors text-slate-300 hover:bg-slate-700 hover:text-white"
+                            :class="{
+                                'justify-center !px-0':    collapsed && !mobileOpen,
+                                'bg-slate-700/50 text-white': connectivity && (!collapsed || mobileOpen)
+                            }">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                        </svg>
+                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Connectivity</span>
+                        <svg x-show="!collapsed || mobileOpen" x-cloak
+                             class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': connectivity}"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <span x-show="collapsed && !mobileOpen" x-cloak
+                          class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
+                                 text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
+                                 group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+                        Connectivity
+                    </span>
+                </div>
+                <div x-show="connectivity && (!collapsed || mobileOpen)" x-cloak
+                     x-transition:enter="transition-opacity ease-out duration-150"
+                     x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition-opacity ease-in duration-100"
+                     x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                     class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
+                    <a href="{{ route('admin.connectivity.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.connectivity.index') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Overview
+                    </a>
+                    <a href="{{ route('admin.connectivity.mqtt.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.connectivity.mqtt.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>MQTT
+                    </a>
+                </div>
+            </div>
+            @endhasrole
+
             {{-- ── ADMIN GROUP ─── --}}
             <div class="px-2">
                 <div class="relative group">

@@ -18,6 +18,10 @@ if ! grep -q "APP_KEY=base64:" .env; then
     echo "[OpenMES] APP_KEY set successfully."
 fi
 
+# ── Clear stale bootstrap cache ─────────────────────────────────────────────
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php
+php artisan package:discover --ansi 2>/dev/null || true
+
 # ── Migrations ───────────────────────────────────────────────────────────────
 echo "[OpenMES] Running migrations..."
 php artisan migrate --force

@@ -47,12 +47,44 @@ services:
     networks:
       - openmmes-network
 
+  # ── MQTT listener daemon ──────────────────────────────────────────────────
+  # One instance per active MQTT machine_connection.
+  # Set MQTT_CONNECTION_ID to the ID from the admin panel.
+  # Example: MQTT_CONNECTION_ID=1 docker compose up -d mqtt-listener
+  mqtt-listener:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: openmmes-mqtt-listener
+    command: ["php", "artisan", "mqtt:listen", "--connection=${MQTT_CONNECTION_ID:-1}"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      BROADCAST_CONNECTION: log
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+    profiles:
+      - connectivity
+
   caddy:
     image: caddy:2-alpine
     container_name: openmmes-caddy
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
