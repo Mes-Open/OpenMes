@@ -1,0 +1,8 @@
+{
+    "name": "Packaging",
+    "display_name": "Packaging Station",
+    "description": "EAN barcode scanning station for tracking packed quantities on completed work orders.",
+    "version": "1.0.0",
+    "provider": "Modules\\Packaging\\Providers\\PackagingServiceProvider",
+    "author": "OpenMES"
+}
