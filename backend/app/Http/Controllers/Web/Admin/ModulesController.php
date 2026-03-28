@@ -20,6 +20,16 @@ class ModulesController extends Controller
         return view('admin.modules.index', compact('modules'));
     }
 
+    public function install()
+    {
+        return view('admin.modules.install');
+    }
+
+    public function store()
+    {
+        return view('admin.modules.store');
+    }
+
     public function enable(Request $request, string $name)
     {
         $modules = $this->manager->discover();
