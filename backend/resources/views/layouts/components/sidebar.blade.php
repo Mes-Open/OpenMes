@@ -600,9 +600,6 @@
                     <a href="{{ route('admin.audit-logs') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.audit-logs') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Audit Logs
                     </a>
-                    <a href="{{ route('admin.modules.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Modules
-                    </a>
                     @foreach($menuRegistry->getItems('admin') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
                             <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ $item['label'] }}
@@ -610,6 +607,56 @@
                     @endforeach
                 </div>
             </div>
+
+            {{-- Moduły --}}
+            @if(auth()->user()?->hasRole('Admin'))
+            <div class="px-2 relative group">
+                <button @click="modulesGroup = !modulesGroup"
+                        class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium
+                               transition-colors text-slate-300 hover:bg-slate-700 hover:text-white"
+                        :class="{
+                            'justify-center !px-0':    collapsed && !mobileOpen,
+                            'bg-slate-700/50 text-white': modulesGroup && (!collapsed || mobileOpen)
+                        }">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                    <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Moduły</span>
+                    <svg x-show="!collapsed || mobileOpen" x-cloak
+                         class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': modulesGroup}"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <span x-show="collapsed && !mobileOpen" x-cloak
+                      class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
+                             text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
+                             group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+                    Moduły
+                </span>
+                <div x-show="modulesGroup && (!collapsed || mobileOpen)" x-cloak
+                     x-transition:enter="transition-opacity ease-out duration-150"
+                     x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition-opacity ease-in duration-100"
+                     x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                     class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
+                    <a href="{{ route('admin.modules.index') }}"
+                       class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.index') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Zainstalowane
+                    </a>
+                    <a href="{{ route('admin.modules.install') }}"
+                       class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.install') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Do zainstalowania
+                    </a>
+                    <span class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none" title="Wkrótce dostępne">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>
+                        Sklep
+                        <span class="ml-auto text-[10px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">soon</span>
+                    </span>
+                </div>
+            </div>
+            @endif
 
             {{-- Module-registered extra groups --}}
             @foreach($menuRegistry->getGroups() as $group)
