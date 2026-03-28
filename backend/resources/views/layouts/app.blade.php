@@ -41,12 +41,13 @@
          structure: false,
          hr: false,
          maintenance: false,
+         connectivity: false,
          adminGroup: false,
          toggle() {
              this.collapsed = !this.collapsed;
              if (this.collapsed) {
                  this.orders = this.production = this.linesGroup = this.structure =
-                 this.hr = this.maintenance = this.adminGroup = false;
+                 this.hr = this.maintenance = this.connectivity = this.adminGroup = false;
              }
              localStorage.setItem('sb', this.collapsed ? '1' : '0');
          },
@@ -78,6 +79,9 @@
              @endif
              @if(request()->routeIs('admin.maintenance-events.*', 'admin.tools.*', 'admin.cost-sources.*', 'admin.production-anomalies.*'))
                  maintenance = true;
+             @endif
+             @if(request()->routeIs('admin.connectivity.*'))
+                 connectivity = true;
              @endif
              @if(request()->routeIs('admin.users.*', 'admin.reports', 'admin.audit-logs', 'admin.modules.*'))
                  adminGroup = true;
