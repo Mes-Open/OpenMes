@@ -235,6 +235,8 @@ Route::middleware('auth')->group(function () {
 
         // Modules
         Route::get('/modules', [AdminModulesController::class, 'index'])->name('modules.index');
+        Route::get('/modules/install', [AdminModulesController::class, 'install'])->name('modules.install');
+        Route::get('/modules/store', [AdminModulesController::class, 'store'])->name('modules.store');
         Route::post('/modules/upload', [AdminModulesController::class, 'upload'])->name('modules.upload');
         Route::post('/modules/{name}/enable', [AdminModulesController::class, 'enable'])->name('modules.enable');
         Route::post('/modules/{name}/disable', [AdminModulesController::class, 'disable'])->name('modules.disable');
