@@ -12,6 +12,11 @@ class Tenant extends Model
 
     protected $fillable = [
         'name',
+        'expires_at',
+    ];
+
+    protected $casts = [
+        'expires_at' => 'datetime',
     ];
 
     public function users(): HasMany

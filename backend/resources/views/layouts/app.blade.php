@@ -22,6 +22,15 @@
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    @if(app()->environment('production'))
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "w64eka00as");
+    </script>
+    @endif
 </head>
 <body class="bg-gray-100 overflow-hidden dark:bg-gray-900">
 
@@ -146,6 +155,40 @@
 
         {{-- Update banner --}}
         @include('layouts.components.update-banner')
+
+        @if(!empty($demoExpiresAt))
+        <div
+            x-data="{
+                expires: {{ $demoExpiresAt->timestamp * 1000 }},
+                remaining: '',
+                urgent: false,
+                init() {
+                    this.tick();
+                    setInterval(() => this.tick(), 1000);
+                },
+                tick() {
+                    const diff = this.expires - Date.now();
+                    if (diff <= 0) {
+                        this.remaining = 'Account expired — refresh to log out';
+                        this.urgent = true;
+                        return;
+                    }
+                    const h = Math.floor(diff / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+                    this.remaining = (h > 0 ? h + 'h ' : '') + m + 'm ' + s + 's';
+                    this.urgent = diff < 600000;
+                }
+            }"
+            :class="urgent ? 'bg-red-600' : 'bg-amber-500'"
+            class="flex items-center justify-center gap-2 px-4 py-1.5 text-sm font-medium text-white"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Demo account — will be deleted in: <strong x-text="remaining"></strong></span>
+        </div>
+        @endif
 
         {{-- Scrollable content --}}
         <main class="flex-1 overflow-auto p-4 md:p-6 lg:p-8">

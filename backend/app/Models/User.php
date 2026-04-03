@@ -62,6 +62,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the tenant this user belongs to.
+     */
+    public function tenant(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    /**
      * Get the lines assigned to this user.
      */
     public function lines(): BelongsToMany
