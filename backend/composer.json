@@ -13,6 +13,7 @@
         "league/csv": "^9.28",
         "livewire/livewire": "^4.1",
         "maatwebsite/excel": "^3.1",
+        "php-mqtt/client": "^2.0",
         "spatie/laravel-permission": "^7.1"
     },
     "require-dev": {

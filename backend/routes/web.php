@@ -37,6 +37,10 @@ use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\ToolController;
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
+use App\Http\Controllers\Web\Admin\Connectivity\ConnectivityController;
+use App\Http\Controllers\Web\Admin\Connectivity\MqttConnectionController;
+use App\Http\Controllers\Web\Admin\Connectivity\MachineTopicController;
+use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
 
 // Installation routes (no middleware)
 Route::prefix('install')->name('install.')->group(function () {
@@ -296,6 +300,30 @@ Route::middleware('auth')->group(function () {
         // Cost Sources
         Route::resource('cost-sources', CostSourceController::class)->except(['show']);
         Route::post('/cost-sources/{costSource}/toggle-active', [CostSourceController::class, 'toggleActive'])->name('cost-sources.toggle-active');
+
+        // ── Connectivity ──────────────────────────────────────────────────────
+        Route::get('/connectivity', [ConnectivityController::class, 'index'])->name('connectivity.index');
+
+        // MQTT connections
+        Route::get('/connectivity/mqtt', [MqttConnectionController::class, 'index'])->name('connectivity.mqtt.index');
+        Route::get('/connectivity/mqtt/create', [MqttConnectionController::class, 'create'])->name('connectivity.mqtt.create');
+        Route::post('/connectivity/mqtt', [MqttConnectionController::class, 'store'])->name('connectivity.mqtt.store');
+        Route::get('/connectivity/mqtt/{mqttConnection}', [MqttConnectionController::class, 'show'])->name('connectivity.mqtt.show');
+        Route::get('/connectivity/mqtt/{mqttConnection}/edit', [MqttConnectionController::class, 'edit'])->name('connectivity.mqtt.edit');
+        Route::put('/connectivity/mqtt/{mqttConnection}', [MqttConnectionController::class, 'update'])->name('connectivity.mqtt.update');
+        Route::delete('/connectivity/mqtt/{mqttConnection}', [MqttConnectionController::class, 'destroy'])->name('connectivity.mqtt.destroy');
+        Route::post('/connectivity/mqtt/{mqttConnection}/toggle-active', [MqttConnectionController::class, 'toggleActive'])->name('connectivity.mqtt.toggle-active');
+        Route::get('/connectivity/mqtt/{mqttConnection}/messages', [MqttConnectionController::class, 'messages'])->name('connectivity.mqtt.messages');
+
+        // Topics (nested under a connection)
+        Route::post('/connectivity/mqtt/{mqttConnection}/topics', [MachineTopicController::class, 'store'])->name('connectivity.mqtt.topics.store');
+        Route::put('/connectivity/mqtt/{mqttConnection}/topics/{topic}', [MachineTopicController::class, 'update'])->name('connectivity.mqtt.topics.update');
+        Route::delete('/connectivity/mqtt/{mqttConnection}/topics/{topic}', [MachineTopicController::class, 'destroy'])->name('connectivity.mqtt.topics.destroy');
+
+        // Mappings (nested under topic)
+        Route::post('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings', [TopicMappingController::class, 'store'])->name('connectivity.mqtt.topics.mappings.store');
+        Route::put('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'update'])->name('connectivity.mqtt.topics.mappings.update');
+        Route::delete('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'destroy'])->name('connectivity.mqtt.topics.mappings.destroy');
 
         // ── Gate 7: Maintenance ───────────────────────────────────────────────
         // Tools
