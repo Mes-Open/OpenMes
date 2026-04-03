@@ -32,6 +32,18 @@ class AppServiceProvider extends ServiceProvider
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
         View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
 
+        // Demo account expiry — passed to layout so the countdown banner can render
+        View::composer('layouts.app', function ($view) {
+            $expiresAt = null;
+            try {
+                if (Auth::hasUser()) {
+                    $tenant = Auth::user()->tenant;
+                    $expiresAt = $tenant?->expires_at;
+                }
+            } catch (\Throwable) {}
+            $view->with('demoExpiresAt', $expiresAt);
+        });
+
         // Alert badge count — only computed when user is authenticated Admin/Supervisor
         View::composer('layouts.components.sidebar', function ($view) {
             $alertCount = 0;
