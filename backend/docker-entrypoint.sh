@@ -78,4 +78,7 @@ php artisan view:cache
 
 echo "[OpenMES] Ready at http://localhost:8080"
 
+# ── Scheduler (runs every 60s in background) ─────────────────────────────────
+(while true; do php artisan schedule:run >> storage/logs/scheduler.log 2>&1; sleep 60; done) &
+
 exec "$@"

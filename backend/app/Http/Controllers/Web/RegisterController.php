@@ -36,7 +36,8 @@ class RegisterController extends Controller
         RateLimiter::hit($key, 60);
 
         $tenant = Tenant::create([
-            'name' => $request->name . "'s workspace",
+            'name'       => $request->name . "'s workspace",
+            'expires_at' => now()->addHours(3),
         ]);
 
         $user = User::withoutGlobalScopes()->create([
