@@ -11,6 +11,9 @@
 [![Livewire](https://img.shields.io/badge/Livewire-4-4E56A6?logo=livewire&logoColor=white)](https://livewire.laravel.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 
+**🚀 [Try the live demo → demo-2.getopenmes.com](https://demo-2.getopenmes.com/register)**
+*Free demo account — active for 3 hours, no credit card required*
+
 </div>
 
 ---
