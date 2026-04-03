@@ -87,11 +87,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git fetch origin main
+          git checkout main
           git pull origin main
           sed -i "s/'current' => '.*'/'current' => '${VERSION}'/" backend/config/version.php
           git add backend/config/version.php
-          git diff --cached --quiet && echo "No change needed" || git commit -m "chore: bump version to ${VERSION}"
-          git push origin main
+          if git diff --cached --quiet; then
+            echo "Version already set to ${VERSION}, no commit needed."
+          else
+            git commit -m "chore: bump version to ${VERSION}"
+            git push origin main
+          fi
 
       - name: Install PHP dependencies
         working-directory: backend
