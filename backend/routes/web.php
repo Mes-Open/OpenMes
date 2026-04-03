@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\RegisterController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
@@ -70,6 +71,8 @@ Route::get('/offline', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/register', [RegisterController::class, 'show'])->name('register');
+    Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:5,1');
 });
 
 // Authenticated routes
