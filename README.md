@@ -122,6 +122,47 @@ Event::listen(WorkOrderCompleted::class, function ($event) {
 
 ---
 
+## 📦 Built-in Modules
+
+OpenMES ships with optional modules that can be enabled from **Admin → Modules**.
+
+### Packaging — EAN Barcode Scanning Station
+
+Dedicated station for scanning finished products with a barcode reader (EAN/QR) before shipping or warehouse handoff.
+
+**How it works:**
+
+1. Operator opens `/packaging/station` on a dedicated workstation or tablet
+2. Scans an EAN barcode with a USB/Bluetooth reader (or types it manually)
+3. The system looks up which work order the EAN belongs to and increments its `packed_qty` counter
+4. Live stats update every 3 seconds: packed today, plan, backlog, realisation %
+
+**Features:**
+
+- **EAN management** — assign one or multiple EAN codes to any work order (`Admin → Packaging → EAN Codes`)
+- **Scan history** — every scan is logged with timestamp, user, and result (success / unknown EAN / error)
+- **Shift-based counters** — `packed_qty` resets each shift; shift boundaries are configurable
+- **Manual reset** — `php artisan packaging:reset-shift` resets all counters immediately
+- **Admin dashboard** — read-only overview of all lines with the same live stats as the operator view
+
+**Routes:**
+
+| URL | Access | Description |
+|---|---|---|
+| `/packaging/station` | Operator, Supervisor, Admin | Scanning station |
+| `/packaging/` | Supervisor, Admin | Admin overview |
+| `/packaging/eans` | Supervisor, Admin | EAN code management |
+
+**Required migrations** (run automatically on first deploy):
+
+```
+create_work_order_eans_table
+create_packaging_scan_logs_table
+add_packed_qty_to_work_orders_table
+```
+
+---
+
 ## Architecture
 
 OpenMES uses a **dead-simple** Laravel monolith architecture:
