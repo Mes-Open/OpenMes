@@ -80,5 +80,16 @@
             </span>
         </button>
     </form>
+
+    @php
+        $regRow = \Illuminate\Support\Facades\DB::table('system_settings')->where('key','allow_registration')->first();
+        $regEnabled = json_decode($regRow->value ?? 'false', true) === true;
+    @endphp
+    @if($regEnabled)
+    <p class="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+        Don't have an account?
+        <a href="{{ route('register') }}" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">Create account</a>
+    </p>
+    @endif
 </div>
 @endsection
