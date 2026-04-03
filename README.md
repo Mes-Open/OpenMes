@@ -310,7 +310,7 @@ sudo lsof -i :80
 
 - [User Guides](docs/) - Operator, Supervisor, and Admin guides
 - [API Documentation](docs/API_DOCUMENTATION.md) - REST API reference
-- [PWA Testing Guide](frontend/PWA_TESTING_GUIDE.md) - Offline functionality testing
+- [PWA Testing Guide](docs/pwa-testing-guide.md) - Offline functionality testing
 - [Technical Documentation](docs/development.md) - For developers
 
 ---
