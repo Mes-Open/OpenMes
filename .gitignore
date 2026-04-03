@@ -39,6 +39,9 @@ CLAUDE.md
 .aiderrules
 .copilot-instructions.md
 .github/copilot-instructions.md
+.claude/
+.claude-flow/
+.mcp.json
 
 # IDE
 .vscode/
