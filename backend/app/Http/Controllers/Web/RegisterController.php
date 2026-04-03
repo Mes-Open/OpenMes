@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -34,21 +35,26 @@ class RegisterController extends Controller
         }
         RateLimiter::hit($key, 60);
 
-        $user = User::create([
+        $tenant = Tenant::create([
+            'name' => $request->name . "'s workspace",
+        ]);
+
+        $user = User::withoutGlobalScopes()->create([
             'name'                  => $request->name,
             'username'              => $request->username,
             'email'                 => $request->email,
             'password'              => Hash::make($request->password),
             'account_type'          => 'user',
+            'tenant_id'             => $tenant->id,
             'force_password_change' => false,
         ]);
 
-        $user->assignRole('Operator');
+        $user->assignRole('Admin');
 
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('operator.select-line')
+        return redirect()->route('admin.dashboard')
             ->with('success', 'Account created successfully. Welcome to OpenMES!');
     }
 
