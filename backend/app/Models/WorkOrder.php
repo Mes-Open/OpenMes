@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTenant;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkOrder extends Model
 {
-    use HasFactory, Auditable;
+    use HasFactory, Auditable, HasTenant;
     const STATUS_PENDING = 'PENDING';
     const STATUS_ACCEPTED = 'ACCEPTED';
     const STATUS_IN_PROGRESS = 'IN_PROGRESS';
@@ -43,6 +44,7 @@ class WorkOrder extends Model
         'description',
         'extra_data',
         'completed_at',
+        'tenant_id',
     ];
 
     protected function casts(): array
