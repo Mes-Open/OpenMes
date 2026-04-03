@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
@@ -24,12 +27,20 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate version format
+      - name: Resolve version
+        id: version
         run: |
-          if ! echo "${{ github.event.inputs.version }}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$'; then
-            echo "Invalid version format. Use semver: v1.2.3 or v1.2.3-alpha"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$'; then
+            echo "Invalid version format: $VERSION"
             exit 1
           fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing $VERSION"
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -45,7 +56,8 @@ jobs:
       - name: Generate changelog since last tag
         id: changelog
         run: |
-          PREV_TAG=$(git tag --sort=-v:refname | grep -v "${{ github.event.inputs.version }}" | head -1 || echo "")
+          VERSION="${{ steps.version.outputs.version }}"
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1 || echo "")
           if [ -z "$PREV_TAG" ]; then
             LOG=$(git log --pretty=format:"- %s (%h)" | head -30)
           else
@@ -71,7 +83,7 @@ jobs:
 
       - name: Bump version in config/version.php
         run: |
-          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
@@ -93,7 +105,7 @@ jobs:
 
       - name: Build distributable ZIP
         run: |
-          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
           DIST="openmmes-${VERSION}"
           mkdir -p "${DIST}"
 
@@ -125,8 +137,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: OpenMES ${{ github.event.inputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
+          name: OpenMES ${{ steps.version.outputs.version }}
           body: ${{ steps.notes.outputs.body }}
           draft: false
           prerelease: false
