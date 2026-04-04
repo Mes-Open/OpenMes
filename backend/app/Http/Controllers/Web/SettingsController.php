@@ -131,6 +131,11 @@ class SettingsController extends Controller
      */
     public function revokeApiToken(Request $request, PersonalAccessToken $token)
     {
+        abort_if(
+            $token->tokenable_id !== auth()->id() || $token->tokenable_type !== get_class(auth()->user()),
+            403
+        );
+
         $token->delete();
 
         return redirect()->route('settings.api-tokens')

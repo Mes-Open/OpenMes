@@ -83,6 +83,10 @@ class InstallController extends Controller
      */
     public function setupEnvironment(Request $request)
     {
+        if ($this->isInstalled()) {
+            return redirect('/');
+        }
+
         $validated = $request->validate([
             'app_name' => 'required|string|max:255',
             'app_url'  => 'required|url',
@@ -135,6 +139,10 @@ class InstallController extends Controller
      */
     public function setupDatabase(Request $request)
     {
+        if ($this->isInstalled()) {
+            return redirect('/');
+        }
+
         $driver = $request->input('db_driver', 'pgsql');
 
         if (!array_key_exists($driver, self::DB_DRIVERS)) {
