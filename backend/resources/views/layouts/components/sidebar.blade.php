@@ -32,9 +32,9 @@
             @else{{ route('login') }}@endauth"
            class="flex items-center gap-2.5 min-w-0 overflow-hidden">
             <img src="/logo_open_mes.png" alt="OpenMES" class="h-8 w-8 shrink-0 object-contain">
-            <span x-show="!collapsed || mobileOpen" x-cloak
-                  class="text-white font-bold text-sm tracking-tight truncate">
-                OpenMES
+            <span x-show="!collapsed || mobileOpen" x-cloak class="min-w-0 overflow-hidden">
+                <span class="block text-white font-bold text-sm tracking-tight truncate">OpenMES</span>
+                <span class="block text-slate-400 text-[10px] leading-none truncate">{{ config('version.current', 'v0.1') }}</span>
             </span>
         </a>
         {{-- Mobile close button --}}

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MachineConnection extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTenant;
 
     const PROTOCOL_MQTT   = 'mqtt';
     const PROTOCOL_OPCUA  = 'opcua';
@@ -22,6 +23,7 @@ class MachineConnection extends Model
     const STATUS_ERROR        = 'error';
 
     protected $fillable = [
+        'tenant_id',
         'name',
         'description',
         'protocol',
