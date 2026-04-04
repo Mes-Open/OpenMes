@@ -63,7 +63,7 @@ class UpdateController extends Controller
         // 1. git pull
         $gitOutput = [];
         $gitStatus = 0;
-        exec("cd {$root} && git pull origin main 2>&1", $gitOutput, $gitStatus);
+        exec('cd ' . escapeshellarg($root) . ' && git pull origin main 2>&1', $gitOutput, $gitStatus);
         $log[] = implode("\n", $gitOutput);
 
         if ($gitStatus !== 0) {
@@ -75,7 +75,7 @@ class UpdateController extends Controller
 
         // 2. composer install
         $composerOutput = [];
-        exec("cd {$root} && composer install --no-dev --optimize-autoloader 2>&1", $composerOutput);
+        exec('cd ' . escapeshellarg($root) . ' && composer install --no-dev --optimize-autoloader 2>&1', $composerOutput);
         $log[] = implode("\n", $composerOutput);
 
         // 3. artisan

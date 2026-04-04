@@ -246,6 +246,26 @@ class ActionExecutor
             throw new \RuntimeException("Invalid or missing webhook URL");
         }
 
+        // Block SSRF — reject requests to private/loopback/metadata addresses
+        $host = parse_url($url, PHP_URL_HOST);
+        if ($host) {
+            $ip = gethostbyname($host);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                foreach ([
+                    FILTER_FLAG_NO_PRIV_RANGE,
+                    FILTER_FLAG_NO_RES_RANGE,
+                ] as $flag) {
+                    if (!filter_var($ip, FILTER_VALIDATE_IP, $flag)) {
+                        throw new \RuntimeException("Webhook URL resolves to a private/reserved address");
+                    }
+                }
+                // Block AWS/GCP/Azure metadata endpoints explicitly
+                if (in_array($ip, ['169.254.169.254', '169.254.170.2', '100.100.100.200'])) {
+                    throw new \RuntimeException("Webhook URL resolves to a private/reserved address");
+                }
+            }
+        }
+
         $response = Http::withHeaders($headers)
             ->timeout(5)
             ->{$method}($url, $data);

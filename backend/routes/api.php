@@ -33,7 +33,7 @@ Route::get('/health', function () {
 
 // Authentication routes (no auth required)
 Route::prefix('auth')->group(function () {
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:sanctum');
     Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
@@ -85,25 +85,29 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/csv-import-mappings', [CsvImportController::class, 'saveMapping']);
 
     // Audit Logs (Admin only)
-    Route::get('/audit-logs', [AuditLogController::class, 'index']);
-    Route::get('/audit-logs/entity', [AuditLogController::class, 'entity']);
-    Route::get('/audit-logs/export', [AuditLogController::class, 'export']);
+    Route::middleware('role:Admin')->group(function () {
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::get('/audit-logs/entity', [AuditLogController::class, 'entity']);
+        Route::get('/audit-logs/export', [AuditLogController::class, 'export']);
 
-    // Event Logs
-    Route::get('/event-logs', [EventLogController::class, 'index']);
-    Route::get('/event-logs/entity', [EventLogController::class, 'entity']);
+        // Event Logs
+        Route::get('/event-logs', [EventLogController::class, 'index']);
+        Route::get('/event-logs/entity', [EventLogController::class, 'entity']);
+    });
 
-    // Analytics (Supervisor Dashboard)
-    Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
-    Route::get('/analytics/production-by-line', [AnalyticsController::class, 'productionByLine']);
-    Route::get('/analytics/cycle-time', [AnalyticsController::class, 'cycleTime']);
-    Route::get('/analytics/throughput', [AnalyticsController::class, 'throughput']);
-    Route::get('/analytics/issue-stats', [AnalyticsController::class, 'issueStats']);
-    Route::get('/analytics/step-performance', [AnalyticsController::class, 'stepPerformance']);
+    // Analytics (Supervisor/Admin)
+    Route::middleware('role:Supervisor|Admin')->group(function () {
+        Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
+        Route::get('/analytics/production-by-line', [AnalyticsController::class, 'productionByLine']);
+        Route::get('/analytics/cycle-time', [AnalyticsController::class, 'cycleTime']);
+        Route::get('/analytics/throughput', [AnalyticsController::class, 'throughput']);
+        Route::get('/analytics/issue-stats', [AnalyticsController::class, 'issueStats']);
+        Route::get('/analytics/step-performance', [AnalyticsController::class, 'stepPerformance']);
 
-    // Reports (Supervisor/Admin)
-    Route::get('/reports/production-summary', [ReportController::class, 'productionSummary']);
-    Route::get('/reports/batch-completion', [ReportController::class, 'batchCompletion']);
-    Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
-    Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
+        // Reports
+        Route::get('/reports/production-summary', [ReportController::class, 'productionSummary']);
+        Route::get('/reports/batch-completion', [ReportController::class, 'batchCompletion']);
+        Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
+        Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
+    });
 });

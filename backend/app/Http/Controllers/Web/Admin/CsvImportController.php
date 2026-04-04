@@ -103,7 +103,10 @@ class CsvImportController extends Controller
             'production_year' => 'nullable|integer|min:2000|max:2100',
         ]);
 
-        $filePath       = $request->input('file_path');
+        $filePath = $request->input('file_path');
+        if (!str_starts_with($filePath, 'csv-imports/')) {
+            abort(422, 'Invalid file path.');
+        }
         $strategy       = $request->input('import_strategy');
         $mapping        = $request->input('mapping');
         $targetLineId   = $request->input('target_line_id');
