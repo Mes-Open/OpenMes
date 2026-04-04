@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
-use App\Models\RegistrationLog;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -52,15 +51,6 @@ class RegisterController extends Controller
         ]);
 
         $user->assignRole('Admin');
-
-        RegistrationLog::create([
-            'tenant_id'     => $tenant->id,
-            'name'          => $request->name,
-            'email'         => $request->email,
-            'username'      => $request->username,
-            'ip_address'    => $request->ip(),
-            'registered_at' => now(),
-        ]);
 
         Auth::login($user);
         $request->session()->regenerate();
