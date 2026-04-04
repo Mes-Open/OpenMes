@@ -1,6 +1,39 @@
-# MQTT Machine Connectivity — Testing Guide
+# MQTT Machine Connectivity
 
-The MQTT machine connectivity module (`connectivity-test` branch) was validated with a full end-to-end test against a real broker. Below is a reproducible test procedure for verifying MQTT connections.
+The MQTT machine connectivity module is available since **v0.4.0** under **Admin → Connectivity → MQTT**.
+
+---
+
+## Running the MQTT listener in production
+
+Each MQTT connection requires a dedicated listener process. The listener is a separate Docker service (`mqtt-listener`) defined in `docker-compose.yml`.
+
+### Start a listener for connection ID 1
+
+```bash
+cd /opt/openmmes   # or wherever your docker-compose.yml is
+MQTT_CONNECTION_ID=1 docker compose up -d mqtt-listener
+```
+
+### Check listener logs
+
+```bash
+docker logs openmmes-mqtt-listener -f
+```
+
+### Stop the listener
+
+```bash
+docker compose stop mqtt-listener
+```
+
+> **Multiple connections**: run separate listener containers per connection. The current setup supports one at a time via `MQTT_CONNECTION_ID`. For multiple simultaneous listeners, duplicate the service block in `docker-compose.yml` with different container names and connection IDs.
+
+---
+
+## Testing Guide
+
+Below is a reproducible test procedure for verifying MQTT connections end-to-end.
 
 ---
 
