@@ -1,0 +1,10 @@
+.git
+.github
+*.md
+backend/node_modules
+backend/vendor
+backend/.env
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*

@@ -76,6 +76,8 @@ class UserManagementController extends Controller
 
         if ($validated['account_type'] === 'user' && !empty($validated['role'])) {
             $user->assignRole($validated['role']);
+        } elseif ($validated['account_type'] === 'workstation') {
+            $user->assignRole('Operator');
         }
 
         // Create worker profile when code is provided and account is personal
@@ -156,6 +158,8 @@ class UserManagementController extends Controller
             $user->update($updateData);
             if ($validated['account_type'] === 'user' && !empty($validated['role'])) {
                 $user->syncRoles([$validated['role']]);
+            } elseif ($validated['account_type'] === 'workstation') {
+                $user->syncRoles(['Operator']);
             } else {
                 $user->syncRoles([]);
             }

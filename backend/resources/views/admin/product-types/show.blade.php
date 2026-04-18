@@ -156,7 +156,7 @@
                                     <p class="font-medium text-gray-800">{{ $workOrder->work_order_number }}</p>
                                     <p class="text-sm text-gray-600">{{ $workOrder->product_name }}</p>
                                     <p class="text-xs text-gray-500 mt-1">
-                                        Quantity: {{ $workOrder->quantity }} | {{ $workOrder->created_at->format('Y-m-d H:i') }}
+                                        Quantity: {{ $workOrder->planned_qty }} | {{ $workOrder->created_at->format('Y-m-d H:i') }}
                                     </p>
                                 </div>
                                 <span class="px-2 py-1 text-xs font-medium rounded-full
