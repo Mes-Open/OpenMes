@@ -16,13 +16,6 @@
         </a>
     </div>
 
-    @if(session('success'))
-        <div class="alert-success mb-4">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert-error mb-4">{{ session('error') }}</div>
-    @endif
-
     <div class="card">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -37,12 +30,12 @@
                 </thead>
                 <tbody>
                     @forelse($events as $event)
-                    <tr class="border-b hover:bg-gray-50">
+                    <tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ route('admin.maintenance-events.edit', $event) }}'">
                         <td class="p-3">{{ $event->title }}</td>
                         <td class="p-3">{{ $event->event_type }}</td>
                         <td class="p-3">{{ $event->status }}</td>
                         <td class="p-3">{{ $event->scheduled_at?->format('Y-m-d H:i') ?? '-' }}</td>
-                        <td class="p-3">
+                        <td class="p-3" onclick="event.stopPropagation()">
                             <a href="{{ route('admin.maintenance-events.edit', $event) }}" class="text-blue-600 hover:underline mr-2">Edit</a>
 
                             @if($event->status === 'pending')

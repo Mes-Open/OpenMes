@@ -2,6 +2,11 @@
 @section('title', 'Machine Connectivity')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Machine Connectivity', 'url' => null],
+]" />
+
 <div class="p-6 space-y-6">
 
     {{-- Header --}}
@@ -21,12 +26,6 @@
             New Connection
         </a>
     </div>
-
-    @if(session('success'))
-        <div class="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg dark:bg-green-900/20 dark:border-green-700 dark:text-green-300">
-            {{ session('success') }}
-        </div>
-    @endif
 
     {{-- Protocol tabs --}}
     <div class="flex gap-2 border-b border-gray-200 dark:border-gray-700">

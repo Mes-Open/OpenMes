@@ -99,8 +99,10 @@ class MaintenanceEventController extends Controller
         $costSources  = CostSource::active()->orderBy('name')->get();
         $users        = User::orderBy('name')->get();
 
+        $event = $maintenanceEvent;
+
         return view('admin.maintenance-events.edit', compact(
-            'maintenanceEvent', 'lines', 'workstations', 'tools', 'costSources', 'users'
+            'event', 'lines', 'workstations', 'tools', 'costSources', 'users'
         ));
     }
 

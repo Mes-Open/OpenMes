@@ -21,12 +21,6 @@
         </a>
     </div>
 
-    @if(session('success'))
-        <div class="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg dark:bg-green-900/20 dark:border-green-700 dark:text-green-300">
-            {{ session('success') }}
-        </div>
-    @endif
-
     @if($connections->isEmpty())
         <div class="text-center py-16 text-gray-400 dark:text-gray-500">
             <svg class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
