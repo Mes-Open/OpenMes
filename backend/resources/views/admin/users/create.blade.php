@@ -93,7 +93,7 @@
                     <option value="">Select a workstation</option>
                     @foreach($workstations as $ws)
                         <option value="{{ $ws->id }}" {{ old('workstation_id') == $ws->id ? 'selected' : '' }}>
-                            {{ $ws->name }} ({{ $ws->line->name }})
+                            {{ $ws->name }} ({{ $ws->line?->name ?? 'No line' }})
                         </option>
                     @endforeach
                 </select>

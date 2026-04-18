@@ -18,8 +18,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: openmmes-backend
     environment:
       APP_NAME: ${APP_NAME:-OpenMES}
@@ -53,8 +53,8 @@ services:
   # Example: MQTT_CONNECTION_ID=1 docker compose up -d mqtt-listener
   mqtt-listener:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: openmmes-mqtt-listener
     command: ["php", "artisan", "mqtt:listen", "--connection=${MQTT_CONNECTION_ID:-1}"]
     environment:

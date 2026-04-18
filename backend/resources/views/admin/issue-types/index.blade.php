@@ -32,7 +32,7 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-100">
                 @forelse($issueTypes as $type)
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ route('admin.issue-types.edit', $type) }}'">
                         <td class="px-4 py-3 font-medium text-gray-800">{{ $type->name }}</td>
                         <td class="px-4 py-3 font-mono text-sm text-gray-600">{{ $type->code }}</td>
                         <td class="px-4 py-3">
@@ -52,7 +52,7 @@
                                 <span class="text-xs text-gray-400">Non-blocking</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3" onclick="event.stopPropagation()">
                             <form method="POST" action="{{ route('admin.issue-types.toggle-active', $type) }}">
                                 @csrf
                                 <button type="submit" class="text-xs px-2 py-0.5 rounded font-medium
@@ -62,7 +62,7 @@
                             </form>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">{{ $type->issues_count }}</td>
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3" onclick="event.stopPropagation()">
                             <div class="flex gap-3">
                                 <a href="{{ route('admin.issue-types.edit', $type) }}" class="text-sm text-blue-600 hover:underline">Edit</a>
                                 @if($type->issues_count === 0)
