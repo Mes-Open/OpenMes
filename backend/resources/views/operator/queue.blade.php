@@ -79,7 +79,7 @@
                                 @if($lineStatuses->isNotEmpty())
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                     Board Status
-                                    <span class="ml-1 text-gray-400 font-normal normal-case text-xs" title="Tap row to cycle">↻</span>
+                                    <span class="ml-1 text-gray-400 font-normal normal-case text-xs" title="Tap badge to cycle">↻</span>
                                 </th>
                                 @endif
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
@@ -118,7 +118,7 @@
                                         @include('components.wo-status-badge', ['status' => $workOrder->status])
                                     </td>
                                     @if($lineStatuses->isNotEmpty())
-                                    <td class="px-4 py-3 whitespace-nowrap">
+                                    <td class="px-4 py-3 whitespace-nowrap" data-board-status-cell="1">
                                         @if($ls)
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-white"
                                                   style="background-color: {{ $ls->color }}">
@@ -546,8 +546,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (e.target.closest('[data-actions-cell]')) {
                 return;
             }
-            // Cycle board status (if statuses configured)
-            if (row.dataset.cycle === '1') {
+            // Board Status cell → cycle status; anything else → navigate
+            if (e.target.closest('[data-board-status-cell]') && row.dataset.cycle === '1') {
                 cycleStatus(row);
             } else {
                 location.href = row.dataset.detailUrl;

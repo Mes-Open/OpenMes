@@ -37,7 +37,7 @@
     </div>
 
     {{-- KPI Cards --}}
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
 
         <a href="{{ route('admin.work-orders.index', $selectedLineId ? ['line_id' => $selectedLineId] : []) }}"
            class="card hover:shadow-md transition-shadow">

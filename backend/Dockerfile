@@ -28,7 +28,7 @@ RUN docker-php-ext-install \
     gd
 
 # PHP upload / memory limits
-COPY docker-php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+COPY backend/docker-php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -37,7 +37,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 # Copy application files
-COPY . .
+COPY backend/ .
+COPY modules/ ./modules/
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
@@ -49,7 +50,7 @@ RUN npm ci && npm run build
 RUN rm -rf node_modules
 
 # Copy entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY backend/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Set permissions

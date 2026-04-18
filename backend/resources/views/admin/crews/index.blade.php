@@ -35,7 +35,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($crews as $crew)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ route('admin.crews.edit', $crew) }}'">
                             <td class="py-3 px-4 font-mono text-gray-600">{{ $crew->code }}</td>
                             <td class="py-3 px-4 font-medium text-gray-900">{{ $crew->name }}</td>
                             <td class="py-3 px-4 text-gray-600">{{ $crew->leader->name ?? '—' }}</td>
@@ -48,7 +48,7 @@
                                     <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Inactive</span>
                                 @endif
                             </td>
-                            <td class="py-3 px-4">
+                            <td class="py-3 px-4" onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-end gap-2">
                                     <a href="{{ route('admin.crews.edit', $crew) }}" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

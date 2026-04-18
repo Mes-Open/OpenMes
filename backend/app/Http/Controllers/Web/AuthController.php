@@ -121,6 +121,14 @@ class AuthController extends Controller
             return redirect()->route('supervisor.dashboard');
         }
 
+        // Workstation accounts skip line selection — go straight to queue
+        if ($user->account_type === 'workstation' && $user->workstation_id) {
+            $lineId = $user->workstation?->line_id;
+            if ($lineId) {
+                return redirect()->route('operator.queue', ['line' => $lineId]);
+            }
+        }
+
         // Default to operator workflow
         return redirect()->route('operator.select-line');
     }

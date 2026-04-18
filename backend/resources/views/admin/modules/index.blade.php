@@ -21,17 +21,6 @@
         </a>
     </div>
 
-    @if(session('success'))
-        <div class="mb-4 px-4 py-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-sm font-medium border border-green-200 dark:border-green-700">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 text-sm font-medium border border-red-200 dark:border-red-700">
-            {{ session('error') }}
-        </div>
-    @endif
-
     @if($modules->isEmpty())
         <div class="card text-center py-16">
             <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -25,54 +25,40 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($users as $user)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
+                        <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ route('admin.users.edit', $user) }}'">
+                            <td class="px-4 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
                                         <span class="text-blue-600 font-semibold text-lg">
                                             {{ strtoupper(substr($user->name, 0, 1)) }}
                                         </span>
                                     </div>
-                                    <div class="ml-4">
+                                    <div class="ml-3">
                                         <div class="text-sm font-medium text-gray-900">{{ $user->name }}</div>
+                                        <div class="text-xs text-gray-500">{{ $user->username }}
+                                            @if($user->account_type === 'workstation')
+                                                · <span class="text-orange-600">Workstation</span>
+                                            @endif
+                                        </div>
                                         @if($user->force_password_change)
-                                            <div class="text-xs text-orange-600">⚠ Must change password</div>
+                                            <div class="text-xs text-orange-600">Must change password</div>
                                         @endif
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-900">{{ $user->username }}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @if($user->account_type === 'workstation')
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
-                                        Workstation
-                                    </span>
-                                    @if($user->workstation)
-                                        <div class="text-xs text-gray-500 mt-1">{{ $user->workstation->name }}</div>
-                                    @endif
-                                @else
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                        User
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900">{{ $user->email }}</div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-4 whitespace-nowrap">
                                 @php
                                     $role = $user->roles->first();
                                     $roleColors = [
@@ -86,10 +72,10 @@
                                     {{ $role?->name ?? 'No Role' }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {{ $user->created_at->format('M d, Y') }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex justify-end gap-2">
                                     <a href="{{ route('admin.users.edit', $user) }}" class="text-blue-600 hover:text-blue-900" title="Edit">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,7 +104,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
                                 <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                                 </svg>

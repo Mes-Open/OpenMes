@@ -15,6 +15,15 @@ class LineController extends Controller
     {
         $user = $request->user();
 
+        // Workstation accounts auto-redirect to their assigned line
+        if ($user->account_type === 'workstation' && $user->workstation_id) {
+            $lineId = $user->workstation?->line_id;
+            if ($lineId) {
+                $request->session()->put('selected_line_id', $lineId);
+                return redirect()->route('operator.queue');
+            }
+        }
+
         // Operators see only assigned lines
         $lines = $user->lines()->where('is_active', true)->with('workstations')->get();
 

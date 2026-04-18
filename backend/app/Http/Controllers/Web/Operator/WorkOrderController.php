@@ -21,12 +21,20 @@ class WorkOrderController extends Controller
      */
     public function queue(Request $request)
     {
-        $lineId = $request->session()->get('selected_line_id');
+        $lineId = $request->session()->get('selected_line_id')
+            ?? $request->query('line');
+
+        // Workstation accounts auto-select their assigned line
+        if (!$lineId && auth()->user()->account_type === 'workstation') {
+            $lineId = auth()->user()->workstation?->line_id;
+        }
 
         if (!$lineId) {
-            return redirect()->route('operator.select-line')
-                ->with('error', 'Please select a line first.');
+            return redirect()->route('operator.select-line');
         }
+
+        // Persist in session for subsequent requests
+        $request->session()->put('selected_line_id', $lineId);
 
         // Get active and completed work orders for this line
         $activeWorkOrders = WorkOrder::where('line_id', $lineId)

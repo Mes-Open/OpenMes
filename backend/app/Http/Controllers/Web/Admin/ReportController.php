@@ -23,13 +23,33 @@ class ReportController extends Controller
         $lines = Line::orderBy('name')->get();
 
         // --- Base query builder helper ---
+        // Supports both explicit production_year/month_number/week_number fields
+        // AND fallback to due_date when production period fields are not set.
         $workOrderQuery = function () use ($period, $year, $month, $week, $lineId) {
-            $q = DB::table('work_orders')->where('production_year', $year);
+            $q = DB::table('work_orders');
 
             if ($period === 'monthly') {
-                $q->where('month_number', $month);
+                $q->where(function ($sub) use ($year, $month) {
+                    $sub->where(function ($s) use ($year, $month) {
+                        $s->where('production_year', $year)->where('month_number', $month);
+                    })->orWhere(function ($s) use ($year, $month) {
+                        $s->whereNull('production_year')
+                          ->whereNotNull('due_date')
+                          ->whereYear('due_date', $year)
+                          ->whereMonth('due_date', $month);
+                    });
+                });
             } else {
-                $q->where('week_number', $week);
+                $q->where(function ($sub) use ($year, $week) {
+                    $sub->where(function ($s) use ($year, $week) {
+                        $s->where('production_year', $year)->where('week_number', $week);
+                    })->orWhere(function ($s) use ($year, $week) {
+                        $s->whereNull('production_year')
+                          ->whereNotNull('due_date')
+                          ->whereYear('due_date', $year)
+                          ->whereRaw('EXTRACT(WEEK FROM due_date) = ?', [$week]);
+                    });
+                });
             }
 
             if ($lineId) {
@@ -72,12 +92,12 @@ class ReportController extends Controller
         $avgCycleTime = $avgCycleTime !== null ? round((float) $avgCycleTime, 1) : null;
 
         // --- Production by line ---
+        $byLineBase = (clone $workOrderQuery())->whereNotNull('line_id');
+        $byLineIds  = $byLineBase->pluck('id');
+
         $byLine = DB::table('work_orders')
             ->join('lines', 'work_orders.line_id', '=', 'lines.id')
-            ->where('work_orders.production_year', $year)
-            ->when($period === 'monthly', fn ($q) => $q->where('work_orders.month_number', $month))
-            ->when($period === 'weekly',  fn ($q) => $q->where('work_orders.week_number', $week))
-            ->when($lineId, fn ($q) => $q->where('work_orders.line_id', $lineId))
+            ->whereIn('work_orders.id', $byLineIds)
             ->select(
                 'lines.name as line_name',
                 DB::raw('SUM(work_orders.planned_qty) as planned_qty'),
@@ -96,11 +116,10 @@ class ReportController extends Controller
             });
 
         // --- Work orders by status ---
+        $byStatusIds = (clone $workOrderQuery())->pluck('id');
+
         $byStatus = DB::table('work_orders')
-            ->where('production_year', $year)
-            ->when($period === 'monthly', fn ($q) => $q->where('month_number', $month))
-            ->when($period === 'weekly',  fn ($q) => $q->where('week_number', $week))
-            ->when($lineId, fn ($q) => $q->where('line_id', $lineId))
+            ->whereIn('id', $byStatusIds)
             ->select('status', DB::raw('COUNT(*) as count'))
             ->groupBy('status')
             ->orderBy('status')

@@ -3,6 +3,11 @@
 @section('title', 'Alerts')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Alerts', 'url' => null],
+]" />
+
 <div class="max-w-4xl mx-auto">
 
     <div class="flex items-center gap-3 mb-6">

@@ -40,6 +40,10 @@
                 <form method="POST" action="{{ route('admin.work-orders.pause', $workOrder) }}">@csrf
                     <button class="btn-touch btn-secondary text-sm text-yellow-700">Pause</button>
                 </form>
+                <button class="btn-touch btn-primary text-sm bg-green-600 hover:bg-green-700"
+                        onclick="document.getElementById('done-modal').classList.remove('hidden')">
+                    Done
+                </button>
             @elseif($workOrder->status === 'PAUSED')
                 <form method="POST" action="{{ route('admin.work-orders.resume', $workOrder) }}">@csrf
                     <button class="btn-touch btn-primary text-sm">Resume</button>
@@ -51,6 +55,12 @@
                       onsubmit="return confirm('Cancel this work order?')">@csrf
                     <button class="btn-touch btn-secondary text-sm text-orange-600">Cancel</button>
                 </form>
+            @else
+                <form method="POST" action="{{ route('admin.work-orders.reopen', $workOrder) }}"
+                      onsubmit="return confirm('Reopen this work order?')">@csrf
+                    <button class="btn-touch btn-primary text-sm">Reopen</button>
+                </form>
+                <a href="{{ route('admin.work-orders.edit', $workOrder) }}" class="btn-touch btn-secondary text-sm">Edit</a>
             @endif
             <a href="{{ route('admin.work-orders.index') }}" class="btn-touch btn-secondary text-sm">← Back</a>
         </div>
@@ -244,4 +254,30 @@
         </div>
     </div>
 </div>
+
+{{-- Done modal --}}
+@if($workOrder->status === 'IN_PROGRESS')
+<div id="done-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Complete Work Order</h3>
+        <p class="text-sm text-gray-600 mb-4">Enter the produced quantity for <strong>{{ $workOrder->order_no }}</strong>.</p>
+        <form method="POST" action="{{ route('admin.work-orders.complete', $workOrder) }}">
+            @csrf
+            <div class="mb-4">
+                <label class="form-label">Produced Quantity</label>
+                <input type="number" name="produced_qty" step="0.01" min="0.01"
+                       max="{{ $workOrder->planned_qty * 2 }}"
+                       value="{{ $workOrder->planned_qty }}"
+                       class="form-input w-full" required>
+                <p class="text-xs text-gray-500 mt-1">Planned: {{ number_format($workOrder->planned_qty, 2) }}</p>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" class="btn-touch btn-secondary text-sm"
+                        onclick="document.getElementById('done-modal').classList.add('hidden')">Cancel</button>
+                <button type="submit" class="btn-touch btn-primary text-sm bg-green-600 hover:bg-green-700">Mark as Done</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
 @endsection

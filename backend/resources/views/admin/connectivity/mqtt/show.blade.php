@@ -54,12 +54,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg dark:bg-green-900/20 dark:border-green-700 dark:text-green-300">
-            {{ session('success') }}
-        </div>
-    @endif
-
     @if($errors->any())
         <div class="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg dark:bg-red-900/20 dark:border-red-700 dark:text-red-300">
             <ul class="list-disc list-inside space-y-1 text-sm">

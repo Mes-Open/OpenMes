@@ -15,14 +15,12 @@ class WorkOrderManagementController extends Controller
 
     public function index(Request $request)
     {
+        $allowedSorts = ['order_no', 'status', 'planned_qty', 'produced_qty', 'priority', 'due_date', 'created_at'];
+        $sort         = in_array($request->input('sort'), $allowedSorts) ? $request->input('sort') : 'created_at';
+        $direction    = $request->input('direction') === 'asc' ? 'asc' : 'desc';
+
         $query = WorkOrder::with(['line', 'productType'])->withCount('batches')
-            ->orderByRaw("CASE status
-                WHEN 'BLOCKED'     THEN 1
-                WHEN 'IN_PROGRESS' THEN 2
-                WHEN 'PENDING'     THEN 3
-                WHEN 'DONE'        THEN 4
-                ELSE 5 END")
-            ->orderBy('created_at', 'desc');
+            ->orderBy($sort, $direction);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -37,7 +35,7 @@ class WorkOrderManagementController extends Controller
         $workOrders = $query->paginate(25)->withQueryString();
         $lines      = Line::orderBy('name')->get();
 
-        return view('admin.work-orders.index', compact('workOrders', 'lines'));
+        return view('admin.work-orders.index', compact('workOrders', 'lines', 'sort', 'direction'));
     }
 
     public function create()
@@ -98,6 +96,12 @@ class WorkOrderManagementController extends Controller
             'description'     => 'nullable|string|max:2000',
             'status'          => 'required|in:PENDING,ACCEPTED,IN_PROGRESS,PAUSED,BLOCKED,DONE,REJECTED,CANCELLED',
         ]);
+
+        // Warn when marking as DONE with zero produced quantity
+        if (($validated['status'] ?? '') === 'DONE' && (float) $workOrder->produced_qty <= 0) {
+            return redirect()->back()->withInput()
+                ->with('error', 'Cannot mark as DONE — produced quantity is 0. Register production first or adjust the quantity.');
+        }
 
         $workOrder->update($validated);
 
@@ -166,5 +170,33 @@ class WorkOrderManagementController extends Controller
         }
         $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
+    }
+
+    public function reopen(WorkOrder $workOrder)
+    {
+        if (!in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
+            return redirect()->back()->with('error', 'Only terminal work orders (DONE, REJECTED, CANCELLED) can be reopened.');
+        }
+        $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+        return redirect()->back()->with('success', "Work order {$workOrder->order_no} reopened.");
+    }
+
+    public function complete(Request $request, WorkOrder $workOrder)
+    {
+        if ($workOrder->status !== WorkOrder::STATUS_IN_PROGRESS) {
+            return redirect()->back()->with('error', 'Only IN_PROGRESS work orders can be completed.');
+        }
+
+        $validated = $request->validate([
+            'produced_qty' => 'required|numeric|min:0.01',
+        ]);
+
+        $workOrder->update([
+            'status'       => WorkOrder::STATUS_DONE,
+            'produced_qty' => $validated['produced_qty'],
+            'completed_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', "Work order {$workOrder->order_no} completed with {$validated['produced_qty']} produced.");
     }
 }

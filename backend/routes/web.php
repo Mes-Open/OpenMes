@@ -125,6 +125,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reject', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'reject'])->name('work-orders.reject');
         Route::post('/work-orders/{workOrder}/pause', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'pause'])->name('work-orders.pause');
         Route::post('/work-orders/{workOrder}/resume', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'resume'])->name('work-orders.resume');
+        Route::post('/work-orders/{workOrder}/complete', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'complete'])->name('work-orders.complete');
+        Route::post('/work-orders/{workOrder}/cancel', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'cancel'])->name('work-orders.cancel');
+        Route::post('/work-orders/{workOrder}/reopen', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'reopen'])->name('work-orders.reopen');
+        Route::get('/work-orders/{workOrder}/edit', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'edit'])->name('work-orders.edit');
+        Route::put('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'update'])->name('work-orders.update');
 
         // Issues management
         Route::get('/issues', [IssueManagementController::class, 'index'])->name('issues.index');
@@ -165,6 +170,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reject', [AdminWorkOrderController::class, 'reject'])->name('work-orders.reject');
         Route::post('/work-orders/{workOrder}/pause', [AdminWorkOrderController::class, 'pause'])->name('work-orders.pause');
         Route::post('/work-orders/{workOrder}/resume', [AdminWorkOrderController::class, 'resume'])->name('work-orders.resume');
+        Route::post('/work-orders/{workOrder}/reopen', [AdminWorkOrderController::class, 'reopen'])->name('work-orders.reopen');
+        Route::post('/work-orders/{workOrder}/complete', [AdminWorkOrderController::class, 'complete'])->name('work-orders.complete');
 
         // Issue Types
         Route::resource('issue-types', AdminIssueTypeController::class);

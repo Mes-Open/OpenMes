@@ -21,6 +21,8 @@
 
     {{-- Filters --}}
     <form method="GET" action="{{ route('admin.work-orders.index') }}" class="card mb-6">
+        <input type="hidden" name="sort" value="{{ $sort }}">
+        <input type="hidden" name="direction" value="{{ $direction }}">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
                 <label class="form-label">Search order #</label>
@@ -57,25 +59,73 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order #</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ request()->fullUrlWithQuery(['sort' => 'order_no', 'direction' => ($sort === 'order_no' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
+                                Order #
+                                @if($sort === 'order_no')
+                                    <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ request()->fullUrlWithQuery(['sort' => 'status', 'direction' => ($sort === 'status' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
+                                Status
+                                @if($sort === 'status')
+                                    <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ request()->fullUrlWithQuery(['sort' => 'planned_qty', 'direction' => ($sort === 'planned_qty' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
+                                Planned Qty
+                                @if($sort === 'planned_qty')
+                                    <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                            /
+                            <a href="{{ request()->fullUrlWithQuery(['sort' => 'produced_qty', 'direction' => ($sort === 'produced_qty' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
+                                Produced
+                                @if($sort === 'produced_qty')
+                                    <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ request()->fullUrlWithQuery(['sort' => 'priority', 'direction' => ($sort === 'priority' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
+                                Priority
+                                @if($sort === 'priority')
+                                    <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ request()->fullUrlWithQuery(['sort' => 'due_date', 'direction' => ($sort === 'due_date' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
+                                Due Date
+                                @if($sort === 'due_date')
+                                    <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <a href="{{ request()->fullUrlWithQuery(['sort' => 'created_at', 'direction' => ($sort === 'created_at' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
+                                Created
+                                @if($sort === 'created_at')
+                                    <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
                     @forelse($workOrders as $wo)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ route('admin.work-orders.show', $wo) }}'">
                             <td class="px-4 py-3">
                                 <a href="{{ route('admin.work-orders.show', $wo) }}" class="inline-flex items-center font-mono text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">
                                     {{ $wo->order_no }}
                                 </a>
-                                @if($wo->priority > 0)
-                                    <span class="ml-1 text-xs text-orange-500 font-medium">P{{ $wo->priority }}</span>
-                                @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $wo->line->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $wo->productType->name ?? '—' }}</td>
@@ -92,6 +142,13 @@
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-600">
+                                @if($wo->priority > 0)
+                                    <span class="text-orange-500 font-medium">P{{ $wo->priority }}</span>
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
                                 @if($wo->due_date)
                                     <span class="{{ $wo->due_date->isPast() && $wo->status !== 'DONE' ? 'text-red-600 font-medium' : '' }}">
                                         {{ $wo->due_date->format('d M Y') }}
@@ -100,7 +157,10 @@
                                     —
                                 @endif
                             </td>
-                            <td class="px-4 py-3">
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                {{ $wo->created_at->format('d M Y') }}
+                            </td>
+                            <td class="px-4 py-3" onclick="event.stopPropagation()">
                                 <div class="flex items-center gap-0.5">
                                     {{-- View --}}
                                     <a href="{{ route('admin.work-orders.show', $wo) }}" data-tip="View"
@@ -177,7 +237,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-10 text-center text-gray-400">
+                            <td colspan="9" class="px-4 py-10 text-center text-gray-400">
                                 No work orders found.
                                 <a href="{{ route('admin.work-orders.create') }}" class="text-blue-600 hover:underline ml-1">Create one</a>
                                 or <a href="{{ route('admin.csv-import') }}" class="text-blue-600 hover:underline">import from CSV</a>.

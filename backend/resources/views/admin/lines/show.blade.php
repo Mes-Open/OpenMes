@@ -112,11 +112,7 @@
             <a href="{{ route('admin.line-statuses.index') }}" class="text-sm text-blue-600 hover:underline">Manage global statuses →</a>
         </div>
 
-        @if(session('success'))
-            <div class="mb-3 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-sm">{{ session('success') }}</div>
-        @endif
-
-        <div class="flex flex-wrap gap-2 mb-4">
+            <div class="flex flex-wrap gap-2 mb-4">
             @forelse($lineStatuses as $status)
                 <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white"
                      style="background-color: {{ $status->color }}">
@@ -354,7 +350,7 @@
                                     <p class="font-medium text-gray-800">{{ $workOrder->work_order_number }}</p>
                                     <p class="text-sm text-gray-600">{{ $workOrder->product_name }}</p>
                                     <p class="text-xs text-gray-500 mt-1">
-                                        Quantity: {{ $workOrder->quantity }} | Created: {{ $workOrder->created_at->format('Y-m-d H:i') }}
+                                        Quantity: {{ $workOrder->planned_qty }} | Created: {{ $workOrder->created_at->format('Y-m-d H:i') }}
                                     </p>
                                 </div>
                                 <span class="px-2 py-1 text-xs font-medium rounded-full

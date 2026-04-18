@@ -3,6 +3,11 @@
 @section('title', 'Production Schedule')
 
 @section('content')
+<x-breadcrumbs :items="[
+    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
+    ['label' => 'Production Schedule', 'url' => null],
+]" />
+
 <div>
 
     {{-- Header --}}
@@ -21,20 +26,34 @@
         </div>
 
         {{-- Filters --}}
-        <form method="GET" class="flex items-center gap-2 flex-wrap">
-            <input type="week" name="week" value="{{ $weekStart->format('Y-\WW') }}"
-                   class="form-input text-sm py-2 min-h-0"
-                   onchange="this.form.submit()">
-            <select name="line_id" onchange="this.form.submit()"
-                    class="form-input text-sm py-2 min-h-0">
-                <option value="">All Lines</option>
-                @foreach($lines as $line)
-                    <option value="{{ $line->id }}" {{ $lineId == $line->id ? 'selected' : '' }}>
-                        {{ $line->name }}
-                    </option>
-                @endforeach
-            </select>
-        </form>
+        <div class="flex items-center gap-2 flex-wrap">
+            <a href="{{ route('admin.schedule', ['week' => $weekStart->copy()->subWeek()->format('Y-\WW'), 'line_id' => $lineId]) }}"
+               class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200" title="Previous week">
+                &larr;
+            </a>
+            <form method="GET" class="flex items-center gap-2 flex-wrap">
+                <input type="week" name="week" value="{{ $weekStart->format('Y-\WW') }}"
+                       class="form-input text-sm py-2 min-h-0"
+                       onchange="this.form.submit()">
+                <select name="line_id" onchange="this.form.submit()"
+                        class="form-input text-sm py-2 min-h-0">
+                    <option value="">All Lines</option>
+                    @foreach($lines as $line)
+                        <option value="{{ $line->id }}" {{ $lineId == $line->id ? 'selected' : '' }}>
+                            {{ $line->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </form>
+            <a href="{{ route('admin.schedule', ['week' => $weekStart->copy()->addWeek()->format('Y-\WW'), 'line_id' => $lineId]) }}"
+               class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200" title="Next week">
+                &rarr;
+            </a>
+            @if(!$weekStart->isCurrentWeek())
+                <a href="{{ route('admin.schedule', ['line_id' => $lineId]) }}"
+                   class="text-sm text-blue-600 hover:underline">Today</a>
+            @endif
+        </div>
     </div>
 
     @if($workOrders->isEmpty())

@@ -21,7 +21,6 @@
         })();
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
     @if(app()->environment('production'))
     <script type="text/javascript">
         (function(c,l,a,r,i,t,y){
@@ -225,7 +224,6 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
-@livewireScripts
 @stack('scripts')
 <script>
 (function(){

@@ -59,11 +59,11 @@ class PackagingServiceProvider extends ServiceProvider
         // ── Navigation menu ────────────────────────────────────────────────────
         $menu = app(\App\Services\MenuRegistry::class);
         $menu->addGroup('packaging', 'Pakowanie', order: 40);
-        $menu->addGroupItem('packaging', 'Stanowisko skanowania', route('packaging.station'), order: 10);
+        $menu->addGroupItem('packaging', 'Stanowisko skanowania', '/packaging/station', order: 10);
 
         if (auth()->check() && auth()->user()->hasAnyRole(['Admin', 'Supervisor'])) {
-            $menu->addGroupItem('packaging', 'Przegląd pakowania', route('packaging.overview'), order: 20);
-            $menu->addGroupItem('packaging', 'Zarządzanie EAN', route('packaging.eans.index'), order: 30);
+            $menu->addGroupItem('packaging', 'Przegląd pakowania', '/packaging', order: 20);
+            $menu->addGroupItem('packaging', 'Zarządzanie EAN', '/packaging/eans', order: 30);
         }
     }
 }
