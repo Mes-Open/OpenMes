@@ -7,6 +7,21 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
+# ── Sync Docker Compose env vars into .env ──────────────────────────────────
+# Docker Compose passes the real values via environment variables, but
+# config:cache reads from the .env file.  Sync important vars so the
+# cached config uses the correct credentials.
+for VAR in APP_ENV APP_DEBUG APP_URL DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD; do
+    eval VAL=\$$VAR
+    if [ -n "$VAL" ]; then
+        if grep -q "^${VAR}=" .env; then
+            sed -i "s|^${VAR}=.*|${VAR}=${VAL}|" .env
+        else
+            echo "${VAR}=${VAL}" >> .env
+        fi
+    fi
+done
+
 if ! grep -q "APP_KEY=base64:" .env; then
     echo "[OpenMES] Generating APP_KEY..."
     NEW_KEY="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
