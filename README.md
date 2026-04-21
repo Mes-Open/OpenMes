@@ -399,7 +399,7 @@ See [LICENSE](LICENSE) for full details.
 
 ### Commercial Support
 Need help with deployment, customization, or training?
-Contact us at **support@openmmes.com**
+Contact us at **jakub.przepiora@nice-code.com**
 
 ---
 
