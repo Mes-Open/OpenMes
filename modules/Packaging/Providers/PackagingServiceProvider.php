@@ -6,6 +6,7 @@ use App\Models\WorkOrder;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Packaging\Commands\ResetPackagingShiftCommand;
+use Modules\Packaging\Controllers\Api\PackagingApiController;
 use Modules\Packaging\Controllers\PackagingController;
 use Modules\Packaging\Controllers\PackagingEanController;
 use Modules\Packaging\Models\WorkOrderEan;
@@ -32,7 +33,21 @@ class PackagingServiceProvider extends ServiceProvider
             $this->commands([ResetPackagingShiftCommand::class]);
         }
 
-        // ── Routes ─────────────────────────────────────────────────────────────
+        // ── REST API Routes ────────────────────────────────────────────────────
+        Route::middleware(['api', 'auth:sanctum'])
+            ->prefix('api/v1/packaging')
+            ->group(function () {
+                Route::post('/scan', [PackagingApiController::class, 'scan']);
+                Route::get('/items', [PackagingApiController::class, 'items']);
+                Route::get('/stats', [PackagingApiController::class, 'stats']);
+                Route::get('/scan-logs', [PackagingApiController::class, 'scanLogs']);
+                Route::get('/eans', [PackagingApiController::class, 'listEans']);
+                Route::get('/eans/{workOrderEan}', [PackagingApiController::class, 'showEan']);
+                Route::post('/eans', [PackagingApiController::class, 'storeEan']);
+                Route::delete('/eans/{workOrderEan}', [PackagingApiController::class, 'destroyEan']);
+            });
+
+        // ── Web Routes ─────────────────────────────────────────────────────────
         Route::middleware(['web', 'auth'])
             ->name('packaging.')
             ->prefix('packaging')
