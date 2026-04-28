@@ -26,32 +26,53 @@ class AnalyticsController extends Controller
             $query->where('line_id', $lineId);
         }
 
-        // Overall statistics
+        $todayStart = Carbon::now()->startOfDay();
+
         $stats = [
+            // Work orders
             'total_work_orders' => (clone $query)->count(),
-            'active_work_orders' => (clone $query)->whereIn('status', ['PENDING', 'IN_PROGRESS'])->count(),
+            'pending_work_orders' => (clone $query)->where('status', 'PENDING')->count(),
+            // "In progress (incl. accepted)" matches the web dashboard label.
+            'in_progress_work_orders' => (clone $query)->whereIn('status', ['ACCEPTED', 'IN_PROGRESS'])->count(),
+            'active_work_orders' => (clone $query)->whereIn('status', ['PENDING', 'ACCEPTED', 'IN_PROGRESS'])->count(),
             'completed_work_orders' => (clone $query)->where('status', 'DONE')->count(),
+            'done_today_work_orders' => (clone $query)
+                ->where('status', 'DONE')
+                ->where('updated_at', '>=', $todayStart)
+                ->count(),
             'blocked_work_orders' => (clone $query)->where('status', 'BLOCKED')->count(),
 
+            // Batches
             'total_batches' => Batch::when($lineId, function ($q) use ($lineId) {
                 $q->whereHas('workOrder', fn($wo) => $wo->where('line_id', $lineId));
             })->count(),
-
             'active_batches' => Batch::where('status', 'IN_PROGRESS')
                 ->when($lineId, function ($q) use ($lineId) {
                     $q->whereHas('workOrder', fn($wo) => $wo->where('line_id', $lineId));
                 })->count(),
 
+            // Issues
             'open_issues' => Issue::where('status', 'OPEN')
                 ->when($lineId, function ($q) use ($lineId) {
                     $q->whereHas('workOrder', fn($wo) => $wo->where('line_id', $lineId));
                 })->count(),
-
+            // Issues whose type is_blocking AND status is OPEN/ACKNOWLEDGED.
+            'blocking_issues' => Issue::whereIn('status', ['OPEN', 'ACKNOWLEDGED'])
+                ->whereHas('issueType', fn($q) => $q->where('is_blocking', true))
+                ->when($lineId, function ($q) use ($lineId) {
+                    $q->whereHas('workOrder', fn($wo) => $wo->where('line_id', $lineId));
+                })->count(),
             'critical_issues' => Issue::where('status', 'OPEN')
                 ->whereHas('issueType', fn($q) => $q->where('severity', 'CRITICAL'))
                 ->when($lineId, function ($q) use ($lineId) {
                     $q->whereHas('workOrder', fn($wo) => $wo->where('line_id', $lineId));
                 })->count(),
+
+            // Lines with at least one active (PENDING/ACCEPTED/IN_PROGRESS/BLOCKED) work order
+            'active_lines' => Line::where('is_active', true)
+                ->whereHas('workOrders', fn($q) => $q->whereIn('status', ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'BLOCKED']))
+                ->when($lineId, fn($q) => $q->where('id', $lineId))
+                ->count(),
         ];
 
         return response()->json(['data' => $stats]);

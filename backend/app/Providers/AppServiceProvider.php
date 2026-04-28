@@ -7,6 +7,7 @@ use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,6 +28,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
+        Gate::define('viewApiDocs', fn ($user) => $user !== null);
+
         // Share registries with every view so layouts and dashboards can render
         // items registered by modules without additional controller work.
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));

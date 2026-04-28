@@ -135,4 +135,76 @@ class WorkOrderController extends Controller
             'message' => 'Work order deleted successfully',
         ]);
     }
+
+    // ── Status transitions ──────────────────────────────────────────────────
+
+    public function accept(WorkOrder $workOrder): JsonResponse
+    {
+        return $this->transition($workOrder, WorkOrder::STATUS_ACCEPTED, [WorkOrder::STATUS_PENDING],
+            'Only PENDING work orders can be accepted.');
+    }
+
+    public function reject(WorkOrder $workOrder): JsonResponse
+    {
+        return $this->transition($workOrder, WorkOrder::STATUS_REJECTED,
+            [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED],
+            'Only PENDING or ACCEPTED work orders can be rejected.');
+    }
+
+    public function cancel(WorkOrder $workOrder): JsonResponse
+    {
+        $this->authorize('update', $workOrder);
+        if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES, true)) {
+            return response()->json([
+                'message' => 'Cannot cancel a work order that is already in a terminal state.',
+            ], 422);
+        }
+        $workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
+        return response()->json([
+            'message' => 'Work order cancelled',
+            'data' => $workOrder->fresh(['line', 'productType']),
+        ]);
+    }
+
+    public function pause(WorkOrder $workOrder): JsonResponse
+    {
+        return $this->transition($workOrder, WorkOrder::STATUS_PAUSED, [WorkOrder::STATUS_IN_PROGRESS],
+            'Only IN_PROGRESS work orders can be paused.');
+    }
+
+    public function resume(WorkOrder $workOrder): JsonResponse
+    {
+        return $this->transition($workOrder, WorkOrder::STATUS_IN_PROGRESS,
+            [WorkOrder::STATUS_PAUSED, WorkOrder::STATUS_BLOCKED],
+            'Only PAUSED or BLOCKED work orders can be resumed.');
+    }
+
+    public function reopen(WorkOrder $workOrder): JsonResponse
+    {
+        return $this->transition($workOrder, WorkOrder::STATUS_IN_PROGRESS,
+            WorkOrder::TERMINAL_STATUSES,
+            'Only terminal work orders (DONE/REJECTED/CANCELLED) can be reopened.');
+    }
+
+    public function complete(WorkOrder $workOrder): JsonResponse
+    {
+        return $this->transition($workOrder, WorkOrder::STATUS_DONE, [WorkOrder::STATUS_IN_PROGRESS],
+            'Only IN_PROGRESS work orders can be completed.');
+    }
+
+    private function transition(WorkOrder $workOrder, string $target, array $allowedFrom, string $errorMessage): JsonResponse
+    {
+        $this->authorize('update', $workOrder);
+
+        if (!in_array($workOrder->status, $allowedFrom, true)) {
+            return response()->json(['message' => $errorMessage], 422);
+        }
+
+        $workOrder->update(['status' => $target]);
+
+        return response()->json([
+            'message' => "Work order status set to {$target}",
+            'data' => $workOrder->fresh(['line', 'productType']),
+        ]);
+    }
 }
