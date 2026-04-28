@@ -89,4 +89,76 @@ class BatchController extends Controller
             'data' => $batch->load('steps'),
         ], 201);
     }
+
+    /**
+     * Update a batch (only target_qty, only when PENDING).
+     */
+    public function update(Request $request, Batch $batch): JsonResponse
+    {
+        $this->authorize('update', $batch->workOrder);
+
+        if ($batch->status !== Batch::STATUS_PENDING) {
+            return response()->json([
+                'message' => 'Only PENDING batches can be updated.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'target_qty' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        $batch->update(['target_qty' => $validated['target_qty']]);
+
+        return response()->json([
+            'message' => 'Batch updated',
+            'data' => $batch->fresh(['steps']),
+        ]);
+    }
+
+    /**
+     * Cancel a batch.
+     */
+    public function cancel(Batch $batch): JsonResponse
+    {
+        $this->authorize('update', $batch->workOrder);
+
+        if (in_array($batch->status, [Batch::STATUS_DONE, Batch::STATUS_CANCELLED], true)) {
+            return response()->json([
+                'message' => 'Batch is already in a terminal state.',
+            ], 422);
+        }
+
+        $batch->update(['status' => Batch::STATUS_CANCELLED]);
+
+        return response()->json([
+            'message' => 'Batch cancelled',
+            'data' => $batch->fresh(['steps']),
+        ]);
+    }
+
+    /**
+     * Delete a batch (only when PENDING and no started steps).
+     */
+    public function destroy(Batch $batch): JsonResponse
+    {
+        $this->authorize('delete', $batch->workOrder);
+
+        if ($batch->status !== Batch::STATUS_PENDING) {
+            return response()->json([
+                'message' => 'Only PENDING batches can be deleted.',
+            ], 422);
+        }
+
+        $hasStarted = $batch->steps()
+            ->whereNotIn('status', [\App\Models\BatchStep::STATUS_PENDING])
+            ->exists();
+        if ($hasStarted) {
+            return response()->json([
+                'message' => 'Cannot delete batch with started steps.',
+            ], 422);
+        }
+
+        $batch->delete();
+        return response()->json(['message' => 'Batch deleted']);
+    }
 }

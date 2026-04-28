@@ -177,4 +177,16 @@ class IssueController extends Controller
             'data' => $stats,
         ]);
     }
+
+    /**
+     * Delete an issue (Admin only — for accidental issue creation).
+     */
+    public function destroy(Request $request, Issue $issue): JsonResponse
+    {
+        if (!$request->user()->hasRole('Admin')) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        $issue->delete();
+        return response()->json(['message' => 'Issue deleted']);
+    }
 }
