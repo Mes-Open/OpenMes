@@ -26,7 +26,17 @@
             <p class="text-gray-600 mt-2">Line: {{ $line->name }}</p>
         </div>
         <div class="flex items-center gap-3">
-            {{-- View toggle --}}
+            {{-- Mode toggle: Queue / Workstation --}}
+            <div class="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
+                <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-white shadow text-blue-600">
+                    Queue
+                </span>
+                <a href="{{ route('operator.workstation') }}"
+                   class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 transition-all">
+                    Workstation
+                </a>
+            </div>
+            {{-- View toggle (table/cards within queue) --}}
             <div class="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
                 <button type="button" @click="view = 'table'"
                         :class="view === 'table' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'"

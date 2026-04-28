@@ -8,6 +8,7 @@ use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
+use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
 use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
@@ -71,6 +72,7 @@ Route::get('/offline', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('/login/pin', [AuthController::class, 'loginWithPin'])->name('login.pin')->middleware('throttle:10,1');
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:5,1');
 });
@@ -92,6 +94,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/system', [\App\Http\Controllers\Web\SettingsController::class, 'updateSystemSettings'])->name('update-system')->middleware('role:Admin');
         // Admin-only sample data
         Route::post('/sample-data', [\App\Http\Controllers\Web\SettingsController::class, 'loadSampleData'])->name('sample-data')->middleware('role:Admin');
+        // PIN management
+        Route::get('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'showPinForm'])->name('pin');
+        Route::post('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'updatePin'])->name('update-pin');
+        Route::delete('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'removePin'])->name('remove-pin');
         // Admin-only API token management
         Route::get('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'showApiTokens'])->name('api-tokens')->middleware('role:Admin');
         Route::post('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'createApiToken'])->name('api-tokens.create')->middleware('role:Admin');
@@ -112,6 +118,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/work-order/{workOrder}', [OperatorWorkOrderController::class, 'show'])->name('work-order.detail');
         Route::post('/batch', [OperatorBatchController::class, 'store'])->name('batch.store');
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
+
+        // Workstation production view
+        Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
+        Route::post('/workstation/{workOrder}/start', [OperatorWorkstationController::class, 'start'])->name('workstation.start');
+        Route::post('/workstation/{workOrder}/complete', [OperatorWorkstationController::class, 'complete'])->name('workstation.complete');
+        Route::post('/workstation/{workOrder}/shift-entry', [OperatorWorkstationController::class, 'shiftEntry'])->name('workstation.shift-entry');
     });
 
     // Supervisor routes (Supervisor and Admin)
@@ -159,7 +171,9 @@ Route::middleware('auth')->group(function () {
 
         // Shifts
         Route::get('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'index'])->name('shifts.index');
+        Route::get('/shifts/create', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'create'])->name('shifts.create');
         Route::post('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'store'])->name('shifts.store');
+        Route::get('/shifts/{shift}/edit', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'edit'])->name('shifts.edit');
         Route::put('/shifts/{shift}', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'update'])->name('shifts.update');
         Route::delete('/shifts/{shift}', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'destroy'])->name('shifts.destroy');
 
@@ -195,6 +209,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/lines/{line}/statuses', [AdminLineStatusController::class, 'storeForLine'])->name('lines.statuses.store');
         // Per-line product types
         Route::post('/lines/{line}/product-types', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'syncProductTypes'])->name('lines.product-types.sync');
+        Route::post('/lines/{line}/view-columns', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'saveViewColumns'])->name('lines.view-columns.save');
+        Route::post('/lines/{line}/view-template', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'assignViewTemplate'])->name('lines.view-template.assign');
+        Route::post('/lines/{line}/default-view', [\App\Http\Controllers\Web\Admin\LineManagementController::class, 'setDefaultView'])->name('lines.default-view.set');
+
+        // View Templates
+        Route::resource('view-templates', \App\Http\Controllers\Web\Admin\ViewTemplateController::class)->except(['show']);
+
 
         // Global line statuses management
         Route::get('/line-statuses', [AdminLineStatusController::class, 'index'])->name('line-statuses.index');

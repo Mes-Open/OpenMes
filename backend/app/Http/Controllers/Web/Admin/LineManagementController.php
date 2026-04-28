@@ -56,7 +56,7 @@ class LineManagementController extends Controller
      */
     public function show(Line $line)
     {
-        $line->load(['workstations', 'users.roles', 'productTypes']);
+        $line->load(['workstations', 'users.roles', 'productTypes', 'viewColumns', 'viewTemplate']);
         $workOrders = $line->workOrders()
             ->orderBy('created_at', 'desc')
             ->limit(10)
@@ -70,10 +70,12 @@ class LineManagementController extends Controller
         $lineStatuses      = LineStatus::forLine($line->id)->get();
         $allProductTypes   = ProductType::active()->orderBy('name')->get();
         $assignedTypeIds   = $line->productTypes->pluck('id')->toArray();
+        $viewColumns       = $line->viewColumns;
+        $allViewTemplates  = \App\Models\ViewTemplate::orderBy('name')->get();
 
         return view('admin.lines.show', compact(
             'line', 'workOrders', 'availableOperators',
-            'lineStatuses', 'allProductTypes', 'assignedTypeIds'
+            'lineStatuses', 'allProductTypes', 'assignedTypeIds', 'viewColumns', 'allViewTemplates'
         ));
     }
 
@@ -190,5 +192,59 @@ class LineManagementController extends Controller
 
         return redirect()->route('admin.lines.show', $line)
             ->with('success', "Operator {$user->name} unassigned successfully.");
+    }
+
+    /**
+     * Assign a view template to a line.
+     */
+    public function assignViewTemplate(Request $request, Line $line)
+    {
+        $validated = $request->validate([
+            'view_template_id' => 'nullable|exists:view_templates,id',
+        ]);
+
+        $line->update(['view_template_id' => $validated['view_template_id']]);
+
+        return back()->with('success', 'View template updated.');
+    }
+
+    /**
+     * Set default operator view for a line (queue or workstation).
+     */
+    public function setDefaultView(Request $request, Line $line)
+    {
+        $validated = $request->validate([
+            'default_operator_view' => 'required|in:queue,workstation',
+        ]);
+
+        $line->update(['default_operator_view' => $validated['default_operator_view']]);
+
+        return back()->with('success', 'Default operator view set to ' . ucfirst($validated['default_operator_view']) . '.');
+    }
+
+    /**
+     * Save workstation view columns for a line.
+     */
+    public function saveViewColumns(Request $request, Line $line)
+    {
+        $validated = $request->validate([
+            'columns'              => 'nullable|array|max:20',
+            'columns.*.label'      => 'required|string|max:100',
+            'columns.*.key'        => 'required|string|max:100',
+            'columns.*.source'     => 'required|in:extra_data,field',
+        ]);
+
+        $line->viewColumns()->delete();
+
+        foreach (($validated['columns'] ?? []) as $i => $col) {
+            $line->viewColumns()->create([
+                'label'      => $col['label'],
+                'key'        => $col['key'],
+                'source'     => $col['source'],
+                'sort_order' => $i,
+            ]);
+        }
+
+        return back()->with('success', 'Workstation view columns saved.');
     }
 }

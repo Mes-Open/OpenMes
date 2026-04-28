@@ -14,10 +14,6 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens, HasRoles, HasTenant;
 
-    /**
-     * The guard name for Spatie permissions
-     */
-    protected $guard_name = 'sanctum';
 
     /**
      * The attributes that are mass assignable.
@@ -29,6 +25,7 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'pin',
         'account_type',
         'workstation_id',
         'worker_id',
@@ -44,6 +41,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'pin',
         'remember_token',
     ];
 
