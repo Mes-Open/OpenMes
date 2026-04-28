@@ -12,6 +12,8 @@ class CompanyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Company::class);
+
         $query = Company::query();
         if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);

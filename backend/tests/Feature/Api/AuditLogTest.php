@@ -19,7 +19,9 @@ class AuditLogTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->user = User::factory()->create();
+        $this->user->assignRole('Admin');
     }
 
     public function test_audit_log_created_on_model_creation()
