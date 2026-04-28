@@ -19,6 +19,8 @@ class ToolController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Tool::class);
+
         $query = Tool::query()->with('workstationType');
         if ($status = $request->query('status')) {
             $query->where('status', $status);

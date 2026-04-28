@@ -7,6 +7,7 @@ use App\Models\Attachment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttachmentController extends Controller
@@ -14,7 +15,7 @@ class AttachmentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'entity_type' => ['required', 'string', 'max:100'],
+            'entity_type' => ['required', 'string', Rule::in(['work_order', 'issue', 'batch', 'maintenance_event'])],
             'entity_id' => ['required', 'integer'],
         ]);
 
@@ -39,9 +40,9 @@ class AttachmentController extends Controller
         $this->authorize('create', Attachment::class);
 
         $request->validate([
-            'entity_type' => ['required', 'string', 'max:100'],
+            'entity_type' => ['required', 'string', Rule::in(['work_order', 'issue', 'batch', 'maintenance_event'])],
             'entity_id' => ['required', 'integer'],
-            'file' => ['required', 'file', 'max:20480'], // 20 MB
+            'file' => ['required', 'file', 'max:20480', 'mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,csv,txt,zip'], // 20 MB
         ]);
 
         $file = $request->file('file');
