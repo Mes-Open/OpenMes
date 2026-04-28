@@ -71,15 +71,15 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'sanctum']);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
         // Admin — all permissions
-        $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'sanctum']);
+        $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions(Permission::all());
 
         // Supervisor — operational read + production management
-        $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'sanctum']);
+        $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'web']);
         $supervisorRole->syncPermissions([
             'view work orders', 'create work orders', 'edit work orders',
             'start batch step', 'complete batch step',
@@ -102,7 +102,7 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Operator — minimal: view queue + execute steps + report issues
-        $operatorRole = Role::firstOrCreate(['name' => 'Operator', 'guard_name' => 'sanctum']);
+        $operatorRole = Role::firstOrCreate(['name' => 'Operator', 'guard_name' => 'web']);
         $operatorRole->syncPermissions([
             'view work orders',
             'start batch step', 'complete batch step',

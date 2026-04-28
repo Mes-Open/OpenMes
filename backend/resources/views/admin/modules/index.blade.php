@@ -1,23 +1,23 @@
 @extends('layouts.app')
 
-@section('title', 'Moduły — Zainstalowane')
+@section('title', 'Modules — Installed')
 
 @section('content')
 <div class="max-w-5xl mx-auto">
 
     <x-breadcrumbs :items="[
         ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-        ['label' => 'Moduły', 'url' => null],
-        ['label' => 'Zainstalowane', 'url' => null],
+        ['label' => 'Modules', 'url' => null],
+        ['label' => 'Installed', 'url' => null],
     ]" />
 
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Zainstalowane moduły</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-1">Włączaj i wyłączaj zainstalowane rozszerzenia OpenMES</p>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Installed Modules</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">Enable and disable installed OpenMES extensions</p>
         </div>
         <a href="{{ route('admin.modules.install') }}" class="btn-touch btn-primary text-sm">
-            + Zainstaluj moduł
+            + Install Module
         </a>
     </div>
 
@@ -27,10 +27,10 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
                       d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
             </svg>
-            <p class="text-gray-500 text-lg font-medium">Brak zainstalowanych modułów</p>
+            <p class="text-gray-500 text-lg font-medium">No modules installed</p>
             <p class="text-gray-400 text-sm mt-1">
-                <a href="{{ route('admin.modules.install') }}" class="text-blue-600 hover:underline">Zainstaluj moduł z pliku ZIP</a>
-                lub umieść folder modułu w <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">modules/</code>
+                <a href="{{ route('admin.modules.install') }}" class="text-blue-600 hover:underline">Install a module from a ZIP file</a>
+                or place the module folder in <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">modules/</code>
             </p>
         </div>
     @else
@@ -44,16 +44,16 @@
                                 <span class="text-xs text-gray-400 font-mono">v{{ $module['version'] ?? '?' }}</span>
                                 @if($module['enabled'])
                                     <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                        Włączony
+                                        Enabled
                                     </span>
                                 @else
                                     <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                                        Wyłączony
+                                        Disabled
                                     </span>
                                 @endif
                                 @if($module['has_error'])
                                     <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                                        Błąd providera
+                                        Provider Error
                                     </span>
                                 @endif
                             </div>
@@ -70,11 +70,11 @@
                         </div>
                     </div>
 
-                    <p class="text-sm text-gray-600 dark:text-gray-400 flex-1">{{ $module['description'] ?? 'Brak opisu.' }}</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 flex-1">{{ $module['description'] ?? 'No description.' }}</p>
 
                     @if(!empty($module['hooks']))
                         <div>
-                            <p class="text-xs text-gray-400 mb-1">Używane hooki</p>
+                            <p class="text-xs text-gray-400 mb-1">Used hooks</p>
                             <div class="flex flex-wrap gap-1">
                                 @foreach($module['hooks'] as $hook)
                                     <span class="text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-mono">{{ $hook }}</span>
@@ -87,22 +87,22 @@
                         @if($module['enabled'])
                             <form method="POST" action="{{ route('admin.modules.disable', $module['name']) }}">
                                 @csrf
-                                <button class="btn-touch btn-secondary text-sm">Wyłącz</button>
+                                <button class="btn-touch btn-secondary text-sm">Disable</button>
                             </form>
                         @else
                             <form method="POST" action="{{ route('admin.modules.enable', $module['name']) }}">
                                 @csrf
-                                <button class="btn-touch btn-primary text-sm">Włącz</button>
+                                <button class="btn-touch btn-primary text-sm">Enable</button>
                             </form>
                         @endif
 
                         @if($module['name'] !== 'ExampleHooks')
                             @php $confirmLabel = addslashes($module['display_name'] ?? $module['name']); @endphp
                             <form method="POST" action="{{ route('admin.modules.destroy', $module['name']) }}"
-                                  onsubmit="return confirm('Odinstalować moduł {{ $confirmLabel }}? Pliki zostaną usunięte.')">
+                                  onsubmit="return confirm('Uninstall module {{ $confirmLabel }}? Files will be removed.')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn-touch btn-secondary text-sm text-red-500 hover:text-red-700">Odinstaluj</button>
+                                <button class="btn-touch btn-secondary text-sm text-red-500 hover:text-red-700">Uninstall</button>
                             </form>
                         @endif
                     </div>

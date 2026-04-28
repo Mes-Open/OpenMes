@@ -91,9 +91,78 @@ class SettingsController extends Controller
             'allow_overproduction'  => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']->value ?? 'true', true) ?? true,
             'workflow_mode'         => json_decode($rows['workflow_mode']->value ?? '"status"', true) ?? 'status',
+            'pin_login_enabled'     => json_decode($rows['pin_login_enabled']->value ?? 'false', true) ?? false,
         ];
 
         return view('settings.system', compact('settings'));
+    }
+
+    /**
+     * Show PIN setup form.
+     */
+    public function showPinForm()
+    {
+        $pinEnabled = json_decode(
+            DB::table('system_settings')->where('key', 'pin_login_enabled')->value('value') ?? 'false',
+            true
+        );
+
+        if (!$pinEnabled) {
+            return redirect()->route('settings.index')
+                ->with('error', 'PIN login is not enabled by administrator.');
+        }
+
+        $hasPin = !empty(auth()->user()->pin);
+
+        return view('settings.pin', compact('hasPin'));
+    }
+
+    /**
+     * Set or update the user's PIN.
+     */
+    public function updatePin(\App\Http\Requests\UpdatePinRequest $request)
+    {
+        $pinEnabled = json_decode(
+            DB::table('system_settings')->where('key', 'pin_login_enabled')->value('value') ?? 'false',
+            true
+        );
+
+        if (!$pinEnabled) {
+            return redirect()->route('settings.index')
+                ->with('error', 'PIN login is not enabled by administrator.');
+        }
+
+        $validated = $request->validated();
+
+        if (!Hash::check($validated['current_password'], auth()->user()->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+        }
+
+        auth()->user()->update([
+            'pin' => Hash::make($validated['pin']),
+        ]);
+
+        return redirect()->route('settings.index')
+            ->with('success', 'PIN set successfully. You can now use it to log in.');
+    }
+
+    /**
+     * Remove the user's PIN.
+     */
+    public function removePin(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+        ]);
+
+        if (!Hash::check($validated['current_password'], auth()->user()->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+        }
+
+        auth()->user()->update(['pin' => null]);
+
+        return redirect()->route('settings.index')
+            ->with('success', 'PIN removed.');
     }
 
     /**
@@ -163,6 +232,7 @@ class SettingsController extends Controller
             'allow_overproduction'   => 'nullable|boolean',
             'force_sequential_steps' => 'nullable|boolean',
             'workflow_mode'          => 'required|in:status,board_status',
+            'pin_login_enabled'      => 'nullable|boolean',
         ]);
 
         $map = [
@@ -170,6 +240,7 @@ class SettingsController extends Controller
             'allow_overproduction'   => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
             'workflow_mode'          => $validated['workflow_mode'],
+            'pin_login_enabled'      => (bool) ($validated['pin_login_enabled'] ?? false),
         ];
 
         foreach ($map as $key => $value) {
