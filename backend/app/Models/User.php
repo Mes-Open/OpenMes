@@ -14,7 +14,6 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens, HasRoles, HasTenant;
 
-
     /**
      * The attributes that are mass assignable.
      *
@@ -43,6 +42,7 @@ class User extends Authenticatable
         'password',
         'pin',
         'remember_token',
+        'pin',
     ];
 
     /**
