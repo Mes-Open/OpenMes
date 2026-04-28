@@ -1,13 +1,13 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:17-alpine
     container_name: openmmes-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-openmmes}
       POSTGRES_USER: ${POSTGRES_USER:-openmmes_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test:
         [

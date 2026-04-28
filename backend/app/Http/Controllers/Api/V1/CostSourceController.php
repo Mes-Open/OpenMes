@@ -12,6 +12,8 @@ class CostSourceController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', CostSource::class);
+
         $query = CostSource::query();
         if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);

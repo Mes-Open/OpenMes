@@ -13,6 +13,8 @@ class WorkerController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Worker::class);
+
         $query = Worker::query()->with(['crew', 'wageGroup', 'workstation']);
 
         if (!$request->boolean('include_inactive')) {
