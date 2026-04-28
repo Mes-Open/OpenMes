@@ -12,6 +12,8 @@ class FactoryController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Factory::class);
+
         $query = Factory::query()->withCount('divisions');
         if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);

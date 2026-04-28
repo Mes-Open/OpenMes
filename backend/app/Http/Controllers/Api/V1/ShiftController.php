@@ -11,6 +11,8 @@ class ShiftController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Shift::class);
+
         $query = Shift::query()->with('line');
         if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);

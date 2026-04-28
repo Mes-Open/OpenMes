@@ -260,6 +260,7 @@ class UserApiTest extends TestCase
 
         $this->authAdmin()->postJson("/api/v1/users/{$user->id}/reset-password", [
             'password' => 'NewSecret9!',
+            'password_confirmation' => 'NewSecret9!',
             'force_password_change' => true,
         ])->assertStatus(200);
 

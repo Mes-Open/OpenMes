@@ -12,6 +12,8 @@ class SkillController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Skill::class);
+
         $query = Skill::query()->withCount('workers');
         if ($q = $request->query('q')) {
             $needle = '%' . strtolower($q) . '%';

@@ -374,7 +374,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::post('/users', [UserController::class, 'store']);
         Route::patch('/users/{user}', [UserController::class, 'update']);
         Route::delete('/users/{user}', [UserController::class, 'destroy']);
-        Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword']);
+        Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->middleware('throttle:5,1');
         Route::get('/users/{user}/lines', [UserController::class, 'lines']);
         Route::post('/users/{user}/lines', [UserController::class, 'syncLines']);
 

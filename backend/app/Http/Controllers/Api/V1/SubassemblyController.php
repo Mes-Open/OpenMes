@@ -12,6 +12,8 @@ class SubassemblyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Subassembly::class);
+
         $query = Subassembly::query()->with('productType');
         if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);

@@ -12,6 +12,8 @@ class WageGroupController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', WageGroup::class);
+
         $query = WageGroup::query()->withCount('workers');
         if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);

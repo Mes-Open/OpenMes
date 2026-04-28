@@ -12,6 +12,8 @@ class AdditionalCostController extends Controller
 {
     public function index(WorkOrder $workOrder): JsonResponse
     {
+        $this->authorize('viewAny', AdditionalCost::class);
+
         return response()->json([
             'data' => AdditionalCost::where('work_order_id', $workOrder->id)
                 ->with(['costSource', 'createdBy'])

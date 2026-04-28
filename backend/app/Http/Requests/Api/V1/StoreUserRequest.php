@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class StoreUserRequest extends FormRequest
@@ -20,7 +21,7 @@ class StoreUserRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', Password::defaults()],
             'account_type' => ['required', 'in:user,workstation'],
-            'role' => ['required_if:account_type,user', 'nullable', 'exists:roles,name'],
+            'role' => ['required_if:account_type,user', 'nullable', Rule::in(['Operator', 'Supervisor', 'Admin'])],
             'workstation_id' => ['nullable', 'integer', 'exists:workstations,id', 'required_if:account_type,workstation'],
             'worker_id' => ['nullable', 'integer', 'exists:workers,id'],
             'force_password_change' => ['nullable', 'boolean'],

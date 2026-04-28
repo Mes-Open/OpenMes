@@ -93,6 +93,14 @@ class PackagingApiController extends Controller
             return response()->json(['message' => 'Work order not found'], 404);
         }
 
+        $user = $request->user();
+        if ($user->hasRole('Operator')) {
+            $hasAccess = $user->lines()->where('lines.id', $workOrder->line_id)->exists();
+            if (!$hasAccess) {
+                return response()->json(['message' => 'You do not have access to this line.'], 403);
+            }
+        }
+
         if (!in_array($workOrder->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS], true)) {
             return response()->json([
                 'message' => "Work order not in a packable state (current: {$workOrder->status})",

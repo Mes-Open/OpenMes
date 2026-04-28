@@ -12,6 +12,8 @@ class AnomalyReasonController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', AnomalyReason::class);
+
         $query = AnomalyReason::query();
         if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);

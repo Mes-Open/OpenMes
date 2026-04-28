@@ -12,6 +12,8 @@ class CrewController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Crew::class);
+
         $query = Crew::query()->withCount('workers')->with(['leader', 'division']);
         if (!$request->boolean('include_inactive')) {
             $query->where('is_active', true);

@@ -51,7 +51,18 @@ class SystemController extends Controller
         if (!$request->user()->hasRole('Admin')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
-        $request->validate(['value' => ['present']]);
+        $validated = $request->validate(['value' => ['present']]);
+
+        $knownSettings = [
+            'production_period' => 'in:none,weekly,monthly',
+            'allow_overproduction' => 'boolean',
+            'force_sequential_steps' => 'boolean',
+            'pin_login_enabled' => 'boolean',
+        ];
+        if (isset($knownSettings[$key])) {
+            $request->validate(['value' => ['required', $knownSettings[$key]]]);
+        }
+
         $row = DB::table('system_settings')->where('key', $key)->first();
         if (!$row) return response()->json(['message' => 'Setting not found'], 404);
         DB::table('system_settings')->where('key', $key)->update([
@@ -99,6 +110,10 @@ class SystemController extends Controller
 
     public function schedule(Request $request): JsonResponse
     {
+        if (!$request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
+            abort(403, 'Unauthorized');
+        }
+
         $request->validate([
             'from' => ['required', 'date'],
             'to' => ['required', 'date'],

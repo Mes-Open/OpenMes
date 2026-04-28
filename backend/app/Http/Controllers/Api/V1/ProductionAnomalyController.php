@@ -13,6 +13,8 @@ class ProductionAnomalyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', ProductionAnomaly::class);
+
         $query = ProductionAnomaly::query()->with(['anomalyReason', 'createdBy', 'workOrder']);
         if ($woId = $request->query('work_order_id')) {
             $query->where('work_order_id', $woId);
