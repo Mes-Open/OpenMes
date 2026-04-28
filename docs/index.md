@@ -14,6 +14,14 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 
 ---
 
+## Project
+
+| Document | Description |
+|---|---|
+| [Roadmap](roadmap.md) | Planned features, priorities, and current status |
+
+---
+
 ## Technical References
 
 | Document | Description |
