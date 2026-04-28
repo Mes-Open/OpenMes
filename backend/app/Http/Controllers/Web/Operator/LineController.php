@@ -20,7 +20,9 @@ class LineController extends Controller
             $lineId = $user->workstation?->line_id;
             if ($lineId) {
                 $request->session()->put('selected_line_id', $lineId);
-                return redirect()->route('operator.queue');
+                $line = Line::find($lineId);
+                $defaultView = $line?->default_operator_view ?? 'queue';
+                return redirect()->route($defaultView === 'workstation' ? 'operator.workstation' : 'operator.queue');
             }
         }
 
@@ -49,7 +51,11 @@ class LineController extends Controller
         // Store selected line in session
         $request->session()->put('selected_line_id', $lineId);
 
-        return redirect()->route('operator.queue')
+        $line = Line::find($lineId);
+        $defaultView = $line?->default_operator_view ?? 'queue';
+        $route = $defaultView === 'workstation' ? 'operator.workstation' : 'operator.queue';
+
+        return redirect()->route($route)
             ->with('success', 'Line selected successfully.');
     }
 }
