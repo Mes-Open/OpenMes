@@ -21,6 +21,8 @@ class Line extends Model
         'description',
         'is_active',
         'tenant_id',
+        'view_template_id',
+        'default_operator_view',
     ];
 
     protected function casts(): array
@@ -68,6 +70,33 @@ class Line extends Model
     public function lineStatuses(): HasMany
     {
         return $this->hasMany(LineStatus::class);
+    }
+
+    /**
+     * Get the view template assigned to this line.
+     */
+    public function viewTemplate(): BelongsTo
+    {
+        return $this->belongsTo(ViewTemplate::class);
+    }
+
+    /**
+     * Get the view columns configured for this line's workstation view.
+     */
+    public function viewColumns(): HasMany
+    {
+        return $this->hasMany(LineViewColumn::class)->orderBy('sort_order');
+    }
+
+    /**
+     * Get effective view columns: from template first, fallback to line-specific.
+     */
+    public function getEffectiveViewColumns(): \Illuminate\Support\Collection
+    {
+        if ($this->viewTemplate) {
+            return collect($this->viewTemplate->columns ?? []);
+        }
+        return $this->viewColumns->map(fn($c) => ['label' => $c->label, 'key' => $c->key, 'source' => $c->source]);
     }
 
     /**

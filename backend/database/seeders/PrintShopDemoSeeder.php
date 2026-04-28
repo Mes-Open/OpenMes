@@ -36,16 +36,16 @@ class PrintShopDemoSeeder extends Seeder
     private function seedIssueTypes(): void
     {
         $types = [
-            ['code' => 'PRINT_COLOR_MISMATCH', 'name' => 'Niezgodność kolorów druku',          'severity' => 'HIGH',     'is_blocking' => false],
-            ['code' => 'PRINT_SMEAR',          'name' => 'Rozmazanie / rozlanie druku',         'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'SUBSTRATE_DAMAGE',     'name' => 'Uszkodzenie podłoża / odzieży',       'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'PRINT_HEAD_FAILURE',   'name' => 'Awaria głowicy drukarki DTG',         'severity' => 'CRITICAL', 'is_blocking' => true],
-            ['code' => 'THREAD_BREAK',         'name' => 'Zerwanie nici hafciarskiej',          'severity' => 'MEDIUM',   'is_blocking' => false],
-            ['code' => 'SCREEN_CLOGGED',       'name' => 'Zatkanie sita / szablonu',            'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'INK_SHORTAGE',         'name' => 'Brak farby / tuszów',                 'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'ARTWORK_ERROR',        'name' => 'Błąd pliku graficznego',              'severity' => 'MEDIUM',   'is_blocking' => true],
-            ['code' => 'PRESS_TEMP_ERROR',     'name' => 'Błąd temperatury prasy termicznej',   'severity' => 'HIGH',     'is_blocking' => true],
-            ['code' => 'SIZE_MISMATCH',        'name' => 'Zły rozmiar / pozycja nadruku',       'severity' => 'MEDIUM',   'is_blocking' => false],
+            ['code' => 'PRINT_COLOR_MISMATCH', 'name' => 'Print Color Mismatch',               'severity' => 'HIGH',     'is_blocking' => false],
+            ['code' => 'PRINT_SMEAR',          'name' => 'Print Smear / Spill',                 'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'SUBSTRATE_DAMAGE',     'name' => 'Substrate / Garment Damage',          'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'PRINT_HEAD_FAILURE',   'name' => 'DTG Print Head Failure',              'severity' => 'CRITICAL', 'is_blocking' => true],
+            ['code' => 'THREAD_BREAK',         'name' => 'Embroidery Thread Break',             'severity' => 'MEDIUM',   'is_blocking' => false],
+            ['code' => 'SCREEN_CLOGGED',       'name' => 'Screen / Stencil Clogged',            'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'INK_SHORTAGE',         'name' => 'Ink / Toner Shortage',                'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'ARTWORK_ERROR',        'name' => 'Artwork File Error',                  'severity' => 'MEDIUM',   'is_blocking' => true],
+            ['code' => 'PRESS_TEMP_ERROR',     'name' => 'Heat Press Temperature Error',        'severity' => 'HIGH',     'is_blocking' => true],
+            ['code' => 'SIZE_MISMATCH',        'name' => 'Wrong Print Size / Position',         'severity' => 'MEDIUM',   'is_blocking' => false],
         ];
 
         foreach ($types as $type) {

@@ -75,7 +75,7 @@
             </div>
 
             @if(session('selected_line_id'))
-                @php $a = request()->routeIs('operator.queue', 'operator.work-order.*'); @endphp
+                @php $a = request()->routeIs('operator.queue', 'operator.work-order.*', 'operator.workstation*'); @endphp
                 <div class="relative group px-2">
                     <a href="{{ route('operator.queue') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
@@ -93,6 +93,7 @@
                         Work Orders
                     </span>
                 </div>
+
             @endif
 
         @endhasrole
@@ -377,6 +378,12 @@
                             <a href="{{ route('admin.line-statuses.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.line-statuses.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                                 <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>Line Statuses
                             </a>
+                            <a href="{{ route('admin.view-templates.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.view-templates.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>View Templates
+                            </a>
+                            <a href="{{ route('admin.shifts.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.shifts.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>Shifts
+                            </a>
                         </div>
                     </div>
                     <a href="{{ route('admin.issues.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.issues.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
@@ -652,7 +659,7 @@
                 </div>
             </div>
 
-            {{-- Moduły --}}
+            {{-- Modules --}}
             @if(auth()->user()?->hasRole('Admin'))
             <div class="px-2 relative group">
                 <button @click="modulesGroup = !modulesGroup"
@@ -666,7 +673,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Moduły</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Modules</span>
                     <svg x-show="!collapsed || mobileOpen" x-cloak
                          class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': modulesGroup}"
                          fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -677,7 +684,7 @@
                       class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
                              text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
                              group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
-                    Moduły
+                    Modules
                 </span>
                 <div x-show="modulesGroup && (!collapsed || mobileOpen)" x-cloak
                      x-transition:enter="transition-opacity ease-out duration-150"
@@ -687,15 +694,15 @@
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.modules.index') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.index') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Zainstalowane
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Installed
                     </a>
                     <a href="{{ route('admin.modules.install') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.install') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Do zainstalowania
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Install
                     </a>
-                    <span class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none" title="Wkrótce dostępne">
+                    <span class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none" title="Coming soon">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>
-                        Sklep
+                        Store
                         <span class="ml-auto text-[10px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">soon</span>
                     </span>
                 </div>

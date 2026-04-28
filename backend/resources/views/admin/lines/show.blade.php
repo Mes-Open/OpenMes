@@ -381,5 +381,156 @@
             @endif
         </div>
     </div>
+
+    {{-- ══════════════════ DEFAULT OPERATOR VIEW ══════════════════ --}}
+    <div class="card mt-6">
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">Default Operator View</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Choose which view operators see by default when they select this line.
+        </p>
+        <form method="POST" action="{{ route('admin.lines.default-view.set', $line) }}" class="flex items-end gap-3">
+            @csrf
+            <div class="flex-1">
+                <label class="form-label">Default View</label>
+                <div class="flex gap-3">
+                    <label class="flex-1 flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors
+                                  {{ ($line->default_operator_view ?? 'queue') === 'queue' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300' }}">
+                        <input type="radio" name="default_operator_view" value="queue"
+                               {{ ($line->default_operator_view ?? 'queue') === 'queue' ? 'checked' : '' }}
+                               onchange="this.form.submit()"
+                               class="text-blue-600 focus:ring-blue-500">
+                        <div>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">Queue</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Standard work order list with status, batches, priority and actions.</p>
+                        </div>
+                    </label>
+                    <label class="flex-1 flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors
+                                  {{ ($line->default_operator_view ?? 'queue') === 'workstation' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300' }}">
+                        <input type="radio" name="default_operator_view" value="workstation"
+                               {{ ($line->default_operator_view ?? 'queue') === 'workstation' ? 'checked' : '' }}
+                               onchange="this.form.submit()"
+                               class="text-blue-600 focus:ring-blue-500">
+                        <div>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">Workstation</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Flat production table with quantities, Z1/Z2 shift inputs and inline entry.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {{-- ══════════════════ WORKSTATION VIEW TEMPLATE ══════════════════ --}}
+    <div class="card mt-6">
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">Workstation View</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Select a view template that defines which columns operators see in the Workstation view for this line.
+        </p>
+        <form method="POST" action="{{ route('admin.lines.view-template.assign', $line) }}" class="flex items-end gap-3">
+            @csrf
+            <div class="flex-1">
+                <label class="form-label">View Template</label>
+                <select name="view_template_id" class="form-input w-full">
+                    <option value="">— Default (no custom columns) —</option>
+                    @foreach($allViewTemplates as $tpl)
+                        <option value="{{ $tpl->id }}" {{ $line->view_template_id == $tpl->id ? 'selected' : '' }}>
+                            {{ $tpl->name }}
+                            ({{ count($tpl->columns) }} columns)
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit" class="btn-touch btn-primary text-sm">Save</button>
+        </form>
+        @if($allViewTemplates->isEmpty())
+            <p class="text-xs text-gray-400 mt-3">
+                No templates created yet.
+                <a href="{{ route('admin.view-templates.create') }}" class="text-blue-600 hover:underline">Create one</a>.
+            </p>
+        @endif
+    </div>
+
+    {{-- ══════════════════ CUSTOM VIEW COLUMNS (fallback) ══════════════════ --}}
+    <div class="card mt-4" x-data="{
+        columns: @json($viewColumns->map(fn($c) => ['label' => $c->label, 'key' => $c->key, 'source' => $c->source])->values()),
+        newLabel: '',
+        newKey: '',
+        newSource: 'extra_data',
+        add() {
+            if (!this.newLabel || !this.newKey) return;
+            this.columns.push({ label: this.newLabel, key: this.newKey, source: this.newSource });
+            this.newLabel = '';
+            this.newKey = '';
+            this.newSource = 'extra_data';
+        },
+        remove(i) { this.columns.splice(i, 1); },
+        moveUp(i) { if (i > 0) { [this.columns[i-1], this.columns[i]] = [this.columns[i], this.columns[i-1]]; } },
+        moveDown(i) { if (i < this.columns.length - 1) { [this.columns[i], this.columns[i+1]] = [this.columns[i+1], this.columns[i]]; } }
+    }">
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">Workstation View Columns</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Configure which columns operators see in the Workstation view for this line.
+            Columns with source <strong>extra_data</strong> pull values from the work order's imported data.
+            Columns with source <strong>field</strong> pull from work order fields (order_no, description, due_date, priority).
+        </p>
+
+        <form method="POST" action="{{ route('admin.lines.view-columns.save', $line) }}">
+            @csrf
+
+            {{-- Existing columns --}}
+            <div class="space-y-2 mb-4">
+                <template x-for="(col, i) in columns" :key="i">
+                    <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+                        <span class="text-gray-400 text-sm font-mono w-6 text-center" x-text="i + 1"></span>
+                        <input type="hidden" :name="'columns[' + i + '][label]'" :value="col.label">
+                        <input type="hidden" :name="'columns[' + i + '][key]'" :value="col.key">
+                        <input type="hidden" :name="'columns[' + i + '][source]'" :value="col.source">
+                        <span class="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="col.label"></span>
+                        <code class="text-xs text-gray-500 bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded" x-text="col.source + '.' + col.key"></code>
+                        <button type="button" @click="moveUp(i)" class="p-1 text-gray-400 hover:text-gray-700" title="Move up">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                        </button>
+                        <button type="button" @click="moveDown(i)" class="p-1 text-gray-400 hover:text-gray-700" title="Move down">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <button type="button" @click="remove(i)" class="p-1 text-red-400 hover:text-red-600" title="Remove">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </template>
+                <div x-show="columns.length === 0" class="text-sm text-gray-400 text-center py-4">
+                    No custom columns configured. Default view will be shown.
+                </div>
+            </div>
+
+            {{-- Add new column --}}
+            <div class="flex flex-wrap gap-2 items-end border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
+                <div class="flex-1 min-w-[140px]">
+                    <label class="text-xs text-gray-500 block mb-1">Column Label</label>
+                    <input type="text" x-model="newLabel" placeholder="e.g. Material" class="form-input w-full text-sm">
+                </div>
+                <div class="flex-1 min-w-[140px]">
+                    <label class="text-xs text-gray-500 block mb-1">Data Key</label>
+                    <input type="text" x-model="newKey" placeholder="e.g. material" class="form-input w-full text-sm">
+                </div>
+                <div class="w-36">
+                    <label class="text-xs text-gray-500 block mb-1">Source</label>
+                    <select x-model="newSource" class="form-input w-full text-sm">
+                        <option value="extra_data">extra_data</option>
+                        <option value="field">field</option>
+                    </select>
+                </div>
+                <button type="button" @click="add()"
+                        class="btn-touch btn-secondary text-sm"
+                        :disabled="!newLabel || !newKey">
+                    + Add
+                </button>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="submit" class="btn-touch btn-primary text-sm">Save View Columns</button>
+            </div>
+        </form>
+    </div>
 </div>
 @endsection

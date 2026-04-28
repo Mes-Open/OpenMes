@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -55,6 +58,44 @@ class AuthController extends Controller
         }
 
         // Redirect to appropriate dashboard based on role
+        return $this->redirectToDashboard();
+    }
+
+    /**
+     * Handle PIN login request.
+     */
+    public function loginWithPin(\App\Http\Requests\PinLoginRequest $request)
+    {
+        $pinEnabled = json_decode(
+            DB::table('system_settings')->where('key', 'pin_login_enabled')->value('value') ?? 'false',
+            true
+        );
+
+        if (!$pinEnabled) {
+            throw ValidationException::withMessages([
+                'pin' => ['PIN login is not enabled.'],
+            ]);
+        }
+
+        $user = User::where('username', $request->input('username'))->first();
+
+        if (!$user || empty($user->pin) || !Hash::check($request->input('pin'), $user->pin)) {
+            throw ValidationException::withMessages([
+                'username' => ['Invalid username or PIN.'],
+            ]);
+        }
+
+        Auth::login($user, false);
+
+        $request->session()->regenerate();
+
+        $user->update(['last_login_at' => now()]);
+
+        if ($user->force_password_change) {
+            return redirect()->route('change-password')
+                ->with('error', 'You must change your password before continuing.');
+        }
+
         return $this->redirectToDashboard();
     }
 

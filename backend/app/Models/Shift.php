@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Shift extends Model
 {
@@ -12,11 +13,13 @@ class Shift extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'start_time',
         'end_time',
         'days_of_week',
         'line_id',
         'is_active',
+        'sort_order',
     ];
 
     protected function casts(): array
@@ -24,6 +27,7 @@ class Shift extends Model
         return [
             'days_of_week' => 'array',
             'is_active'    => 'boolean',
+            'sort_order'   => 'integer',
         ];
     }
 
@@ -32,13 +36,18 @@ class Shift extends Model
         return $this->belongsTo(Line::class);
     }
 
+    public function shiftEntries(): HasMany
+    {
+        return $this->hasMany(WorkOrderShiftEntry::class);
+    }
+
     /**
      * Returns the shift active right now, optionally filtered by line.
      */
     public static function current(?int $lineId = null): ?self
     {
         $now      = now();
-        $dayOfWeek = (int) $now->format('N'); // 1=Mon … 7=Sun
+        $dayOfWeek = (int) $now->format('N');
         $time      = $now->format('H:i:s');
 
         return static::where('is_active', true)
@@ -47,10 +56,9 @@ class Shift extends Model
             ))
             ->get()
             ->first(function (self $shift) use ($dayOfWeek, $time) {
-                if (!in_array($dayOfWeek, $shift->days_of_week)) {
+                if (is_array($shift->days_of_week) && !in_array($dayOfWeek, $shift->days_of_week)) {
                     return false;
                 }
-                // Handle overnight shifts (e.g. 22:00 – 06:00)
                 if ($shift->start_time <= $shift->end_time) {
                     return $time >= $shift->start_time && $time < $shift->end_time;
                 }
@@ -60,7 +68,7 @@ class Shift extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('is_active', true)->orderBy('sort_order');
     }
 
     public static function dayName(int $day): string
