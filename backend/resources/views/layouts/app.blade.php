@@ -189,6 +189,30 @@
         </div>
         @endif
 
+        {{-- Clock (Europe/Warsaw) --}}
+        <div class="hidden lg:flex items-center justify-end px-4 py-1.5 shrink-0"
+             x-data="{
+                 time: '',
+                 date: '',
+                 init() {
+                     this.tick();
+                     setInterval(() => this.tick(), 1000);
+                 },
+                 tick() {
+                     const now = new Date();
+                     this.time = now.toLocaleTimeString('pl-PL', { timeZone: 'Europe/Warsaw', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                     this.date = now.toLocaleDateString('pl-PL', { timeZone: 'Europe/Warsaw', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+                 }
+             }">
+            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span x-text="date"></span>
+                <span class="font-mono font-semibold text-gray-700 dark:text-gray-200" x-text="time"></span>
+            </div>
+        </div>
+
         {{-- Scrollable content --}}
         <main class="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
             @if(session('success'))

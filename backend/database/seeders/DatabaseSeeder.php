@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             IssueTypesSeeder::class,
             LineStatusSeeder::class,
+            ViewTemplateSeeder::class,
         ]);
     }
 }

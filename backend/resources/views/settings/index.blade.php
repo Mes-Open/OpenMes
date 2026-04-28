@@ -76,6 +76,32 @@
                 </svg>
             </div>
         </a>
+
+        <!-- PIN Login Card -->
+        @php
+            $pinSetting = \Illuminate\Support\Facades\DB::table('system_settings')->where('key','pin_login_enabled')->first();
+            $pinLoginEnabled = json_decode($pinSetting->value ?? 'false', true) === true;
+        @endphp
+        @if($pinLoginEnabled)
+        <a href="{{ route('settings.pin') }}" class="card hover:shadow-lg transition-shadow cursor-pointer">
+            <div class="flex items-start gap-4">
+                <div class="bg-amber-100 rounded-full p-3">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">Quick PIN</h3>
+                    <p class="text-gray-600 text-sm">
+                        {{ auth()->user()->pin ? 'PIN active — change or remove' : 'Set a 4–6 digit PIN for fast login' }}
+                    </p>
+                </div>
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+        @endif
     </div>
 
     <!-- User Info -->
