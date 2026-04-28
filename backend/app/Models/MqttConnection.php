@@ -11,6 +11,10 @@ class MqttConnection extends Model
 {
     use HasFactory;
 
+    protected $hidden = [
+        'password_encrypted',
+    ];
+
     protected $fillable = [
         'machine_connection_id',
         'broker_host',
