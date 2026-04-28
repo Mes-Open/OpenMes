@@ -86,6 +86,33 @@
             @enderror
         </div>
 
+        {{-- Authentication --}}
+        <div class="card">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">Authentication</h2>
+            <p class="text-xs text-gray-500 mb-4">
+                Additional login methods for operators and shop-floor users.
+            </p>
+
+            <div class="space-y-4">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <div class="pt-0.5">
+                        <input type="hidden" name="pin_login_enabled" value="0">
+                        <input type="checkbox" name="pin_login_enabled" value="1"
+                               class="rounded border-gray-300 text-blue-600"
+                               {{ ($settings['pin_login_enabled'] ?? false) ? 'checked' : '' }}>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">Enable PIN login</p>
+                        <p class="text-xs text-gray-500">
+                            Allow users to set a 4–6 digit numeric PIN for quick sign-in.
+                            Each user must first configure their PIN in Settings (requires current password).
+                            PIN login does not replace password login — it is an alternative method.
+                        </p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
         {{-- Production Rules --}}
         <div class="card">
             <h2 class="text-lg font-bold text-gray-800 mb-4">Production Rules</h2>
