@@ -18,9 +18,9 @@ class CompanyTest extends TestCase
     {
         parent::setUp();
 
-        Role::create(['name' => 'Admin', 'guard_name' => 'sanctum']);
-        Role::create(['name' => 'Supervisor', 'guard_name' => 'sanctum']);
-        Role::create(['name' => 'Operator', 'guard_name' => 'sanctum']);
+        Role::create(['name' => 'Admin', 'guard_name' => 'web']);
+        Role::create(['name' => 'Supervisor', 'guard_name' => 'web']);
+        Role::create(['name' => 'Operator', 'guard_name' => 'web']);
 
         $this->admin = User::factory()->create();
         $this->admin->assignRole('Admin');
