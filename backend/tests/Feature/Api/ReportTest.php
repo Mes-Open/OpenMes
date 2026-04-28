@@ -24,7 +24,9 @@ class ReportTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
         $this->user = User::factory()->create();
+        $this->user->assignRole('Admin');
         $this->line = Line::factory()->create();
         $this->productType = ProductType::factory()->create();
     }
