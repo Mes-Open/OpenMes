@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\IssueType;
 use App\Models\LineStatus;
 use App\Models\WorkOrder;
+use App\Models\Workstation;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,11 +26,11 @@ class WorkOrderController extends Controller
             ?? $request->query('line');
 
         // Workstation accounts auto-select their assigned line
-        if (!$lineId && auth()->user()->account_type === 'workstation') {
+        if (! $lineId && auth()->user()->account_type === 'workstation') {
             $lineId = auth()->user()->workstation?->line_id;
         }
 
-        if (!$lineId) {
+        if (! $lineId) {
             return redirect()->route('operator.select-line');
         }
 
@@ -80,7 +81,7 @@ class WorkOrderController extends Controller
 
         $validated = $request->validate([
             'line_status_id' => 'nullable|exists:line_statuses,id',
-            'produced_qty'   => 'nullable|numeric|min:0',
+            'produced_qty' => 'nullable|numeric|min:0',
         ]);
 
         $updates = ['line_status_id' => $validated['line_status_id']];
@@ -93,7 +94,7 @@ class WorkOrderController extends Controller
             if ($workflowMode === 'board_status') {
                 $newStatus = LineStatus::find($validated['line_status_id']);
                 if ($newStatus && $newStatus->is_done_status) {
-                    $updates['status']       = WorkOrder::STATUS_DONE;
+                    $updates['status'] = WorkOrder::STATUS_DONE;
                     $updates['completed_at'] = now();
                     if (isset($validated['produced_qty'])) {
                         $updates['produced_qty'] = $validated['produced_qty'];
@@ -125,12 +126,18 @@ class WorkOrderController extends Controller
             'productType',
             'batches.steps.startedBy',
             'batches.steps.completedBy',
+            'batches.workstation',
+            'batches.processConfirmations.confirmedBy',
+            'batches.qualityChecks.samples',
+            'batches.qualityChecks.checkedBy',
+            'batches.packagingChecklist',
             'issues.issueType',
             'issues.reportedBy',
         ]);
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
+        $workstations = Workstation::where('is_active', true)->orderBy('name')->get();
 
-        return view('operator.work-order-detail', compact('workOrder', 'issueTypes'));
+        return view('operator.work-order-detail', compact('workOrder', 'issueTypes', 'workstations'));
     }
 }
