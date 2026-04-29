@@ -131,8 +131,139 @@
                                     </svg>
                                 </div>
 
-                                <div x-show="expanded" x-transition class="mt-4">
+                                <div x-show="expanded" x-transition class="mt-4 space-y-4">
+                                    {{-- Batch Info Bar --}}
+                                    <div class="flex flex-wrap gap-4 text-sm bg-gray-50 p-3 rounded-lg">
+                                        @if($batch->lot_number)
+                                            <span class="font-medium">LOT: <span class="font-mono text-blue-600">{{ $batch->lot_number }}</span></span>
+                                        @endif
+                                        @if($batch->workstation)
+                                            <span class="font-medium">Workstation: {{ $batch->workstation->name }}</span>
+                                        @endif
+                                        @if($batch->isReleased())
+                                            <span class="text-green-600 font-medium">Released ({{ $batch->release_type === 'for_sale' ? 'For Sale' : 'For Production' }})</span>
+                                            @if($batch->expiry_date)
+                                                <span>Expiry: {{ $batch->expiry_date->format('Y-m-d') }}</span>
+                                            @endif
+                                        @endif
+                                    </div>
+
+                                    {{-- Steps --}}
                                     @livewire('batch-step-list', ['batchId' => $batch->id], key('batch-'.$batch->id))
+
+                                    {{-- Production Controls --}}
+                                    @if(in_array($batch->status, ['IN_PROGRESS', 'DONE']))
+                                        <div class="border-t pt-4 space-y-3" x-data="{ showQc: false, showChecklist: false, showRelease: false }">
+                                            <h4 class="text-sm font-bold text-gray-600 uppercase tracking-wider">Production Controls</h4>
+
+                                            {{-- Confirm Parameters --}}
+                                            <div class="flex items-center gap-3">
+                                                <form action="{{ route('operator.batch.confirm', $batch) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <input type="hidden" name="confirmation_type" value="parameters">
+                                                    <button type="submit" class="btn-touch btn-secondary text-sm">
+                                                        Confirm Parameters
+                                                    </button>
+                                                </form>
+                                                @if($batch->processConfirmations->where('confirmation_type', 'parameters')->whereNotNull('confirmed_at')->isNotEmpty())
+                                                    <span class="text-xs text-green-600">
+                                                        Last: {{ $batch->processConfirmations->where('confirmation_type', 'parameters')->first()->confirmed_at->format('d/m H:i') }}
+                                                    </span>
+                                                @endif
+                                            </div>
+
+                                            {{-- Quality Check --}}
+                                            <div>
+                                                <div class="flex items-center gap-3">
+                                                    <button @click="showQc = !showQc" class="btn-touch btn-secondary text-sm">
+                                                        Quality Check ({{ $batch->qualityChecks->count() }})
+                                                    </button>
+                                                    @if($batch->qualityChecks->count() < 3)
+                                                        <span class="text-xs text-orange-600">{{ 3 - $batch->qualityChecks->count() }} more needed</span>
+                                                    @else
+                                                        <span class="text-xs text-green-600">Min. requirement met</span>
+                                                    @endif
+                                                </div>
+                                                <div x-show="showQc" x-cloak class="mt-3 p-4 bg-blue-50 rounded-lg">
+                                                    <form action="{{ route('operator.batch.quality-check', $batch) }}" method="POST">
+                                                        @csrf
+                                                        <div class="mb-3">
+                                                            <label class="form-label text-sm">Production Quantity</label>
+                                                            <input type="number" name="production_quantity" step="0.01" class="form-input w-full" placeholder="Current production qty">
+                                                        </div>
+                                                        @for($s = 1; $s <= 3; $s++)
+                                                            <div class="mb-2 p-2 bg-white rounded">
+                                                                <p class="text-xs font-bold text-gray-500 mb-1">Sample #{{ $s }}</p>
+                                                                <div class="grid grid-cols-2 gap-2">
+                                                                    <div>
+                                                                        <input type="hidden" name="samples[{{ ($s-1)*2 }}][sample_number]" value="{{ $s }}">
+                                                                        <input type="hidden" name="samples[{{ ($s-1)*2 }}][parameter_name]" value="Dimension">
+                                                                        <input type="hidden" name="samples[{{ ($s-1)*2 }}][parameter_type]" value="measurement">
+                                                                        <input type="number" name="samples[{{ ($s-1)*2 }}][value_numeric]" step="0.01" class="form-input w-full text-sm" placeholder="Dimension" required>
+                                                                        <input type="hidden" name="samples[{{ ($s-1)*2 }}][is_passed]" value="1">
+                                                                    </div>
+                                                                    <div>
+                                                                        <input type="hidden" name="samples[{{ ($s-1)*2+1 }}][sample_number]" value="{{ $s }}">
+                                                                        <input type="hidden" name="samples[{{ ($s-1)*2+1 }}][parameter_name]" value="Fit check">
+                                                                        <input type="hidden" name="samples[{{ ($s-1)*2+1 }}][parameter_type]" value="pass_fail">
+                                                                        <select name="samples[{{ ($s-1)*2+1 }}][value_boolean]" class="form-input w-full text-sm" required>
+                                                                            <option value="1">Pass</option>
+                                                                            <option value="0">Fail</option>
+                                                                        </select>
+                                                                        <input type="hidden" name="samples[{{ ($s-1)*2+1 }}][is_passed]" value="1">
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        @endfor
+                                                        <button type="submit" class="btn-touch btn-primary text-sm mt-2">Submit QC</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+
+                                            {{-- Packaging Checklist --}}
+                                            @if(!$batch->packagingChecklist)
+                                                <div>
+                                                    <button @click="showChecklist = !showChecklist" class="btn-touch btn-secondary text-sm">Packaging Checklist</button>
+                                                    <div x-show="showChecklist" x-cloak class="mt-3 p-4 bg-purple-50 rounded-lg">
+                                                        <form action="{{ route('operator.batch.packaging-checklist', $batch) }}" method="POST">
+                                                            @csrf
+                                                            @foreach(['udi_readable' => 'UDI code readable', 'packaging_condition' => 'Packaging in good condition', 'labels_readable' => 'Labels readable', 'label_matches_product' => 'Label matches product'] as $field => $label)
+                                                                <label class="flex items-center gap-2 mb-2">
+                                                                    <input type="hidden" name="{{ $field }}" value="0">
+                                                                    <input type="checkbox" name="{{ $field }}" value="1" class="rounded border-gray-300 text-blue-600">
+                                                                    <span class="text-sm">{{ $label }}</span>
+                                                                </label>
+                                                            @endforeach
+                                                            <button type="submit" class="btn-touch btn-primary text-sm mt-2">Submit Checklist</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <div class="text-sm">
+                                                    <span class="{{ $batch->packagingChecklist->all_passed ? 'text-green-600' : 'text-red-600' }}">
+                                                        Packaging: {{ $batch->packagingChecklist->all_passed ? 'All passed' : 'Some items failed' }}
+                                                    </span>
+                                                </div>
+                                            @endif
+
+                                            {{-- Release --}}
+                                            @if($batch->status === 'DONE' && !$batch->isReleased())
+                                                <div>
+                                                    <button @click="showRelease = !showRelease" class="btn-touch bg-green-600 text-white hover:bg-green-700 text-sm">Release Batch</button>
+                                                    <div x-show="showRelease" x-cloak class="mt-3 p-4 bg-green-50 rounded-lg">
+                                                        <form action="{{ route('operator.batch.release', $batch) }}" method="POST">
+                                                            @csrf
+                                                            <p class="text-sm mb-3">Release this batch?</p>
+                                                            <div class="flex gap-3">
+                                                                <button type="submit" name="release_type" value="for_production" class="btn-touch btn-secondary text-sm">For Production</button>
+                                                                <button type="submit" name="release_type" value="for_sale" class="btn-touch btn-primary text-sm">For Sale</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         @endforeach
@@ -236,7 +367,7 @@
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Create New Batch</h3>
                 @php $remaining = max($workOrder->planned_qty - $workOrder->produced_qty, 0) @endphp
                 <form action="{{ route('operator.batch.store') }}" method="POST"
-                      x-data="{ quantity: {{ $remaining }} }">
+                      x-data="{ quantity: {{ $remaining }}, autoLot: false }">
                     @csrf
                     <input type="hidden" name="work_order_id" value="{{ $workOrder->id }}">
                     <div class="mb-4">
@@ -244,9 +375,28 @@
                         <input type="number" name="target_qty" x-model="quantity"
                                step="0.01" min="0.01" max="{{ $remaining }}"
                                class="form-input w-full" required>
-                        <p class="mt-1 text-sm text-gray-500">
-                            Remaining: {{ number_format($remaining, 2) }}
-                        </p>
+                        <p class="mt-1 text-sm text-gray-500">Remaining: {{ number_format($remaining, 2) }}</p>
+                    </div>
+                    @if(isset($workstations) && $workstations->isNotEmpty())
+                        <div class="mb-4">
+                            <label class="form-label">Workstation</label>
+                            <select name="workstation_id" class="form-input w-full">
+                                <option value="">Select workstation...</option>
+                                @foreach($workstations as $ws)
+                                    <option value="{{ $ws->id }}">{{ $ws->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                    <div class="mb-4">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" name="auto_lot" value="1" x-model="autoLot" class="rounded border-gray-300 text-blue-600">
+                            <span class="ml-2 text-sm text-gray-700">Auto-generate LOT number</span>
+                        </label>
+                    </div>
+                    <div class="mb-4" x-show="!autoLot">
+                        <label class="form-label">LOT Number (manual)</label>
+                        <input type="text" name="lot_number" class="form-input w-full" placeholder="Leave empty for no LOT">
                     </div>
                     <div class="flex gap-3 justify-end">
                         <button type="button" @click="createBatchOpen = false" class="btn-touch btn-secondary">Cancel</button>
