@@ -360,6 +360,12 @@
                     <a href="{{ route('admin.product-types.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.product-types.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Product Types
                     </a>
+                    <a href="{{ route('admin.materials.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.materials.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Materials
+                    </a>
+                    <a href="{{ route('admin.integrations.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.integrations.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Integrations
+                    </a>
                     {{-- Production Lines sub-group --}}
                     <div>
                         <button @click="linesGroup = !linesGroup"
