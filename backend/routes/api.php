@@ -1,42 +1,45 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\V1\WorkOrderController;
+use App\Http\Controllers\Api\V1\AdditionalCostController;
+use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\AnomalyReasonController;
+use App\Http\Controllers\Api\V1\AttachmentController;
+use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\BatchController;
 use App\Http\Controllers\Api\V1\BatchStepController;
-use App\Http\Controllers\Api\V1\LineController;
+use App\Http\Controllers\Api\V1\BomItemController;
+use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\ConnectivityController;
+use App\Http\Controllers\Api\V1\CostSourceController;
+use App\Http\Controllers\Api\V1\CrewController;
+use App\Http\Controllers\Api\V1\CsvImportController;
+use App\Http\Controllers\Api\V1\DivisionController;
+use App\Http\Controllers\Api\V1\EventLogController;
+use App\Http\Controllers\Api\V1\FactoryController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueTypeController;
-use App\Http\Controllers\Api\V1\CsvImportController;
-use App\Http\Controllers\Api\V1\AuditLogController;
-use App\Http\Controllers\Api\V1\EventLogController;
-use App\Http\Controllers\Api\V1\AnalyticsController;
-use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\LineController;
+use App\Http\Controllers\Api\V1\LineStatusController;
+use App\Http\Controllers\Api\V1\MaintenanceEventController;
+use App\Http\Controllers\Api\V1\MaterialController;
+use App\Http\Controllers\Api\V1\MaterialTypeController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
+use App\Http\Controllers\Api\V1\ProductionAnomalyController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
+use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ShiftController;
+use App\Http\Controllers\Api\V1\SkillController;
+use App\Http\Controllers\Api\V1\SubassemblyController;
+use App\Http\Controllers\Api\V1\SystemController;
+use App\Http\Controllers\Api\V1\ToolController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\WageGroupController;
+use App\Http\Controllers\Api\V1\WorkerController;
+use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Controllers\Api\V1\WorkstationController;
 use App\Http\Controllers\Api\V1\WorkstationTypeController;
-use App\Http\Controllers\Api\V1\SkillController;
-use App\Http\Controllers\Api\V1\WageGroupController;
-use App\Http\Controllers\Api\V1\CrewController;
-use App\Http\Controllers\Api\V1\WorkerController;
-use App\Http\Controllers\Api\V1\FactoryController;
-use App\Http\Controllers\Api\V1\DivisionController;
-use App\Http\Controllers\Api\V1\LineStatusController;
-use App\Http\Controllers\Api\V1\CompanyController;
-use App\Http\Controllers\Api\V1\CostSourceController;
-use App\Http\Controllers\Api\V1\AnomalyReasonController;
-use App\Http\Controllers\Api\V1\SubassemblyController;
-use App\Http\Controllers\Api\V1\ShiftController;
-use App\Http\Controllers\Api\V1\ToolController;
-use App\Http\Controllers\Api\V1\MaintenanceEventController;
-use App\Http\Controllers\Api\V1\ProductionAnomalyController;
-use App\Http\Controllers\Api\V1\AdditionalCostController;
-use App\Http\Controllers\Api\V1\AttachmentController;
-use App\Http\Controllers\Api\V1\ConnectivityController;
-use App\Http\Controllers\Api\V1\SystemController;
+use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Role;
 
 /*
@@ -116,6 +119,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/subassemblies/{subassembly}', [SubassemblyController::class, 'show']);
     Route::get('/shifts', [ShiftController::class, 'index']);
     Route::get('/shifts/{shift}', [ShiftController::class, 'show']);
+
+    // Materials & BOM — read for any authenticated user
+    Route::get('/material-types', [MaterialTypeController::class, 'index']);
+    Route::get('/material-types/{materialType}', [MaterialTypeController::class, 'show']);
+    Route::get('/materials', [MaterialController::class, 'index']);
+    Route::get('/materials/{material}', [MaterialController::class, 'show']);
+    Route::get('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'index']);
+    Route::get('/process-templates/{processTemplate}/bom-items/requirements', [BomItemController::class, 'requirements']);
 
     // Tools — read for any authenticated user
     Route::get('/tools', [ToolController::class, 'index']);
@@ -290,6 +301,17 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::post('/shifts', [ShiftController::class, 'store']);
         Route::patch('/shifts/{shift}', [ShiftController::class, 'update']);
         Route::delete('/shifts/{shift}', [ShiftController::class, 'destroy']);
+
+        // Materials — admin mutations
+        Route::post('/materials', [MaterialController::class, 'store']);
+        Route::patch('/materials/{material}', [MaterialController::class, 'update']);
+        Route::delete('/materials/{material}', [MaterialController::class, 'destroy']);
+        Route::post('/materials/import', [MaterialController::class, 'import']);
+
+        // BOM Items — admin mutations
+        Route::post('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'store']);
+        Route::patch('/process-templates/{processTemplate}/bom-items/{bomItem}', [BomItemController::class, 'update']);
+        Route::delete('/process-templates/{processTemplate}/bom-items/{bomItem}', [BomItemController::class, 'destroy']);
 
         // Tools — admin-only writes; supervisors handled via policy in controller for status/update
         Route::post('/tools', [ToolController::class, 'store']);

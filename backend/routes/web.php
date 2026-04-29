@@ -1,48 +1,52 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Web\AuthController;
-use App\Http\Controllers\Web\RegisterController;
 use App\Http\Controllers\InstallController;
-use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
-use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
-use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
-use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
-use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
-use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
-use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
-use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
-use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
-use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
-use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
-use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
-use App\Http\Controllers\Web\IssueManagementController;
-// Gate 2 — Company structure
-use App\Http\Controllers\Web\Admin\FactoryController;
-use App\Http\Controllers\Web\Admin\DivisionController;
-use App\Http\Controllers\Web\Admin\WorkstationTypeController;
-use App\Http\Controllers\Web\Admin\SubassemblyController;
-// Gate 3 — Basics
-use App\Http\Controllers\Web\Admin\CompanyController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
-// Gate 4 — HR
-use App\Http\Controllers\Web\Admin\WageGroupController;
+use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
+use App\Http\Controllers\Web\Admin\BomManagementController;
+use App\Http\Controllers\Web\Admin\CompanyController;
+use App\Http\Controllers\Web\Admin\Connectivity\ConnectivityController;
+use App\Http\Controllers\Web\Admin\Connectivity\MachineTopicController;
+use App\Http\Controllers\Web\Admin\Connectivity\MqttConnectionController;
+use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
+use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
+use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
+use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Web\Admin\DivisionController;
+use App\Http\Controllers\Web\Admin\FactoryController;
+use App\Http\Controllers\Web\Admin\IntegrationConfigController;
+use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
+use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
+// Gate 2 — Company structure
+use App\Http\Controllers\Web\Admin\MaintenanceEventController;
+use App\Http\Controllers\Web\Admin\MaterialManagementController;
+use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
+use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
+// Gate 3 — Basics
+use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\SkillController;
+// Gate 4 — HR
+use App\Http\Controllers\Web\Admin\SubassemblyController;
+use App\Http\Controllers\Web\Admin\ToolController;
+use App\Http\Controllers\Web\Admin\WageGroupController;
 use App\Http\Controllers\Web\Admin\WorkerController;
 // Gate 5 — Tracking advanced
-use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
+use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 // Gate 6 — Costing
-use App\Http\Controllers\Web\Admin\CostSourceController;
+use App\Http\Controllers\Web\Admin\WorkstationTypeController;
+// Materials & BOM
+use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\IssueManagementController;
+use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
 // Gate 7 — Maintenance
-use App\Http\Controllers\Web\Admin\ToolController;
-use App\Http\Controllers\Web\Admin\MaintenanceEventController;
-use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
-use App\Http\Controllers\Web\Admin\Connectivity\ConnectivityController;
-use App\Http\Controllers\Web\Admin\Connectivity\MqttConnectionController;
-use App\Http\Controllers\Web\Admin\Connectivity\MachineTopicController;
-use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
+use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
+use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
+use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
+use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
+use App\Http\Controllers\Web\RegisterController;
+use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
+use Illuminate\Support\Facades\Route;
 
 // Installation routes (no middleware)
 Route::prefix('install')->name('install.')->group(function () {
@@ -58,9 +62,10 @@ Route::prefix('install')->name('install.')->group(function () {
 
 // Redirect root to installer or login
 Route::get('/', function () {
-    if (!file_exists(storage_path('installed'))) {
+    if (! file_exists(storage_path('installed'))) {
         return redirect()->route('install.index');
     }
+
     return redirect()->route('login');
 });
 
@@ -216,7 +221,6 @@ Route::middleware('auth')->group(function () {
         // View Templates
         Route::resource('view-templates', \App\Http\Controllers\Web\Admin\ViewTemplateController::class)->except(['show']);
 
-
         // Global line statuses management
         Route::get('/line-statuses', [AdminLineStatusController::class, 'index'])->name('line-statuses.index');
         Route::post('/line-statuses', [AdminLineStatusController::class, 'store'])->name('line-statuses.store');
@@ -256,7 +260,20 @@ Route::middleware('auth')->group(function () {
             Route::post('/{process_template}/steps/reorder', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'reorderSteps'])->name('reorder-steps');
             Route::post('/{process_template}/steps/{step}/move-up', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'moveStepUp'])->name('move-step-up');
             Route::post('/{process_template}/steps/{step}/move-down', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'moveStepDown'])->name('move-step-down');
+
+            // BOM Management (nested under process templates)
+            Route::get('/{process_template}/bom', [BomManagementController::class, 'index'])->name('bom');
+            Route::post('/{process_template}/bom', [BomManagementController::class, 'store'])->name('bom.store');
+            Route::put('/{process_template}/bom/{bom_item}', [BomManagementController::class, 'update'])->name('bom.update');
+            Route::delete('/{process_template}/bom/{bom_item}', [BomManagementController::class, 'destroy'])->name('bom.destroy');
         });
+
+        // Materials Management
+        Route::resource('materials', MaterialManagementController::class);
+        Route::post('/materials/{material}/toggle-active', [MaterialManagementController::class, 'toggleActive'])->name('materials.toggle-active');
+
+        // Integration Configs
+        Route::resource('integrations', IntegrationConfigController::class)->except(['show']);
 
         // CSV Import
         Route::get('/csv-import', [AdminCsvImportController::class, 'index'])->name('csv-import');
