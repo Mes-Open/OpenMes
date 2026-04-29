@@ -12,8 +12,11 @@ class BatchStep extends Model
     use HasFactory;
 
     const STATUS_PENDING = 'PENDING';
+
     const STATUS_IN_PROGRESS = 'IN_PROGRESS';
+
     const STATUS_DONE = 'DONE';
+
     const STATUS_SKIPPED = 'SKIPPED';
 
     protected $fillable = [
@@ -24,6 +27,8 @@ class BatchStep extends Model
         'status',
         'started_at',
         'completed_at',
+        'confirmed_at',
+        'confirmed_by',
         'started_by_id',
         'completed_by_id',
         'duration_minutes',
@@ -35,6 +40,7 @@ class BatchStep extends Model
             'step_number' => 'integer',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'confirmed_at' => 'datetime',
             'duration_minutes' => 'integer',
         ];
     }
@@ -89,7 +95,7 @@ class BatchStep extends Model
         // Check if sequential steps enforcement is enabled
         $forceSequential = config('openmmes.force_sequential_steps', true);
 
-        if (!$forceSequential) {
+        if (! $forceSequential) {
             return true;
         }
 
