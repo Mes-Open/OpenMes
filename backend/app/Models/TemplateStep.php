@@ -18,6 +18,8 @@ class TemplateStep extends Model
         'name',
         'instruction',
         'estimated_duration_minutes',
+        'min_duration_minutes',
+        'requires_confirmation',
         'workstation_id',
     ];
 
@@ -26,6 +28,8 @@ class TemplateStep extends Model
         return [
             'step_number' => 'integer',
             'estimated_duration_minutes' => 'integer',
+            'min_duration_minutes' => 'integer',
+            'requires_confirmation' => 'boolean',
         ];
     }
 

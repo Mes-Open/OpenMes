@@ -52,6 +52,11 @@ class ProcessTemplate extends Model
         return $this->hasMany(BomItem::class)->orderBy('sort_order');
     }
 
+    public function qualityCheckTemplates(): HasMany
+    {
+        return $this->hasMany(QualityCheckTemplate::class);
+    }
+
     /**
      * Generate a JSON snapshot of this template for work order storage.
      * This ensures work orders are immune to template changes.
