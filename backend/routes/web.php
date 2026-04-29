@@ -123,6 +123,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-order/{workOrder}/line-status', [OperatorWorkOrderController::class, 'updateLineStatus'])->name('work-order.line-status');
         Route::get('/work-order/{workOrder}', [OperatorWorkOrderController::class, 'show'])->name('work-order.detail');
         Route::post('/batch', [OperatorBatchController::class, 'store'])->name('batch.store');
+        Route::post('/batch/{batch}/confirm', [OperatorBatchController::class, 'confirmParameters'])->name('batch.confirm');
+        Route::post('/batch/{batch}/quality-check', [OperatorBatchController::class, 'qualityCheck'])->name('batch.quality-check');
+        Route::post('/batch/{batch}/packaging-checklist', [OperatorBatchController::class, 'packagingChecklist'])->name('batch.packaging-checklist');
+        Route::post('/batch/{batch}/release', [OperatorBatchController::class, 'release'])->name('batch.release');
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
 
         // Workstation production view
