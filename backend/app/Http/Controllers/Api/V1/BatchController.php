@@ -3,23 +3,23 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\WorkOrder;
+use App\Http\Requests\Api\V1\ReleaseBatchRequest;
 use App\Models\Batch;
+use App\Models\WorkOrder;
+use App\Services\Lot\BatchReleaseService;
 use App\Services\WorkOrder\WorkOrderService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class BatchController extends Controller
 {
     public function __construct(
-        protected WorkOrderService $workOrderService
+        protected WorkOrderService $workOrderService,
+        protected BatchReleaseService $releaseService,
     ) {}
 
     /**
      * Get batches for a work order.
-     *
-     * @param WorkOrder $workOrder
-     * @return JsonResponse
      */
     public function index(WorkOrder $workOrder): JsonResponse
     {
@@ -37,9 +37,6 @@ class BatchController extends Controller
 
     /**
      * Get a specific batch with steps.
-     *
-     * @param Batch $batch
-     * @return JsonResponse
      */
     public function show(Batch $batch): JsonResponse
     {
@@ -59,10 +56,6 @@ class BatchController extends Controller
 
     /**
      * Create a new batch for a work order.
-     *
-     * @param Request $request
-     * @param WorkOrder $workOrder
-     * @return JsonResponse
      */
     public function store(Request $request, WorkOrder $workOrder): JsonResponse
     {
@@ -70,24 +63,43 @@ class BatchController extends Controller
 
         $validated = $request->validate([
             'target_qty' => 'required|numeric|min:0.01',
+            'workstation_id' => 'nullable|exists:workstations,id',
+            'lot_number' => 'nullable|string|max:50',
         ]);
 
         // Check if adding this batch would exceed planned qty
         $totalTargetQty = $workOrder->batches()->sum('target_qty') + $validated['target_qty'];
         $allowOverproduction = config('openmmes.allow_overproduction', false);
 
-        if (!$allowOverproduction && ($totalTargetQty - $workOrder->planned_qty) > 0.001) {
+        if (! $allowOverproduction && ($totalTargetQty - $workOrder->planned_qty) > 0.001) {
             return response()->json([
                 'message' => 'Total batch quantity would exceed planned quantity',
             ], 422);
         }
 
-        $batch = $this->workOrderService->createBatch($workOrder, $validated['target_qty']);
+        // Check workstation conflicts (soft warning in response)
+        $conflicts = [];
+        if (! empty($validated['workstation_id'])) {
+            $conflicts = $this->releaseService->checkWorkstationConflicts($validated['workstation_id']);
+        }
 
-        return response()->json([
+        $batch = $this->workOrderService->createBatch(
+            $workOrder,
+            $validated['target_qty'],
+            $validated['workstation_id'] ?? null,
+            $validated['lot_number'] ?? null,
+        );
+
+        $response = [
             'message' => 'Batch created successfully',
-            'data' => $batch->load('steps'),
-        ], 201);
+            'data' => $batch->load(['steps', 'workstation']),
+        ];
+
+        if (! empty($conflicts)) {
+            $response['warnings'] = ['workstation_conflict' => $conflicts];
+        }
+
+        return response()->json($response, 201);
     }
 
     /**
@@ -159,6 +171,28 @@ class BatchController extends Controller
         }
 
         $batch->delete();
+
         return response()->json(['message' => 'Batch deleted']);
+    }
+
+    /**
+     * Release a completed batch for production or sale.
+     */
+    public function release(ReleaseBatchRequest $request, Batch $batch): JsonResponse
+    {
+        try {
+            $batch = $this->releaseService->release(
+                $batch,
+                $request->user(),
+                $request->validated('release_type'),
+            );
+
+            return response()->json([
+                'message' => 'Batch released successfully',
+                'data' => $batch,
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 }
