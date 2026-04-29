@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ProductType extends Model
 {
     use HasFactory, HasTenant;
+
     protected $fillable = [
         'code',
         'name',
@@ -65,6 +67,14 @@ class ProductType extends Model
     /**
      * Scope to get only active product types.
      */
+    /**
+     * Get the LOT sequence for this product type.
+     */
+    public function lotSequence(): HasOne
+    {
+        return $this->hasOne(LotSequence::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

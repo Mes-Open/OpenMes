@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueTypeController;
 use App\Http\Controllers\Api\V1\LineController;
 use App\Http\Controllers\Api\V1\LineStatusController;
+use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
@@ -119,6 +120,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/subassemblies/{subassembly}', [SubassemblyController::class, 'show']);
     Route::get('/shifts', [ShiftController::class, 'index']);
     Route::get('/shifts/{shift}', [ShiftController::class, 'show']);
+
+    // LOT Sequences — read for any authenticated user
+    Route::get('/lot-sequences', [LotSequenceController::class, 'index']);
+    Route::get('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'show']);
+    Route::get('/lot/preview/{productTypeId?}', [LotSequenceController::class, 'preview']);
 
     // Materials & BOM — read for any authenticated user
     Route::get('/material-types', [MaterialTypeController::class, 'index']);
@@ -302,6 +308,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/shifts/{shift}', [ShiftController::class, 'update']);
         Route::delete('/shifts/{shift}', [ShiftController::class, 'destroy']);
 
+        // LOT Sequences — admin mutations
+        Route::post('/lot-sequences', [LotSequenceController::class, 'store']);
+        Route::patch('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'update']);
+        Route::delete('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'destroy']);
+
         // Materials — admin mutations
         Route::post('/materials', [MaterialController::class, 'store']);
         Route::patch('/materials/{material}', [MaterialController::class, 'update']);
@@ -347,6 +358,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/batches/{batch}', [BatchController::class, 'show']);
     Route::patch('/batches/{batch}', [BatchController::class, 'update']);
     Route::post('/batches/{batch}/cancel', [BatchController::class, 'cancel']);
+    Route::post('/batches/{batch}/release', [BatchController::class, 'release']);
     Route::delete('/batches/{batch}', [BatchController::class, 'destroy']);
 
     // Batch Steps (step execution)
