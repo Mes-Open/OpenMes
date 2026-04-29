@@ -74,6 +74,7 @@
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
                         <div class="dd-item"><a href="{{ route('admin.product-types.index') }}">Product Types</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.materials.index') }}">Materials</a></div>
                         <div class="dd-item"><a href="{{ route('admin.lines.index') }}">Lines</a></div>
                         <div class="dd-item"><a href="{{ route('admin.line-statuses.index') }}">Line Statuses</a></div>
                         <div class="dd-item"><a href="{{ route('admin.issues.index') }}">Issues</a></div>
