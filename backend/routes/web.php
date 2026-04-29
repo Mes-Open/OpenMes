@@ -18,6 +18,7 @@ use App\Http\Controllers\Web\Admin\FactoryController;
 use App\Http\Controllers\Web\Admin\IntegrationConfigController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
+use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceController;
 // Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
@@ -267,6 +268,9 @@ Route::middleware('auth')->group(function () {
             Route::put('/{process_template}/bom/{bom_item}', [BomManagementController::class, 'update'])->name('bom.update');
             Route::delete('/{process_template}/bom/{bom_item}', [BomManagementController::class, 'destroy'])->name('bom.destroy');
         });
+
+        // LOT Sequences
+        Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
 
         // Materials Management
         Route::resource('materials', MaterialManagementController::class);
