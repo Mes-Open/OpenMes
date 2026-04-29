@@ -175,6 +175,97 @@
         @endif
     </div>
 
+    <!-- Production Controls Overview -->
+    @if(isset($productionControls))
+    <div class="card mb-8">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Production Controls</h2>
+
+        {{-- Alert Badges --}}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="p-4 rounded-lg {{ $productionControls['unconfirmed_today'] > 0 ? 'bg-orange-50 border border-orange-200' : 'bg-green-50 border border-green-200' }}">
+                <p class="text-sm font-medium {{ $productionControls['unconfirmed_today'] > 0 ? 'text-orange-800' : 'text-green-800' }}">
+                    Parameters Unconfirmed Today
+                </p>
+                <p class="text-2xl font-bold {{ $productionControls['unconfirmed_today'] > 0 ? 'text-orange-600' : 'text-green-600' }}">
+                    {{ $productionControls['unconfirmed_today'] }}
+                </p>
+            </div>
+            <div class="p-4 rounded-lg {{ $productionControls['qc_needed_count'] > 0 ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200' }}">
+                <p class="text-sm font-medium {{ $productionControls['qc_needed_count'] > 0 ? 'text-blue-800' : 'text-green-800' }}">QC Checks Needed</p>
+                <p class="text-2xl font-bold {{ $productionControls['qc_needed_count'] > 0 ? 'text-blue-600' : 'text-green-600' }}">{{ $productionControls['qc_needed_count'] }}</p>
+            </div>
+            <div class="p-4 rounded-lg {{ $productionControls['unreleased_count'] > 0 ? 'bg-purple-50 border border-purple-200' : 'bg-green-50 border border-green-200' }}">
+                <p class="text-sm font-medium {{ $productionControls['unreleased_count'] > 0 ? 'text-purple-800' : 'text-green-800' }}">Awaiting Release</p>
+                <p class="text-2xl font-bold {{ $productionControls['unreleased_count'] > 0 ? 'text-purple-600' : 'text-green-600' }}">{{ $productionControls['unreleased_count'] }}</p>
+            </div>
+        </div>
+
+        {{-- Active Batches Table --}}
+        @if(count($productionControls['active_batches']) > 0)
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Batch</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">LOT</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Workstation</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Params</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">QC</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Checklist</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Released</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach($productionControls['active_batches'] as $b)
+                            <tr>
+                                <td class="px-3 py-2 font-medium">#{{ $b['batch_number'] }}</td>
+                                <td class="px-3 py-2 font-mono text-xs">{{ $b['work_order'] }}</td>
+                                <td class="px-3 py-2">{{ $b['product'] }}</td>
+                                <td class="px-3 py-2 font-mono text-xs text-blue-600">{{ $b['lot_number'] ?? '-' }}</td>
+                                <td class="px-3 py-2">{{ $b['workstation'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center">
+                                    @if($b['confirmed_today'])
+                                        <span class="text-green-600" title="Last: {{ $b['last_confirmation'] }}">OK</span>
+                                    @else
+                                        <span class="text-orange-600">Needed</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <span class="{{ $b['qc_ok'] ? 'text-green-600' : 'text-orange-600' }}">
+                                        {{ $b['qc_count'] }}/3
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    @if($b['checklist_done'])
+                                        <span class="{{ $b['checklist_passed'] ? 'text-green-600' : 'text-red-600' }}">
+                                            {{ $b['checklist_passed'] ? 'Pass' : 'Fail' }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    @if($b['released'])
+                                        <span class="text-green-600">{{ $b['release_type'] === 'for_sale' ? 'Sale' : 'Prod' }}</span>
+                                    @elseif($b['status'] === 'DONE')
+                                        <span class="text-purple-600">Pending</span>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <p class="text-center py-8 text-gray-500">No active batches.</p>
+        @endif
+    </div>
+    @endif
+
     <!-- Recent Issues -->
     <div class="card">
         <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Issues</h2>
