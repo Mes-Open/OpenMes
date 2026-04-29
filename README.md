@@ -188,7 +188,7 @@ OpenMES uses a **dead-simple** Laravel monolith architecture:
 - **Frontend**: Tailwind CSS 4 + Alpine.js for interactivity
 - **Real-time**: Livewire 4 for dynamic components
 - **Charts**: Chart.js for analytics
-- **Database**: PostgreSQL 14+ with immutable audit logs
+- **Database**: PostgreSQL 17+ with immutable audit logs
 - **Deployment**: Docker Compose (2 containers only!)
 
 ### Why This Architecture?
