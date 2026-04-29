@@ -87,6 +87,21 @@ class Batch extends Model
             ->count() === 0;
     }
 
+    public function processConfirmations(): HasMany
+    {
+        return $this->hasMany(ProcessConfirmation::class)->orderByDesc('confirmed_at');
+    }
+
+    public function qualityChecks(): HasMany
+    {
+        return $this->hasMany(QualityCheck::class)->orderByDesc('checked_at');
+    }
+
+    public function packagingChecklist()
+    {
+        return $this->hasOne(PackagingChecklist::class);
+    }
+
     /**
      * Get the current (in progress or next pending) step.
      */
