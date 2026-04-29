@@ -2,10 +2,10 @@
 
 namespace App\Services\WorkOrder;
 
-use App\Models\WorkOrder;
-use App\Models\ProcessTemplate;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\ProcessTemplate;
+use App\Models\WorkOrder;
 use Illuminate\Support\Facades\DB;
 
 class WorkOrderService
@@ -13,8 +13,6 @@ class WorkOrderService
     /**
      * Create a new work order with process snapshot.
      *
-     * @param array $data
-     * @return WorkOrder
      * @throws \Exception
      */
     public function createWorkOrder(array $data): WorkOrder
@@ -52,10 +50,6 @@ class WorkOrderService
 
     /**
      * Update an existing work order.
-     *
-     * @param WorkOrder $workOrder
-     * @param array $data
-     * @return WorkOrder
      */
     public function updateWorkOrder(WorkOrder $workOrder, array $data): WorkOrder
     {
@@ -76,14 +70,10 @@ class WorkOrderService
 
     /**
      * Create a new batch for a work order.
-     *
-     * @param WorkOrder $workOrder
-     * @param float $targetQty
-     * @return Batch
      */
-    public function createBatch(WorkOrder $workOrder, float $targetQty): Batch
+    public function createBatch(WorkOrder $workOrder, float $targetQty, ?int $workstationId = null, ?string $lotNumber = null): Batch
     {
-        return DB::transaction(function () use ($workOrder, $targetQty) {
+        return DB::transaction(function () use ($workOrder, $targetQty, $workstationId, $lotNumber) {
             // Calculate next batch number
             $lastBatch = $workOrder->batches()->reorder('batch_number', 'desc')->first();
             $batchNumber = $lastBatch ? $lastBatch->batch_number + 1 : 1;
@@ -95,10 +85,13 @@ class WorkOrderService
                 'target_qty' => $targetQty,
                 'produced_qty' => 0,
                 'status' => Batch::STATUS_PENDING,
+                'workstation_id' => $workstationId,
+                'lot_number' => $lotNumber,
+                'lot_assigned_at' => $lotNumber ? Batch::LOT_ON_START : null,
             ]);
 
             // Create batch steps from process snapshot (skipped if no snapshot)
-            if (!empty($workOrder->process_snapshot)) {
+            if (! empty($workOrder->process_snapshot)) {
                 $this->createBatchStepsFromSnapshot($batch, $workOrder->process_snapshot);
             }
 
@@ -108,10 +101,6 @@ class WorkOrderService
 
     /**
      * Create batch steps from work order process snapshot.
-     *
-     * @param Batch $batch
-     * @param array $processSnapshot
-     * @return void
      */
     protected function createBatchStepsFromSnapshot(Batch $batch, array $processSnapshot): void
     {
@@ -130,15 +119,13 @@ class WorkOrderService
 
     /**
      * Update work order status based on batches and issues.
-     *
-     * @param WorkOrder $workOrder
-     * @return void
      */
     public function updateWorkOrderStatus(WorkOrder $workOrder): void
     {
         // Check if blocked by issues
         if ($workOrder->isBlocked()) {
             $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
+
             return;
         }
 
@@ -148,6 +135,7 @@ class WorkOrderService
                 'status' => WorkOrder::STATUS_DONE,
                 'completed_at' => now(),
             ]);
+
             return;
         }
 
@@ -158,6 +146,7 @@ class WorkOrderService
 
         if ($hasInProgressBatch) {
             $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+
             return;
         }
 
@@ -171,8 +160,7 @@ class WorkOrderService
     /**
      * Get work orders for a specific user's assigned lines.
      *
-     * @param \App\Models\User $user
-     * @param array $filters
+     * @param  \App\Models\User  $user
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getWorkOrdersForUser($user, array $filters = [])

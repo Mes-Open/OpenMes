@@ -21,12 +21,16 @@ use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueTypeController;
 use App\Http\Controllers\Api\V1\LineController;
 use App\Http\Controllers\Api\V1\LineStatusController;
+use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
+use App\Http\Controllers\Api\V1\PackagingChecklistController;
+use App\Http\Controllers\Api\V1\ProcessConfirmationController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
 use App\Http\Controllers\Api\V1\ProductionAnomalyController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
+use App\Http\Controllers\Api\V1\QualityCheckController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\SkillController;
@@ -119,6 +123,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/subassemblies/{subassembly}', [SubassemblyController::class, 'show']);
     Route::get('/shifts', [ShiftController::class, 'index']);
     Route::get('/shifts/{shift}', [ShiftController::class, 'show']);
+
+    // LOT Sequences — read for any authenticated user
+    Route::get('/lot-sequences', [LotSequenceController::class, 'index']);
+    Route::get('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'show']);
+    Route::get('/lot/preview/{productTypeId?}', [LotSequenceController::class, 'preview']);
 
     // Materials & BOM — read for any authenticated user
     Route::get('/material-types', [MaterialTypeController::class, 'index']);
@@ -302,6 +311,16 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/shifts/{shift}', [ShiftController::class, 'update']);
         Route::delete('/shifts/{shift}', [ShiftController::class, 'destroy']);
 
+        // LOT Sequences — admin mutations
+        Route::post('/lot-sequences', [LotSequenceController::class, 'store']);
+        Route::patch('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'update']);
+        Route::delete('/lot-sequences/{lotSequence}', [LotSequenceController::class, 'destroy']);
+
+        // QC Templates — admin mutations
+        Route::post('/process-templates/{processTemplate}/qc-templates', [QualityCheckController::class, 'templateStore']);
+        Route::patch('/qc-templates/{qualityCheckTemplate}', [QualityCheckController::class, 'templateUpdate']);
+        Route::delete('/qc-templates/{qualityCheckTemplate}', [QualityCheckController::class, 'templateDestroy']);
+
         // Materials — admin mutations
         Route::post('/materials', [MaterialController::class, 'store']);
         Route::patch('/materials/{material}', [MaterialController::class, 'update']);
@@ -347,12 +366,30 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/batches/{batch}', [BatchController::class, 'show']);
     Route::patch('/batches/{batch}', [BatchController::class, 'update']);
     Route::post('/batches/{batch}/cancel', [BatchController::class, 'cancel']);
+    Route::post('/batches/{batch}/release', [BatchController::class, 'release']);
     Route::delete('/batches/{batch}', [BatchController::class, 'destroy']);
 
     // Batch Steps (step execution)
     Route::post('/batch-steps/{batchStep}/start', [BatchStepController::class, 'start']);
     Route::post('/batch-steps/{batchStep}/complete', [BatchStepController::class, 'complete']);
     Route::post('/batch-steps/{batchStep}/problem', [BatchStepController::class, 'problem']);
+
+    // Process Confirmations (per batch)
+    Route::get('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'index']);
+    Route::post('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'store']);
+    Route::get('/batches/{batch}/confirmations/status', [ProcessConfirmationController::class, 'status']);
+
+    // Quality Checks (per batch)
+    Route::get('/batches/{batch}/quality-checks', [QualityCheckController::class, 'index']);
+    Route::post('/batches/{batch}/quality-checks', [QualityCheckController::class, 'store']);
+    Route::get('/batches/{batch}/quality-checks/status', [QualityCheckController::class, 'status']);
+
+    // QC Templates (per process template)
+    Route::get('/process-templates/{processTemplate}/qc-templates', [QualityCheckController::class, 'templateIndex']);
+
+    // Packaging Checklist (per batch)
+    Route::get('/batches/{batch}/packaging-checklist', [PackagingChecklistController::class, 'show']);
+    Route::post('/batches/{batch}/packaging-checklist', [PackagingChecklistController::class, 'store']);
 
     // Issues (Andon System)
     Route::get('/issues', [IssueController::class, 'index']);
