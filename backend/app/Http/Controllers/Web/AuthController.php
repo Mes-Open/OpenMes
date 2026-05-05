@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Web\OnboardingController;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\Request;
@@ -155,6 +156,9 @@ class AuthController extends Controller
         $user = auth()->user();
 
         if ($user->hasRole('Admin')) {
+            if (OnboardingController::shouldShowWizard()) {
+                return redirect()->route('onboarding.index');
+            }
             return redirect()->route('admin.dashboard');
         }
 
