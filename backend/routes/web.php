@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\Web\OnboardingController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Web\Admin\BomManagementController;
@@ -114,6 +115,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/change-password', function () {
         return redirect()->route('settings.change-password');
     })->name('change-password');
+
+    // Onboarding Wizard (Admin only)
+    Route::prefix('onboarding')->name('onboarding.')->middleware('role:Admin')->group(function () {
+        Route::get('/', [OnboardingController::class, 'index'])->name('index');
+        Route::get('/step/1', [OnboardingController::class, 'step1'])->name('step1');
+        Route::post('/step/1', [OnboardingController::class, 'storeStep1']);
+        Route::get('/step/2', [OnboardingController::class, 'step2'])->name('step2');
+        Route::post('/step/2', [OnboardingController::class, 'storeStep2']);
+        Route::get('/step/3', [OnboardingController::class, 'step3'])->name('step3');
+        Route::post('/step/3', [OnboardingController::class, 'storeStep3']);
+        Route::get('/step/4', [OnboardingController::class, 'step4'])->name('step4');
+        Route::post('/step/4', [OnboardingController::class, 'storeStep4']);
+        Route::get('/complete', [OnboardingController::class, 'complete'])->name('complete');
+        Route::post('/skip', [OnboardingController::class, 'skip'])->name('skip');
+    });
 
     // Operator routes (Operator, Supervisor, Admin)
     Route::prefix('operator')->name('operator.')->middleware('role:Operator|Supervisor|Admin')->group(function () {
