@@ -115,6 +115,21 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('settings.change-password');
     })->name('change-password');
 
+    // Onboarding Wizard (Admin only)
+    Route::prefix('onboarding')->name('onboarding.')->middleware('role:Admin')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Web\OnboardingController::class, 'index'])->name('index');
+        Route::get('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'step1'])->name('step1');
+        Route::post('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep1']);
+        Route::get('/step/2', [\App\Http\Controllers\Web\OnboardingController::class, 'step2'])->name('step2');
+        Route::post('/step/2', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep2']);
+        Route::get('/step/3', [\App\Http\Controllers\Web\OnboardingController::class, 'step3'])->name('step3');
+        Route::post('/step/3', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep3']);
+        Route::get('/step/4', [\App\Http\Controllers\Web\OnboardingController::class, 'step4'])->name('step4');
+        Route::post('/step/4', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep4']);
+        Route::get('/complete', [\App\Http\Controllers\Web\OnboardingController::class, 'complete'])->name('complete');
+        Route::post('/skip', [\App\Http\Controllers\Web\OnboardingController::class, 'skip'])->name('skip');
+    });
+
     // Operator routes (Operator, Supervisor, Admin)
     Route::prefix('operator')->name('operator.')->middleware('role:Operator|Supervisor|Admin')->group(function () {
         Route::get('/select-line', [OperatorLineController::class, 'index'])->name('select-line');
