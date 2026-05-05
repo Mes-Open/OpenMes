@@ -10,18 +10,18 @@
         <div>
             <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Line Name <span class="text-red-500">*</span></label>
             <input type="text" name="name" id="name" value="{{ old('name') }}" required
-                class="input-field @error('name') border-red-500 @enderror" placeholder="e.g. Injection Line 1">
+                class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('name') border-red-500 @enderror" placeholder="e.g. Injection Line 1">
             @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Code <span class="text-red-500">*</span></label>
             <input type="text" name="code" id="code" value="{{ old('code') }}" required
-                class="input-field @error('code') border-red-500 @enderror" placeholder="e.g. INJ-01">
+                class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('code') border-red-500 @enderror" placeholder="e.g. INJ-01">
             @error('code') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea name="description" id="description" rows="2" class="input-field" placeholder="Optional description">{{ old('description') }}</textarea>
+            <textarea name="description" id="description" rows="2" class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" placeholder="Optional description">{{ old('description') }}</textarea>
         </div>
     </div>
     <div class="flex justify-end mt-6">
