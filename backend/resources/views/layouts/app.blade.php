@@ -269,5 +269,28 @@ if ('serviceWorker' in navigator) {
     });
 })();
 </script>
+@auth
+@if(auth()->user()->hasRole('Admin') && \App\Http\Controllers\Web\OnboardingController::shouldShowWizard())
+<div x-data="{ open: !sessionStorage.getItem('wizard_dismissed') }" x-show="open" x-cloak
+     class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+     x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+    <div class="fixed inset-0 bg-black/50" @click="open = false; sessionStorage.setItem('wizard_dismissed','1')"></div>
+    <div class="relative bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-8 text-center"
+         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+        <div class="w-14 h-14 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Welcome to OpenMES!</h3>
+        <p class="text-gray-600 dark:text-gray-300 mb-6">Looks like this is a fresh installation. Would you like to run the setup wizard? It takes about 2 minutes.</p>
+        <div class="flex flex-col gap-3">
+            <a href="{{ route('onboarding.step1') }}" class="btn-touch btn-primary w-full">Start Setup Wizard</a>
+            <button @click="open = false; sessionStorage.setItem('wizard_dismissed','1')" class="btn-touch btn-secondary w-full">I'll do it later</button>
+        </div>
+    </div>
+</div>
+@endif
+@endauth
 </body>
 </html>
