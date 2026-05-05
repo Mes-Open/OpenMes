@@ -36,7 +36,7 @@ class AuthController extends Controller
         ]);
 
         // Attempt authentication
-        if (!Auth::attempt([
+        if (! Auth::attempt([
             'username' => $request->input('username'),
             'password' => $request->input('password'),
         ], $request->filled('remember'))) {
@@ -71,7 +71,7 @@ class AuthController extends Controller
             true
         );
 
-        if (!$pinEnabled) {
+        if (! $pinEnabled) {
             throw ValidationException::withMessages([
                 'pin' => ['PIN login is not enabled.'],
             ]);
@@ -79,7 +79,7 @@ class AuthController extends Controller
 
         $user = User::where('username', $request->input('username'))->first();
 
-        if (!$user || empty($user->pin) || !Hash::check($request->input('pin'), $user->pin)) {
+        if (! $user || empty($user->pin) || ! Hash::check($request->input('pin'), $user->pin)) {
             throw ValidationException::withMessages([
                 'username' => ['Invalid username or PIN.'],
             ]);
@@ -155,6 +155,10 @@ class AuthController extends Controller
         $user = auth()->user();
 
         if ($user->hasRole('Admin')) {
+            if (OnboardingController::shouldShowWizard()) {
+                return redirect()->route('onboarding.index');
+            }
+
             return redirect()->route('admin.dashboard');
         }
 
