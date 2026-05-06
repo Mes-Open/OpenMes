@@ -24,11 +24,11 @@
         <div class="flex flex-wrap gap-4 items-end">
             <div class="flex-1 min-w-[200px]">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Code, name or external code..." class="input-field">
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Code, name or external code..." class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
             </div>
             <div class="w-48">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select name="material_type_id" class="input-field">
+                <select name="material_type_id" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
                     <option value="">All types</option>
                     @foreach($materialTypes as $type)
                         <option value="{{ $type->id }}" {{ request('material_type_id') == $type->id ? 'selected' : '' }}>{{ $type->name }}</option>
