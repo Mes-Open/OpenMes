@@ -2,13 +2,13 @@
     <div>
         <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
         <input type="text" name="name" id="name" value="{{ old('name', $lotSequence->name ?? '') }}" required
-            class="input-field @error('name') border-red-500 @enderror" placeholder="e.g. Filter LOT">
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('name') border-red-500 @enderror" placeholder="e.g. Filter LOT">
         @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
     </div>
 
     <div>
         <label for="product_type_id" class="block text-sm font-medium text-gray-700 mb-1">Product Type</label>
-        <select name="product_type_id" id="product_type_id" class="input-field @error('product_type_id') border-red-500 @enderror">
+        <select name="product_type_id" id="product_type_id" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('product_type_id') border-red-500 @enderror">
             <option value="">Default (all product types)</option>
             @foreach($productTypes as $pt)
                 <option value="{{ $pt->id }}" {{ old('product_type_id', $lotSequence->product_type_id ?? '') == $pt->id ? 'selected' : '' }}>
@@ -22,20 +22,20 @@
     <div>
         <label for="prefix" class="block text-sm font-medium text-gray-700 mb-1">Prefix <span class="text-red-500">*</span></label>
         <input type="text" name="prefix" id="prefix" value="{{ old('prefix', $lotSequence->prefix ?? '') }}" required
-            class="input-field @error('prefix') border-red-500 @enderror" placeholder="e.g. FLT, PP, UST">
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('prefix') border-red-500 @enderror" placeholder="e.g. FLT, PP, UST">
         @error('prefix') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
     </div>
 
     <div>
         <label for="suffix" class="block text-sm font-medium text-gray-700 mb-1">Suffix</label>
         <input type="text" name="suffix" id="suffix" value="{{ old('suffix', $lotSequence->suffix ?? '') }}"
-            class="input-field" placeholder="Optional suffix">
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" placeholder="Optional suffix">
     </div>
 
     <div>
         <label for="pad_size" class="block text-sm font-medium text-gray-700 mb-1">Number Padding</label>
         <input type="number" name="pad_size" id="pad_size" min="1" max="10"
-            value="{{ old('pad_size', $lotSequence->pad_size ?? 4) }}" class="input-field">
+            value="{{ old('pad_size', $lotSequence->pad_size ?? 4) }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
         <p class="mt-1 text-xs text-gray-500">Padding width. 4 = 0001, 6 = 000001</p>
     </div>
 
