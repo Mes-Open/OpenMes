@@ -380,12 +380,16 @@
                     @if(isset($workstations) && $workstations->isNotEmpty())
                         <div class="mb-4">
                             <label class="form-label">Workstation</label>
-                            <select name="workstation_id" class="form-input w-full">
-                                <option value="">Select workstation...</option>
-                                @foreach($workstations as $ws)
-                                    <option value="{{ $ws->id }}">{{ $ws->name }}</option>
-                                @endforeach
-                            </select>
+                            @if($workstations->count() === 1)
+                                <input type="hidden" name="workstation_id" value="{{ $workstations->first()->id }}">
+                                <p class="text-sm text-gray-600 py-2">{{ $workstations->first()->name }}</p>
+                            @else
+                                <select name="workstation_id" class="form-input w-full">
+                                    @foreach($workstations as $ws)
+                                        <option value="{{ $ws->id }}" {{ ($defaultWorkstationId ?? null) == $ws->id ? 'selected' : '' }}>{{ $ws->name }}</option>
+                                    @endforeach
+                                </select>
+                            @endif
                         </div>
                     @endif
                     <div class="mb-4">
