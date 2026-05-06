@@ -89,6 +89,66 @@
                 </div>
             </div>
 
+            {{-- Recipe / BOM --}}
+            @if(!empty($workOrder->process_snapshot['bom']))
+                <div class="card" x-data="{ bomOpen: false }">
+                    <div class="flex justify-between items-center cursor-pointer" @click="bomOpen = !bomOpen">
+                        <h2 class="text-xl font-bold text-gray-800">Recipe / Materials</h2>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-500">{{ count($workOrder->process_snapshot['bom']) }} items</span>
+                            <svg class="w-5 h-5 text-gray-400 transition-transform" :class="{ 'rotate-180': bomOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div x-show="bomOpen" x-cloak x-transition class="mt-4">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-xs text-gray-500 uppercase">
+                                    <th class="pb-2">Material</th>
+                                    <th class="pb-2">Type</th>
+                                    <th class="pb-2 text-right">Per Unit</th>
+                                    <th class="pb-2 text-right">Total ({{ number_format($workOrder->planned_qty, 0) }} pcs)</th>
+                                    <th class="pb-2">Step</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                @foreach($workOrder->process_snapshot['bom'] as $bom)
+                                    @php
+                                        $baseQty = $bom['quantity_per_unit'] * $workOrder->planned_qty;
+                                        $scrapQty = $baseQty * ($bom['scrap_percentage'] / 100);
+                                        $totalQty = $baseQty + $scrapQty;
+                                    @endphp
+                                    <tr>
+                                        <td class="py-2">
+                                            <span class="font-medium">{{ $bom['material_name'] }}</span>
+                                            <span class="text-xs text-gray-500 font-mono ml-1">{{ $bom['material_code'] }}</span>
+                                        </td>
+                                        <td class="py-2">
+                                            <span class="px-2 py-0.5 rounded-full text-xs
+                                                @if($bom['material_type'] === 'raw_material') bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200
+                                                @elseif($bom['material_type'] === 'semi_finished') bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200
+                                                @elseif($bom['material_type'] === 'packaging') bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200
+                                                @else bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200
+                                                @endif">
+                                                {{ str_replace('_', ' ', ucfirst($bom['material_type'])) }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2 text-right font-mono">{{ $bom['quantity_per_unit'] }} {{ $bom['unit_of_measure'] }}</td>
+                                        <td class="py-2 text-right font-mono font-medium">{{ number_format($totalQty, 2) }} {{ $bom['unit_of_measure'] }}
+                                            @if($bom['scrap_percentage'] > 0)
+                                                <span class="text-xs text-gray-500">(+{{ $bom['scrap_percentage'] }}% scrap)</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2 text-gray-500">{{ $bom['step_number'] ? '#'.$bom['step_number'] : 'General' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+
             {{-- Batches --}}
             <div class="card">
                 <div class="flex justify-between items-center mb-4">
