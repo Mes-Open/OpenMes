@@ -84,7 +84,7 @@
                     <select name="workstation_id" id="workstation_id" class="form-input w-full">
                         <option value="">No specific workstation</option>
                         @foreach($workstations as $workstation)
-                            <option value="{{ $workstation->id }}">{{ $workstation->name }} ({{ $workstation->line->name }})</option>
+                            <option value="{{ $workstation->id }}">{{ $workstation->name }} ({{ $workstation->line?->name ?? '-' }})</option>
                         @endforeach
                     </select>
                 </div>
@@ -162,7 +162,7 @@
                                                     <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                                                     </svg>
-                                                    {{ $step->workstation->name }} ({{ $step->workstation->line->name }})
+                                                    {{ $step->workstation?->name }} ({{ $step->workstation?->line?->name ?? '-' }})
                                                 </p>
                                             @endif
                                             @if($step->estimated_duration_minutes)
@@ -244,7 +244,7 @@
                                         <option value="">No specific workstation</option>
                                         @foreach($workstations as $workstation)
                                             <option value="{{ $workstation->id }}" {{ $step->workstation_id == $workstation->id ? 'selected' : '' }}>
-                                                {{ $workstation->name }} ({{ $workstation->line->name }})
+                                                {{ $workstation->name }} ({{ $workstation->line?->name ?? '-' }})
                                             </option>
                                         @endforeach
                                     </select>
