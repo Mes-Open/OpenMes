@@ -136,8 +136,15 @@ class WorkOrderController extends Controller
         ]);
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
-        $workstations = Workstation::where('is_active', true)->orderBy('name')->get();
 
-        return view('operator.work-order-detail', compact('workOrder', 'issueTypes', 'workstations'));
+        // Only show workstations from this line (not all system workstations)
+        $workstations = $workOrder->line
+            ? Workstation::where('line_id', $workOrder->line_id)->where('is_active', true)->orderBy('name')->get()
+            : collect();
+
+        // Auto-select workstation if operator is a workstation account
+        $defaultWorkstationId = auth()->user()->workstation_id;
+
+        return view('operator.work-order-detail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId'));
     }
 }
