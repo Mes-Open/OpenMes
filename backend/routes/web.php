@@ -23,6 +23,7 @@ use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceCont
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 use App\Http\Controllers\Web\Admin\MaterialImportController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
+use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
 // Gate 3 — Basics
@@ -181,6 +182,10 @@ Route::middleware('auth')->group(function () {
     Route::prefix('admin')->name('admin.')->middleware('role:Admin')->group(function () {
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        // OEE
+        Route::get('/oee', [AdminOeeController::class, 'index'])->name('oee.index');
+        Route::get('/oee/{line}', [AdminOeeController::class, 'show'])->name('oee.show');
 
         // Reports
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
