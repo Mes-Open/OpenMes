@@ -291,6 +291,10 @@ Route::middleware('auth')->group(function () {
         // LOT Sequences
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
 
+        // Batch Reports
+        Route::get('/batches/{batch}/report', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'show'])->name('batch-report');
+        Route::get('/batches/{batch}/report/pdf', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'pdf'])->name('batch-report.pdf');
+
         // Materials Management
         Route::resource('materials', MaterialManagementController::class);
         Route::post('/materials/{material}/toggle-active', [MaterialManagementController::class, 'toggleActive'])->name('materials.toggle-active');

@@ -313,6 +313,10 @@
                                                     <div x-show="showRelease" x-cloak class="mt-3 p-4 bg-green-50 rounded-lg">
                                                         <form action="{{ route('operator.batch.release', $batch) }}" method="POST">
                                                             @csrf
+                                                            <div class="mb-3">
+                                                                <label class="block text-sm font-medium text-gray-700 mb-1">Scrap quantity (optional)</label>
+                                                                <input type="number" name="scrap_qty" step="0.01" min="0" class="form-input w-32 text-sm" placeholder="0">
+                                                            </div>
                                                             <p class="text-sm mb-3">Release this batch?</p>
                                                             <div class="flex gap-3">
                                                                 <button type="submit" name="release_type" value="for_production" class="btn-touch btn-secondary text-sm">For Production</button>
@@ -321,6 +325,13 @@
                                                         </form>
                                                     </div>
                                                 </div>
+                                            @endif
+
+                                            {{-- Report button (after release) --}}
+                                            @if($batch->isReleased())
+                                                <a href="{{ route('admin.batch-report', $batch) }}" class="btn-touch btn-secondary text-sm" target="_blank">
+                                                    Series Report
+                                                </a>
                                             @endif
                                         </div>
                                     @endif
