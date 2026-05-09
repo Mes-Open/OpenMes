@@ -156,7 +156,7 @@
     @else
         <div class="card text-center py-12">
             <p class="text-gray-500 text-lg mb-2">No OEE data available</p>
-            <p class="text-sm text-gray-400">Run <code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">php artisan oee:calculate</code> to generate records.</p>
+            <p class="text-sm text-gray-400">OEE data will appear once production batches are completed and downtimes are reported.</p>
         </div>
     @endif
 </div>
