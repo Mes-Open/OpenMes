@@ -23,7 +23,12 @@
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 class="text-3xl font-bold text-gray-800">Work Order Queue</h1>
-            <p class="text-gray-600 mt-2">Line: {{ $line->name }}</p>
+            <p class="text-gray-600 mt-2">
+                Line: {{ $line->name }}
+                @if($selectedWorkstation ?? null)
+                    <span class="text-blue-600 font-medium ml-2">/ {{ $selectedWorkstation->name }}</span>
+                @endif
+            </p>
         </div>
         <div class="flex items-center gap-3">
             {{-- Mode toggle: Queue / Workstation --}}

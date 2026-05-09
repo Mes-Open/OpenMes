@@ -97,12 +97,16 @@
                 </div>
             </div>
 
-            <div class="mb-4" x-show="accountType === 'workstation'" x-cloak>
-                <label class="form-label">Workstation <span class="text-red-500">*</span></label>
+            <div class="mb-4">
+                <label class="form-label">
+                    Default Workstation
+                    <span x-show="accountType === 'workstation'" x-cloak class="text-red-500">*</span>
+                    <span x-show="accountType === 'user'" x-cloak class="text-gray-400 font-normal text-sm">(optional — operator will skip line selection)</span>
+                </label>
                 <select name="workstation_id"
                         class="form-input w-full @error('workstation_id') border-red-500 @enderror"
                         :required="accountType === 'workstation'">
-                    <option value="">Select a workstation</option>
+                    <option value="">— None —</option>
                     @foreach($workstations as $ws)
                         <option value="{{ $ws->id }}"
                                 {{ old('workstation_id', $user->workstation_id) == $ws->id ? 'selected' : '' }}>

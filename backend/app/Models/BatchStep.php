@@ -24,6 +24,7 @@ class BatchStep extends Model
         'step_number',
         'name',
         'instruction',
+        'workstation_id',
         'status',
         'started_at',
         'completed_at',
@@ -51,6 +52,14 @@ class BatchStep extends Model
     public function batch(): BelongsTo
     {
         return $this->belongsTo(Batch::class);
+    }
+
+    /**
+     * Get the workstation for this step.
+     */
+    public function workstation(): BelongsTo
+    {
+        return $this->belongsTo(Workstation::class);
     }
 
     /**
