@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
+use App\Http\Controllers\Api\V1\OeeController as ApiOeeController;
 use App\Http\Controllers\Api\V1\PackagingChecklistController;
 use App\Http\Controllers\Api\V1\ProcessConfirmationController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
@@ -326,6 +327,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/materials/{material}', [MaterialController::class, 'update']);
         Route::delete('/materials/{material}', [MaterialController::class, 'destroy']);
         Route::post('/materials/import', [MaterialController::class, 'import']);
+
+        // OEE & Downtimes
+        Route::get('/oee', [ApiOeeController::class, 'index']);
+        Route::get('/oee/{line}', [ApiOeeController::class, 'show']);
+        Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);
+        Route::get('/downtimes', [ApiOeeController::class, 'downtimes']);
+        Route::post('/downtimes', [ApiOeeController::class, 'startDowntime']);
+        Route::patch('/downtimes/{downtime}', [ApiOeeController::class, 'stopDowntime']);
 
         // BOM Items — admin mutations
         Route::post('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'store']);

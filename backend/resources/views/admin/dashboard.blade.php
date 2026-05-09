@@ -165,6 +165,40 @@
         {{-- Sidebar --}}
         <div class="space-y-6">
 
+            {{-- OEE Overview --}}
+            @if(($oeeRecords ?? collect())->isNotEmpty())
+            <div class="card">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-base font-bold text-gray-800">OEE Overview</h2>
+                    <a href="{{ route('admin.oee.index') }}" class="text-xs text-blue-600 hover:underline">Full report →</a>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    @foreach($lines as $line)
+                        @php $oee = ($oeeRecords ?? collect())->get($line->id); @endphp
+                        <div class="p-3 rounded-lg border {{ $oee ? ($oee->oee_pct >= 85 ? 'border-green-200 bg-green-50' : ($oee->oee_pct >= 60 ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50')) : 'border-gray-200 bg-gray-50' }}">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm font-medium text-gray-700 truncate">{{ $line->name }}</span>
+                                @if($oee)
+                                    <span class="text-lg font-bold {{ $oee->oee_pct >= 85 ? 'text-green-700' : ($oee->oee_pct >= 60 ? 'text-yellow-700' : 'text-red-700') }}">
+                                        {{ number_format($oee->oee_pct, 1) }}%
+                                    </span>
+                                @else
+                                    <span class="text-sm text-gray-400">N/A</span>
+                                @endif
+                            </div>
+                            @if($oee)
+                                <div class="flex gap-3 text-xs text-gray-500">
+                                    <span>A: {{ number_format($oee->availability_pct, 0) }}%</span>
+                                    <span>P: {{ $oee->performance_pct !== null ? number_format($oee->performance_pct, 0).'%' : '-' }}</span>
+                                    <span>Q: {{ number_format($oee->quality_pct, 0) }}%</span>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             {{-- Open Issues --}}
             <div class="card">
                 <div class="flex justify-between items-center mb-3">
