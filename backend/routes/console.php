@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('tenants:prune')->everyMinute();
+Schedule::command('oee:calculate')->dailyAt('01:00');
