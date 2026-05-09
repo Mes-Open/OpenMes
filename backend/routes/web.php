@@ -21,6 +21,7 @@ use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusContro
 use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceController;
 // Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
+use App\Http\Controllers\Web\Admin\MaterialImportController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
@@ -298,6 +299,9 @@ Route::middleware('auth')->group(function () {
         // Materials Management
         Route::resource('materials', MaterialManagementController::class);
         Route::post('/materials/{material}/toggle-active', [MaterialManagementController::class, 'toggleActive'])->name('materials.toggle-active');
+        Route::get('/materials-import', [MaterialImportController::class, 'index'])->name('materials.import');
+        Route::post('/materials-import/upload', [MaterialImportController::class, 'upload'])->name('materials.import.upload');
+        Route::post('/materials-import/process', [MaterialImportController::class, 'process'])->name('materials.import.process');
 
         // Integration Configs
         Route::resource('integrations', IntegrationConfigController::class)->except(['show']);
