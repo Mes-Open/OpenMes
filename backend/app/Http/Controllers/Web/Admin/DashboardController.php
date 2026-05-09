@@ -59,7 +59,15 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // OEE data for today/yesterday per line
+        // Auto-calculate and fetch OEE for today/yesterday
+        \Illuminate\Support\Facades\Cache::remember('oee_calculated_'.today()->toDateString(), 900, function () {
+            $svc = app(\App\Services\Production\OeeCalculationService::class);
+            $svc->calculateAll(today());
+            $svc->calculateAll(\Carbon\Carbon::yesterday());
+
+            return true;
+        });
+
         $oeeRecords = \App\Models\OeeRecord::whereDate('record_date', today())
             ->orWhereDate('record_date', today()->subDay())
             ->orderByDesc('record_date')
