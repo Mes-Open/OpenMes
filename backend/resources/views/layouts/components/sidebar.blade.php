@@ -11,9 +11,8 @@
     class="fixed inset-y-0 left-0 z-40 flex flex-col shrink-0 bg-slate-900 text-slate-100
            -translate-x-full lg:translate-x-0 w-64
            lg:relative lg:inset-auto lg:z-auto
-           transition-[width,transform] duration-300 ease-in-out overflow-hidden"
-    style="transition: none"
-    x-init="$nextTick(() => { $el.style.removeProperty('transition') })"
+           overflow-hidden"
+    x-ref="sidebar"
     :class="{
         '-translate-x-full': !mobileOpen,
         'translate-x-0':     mobileOpen,
@@ -49,7 +48,7 @@
             @endif
         @endauth
         {{-- Mobile close button --}}
-        <button @click="mobileOpen = false"
+        <button @click="$refs.sidebar.style.transition = 'transform 300ms ease-in-out'; setTimeout(() => { $refs.sidebar.style.transition = '' }, 350); mobileOpen = false"
                 class="lg:hidden ml-auto p-1.5 rounded-md text-slate-400 hover:text-white
                        hover:bg-slate-700 transition-colors shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
