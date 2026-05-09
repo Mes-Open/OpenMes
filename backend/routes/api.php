@@ -138,6 +138,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'index']);
     Route::get('/process-templates/{processTemplate}/bom-items/requirements', [BomItemController::class, 'requirements']);
 
+    // OEE & Downtimes — accessible by all authenticated users (operators need to report)
+    Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);
+    Route::get('/downtimes', [ApiOeeController::class, 'downtimes']);
+    Route::post('/downtimes', [ApiOeeController::class, 'startDowntime']);
+    Route::patch('/downtimes/{downtime}', [ApiOeeController::class, 'stopDowntime']);
+    Route::get('/oee', [ApiOeeController::class, 'index']);
+    Route::get('/oee/{line}', [ApiOeeController::class, 'show']);
+
     // Tools — read for any authenticated user
     Route::get('/tools', [ToolController::class, 'index']);
     Route::get('/tools/{tool}', [ToolController::class, 'show']);
@@ -327,14 +335,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/materials/{material}', [MaterialController::class, 'update']);
         Route::delete('/materials/{material}', [MaterialController::class, 'destroy']);
         Route::post('/materials/import', [MaterialController::class, 'import']);
-
-        // OEE & Downtimes
-        Route::get('/oee', [ApiOeeController::class, 'index']);
-        Route::get('/oee/{line}', [ApiOeeController::class, 'show']);
-        Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);
-        Route::get('/downtimes', [ApiOeeController::class, 'downtimes']);
-        Route::post('/downtimes', [ApiOeeController::class, 'startDowntime']);
-        Route::patch('/downtimes/{downtime}', [ApiOeeController::class, 'stopDowntime']);
 
         // BOM Items — admin mutations
         Route::post('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'store']);
