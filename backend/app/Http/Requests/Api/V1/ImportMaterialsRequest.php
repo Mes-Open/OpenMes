@@ -22,6 +22,13 @@ class ImportMaterialsRequest extends FormRequest
             'materials.*.unit' => ['nullable', 'string', 'max:20'],
             'materials.*.description' => ['nullable', 'string'],
             'materials.*.extra_data' => ['nullable', 'array'],
+            'materials.*.ean' => ['nullable', 'string', 'max:20'],
+            'materials.*.stock_quantity' => ['nullable', 'numeric', 'min:0'],
+            'materials.*.min_stock_level' => ['nullable', 'numeric', 'min:0'],
+            'materials.*.unit_price' => ['nullable', 'numeric', 'min:0'],
+            'materials.*.price_currency' => ['nullable', 'string', 'max:3'],
+            'materials.*.supplier_name' => ['nullable', 'string', 'max:255'],
+            'materials.*.supplier_code' => ['nullable', 'string', 'max:100'],
         ];
     }
 }
