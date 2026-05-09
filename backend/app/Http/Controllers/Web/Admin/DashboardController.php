@@ -12,38 +12,38 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $lines      = Line::where('is_active', true)->orderBy('name')->get();
+        $lines = Line::where('is_active', true)->orderBy('name')->get();
         $selectedLineId = $request->query('line_id') ?: null;
 
         // Base queries — optionally scoped to a single line
-        $woBase    = WorkOrder::query();
+        $woBase = WorkOrder::query();
         $issueBase = Issue::query();
 
         if ($selectedLineId) {
             $woBase->where('line_id', $selectedLineId);
-            $issueBase->whereHas('workOrder', fn($q) => $q->where('line_id', $selectedLineId));
+            $issueBase->whereHas('workOrder', fn ($q) => $q->where('line_id', $selectedLineId));
         }
 
         $stats = [
             'total_work_orders' => (clone $woBase)->count(),
-            'pending'           => (clone $woBase)->where('status', WorkOrder::STATUS_PENDING)->count(),
+            'pending' => (clone $woBase)->where('status', WorkOrder::STATUS_PENDING)->count(),
             // ACCEPTED + IN_PROGRESS are both "active/running"
-            'in_progress'       => (clone $woBase)
-                                        ->whereIn('status', [WorkOrder::STATUS_ACCEPTED, WorkOrder::STATUS_IN_PROGRESS])
-                                        ->count(),
-            'blocked'           => (clone $woBase)->where('status', WorkOrder::STATUS_BLOCKED)->count(),
-            'done'              => (clone $woBase)->where('status', WorkOrder::STATUS_DONE)->count(),
+            'in_progress' => (clone $woBase)
+                ->whereIn('status', [WorkOrder::STATUS_ACCEPTED, WorkOrder::STATUS_IN_PROGRESS])
+                ->count(),
+            'blocked' => (clone $woBase)->where('status', WorkOrder::STATUS_BLOCKED)->count(),
+            'done' => (clone $woBase)->where('status', WorkOrder::STATUS_DONE)->count(),
             // Use completed_at (set explicitly on completion), not updated_at
-            'done_today'        => (clone $woBase)
-                                        ->where('status', WorkOrder::STATUS_DONE)
-                                        ->whereNotNull('completed_at')
-                                        ->whereDate('completed_at', today())
-                                        ->count(),
-            'open_issues'       => (clone $issueBase)
-                                        ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-                                        ->count(),
-            'blocking_issues'   => (clone $issueBase)->blocking()->count(),
-            'active_lines'      => Line::where('is_active', true)->count(),
+            'done_today' => (clone $woBase)
+                ->where('status', WorkOrder::STATUS_DONE)
+                ->whereNotNull('completed_at')
+                ->whereDate('completed_at', today())
+                ->count(),
+            'open_issues' => (clone $issueBase)
+                ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
+                ->count(),
+            'blocking_issues' => (clone $issueBase)->blocking()->count(),
+            'active_lines' => Line::where('is_active', true)->count(),
         ];
 
         $recentWorkOrders = (clone $woBase)
@@ -59,9 +59,17 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        // OEE data for today/yesterday per line
+        $oeeRecords = \App\Models\OeeRecord::whereDate('record_date', today())
+            ->orWhereDate('record_date', today()->subDay())
+            ->orderByDesc('record_date')
+            ->get()
+            ->groupBy('line_id')
+            ->map(fn ($records) => $records->first());
+
         return view('admin.dashboard', compact(
             'stats', 'recentWorkOrders', 'recentIssues',
-            'lines', 'selectedLineId'
+            'lines', 'selectedLineId', 'oeeRecords'
         ));
     }
 }

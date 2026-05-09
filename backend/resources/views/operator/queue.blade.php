@@ -19,6 +19,11 @@
          doneQty.open      = true;
      ">
 
+    <!-- Downtime Reporter -->
+    <div class="mb-4">
+        @livewire('downtime-reporter', ['lineId' => $line->id, 'workstationId' => session('selected_workstation_id')])
+    </div>
+
     <!-- Header -->
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
