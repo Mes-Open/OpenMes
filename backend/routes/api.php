@@ -367,6 +367,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::patch('/batches/{batch}', [BatchController::class, 'update']);
     Route::post('/batches/{batch}/cancel', [BatchController::class, 'cancel']);
     Route::post('/batches/{batch}/release', [BatchController::class, 'release']);
+    Route::get('/batches/{batch}/allocation-preview', [BatchController::class, 'allocationPreview']);
     Route::delete('/batches/{batch}', [BatchController::class, 'destroy']);
 
     // Batch Steps (step execution)

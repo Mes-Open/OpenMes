@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\ReleaseBatchRequest;
 use App\Models\Batch;
 use App\Models\WorkOrder;
 use App\Services\Lot\BatchReleaseService;
+use App\Services\Material\MaterialAllocationService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class BatchController extends Controller
     public function __construct(
         protected WorkOrderService $workOrderService,
         protected BatchReleaseService $releaseService,
+        protected MaterialAllocationService $allocationService,
     ) {}
 
     /**
@@ -173,6 +175,24 @@ class BatchController extends Controller
         $batch->delete();
 
         return response()->json(['message' => 'Batch deleted']);
+    }
+
+    /**
+     * Preview material allocation for a batch (before starting).
+     */
+    public function allocationPreview(Batch $batch): JsonResponse
+    {
+        $this->authorize('view', $batch->workOrder);
+
+        $preview = $this->allocationService->previewForBatch($batch);
+
+        $allSufficient = collect($preview)->every(fn ($item) => $item['sufficient']);
+
+        return response()->json([
+            'data' => $preview,
+            'all_sufficient' => $allSufficient,
+            'batch_status' => $batch->status,
+        ]);
     }
 
     /**
