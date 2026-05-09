@@ -53,6 +53,11 @@
          adminGroup: false,
          modulesGroup: false,
          toggle() {
+             const sb = this.$refs.sidebar;
+             if (sb) {
+                 sb.style.transition = 'width 300ms ease-in-out, transform 300ms ease-in-out';
+                 setTimeout(() => { sb.style.transition = ''; }, 350);
+             }
              this.collapsed = !this.collapsed;
              if (this.collapsed) {
                  this.orders = this.production = this.linesGroup = this.structure =
@@ -62,6 +67,11 @@
          },
          expandGroup(g) {
              if (this.collapsed) {
+                 const sb = this.$refs.sidebar;
+                 if (sb) {
+                     sb.style.transition = 'width 300ms ease-in-out, transform 300ms ease-in-out';
+                     setTimeout(() => { sb.style.transition = ''; }, 350);
+                 }
                  this.collapsed = false;
                  localStorage.setItem('sb', '0');
              }
@@ -122,7 +132,7 @@
 
         {{-- Mobile top bar --}}
         <header class="lg:hidden shrink-0 flex items-center gap-3 h-14 px-4 bg-white border-b border-gray-200 shadow-sm z-20">
-            <button @click="mobileOpen = true"
+            <button @click="$refs.sidebar.style.transition = 'transform 300ms ease-in-out'; setTimeout(() => { $refs.sidebar.style.transition = '' }, 350); mobileOpen = true"
                     class="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
