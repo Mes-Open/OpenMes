@@ -6,13 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\OeeRecord;
 use App\Services\Production\DowntimeService;
+use App\Services\Production\OeeCalculationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class OeeController extends Controller
 {
     public function __construct(
         protected DowntimeService $downtimeService,
+        protected OeeCalculationService $oeeService,
     ) {}
 
     public function index(Request $request)
@@ -21,6 +24,9 @@ class OeeController extends Controller
         $lineId = $request->query('line_id');
         $dateFrom = $request->query('date_from', today()->subDays(7)->toDateString());
         $dateTo = $request->query('date_to', today()->toDateString());
+
+        // Auto-calculate OEE for today if not cached
+        $this->ensureOeeCalculated();
 
         $query = OeeRecord::with(['line', 'shift'])
             ->whereBetween('record_date', [$dateFrom, $dateTo])
@@ -68,6 +74,8 @@ class OeeController extends Controller
         $dateFrom = $request->query('date_from', today()->subDays(7)->toDateString());
         $dateTo = $request->query('date_to', today()->toDateString());
 
+        $this->ensureOeeCalculated();
+
         $records = OeeRecord::where('line_id', $line->id)
             ->whereBetween('record_date', [$dateFrom, $dateTo])
             ->with('shift')
@@ -81,5 +89,19 @@ class OeeController extends Controller
         );
 
         return view('admin.oee.show', compact('line', 'records', 'downtimeByReason', 'dateFrom', 'dateTo'));
+    }
+
+    /**
+     * Auto-calculate OEE for today and yesterday if not already done.
+     * Cached for 15 minutes to avoid recalculating on every page load.
+     */
+    private function ensureOeeCalculated(): void
+    {
+        Cache::remember('oee_calculated_'.today()->toDateString(), 900, function () {
+            $this->oeeService->calculateAll(today());
+            $this->oeeService->calculateAll(Carbon::yesterday());
+
+            return true;
+        });
     }
 }
