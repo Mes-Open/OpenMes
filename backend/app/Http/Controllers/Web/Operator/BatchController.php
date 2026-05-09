@@ -138,7 +138,14 @@ class BatchController extends Controller
 
     public function release(Request $request, Batch $batch)
     {
-        $request->validate(['release_type' => 'required|in:for_production,for_sale']);
+        $request->validate([
+            'release_type' => 'required|in:for_production,for_sale',
+            'scrap_qty' => 'nullable|numeric|min:0',
+        ]);
+
+        if ($request->filled('scrap_qty')) {
+            $batch->update(['scrap_qty' => $request->input('scrap_qty')]);
+        }
 
         try {
             $released = $this->releaseService->release($batch, $request->user(), $request->input('release_type'));
