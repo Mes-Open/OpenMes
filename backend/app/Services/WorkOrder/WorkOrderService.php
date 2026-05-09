@@ -112,6 +112,7 @@ class WorkOrderService
                 'step_number' => $stepData['step_number'],
                 'name' => $stepData['name'],
                 'instruction' => $stepData['instruction'] ?? null,
+                'workstation_id' => $stepData['workstation_id'] ?? null,
                 'status' => BatchStep::STATUS_PENDING,
             ]);
         }

@@ -16,6 +16,7 @@ class ProcessTemplate extends Model
         'product_type_id',
         'name',
         'version',
+        'ideal_cycle_minutes',
         'is_active',
         'tenant_id',
     ];
@@ -25,6 +26,7 @@ class ProcessTemplate extends Model
         return [
             'is_active' => 'boolean',
             'version' => 'integer',
+            'ideal_cycle_minutes' => 'decimal:4',
         ];
     }
 

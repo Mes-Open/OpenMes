@@ -4,9 +4,9 @@
 
 @section('content')
 <div x-data="{
-    name: '',
-    username: '',
-    email: '',
+    name: '{{ old('name') }}',
+    username: '{{ old('username') }}',
+    email: '{{ old('email') }}',
     password: '',
     password_confirmation: '',
     loading: false

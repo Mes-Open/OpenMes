@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
+use App\Http\Controllers\Api\V1\OeeController as ApiOeeController;
 use App\Http\Controllers\Api\V1\PackagingChecklistController;
 use App\Http\Controllers\Api\V1\ProcessConfirmationController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
@@ -136,6 +137,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/materials/{material}', [MaterialController::class, 'show']);
     Route::get('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'index']);
     Route::get('/process-templates/{processTemplate}/bom-items/requirements', [BomItemController::class, 'requirements']);
+
+    // OEE & Downtimes — accessible by all authenticated users (operators need to report)
+    Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);
+    Route::get('/downtimes', [ApiOeeController::class, 'downtimes']);
+    Route::post('/downtimes', [ApiOeeController::class, 'startDowntime']);
+    Route::patch('/downtimes/{downtime}', [ApiOeeController::class, 'stopDowntime']);
+    Route::get('/oee', [ApiOeeController::class, 'index']);
+    Route::get('/oee/{line}', [ApiOeeController::class, 'show']);
 
     // Tools — read for any authenticated user
     Route::get('/tools', [ToolController::class, 'index']);
@@ -367,6 +376,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::patch('/batches/{batch}', [BatchController::class, 'update']);
     Route::post('/batches/{batch}/cancel', [BatchController::class, 'cancel']);
     Route::post('/batches/{batch}/release', [BatchController::class, 'release']);
+    Route::get('/batches/{batch}/allocation-preview', [BatchController::class, 'allocationPreview']);
     Route::delete('/batches/{batch}', [BatchController::class, 'destroy']);
 
     // Batch Steps (step execution)
