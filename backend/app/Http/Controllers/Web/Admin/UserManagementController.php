@@ -33,11 +33,11 @@ class UserManagementController extends Controller
      */
     public function create()
     {
-        $roles        = Role::all();
+        $roles = Role::all();
         $workstations = Workstation::with('line')->orderBy('name')->get();
-        $crews        = Crew::active()->orderBy('name')->get();
-        $wageGroups   = WageGroup::active()->orderBy('name')->get();
-        $skills       = Skill::orderBy('name')->get();
+        $crews = Crew::active()->orderBy('name')->get();
+        $wageGroups = WageGroup::active()->orderBy('name')->get();
+        $skills = Skill::orderBy('name')->get();
 
         return view('admin.users.create', compact('roles', 'workstations', 'crews', 'wageGroups', 'skills'));
     }
@@ -48,53 +48,53 @@ class UserManagementController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'                 => 'required|string|max:255',
-            'username'             => 'required|string|max:255|unique:users',
-            'email'                => 'required|string|email|max:255|unique:users',
-            'password'             => ['required', 'confirmed', Password::defaults()],
-            'role'                 => 'required_if:account_type,user|nullable|exists:roles,name',
-            'account_type'         => 'required|in:user,workstation',
-            'workstation_id'       => 'nullable|exists:workstations,id|required_if:account_type,workstation',
-            'worker_code'          => 'nullable|string|max:50|unique:workers,code',
-            'worker_phone'         => 'nullable|string|max:50',
-            'worker_crew_id'       => 'nullable|exists:crews,id',
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => ['required', 'confirmed', Password::defaults()],
+            'role' => 'required_if:account_type,user|nullable|exists:roles,name',
+            'account_type' => 'required|in:user,workstation',
+            'workstation_id' => 'nullable|exists:workstations,id|required_if:account_type,workstation',
+            'worker_code' => 'nullable|string|max:50|unique:workers,code',
+            'worker_phone' => 'nullable|string|max:50',
+            'worker_crew_id' => 'nullable|exists:crews,id',
             'worker_wage_group_id' => 'nullable|exists:wage_groups,id',
-            'skills'               => 'nullable|array',
-            'skills.*.id'          => 'required|exists:skills,id',
-            'skills.*.level'       => 'nullable|integer|min:1|max:5',
+            'skills' => 'nullable|array',
+            'skills.*.id' => 'required|exists:skills,id',
+            'skills.*.level' => 'nullable|integer|min:1|max:5',
         ]);
 
         $user = User::create([
-            'name'                  => $validated['name'],
-            'username'              => $validated['username'],
-            'email'                 => $validated['email'],
-            'password'              => Hash::make($validated['password']),
-            'account_type'          => $validated['account_type'],
-            'workstation_id'        => $validated['account_type'] === 'workstation' ? $validated['workstation_id'] : null,
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'account_type' => $validated['account_type'],
+            'workstation_id' => $validated['workstation_id'] ?? null,
             'force_password_change' => $request->boolean('force_password_change'),
         ]);
 
-        if ($validated['account_type'] === 'user' && !empty($validated['role'])) {
+        if ($validated['account_type'] === 'user' && ! empty($validated['role'])) {
             $user->assignRole($validated['role']);
         } elseif ($validated['account_type'] === 'workstation') {
             $user->assignRole('Operator');
         }
 
         // Create worker profile when code is provided and account is personal
-        if (!empty($validated['worker_code']) && $validated['account_type'] === 'user') {
+        if (! empty($validated['worker_code']) && $validated['account_type'] === 'user') {
             $worker = Worker::create([
-                'code'          => $validated['worker_code'],
-                'name'          => $validated['name'],
-                'email'         => $validated['email'],
-                'phone'         => $validated['worker_phone'] ?? null,
-                'crew_id'       => $validated['worker_crew_id'] ?? null,
+                'code' => $validated['worker_code'],
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['worker_phone'] ?? null,
+                'crew_id' => $validated['worker_crew_id'] ?? null,
                 'wage_group_id' => $validated['worker_wage_group_id'] ?? null,
-                'is_active'     => true,
+                'is_active' => true,
             ]);
 
             $worker->skills()->sync(
                 collect($request->input('skills', []))
-                    ->mapWithKeys(fn($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
+                    ->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
             );
 
             $user->update(['worker_id' => $worker->id]);
@@ -110,11 +110,11 @@ class UserManagementController extends Controller
     public function edit(User $user)
     {
         $user->load('worker.skills');
-        $roles        = Role::all();
+        $roles = Role::all();
         $workstations = Workstation::with('line')->orderBy('name')->get();
-        $crews        = Crew::active()->orderBy('name')->get();
-        $wageGroups   = WageGroup::active()->orderBy('name')->get();
-        $skills       = Skill::orderBy('name')->get();
+        $crews = Crew::active()->orderBy('name')->get();
+        $wageGroups = WageGroup::active()->orderBy('name')->get();
+        $skills = Skill::orderBy('name')->get();
 
         return view('admin.users.edit', compact('user', 'roles', 'workstations', 'crews', 'wageGroups', 'skills'));
     }
@@ -125,38 +125,38 @@ class UserManagementController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name'                 => 'required|string|max:255',
-            'username'             => 'required|string|max:255|unique:users,username,' . $user->id,
-            'email'                => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'password'             => ['nullable', 'confirmed', Password::defaults()],
-            'role'                 => 'required_if:account_type,user|nullable|exists:roles,name',
-            'account_type'         => 'required|in:user,workstation',
-            'workstation_id'       => 'nullable|exists:workstations,id|required_if:account_type,workstation',
-            'worker_code'          => 'nullable|string|max:50|unique:workers,code,' . ($user->worker_id ?? 'NULL'),
-            'worker_phone'         => 'nullable|string|max:50',
-            'worker_crew_id'       => 'nullable|exists:crews,id',
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username,'.$user->id,
+            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
+            'password' => ['nullable', 'confirmed', Password::defaults()],
+            'role' => 'required_if:account_type,user|nullable|exists:roles,name',
+            'account_type' => 'required|in:user,workstation',
+            'workstation_id' => 'nullable|exists:workstations,id|required_if:account_type,workstation',
+            'worker_code' => 'nullable|string|max:50|unique:workers,code,'.($user->worker_id ?? 'NULL'),
+            'worker_phone' => 'nullable|string|max:50',
+            'worker_crew_id' => 'nullable|exists:crews,id',
             'worker_wage_group_id' => 'nullable|exists:wage_groups,id',
-            'skills'               => 'nullable|array',
-            'skills.*.id'          => 'required|exists:skills,id',
-            'skills.*.level'       => 'nullable|integer|min:1|max:5',
+            'skills' => 'nullable|array',
+            'skills.*.id' => 'required|exists:skills,id',
+            'skills.*.level' => 'nullable|integer|min:1|max:5',
         ]);
 
         $updateData = [
-            'name'                  => $validated['name'],
-            'username'              => $validated['username'],
-            'email'                 => $validated['email'],
-            'account_type'          => $validated['account_type'],
-            'workstation_id'        => $validated['account_type'] === 'workstation' ? $validated['workstation_id'] : null,
+            'name' => $validated['name'],
+            'username' => $validated['username'],
+            'email' => $validated['email'],
+            'account_type' => $validated['account_type'],
+            'workstation_id' => $validated['workstation_id'] ?? null,
             'force_password_change' => $request->boolean('force_password_change'),
         ];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $updateData['password'] = Hash::make($validated['password']);
         }
 
         DB::transaction(function () use ($request, $user, $validated, $updateData) {
             $user->update($updateData);
-            if ($validated['account_type'] === 'user' && !empty($validated['role'])) {
+            if ($validated['account_type'] === 'user' && ! empty($validated['role'])) {
                 $user->syncRoles([$validated['role']]);
             } elseif ($validated['account_type'] === 'workstation') {
                 $user->syncRoles(['Operator']);
@@ -164,13 +164,13 @@ class UserManagementController extends Controller
                 $user->syncRoles([]);
             }
 
-            if ($validated['account_type'] === 'user' && !empty($validated['worker_code'])) {
+            if ($validated['account_type'] === 'user' && ! empty($validated['worker_code'])) {
                 $workerData = [
-                    'code'          => $validated['worker_code'],
-                    'name'          => $validated['name'],
-                    'email'         => $validated['email'],
-                    'phone'         => $validated['worker_phone'] ?? null,
-                    'crew_id'       => $validated['worker_crew_id'] ?? null,
+                    'code' => $validated['worker_code'],
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'phone' => $validated['worker_phone'] ?? null,
+                    'crew_id' => $validated['worker_crew_id'] ?? null,
                     'wage_group_id' => $validated['worker_wage_group_id'] ?? null,
                 ];
 
@@ -184,7 +184,7 @@ class UserManagementController extends Controller
 
                 $worker->skills()->sync(
                     collect($request->input('skills', []))
-                        ->mapWithKeys(fn($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
+                        ->mapWithKeys(fn ($s) => [$s['id'] => ['level' => $s['level'] ?? 1]])
                 );
             }
         });

@@ -54,6 +54,11 @@ class WorkOrderController extends Controller
 
         $line = \App\Models\Line::find($lineId);
 
+        $selectedWorkstationId = $request->session()->get('selected_workstation_id');
+        $selectedWorkstation = $selectedWorkstationId
+            ? Workstation::find($selectedWorkstationId)
+            : null;
+
         $lineStatuses = LineStatus::forLine($lineId)->get();
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
@@ -63,7 +68,7 @@ class WorkOrderController extends Controller
         $doneStatusIds = $lineStatuses->where('is_done_status', true)->pluck('id')->values();
 
         return view('operator.queue', compact(
-            'activeWorkOrders', 'completedWorkOrders', 'line',
+            'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
             'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds'
         ));
     }
