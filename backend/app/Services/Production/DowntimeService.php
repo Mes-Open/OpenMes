@@ -96,9 +96,9 @@ class DowntimeService
             ->get()
             ->groupBy('downtime_reason_id')
             ->map(fn ($group) => [
-                'reason' => $group->first()->reason->name,
-                'code' => $group->first()->reason->code,
-                'is_planned' => $group->first()->reason->is_planned,
+                'reason' => $group->first()->reason?->name ?? 'Unknown',
+                'code' => $group->first()->reason?->code ?? 'unknown',
+                'is_planned' => $group->first()->reason?->is_planned ?? false,
                 'count' => $group->count(),
                 'total_minutes' => $group->sum('duration_minutes'),
             ])
