@@ -2,12 +2,10 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class DowntimeReason extends Model
 {
-    use HasTenant;
 
     protected $fillable = [
         'name',
