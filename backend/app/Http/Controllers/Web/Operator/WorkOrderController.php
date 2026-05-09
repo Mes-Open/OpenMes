@@ -54,6 +54,11 @@ class WorkOrderController extends Controller
 
         $line = \App\Models\Line::find($lineId);
 
+        $selectedWorkstationId = $request->session()->get('selected_workstation_id');
+        $selectedWorkstation = $selectedWorkstationId
+            ? Workstation::find($selectedWorkstationId)
+            : null;
+
         $lineStatuses = LineStatus::forLine($lineId)->get();
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
@@ -63,7 +68,7 @@ class WorkOrderController extends Controller
         $doneStatusIds = $lineStatuses->where('is_done_status', true)->pluck('id')->values();
 
         return view('operator.queue', compact(
-            'activeWorkOrders', 'completedWorkOrders', 'line',
+            'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
             'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds'
         ));
     }
@@ -136,8 +141,15 @@ class WorkOrderController extends Controller
         ]);
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
-        $workstations = Workstation::where('is_active', true)->orderBy('name')->get();
 
-        return view('operator.work-order-detail', compact('workOrder', 'issueTypes', 'workstations'));
+        // Only show workstations from this line (not all system workstations)
+        $workstations = $workOrder->line
+            ? Workstation::where('line_id', $workOrder->line_id)->where('is_active', true)->orderBy('name')->get()
+            : collect();
+
+        // Auto-select workstation if operator is a workstation account
+        $defaultWorkstationId = auth()->user()->workstation_id;
+
+        return view('operator.work-order-detail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId'));
     }
 }

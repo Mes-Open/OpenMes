@@ -2,32 +2,34 @@
 
 namespace App\Services\WorkOrder;
 
-use App\Models\BatchStep;
 use App\Models\Batch;
+use App\Models\BatchStep;
 use App\Models\User;
+use App\Services\Material\MaterialAllocationService;
 use Illuminate\Support\Facades\DB;
 
 class BatchService
 {
     public function __construct(
-        protected WorkOrderService $workOrderService
+        protected WorkOrderService $workOrderService,
+        protected MaterialAllocationService $allocationService,
     ) {}
 
     /**
      * Start a batch step.
      *
-     * @param BatchStep $step
-     * @param User $user
-     * @return BatchStep
      * @throws \Exception
      */
     public function startStep(BatchStep $step, User $user): BatchStep
     {
         return DB::transaction(function () use ($step, $user) {
             // Validate step can be started
-            if (!$step->canStart()) {
+            if (! $step->canStart()) {
                 $this->throwValidationError($step);
             }
+
+            $batch = $step->batch;
+            $wasPending = $batch->status === Batch::STATUS_PENDING;
 
             // Start the step
             $step->update([
@@ -37,10 +39,15 @@ class BatchService
             ]);
 
             // Update batch status
-            $this->updateBatchStatus($step->batch);
+            $this->updateBatchStatus($batch);
+
+            // Allocate materials when batch first transitions to IN_PROGRESS
+            if ($wasPending && $batch->fresh()->status === Batch::STATUS_IN_PROGRESS) {
+                $this->allocationService->allocateForBatch($batch, $user);
+            }
 
             // Update work order status
-            $this->workOrderService->updateWorkOrderStatus($step->batch->workOrder);
+            $this->workOrderService->updateWorkOrderStatus($batch->workOrder);
 
             return $step->fresh();
         });
@@ -49,18 +56,14 @@ class BatchService
     /**
      * Complete a batch step.
      *
-     * @param BatchStep $step
-     * @param User $user
-     * @param array $data
-     * @return BatchStep
      * @throws \Exception
      */
     public function completeStep(BatchStep $step, User $user, array $data = []): BatchStep
     {
         return DB::transaction(function () use ($step, $user, $data) {
             // Validate step can be completed
-            if (!$step->canComplete()) {
-                throw new \Exception('Step cannot be completed. Current status: ' . $step->status);
+            if (! $step->canComplete()) {
+                throw new \Exception('Step cannot be completed. Current status: '.$step->status);
             }
 
             // Calculate duration
@@ -81,9 +84,10 @@ class BatchService
             $batch = $step->batch;
             $this->updateBatchStatus($batch);
 
-            // If batch is complete, update produced quantity
+            // If batch is complete, update produced quantity and consume materials
             if ($batch->status === Batch::STATUS_DONE) {
                 $this->completeBatch($batch, $data['produced_qty'] ?? $batch->target_qty);
+                $this->allocationService->consumeForBatch($batch);
             }
 
             // Update work order status
@@ -96,8 +100,6 @@ class BatchService
     /**
      * Report a problem on a step (creates an issue).
      *
-     * @param BatchStep $step
-     * @param array $issueData
      * @return \App\Models\Issue
      */
     public function reportProblem(BatchStep $step, array $issueData)
@@ -109,9 +111,6 @@ class BatchService
 
     /**
      * Update batch status based on steps.
-     *
-     * @param Batch $batch
-     * @return void
      */
     protected function updateBatchStatus(Batch $batch): void
     {
@@ -121,6 +120,7 @@ class BatchService
                 'status' => Batch::STATUS_DONE,
                 'completed_at' => now(),
             ]);
+
             return;
         }
 
@@ -139,10 +139,6 @@ class BatchService
 
     /**
      * Complete a batch and update produced quantity.
-     *
-     * @param Batch $batch
-     * @param float $producedQty
-     * @return void
      */
     protected function completeBatch(Batch $batch, float $producedQty): void
     {
@@ -165,7 +161,6 @@ class BatchService
     /**
      * Throw appropriate validation error based on step state.
      *
-     * @param BatchStep $step
      * @throws \Exception
      */
     protected function throwValidationError(BatchStep $step): void
@@ -187,9 +182,9 @@ class BatchService
                 ->where('step_number', $step->step_number - 1)
                 ->first();
 
-            if (!$previousStep || !in_array($previousStep->status, [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED])) {
+            if (! $previousStep || ! in_array($previousStep->status, [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED])) {
                 $prevNum = $step->step_number - 1;
-                throw new \Exception("must be completed before");
+                throw new \Exception('must be completed before');
             }
         }
 

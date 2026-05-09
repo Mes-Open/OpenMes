@@ -42,7 +42,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Material <span class="text-red-500">*</span></label>
-                    <select name="material_id" required class="input-field @error('material_id') border-red-500 @enderror">
+                    <select name="material_id" required class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('material_id') border-red-500 @enderror">
                         <option value="">Select material...</option>
                         @foreach($materials as $material)
                             <option value="{{ $material->id }}" {{ old('material_id') == $material->id ? 'selected' : '' }}>
@@ -55,12 +55,12 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Quantity per Unit <span class="text-red-500">*</span></label>
                     <input type="number" name="quantity_per_unit" step="0.0001" min="0.0001" required
-                        value="{{ old('quantity_per_unit') }}" class="input-field @error('quantity_per_unit') border-red-500 @enderror">
+                        value="{{ old('quantity_per_unit') }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('quantity_per_unit') border-red-500 @enderror">
                     @error('quantity_per_unit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Step (optional)</label>
-                    <select name="template_step_id" class="input-field">
+                    <select name="template_step_id" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
                         <option value="">All steps / general</option>
                         @foreach($steps as $step)
                             <option value="{{ $step->id }}" {{ old('template_step_id') == $step->id ? 'selected' : '' }}>
@@ -72,11 +72,11 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Scrap %</label>
                     <input type="number" name="scrap_percentage" step="0.01" min="0" max="100"
-                        value="{{ old('scrap_percentage', 0) }}" class="input-field">
+                        value="{{ old('scrap_percentage', 0) }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Consumed At</label>
-                    <select name="consumed_at" class="input-field">
+                    <select name="consumed_at" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
                         <option value="start" {{ old('consumed_at') === 'start' ? 'selected' : '' }}>Start of step</option>
                         <option value="during" {{ old('consumed_at') === 'during' ? 'selected' : '' }}>During step</option>
                         <option value="end" {{ old('consumed_at') === 'end' ? 'selected' : '' }}>End of step</option>
@@ -84,7 +84,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <input type="text" name="notes" value="{{ old('notes') }}" class="input-field" placeholder="Optional notes">
+                    <input type="text" name="notes" value="{{ old('notes') }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" placeholder="Optional notes">
                 </div>
             </div>
             <div class="flex justify-end gap-3 mt-4">
