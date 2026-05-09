@@ -20,9 +20,17 @@ class Material extends Model
         'unit_of_measure',
         'tracking_type',
         'default_scrap_percentage',
+        'stock_quantity',
+        'min_stock_level',
         'extra_data',
         'external_code',
         'external_system',
+        'supplier_name',
+        'supplier_code',
+        'unit_price',
+        'price_currency',
+        'ean',
+        'last_stock_sync_at',
         'is_active',
         'tenant_id',
     ];
@@ -32,6 +40,10 @@ class Material extends Model
         return [
             'is_active' => 'boolean',
             'default_scrap_percentage' => 'decimal:2',
+            'stock_quantity' => 'decimal:3',
+            'min_stock_level' => 'decimal:3',
+            'unit_price' => 'decimal:4',
+            'last_stock_sync_at' => 'datetime',
             'extra_data' => 'array',
         ];
     }
