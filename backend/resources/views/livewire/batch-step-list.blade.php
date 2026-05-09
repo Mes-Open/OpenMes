@@ -1,4 +1,80 @@
 <div wire:poll.5s class="space-y-4">
+    {{-- Material Allocation Confirmation Modal --}}
+    @if($showAllocationConfirm)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" wire:click.self="cancelAllocation">
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Material Allocation</h3>
+                            <p class="text-sm text-gray-500">Starting this batch will reserve the following materials:</p>
+                        </div>
+                    </div>
+
+                    <div class="border rounded-lg overflow-hidden mb-4">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-slate-700">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Required</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">In Stock</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
+                                @foreach($allocationPreview as $item)
+                                    <tr class="{{ !$item['sufficient'] ? 'bg-red-50 dark:bg-red-900/20' : '' }}">
+                                        <td class="px-3 py-2">
+                                            <span class="font-medium text-gray-800 dark:text-gray-200">{{ $item['material_name'] }}</span>
+                                            <span class="text-xs text-gray-400 font-mono ml-1">{{ $item['material_code'] }}</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono">
+                                            {{ number_format($item['required_qty'], 2) }} {{ $item['unit_of_measure'] }}
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono {{ !$item['sufficient'] ? 'text-red-600 font-bold' : 'text-gray-700 dark:text-gray-300' }}">
+                                            {{ $item['material_exists'] ? number_format($item['available_qty'], 2) : 'N/A' }} {{ $item['unit_of_measure'] }}
+                                        </td>
+                                        <td class="px-3 py-2 text-center">
+                                            @if($item['sufficient'])
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">OK</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Low</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @php $hasInsufficient = collect($allocationPreview)->contains(fn($i) => !$i['sufficient']); @endphp
+
+                    @if($hasInsufficient)
+                        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+                            <p class="text-sm text-amber-800 font-medium">
+                                Some materials have insufficient stock. Proceeding will result in negative stock levels.
+                            </p>
+                        </div>
+                    @endif
+
+                    <div class="flex gap-3 justify-end">
+                        <button wire:click="cancelAllocation" class="btn-touch btn-secondary">
+                            Cancel
+                        </button>
+                        <button wire:click="confirmAllocation" class="btn-touch btn-primary">
+                            Confirm & Start
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if($batch)
         <!-- Batch Info -->
         <div class="card bg-blue-50 border border-blue-200">
@@ -60,7 +136,15 @@
                                     @endif">
                                     {{ $step->step_number }}
                                 </span>
-                                <h4 class="text-lg font-bold text-gray-800">{{ $step->name }}</h4>
+                                <h4 class="text-lg font-bold text-gray-800 dark:text-gray-100">{{ $step->name }}</h4>
+                                @if($step->workstation)
+                                    @php
+                                        $isMyStation = session('selected_workstation_id') == $step->workstation_id;
+                                    @endphp
+                                    <span class="px-2 py-0.5 rounded text-xs font-medium {{ $isMyStation ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
+                                        {{ $step->workstation->name }}
+                                    </span>
+                                @endif
                                 @if($estimated)
                                     <span class="text-xs text-gray-400 font-normal">est. {{ $estimated }}min</span>
                                 @endif
