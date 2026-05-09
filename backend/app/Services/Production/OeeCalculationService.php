@@ -190,10 +190,10 @@ class OeeCalculationService
     private function getIdealCycleTime(Line $line, Carbon $date, ?Shift $shift): float
     {
         // Find most common process template used on this line recently
-        $templateId = Batch::whereHas('workOrder', fn ($q) => $q->where('line_id', $line->id))
-            ->where('status', Batch::STATUS_DONE)
-            ->whereDate('completed_at', '>=', $date->copy()->subDays(30))
+        $templateId = Batch::where('batches.status', Batch::STATUS_DONE)
+            ->whereDate('batches.completed_at', '>=', $date->copy()->subDays(30))
             ->join('work_orders', 'batches.work_order_id', '=', 'work_orders.id')
+            ->where('work_orders.line_id', $line->id)
             ->whereNotNull('work_orders.process_snapshot')
             ->selectRaw("work_orders.process_snapshot->>'template_id' as tpl_id")
             ->groupBy('tpl_id')
