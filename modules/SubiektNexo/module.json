@@ -1,0 +1,8 @@
+{
+    "name": "SubiektNexo",
+    "display_name": "Subiekt nexo Integration",
+    "description": "Integration with InsERT Subiekt nexo Pro via Sfera API — product sync, inventory lookup, warehouse operations.",
+    "version": "1.0.0",
+    "provider": "Modules\\SubiektNexo\\Providers\\SubiektNexoServiceProvider",
+    "author": "OpenMES"
+}
