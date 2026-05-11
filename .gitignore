@@ -67,3 +67,8 @@ yarn-error.log*
 # Project-specific
 .init_prompt
 /reference-app
+
+# Private/commercial modules — never commit to public repo
+modules/SubiektNexo/
+modules/SferaApi/
+modules/KepwareConnector/
