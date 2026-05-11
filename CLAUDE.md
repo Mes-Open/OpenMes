@@ -272,22 +272,19 @@ systemctl reload apache2
 
 ---
 
-## 13. Prywatne moduły (NIGDY na publicznym repo)
+## 13. Moduły (NIGDY na publicznym repo)
 
-Moduły komercyjne/klienckie **NIGDY** nie trafiają do publicznego repo `Mes-Open/OpenMes`.
-Mają osobne prywatne repozytoria:
+Katalog `modules/` jest w `.gitignore` — nic z niego nie trafia do repo.
+Pre-commit hook blokuje każdy commit dotyczący `modules/`.
 
-| Moduł | Repo (private) | Opis |
+Każdy moduł ma osobne repozytorium (publiczne lub prywatne).
+
+| Moduł | Repo | Typ |
 |---|---|---|
-| SubiektNexo | `Mes-Open/subiekt-nexo-module` | Integracja Sfera API / Subiekt nexo |
+| Packaging | bundled (historia w repo) | Open source |
+| SubiektNexo | `Mes-Open/subiekt-nexo-module` (PRIVATE) | Komercyjny |
 
 **Zasady:**
-- Moduły klienckie rozwijaj TYLKO w instancji klienta (`openmes-pulemqu/`) lub w prywatnym repo
-- NIGDY nie commituj do `Mes-Open/OpenMes` plików z `modules/SubiektNexo/` ani podobnych
-- Pre-commit hook blokuje takie commity automatycznie
-- `.gitignore` ignoruje katalogi prywatnych modułów
-
-**Jeśli klient potrzebuje nowego modułu:**
-1. Stwórz prywatne repo `Mes-Open/<nazwa-modulu>`
-2. Rozwijaj tam
-3. Na instancji klienta klonuj do `modules/`
+- NIGDY nie commituj nic do `modules/` w tym repo
+- Nowy moduł = nowe repo (`Mes-Open/<nazwa>`)
+- Na instancji klienta: `cd modules/ \&\& git clone <repo> <NazwaModulu>`
