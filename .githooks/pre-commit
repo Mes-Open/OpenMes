@@ -1,14 +1,11 @@
 #!/bin/bash
-# Block commits containing private/commercial modules
-PRIVATE_MODULES="SubiektNexo|SferApi|KepwareConnector"
-
-if git diff --cached --name-only | grep -iE "modules/($PRIVATE_MODULES)" > /dev/null 2>&1; then
+# Block ALL commits to modules/ directory
+if git diff --cached --name-only | grep "^modules/" > /dev/null 2>&1; then
     echo ""
-    echo "BLOCKED: You're trying to commit files from a private module!"
-    echo "Private modules: $PRIVATE_MODULES"
+    echo "BLOCKED: Committing to modules/ is not allowed."
     echo ""
-    echo "These belong in separate private repos, not in the public OpenMES repo."
-    echo "Use: git reset HEAD modules/<ModuleName>"
+    echo "All modules are managed in separate repositories."
+    echo "Use: git reset HEAD modules/"
     echo ""
     exit 1
 fi

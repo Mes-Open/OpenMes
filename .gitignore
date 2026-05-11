@@ -68,7 +68,8 @@ yarn-error.log*
 .init_prompt
 /reference-app
 
-# Private/commercial modules — never commit to public repo
-modules/SubiektNexo/
-modules/SferaApi/
-modules/KepwareConnector/
+
+# Modules — all managed externally, never committed to public repo
+# Core modules (Packaging etc.) stay in repo history but new ones go to private repos
+modules/*
+!modules/README.md
