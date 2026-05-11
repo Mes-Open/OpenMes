@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\Packaging\Commands\ResetPackagingShiftCommand;
 use Modules\Packaging\Controllers\Api\PackagingApiController;
+use Modules\Packaging\Controllers\LabelPrintController;
+use Modules\Packaging\Controllers\LabelTemplateController;
 use Modules\Packaging\Controllers\PackagingController;
 use Modules\Packaging\Controllers\PackagingEanController;
 use Modules\Packaging\Models\WorkOrderEan;
@@ -69,6 +71,23 @@ class PackagingServiceProvider extends ServiceProvider
                     Route::post('/eans', [PackagingEanController::class, 'store'])->name('eans.store');
                     Route::delete('/eans/{ean}', [PackagingEanController::class, 'destroy'])->name('eans.destroy');
                 });
+
+                // Label printing endpoints (Operator + Supervisor + Admin)
+                Route::middleware('role:Operator|Supervisor|Admin')->prefix('labels')->name('labels.')->group(function () {
+                    Route::get('/work-order/{workOrder}/pdf', [LabelPrintController::class, 'workOrderPdf'])->name('work-order.pdf');
+                    Route::get('/work-order/{workOrder}/zpl', [LabelPrintController::class, 'workOrderZpl'])->name('work-order.zpl');
+                    Route::get('/finished-goods/{batch}/pdf', [LabelPrintController::class, 'finishedGoodsPdf'])->name('finished-goods.pdf');
+                    Route::get('/finished-goods/{batch}/zpl', [LabelPrintController::class, 'finishedGoodsZpl'])->name('finished-goods.zpl');
+                    Route::get('/workstation-step/{batchStep}/pdf', [LabelPrintController::class, 'batchStepPdf'])->name('workstation-step.pdf');
+                    Route::get('/workstation-step/{batchStep}/zpl', [LabelPrintController::class, 'batchStepZpl'])->name('workstation-step.zpl');
+                    Route::post('/print-multiple', [LabelPrintController::class, 'printMultiple'])->name('print-multiple');
+                });
+
+                // Label template CRUD (Admin only)
+                Route::middleware('role:Admin')->group(function () {
+                    Route::resource('label-templates', LabelTemplateController::class)->except(['show']);
+                    Route::post('/label-templates/{labelTemplate}/set-default', [LabelTemplateController::class, 'setDefault'])->name('label-templates.set-default');
+                });
             });
 
         // ── Navigation menu ────────────────────────────────────────────────────
@@ -79,6 +98,10 @@ class PackagingServiceProvider extends ServiceProvider
         if (auth()->check() && auth()->user()->hasAnyRole(['Admin', 'Supervisor'])) {
             $menu->addGroupItem('packaging', 'Przegląd pakowania', '/packaging', order: 20);
             $menu->addGroupItem('packaging', 'Zarządzanie EAN', '/packaging/eans', order: 30);
+        }
+
+        if (auth()->check() && auth()->user()->hasRole('Admin')) {
+            $menu->addGroupItem('packaging', 'Szablony etykiet', '/packaging/label-templates', order: 40);
         }
     }
 }

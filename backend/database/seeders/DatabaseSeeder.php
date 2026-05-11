@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             ViewTemplateSeeder::class,
             MaterialTypesSeeder::class,
             DowntimeReasonsSeeder::class,
+            LabelTemplatesSeeder::class,
         ]);
     }
 }
