@@ -146,10 +146,12 @@
                         <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-l-2 border-gray-300 dark:border-gray-600">To Produce</th>
                         <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Produced</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-wider bg-blue-600 text-white">Remaining</th>
-                        {{-- Dynamic shift columns --}}
-                        @foreach($shifts as $shift)
+                        {{-- Dynamic shift columns (only if shifts configured for this line) --}}
+                        @if($shifts->isNotEmpty() && $shifts->contains(fn($s) => $s->line_id === $line->id))
+                        @foreach($shifts->where('line_id', $line->id) as $shift)
                         <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider" title="{{ $shift->name }} ({{ substr($shift->start_time, 0, 5) }}–{{ substr($shift->end_time, 0, 5) }})">{{ $shift->code }}</th>
                         @endforeach
+                        @endif
                         <th class="px-3 py-3 w-10"></th>
                     </tr>
                 </thead>
@@ -230,8 +232,9 @@
                             {{ number_format($remaining, 0) }}
                         </td>
 
-                        {{-- Dynamic shift columns --}}
-                        @foreach($shifts as $shift)
+                        {{-- Dynamic shift columns (only if shifts configured for this line) --}}
+                        @if($shifts->isNotEmpty() && $shifts->contains(fn($s) => $s->line_id === $line->id))
+                        @foreach($shifts->where('line_id', $line->id) as $shift)
                         @php
                             $entryKey = $wo->id . '_' . $shift->id;
                             $entryQty = isset($shiftEntries[$entryKey]) ? (float) $shiftEntries[$entryKey]->first()->quantity : 0;
@@ -257,6 +260,7 @@
                             @endif
                         </td>
                         @endforeach
+                        @endif
 
                         {{-- Action (+) --}}
                         <td class="px-2 py-3 text-center" @click.stop>
