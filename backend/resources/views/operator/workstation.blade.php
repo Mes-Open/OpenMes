@@ -287,6 +287,23 @@
                                         title="Report problem">
                                     !
                                 </button>
+                                <button type="button"
+                                        @click="$dispatch('show-wo-info', {
+                                            orderNo: '{{ addslashes($wo->order_no) }}',
+                                            product: '{{ addslashes($wo->productType?->name ?? '-') }}',
+                                            line: '{{ addslashes($wo->line?->name ?? '-') }}',
+                                            status: '{{ $wo->status === 'PENDING' ? 'Not Started' : ucfirst(strtolower(str_replace('_', ' ', $wo->status))) }}',
+                                            planned: '{{ number_format($planned, 0) }}',
+                                            produced: '{{ number_format($produced, 0) }}',
+                                            remaining: '{{ number_format($remaining, 0) }}',
+                                            priority: '{{ $wo->priority }}',
+                                            dueDate: '{{ $wo->due_date ? $wo->due_date->format('Y-m-d') : '-' }}',
+                                            description: '{{ addslashes($wo->description ?? '-') }}'
+                                        })"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-400 hover:bg-gray-500 text-white text-sm font-bold shadow transition-colors"
+                                        title="Details">
+                                    ?
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -360,6 +377,66 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    {{-- ═══════ WORK ORDER INFO MODAL ═══════ --}}
+    <div x-data="{ open: false, info: {} }"
+         @show-wo-info.window="info = $event.detail; open = true"
+         x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white">Order Details</h3>
+                <button @click="open = false" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Order #</span>
+                    <span class="text-sm font-bold font-mono" x-text="info.orderNo"></span>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Product</span>
+                    <span class="text-sm font-medium" x-text="info.product"></span>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Line</span>
+                    <span class="text-sm font-medium" x-text="info.line"></span>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Status</span>
+                    <span class="text-sm font-bold" x-text="info.status"></span>
+                </div>
+                <div class="grid grid-cols-3 gap-3 py-2">
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Planned</p>
+                        <p class="text-lg font-bold text-gray-800 dark:text-white" x-text="info.planned"></p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Produced</p>
+                        <p class="text-lg font-bold text-blue-600" x-text="info.produced"></p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Remaining</p>
+                        <p class="text-lg font-bold text-orange-600" x-text="info.remaining"></p>
+                    </div>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Priority</span>
+                    <span class="text-sm font-medium" x-text="info.priority"></span>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Due Date</span>
+                    <span class="text-sm font-medium" x-text="info.dueDate"></span>
+                </div>
+                <div x-show="info.description && info.description !== '-'">
+                    <p class="text-xs text-gray-500 mb-1">Description</p>
+                    <p class="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded p-2" x-text="info.description"></p>
+                </div>
+            </div>
+            <button @click="open = false" class="btn-touch btn-primary w-full mt-4">Close</button>
         </div>
     </div>
 
