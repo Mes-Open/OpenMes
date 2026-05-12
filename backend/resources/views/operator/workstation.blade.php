@@ -260,22 +260,30 @@
 
                         {{-- Action (+) --}}
                         <td class="px-2 py-3 text-center" @click.stop>
-                            @if(!$isDone)
-                            <button type="button"
-                                    @click="completeModal = {
-                                        open: true,
-                                        id: {{ $wo->id }},
-                                        orderNo: '{{ addslashes($wo->order_no) }}',
-                                        product: '{{ addslashes($wo->productType?->name ?? $wo->order_no) }}',
-                                        planned: {{ $planned }},
-                                        produced: {{ $produced }},
-                                        url: '{{ route('operator.workstation.complete', $wo) }}'
-                                    }; producedQty = ''"
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow transition-colors"
-                                    title="Add produced quantity">
-                                +
-                            </button>
-                            @endif
+                            <div class="flex items-center justify-center gap-1">
+                                @if(!$isDone)
+                                <button type="button"
+                                        @click="completeModal = {
+                                            open: true,
+                                            id: {{ $wo->id }},
+                                            orderNo: '{{ addslashes($wo->order_no) }}',
+                                            product: '{{ addslashes($wo->productType?->name ?? $wo->order_no) }}',
+                                            planned: {{ $planned }},
+                                            produced: {{ $produced }},
+                                            url: '{{ route('operator.workstation.complete', $wo) }}'
+                                        }; producedQty = ''"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow transition-colors"
+                                        title="Add produced quantity">
+                                    +
+                                </button>
+                                <button type="button"
+                                        @click="report = { open: true, woId: {{ $wo->id }}, woNo: '{{ addslashes($wo->order_no) }}', typeId: '', title: '', desc: '' }"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-lg font-bold shadow transition-colors"
+                                        title="Report problem">
+                                    !
+                                </button>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @endforeach
