@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'API Tokens')
+@section('title', __('API Tokens'))
 
 @section('content')
 <div class="max-w-4xl mx-auto">
@@ -12,8 +12,8 @@
             </svg>
         </a>
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">API Tokens</h1>
-            <p class="text-gray-500 text-sm mt-0.5">Manage personal access tokens for external integrations (Admin only)</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('API Tokens') }}</h1>
+            <p class="text-gray-500 text-sm mt-0.5">{{ __('Manage personal access tokens for external integrations') }}</p>
         </div>
     </div>
 
@@ -58,21 +58,21 @@
 
     {{-- Create Token --}}
     <div class="card mb-6">
-        <h2 class="text-lg font-bold text-gray-800 mb-4">Generate New Token</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-4">{{ __('Generate New Token') }}</h2>
         <form method="POST" action="{{ route('settings.api-tokens.create') }}" class="flex items-end gap-3">
             @csrf
             <div class="flex-1">
-                <label class="form-label" for="name">Token Name</label>
+                <label class="form-label" for="name">{{ __('Token Name') }}</label>
                 <input type="text" id="name" name="name" value="{{ old('name') }}"
                     class="form-input" placeholder="e.g. PrestaShop Integration" required>
             </div>
-            <button type="submit" class="btn-primary">Generate Token</button>
+            <button type="submit" class="btn-touch btn-primary">{{ __('Generate Token') }}</button>
         </form>
     </div>
 
     {{-- Token List --}}
     <div class="card">
-        <h2 class="text-lg font-bold text-gray-800 mb-4">Active Tokens</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-4">{{ __('Active Tokens') }}</h2>
 
         @if($tokens->isEmpty())
             <p class="text-gray-500 text-sm py-4 text-center">No tokens generated yet.</p>
@@ -83,10 +83,10 @@
                         <div class="flex-1">
                             <p class="font-medium text-gray-800">{{ $token->name }}</p>
                             <p class="text-xs text-gray-500 mt-0.5">
-                                Created by {{ $token->tokenable->name ?? 'Unknown' }}
+                                {{ __('Created by') }} {{ $token->tokenable->name ?? 'Unknown' }}
                                 &middot; {{ $token->created_at->format('d M Y, H:i') }}
                                 @if($token->last_used_at)
-                                    &middot; Last used {{ $token->last_used_at->diffForHumans() }}
+                                    &middot; {{ __('Last used') }} {{ $token->last_used_at->diffForHumans() }}
                                 @else
                                     &middot; Never used
                                 @endif
