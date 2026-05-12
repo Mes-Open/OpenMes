@@ -132,29 +132,5 @@
         @endif
     </div>
 
-    <!-- User Info -->
-    <div class="card mt-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Account Information</h2>
-        <div class="space-y-3">
-            <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                <span class="text-gray-600">Name</span>
-                <span class="font-medium text-gray-800">{{ auth()->user()->name }}</span>
-            </div>
-            <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                <span class="text-gray-600">Username</span>
-                <span class="font-medium text-gray-800">{{ auth()->user()->username }}</span>
-            </div>
-            <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                <span class="text-gray-600">Email</span>
-                <span class="font-medium text-gray-800">{{ auth()->user()->email }}</span>
-            </div>
-            <div class="flex justify-between items-center py-2">
-                <span class="text-gray-600">Role</span>
-                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    {{ auth()->user()->roles->first()->name ?? 'User' }}
-                </span>
-            </div>
-        </div>
-    </div>
 </div>
 @endsection
