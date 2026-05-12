@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'System Settings')
+@section('title', __('{{ __('System Settings') }}'))
 
 @section('content')
 <div class="max-w-2xl mx-auto">
@@ -12,8 +12,8 @@
             </svg>
         </a>
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">System Settings</h1>
-            <p class="text-gray-500 text-sm mt-0.5">Global application configuration (Admin only)</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('System Settings') }}</h1>
+            <p class="text-gray-500 text-sm mt-0.5">{{ __('Global application configuration') }}</p>
         </div>
     </div>
 
@@ -45,12 +45,12 @@
             </div>
         </div>
 
-        {{-- Production Planning --}}
+        {{-- {{ __('Production Planning') }} --}}
         <div class="card">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">Production Planning</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">{{ __('Production Planning') }}</h2>
 
             <div class="mb-4">
-                <label class="form-label">Production Period Split</label>
+                <label class="form-label">{{ __('Production Period Split') }}</label>
                 <p class="text-xs text-gray-500 mb-2">
                     Determines how work orders are grouped for planning. Affects the import form (week / month number field) and work order list view.
                 </p>
@@ -72,9 +72,9 @@
             </div>
         </div>
 
-        {{-- Workflow Mode --}}
+        {{-- {{ __('Workflow Mode') }} --}}
         <div class="card">
-            <h2 class="text-lg font-bold text-gray-800 mb-1">Workflow Mode</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Workflow Mode') }}</h2>
             <p class="text-xs text-gray-500 mb-4">
                 Defines how work order completion is tracked. In <strong>Board Status</strong> mode the operator must enter a produced quantity when moving a work order to a "Done" board status.
             </p>
@@ -105,9 +105,9 @@
             @enderror
         </div>
 
-        {{-- Authentication --}}
+        {{-- {{ __('Authentication') }} --}}
         <div class="card">
-            <h2 class="text-lg font-bold text-gray-800 mb-1">Authentication</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Authentication') }}</h2>
             <p class="text-xs text-gray-500 mb-4">
                 Additional login methods for operators and shop-floor users.
             </p>
@@ -121,7 +121,7 @@
                                {{ ($settings['pin_login_enabled'] ?? false) ? 'checked' : '' }}>
                     </div>
                     <div>
-                        <p class="text-sm font-medium text-gray-800">Enable PIN login</p>
+                        <p class="text-sm font-medium text-gray-800">{{ __('Enable PIN login') }}</p>
                         <p class="text-xs text-gray-500">
                             Allow users to set a 4–6 digit numeric PIN for quick sign-in.
                             Each user must first configure their PIN in Settings (requires current password).
@@ -132,9 +132,9 @@
             </div>
         </div>
 
-        {{-- Production Rules --}}
+        {{-- {{ __('Production Rules') }} --}}
         <div class="card">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">Production Rules</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">{{ __('Production Rules') }}</h2>
 
             <div class="space-y-4">
                 <label class="flex items-start gap-3 cursor-pointer">
@@ -145,7 +145,7 @@
                                {{ ($settings['allow_overproduction'] ?? false) ? 'checked' : '' }}>
                     </div>
                     <div>
-                        <p class="text-sm font-medium text-gray-800">Allow overproduction</p>
+                        <p class="text-sm font-medium text-gray-800">{{ __('Allow overproduction') }}</p>
                         <p class="text-xs text-gray-500">Allow operators to record more units than the planned quantity.</p>
                     </div>
                 </label>
@@ -158,7 +158,7 @@
                                {{ ($settings['force_sequential_steps'] ?? true) ? 'checked' : '' }}>
                     </div>
                     <div>
-                        <p class="text-sm font-medium text-gray-800">Force sequential steps</p>
+                        <p class="text-sm font-medium text-gray-800">{{ __('Force sequential steps') }}</p>
                         <p class="text-xs text-gray-500">Require production steps to be completed in defined order.</p>
                     </div>
                 </label>
@@ -166,13 +166,13 @@
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" class="btn-touch btn-primary">Save Settings</button>
+            <button type="submit" class="btn-touch btn-primary">{{ __('Save') }}</button>
         </div>
     </form>
 
-    {{-- Sample Data --}}
+    {{-- {{ __('Sample Data') }} --}}
     <div class="card mt-6 border-amber-200 bg-amber-50">
-        <h2 class="text-lg font-bold text-gray-800 mb-1">Sample Data</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Sample Data') }}</h2>
         <p class="text-sm text-gray-600 mb-4">
             Load a pre-built demo dataset (Print Shop scenario): production lines, workstations, product types, process templates, operators and example work orders.
             This is safe to run multiple times — existing records will not be duplicated.
@@ -191,7 +191,7 @@
                                border-amber-400 bg-amber-100 text-amber-800
                                hover:bg-amber-200
                                disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    Load Sample Data
+                    Load {{ __('Sample Data') }}
                 </button>
             </div>
         </form>

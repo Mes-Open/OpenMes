@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Select Line')
+@section('title', __('{{ __('Select Production Line') }}'))
 
 @section('content')
 <div class="max-w-6xl mx-auto">
     <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Select Production Line</h1>
+        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ __('Select Production Line') }}</h1>
         <p class="text-gray-600 dark:text-gray-400 mt-2">Choose a production line and optionally a workstation</p>
     </div>
 
@@ -14,7 +14,7 @@
             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No lines assigned</h3>
+            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">{{ __('No lines assigned') }}</h3>
             <p class="mt-1 text-sm text-gray-500">You are not assigned to any production lines. Please contact your administrator.</p>
         </div>
     @else
