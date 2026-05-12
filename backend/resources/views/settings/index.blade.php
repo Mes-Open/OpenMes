@@ -16,7 +16,7 @@
                 </svg>
             </div>
             <div class="flex-1">
-                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("{{ __("System Settings") }}") }}</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("System Settings") }}</h3>
                 <p class="text-gray-600 text-sm">Production period split, overproduction rules, step sequencing</p>
             </div>
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
