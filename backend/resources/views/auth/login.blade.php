@@ -16,7 +16,7 @@
     remember: false,
     loading: false
 }">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Sign In</h2>
+    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">{{ __('Sign In') }}</h2>
 
     @if($pinEnabled)
     {{-- Tab switcher --}}
@@ -40,7 +40,7 @@
 
         <!-- Username -->
         <div class="mb-4">
-            <label for="username" class="form-label">Username</label>
+            <label for="username" class="form-label">{{ __('Username') }}</label>
             <input
                 type="text"
                 id="username"
@@ -58,7 +58,7 @@
 
         <!-- Password -->
         <div class="mb-4">
-            <label for="password" class="form-label">Password</label>
+            <label for="password" class="form-label">{{ __('Password') }}</label>
             <input
                 type="password"
                 id="password"
@@ -83,7 +83,7 @@
                 class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
             >
             <label for="remember" class="ml-2 text-sm text-gray-700">
-                Remember me
+                {{ __('Remember me') }}
             </label>
         </div>
 
@@ -94,7 +94,7 @@
             :disabled="loading || !username || !password"
             :class="{ 'opacity-50 cursor-not-allowed': loading || !username || !password }"
         >
-            <span x-show="!loading">Sign In</span>
+            <span x-show="!loading">{{ __('Sign In') }}</span>
             <span x-show="loading" class="flex items-center justify-center">
                 <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -112,7 +112,7 @@
 
         <!-- Username -->
         <div class="mb-4">
-            <label for="pin_username" class="form-label">Username</label>
+            <label for="pin_username" class="form-label">{{ __('Username') }}</label>
             <input
                 type="text"
                 id="pin_username"
@@ -156,7 +156,7 @@
             :disabled="loading || !username || pin.length < 4"
             :class="{ 'opacity-50 cursor-not-allowed': loading || !username || pin.length < 4 }"
         >
-            <span x-show="!loading">Sign In with PIN</span>
+            <span x-show="!loading">{{ __('Sign In') }} with PIN</span>
             <span x-show="loading" class="flex items-center justify-center">
                 <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
