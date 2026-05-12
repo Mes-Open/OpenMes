@@ -79,9 +79,14 @@ class DashboardController extends Controller
             ->pluck('widget_id')
             ->toArray();
 
+        $widgetOrder = \App\Models\DashboardWidget::orderBy('sort_order')
+            ->where('enabled', true)
+            ->pluck('widget_id')
+            ->toArray();
+
         return view('admin.dashboard', compact(
             'stats', 'recentWorkOrders', 'recentIssues',
-            'lines', 'selectedLineId', 'oeeRecords', 'enabledWidgets'
+            'lines', 'selectedLineId', 'oeeRecords', 'enabledWidgets', 'widgetOrder'
         ));
     }
 }
