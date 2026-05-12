@@ -10,7 +10,7 @@ class DashboardWidgetController extends Controller
 {
     public function index()
     {
-        $widgets = DashboardWidget::orderBy('zone')->orderBy('sort_order')->get();
+        $widgets = DashboardWidget::orderBy('sort_order')->get();
 
         return view('admin.dashboard-widgets.index', compact('widgets'));
     }
