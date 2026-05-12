@@ -26,6 +26,25 @@
     <form method="POST" action="{{ route('settings.update-system') }}" class="space-y-6">
         @csrf
 
+        {{-- Language --}}
+        <div class="card">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">{{ __('Language') }}</h2>
+            <div class="mb-2">
+                <label class="form-label">{{ __('Select language') }}</label>
+                <select name="language" class="form-input w-full max-w-xs">
+                    @foreach($availableLocales as $code => $name)
+                        <option value="{{ $code }}" {{ ($settings['language'] ?? 'en') === $code ? 'selected' : '' }}>
+                            {{ $name }}
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-500 mt-2">
+                    Want to add a new language? Create a JSON file in <code>lang/</code> directory.
+                    See <code>lang/en.json</code> as reference.
+                </p>
+            </div>
+        </div>
+
         {{-- Production Planning --}}
         <div class="card">
             <h2 class="text-lg font-bold text-gray-800 mb-4">Production Planning</h2>
