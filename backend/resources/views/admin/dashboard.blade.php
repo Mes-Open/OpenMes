@@ -36,7 +36,11 @@
         </form>
     </div>
 
-    @php $enabledWidgets = $enabledWidgets ?? []; @endphp
+    @php
+        $enabledWidgets = $enabledWidgets ?? [];
+        $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
+        $wo = array_flip($widgetOrder); // widget_id => position
+    @endphp
 
     {{-- KPI Cards --}}
     @if(empty($enabledWidgets) || in_array('kpi_cards', $enabledWidgets))
@@ -151,6 +155,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {{-- {{ __('Recent Work Orders') }} --}}
+        @if(empty($enabledWidgets) || in_array('recent_work_orders', $enabledWidgets))
         <div class="lg:col-span-2 card">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-gray-800">{{ __('Recent Work Orders') }}</h2>
@@ -213,11 +218,13 @@
                 </div>
             @endif
         </div>
+        @endif
 
         {{-- Sidebar --}}
         <div class="space-y-6">
 
             {{-- {{ __('Open Issues') }} --}}
+            @if(empty($enabledWidgets) || in_array('open_issues', $enabledWidgets))
             <div class="card">
                 <div class="flex justify-between items-center mb-3">
                     <h2 class="text-base font-bold text-gray-800">{{ __('Open Issues') }}</h2>
@@ -241,6 +248,7 @@
                     </div>
                 @endif
             </div>
+            @endif
 
             {{-- ── Widget zone: admin_dashboard.sidebar ── --}}
             @foreach($widgetRegistry->getWidgets('admin_dashboard.sidebar') as $widget)
@@ -248,6 +256,7 @@
             @endforeach
 
             {{-- {{ __('Quick Links') }} --}}
+            @if(empty($enabledWidgets) || in_array('quick_links', $enabledWidgets))
             <div class="card">
                 <h2 class="text-base font-bold text-gray-800 mb-3">{{ __('Quick Links') }}</h2>
                 <div class="space-y-1">
@@ -267,6 +276,7 @@
                     @endforeach
                 </div>
             </div>
+            @endif
 
         </div>
     </div>
