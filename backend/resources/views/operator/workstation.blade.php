@@ -382,7 +382,7 @@
 
     {{-- ═══════ WORK ORDER INFO MODAL ═══════ --}}
     <div x-data="{ open: false, info: {} }"
-         @show-wo-info.window="info = $event.detail; open = true"
+         x-on:show-wo-info.window="info = $event.detail; open = true"
          x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
         <div class="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6" @click.stop>
