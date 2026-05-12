@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Settings')
+@section('title', __('Settings'))
 
 @section('content')
 <div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Settings</h1>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ __("Settings") }}</h1>
 
     @hasrole('Admin')
     <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -16,7 +16,7 @@
                 </svg>
             </div>
             <div class="flex-1">
-                <h3 class="text-lg font-bold text-gray-800 mb-1">System Settings</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("{{ __("System Settings") }}") }}</h3>
                 <p class="text-gray-600 text-sm">Production period split, overproduction rules, step sequencing</p>
             </div>
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,8 +44,8 @@
                 </svg>
             </div>
             <div class="flex-1">
-                <h3 class="text-lg font-bold text-gray-800 mb-1">Setup Wizard</h3>
-                <p class="text-gray-600 text-sm">Re-launch the onboarding wizard to create lines, products, and templates</p>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("Setup Wizard") }}</h3>
+                <p class="text-gray-600 text-sm">{{ __("Re-launch the onboarding wizard") }}</p>
             </div>
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -58,8 +58,8 @@
                 </svg>
             </div>
             <div class="flex-1">
-                <h3 class="text-lg font-bold text-gray-800 mb-1">API Tokens</h3>
-                <p class="text-gray-600 text-sm">Manage tokens for external integrations (PrestaShop, ERP, etc.)</p>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("API Tokens") }}</h3>
+                <p class="text-gray-600 text-sm">{{ __("Manage tokens for external integrations") }}</p>
             </div>
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -78,8 +78,8 @@
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-lg font-bold text-gray-800 mb-1">Profile</h3>
-                    <p class="text-gray-600 text-sm">Update your name and email address</p>
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("Profile") }}</h3>
+                    <p class="text-gray-600 text-sm">{{ __("Update your profile and account info") }}</p>
                 </div>
                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -96,8 +96,8 @@
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-lg font-bold text-gray-800 mb-1">Change Password</h3>
-                    <p class="text-gray-600 text-sm">Update your account password</p>
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("Change Password") }}</h3>
+                    <p class="text-gray-600 text-sm">{{ __("Change your account password") }}</p>
                 </div>
                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
