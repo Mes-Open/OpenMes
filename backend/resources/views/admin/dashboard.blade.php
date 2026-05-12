@@ -100,7 +100,21 @@
     @if(($oeeRecords ?? collect())->isNotEmpty())
     <div class="card mb-6">
         <div class="flex justify-between items-center mb-3">
-            <h2 class="text-lg font-bold text-gray-800">{{ __('OEE Overview') }}</h2>
+            <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold text-gray-800">{{ __('OEE Overview') }}</h2>
+                <div class="relative" x-data="{ open: false }">
+                    <button @click="open = !open" @click.outside="open = false" class="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 flex items-center justify-center text-xs font-bold hover:bg-blue-100 hover:text-blue-600 transition-colors" title="What is OEE?">?</button>
+                    <div x-show="open" x-cloak x-transition class="absolute left-0 top-7 z-50 w-72 p-4 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 text-sm">
+                        <p class="font-bold text-gray-800 dark:text-white mb-2">OEE = A × P × Q</p>
+                        <ul class="space-y-1 text-gray-600 dark:text-gray-300">
+                            <li><strong>A</strong> — Availability: actual run time vs planned time (downtime impact)</li>
+                            <li><strong>P</strong> — Performance: actual speed vs ideal speed (slow cycles impact)</li>
+                            <li><strong>Q</strong> — Quality: good units vs total produced (defects impact)</li>
+                        </ul>
+                        <p class="mt-2 text-xs text-gray-400">Target: >85% world-class, 60-85% typical, &lt;60% needs improvement</p>
+                    </div>
+                </div>
+            </div>
             <a href="{{ route('admin.oee.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('Full report') }} →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
