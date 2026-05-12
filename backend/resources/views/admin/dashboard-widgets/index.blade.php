@@ -16,25 +16,44 @@
         </div>
     </div>
 
+    @php
+        $widgetData = $widgets->map(function($w) {
+            return [
+                'id' => $w->id,
+                'name' => $w->name,
+                'zone' => $w->zone,
+                'description' => $w->description,
+                'source' => $w->source,
+                'module_name' => $w->module_name,
+                'enabled' => $w->enabled,
+            ];
+        })->values();
+    @endphp
+
     <div x-data="widgetManager()" class="space-y-2">
         <template x-for="(widget, index) in widgets" :key="widget.id">
-            <div class="card flex items-center gap-4 transition-all select-none"
-                 draggable="true"
-                 @dragstart="onDragStart($event, index)"
-                 @dragover.prevent="onDragOver(index)"
-                 @drop.prevent="onDrop(index)"
-                 @dragend="onDragEnd()"
-                 :class="{
-                    'ring-2 ring-blue-400 ring-dashed bg-blue-50 dark:bg-blue-900/20': overIndex === index && dragIndex !== index,
-                    'opacity-40 scale-95': dragIndex === index
-                 }">
+            <div class="card flex items-center gap-3">
 
-                <span class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z"/>
-                    </svg>
-                </span>
+                {{-- Move buttons --}}
+                <div class="flex flex-col shrink-0">
+                    <button @click="moveUp(index)" :disabled="index === 0"
+                            class="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                        </svg>
+                    </button>
+                    <button @click="moveDown(index)" :disabled="index === widgets.length - 1"
+                            class="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                </div>
 
+                {{-- Position number --}}
+                <span class="text-sm font-mono text-gray-400 w-6 text-center shrink-0" x-text="index + 1"></span>
+
+                {{-- Info --}}
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200" x-text="widget.name"></h3>
@@ -46,7 +65,8 @@
                     <p class="text-xs text-gray-500 mt-0.5" x-text="widget.description" x-show="widget.description"></p>
                 </div>
 
-                <button @click="toggleWidget(widget)" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0"
+                {{-- Toggle --}}
+                <button @click="widget.enabled = !widget.enabled" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0"
                         :class="widget.enabled
                             ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'"
@@ -54,89 +74,39 @@
                 </button>
             </div>
         </template>
-    </div>
 
-    <div class="flex justify-between items-center mt-6">
-        <p class="text-xs text-gray-400">{{ __('Drag widgets to reorder. Modules can register additional widgets.') }}</p>
-        <button @click="saveAll()" class="btn-touch btn-primary" x-ref="saveBtn">{{ __('Save') }}</button>
-    </div>
+        <div class="flex justify-between items-center mt-6">
+            <p class="text-xs text-gray-400">{{ __('Use arrows to reorder. Modules can register additional widgets.') }}</p>
+            <button @click="saveAll()" class="btn-touch btn-primary">{{ __('Save') }}</button>
+        </div>
 
-    {{-- Toast notification --}}
-    <div x-show="saved" x-cloak x-transition
-         class="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-xl flex items-center gap-2">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-        </svg>
-        <span>{{ __('Dashboard settings saved. Reloading...') }}</span>
+        {{-- Toast --}}
+        <div x-show="saved" x-cloak x-transition
+             class="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-xl flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span>{{ __('Saved! Redirecting...') }}</span>
+        </div>
     </div>
 </div>
-
-@php
-    $widgetData = $widgets->map(function($w) {
-        return [
-            'id' => $w->id,
-            'name' => $w->name,
-            'zone' => $w->zone,
-            'description' => $w->description,
-            'source' => $w->source,
-            'module_name' => $w->module_name,
-            'enabled' => $w->enabled,
-        ];
-    })->values();
-@endphp
 
 @push('scripts')
 <script>
 function widgetManager() {
     return {
         widgets: {!! json_encode($widgetData) !!},
-        toggleBase: '{{ url("admin/dashboard-widgets") }}',
-        dragIndex: null,
-        overIndex: null,
         saved: false,
 
-        onDragStart(e, i) {
-            this.dragIndex = i;
-            e.dataTransfer.effectAllowed = 'move';
+        moveUp(index) {
+            if (index === 0) return;
+            const item = this.widgets.splice(index, 1)[0];
+            this.widgets.splice(index - 1, 0, item);
         },
-        onDragOver(i) {
-            this.overIndex = i;
-        },
-        onDrop(i) {
-            if (this.dragIndex === null || this.dragIndex === i) {
-                this.dragIndex = null;
-                this.overIndex = null;
-                return;
-            }
-            const item = this.widgets.splice(this.dragIndex, 1)[0];
-            this.widgets.splice(i, 0, item);
-            this.dragIndex = null;
-            this.overIndex = null;
-            this.saveOrder();
-        },
-        onDragEnd() {
-            this.dragIndex = null;
-            this.overIndex = null;
-        },
-        saveOrder() {
-            fetch('{{ route("admin.dashboard-widgets.reorder") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
-                },
-                body: JSON.stringify({ order: this.widgets.map(w => w.id) })
-            });
-        },
-        toggleWidget(widget) {
-            widget.enabled = !widget.enabled;
-            fetch(this.toggleBase + '/' + widget.id + '/toggle', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
-                }
-            });
+        moveDown(index) {
+            if (index >= this.widgets.length - 1) return;
+            const item = this.widgets.splice(index, 1)[0];
+            this.widgets.splice(index + 1, 0, item);
         },
         async saveAll() {
             await fetch('{{ route("admin.dashboard-widgets.save-all") }}', {
@@ -150,7 +120,7 @@ function widgetManager() {
                 })
             });
             this.saved = true;
-            setTimeout(() => { window.location.href = '{{ route("admin.dashboard") }}'; }, 1500);
+            setTimeout(() => { window.location.href = '{{ route("admin.dashboard") }}'; }, 1200);
         }
     };
 }
