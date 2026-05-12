@@ -59,11 +59,9 @@
     <p class="text-xs text-gray-400 mt-4 text-center">{{ __('Drag widgets to reorder. Modules can register additional widgets.') }}</p>
 </div>
 
-@push('scripts')
-<script>
-function widgetManager() {
-    return {
-        widgets: @json($widgets->map(fn($w) => [
+@php
+    $widgetData = $widgets->map(function($w) {
+        return [
             'id' => $w->id,
             'name' => $w->name,
             'zone' => $w->zone,
@@ -71,7 +69,15 @@ function widgetManager() {
             'source' => $w->source,
             'module_name' => $w->module_name,
             'enabled' => $w->enabled,
-        ])),
+        ];
+    })->values();
+@endphp
+
+@push('scripts')
+<script>
+function widgetManager() {
+    return {
+        widgets: {!! json_encode($widgetData) !!},
         toggleBase: '{{ url("admin/dashboard-widgets") }}',
         dragIndex: null,
         overIndex: null,
