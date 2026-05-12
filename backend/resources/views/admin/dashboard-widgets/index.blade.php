@@ -56,7 +56,11 @@
         </template>
     </div>
 
-    <p class="text-xs text-gray-400 mt-4 text-center">{{ __('Drag widgets to reorder. Modules can register additional widgets.') }}</p>
+    <div class="flex justify-between items-center mt-6">
+        <p class="text-xs text-gray-400">{{ __('Drag widgets to reorder. Modules can register additional widgets.') }}</p>
+        <button @click="saveOrder(); $el.textContent = '{{ __("Saved!") }}'; setTimeout(() => $el.textContent = '{{ __("Save") }}', 2000)"
+                class="btn-touch btn-primary">{{ __('Save') }}</button>
+    </div>
 </div>
 
 @php
