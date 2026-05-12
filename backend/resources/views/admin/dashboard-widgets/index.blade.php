@@ -77,7 +77,7 @@
 
         <div class="flex justify-between items-center mt-6">
             <div>
-                <p class="text-xs text-gray-400">{{ __('{{ __('Use arrows to reorder. Modules can register additional widgets.') }}. Modules can register additional widgets.') }}</p>
+                <p class="text-xs text-gray-400">{{ __('Use arrows to reorder. Modules can register additional widgets.') }}</p>
                 <p x-show="dirty" x-cloak class="text-xs text-orange-600 font-medium mt-1">{{ __('You have unsaved changes!') }}</p>
             </div>
             <button @click="saveAll()" class="btn-touch btn-primary" :class="dirty ? 'animate-pulse ring-2 ring-blue-400' : ''">{{ __('Save') }}</button>
