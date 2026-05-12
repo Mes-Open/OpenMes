@@ -6,7 +6,9 @@ use App\Http\Controllers\Web\Admin\AlertController;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -18,9 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(ModuleManager::class, fn() => new ModuleManager());
-        $this->app->singleton(MenuRegistry::class, fn() => new MenuRegistry());
-        $this->app->singleton(WidgetRegistry::class, fn() => new WidgetRegistry());
+        $this->app->singleton(ModuleManager::class, fn () => new ModuleManager);
+        $this->app->singleton(MenuRegistry::class, fn () => new MenuRegistry);
+        $this->app->singleton(WidgetRegistry::class, fn () => new WidgetRegistry);
     }
 
     /**
@@ -36,6 +38,21 @@ class AppServiceProvider extends ServiceProvider
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
         View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
 
+        // Set application locale from system_settings
+        try {
+            $row = DB::table('system_settings')->where('key', 'language')->first();
+            $locale = $row ? json_decode($row->value, true) : null;
+            if ($locale && in_array($locale, array_keys($this->availableLocales()))) {
+                App::setLocale($locale);
+            }
+        } catch (\Throwable) {
+            // DB not available during install
+        }
+
+        // Share available locales with views
+        View::share('availableLocales', $this->availableLocales());
+        View::share('currentLocale', App::getLocale());
+
         // Demo account expiry — passed to layout so the countdown banner can render
         View::composer('layouts.app', function ($view) {
             $expiresAt = null;
@@ -44,7 +61,8 @@ class AppServiceProvider extends ServiceProvider
                     $tenant = Auth::user()->tenant;
                     $expiresAt = $tenant?->expires_at;
                 }
-            } catch (\Throwable) {}
+            } catch (\Throwable) {
+            }
             $view->with('demoExpiresAt', $expiresAt);
         });
 
@@ -55,9 +73,13 @@ class AppServiceProvider extends ServiceProvider
                 if (Auth::check() && Auth::user()->hasAnyRole(['Admin', 'Supervisor'])) {
                     $alertCount = AlertController::totalCount();
                 }
-            } catch (\Throwable) {}
+            } catch (\Throwable) {
+            }
             $view->with('alertCount', $alertCount);
         });
+
+        // Share current language name
+        View::share('currentLocaleName', $this->availableLocales()[App::getLocale()] ?? 'English');
 
         // Load enabled modules — wrapped in try/catch so a bad module
         // never prevents the application from booting.
@@ -68,5 +90,17 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
             // Silent — database may not be available during fresh install
         }
+    }
+
+    /**
+     * Available locales — add new languages here.
+     * Each JSON file in lang/ directory is auto-discovered by Laravel.
+     */
+    private function availableLocales(): array
+    {
+        return [
+            'en' => 'English',
+            'pl' => 'Polski',
+        ];
     }
 }
