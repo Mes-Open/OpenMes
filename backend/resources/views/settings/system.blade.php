@@ -52,10 +52,10 @@
             <div class="mb-4">
                 <label class="form-label">{{ __('Production Period Split') }}</label>
                 <p class="text-xs text-gray-500 mb-2">
-                    Determines how work orders are grouped for planning. Affects the import form (week / month number field) and work order list view.
+                    {{ __('Determines how work orders are grouped for planning.') }}
                 </p>
                 <div class="grid grid-cols-3 gap-3">
-                    @foreach(['none' => ['label' => 'None', 'desc' => 'No period grouping'], 'weekly' => ['label' => 'Weekly', 'desc' => 'Group by ISO week (1–53)'], 'monthly' => ['label' => 'Monthly', 'desc' => 'Group by month (1–12)']] as $value => $opt)
+                    @foreach(['none' => ['label' => __('None'), 'desc' => __('No period grouping')], 'weekly' => ['label' => __('Weekly'), 'desc' => __('Group by ISO week (1-53)')], 'monthly' => ['label' => __('Monthly'), 'desc' => __('Group by month (1-12)')]] as $value => $opt)
                         <label class="relative flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors
                             {{ ($settings['production_period'] ?? 'none') === $value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
                             <input type="radio" name="production_period" value="{{ $value }}"
@@ -76,18 +76,18 @@
         <div class="card">
             <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Workflow Mode') }}</h2>
             <p class="text-xs text-gray-500 mb-4">
-                Defines how work order completion is tracked. In <strong>Board Status</strong> mode the operator must enter a produced quantity when moving a work order to a "Done" board status.
+                {{ __('Defines how work order completion is tracked.') }}
             </p>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 @foreach([
                     'status' => [
-                        'label' => 'Status',
-                        'desc'  => 'Work order status is changed manually through the work order actions. Board statuses are purely visual labels.',
+                        'label' => __('Status'),
+                        'desc'  => __('Work order status is changed manually. Board statuses are visual labels.'),
                     ],
                     'board_status' => [
-                        'label' => 'Board Status',
-                        'desc'  => 'Moving a work order to a "Done" board status automatically closes the work order and records produced quantity.',
+                        'label' => __('Board Status'),
+                        'desc'  => __('Moving to a Done status automatically closes the work order.'),
                     ],
                 ] as $value => $opt)
                     <label class="relative flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors workflow-mode-card
@@ -109,7 +109,7 @@
         <div class="card">
             <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Authentication') }}</h2>
             <p class="text-xs text-gray-500 mb-4">
-                Additional login methods for operators and shop-floor users.
+                {{ __('Additional login methods for operators.') }}
             </p>
 
             <div class="space-y-4">
