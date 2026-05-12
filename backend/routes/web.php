@@ -23,8 +23,8 @@ use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceCont
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 use App\Http\Controllers\Web\Admin\MaterialImportController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
-use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
+use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
 // Gate 3 — Basics
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
@@ -296,6 +296,11 @@ Route::middleware('auth')->group(function () {
 
         // LOT Sequences
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
+
+        // Dashboard Widgets Setup
+        Route::get('/dashboard-widgets', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'index'])->name('dashboard-widgets.index');
+        Route::post('/dashboard-widgets/{widget}/toggle', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'toggle'])->name('dashboard-widgets.toggle');
+        Route::post('/dashboard-widgets/reorder', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'reorder'])->name('dashboard-widgets.reorder');
 
         // Batch Reports
         Route::get('/batches/{batch}/report', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'show'])->name('batch-report');

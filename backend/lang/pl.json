@@ -19,7 +19,6 @@
     "Remember me": "Zapamiętaj mnie",
     "Manufacturing Execution System": "System Zarządzania Produkcją",
     "All rights reserved": "Wszelkie prawa zastrzeżone",
-
     "Product Types": "Typy produktów",
     "Materials": "Materiały",
     "LOT Sequences": "Sekwencje LOT",
@@ -49,7 +48,6 @@
     "Reports": "Raporty",
     "View Templates": "Szablony widoku",
     "CSV Import": "Import CSV",
-
     "Admin Dashboard": "Panel administracyjny",
     "Total Work Orders": "Wszystkie zlecenia",
     "In Progress": "W toku",
@@ -69,7 +67,6 @@
     "incl. accepted": "w tym zaakceptowane",
     "OEE Overview": "Przegląd OEE",
     "Full report": "Pełny raport",
-
     "Select Production Line": "Wybierz linię produkcyjną",
     "Choose a production line to begin work": "Wybierz linię, aby rozpocząć pracę",
     "No lines assigned": "Brak przypisanych linii",
@@ -77,7 +74,6 @@
     "Completed Work Orders": "Zakończone zlecenia",
     "Back to Queue": "Powrót do kolejki",
     "Change Line": "Zmień linię",
-
     "Work Order Details": "Szczegóły zlecenia",
     "Order Number": "Numer zlecenia",
     "Product Type": "Typ produktu",
@@ -92,7 +88,6 @@
     "Produced": "Wyprodukowane",
     "Remaining": "Pozostało",
     "No issues reported": "Brak zgłoszonych problemów",
-
     "Batches": "Serie",
     "Create New Batch": "Utwórz nową serię",
     "Create Batch": "Utwórz serię",
@@ -104,7 +99,6 @@
     "LOT Number (manual)": "Numer LOT (ręczny)",
     "Leave empty for no LOT": "Pozostaw puste bez LOT",
     "Cancel": "Anuluj",
-
     "Recipe / Materials": "Receptura / Materiały",
     "items": "pozycji",
     "Material": "Materiał",
@@ -113,7 +107,6 @@
     "Total": "Razem",
     "Step": "Krok",
     "General": "Ogólne",
-
     "Production Controls": "Kontrola produkcji",
     "Confirm Parameters": "Potwierdź parametry",
     "Quality Check": "Kontrola jakości",
@@ -140,7 +133,6 @@
     "Released": "Zwolniono",
     "Expiry": "Ważność",
     "Last": "Ostatnio",
-
     "Production Series Report": "Raport z serii produkcyjnej",
     "General Information": "Informacje ogólne",
     "Work Order": "Zlecenie",
@@ -176,7 +168,6 @@
     "Download PDF": "Pobierz PDF",
     "Print": "Drukuj",
     "Back": "Wróć",
-
     "Active": "Aktywny",
     "Inactive": "Nieaktywny",
     "Edit": "Edytuj",
@@ -196,7 +187,6 @@
     "Update": "Zapisz",
     "Activate": "Aktywuj",
     "Deactivate": "Dezaktywuj",
-
     "System Settings": "Ustawienia systemowe",
     "Setup Wizard": "Kreator konfiguracji",
     "API Tokens": "Tokeny API",
@@ -204,7 +194,6 @@
     "Change Password": "Zmiana hasła",
     "Language": "Język",
     "Select language": "Wybierz język",
-
     "Supervisor Dashboard": "Panel nadzorcy",
     "Production analytics and insights": "Analityka produkcji",
     "Parameters Unconfirmed Today": "Niepotwierdzone parametry dziś",
@@ -213,7 +202,6 @@
     "No active batches": "Brak aktywnych serii",
     "Recent Issues": "Ostatnie problemy",
     "No recent issues": "Brak ostatnich problemów",
-
     "Create a Production Line": "Utwórz linię produkcyjną",
     "Add a Product Type": "Dodaj typ produktu",
     "Define Process Template": "Zdefiniuj szablon procesu",
@@ -223,12 +211,10 @@
     "Welcome to OpenMES!": "Witaj w OpenMES!",
     "Start Setup Wizard": "Uruchom kreator",
     "I'll do it later": "Zrobię to później",
-
     "Raw Material": "Surowiec",
     "Semi-Finished Product": "Półprodukt",
     "Packaging Material": "Opakowanie",
     "Auxiliary Material": "Pomocniczy",
-
     "Bill of Materials": "Lista materiałów (BOM)",
     "Add Material": "Dodaj materiał",
     "Add to BOM": "Dodaj do BOM",
@@ -239,5 +225,9 @@
     "Scrap %": "Odpad %",
     "Tracking Type": "Typ śledzenia",
     "External System": "System zewnętrzny",
-    "Unit of Measure": "Jednostka miary"
+    "Unit of Measure": "Jednostka miary",
+    "Dashboard Setup": "Ustawienia panelu",
+    "Enable, disable, and reorder dashboard widgets": "Włączaj, wyłączaj i zmieniaj kolejność widgetów",
+    "Enabled": "Włączony",
+    "Disabled": "Wyłączony"
 }
