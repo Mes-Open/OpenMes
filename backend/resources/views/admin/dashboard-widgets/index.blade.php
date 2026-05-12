@@ -58,8 +58,16 @@
 
     <div class="flex justify-between items-center mt-6">
         <p class="text-xs text-gray-400">{{ __('Drag widgets to reorder. Modules can register additional widgets.') }}</p>
-        <button @click="saveOrder(); $el.textContent = '{{ __("Saved!") }}'; setTimeout(() => $el.textContent = '{{ __("Save") }}', 2000)"
-                class="btn-touch btn-primary">{{ __('Save') }}</button>
+        <button @click="saveAll()" class="btn-touch btn-primary" x-ref="saveBtn">{{ __('Save') }}</button>
+    </div>
+
+    {{-- Toast notification --}}
+    <div x-show="saved" x-cloak x-transition
+         class="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-xl flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span>{{ __('Dashboard settings saved. Reloading...') }}</span>
     </div>
 </div>
 
@@ -85,6 +93,7 @@ function widgetManager() {
         toggleBase: '{{ url("admin/dashboard-widgets") }}',
         dragIndex: null,
         overIndex: null,
+        saved: false,
 
         onDragStart(e, i) {
             this.dragIndex = i;
@@ -128,6 +137,11 @@ function widgetManager() {
                     'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
                 }
             });
+        },
+        async saveAll() {
+            await this.saveOrder();
+            this.saved = true;
+            setTimeout(() => { window.location.href = '{{ route("admin.dashboard") }}'; }, 1500);
         }
     };
 }
