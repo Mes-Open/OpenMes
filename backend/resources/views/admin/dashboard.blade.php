@@ -234,13 +234,13 @@
                 <h2 class="text-base font-bold text-gray-800 mb-3">{{ __('Quick Links') }}</h2>
                 <div class="space-y-1">
                     @foreach([
-                        ['route' => 'admin.work-orders.create', 'label' => '+ {{ __('New Work Order') }}'],
-                        ['route' => 'admin.lines.index',        'label' => 'Production Lines'],
-                        ['route' => 'admin.product-types.index','label' => 'Product Types'],
-                        ['route' => 'admin.users.index',        'label' => '{{ __('User Management') }}'],
-                        ['route' => 'admin.issue-types.index',  'label' => 'Issue Types'],
-                        ['route' => 'admin.csv-import',         'label' => 'CSV Import'],
-                        ['route' => 'admin.audit-logs',         'label' => 'Audit Logs'],
+                        ['route' => 'admin.work-orders.create', 'label' => '+ ' . __('New Work Order')],
+                        ['route' => 'admin.lines.index',        'label' => __('Production Lines')],
+                        ['route' => 'admin.product-types.index','label' => __('Product Types')],
+                        ['route' => 'admin.users.index',        'label' => __('User Management')],
+                        ['route' => 'admin.issue-types.index',  'label' => __('Issue Types')],
+                        ['route' => 'admin.csv-import',         'label' => __('CSV Import')],
+                        ['route' => 'admin.audit-logs',         'label' => __('Audit Logs')],
                     ] as $link)
                         <a href="{{ route($link['route']) }}"
                            class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
