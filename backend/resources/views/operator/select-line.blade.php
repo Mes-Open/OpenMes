@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', __('{{ __('Select Production Line') }}'))
+@section('title', __('Select Production Line'))
 
 @section('content')
 <div class="max-w-6xl mx-auto">

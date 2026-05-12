@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', __('{{ __('System Settings') }}'))
+@section('title', __('System Settings'))
 
 @section('content')
 <div class="max-w-2xl mx-auto">
