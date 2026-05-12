@@ -202,7 +202,7 @@
                                 @elseif($wo->status === 'BLOCKED')
                                     <span class="px-3 py-1 rounded-full text-sm font-bold bg-red-200 text-red-800">Blocked</span>
                                 @else
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ ucfirst(strtolower($wo->status)) }}</span>
+                                    <span class="px-3 py-1 rounded-full text-sm font-bold bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300">{{ $wo->status === 'PENDING' ? 'Not Started' : ucfirst(strtolower(str_replace('_', ' ', $wo->status))) }}</span>
                                 @endif
                             @elseif($col['key'] === 'due_date')
                                 {{ $wo->due_date ? $wo->due_date->format('d M') : '—' }}
