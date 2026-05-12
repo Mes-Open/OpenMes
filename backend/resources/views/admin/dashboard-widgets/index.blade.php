@@ -16,73 +16,111 @@
         </div>
     </div>
 
-    <div class="space-y-3" x-data="{
-        dragIndex: null,
-        dragOverIndex: null,
-        items: {{ $widgets->pluck('id')->toJson() }},
-        dragStart(i) { this.dragIndex = i },
-        dragOver(i) { this.dragOverIndex = i },
-        drop(i) {
-            if (this.dragIndex === null || this.dragIndex === i) { this.dragIndex = null; this.dragOverIndex = null; return; }
-            const item = this.items.splice(this.dragIndex, 1)[0];
-            this.items.splice(i, 0, item);
-            this.dragIndex = null;
-            this.dragOverIndex = null;
-            fetch('{{ route('admin.dashboard-widgets.reorder') }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
-                body: JSON.stringify({ order: this.items })
-            });
-        },
-        dragEnd() { this.dragIndex = null; this.dragOverIndex = null; }
-    }">
-        @foreach($widgets as $index => $widget)
-            <div class="card flex items-center gap-4 transition-all"
+    <div x-data="widgetManager()" class="space-y-2">
+        <template x-for="(widget, index) in widgets" :key="widget.id">
+            <div class="card flex items-center gap-4 transition-all select-none"
                  draggable="true"
-                 @dragstart="dragStart({{ $index }})"
-                 @dragover.prevent="dragOver({{ $index }})"
-                 @drop.prevent="drop({{ $index }})"
-                 @dragend="dragEnd()"
+                 @dragstart="onDragStart($event, index)"
+                 @dragover.prevent="onDragOver(index)"
+                 @drop.prevent="onDrop(index)"
+                 @dragend="onDragEnd()"
                  :class="{
-                    'bg-blue-50 border-blue-200 border-dashed': dragOverIndex === {{ $index }} && dragIndex !== {{ $index }},
-                    'opacity-50': dragIndex === {{ $index }}
+                    'ring-2 ring-blue-400 ring-dashed bg-blue-50 dark:bg-blue-900/20': overIndex === index && dragIndex !== index,
+                    'opacity-40 scale-95': dragIndex === index
                  }">
 
-                {{-- Drag handle --}}
-                <span class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500">
+                <span class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z"/>
                     </svg>
                 </span>
 
-                {{-- Info --}}
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                        <h3 class="text-sm font-bold text-gray-800">{{ $widget->name }}</h3>
-                        <span class="px-2 py-0.5 rounded-full text-xs {{ $widget->source === 'builtin' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700' }}">
-                            {{ $widget->source === 'builtin' ? 'Built-in' : $widget->module_name }}
-                        </span>
-                        <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{{ $widget->zone }}</span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200" x-text="widget.name"></h3>
+                        <span class="px-2 py-0.5 rounded-full text-xs"
+                              :class="widget.source === 'builtin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'"
+                              x-text="widget.source === 'builtin' ? 'Built-in' : widget.module_name"></span>
+                        <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" x-text="widget.zone"></span>
                     </div>
-                    @if($widget->description)
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $widget->description }}</p>
-                    @endif
+                    <p class="text-xs text-gray-500 mt-0.5" x-text="widget.description" x-show="widget.description"></p>
                 </div>
 
-                {{-- Toggle --}}
-                <form action="{{ route('admin.dashboard-widgets.toggle', $widget) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                        {{ $widget->enabled
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200' }}">
-                        {{ $widget->enabled ? __('Enabled') : __('Disabled') }}
-                    </button>
-                </form>
+                <button @click="toggleWidget(widget)" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0"
+                        :class="widget.enabled
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'"
+                        x-text="widget.enabled ? '{{ __("Enabled") }}' : '{{ __("Disabled") }}'">
+                </button>
             </div>
-        @endforeach
+        </template>
     </div>
 
-    <p class="text-xs text-gray-400 mt-4 text-center">Drag widgets to reorder. Modules can register additional widgets.</p>
+    <p class="text-xs text-gray-400 mt-4 text-center">{{ __('Drag widgets to reorder. Modules can register additional widgets.') }}</p>
 </div>
+
+@push('scripts')
+<script>
+function widgetManager() {
+    return {
+        widgets: @json($widgets->map(fn($w) => [
+            'id' => $w->id,
+            'name' => $w->name,
+            'zone' => $w->zone,
+            'description' => $w->description,
+            'source' => $w->source,
+            'module_name' => $w->module_name,
+            'enabled' => $w->enabled,
+        ])),
+        toggleBase: '{{ url("admin/dashboard-widgets") }}',
+        dragIndex: null,
+        overIndex: null,
+
+        onDragStart(e, i) {
+            this.dragIndex = i;
+            e.dataTransfer.effectAllowed = 'move';
+        },
+        onDragOver(i) {
+            this.overIndex = i;
+        },
+        onDrop(i) {
+            if (this.dragIndex === null || this.dragIndex === i) {
+                this.dragIndex = null;
+                this.overIndex = null;
+                return;
+            }
+            const item = this.widgets.splice(this.dragIndex, 1)[0];
+            this.widgets.splice(i, 0, item);
+            this.dragIndex = null;
+            this.overIndex = null;
+            this.saveOrder();
+        },
+        onDragEnd() {
+            this.dragIndex = null;
+            this.overIndex = null;
+        },
+        saveOrder() {
+            fetch('{{ route("admin.dashboard-widgets.reorder") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
+                },
+                body: JSON.stringify({ order: this.widgets.map(w => w.id) })
+            });
+        },
+        toggleWidget(widget) {
+            widget.enabled = !widget.enabled;
+            fetch(this.toggleBase + '/' + widget.id + '/toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
+                }
+            });
+        }
+    };
+}
+</script>
+@endpush
 @endsection
