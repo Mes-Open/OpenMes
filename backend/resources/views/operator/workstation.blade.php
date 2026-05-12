@@ -163,7 +163,7 @@
                         $isActive  = $wo->status === 'IN_PROGRESS';
                     @endphp
                     <tr class="border-b border-gray-200 dark:border-gray-700 transition-colors
-                               {{ $isDone ? 'bg-green-50/30 dark:bg-green-900/5' : ($isActive ? 'bg-blue-50/30 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50') }}
+                               {{ $isDone ? 'bg-green-100 dark:bg-green-900/30 border-l-4 border-l-green-500' : ($isActive ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-500' : ($wo->status === 'BLOCKED' ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-l-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border-l-4 border-l-transparent')) }}
                                {{ !$isDone ? 'cursor-pointer active:bg-gray-100 dark:active:bg-gray-700' : '' }}"
                         @if(!$isDone && !$isActive)
                             @click="startModal = {
@@ -196,11 +196,11 @@
                                 {{ $wo->productType?->name ?? '—' }}
                             @elseif($col['key'] === 'status')
                                 @if($isDone)
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Done</span>
+                                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200">Done</span>
                                 @elseif($isActive)
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 animate-pulse">In Progress</span>
+                                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200 animate-pulse">In Progress</span>
                                 @elseif($wo->status === 'BLOCKED')
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Blocked</span>
+                                    <span class="px-3 py-1 rounded-full text-sm font-bold bg-red-200 text-red-800">Blocked</span>
                                 @else
                                     <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ ucfirst(strtolower($wo->status)) }}</span>
                                 @endif
