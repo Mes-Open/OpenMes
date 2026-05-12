@@ -260,5 +260,18 @@
     "Work order status is changed manually. Board statuses are visual labels.": "Status zlecenia zmeniany ręcznie. Statusy tablicy to etykiety wizualne.",
     "Board Status": "Status tablicy",
     "Moving to a Done status automatically closes the work order.": "Przesunięcie do statusu Zakończone automatycznie zamyka zlecenie.",
-    "Additional login methods for operators.": "Dodatkowe metody logowania dla operatorów."
+    "Additional login methods for operators.": "Dodatkowe metody logowania dla operatorów.",
+    "Account Information": "Informacje o koncie",
+    "Member Since": "Członek od",
+    "Note": "Uwaga",
+    "To change your username or role, contact an administrator.": "Aby zmienić nazwę użytkownika lub rolę, skontaktuj się z administratorem.",
+    "Email": "Email",
+    "KPI Cards": "Karty KPI",
+    "Overall Equipment Effectiveness per line": "Ogólna efektywność sprzętu na linię (A×P×Q)",
+    "Work orders, issues, and lines summary cards": "Podsumowanie zleceń, problemów i linii",
+    "Latest work orders with status and progress": "Najnowsze zlecenia ze statusem i postępem",
+    "Currently open issues and problems": "Aktualnie otwarte problemy",
+    "Shortcuts to common admin pages": "Skróty do najczęściej używanych stron",
+    "Built-in": "Wbudowany",
+    "Use arrows to reorder. Modules can register additional widgets.": "Użyj strzałek aby zmienić kolejność. Moduły mogą rejestrować dodatkowe widgety."
 }
