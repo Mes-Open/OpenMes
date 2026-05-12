@@ -275,5 +275,14 @@
     "Built-in": "Wbudowany",
     "Use arrows to reorder. Modules can register additional widgets.": "Użyj strzałek aby zmienić kolejność. Moduły mogą rejestrować dodatkowe widgety.",
     "Load a pre-built demo dataset: lines, workstations, products, templates and work orders. Safe to run multiple times.": "Załaduj gotowy zestaw danych demo: linie, stanowiska, produkty, szablony i zlecenia. Można uruchomić wielokrotnie.",
-    "I understand this will add demo data to the system": "Rozumiem, że zostaną dodane dane demonstracyjne"
+    "I understand this will add demo data to the system": "Rozumiem, że zostaną dodane dane demonstracyjne",
+    "Manage personal access tokens for external integrations": "Zarządzaj tokenami dostępu do integracji zewnętrznych",
+    "Generate New Token": "Wygeneruj nowy token",
+    "Token Name": "Nazwa tokena",
+    "Generate Token": "Generuj token",
+    "Active Tokens": "Aktywne tokeny",
+    "Revoke": "Usuń",
+    "Created by": "Utworzony przez",
+    "Last used": "Ostatnio użyty",
+    "No tokens created yet": "Brak utworzonych tokenów"
 }
