@@ -19,7 +19,6 @@
     "Remember me": "Remember me",
     "Manufacturing Execution System": "Manufacturing Execution System",
     "All rights reserved": "All rights reserved",
-
     "Product Types": "Product Types",
     "Materials": "Materials",
     "LOT Sequences": "LOT Sequences",
@@ -49,7 +48,6 @@
     "Reports": "Reports",
     "View Templates": "View Templates",
     "CSV Import": "CSV Import",
-
     "Admin Dashboard": "Admin Dashboard",
     "Total Work Orders": "Total Work Orders",
     "In Progress": "In Progress",
@@ -69,7 +67,6 @@
     "incl. accepted": "incl. accepted",
     "OEE Overview": "OEE Overview",
     "Full report": "Full report",
-
     "Select Production Line": "Select Production Line",
     "Choose a production line to begin work": "Choose a production line to begin work",
     "No lines assigned": "No lines assigned",
@@ -77,7 +74,6 @@
     "Completed Work Orders": "Completed Work Orders",
     "Back to Queue": "Back to Queue",
     "Change Line": "Change Line",
-
     "Work Order Details": "Work Order Details",
     "Order Number": "Order Number",
     "Product Type": "Product Type",
@@ -92,7 +88,6 @@
     "Produced": "Produced",
     "Remaining": "Remaining",
     "No issues reported": "No issues reported",
-
     "Batches": "Batches",
     "Create New Batch": "Create New Batch",
     "Create Batch": "Create Batch",
@@ -104,7 +99,6 @@
     "LOT Number (manual)": "LOT Number (manual)",
     "Leave empty for no LOT": "Leave empty for no LOT",
     "Cancel": "Cancel",
-
     "Recipe / Materials": "Recipe / Materials",
     "items": "items",
     "Material": "Material",
@@ -113,7 +107,6 @@
     "Total": "Total",
     "Step": "Step",
     "General": "General",
-
     "Production Controls": "Production Controls",
     "Confirm Parameters": "Confirm Parameters",
     "Quality Check": "Quality Check",
@@ -140,7 +133,6 @@
     "Released": "Released",
     "Expiry": "Expiry",
     "Last": "Last",
-
     "Production Series Report": "Production Series Report",
     "General Information": "General Information",
     "Work Order": "Work Order",
@@ -176,7 +168,6 @@
     "Download PDF": "Download PDF",
     "Print": "Print",
     "Back": "Back",
-
     "Active": "Active",
     "Inactive": "Inactive",
     "Edit": "Edit",
@@ -196,7 +187,6 @@
     "Update": "Update",
     "Activate": "Activate",
     "Deactivate": "Deactivate",
-
     "System Settings": "System Settings",
     "Setup Wizard": "Setup Wizard",
     "API Tokens": "API Tokens",
@@ -204,7 +194,6 @@
     "Change Password": "Change Password",
     "Language": "Language",
     "Select language": "Select language",
-
     "Supervisor Dashboard": "Supervisor Dashboard",
     "Production analytics and insights": "Production analytics and insights",
     "Parameters Unconfirmed Today": "Parameters Unconfirmed Today",
@@ -213,8 +202,6 @@
     "No active batches": "No active batches",
     "Recent Issues": "Recent Issues",
     "No recent issues": "No recent issues",
-
-    "Setup Wizard": "Setup Wizard",
     "Create a Production Line": "Create a Production Line",
     "Add a Product Type": "Add a Product Type",
     "Define Process Template": "Define Process Template",
@@ -224,12 +211,10 @@
     "Welcome to OpenMES!": "Welcome to OpenMES!",
     "Start Setup Wizard": "Start Setup Wizard",
     "I'll do it later": "I'll do it later",
-
     "Raw Material": "Raw Material",
     "Semi-Finished Product": "Semi-Finished Product",
     "Packaging Material": "Packaging Material",
     "Auxiliary Material": "Auxiliary Material",
-
     "Bill of Materials": "Bill of Materials",
     "Add Material": "Add Material",
     "Add to BOM": "Add to BOM",
@@ -240,5 +225,9 @@
     "Scrap %": "Scrap %",
     "Tracking Type": "Tracking Type",
     "External System": "External System",
-    "Unit of Measure": "Unit of Measure"
+    "Unit of Measure": "Unit of Measure",
+    "Dashboard Setup": "Dashboard Setup",
+    "Enable, disable, and reorder dashboard widgets": "Enable, disable, and reorder dashboard widgets",
+    "Enabled": "Enabled",
+    "Disabled": "Disabled"
 }
