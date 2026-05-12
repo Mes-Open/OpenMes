@@ -36,7 +36,10 @@
         </form>
     </div>
 
+    @php $enabledWidgets = $enabledWidgets ?? []; @endphp
+
     {{-- KPI Cards --}}
+    @if(empty($enabledWidgets) || in_array('kpi_cards', $enabledWidgets))
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
 
         <a href="{{ route('admin.work-orders.index', $selectedLineId ? ['line_id' => $selectedLineId] : []) }}"
@@ -90,6 +93,7 @@
         </a>
 
     </div>
+    @endif
 
     {{-- ── Widget zone: admin_dashboard.kpi ── --}}
     @foreach($widgetRegistry->getWidgets('admin_dashboard.kpi') as $widget)
@@ -97,7 +101,7 @@
     @endforeach
 
     {{-- OEE Overview — full width --}}
-    @if(($oeeRecords ?? collect())->isNotEmpty())
+    @if((empty($enabledWidgets) || in_array('oee_overview', $enabledWidgets)) && ($oeeRecords ?? collect())->isNotEmpty())
     <div class="card mb-6">
         <div class="flex justify-between items-center mb-3">
             <div class="flex items-center gap-2">
