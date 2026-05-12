@@ -273,5 +273,7 @@
     "Currently open issues and problems": "Currently open issues and problems",
     "Shortcuts to common admin pages": "Shortcuts to common admin pages",
     "Built-in": "Built-in",
-    "Use arrows to reorder. Modules can register additional widgets.": "Use arrows to reorder. Modules can register additional widgets."
+    "Use arrows to reorder. Modules can register additional widgets.": "Use arrows to reorder. Modules can register additional widgets.",
+    "Load a pre-built demo dataset: lines, workstations, products, templates and work orders. Safe to run multiple times.": "Load a pre-built demo dataset: lines, workstations, products, templates and work orders. Safe to run multiple times.",
+    "I understand this will add demo data to the system": "I understand this will add demo data to the system"
 }
