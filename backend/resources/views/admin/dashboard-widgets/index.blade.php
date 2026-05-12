@@ -59,7 +59,7 @@
                         <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200" x-text="widget.name"></h3>
                         <span class="px-2 py-0.5 rounded-full text-xs"
                               :class="widget.source === 'builtin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'"
-                              x-text="widget.source === 'builtin' ? 'Built-in' : widget.module_name"></span>
+                              x-text="widget.source === 'builtin' ? '{{ __('Built-in') }}' : widget.module_name"></span>
                         <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" x-text="widget.zone"></span>
                     </div>
                     <p class="text-xs text-gray-500 mt-0.5" x-text="widget.description" x-show="widget.description"></p>
@@ -77,7 +77,7 @@
 
         <div class="flex justify-between items-center mt-6">
             <div>
-                <p class="text-xs text-gray-400">{{ __('Use arrows to reorder. Modules can register additional widgets.') }}</p>
+                <p class="text-xs text-gray-400">{{ __('{{ __('Use arrows to reorder. Modules can register additional widgets.') }}. Modules can register additional widgets.') }}</p>
                 <p x-show="dirty" x-cloak class="text-xs text-orange-600 font-medium mt-1">{{ __('You have unsaved changes!') }}</p>
             </div>
             <button @click="saveAll()" class="btn-touch btn-primary" :class="dirty ? 'animate-pulse ring-2 ring-blue-400' : ''">{{ __('Save') }}</button>
