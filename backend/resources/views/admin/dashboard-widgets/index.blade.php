@@ -66,18 +66,21 @@
                 </div>
 
                 {{-- Toggle --}}
-                <button @click="widget.enabled = !widget.enabled" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0"
+                <button @click="widget.enabled = !widget.enabled; dirty = true" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0"
                         :class="widget.enabled
                             ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300'
-                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'"
+                            : 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900 dark:text-red-300'"
                         x-text="widget.enabled ? '{{ __("Enabled") }}' : '{{ __("Disabled") }}'">
                 </button>
             </div>
         </template>
 
         <div class="flex justify-between items-center mt-6">
-            <p class="text-xs text-gray-400">{{ __('Use arrows to reorder. Modules can register additional widgets.') }}</p>
-            <button @click="saveAll()" class="btn-touch btn-primary">{{ __('Save') }}</button>
+            <div>
+                <p class="text-xs text-gray-400">{{ __('Use arrows to reorder. Modules can register additional widgets.') }}</p>
+                <p x-show="dirty" x-cloak class="text-xs text-orange-600 font-medium mt-1">{{ __('You have unsaved changes!') }}</p>
+            </div>
+            <button @click="saveAll()" class="btn-touch btn-primary" :class="dirty ? 'animate-pulse ring-2 ring-blue-400' : ''">{{ __('Save') }}</button>
         </div>
 
         {{-- Toast --}}
@@ -97,16 +100,19 @@ function widgetManager() {
     return {
         widgets: {!! json_encode($widgetData) !!},
         saved: false,
+        dirty: false,
 
         moveUp(index) {
             if (index === 0) return;
             const item = this.widgets.splice(index, 1)[0];
             this.widgets.splice(index - 1, 0, item);
+            this.dirty = true;
         },
         moveDown(index) {
             if (index >= this.widgets.length - 1) return;
             const item = this.widgets.splice(index, 1)[0];
             this.widgets.splice(index + 1, 0, item);
+            this.dirty = true;
         },
         async saveAll() {
             await fetch('{{ route("admin.dashboard-widgets.save-all") }}', {
