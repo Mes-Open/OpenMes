@@ -139,7 +139,16 @@ function widgetManager() {
             });
         },
         async saveAll() {
-            await this.saveOrder();
+            await fetch('{{ route("admin.dashboard-widgets.save-all") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content
+                },
+                body: JSON.stringify({
+                    widgets: this.widgets.map(w => ({ id: w.id, enabled: w.enabled }))
+                })
+            });
             this.saved = true;
             setTimeout(() => { window.location.href = '{{ route("admin.dashboard") }}'; }, 1500);
         }

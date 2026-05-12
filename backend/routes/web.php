@@ -301,6 +301,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard-widgets', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'index'])->name('dashboard-widgets.index');
         Route::post('/dashboard-widgets/{widget}/toggle', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'toggle'])->name('dashboard-widgets.toggle');
         Route::post('/dashboard-widgets/reorder', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'reorder'])->name('dashboard-widgets.reorder');
+        Route::post('/dashboard-widgets/save-all', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'saveAll'])->name('dashboard-widgets.save-all');
 
         // Batch Reports
         Route::get('/batches/{batch}/report', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'show'])->name('batch-report');
