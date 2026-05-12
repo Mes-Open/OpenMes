@@ -35,4 +35,22 @@ class DashboardWidgetController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function saveAll(Request $request)
+    {
+        $validated = $request->validate([
+            'widgets' => 'required|array',
+            'widgets.*.id' => 'required|integer|exists:dashboard_widgets,id',
+            'widgets.*.enabled' => 'required|boolean',
+        ]);
+
+        foreach ($validated['widgets'] as $position => $data) {
+            DashboardWidget::where('id', $data['id'])->update([
+                'enabled' => $data['enabled'],
+                'sort_order' => ($position + 1) * 10,
+            ]);
+        }
+
+        return response()->json(['success' => true]);
+    }
 }
