@@ -248,5 +248,17 @@
     "Manage tokens for external integrations": "Manage tokens for external integrations",
     "Re-launch the onboarding wizard": "Re-launch the onboarding wizard",
     "Update your profile and account info": "Update your profile and account info",
-    "Change your account password": "Change your account password"
+    "Change your account password": "Change your account password",
+    "Determines how work orders are grouped for planning.": "Determines how work orders are grouped for planning.",
+    "None": "None",
+    "No period grouping": "No period grouping",
+    "Weekly": "Weekly",
+    "Group by ISO week (1-53)": "Group by ISO week (1-53)",
+    "Monthly": "Monthly",
+    "Group by month (1-12)": "Group by month (1-12)",
+    "Defines how work order completion is tracked.": "Defines how work order completion is tracked.",
+    "Work order status is changed manually. Board statuses are visual labels.": "Work order status is changed manually. Board statuses are visual labels.",
+    "Board Status": "Board Status",
+    "Moving to a Done status automatically closes the work order.": "Moving to a Done status automatically closes the work order.",
+    "Additional login methods for operators.": "Additional login methods for operators."
 }
