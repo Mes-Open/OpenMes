@@ -260,5 +260,18 @@
     "Work order status is changed manually. Board statuses are visual labels.": "Work order status is changed manually. Board statuses are visual labels.",
     "Board Status": "Board Status",
     "Moving to a Done status automatically closes the work order.": "Moving to a Done status automatically closes the work order.",
-    "Additional login methods for operators.": "Additional login methods for operators."
+    "Additional login methods for operators.": "Additional login methods for operators.",
+    "Account Information": "Account Information",
+    "Member Since": "Member Since",
+    "Note": "Note",
+    "To change your username or role, contact an administrator.": "To change your username or role, contact an administrator.",
+    "Email": "Email",
+    "KPI Cards": "KPI Cards",
+    "Overall Equipment Effectiveness per line": "Overall Equipment Effectiveness per line",
+    "Work orders, issues, and lines summary cards": "Work orders, issues, and lines summary cards",
+    "Latest work orders with status and progress": "Latest work orders with status and progress",
+    "Currently open issues and problems": "Currently open issues and problems",
+    "Shortcuts to common admin pages": "Shortcuts to common admin pages",
+    "Built-in": "Built-in",
+    "Use arrows to reorder. Modules can register additional widgets.": "Use arrows to reorder. Modules can register additional widgets."
 }
