@@ -39,11 +39,14 @@
     @php
         $enabledWidgets = $enabledWidgets ?? [];
         $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
-        $wo = array_flip($widgetOrder); // widget_id => position
+        $wOrder = array_flip($widgetOrder);
     @endphp
+
+    <div class="flex flex-col">
 
     {{-- KPI Cards --}}
     @if(empty($enabledWidgets) || in_array('kpi_cards', $enabledWidgets))
+    <div style="order: {{ ($wOrder['kpi_cards'] ?? 0) * 10 }}" class="mb-6">
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
 
         <a href="{{ route('admin.work-orders.index', $selectedLineId ? ['line_id' => $selectedLineId] : []) }}"
@@ -97,6 +100,7 @@
         </a>
 
     </div>
+    </div>
     @endif
 
     {{-- ── Widget zone: admin_dashboard.kpi ── --}}
@@ -106,7 +110,7 @@
 
     {{-- OEE Overview — full width --}}
     @if((empty($enabledWidgets) || in_array('oee_overview', $enabledWidgets)) && ($oeeRecords ?? collect())->isNotEmpty())
-    <div class="card mb-6">
+    <div style="order: {{ ($wOrder['oee_overview'] ?? 1) * 10 }}" class="card mb-6">
         <div class="flex justify-between items-center mb-3">
             <div class="flex items-center gap-2">
                 <h2 class="text-lg font-bold text-gray-800">{{ __('OEE Overview') }}</h2>
@@ -152,7 +156,7 @@
     </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div style="order: {{ ($wOrder['recent_work_orders'] ?? 2) * 10 }}" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
         {{-- {{ __('Recent Work Orders') }} --}}
         @if(empty($enabledWidgets) || in_array('recent_work_orders', $enabledWidgets))
@@ -289,6 +293,8 @@
             @endforeach
         </div>
     @endif
+
+    </div> {{-- close flex container --}}
 
 </div>
 @endsection
