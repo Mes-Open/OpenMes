@@ -132,7 +132,7 @@
     @else
     <div class="bg-white dark:bg-gray-900 rounded-xl shadow overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full text-sm border-collapse">
+            <table class="min-w-full text-sm border-collapse border-2 border-gray-400 dark:border-gray-500">
                 <thead>
                     <tr class="bg-gray-100 dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-600">
                         {{-- Dynamic columns --}}
@@ -164,7 +164,7 @@
                         $isDone    = $wo->status === 'DONE';
                         $isActive  = $wo->status === 'IN_PROGRESS';
                     @endphp
-                    <tr class="border-b border-gray-200 dark:border-gray-700 transition-colors
+                    <tr class="border-b-2 border-gray-400 dark:border-gray-500 transition-colors
                                {{ $isDone ? 'bg-green-100 dark:bg-green-900/30 border-l-4 border-l-green-500' : ($isActive ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-500' : ($wo->status === 'BLOCKED' ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-l-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border-l-4 border-l-transparent')) }}
                                {{ !$isDone ? 'cursor-pointer active:bg-gray-100 dark:active:bg-gray-700' : '' }}"
                         @if(!$isDone && !$isActive)
