@@ -248,5 +248,17 @@
     "Manage tokens for external integrations": "Zarządzaj tokenami integracji zewnętrznych",
     "Re-launch the onboarding wizard": "Uruchom kreator ponownie",
     "Update your profile and account info": "Zmień dane profilu i konta",
-    "Change your account password": "Zmień hasło konta"
+    "Change your account password": "Zmień hasło konta",
+    "Determines how work orders are grouped for planning.": "Określa jak zlecenia są grupowane do planowania.",
+    "None": "Brak",
+    "No period grouping": "Bez podziału na okresy",
+    "Weekly": "Tygodniowo",
+    "Group by ISO week (1-53)": "Grupuj wg tygodnia ISO (1-53)",
+    "Monthly": "Miesięcznie",
+    "Group by month (1-12)": "Grupuj wg miesiąca (1-12)",
+    "Defines how work order completion is tracked.": "Określa jak śledzone jest zakończenie zlecenia.",
+    "Work order status is changed manually. Board statuses are visual labels.": "Status zlecenia zmeniany ręcznie. Statusy tablicy to etykiety wizualne.",
+    "Board Status": "Status tablicy",
+    "Moving to a Done status automatically closes the work order.": "Przesunięcie do statusu Zakończone automatycznie zamyka zlecenie.",
+    "Additional login methods for operators.": "Dodatkowe metody logowania dla operatorów."
 }
