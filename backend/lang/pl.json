@@ -315,5 +315,16 @@
     "Used hooks": "Użyte hooki",
     "Disable": "Wyłącz",
     "Enable": "Włącz",
-    "Uninstall": "Odinstaluj"
+    "Uninstall": "Odinstaluj",
+    "Upload a module from a ZIP file or place the folder manually": "Wgraj moduł z pliku ZIP lub umieść folder ręcznie",
+    "Upload ZIP file": "Wgraj plik ZIP",
+    "Click to select a .zip file": "Kliknij aby wybrać plik .zip",
+    "Max 20 MB": "Maks. 20 MB",
+    "Manual Installation": "Instalacja ręczna",
+    "Place the module folder directly in": "Umieść folder modułu w",
+    "then go to": "następnie przejdź do",
+    "and enable it": "i włącz go",
+    "Available hooks and events": "Dostępne hooki i zdarzenia",
+    "The ZIP must contain a": "ZIP musi zawierać plik",
+    "file in the root directory or inside a single subfolder": "w katalogu głównym lub w pojedynczym podfolderze"
 }

@@ -12,8 +12,8 @@
     ]" />
 
     <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Install Module</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Upload a module from a ZIP file or place the folder manually</p>
+        <h1 class="text-3xl font-bold text-gray-800 dark:text-white">{{ __('Install Module') }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">{{ __('Upload a module from a ZIP file or place the folder manually') }}</p>
     </div>
 
     {{-- Upload ZIP ───────────────────────────────────────────────────────── --}}
@@ -23,7 +23,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
-            Upload ZIP file
+            {{ __('Upload ZIP file') }}
         </h2>
 
         <form method="POST" action="{{ route('admin.modules.upload') }}" enctype="multipart/form-data">
@@ -34,8 +34,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                           d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
-                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="filename || 'Click to select a .zip file'"></p>
-                <p class="text-xs text-gray-400 mt-1">Max 20 MB</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="filename || '{{ __('Click to select a .zip file') }}'"></p>
+                <p class="text-xs text-gray-400 mt-1">{{ __('Max 20 MB') }}</p>
                 <input type="file" name="module_zip" x-ref="zipInput" accept=".zip"
                        class="hidden" @change="filename = $refs.zipInput.files[0]?.name || ''" required>
             </div>
@@ -49,17 +49,17 @@
         </form>
 
         <p class="text-xs text-gray-400 dark:text-gray-500 mt-4">
-            The ZIP must contain a <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">module.json</code>
-            file in the root directory or inside a single subfolder.
+            {{ __('The ZIP must contain a') }} <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">module.json</code>
+            {{ __('file in the root directory or inside a single subfolder') }}.
         </p>
     </div>
 
     {{-- Manual install guide ─────────────────────────────────────────────── --}}
     <div class="card bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-        <h3 class="font-bold text-gray-700 dark:text-gray-300 mb-2">Manual Installation</h3>
+        <h3 class="font-bold text-gray-700 dark:text-gray-300 mb-2">{{ __('Manual Installation') }}</h3>
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Place the module folder directly in <code class="bg-white dark:bg-gray-700 border rounded px-1 text-xs">modules/</code>,
-            then go to <a href="{{ route('admin.modules.index') }}" class="text-blue-600 hover:underline">Installed Modules</a> and enable it.
+            {{ __('Place the module folder directly in') }} <code class="bg-white dark:bg-gray-700 border rounded px-1 text-xs">modules/</code>,
+            {{ __('then go to') }} <a href="{{ route('admin.modules.index') }}" class="text-blue-600 hover:underline">{{ __('Installed Modules') }}</a> {{ __('and enable it') }}.
         </p>
         <div class="text-xs font-mono bg-white dark:bg-gray-900 border dark:border-gray-700 rounded p-3 text-gray-700 dark:text-gray-300 space-y-0.5 mb-4">
             <p>modules/YourModule/</p>
@@ -74,7 +74,7 @@
         </div>
         <a href="https://github.com/Mes-Open/OpenMes/blob/main/HOOKS.md" target="_blank" rel="noopener"
            class="text-sm text-blue-600 hover:underline">
-            Available hooks and events (HOOKS.md) ↗
+            {{ __('Available hooks and events') }} (HOOKS.md) ↗
         </a>
     </div>
 
