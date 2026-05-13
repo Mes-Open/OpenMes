@@ -114,9 +114,9 @@
             @php
                 $links = [
                     ['route' => 'supervisor.dashboard',         'label' => 'Dashboard',    'icon' => 'home'],
-                    ['route' => 'supervisor.work-orders.index', 'label' => 'Work Orders',  'icon' => 'clipboard'],
-                    ['route' => 'supervisor.issues.index',      'label' => 'Issues',       'icon' => 'warning'],
-                    ['route' => 'supervisor.reports',           'label' => 'Reports',      'icon' => 'chart'],
+                    ['route' => 'supervisor.work-orders.index', 'label' => __('Work Orders'),  'icon' => 'clipboard'],
+                    ['route' => 'supervisor.issues.index',      'label' => __('Issues'),       'icon' => 'warning'],
+                    ['route' => 'supervisor.reports',           'label' => __('Reports'),      'icon' => 'chart'],
                 ];
             @endphp
 
@@ -319,12 +319,12 @@
                     <a href="{{ route('admin.work-orders.index') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
                               {{ request()->routeIs('admin.work-orders.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Work Orders
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Work Orders') }}
                     </a>
                     <a href="{{ route('admin.csv-import') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
                               {{ request()->routeIs('admin.csv-import') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Import CSV
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('CSV Import') }}
                     </a>
                     @foreach($menuRegistry->getItems('orders') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -368,23 +368,23 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.product-types.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.product-types.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Product Types
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Product Types') }}
                     </a>
                     <a href="{{ route('admin.materials.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.materials.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Materials
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Materials') }}
                     </a>
                     <a href="{{ route('admin.lot-sequences.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lot-sequences.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>LOT Sequences
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('LOT Sequences') }}
                     </a>
                     <a href="{{ route('admin.integrations.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.integrations.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Integrations
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Integrations') }}
                     </a>
-                    {{-- Production Lines sub-group --}}
+                    {{-- {{ __('Production Lines') }} sub-group --}}
                     <div>
                         <button @click="linesGroup = !linesGroup"
                                 class="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lines.*', 'admin.line-statuses.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                             <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>
-                            Production Lines
+                            {{ __('Production Lines') }}
                             <svg class="w-3 h-3 ml-auto shrink-0 transition-transform" :class="{'rotate-180': linesGroup}"
                                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -392,30 +392,30 @@
                         </button>
                         <div x-show="linesGroup" x-cloak class="ml-3 mt-0.5 space-y-0.5 border-l border-slate-700/40 pl-3">
                             <a href="{{ route('admin.lines.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lines.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>All Lines
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('All Lines') }}
                             </a>
                             <a href="{{ route('admin.line-statuses.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.line-statuses.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>Line Statuses
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('Line Statuses') }}
                             </a>
                             <a href="{{ route('admin.view-templates.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.view-templates.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                                 <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>View Templates
                             </a>
                             <a href="{{ route('admin.shifts.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.shifts.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>Shifts
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('Shifts') }}
                             </a>
                         </div>
                     </div>
                     <a href="{{ route('admin.issues.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.issues.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Issues
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Issues') }}
                     </a>
                     <a href="{{ route('admin.companies.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.companies.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Companies
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Companies') }}
                     </a>
                     <a href="{{ route('admin.anomaly-reasons.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.anomaly-reasons.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Anomaly Reasons
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Anomaly Reasons') }}
                     </a>
                     <a href="{{ route('admin.shifts.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.shifts.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Shifts
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Shifts') }}
                     </a>
                     @foreach($menuRegistry->getItems('production') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -459,16 +459,16 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.factories.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.factories.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Factories
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Factories') }}
                     </a>
                     <a href="{{ route('admin.divisions.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.divisions.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Divisions
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Divisions') }}
                     </a>
                     <a href="{{ route('admin.workstation-types.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.workstation-types.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Workstation Types
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Workstation Types') }}
                     </a>
                     <a href="{{ route('admin.subassemblies.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.subassemblies.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Subassemblies
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Subassemblies') }}
                     </a>
                     @foreach($menuRegistry->getItems('structure') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -512,16 +512,16 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.workers.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.workers.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Workers
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Workers') }}
                     </a>
                     <a href="{{ route('admin.crews.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.crews.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Crews
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Crews') }}
                     </a>
                     <a href="{{ route('admin.skills.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.skills.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Skills
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Skills') }}
                     </a>
                     <a href="{{ route('admin.wage-groups.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.wage-groups.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Wage Groups
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Wage Groups') }}
                     </a>
                     @foreach($menuRegistry->getItems('hr') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -565,19 +565,19 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.maintenance-events.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.maintenance-events.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Events
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Maintenance Events') }}
                     </a>
                     <a href="{{ route('admin.tools.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.tools.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Tools
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Tools') }}
                     </a>
                     <a href="{{ route('admin.cost-sources.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.cost-sources.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Cost Sources
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Cost Sources') }}
                     </a>
                     <a href="{{ route('admin.production-anomalies.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.production-anomalies.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Anomalies
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Anomalies') }}
                     </a>
                     <a href="{{ route('admin.oee.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.oee.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>OEE
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('OEE') }}
                     </a>
                     @foreach($menuRegistry->getItems('maintenance') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -622,10 +622,10 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.connectivity.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.connectivity.index') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Overview
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Overview') }}
                     </a>
                     <a href="{{ route('admin.connectivity.mqtt.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.connectivity.mqtt.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>MQTT
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('MQTT') }}
                     </a>
                 </div>
             </div>
@@ -665,13 +665,13 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.users.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.users.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Users
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Users') }}
                     </a>
                     <a href="{{ route('admin.reports') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.reports') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Reports
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Reports') }}
                     </a>
                     <a href="{{ route('admin.audit-logs') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.audit-logs') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Audit Logs
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Audit Logs') }}
                     </a>
                     @foreach($menuRegistry->getItems('admin') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
