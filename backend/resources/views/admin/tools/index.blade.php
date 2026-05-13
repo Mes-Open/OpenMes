@@ -52,9 +52,9 @@
                             <td class="py-3 px-4 text-gray-600">
                                 @if($tool->next_service_at)
                                     @if($tool->next_service_at < now())
-                                        <span class="text-red-600 font-medium">{{ $tool->next_service_at->format('d M Y') }}</span>
+                                        <span class="text-red-600 font-medium">{{ $tool->next_service_at->translatedFormat('d M Y') }}</span>
                                     @else
-                                        {{ $tool->next_service_at->format('d M Y') }}
+                                        {{ $tool->next_service_at->translatedFormat('d M Y') }}
                                     @endif
                                 @else
                                     —

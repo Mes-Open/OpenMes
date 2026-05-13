@@ -240,7 +240,7 @@
                             </div>
                         @endif
                         @if(!empty($importMonth))
-                            @php $monthName = \Carbon\Carbon::create(null, $importMonth)->format('F'); @endphp
+                            @php $monthName = \Carbon\Carbon::create(null, $importMonth)->translatedFormat('F'); @endphp
                             <div class="flex justify-between">
                                 <span class="text-gray-600">{{ __('Month') }}:</span>
                                 <span class="font-medium">{{ $monthName }} {{ $productionYear ?? now()->year }}</span>

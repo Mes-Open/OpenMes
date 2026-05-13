@@ -76,7 +76,7 @@
                         <div>
                             <p class="text-sm text-gray-500">Due Date</p>
                             <p class="font-medium {{ $workOrder->due_date->isPast() && $workOrder->status !== 'DONE' ? 'text-red-600' : 'text-gray-800' }}">
-                                {{ $workOrder->due_date->format('d M Y') }}
+                                {{ $workOrder->due_date->translatedFormat('d M Y') }}
                             </p>
                         </div>
                     @endif

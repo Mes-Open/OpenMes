@@ -80,7 +80,7 @@
                     </div>
                     <div class="flex justify-between text-sm">
                         <span class="text-gray-600">{{ __('Member Since') }}:/span>
-                        <span class="font-medium text-gray-800">{{ auth()->user()->created_at->format('F d, Y') }}</span>
+                        <span class="font-medium text-gray-800">{{ auth()->user()->created_at->translatedFormat('F d, Y') }}</span>
                     </div>
                 </div>
             </div>
