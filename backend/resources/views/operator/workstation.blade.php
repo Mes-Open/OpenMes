@@ -207,7 +207,7 @@
                                     <span class="px-3 py-1 rounded-full text-sm font-bold bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300">{{ $wo->status === 'PENDING' ? 'Not Started' : ucfirst(strtolower(str_replace('_', ' ', $wo->status))) }}</span>
                                 @endif
                             @elseif($col['key'] === 'due_date')
-                                {{ $wo->due_date ? $wo->due_date->format('d M') : '—' }}
+                                {{ $wo->due_date ? $wo->due_date->translatedFormat('d M') : '—' }}
                             @elseif($col['key'] === 'week_number')
                                 {{ $wo->week_number ? 'W' . str_pad($wo->week_number, 2, '0', STR_PAD_LEFT) : '—' }}
                             @else

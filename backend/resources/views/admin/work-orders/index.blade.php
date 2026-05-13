@@ -151,14 +151,14 @@
                             <td class="px-4 py-3 text-sm text-gray-600">
                                 @if($wo->due_date)
                                     <span class="{{ $wo->due_date->isPast() && $wo->status !== 'DONE' ? 'text-red-600 font-medium' : '' }}">
-                                        {{ $wo->due_date->format('d M Y') }}
+                                        {{ $wo->due_date->translatedFormat('d M Y') }}
                                     </span>
                                 @else
                                     —
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-600">
-                                {{ $wo->created_at->format('d M Y') }}
+                                {{ $wo->created_at->translatedFormat('d M Y') }}
                             </td>
                             <td class="px-4 py-3" onclick="event.stopPropagation()">
                                 <div class="flex items-center gap-0.5">
