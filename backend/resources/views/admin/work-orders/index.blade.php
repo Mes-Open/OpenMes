@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'Work Orders')
+@section('title', __('Work Orders'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Work Orders', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Work Orders'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Work Orders</h1>
-            <p class="text-gray-600 mt-1">{{ $workOrders->total() }} orders total</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Work Orders') }}</h1>
+            <p class="text-gray-600 mt-1">{{ $workOrders->total() }} {{ __('orders total') }}</p>
         </div>
         <a href="{{ route('admin.work-orders.create') }}" class="btn-touch btn-primary">
-            + New Work Order
+            + {{ __('New Work Order') }}
         </a>
     </div>
 
@@ -25,22 +25,22 @@
         <input type="hidden" name="direction" value="{{ $direction }}">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-                <label class="form-label">Search order #</label>
+                <label class="form-label">{{ __('Search order #') }}</label>
                 <input type="text" name="search" value="{{ request('search') }}" class="form-input w-full" placeholder="Order number…">
             </div>
             <div>
-                <label class="form-label">Status</label>
+                <label class="form-label">{{ __('Status') }}</label>
                 <select name="status" class="form-input w-full">
-                    <option value="">All statuses</option>
+                    <option value="">{{ __('All statuses') }}</option>
                     @foreach(['PENDING','ACCEPTED','IN_PROGRESS','PAUSED','BLOCKED','DONE','REJECTED','CANCELLED'] as $s)
                         <option value="{{ $s }}" @selected(request('status') === $s)>{{ str_replace('_', ' ', $s) }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label class="form-label">Line</label>
+                <label class="form-label">{{ __('Line') }}</label>
                 <select name="line_id" class="form-input w-full">
-                    <option value="">All lines</option>
+                    <option value="">{{ __('All lines') }}</option>
                     @foreach($lines as $line)
                         <option value="{{ $line->id }}" @selected(request('line_id') == $line->id)>{{ $line->name }}</option>
                     @endforeach
@@ -48,8 +48,8 @@
             </div>
         </div>
         <div class="flex gap-2 mt-4">
-            <button type="submit" class="btn-touch btn-primary text-sm">Filter</button>
-            <a href="{{ route('admin.work-orders.index') }}" class="btn-touch btn-secondary text-sm">Clear</a>
+            <button type="submit" class="btn-touch btn-primary text-sm">{{ __('Filter') }}</button>
+            <a href="{{ route('admin.work-orders.index') }}" class="btn-touch btn-secondary text-sm">{{ __('Clear') }}</a>
         </div>
     </form>
 
@@ -61,17 +61,17 @@
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'order_no', 'direction' => ($sort === 'order_no' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
-                                Order #
+                                {{ __('Order #') }}
                                 @if($sort === 'order_no')
                                     <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
                             </a>
                         </th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Line') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product Type') }}</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'status', 'direction' => ($sort === 'status' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
-                                Status
+                                {{ __('Status') }}
                                 @if($sort === 'status')
                                     <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
@@ -79,14 +79,14 @@
                         </th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'planned_qty', 'direction' => ($sort === 'planned_qty' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
-                                Planned Qty
+                                {{ __('Planned Qty') }}
                                 @if($sort === 'planned_qty')
                                     <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
                             </a>
                             /
                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'produced_qty', 'direction' => ($sort === 'produced_qty' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
-                                Produced
+                                {{ __('Produced') }}
                                 @if($sort === 'produced_qty')
                                     <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
@@ -94,7 +94,7 @@
                         </th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'priority', 'direction' => ($sort === 'priority' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
-                                Priority
+                                {{ __('Priority') }}
                                 @if($sort === 'priority')
                                     <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
@@ -102,7 +102,7 @@
                         </th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'due_date', 'direction' => ($sort === 'due_date' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
-                                Due Date
+                                {{ __('Due Date') }}
                                 @if($sort === 'due_date')
                                     <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
@@ -110,13 +110,13 @@
                         </th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'created_at', 'direction' => ($sort === 'created_at' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
-                                Created
+                                {{ __('Created') }}
                                 @if($sort === 'created_at')
                                     <span class="text-blue-500">{{ $direction === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
                             </a>
                         </th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
@@ -186,7 +186,7 @@
                                     {{-- Reject --}}
                                     @if(in_array($wo->status, ['PENDING', 'ACCEPTED']))
                                         <form method="POST" action="{{ route('admin.work-orders.reject', $wo) }}"
-                                              onsubmit="return confirm('Reject work order {{ $wo->order_no }}?')">@csrf
+                                              onsubmit="return confirm('{{ __('Reject work order :order?', ['order' => $wo->order_no]) }}')">@csrf
                                             <button type="submit" data-tip="Reject"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -214,7 +214,7 @@
                                     {{-- Cancel --}}
                                     @if(!in_array($wo->status, ['DONE', 'REJECTED', 'CANCELLED']))
                                         <form method="POST" action="{{ route('admin.work-orders.cancel', $wo) }}"
-                                              onsubmit="return confirm('Cancel this work order?')">@csrf
+                                              onsubmit="return confirm('{{ __('Cancel this work order?') }}')">@csrf
                                             <button type="submit" data-tip="Cancel"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-orange-500 hover:bg-orange-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
@@ -224,7 +224,7 @@
                                     {{-- Delete --}}
                                     @if(!$wo->batches_count && in_array($wo->status, ['PENDING','REJECTED','CANCELLED']))
                                         <form method="POST" action="{{ route('admin.work-orders.destroy', $wo) }}"
-                                              onsubmit="return confirm('Delete work order {{ $wo->order_no }}?')">@csrf
+                                              onsubmit="return confirm('{{ __('Delete work order :order?', ['order' => $wo->order_no]) }}')">@csrf
                                             @method('DELETE')
                                             <button type="submit" data-tip="Delete"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-600 hover:bg-red-50 transition-colors">
@@ -238,9 +238,9 @@
                     @empty
                         <tr>
                             <td colspan="9" class="px-4 py-10 text-center text-gray-400">
-                                No work orders found.
-                                <a href="{{ route('admin.work-orders.create') }}" class="text-blue-600 hover:underline ml-1">Create one</a>
-                                or <a href="{{ route('admin.csv-import') }}" class="text-blue-600 hover:underline">import from CSV</a>.
+                                {{ __('No work orders found.') }}
+                                <a href="{{ route('admin.work-orders.create') }}" class="text-blue-600 hover:underline ml-1">{{ __('Create one') }}</a>
+                                {{ __('or') }} <a href="{{ route('admin.csv-import') }}" class="text-blue-600 hover:underline">{{ __('import from CSV') }}</a>.
                             </td>
                         </tr>
                     @endforelse

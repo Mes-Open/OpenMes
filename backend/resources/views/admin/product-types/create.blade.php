@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Create Product Type')
+@section('title', __('Create Product Type'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Product Types', 'url' => route('admin.product-types.index')],
-    ['label' => 'New Product Type', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Product Types'), 'url' => route('admin.product-types.index')],
+    ['label' => __('New Product Type'), 'url' => null],
 ]" />
 
 <div class="max-w-2xl mx-auto">
@@ -15,9 +15,9 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Product Types
+            {{ __("Back") }}
         </a>
-        <h1 class="text-3xl font-bold text-gray-800">Create Product Type</h1>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __("Create Product Type") }}</h1>
     </div>
 
     <div class="card">
@@ -25,7 +25,7 @@
             @csrf
 
             <div class="mb-6">
-                <label for="code" class="form-label">Product Code</label>
+                <label for="code" class="form-label">{{ __("Product Code") }}</label>
                 <input
                     type="text"
                     id="code"
@@ -36,14 +36,14 @@
                     required
                     autofocus
                 >
-                <p class="text-sm text-gray-500 mt-1">Unique identifier for this product type</p>
+                <p class="text-sm text-gray-500 mt-1">{{ __("Unique identifier") }}</p>
                 @error('code')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
             <div class="mb-6">
-                <label for="name" class="form-label">Product Name</label>
+                <label for="name" class="form-label">{{ __("Product Name") }}</label>
                 <input
                     type="text"
                     id="name"
@@ -59,13 +59,13 @@
             </div>
 
             <div class="mb-6">
-                <label for="description" class="form-label">Description</label>
+                <label for="description" class="form-label">{{ __("Description") }}</label>
                 <textarea
                     id="description"
                     name="description"
                     rows="3"
                     class="form-input w-full @error('description') border-red-500 @enderror"
-                    placeholder="Optional description of this product type"
+                    placeholder="{{ __("Optional description") }}"
                 >{{ old('description') }}</textarea>
                 @error('description')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
@@ -73,7 +73,7 @@
             </div>
 
             <div class="mb-6">
-                <label for="unit_of_measure" class="form-label">Unit of Measure</label>
+                <label for="unit_of_measure" class="form-label">{{ __("Unit of Measure") }}</label>
                 <input
                     type="text"
                     id="unit_of_measure"
@@ -82,7 +82,7 @@
                     class="form-input w-full @error('unit_of_measure') border-red-500 @enderror"
                     placeholder="e.g., pcs, kg, m (optional)"
                 >
-                <p class="text-sm text-gray-500 mt-1">How this product is counted or measured</p>
+                <p class="text-sm text-gray-500 mt-1">{{ __("How this product is counted or measured") }}</p>
                 @error('unit_of_measure')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
@@ -97,16 +97,16 @@
                         class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         {{ old('is_active', true) ? 'checked' : '' }}
                     >
-                    <span class="ml-2 text-sm text-gray-700">Active (product type is ready for production)</span>
+                    <span class="ml-2 text-sm text-gray-700">{{ __("Active (ready for production)") }}</span>
                 </label>
             </div>
 
             <div class="flex justify-end gap-3">
                 <a href="{{ route('admin.product-types.index') }}" class="btn-touch btn-secondary">
-                    Cancel
+                    {{ __('Cancel') }}
                 </a>
                 <button type="submit" class="btn-touch btn-primary">
-                    Create Product Type
+                    {{ __('Create Product Type') }}
                 </button>
             </div>
         </form>
