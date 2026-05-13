@@ -83,7 +83,7 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $material->unit_of_measure }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-600">{{ ucfirst($material->tracking_type) }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ __(ucfirst(strtolower($material->tracking_type))) }}</td>
                             <td class="px-4 py-3 text-sm text-right font-mono">
                                 @if($material->stock_quantity > 0)
                                     <span class="{{ $material->min_stock_level && $material->stock_quantity <= $material->min_stock_level ? 'text-red-600 font-bold' : 'text-gray-900 dark:text-gray-100' }}">
