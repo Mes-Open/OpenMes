@@ -106,9 +106,13 @@
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">{{ $wo->line?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-sm text-orange-700 font-medium">{{ $wo->due_date->format('d M Y') }}</td>
-                        <td class="px-4 py-3 text-sm text-red-600 font-semibold">{{ $wo->due_date->diffForHumans() }}</td>
+                        <td class="px-4 py-3 text-sm text-red-600 font-semibold">{{ $wo->due_date->diffForHumans(null, false, false, 1, ['locale' => 'en']) }}</td>
                         <td class="px-4 py-3">
-                            <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700">{{ $wo->status }}</span>
+                            @php
+                                $stColors = ['PENDING'=>'bg-gray-100 text-gray-700','ACCEPTED'=>'bg-blue-100 text-blue-700','IN_PROGRESS'=>'bg-yellow-100 text-yellow-700','BLOCKED'=>'bg-red-100 text-red-700','PAUSED'=>'bg-orange-100 text-orange-700','DONE'=>'bg-green-100 text-green-700','REJECTED'=>'bg-red-200 text-red-800','CANCELLED'=>'bg-gray-200 text-gray-600'];
+                                $stLabels = ['PENDING'=>__('Pending'),'ACCEPTED'=>__('Accepted'),'IN_PROGRESS'=>__('In Progress'),'BLOCKED'=>__('Blocked'),'PAUSED'=>__('Paused'),'DONE'=>__('Done'),'REJECTED'=>__('Rejected'),'CANCELLED'=>__('Cancelled')];
+                            @endphp
+                            <span class="text-xs px-2 py-0.5 rounded-full font-medium {{ $stColors[$wo->status] ?? 'bg-gray-100 text-gray-700' }}">{{ $stLabels[$wo->status] ?? $wo->status }}</span>
                         </td>
                     </tr>
                     @endforeach
@@ -144,7 +148,7 @@
                             <span class="font-mono text-sm font-semibold text-blue-700">{{ $wo->order_no }}</span>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">{{ $wo->line?->name ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-500">{{ $wo->updated_at->diffForHumans() }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">{{ $wo->updated_at->diffForHumans(null, false, false, 1, ['locale' => 'en']) }}</td>
                     </tr>
                     @endforeach
                 </tbody>
