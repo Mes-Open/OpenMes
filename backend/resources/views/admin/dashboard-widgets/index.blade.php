@@ -20,9 +20,9 @@
         $widgetData = $widgets->map(function($w) {
             return [
                 'id' => $w->id,
-                'name' => $w->name,
-                'zone' => $w->zone,
-                'description' => $w->description,
+                'name' => __($w->name),
+                'zone' => __($w->zone),
+                'description' => __($w->description ?? ''),
                 'source' => $w->source,
                 'module_name' => $w->module_name,
                 'enabled' => $w->enabled,
