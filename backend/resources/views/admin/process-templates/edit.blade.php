@@ -1,15 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Process Template')
+@section('title', __('Edit Process Template'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Product Types', 'url' => route('admin.product-types.index')],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Product Types'), 'url' => route('admin.product-types.index')],
     ['label' => $productType->name, 'url' => route('admin.product-types.show', $productType)],
-    ['label' => 'Process Templates', 'url' => route('admin.product-types.process-templates.index', $productType)],
+    ['label' => __('Process Templates'), 'url' => route('admin.product-types.process-templates.index', $productType)],
     ['label' => $processTemplate->name, 'url' => route('admin.product-types.process-templates.show', [$productType, $processTemplate])],
-    ['label' => 'Edit', 'url' => null],
+    ['label' => __('Edit'), 'url' => null],
 ]" />
 
 <div class="max-w-2xl mx-auto">
@@ -18,10 +18,10 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Templates
+            {{ __('Back to Templates') }}
         </a>
-        <h1 class="text-3xl font-bold text-gray-800">Edit Process Template</h1>
-        <p class="text-sm text-gray-600 mt-1">{{ $productType->name }} - Version {{ $processTemplate->version }}</p>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('Edit Process Template') }}</h1>
+        <p class="text-sm text-gray-600 mt-1">{{ $productType->name }} - {{ __('Version') }} {{ $processTemplate->version }}</p>
     </div>
 
     <div class="card">
@@ -30,7 +30,7 @@
             @method('PUT')
 
             <div class="mb-6">
-                <label for="name" class="form-label">Template Name</label>
+                <label for="name" class="form-label">{{ __('Template Name') }}</label>
                 <input
                     type="text"
                     id="name"
@@ -41,7 +41,7 @@
                     required
                     autofocus
                 >
-                <p class="text-sm text-gray-500 mt-1">Descriptive name for this manufacturing process</p>
+                <p class="text-sm text-gray-500 mt-1">{{ __('Descriptive name for this manufacturing process') }}</p>
                 @error('name')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
@@ -56,16 +56,16 @@
                         class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         {{ old('is_active', $processTemplate->is_active) ? 'checked' : '' }}
                     >
-                    <span class="ml-2 text-sm text-gray-700">Active (template is ready for use in work orders)</span>
+                    <span class="ml-2 text-sm text-gray-700">{{ __('Active (template is ready for use in work orders)') }}</span>
                 </label>
             </div>
 
             <div class="flex justify-end gap-3">
                 <a href="{{ route('admin.product-types.process-templates.index', $productType) }}" class="btn-touch btn-secondary">
-                    Cancel
+                    {{ __('Cancel') }}
                 </a>
                 <button type="submit" class="btn-touch btn-primary">
-                    Update Template
+                    {{ __('Update Template') }}
                 </button>
             </div>
         </form>

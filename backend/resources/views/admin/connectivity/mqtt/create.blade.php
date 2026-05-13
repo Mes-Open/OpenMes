@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'New MQTT Connection')
+@section('title', __('New MQTT Connection'))
 
 @section('content')
 <div class="p-6 max-w-2xl">
@@ -10,9 +10,9 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to MQTT Connections
+            {{ __('Back to MQTT Connections') }}
         </a>
-        <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">New MQTT Connection</h1>
+        <h1 class="mt-3 text-2xl font-bold text-gray-900 dark:text-white">{{ __('New MQTT Connection') }}</h1>
     </div>
 
     @if($errors->any())
@@ -33,12 +33,12 @@
         <div class="flex gap-3 pt-2">
             <button type="submit"
                     class="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
-                Create Connection
+                {{ __('Create Connection') }}
             </button>
             <a href="{{ route('admin.connectivity.mqtt.index') }}"
                class="px-5 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium
                       rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                Cancel
+                {{ __('Cancel') }}
             </a>
         </div>
     </form>

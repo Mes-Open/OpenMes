@@ -1,6 +1,6 @@
 @extends('layouts.auth')
 
-@section('title', 'Login')
+@section('title', __('Login'))
 
 @section('content')
 @php
@@ -24,12 +24,12 @@
         <button type="button" @click="tab = 'password'; loading = false"
                 class="flex-1 py-2 text-sm font-medium rounded-md transition-colors"
                 :class="tab === 'password' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
-            Password
+            {{ __('Password') }}
         </button>
         <button type="button" @click="tab = 'pin'; loading = false"
                 class="flex-1 py-2 text-sm font-medium rounded-md transition-colors"
                 :class="tab === 'pin' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
-            Quick PIN
+            {{ __('Quick PIN') }}
         </button>
     </div>
     @endif
@@ -100,7 +100,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Signing in...
+                {{ __('Signing in...') }}
             </span>
         </button>
     </form>
@@ -129,7 +129,7 @@
 
         <!-- PIN -->
         <div class="mb-6">
-            <label for="pin_input" class="form-label">PIN</label>
+            <label for="pin_input" class="form-label">{{ __('PIN') }}</label>
             <input
                 type="password"
                 id="pin_input"
@@ -146,7 +146,7 @@
             @error('pin')
                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
             @enderror
-            <p class="mt-1 text-xs text-gray-500">Enter your 4–6 digit PIN</p>
+            <p class="mt-1 text-xs text-gray-500">{{ __('Enter your 4–6 digit PIN') }}</p>
         </div>
 
         <!-- Submit Button -->
@@ -156,18 +156,18 @@
             :disabled="loading || !username || pin.length < 4"
             :class="{ 'opacity-50 cursor-not-allowed': loading || !username || pin.length < 4 }"
         >
-            <span x-show="!loading">{{ __('Sign In') }} with PIN</span>
+            <span x-show="!loading">{{ __('Sign In') }} {{ __('with PIN') }}</span>
             <span x-show="loading" class="flex items-center justify-center">
                 <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Signing in...
+                {{ __('Signing in...') }}
             </span>
         </button>
 
         <p class="mt-4 text-center text-xs text-gray-500">
-            No PIN yet? Log in with password first, then set your PIN in Settings.
+            {{ __('No PIN yet? Log in with password first, then set your PIN in Settings.') }}
         </p>
     </form>
     @endif
@@ -178,8 +178,8 @@
     @endphp
     @if($regEnabled)
     <p class="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-        Don't have an account?
-        <a href="{{ route('register') }}" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">Create account</a>
+        {{ __("Don't have an account?") }}
+        <a href="{{ route('register') }}" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">{{ __('Create account') }}</a>
     </p>
     @endif
 </div>
