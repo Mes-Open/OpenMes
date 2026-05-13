@@ -308,5 +308,12 @@
     "Install": "Instaluj",
     "Store": "Sklep",
     "soon": "wkrótce",
-    "Coming soon": "Wkrótce"
+    "Coming soon": "Wkrótce",
+    "Installed Modules": "Zainstalowane moduły",
+    "Enable and disable installed OpenMES extensions": "Włączaj i wyłączaj zainstalowane rozszerzenia",
+    "Install Module": "Instaluj moduł",
+    "Used hooks": "Użyte hooki",
+    "Disable": "Wyłącz",
+    "Enable": "Włącz",
+    "Uninstall": "Odinstaluj"
 }
