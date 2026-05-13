@@ -72,7 +72,7 @@
             @enderror
         </div>
 
-        <div class="mb-6">
+        <div class="mb-4">
             <label for="password_confirmation" class="form-label">Confirm Password</label>
             <input type="password" id="password_confirmation" name="password_confirmation"
                 x-model="password_confirmation"
@@ -81,6 +81,18 @@
             @error('password_confirmation')
                 <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
             @enderror
+        </div>
+
+        <div class="mb-6">
+            <label class="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" name="marketing_consent" value="1"
+                    {{ old('marketing_consent') ? 'checked' : '' }}
+                    class="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                <span class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                    I agree to receive product updates and marketing communications via email.
+                    <span class="text-gray-400 dark:text-gray-500">/ Wyrażam zgodę na kontakt w celach marketingowych drogą mailową.</span>
+                </span>
+            </label>
         </div>
 
         <button type="submit" class="w-full btn-touch btn-primary"
