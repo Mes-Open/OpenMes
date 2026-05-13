@@ -105,7 +105,7 @@
                             <span class="font-mono text-sm font-semibold text-blue-700">{{ $wo->order_no }}</span>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">{{ $wo->line?->name ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-orange-700 font-medium">{{ $wo->due_date->format('d M Y') }}</td>
+                        <td class="px-4 py-3 text-sm text-orange-700 font-medium">{{ $wo->due_date->translatedFormat('d M Y') }}</td>
                         <td class="px-4 py-3 text-sm text-red-600 font-semibold">{{ $wo->due_date->diffForHumans(null, false, false, 1, ['locale' => 'en']) }}</td>
                         <td class="px-4 py-3">
                             @php

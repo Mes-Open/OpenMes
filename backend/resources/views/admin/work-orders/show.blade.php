@@ -103,7 +103,7 @@
                         <div>
                             <p class="text-gray-500">{{ __('Due Date') }}</p>
                             <p class="font-medium {{ $workOrder->due_date->isPast() && $workOrder->status !== 'DONE' ? 'text-red-600' : 'text-gray-800' }}">
-                                {{ $workOrder->due_date->format('d M Y') }}
+                                {{ $workOrder->due_date->translatedFormat('d M Y') }}
                             </p>
                         </div>
                     @endif
@@ -176,8 +176,8 @@
                                     @endforeach
                                     @if($batch->started_at)
                                         <p class="text-xs text-gray-400 pt-1">
-                                            {{ __('Started:') }} {{ $batch->started_at->format('d M Y H:i') }}
-                                            @if($batch->completed_at) · {{ __('Completed:') }} {{ $batch->completed_at->format('d M Y H:i') }} @endif
+                                            {{ __('Started:') }} {{ $batch->started_at->translatedFormat('d M Y H:i') }}
+                                            @if($batch->completed_at) · {{ __('Completed:') }} {{ $batch->completed_at->translatedFormat('d M Y H:i') }} @endif
                                         </p>
                                     @endif
                                 </div>

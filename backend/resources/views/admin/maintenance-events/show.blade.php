@@ -13,7 +13,7 @@
     <div class="flex justify-between items-start mb-6">
         <div>
             <h1 class="text-3xl font-bold text-gray-800">{{ $event->title }}</h1>
-            <p class="text-gray-500 mt-1 text-sm">{{ __('Scheduled:') }} {{ $event->scheduled_at?->format('d M Y H:i') ?? '—' }}</p>
+            <p class="text-gray-500 mt-1 text-sm">{{ __('Scheduled:') }} {{ $event->scheduled_at?->translatedFormat('d M Y H:i') ?? '—' }}</p>
         </div>
         <a href="{{ route('admin.maintenance-events.index') }}" class="btn-touch btn-secondary">{{ __('← Back') }}</a>
     </div>
@@ -141,24 +141,24 @@
                 <ul class="space-y-2 text-sm">
                     <li class="flex gap-2 text-gray-600">
                         <span class="text-gray-400 shrink-0">{{ __('Created') }}</span>
-                        <span class="ml-auto">{{ $event->created_at->format('d M Y') }}</span>
+                        <span class="ml-auto">{{ $event->created_at->translatedFormat('d M Y') }}</span>
                     </li>
                     @if($event->started_at)
                         <li class="flex gap-2 text-gray-600">
                             <span class="text-gray-400 shrink-0">{{ __('Started') }}</span>
-                            <span class="ml-auto">{{ $event->started_at->format('d M Y H:i') }}</span>
+                            <span class="ml-auto">{{ $event->started_at->translatedFormat('d M Y H:i') }}</span>
                         </li>
                     @endif
                     @if($event->completed_at)
                         <li class="flex gap-2 text-green-700">
                             <span class="shrink-0">{{ __('Completed') }}</span>
-                            <span class="ml-auto">{{ $event->completed_at->format('d M Y H:i') }}</span>
+                            <span class="ml-auto">{{ $event->completed_at->translatedFormat('d M Y H:i') }}</span>
                         </li>
                     @endif
                     @if($event->cancelled_at)
                         <li class="flex gap-2 text-gray-400">
                             <span class="shrink-0">{{ __('Cancelled') }}</span>
-                            <span class="ml-auto">{{ $event->cancelled_at->format('d M Y H:i') }}</span>
+                            <span class="ml-auto">{{ $event->cancelled_at->translatedFormat('d M Y H:i') }}</span>
                         </li>
                     @endif
                 </ul>

@@ -9,7 +9,7 @@
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 class="text-3xl font-bold text-gray-800">{{ __('Admin Dashboard') }}</h1>
-            <p class="text-gray-500 mt-1 text-sm">{{ now()->format('d M Y, H:i') }}
+            <p class="text-gray-500 mt-1 text-sm">{{ now()->translatedFormat('d M Y, H:i') }}
                 @if($selectedLineId)
                     &mdash; <span class="font-medium text-blue-600">{{ $lines->find($selectedLineId)?->name }}</span>
                 @else

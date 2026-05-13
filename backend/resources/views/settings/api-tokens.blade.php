@@ -84,7 +84,7 @@
                             <p class="font-medium text-gray-800">{{ $token->name }}</p>
                             <p class="text-xs text-gray-500 mt-0.5">
                                 {{ __('Created by') }} {{ $token->tokenable->name ?? 'Unknown' }}
-                                &middot; {{ $token->created_at->format('d M Y, H:i') }}
+                                &middot; {{ $token->created_at->translatedFormat('d M Y, H:i') }}
                                 @if($token->last_used_at)
                                     &middot; {{ __('Last used') }} {{ $token->last_used_at->diffForHumans() }}
                                 @else

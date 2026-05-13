@@ -15,7 +15,7 @@
         <div>
             <h1 class="text-3xl font-bold text-gray-800">{{ __('Production Schedule') }}</h1>
             <p class="text-sm text-gray-500 mt-0.5">
-                {{ __('Week') }} {{ $weekStart->format('d M') }} – {{ $weekEnd->format('d M Y') }}
+                {{ __('Week') }} {{ $weekStart->translatedFormat('d M') }} – {{ $weekEnd->translatedFormat('d M Y') }}
                 @if($currentShift)
                     &nbsp;·&nbsp;
                     <span class="text-green-600 font-medium">

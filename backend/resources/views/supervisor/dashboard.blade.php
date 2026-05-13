@@ -166,7 +166,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $batch['product_type'] }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ number_format($batch['produced_qty'], 2) }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $batch['cycle_time_hours'] }} hrs</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ \Carbon\Carbon::parse($batch['completed_at'])->format('M d, H:i') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ \Carbon\Carbon::parse($batch['completed_at'])->translatedFormat('M d, H:i') }}</td>
                             </tr>
                         @endforeach
                     </tbody>

@@ -27,7 +27,7 @@
                 <td class="px-4 py-3 text-sm hidden sm:table-cell">
                     @if($wo->due_date)
                         <span class="{{ $isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600' }}">
-                            {{ $wo->due_date->format('d M') }}
+                            {{ $wo->due_date->translatedFormat('d M') }}
                             @if($isOverdue) ⚠ @endif
                         </span>
                     @else
