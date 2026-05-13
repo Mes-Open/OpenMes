@@ -308,5 +308,12 @@
     "Install": "Install",
     "Store": "Store",
     "soon": "soon",
-    "Coming soon": "Coming soon"
+    "Coming soon": "Coming soon",
+    "Installed Modules": "Installed Modules",
+    "Enable and disable installed OpenMES extensions": "Enable and disable installed OpenMES extensions",
+    "Install Module": "Install Module",
+    "Used hooks": "Used hooks",
+    "Disable": "Disable",
+    "Enable": "Enable",
+    "Uninstall": "Uninstall"
 }
