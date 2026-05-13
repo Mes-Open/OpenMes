@@ -716,16 +716,16 @@
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.modules.index') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.index') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Installed
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Installed') }}
                     </a>
                     <a href="{{ route('admin.modules.install') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.install') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Install
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Install') }}
                     </a>
-                    <span class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none" title="Coming soon">
+                    <span class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none" title="{{ __('Coming soon') }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>
-                        Store
-                        <span class="ml-auto text-[10px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">soon</span>
+                        {{ __('Store') }}
+                        <span class="ml-auto text-[10px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">{{ __('soon') }}</span>
                     </span>
                 </div>
             </div>
