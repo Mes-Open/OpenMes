@@ -289,5 +289,19 @@
     "New Password": "Nowe hasło",
     "Confirm New Password": "Potwierdź nowe hasło",
     "Minimum 8 characters": "Minimum 8 znaków",
-    "Re-enter your password": "Wpisz ponownie hasło"
+    "Re-enter your password": "Wpisz ponownie hasło",
+    "main": "główny",
+    "sidebar": "boczny",
+    "kpi": "kpi",
+    "Overall Equipment Effectiveness per line (A×P×Q)": "Ogólna efektywność sprzętu na linię (A×P×Q)",
+    "Overview": "Przegląd",
+    "MQTT": "MQTT",
+    "Update Check": "Sprawdź aktualizacje",
+    "Work Orders": "Zlecenia",
+    "Anomalies": "Anomalie",
+    "OEE": "OEE",
+    "Collapse": "Zwiń",
+    "Overdue Work Orders": "Zaległe zlecenia",
+    "Order": "Zlecenie",
+    "Overdue": "Zaległe"
 }
