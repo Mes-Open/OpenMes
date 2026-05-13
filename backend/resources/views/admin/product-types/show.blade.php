@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Product Type Details')
+@section('title', __('Product Type Details'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Product Types', 'url' => route('admin.product-types.index')],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Product Types'), 'url' => route('admin.product-types.index')],
     ['label' => $productType->name, 'url' => null],
 ]" />
 
@@ -15,15 +15,15 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Product Types
+            {{ __("Back") }}
         </a>
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <h1 class="text-3xl font-bold text-gray-800">{{ $productType->name }}</h1>
                 @if($productType->is_active)
-                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Active</span>
+                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">{{ __('Active') }}</span>
                 @else
-                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">Inactive</span>
+                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">{{ __('Inactive') }}</span>
                 @endif
             </div>
             <div class="flex gap-2">
@@ -31,7 +31,7 @@
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
-                    Edit Product Type
+                    {{ __('Edit Product Type') }}
                 </a>
                 <form method="POST" action="{{ route('admin.product-types.toggle-active', $productType) }}" class="inline">
                     @csrf
@@ -40,12 +40,12 @@
                             <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
                             </svg>
-                            Deactivate
+                            {{ __('Deactivate') }}
                         @else
                             <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            Activate
+                            {{ __('Activate') }}
                         @endif
                     </button>
                 </form>
@@ -56,7 +56,7 @@
             <p class="text-gray-600 mt-2">{{ $productType->description }}</p>
         @endif
         @if($productType->unit_of_measure)
-            <p class="text-sm text-gray-600 mt-1">Unit: <span class="font-medium">{{ $productType->unit_of_measure }}</span></p>
+            <p class="text-sm text-gray-600 mt-1">{{ __('Unit') }}: <span class="font-medium">{{ $productType->unit_of_measure }}</span></p>
         @endif
     </div>
 
@@ -65,7 +65,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Process Templates</p>
+                    <p class="text-sm text-gray-600">{{ __('Process Templates') }}</p>
                     <p class="text-3xl font-bold text-blue-600">{{ $productType->processTemplates->count() }}</p>
                 </div>
                 <div class="bg-blue-100 rounded-full p-3">
@@ -79,7 +79,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Work Orders</p>
+                    <p class="text-sm text-gray-600">{{ __('Work Orders') }}</p>
                     <p class="text-3xl font-bold text-purple-600">{{ $productType->workOrders->count() }}</p>
                 </div>
                 <div class="bg-purple-100 rounded-full p-3">
@@ -95,16 +95,16 @@
         <!-- Process Templates -->
         <div class="card">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Process Templates</h2>
+                <h2 class="text-xl font-bold text-gray-800">{{ __('Process Templates') }}</h2>
                 <div class="flex gap-2">
                     <a href="{{ route('admin.product-types.process-templates.index', $productType) }}" class="btn-touch btn-secondary text-sm">
-                        View All
+                        {{ __('View All') }}
                     </a>
                     <a href="{{ route('admin.product-types.process-templates.create', $productType) }}" class="btn-touch btn-primary text-sm">
                         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>
-                        Create
+                        {{ __('Create') }}
                     </a>
                 </div>
             </div>
@@ -118,12 +118,12 @@
                                     <div class="flex items-center gap-2 mb-1">
                                         <p class="font-medium text-gray-800">{{ $template->name }}</p>
                                         @if($template->is_active)
-                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Active</span>
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">{{ __('Active') }}</span>
                                         @else
-                                            <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Inactive</span>
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">{{ __('Inactive') }}</span>
                                         @endif
                                     </div>
-                                    <p class="text-xs text-gray-600">Version {{ $template->version }} • {{ $template->steps->count() }} steps</p>
+                                    <p class="text-xs text-gray-600">{{ __('Version') }} {{ $template->version }} &bull; {{ $template->steps->count() }} {{ __('steps') }}</p>
                                 </div>
                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -137,15 +137,15 @@
                     <svg class="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    <p class="text-gray-600 mb-2">No process templates yet</p>
-                    <p class="text-sm text-gray-500">Process templates define how this product is manufactured.</p>
+                    <p class="text-gray-600 mb-2">{{ __('No process templates yet') }}</p>
+                    <p class="text-sm text-gray-500">{{ __('Process templates define how this product is manufactured.') }}</p>
                 </div>
             @endif
         </div>
 
         <!-- Recent Work Orders -->
         <div class="card">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Work Orders</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">{{ __('Recent Work Orders') }}</h2>
 
             @if($recentWorkOrders->count() > 0)
                 <div class="space-y-2">
@@ -156,7 +156,7 @@
                                     <p class="font-medium text-gray-800">{{ $workOrder->work_order_number }}</p>
                                     <p class="text-sm text-gray-600">{{ $workOrder->product_name }}</p>
                                     <p class="text-xs text-gray-500 mt-1">
-                                        Quantity: {{ $workOrder->planned_qty }} | {{ $workOrder->created_at->format('Y-m-d H:i') }}
+                                        {{ __('Quantity') }}: {{ $workOrder->planned_qty }} | {{ $workOrder->created_at->format('Y-m-d H:i') }}
                                     </p>
                                 </div>
                                 <span class="px-2 py-1 text-xs font-medium rounded-full
@@ -174,7 +174,7 @@
                 </div>
                 @if($productType->workOrders->count() > 10)
                     <p class="text-sm text-gray-500 text-center mt-4">
-                        Showing 10 most recent of {{ $productType->workOrders->count() }} total work orders
+                        {{ __('Showing 10 most recent of :count total work orders', ['count' => $productType->workOrders->count()]) }}
                     </p>
                 @endif
             @else
@@ -182,7 +182,7 @@
                     <svg class="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                     </svg>
-                    <p class="text-gray-600">No work orders yet</p>
+                    <p class="text-gray-600">{{ __('No work orders yet') }}</p>
                 </div>
             @endif
         </div>
