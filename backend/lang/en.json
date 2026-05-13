@@ -303,5 +303,10 @@
     "Collapse": "Collapse",
     "Overdue Work Orders": "Overdue Work Orders",
     "Order": "Order",
-    "Overdue": "Overdue"
+    "Overdue": "Overdue",
+    "Installed": "Installed",
+    "Install": "Install",
+    "Store": "Store",
+    "soon": "soon",
+    "Coming soon": "Coming soon"
 }
