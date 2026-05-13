@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Change Password')
+@section('title', __('Change Password'))
 
 @section('content')
 <div class="max-w-2xl mx-auto">
@@ -9,9 +9,9 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Settings
+            {{ __('Back') }}
         </a>
-        <h1 class="text-3xl font-bold text-gray-800">Change Password</h1>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('Change Password') }}</h1>
     </div>
 
     <div class="card">
@@ -27,7 +27,7 @@
 
             <!-- Current Password -->
             <div class="mb-6">
-                <label for="current_password" class="form-label">Current Password</label>
+                <label for="current_password" class="form-label">{{ __('Current Password') }}</label>
                 <div class="relative">
                     <input
                         :type="showCurrent ? 'text' : 'password'"
@@ -59,7 +59,7 @@
 
             <!-- New Password -->
             <div class="mb-6">
-                <label for="password" class="form-label">New Password</label>
+                <label for="password" class="form-label">{{ __('New Password') }}</label>
                 <div class="relative">
                     <input
                         :type="showNew ? 'text' : 'password'"
@@ -85,7 +85,7 @@
                         </svg>
                     </button>
                 </div>
-                <p class="text-sm text-gray-500 mt-1">Minimum 8 characters</p>
+                <p class="text-sm text-gray-500 mt-1">{{ __('Minimum 8 characters') }}</p>
                 @error('password')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
@@ -93,7 +93,7 @@
 
             <!-- Confirm Password -->
             <div class="mb-6">
-                <label for="password_confirmation" class="form-label">Confirm New Password</label>
+                <label for="password_confirmation" class="form-label">{{ __('Confirm New Password') }}</label>
                 <div class="relative">
                     <input
                         :type="showConfirm ? 'text' : 'password'"
@@ -120,7 +120,7 @@
                     </button>
                 </div>
                 <p class="text-sm mt-1" :class="password && passwordConfirmation && password === passwordConfirmation ? 'text-green-600' : 'text-gray-500'">
-                    <span x-show="!passwordConfirmation">Re-enter your password</span>
+                    <span x-show="!passwordConfirmation">{{ __('Re-enter your password') }}</span>
                     <span x-show="passwordConfirmation && password !== passwordConfirmation" class="text-red-600">Passwords do not match</span>
                     <span x-show="password && passwordConfirmation && password === passwordConfirmation">✓ Passwords match</span>
                 </p>

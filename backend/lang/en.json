@@ -284,5 +284,10 @@
     "Revoke": "Revoke",
     "Created by": "Created by",
     "Last used": "Last used",
-    "No tokens created yet": "No tokens created yet"
+    "No tokens created yet": "No tokens created yet",
+    "Current Password": "Current Password",
+    "New Password": "New Password",
+    "Confirm New Password": "Confirm New Password",
+    "Minimum 8 characters": "Minimum 8 characters",
+    "Re-enter your password": "Re-enter your password"
 }
