@@ -137,7 +137,7 @@
                     :disabled="!currentPassword || !password || !passwordConfirmation || password !== passwordConfirmation"
                     :class="{ 'opacity-50 cursor-not-allowed': !currentPassword || !password || !passwordConfirmation || password !== passwordConfirmation }"
                 >
-                    Change Password
+                    {{ __("Change Password") }}
                 </button>
             </div>
         </form>
