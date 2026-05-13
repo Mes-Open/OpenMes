@@ -1,29 +1,29 @@
 @extends('layouts.app')
 
-@section('title', 'Map Material Columns')
+@section('title', __('Map Material Columns'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Materials', 'url' => route('admin.materials.index')],
-    ['label' => 'Import', 'url' => route('admin.materials.import')],
-    ['label' => 'Map Columns', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Materials'), 'url' => route('admin.materials.index')],
+    ['label' => __('Import'), 'url' => route('admin.materials.import')],
+    ['label' => __('Map Columns'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto">
 
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">Map Columns</h1>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ __('Map Columns') }}</h1>
             <p class="text-gray-600 dark:text-gray-400 mt-1">
-                Assign each column to a material field.
-                <span class="font-medium text-blue-700">{{ $totalRows }} rows</span> to import
+                {{ __('Assign each column to a material field.') }}
+                <span class="font-medium text-blue-700">{{ $totalRows }} {{ __('rows') }}</span> {{ __('to import') }}
                 @if($externalSystem)
-                    · Source: <span class="font-medium">{{ $externalSystem }}</span>
+                    · {{ __('Source') }}: <span class="font-medium">{{ $externalSystem }}</span>
                 @endif
             </p>
         </div>
-        <a href="{{ route('admin.materials.import') }}" class="btn-touch btn-secondary text-sm">Back</a>
+        <a href="{{ route('admin.materials.import') }}" class="btn-touch btn-secondary text-sm">{{ __('Back') }}</a>
     </div>
 
     <form method="POST" action="{{ route('admin.materials.import.process') }}" id="mapping-form">
@@ -38,13 +38,13 @@
             <div class="lg:col-span-2 space-y-4">
                 <div class="card">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Column Mapping</h2>
+                        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ __('Column Mapping') }}</h2>
                         <div class="flex items-center gap-2">
                             <button type="button" onclick="autoMap()"
-                                    class="text-xs text-blue-600 hover:text-blue-800 underline">Auto-detect</button>
+                                    class="text-xs text-blue-600 hover:text-blue-800 underline">{{ __('Auto-detect') }}</button>
                             <span class="text-gray-300">|</span>
                             <button type="button" onclick="clearAll()"
-                                    class="text-xs text-red-500 hover:text-red-700 underline">Clear all</button>
+                                    class="text-xs text-red-500 hover:text-red-700 underline">{{ __('Clear all') }}</button>
                         </div>
                     </div>
 
@@ -76,7 +76,7 @@
 
                 {{-- Data preview --}}
                 <div class="card">
-                    <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">Data Preview (first {{ count($previewRows) }} rows)</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">{{ __('Data Preview (first :count rows)', ['count' => count($previewRows)]) }}</h2>
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-sm">
                             <thead>
@@ -103,22 +103,22 @@
             {{-- Sidebar --}}
             <div class="lg:col-span-1 space-y-4">
                 <div class="card">
-                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">Required Fields</h3>
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">{{ __('Required Fields') }}</h3>
                     <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                        <li><span class="text-red-500">*</span> <strong>Name</strong> — material name</li>
-                        <li><span class="text-red-500">*</span> <strong>Code</strong> or <strong>External Code</strong> — for identification</li>
+                        <li><span class="text-red-500">*</span> <strong>{{ __('Name') }}</strong> — {{ __('material name') }}</li>
+                        <li><span class="text-red-500">*</span> <strong>{{ __('Code') }}</strong> {{ __('or') }} <strong>{{ __('External Code') }}</strong> — {{ __('for identification') }}</li>
                     </ul>
                 </div>
 
                 <div class="card">
-                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">Strategy</h3>
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">{{ __('Strategy') }}</h3>
                     <p class="text-sm text-gray-600 dark:text-gray-400">
                         @if($importStrategy === 'update_or_create')
-                            <strong>Create & Update</strong> — new materials will be created, existing ones updated with new data.
+                            <strong>{{ __('Create & Update') }}</strong> — {{ __('new materials will be created, existing ones updated with new data.') }}
                         @elseif($importStrategy === 'create_only')
-                            <strong>Create Only</strong> — existing materials will be skipped.
+                            <strong>{{ __('Create Only') }}</strong> — {{ __('existing materials will be skipped.') }}
                         @else
-                            <strong>Update Only</strong> — only existing materials will be updated, new ones skipped.
+                            <strong>{{ __('Update Only') }}</strong> — {{ __('only existing materials will be updated, new ones skipped.') }}
                         @endif
                     </p>
                 </div>
@@ -128,7 +128,7 @@
                         <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                         </svg>
-                        Import {{ $totalRows }} Materials
+                        {{ __('Import :count Materials', ['count' => $totalRows]) }}
                     </button>
                 </div>
             </div>

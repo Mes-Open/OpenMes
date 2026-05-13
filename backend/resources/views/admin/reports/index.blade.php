@@ -1,19 +1,19 @@
 @extends('layouts.app')
 
-@section('title', 'Production Reports')
+@section('title', __('Production Reports'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Reports', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Reports'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto" x-data>
 
     {{-- Page header --}}
     <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Production Reports</h1>
-        <p class="text-gray-600 mt-1">Overview of production performance for the selected period.</p>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('Production Reports') }}</h1>
+        <p class="text-gray-600 mt-1">{{ __('Overview of production performance for the selected period.') }}</p>
     </div>
 
     {{-- Filter form --}}
@@ -23,17 +23,17 @@
 
                 {{-- Period type --}}
                 <div>
-                    <label for="period" class="form-label">Period Type</label>
+                    <label for="period" class="form-label">{{ __('Period Type') }}</label>
                     <select id="period" name="period" class="form-input"
                             onchange="document.getElementById('report-filters').submit()">
-                        <option value="monthly" {{ $period === 'monthly' ? 'selected' : '' }}>Monthly</option>
-                        <option value="weekly"  {{ $period === 'weekly'  ? 'selected' : '' }}>Weekly</option>
+                        <option value="monthly" {{ $period === 'monthly' ? 'selected' : '' }}>{{ __('Monthly') }}</option>
+                        <option value="weekly"  {{ $period === 'weekly'  ? 'selected' : '' }}>{{ __('Weekly') }}</option>
                     </select>
                 </div>
 
                 {{-- Year --}}
                 <div>
-                    <label for="year" class="form-label">Year</label>
+                    <label for="year" class="form-label">{{ __('Year') }}</label>
                     <select id="year" name="year" class="form-input"
                             onchange="document.getElementById('report-filters').submit()">
                         @foreach($availableYears as $y)
@@ -45,7 +45,7 @@
                 {{-- Month (visible only for monthly) --}}
                 @if($period === 'monthly')
                 <div>
-                    <label for="month" class="form-label">Month</label>
+                    <label for="month" class="form-label">{{ __('Month') }}</label>
                     <select id="month" name="month" class="form-input"
                             onchange="document.getElementById('report-filters').submit()">
                         @foreach(range(1, 12) as $m)
@@ -60,12 +60,12 @@
                 {{-- Week (visible only for weekly) --}}
                 @if($period === 'weekly')
                 <div>
-                    <label for="week" class="form-label">Week</label>
+                    <label for="week" class="form-label">{{ __('Week') }}</label>
                     <select id="week" name="week" class="form-input"
                             onchange="document.getElementById('report-filters').submit()">
                         @foreach(range(1, 53) as $w)
                             <option value="{{ $w }}" {{ $week == $w ? 'selected' : '' }}>
-                                Week {{ $w }}
+                                {{ __('Week') }} {{ $w }}
                             </option>
                         @endforeach
                     </select>
@@ -74,10 +74,10 @@
 
                 {{-- Line --}}
                 <div>
-                    <label for="line_id" class="form-label">Line</label>
+                    <label for="line_id" class="form-label">{{ __('Line') }}</label>
                     <select id="line_id" name="line_id" class="form-input"
                             onchange="document.getElementById('report-filters').submit()">
-                        <option value="">All Lines</option>
+                        <option value="">{{ __('All Lines') }}</option>
                         @foreach($lines as $line)
                             <option value="{{ $line->id }}" {{ $lineId == $line->id ? 'selected' : '' }}>
                                 {{ $line->name }}
@@ -88,7 +88,7 @@
 
                 {{-- Submit (fallback for no-JS) --}}
                 <div>
-                    <button type="submit" class="btn-touch btn-primary text-sm">Apply</button>
+                    <button type="submit" class="btn-touch btn-primary text-sm">{{ __('Apply') }}</button>
                 </div>
 
                 {{-- Period label badge --}}
@@ -97,7 +97,7 @@
                         @if($period === 'monthly')
                             {{ date('F', mktime(0, 0, 0, $month, 1)) }} {{ $year }}
                         @else
-                            Week {{ $week }}, {{ $year }}
+                            {{ __('Week') }} {{ $week }}, {{ $year }}
                         @endif
                     </span>
                 </div>
@@ -111,7 +111,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Total Work Orders</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Total Work Orders') }}</p>
                     <p class="text-3xl font-bold text-gray-800">{{ $totalWorkOrders }}</p>
                 </div>
                 <div class="bg-gray-100 rounded-full p-3 shrink-0">
@@ -126,7 +126,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Completed</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Completed') }}</p>
                     <p class="text-3xl font-bold text-green-600">{{ $completedWorkOrders }}</p>
                 </div>
                 <div class="bg-green-100 rounded-full p-3 shrink-0">
@@ -141,7 +141,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Completion Rate</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Completion Rate') }}</p>
                     <p class="text-3xl font-bold {{ $completionRate >= 80 ? 'text-green-600' : ($completionRate >= 50 ? 'text-yellow-600' : 'text-red-600') }}">
                         {{ $completionRate }}%
                     </p>
@@ -160,7 +160,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Total Produced Qty</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Total Produced Qty') }}</p>
                     <p class="text-3xl font-bold text-indigo-600">{{ number_format((float) $totalProducedQty, 0) }}</p>
                 </div>
                 <div class="bg-indigo-100 rounded-full p-3 shrink-0">
@@ -175,7 +175,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Avg Cycle Time</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Avg Cycle Time') }}</p>
                     @if($avgCycleTime !== null)
                         <p class="text-3xl font-bold text-purple-600">{{ $avgCycleTime }}<span class="text-base font-normal text-gray-500 ml-1">min</span></p>
                     @else
@@ -198,17 +198,17 @@
 
         {{-- Production by line --}}
         <div class="card lg:col-span-2">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Production by Line</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ __('Production by Line') }}</h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-200">
-                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Line</th>
-                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Planned Qty</th>
-                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Produced Qty</th>
-                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Work Orders</th>
-                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Completed</th>
-                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Completion %</th>
+                            <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Line') }}</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Planned Qty') }}</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Produced Qty') }}</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Work Orders') }}</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Completed') }}</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Completion %') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -229,7 +229,7 @@
                         @empty
                             <tr>
                                 <td colspan="6" class="py-10 text-center text-gray-400">
-                                    No data for the selected period.
+                                    {{ __('No data for the selected period.') }}
                                 </td>
                             </tr>
                         @endforelse
@@ -244,14 +244,14 @@
 
         {{-- Work orders by status --}}
         <div class="card">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Work Orders by Status</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ __('Work Orders by Status') }}</h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-200">
-                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Count</th>
-                            <th class="text-right py-3 px-4 font-semibold text-gray-700">% of Total</th>
+                            <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Status') }}</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Count') }}</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('% of Total') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -277,7 +277,7 @@
                         @empty
                             <tr>
                                 <td colspan="3" class="py-10 text-center text-gray-400">
-                                    No data for the selected period.
+                                    {{ __('No data for the selected period.') }}
                                 </td>
                             </tr>
                         @endforelse
@@ -288,13 +288,13 @@
 
         {{-- Top 5 issues by type --}}
         <div class="card">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Top 5 Issues by Type</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ __('Top 5 Issues by Type') }}</h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-200">
-                            <th class="text-left py-3 px-4 font-semibold text-gray-700">Issue Type</th>
-                            <th class="text-right py-3 px-4 font-semibold text-gray-700">Count</th>
+                            <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Issue Type') }}</th>
+                            <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Count') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -310,7 +310,7 @@
                         @empty
                             <tr>
                                 <td colspan="2" class="py-10 text-center text-gray-400">
-                                    No issues reported for the selected period.
+                                    {{ __('No issues reported for the selected period.') }}
                                 </td>
                             </tr>
                         @endforelse

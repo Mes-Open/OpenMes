@@ -50,13 +50,13 @@
                 @csrf @method('PUT')
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <label class="block text-xs text-gray-500 mb-0.5">Field path</label>
+                        <label class="block text-xs text-gray-500 mb-0.5">{{ __('Field path') }}</label>
                         <input type="text" name="field_path" value="{{ $mapping->field_path }}"
                                class="w-full px-2 py-1 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded
                                       bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 mb-0.5">Action type</label>
+                        <label class="block text-xs text-gray-500 mb-0.5">{{ __('Action type') }}</label>
                         <select name="action_type"
                                 class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded
                                        bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">
@@ -66,33 +66,33 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 mb-0.5">Condition</label>
+                        <label class="block text-xs text-gray-500 mb-0.5">{{ __('Condition') }}</label>
                         <input type="text" name="condition_expr" value="{{ $mapping->condition_expr }}"
                                class="w-full px-2 py-1 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded
                                       bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-500 mb-0.5">Priority</label>
+                        <label class="block text-xs text-gray-500 mb-0.5">{{ __('Priority') }}</label>
                         <input type="number" name="priority" value="{{ $mapping->priority }}" min="1" max="9999"
                                class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded
                                       bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-0.5">Action params (JSON)</label>
+                    <label class="block text-xs text-gray-500 mb-0.5">{{ __('Action params (JSON)') }}</label>
                     <textarea name="action_params" rows="2"
                               class="w-full px-2 py-1 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded
                                      bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">{{ $mapping->action_params ? json_encode($mapping->action_params, JSON_PRETTY_PRINT) : '' }}</textarea>
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-0.5">Description</label>
+                    <label class="block text-xs text-gray-500 mb-0.5">{{ __('Description') }}</label>
                     <input type="text" name="description" value="{{ $mapping->description }}"
                            class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded
                                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">
                 </div>
                 <div class="flex gap-2">
-                    <button type="submit" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">Save</button>
-                    <button type="button" @click="editMapping = false" class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-200 transition-colors">Cancel</button>
+                    <button type="submit" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors">{{ __('Save') }}</button>
+                    <button type="button" @click="editMapping = false" class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-200 transition-colors">{{ __('Cancel') }}</button>
                 </div>
             </form>
         </div>
@@ -106,7 +106,7 @@
             </svg>
         </button>
         <form method="POST" action="{{ route('admin.connectivity.mqtt.topics.mappings.destroy', [$connection, $topic, $mapping]) }}"
-              onsubmit="return confirm('Delete this mapping?')">
+              onsubmit="return confirm('{{ __('Delete this mapping?') }}')">
             @csrf @method('DELETE')
             <button type="submit" class="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

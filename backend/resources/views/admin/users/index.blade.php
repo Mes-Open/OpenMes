@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'User Management')
+@section('title', __('User Management'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Users', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Users'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">User Management</h1>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('User Management') }}</h1>
         <a href="{{ route('admin.users.create') }}" class="btn-touch btn-primary">
             <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
-            Add User
+            {{ __('Add User') }}
         </a>
     </div>
 
@@ -25,11 +25,11 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('User') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Email') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Role') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Created') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -46,11 +46,11 @@
                                         <div class="text-sm font-medium text-gray-900">{{ $user->name }}</div>
                                         <div class="text-xs text-gray-500">{{ $user->username }}
                                             @if($user->account_type === 'workstation')
-                                                · <span class="text-orange-600">Workstation</span>
+                                                · <span class="text-orange-600">{{ __('Workstation') }}</span>
                                             @endif
                                         </div>
                                         @if($user->force_password_change)
-                                            <div class="text-xs text-orange-600">Must change password</div>
+                                            <div class="text-xs text-orange-600">{{ __('Must change password') }}</div>
                                         @endif
                                     </div>
                                 </div>
@@ -69,7 +69,7 @@
                                     $colorClass = $roleColors[$role?->name] ?? 'bg-gray-100 text-gray-800';
                                 @endphp
                                 <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $colorClass }}">
-                                    {{ $role?->name ?? 'No Role' }}
+                                    {{ $role?->name ?? __('No Role') }}
                                 </span>
                             </td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -83,7 +83,7 @@
                                         </svg>
                                     </a>
                                     @if($user->id !== auth()->id())
-                                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirm('{{ __('Are you sure you want to delete this user?') }}');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-red-600 hover:text-red-900" title="Delete">
@@ -93,7 +93,7 @@
                                             </button>
                                         </form>
                                     @else
-                                        <span class="text-gray-400" title="Cannot delete yourself">
+                                        <span class="text-gray-400" title="{{ __('Cannot delete yourself') }}">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
                                             </svg>
@@ -108,8 +108,8 @@
                                 <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                                 </svg>
-                                <p class="text-lg font-medium">No users found</p>
-                                <p class="text-sm mt-1">Get started by adding your first user.</p>
+                                <p class="text-lg font-medium">{{ __('No users found') }}</p>
+                                <p class="text-sm mt-1">{{ __('Get started by adding your first user.') }}</p>
                             </td>
                         </tr>
                     @endforelse
@@ -123,7 +123,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Total Users</p>
+                    <p class="text-sm text-gray-600">{{ __('Total Users') }}</p>
                     <p class="text-2xl font-bold text-gray-900">{{ $users->count() }}</p>
                 </div>
                 <div class="bg-blue-100 rounded-full p-3">
@@ -137,7 +137,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Admins</p>
+                    <p class="text-sm text-gray-600">{{ __('Admins') }}</p>
                     <p class="text-2xl font-bold text-gray-900">{{ $users->filter(fn($u) => $u->hasRole('Admin'))->count() }}</p>
                 </div>
                 <div class="bg-purple-100 rounded-full p-3">
@@ -151,7 +151,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Operators</p>
+                    <p class="text-sm text-gray-600">{{ __('Operators') }}</p>
                     <p class="text-2xl font-bold text-gray-900">{{ $users->filter(fn($u) => $u->hasRole('Operator'))->count() }}</p>
                 </div>
                 <div class="bg-green-100 rounded-full p-3">

@@ -1,15 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'BOM - ' . $processTemplate->name)
+@section('title', __('BOM') . ' - ' . $processTemplate->name)
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Product Types', 'url' => route('admin.product-types.index')],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Product Types'), 'url' => route('admin.product-types.index')],
     ['label' => $productType->name, 'url' => route('admin.product-types.show', $productType)],
-    ['label' => 'Process Templates', 'url' => route('admin.product-types.process-templates.index', $productType)],
+    ['label' => __('Process Templates'), 'url' => route('admin.product-types.process-templates.index', $productType)],
     ['label' => $processTemplate->name, 'url' => route('admin.product-types.process-templates.show', [$productType, $processTemplate])],
-    ['label' => 'Bill of Materials', 'url' => null],
+    ['label' => __('Bill of Materials'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto" x-data="{ showAddForm: false }">
@@ -18,32 +18,32 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Template
+            {{ __('Back to Template') }}
         </a>
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-3xl font-bold text-gray-800">Bill of Materials</h1>
+                <h1 class="text-3xl font-bold text-gray-800">{{ __('Bill of Materials') }}</h1>
                 <p class="text-sm text-gray-600 mt-1">{{ $processTemplate->name }} (v{{ $processTemplate->version }}) &bull; {{ $productType->name }}</p>
             </div>
             <button @click="showAddForm = !showAddForm" class="btn-touch btn-primary">
                 <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Add Material
+                {{ __('Add Material') }}
             </button>
         </div>
     </div>
 
     <!-- Add Material Form -->
     <div x-show="showAddForm" x-cloak class="card mb-6 border-l-4 border-blue-500">
-        <h3 class="text-lg font-semibold mb-4">Add Material to BOM</h3>
+        <h3 class="text-lg font-semibold mb-4">{{ __('Add Material to BOM') }}</h3>
         <form method="POST" action="{{ route('admin.product-types.process-templates.bom.store', [$productType, $processTemplate]) }}">
             @csrf
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Material <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Material') }} <span class="text-red-500">*</span></label>
                     <select name="material_id" required class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('material_id') border-red-500 @enderror">
-                        <option value="">Select material...</option>
+                        <option value="">{{ __('Select material...') }}</option>
                         @foreach($materials as $material)
                             <option value="{{ $material->id }}" {{ old('material_id') == $material->id ? 'selected' : '' }}>
                                 {{ $material->code }} - {{ $material->name }} ({{ $material->materialType->name }})
@@ -53,15 +53,15 @@
                     @error('material_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantity per Unit <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Quantity per Unit') }} <span class="text-red-500">*</span></label>
                     <input type="number" name="quantity_per_unit" step="0.0001" min="0.0001" required
                         value="{{ old('quantity_per_unit') }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition @error('quantity_per_unit') border-red-500 @enderror">
                     @error('quantity_per_unit') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Step (optional)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Step (optional)') }}</label>
                     <select name="template_step_id" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
-                        <option value="">All steps / general</option>
+                        <option value="">{{ __('All steps / general') }}</option>
                         @foreach($steps as $step)
                             <option value="{{ $step->id }}" {{ old('template_step_id') == $step->id ? 'selected' : '' }}>
                                 #{{ $step->step_number }} - {{ $step->name }}
@@ -70,26 +70,26 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Scrap %</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Scrap %') }}</label>
                     <input type="number" name="scrap_percentage" step="0.01" min="0" max="100"
                         value="{{ old('scrap_percentage', 0) }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Consumed At</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Consumed At') }}</label>
                     <select name="consumed_at" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition">
-                        <option value="start" {{ old('consumed_at') === 'start' ? 'selected' : '' }}>Start of step</option>
-                        <option value="during" {{ old('consumed_at') === 'during' ? 'selected' : '' }}>During step</option>
-                        <option value="end" {{ old('consumed_at') === 'end' ? 'selected' : '' }}>End of step</option>
+                        <option value="start" {{ old('consumed_at') === 'start' ? 'selected' : '' }}>{{ __('Start of step') }}</option>
+                        <option value="during" {{ old('consumed_at') === 'during' ? 'selected' : '' }}>{{ __('During step') }}</option>
+                        <option value="end" {{ old('consumed_at') === 'end' ? 'selected' : '' }}>{{ __('End of step') }}</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <input type="text" name="notes" value="{{ old('notes') }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" placeholder="Optional notes">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('Notes') }}</label>
+                    <input type="text" name="notes" value="{{ old('notes') }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition" placeholder="{{ __('Optional notes') }}">
                 </div>
             </div>
             <div class="flex justify-end gap-3 mt-4">
-                <button type="button" @click="showAddForm = false" class="btn-touch btn-secondary">Cancel</button>
-                <button type="submit" class="btn-touch btn-primary">Add to BOM</button>
+                <button type="button" @click="showAddForm = false" class="btn-touch btn-secondary">{{ __('Cancel') }}</button>
+                <button type="submit" class="btn-touch btn-primary">{{ __('Add to BOM') }}</button>
             </div>
         </form>
     </div>
@@ -100,14 +100,14 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Step</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qty/Unit</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Scrap %</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Consumed</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tracking</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Material') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Type') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Step') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Qty/Unit') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Scrap %') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Consumed') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Tracking') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -131,7 +131,7 @@
                                 @if($item->templateStep)
                                     #{{ $item->templateStep->step_number }} {{ $item->templateStep->name }}
                                 @else
-                                    <span class="text-gray-400">General</span>
+                                    <span class="text-gray-400">{{ __('General') }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-right font-mono">{{ $item->quantity_per_unit }} {{ $item->material->unit_of_measure }}</td>
@@ -140,10 +140,10 @@
                             <td class="px-4 py-3 text-sm text-gray-600">{{ ucfirst($item->material->tracking_type) }}</td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <form method="POST" action="{{ route('admin.product-types.process-templates.bom.destroy', [$productType, $processTemplate, $item]) }}" onsubmit="return confirm('Remove this material from BOM?')">
+                                    <form method="POST" action="{{ route('admin.product-types.process-templates.bom.destroy', [$productType, $processTemplate, $item]) }}" onsubmit="return confirm('{{ __('Remove this material from BOM?') }}')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Remove</button>
+                                        <button type="submit" class="text-red-600 hover:text-red-800 text-sm">{{ __('Remove') }}</button>
                                     </form>
                                 </div>
                             </td>
@@ -154,8 +154,8 @@
         </div>
     @else
         <div class="card text-center py-12">
-            <p class="text-gray-500 text-lg mb-4">No materials in BOM yet.</p>
-            <button @click="showAddForm = true" class="btn-touch btn-primary">Add First Material</button>
+            <p class="text-gray-500 text-lg mb-4">{{ __('No materials in BOM yet.') }}</p>
+            <button @click="showAddForm = true" class="btn-touch btn-primary">{{ __('Add First Material') }}</button>
         </div>
     @endif
 </div>

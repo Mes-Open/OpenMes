@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Work Orders — Supervisor')
+@section('title', __('Work Orders') . ' — ' . __('Supervisor'))
 
 @section('content')
 <div class="max-w-7xl mx-auto">
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Work Orders</h1>
-            <p class="text-gray-600 mt-1">{{ $workOrders->total() }} orders total</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Work Orders') }}</h1>
+            <p class="text-gray-600 mt-1">{{ $workOrders->total() }} {{ __('orders total') }}</p>
         </div>
     </div>
 
@@ -15,22 +15,22 @@
     <form method="GET" action="{{ route('supervisor.work-orders.index') }}" class="card mb-6">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-                <label class="form-label">Search order #</label>
+                <label class="form-label">{{ __('Search order #') }}</label>
                 <input type="text" name="search" value="{{ request('search') }}" class="form-input w-full" placeholder="Order number…">
             </div>
             <div>
-                <label class="form-label">Status</label>
+                <label class="form-label">{{ __('Status') }}</label>
                 <select name="status" class="form-input w-full">
-                    <option value="">All statuses</option>
+                    <option value="">{{ __('All statuses') }}</option>
                     @foreach(['PENDING','ACCEPTED','IN_PROGRESS','PAUSED','BLOCKED','DONE','REJECTED','CANCELLED'] as $s)
                         <option value="{{ $s }}" @selected(request('status') === $s)>{{ str_replace('_', ' ', $s) }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label class="form-label">Line</label>
+                <label class="form-label">{{ __('Line') }}</label>
                 <select name="line_id" class="form-input w-full">
-                    <option value="">All lines</option>
+                    <option value="">{{ __('All lines') }}</option>
                     @foreach($lines as $line)
                         <option value="{{ $line->id }}" @selected(request('line_id') == $line->id)>{{ $line->name }}</option>
                     @endforeach
@@ -38,8 +38,8 @@
             </div>
         </div>
         <div class="flex gap-2 mt-4">
-            <button type="submit" class="btn-touch btn-primary text-sm">Filter</button>
-            <a href="{{ route('supervisor.work-orders.index') }}" class="btn-touch btn-secondary text-sm">Clear</a>
+            <button type="submit" class="btn-touch btn-primary text-sm">{{ __('Filter') }}</button>
+            <a href="{{ route('supervisor.work-orders.index') }}" class="btn-touch btn-secondary text-sm">{{ __('Clear') }}</a>
         </div>
     </form>
 
@@ -49,13 +49,13 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order #</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Order #') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Line') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product Type') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Status') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Progress') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Due Date') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
@@ -111,7 +111,7 @@
                                     {{-- Reject --}}
                                     @if(in_array($wo->status, ['PENDING', 'ACCEPTED']))
                                         <form method="POST" action="{{ route('supervisor.work-orders.reject', $wo) }}"
-                                              onsubmit="return confirm('Reject work order {{ $wo->order_no }}?')">@csrf
+                                              onsubmit="return confirm('{{ __('Reject work order') }} {{ $wo->order_no }}?')">@csrf
                                             <button type="submit" data-tip="Reject"
                                                     class="inline-flex items-center justify-center w-8 h-8 rounded-md text-red-500 hover:bg-red-50 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -142,7 +142,7 @@
                     @empty
                         <tr>
                             <td colspan="7" class="px-4 py-10 text-center text-gray-400">
-                                No work orders found.
+                                {{ __('No work orders found.') }}
                             </td>
                         </tr>
                     @endforelse

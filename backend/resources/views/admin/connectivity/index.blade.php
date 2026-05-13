@@ -1,10 +1,10 @@
 @extends('layouts.app')
-@section('title', 'Machine Connectivity')
+@section('title', __('Machine Connectivity'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Machine Connectivity', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Machine Connectivity'), 'url' => null],
 ]" />
 
 <div class="p-6 space-y-6">
@@ -12,9 +12,9 @@
     {{-- Header --}}
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Machine Connectivity</h1>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ __('Machine Connectivity') }}</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Overview of all machine communication channels.
+                {{ __('Overview of all machine communication channels.') }}
             </p>
         </div>
         <a href="{{ route('admin.connectivity.mqtt.create') }}"
@@ -23,7 +23,7 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
-            New Connection
+            {{ __('New Connection') }}
         </a>
     </div>
 
@@ -31,7 +31,7 @@
     <div class="flex gap-2 border-b border-gray-200 dark:border-gray-700">
         <a href="{{ route('admin.connectivity.index') }}"
            class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600 dark:text-blue-400">
-            All ({{ $connections->count() }})
+            {{ __('All') }} ({{ $connections->count() }})
         </a>
         <a href="{{ route('admin.connectivity.mqtt.index') }}"
            class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400
@@ -46,9 +46,9 @@
             <svg class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
             </svg>
-            <p class="text-sm">No connections defined yet.</p>
+            <p class="text-sm">{{ __('No connections defined yet.') }}</p>
             <a href="{{ route('admin.connectivity.mqtt.create') }}" class="mt-2 inline-block text-blue-500 hover:underline text-sm">
-                Create your first MQTT connection →
+                {{ __('Create your first MQTT connection') }} →
             </a>
         </div>
     @else
@@ -89,13 +89,13 @@
                     @endif
 
                     <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <span>{{ $conn->topics_count }} topic{{ $conn->topics_count !== 1 ? 's' : '' }}</span>
+                        <span>{{ $conn->topics_count }} {{ trans_choice('topic|topics', $conn->topics_count) }}</span>
                         <span>{{ number_format($conn->messages_received) }} msg</span>
                     </div>
 
                     @if($conn->last_connected_at)
                         <p class="text-xs text-gray-400 dark:text-gray-500">
-                            Last connected: {{ $conn->last_connected_at->diffForHumans() }}
+                            {{ __('Last connected') }}: {{ $conn->last_connected_at->diffForHumans() }}
                         </p>
                     @endif
 
@@ -104,12 +104,12 @@
                             <a href="{{ route('admin.connectivity.mqtt.show', $conn) }}"
                                class="flex-1 text-center text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30
                                       text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-100 transition-colors font-medium">
-                                View
+                                {{ __('View') }}
                             </a>
                             <a href="{{ route('admin.connectivity.mqtt.edit', $conn) }}"
                                class="flex-1 text-center text-xs px-3 py-1.5 bg-gray-50 dark:bg-gray-700
                                       text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 transition-colors font-medium">
-                                Edit
+                                {{ __('Edit') }}
                             </a>
                         @endif
                         <form method="POST" action="{{ route('admin.connectivity.mqtt.toggle-active', $conn) }}">
@@ -119,7 +119,7 @@
                                            {{ $conn->is_active
                                                ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100'
                                                : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100' }}">
-                                {{ $conn->is_active ? 'Disable' : 'Enable' }}
+                                {{ $conn->is_active ? __('Disable') : __('Enable') }}
                             </button>
                         </form>
                     </div>

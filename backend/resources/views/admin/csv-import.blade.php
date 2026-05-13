@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'CSV Import')
+@section('title', __('CSV Import'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'CSV Import', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('CSV Import'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Import</h1>
-            <p class="text-gray-600 mt-1">Import work orders from a CSV, XLS or XLSX file with custom column mapping</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Import') }}</h1>
+            <p class="text-gray-600 mt-1">{{ __('Import work orders from a CSV, XLS or XLSX file with custom column mapping') }}</p>
         </div>
     </div>
 
@@ -33,17 +33,17 @@
                     @endif
                 </div>
                 <div class="flex-1">
-                    <p class="font-bold text-gray-800 mb-1">Import {{ $result['failed'] === 0 ? 'Completed' : 'Completed with errors' }}</p>
+                    <p class="font-bold text-gray-800 mb-1">{{ $result['failed'] === 0 ? __('Import Completed') : __('Import Completed with errors') }}</p>
                     <div class="flex gap-6 text-sm">
-                        <span class="text-green-700 font-medium">✓ {{ $result['success'] }} imported</span>
+                        <span class="text-green-700 font-medium">✓ {{ $result['success'] }} {{ __('imported') }}</span>
                         @if($result['failed'] > 0)
-                            <span class="text-red-700 font-medium">✗ {{ $result['failed'] }} failed</span>
+                            <span class="text-red-700 font-medium">✗ {{ $result['failed'] }} {{ __('failed') }}</span>
                         @endif
-                        <span class="text-gray-600">{{ $result['total'] }} total rows</span>
+                        <span class="text-gray-600">{{ $result['total'] }} {{ __('total rows') }}</span>
                     </div>
                     @if(!empty($result['errors']))
                         <details class="mt-3">
-                            <summary class="text-sm text-red-600 cursor-pointer">Show errors ({{ count($result['errors']) }})</summary>
+                            <summary class="text-sm text-red-600 cursor-pointer">{{ __('Show errors') }} ({{ count($result['errors']) }})</summary>
                             <ul class="mt-2 text-xs text-red-700 space-y-1 bg-red-50 rounded p-3">
                                 @foreach($result['errors'] as $err)
                                     <li>{{ $err }}</li>
@@ -60,7 +60,7 @@
 
         {{-- Upload Form --}}
         <div class="lg:col-span-2 card">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Upload File</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">{{ __('Upload File') }}</h2>
             <form method="POST" action="{{ route('admin.csv-import.upload') }}" enctype="multipart/form-data"
                   x-data="{ dragging: false, filename: '' }">
                 @csrf
@@ -77,10 +77,10 @@
                     <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <p class="text-gray-600 font-medium">Drop file here or <span class="text-blue-600">browse</span></p>
-                        <p class="text-sm text-gray-400 mt-1">Max 32 MB · .csv, .txt, .xlsx, .xls</p>
+                    <p class="text-gray-600 font-medium">{{ __('Drop file here or') }} <span class="text-blue-600">{{ __('browse') }}</span></p>
+                        <p class="text-sm text-gray-400 mt-1">{{ __('Max 32 MB') }} · .csv, .txt, .xlsx, .xls</p>
                     <div class="mt-3 flex items-center justify-center gap-3 text-xs">
-                        <span class="text-gray-400">Sample files:</span>
+                        <span class="text-gray-400">{{ __('Sample files') }}:</span>
                         <a href="/samples/zlecenia-import.xlsx"
                            download
                            class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium hover:underline"
@@ -117,18 +117,18 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label class="form-label">Duplicate Strategy</label>
+                        <label class="form-label">{{ __('Duplicate Strategy') }}</label>
                         <select name="import_strategy" class="form-input w-full" required>
-                            <option value="update_or_create">Update if exists, create if new</option>
-                            <option value="skip_existing">Skip existing records</option>
-                            <option value="error_on_duplicate">Error on duplicates</option>
+                            <option value="update_or_create">{{ __('Update if exists, create if new') }}</option>
+                            <option value="skip_existing">{{ __('Skip existing records') }}</option>
+                            <option value="error_on_duplicate">{{ __('Error on duplicates') }}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label class="form-label">Load Mapping Profile (optional)</label>
+                        <label class="form-label">{{ __('Load Mapping Profile (optional)') }}</label>
                         <select name="mapping_id" class="form-input w-full">
-                            <option value="">— Map columns manually —</option>
+                            <option value="">— {{ __('Map columns manually') }} —</option>
                             @foreach($savedMappings as $m)
                                 <option value="{{ $m->id }}">{{ $m->name }}{{ $m->is_default ? ' (default)' : '' }}</option>
                             @endforeach
@@ -138,43 +138,43 @@
 
                 {{-- Target line --}}
                 <div class="mb-4">
-                    <label class="form-label">Assign all rows to Production Line (optional)</label>
+                    <label class="form-label">{{ __('Assign all rows to Production Line (optional)') }}</label>
                     <select name="target_line_id" class="form-input w-full">
-                        <option value="">— Use line_code column from file —</option>
+                        <option value="">— {{ __('Use line_code column from file') }} —</option>
                         @foreach($lines as $line)
                             <option value="{{ $line->id }}">{{ $line->name }}</option>
                         @endforeach
                     </select>
-                    <p class="text-xs text-gray-400 mt-1">If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ __('If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.') }}</p>
                 </div>
 
                 {{-- Planning period fields --}}
                 @if($productionPeriod !== 'none')
                     <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
-                            Planning Period
+                            {{ __('Planning Period') }}
                             <span class="font-normal normal-case">
-                                — system is configured for <strong>{{ $productionPeriod }}</strong> production split
+                                — {{ __('system is configured for') }} <strong>{{ $productionPeriod }}</strong> {{ __('production split') }}
                             </span>
                         </p>
                         <div class="grid grid-cols-2 gap-3">
                             @if($productionPeriod === 'weekly')
                                 <div>
-                                    <label class="form-label text-xs">Week Number (1–53)</label>
+                                    <label class="form-label text-xs">{{ __('Week Number') }} (1–53)</label>
                                     <input type="number" name="import_week" min="1" max="53"
                                            class="form-input w-full"
                                            placeholder="e.g. {{ now()->isoWeek() }}">
                                 </div>
                             @else
                                 <div>
-                                    <label class="form-label text-xs">Month Number (1–12)</label>
+                                    <label class="form-label text-xs">{{ __('Month Number') }} (1–12)</label>
                                     <input type="number" name="import_month" min="1" max="12"
                                            class="form-input w-full"
                                            placeholder="e.g. {{ now()->month }}">
                                 </div>
                             @endif
                             <div>
-                                <label class="form-label text-xs">Year</label>
+                                <label class="form-label text-xs">{{ __('Year') }}</label>
                                 <input type="number" name="production_year" min="2000" max="2100"
                                        class="form-input w-full"
                                        value="{{ now()->year }}">
@@ -187,26 +187,26 @@
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                     </svg>
-                    Upload & Configure Mapping
+                    {{ __('Upload & Configure Mapping') }}
                 </button>
             </form>
 
             {{-- Field Reference --}}
             <details class="mt-6">
-                <summary class="text-sm font-medium text-gray-600 cursor-pointer hover:text-gray-800">📋 Available system fields reference</summary>
+                <summary class="text-sm font-medium text-gray-600 cursor-pointer hover:text-gray-800">{{ __('Available system fields reference') }}</summary>
                 <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     @foreach($systemFields as $key => $label)
                         <div class="flex items-center gap-2 text-xs bg-gray-50 rounded p-2">
                             <code class="text-blue-700 font-mono shrink-0">{{ $key }}</code>
                             <span class="text-gray-600">{{ $label }}</span>
                             @if(in_array($key, ['order_no', 'quantity']))
-                                <span class="ml-auto text-red-500 font-bold shrink-0">required</span>
+                                <span class="ml-auto text-red-500 font-bold shrink-0">{{ __('required') }}</span>
                             @endif
                         </div>
                     @endforeach
                     <div class="flex items-center gap-2 text-xs bg-purple-50 rounded p-2 sm:col-span-2">
                         <code class="text-purple-700 font-mono shrink-0">custom:field_name</code>
-                        <span class="text-gray-600">Any extra field — stored as JSON on the work order</span>
+                        <span class="text-gray-600">{{ __('Any extra field — stored as JSON on the work order') }}</span>
                     </div>
                 </div>
             </details>
@@ -216,7 +216,7 @@
         <div class="space-y-6">
             {{-- Saved Mapping Profiles --}}
             <div class="card">
-                <h2 class="text-lg font-bold text-gray-800 mb-3">Saved Mapping Profiles</h2>
+                <h2 class="text-lg font-bold text-gray-800 mb-3">{{ __('Saved Mapping Profiles') }}</h2>
                 @forelse($savedMappings as $m)
                     <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                         <div>
@@ -226,7 +226,7 @@
                         </div>
                         @if(!$m->is_default)
                             <form method="POST" action="{{ route('admin.csv-import.mappings.destroy', $m) }}"
-                                  onsubmit="return confirm('Delete mapping profile?')">
+                                  onsubmit="return confirm('{{ __('Delete mapping profile?') }}')">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="text-red-400 hover:text-red-600 p-1">
@@ -238,13 +238,13 @@
                         @endif
                     </div>
                 @empty
-                    <p class="text-sm text-gray-500">No saved profiles yet. Profiles are saved during import.</p>
+                    <p class="text-sm text-gray-500">{{ __('No saved profiles yet. Profiles are saved during import.') }}</p>
                 @endforelse
             </div>
 
             {{-- Recent Imports --}}
             <div class="card">
-                <h2 class="text-lg font-bold text-gray-800 mb-3">Recent Imports</h2>
+                <h2 class="text-lg font-bold text-gray-800 mb-3">{{ __('Recent Imports') }}</h2>
                 @forelse($recentImports as $imp)
                     <div class="py-2 border-b border-gray-100 last:border-0">
                         <div class="flex items-center justify-between mb-1">
@@ -258,7 +258,7 @@
                         </div>
                         <p class="text-xs text-gray-500">
                             <span class="text-green-600">✓ {{ $imp->successful_rows }}</span> /
-                            {{ $imp->total_rows }} rows
+                            {{ $imp->total_rows }} {{ __('rows') }}
                             @if($imp->failed_rows > 0)
                                 · <span class="text-red-600">✗ {{ $imp->failed_rows }}</span>
                             @endif
@@ -267,7 +267,7 @@
                         @if(!empty($imp->error_log))
                             <details class="mt-1">
                                 <summary class="text-xs text-red-600 cursor-pointer hover:text-red-800">
-                                    Show errors ({{ count($imp->error_log) }})
+                                    {{ __('Show errors') }} ({{ count($imp->error_log) }})
                                 </summary>
                                 <ul class="mt-1 space-y-0.5 bg-red-50 rounded p-2 max-h-40 overflow-y-auto">
                                     @foreach($imp->error_log as $err)
@@ -278,7 +278,7 @@
                         @endif
                     </div>
                 @empty
-                    <p class="text-sm text-gray-500">No imports yet.</p>
+                    <p class="text-sm text-gray-500">{{ __('No imports yet.') }}</p>
                 @endforelse
             </div>
         </div>

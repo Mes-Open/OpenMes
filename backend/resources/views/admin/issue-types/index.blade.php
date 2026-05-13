@@ -1,33 +1,33 @@
 @extends('layouts.app')
 
-@section('title', 'Issue Types')
+@section('title', __('Issue Types'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Issue Types', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Issue Types'), 'url' => null],
 ]" />
 
 <div class="max-w-4xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Issue Types</h1>
-            <p class="text-gray-600 mt-1">Configure the types of issues operators can report</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Issue Types') }}</h1>
+            <p class="text-gray-600 mt-1">{{ __('Configure the types of issues operators can report') }}</p>
         </div>
-        <a href="{{ route('admin.issue-types.create') }}" class="btn-touch btn-primary">+ New Type</a>
+        <a href="{{ route('admin.issue-types.create') }}" class="btn-touch btn-primary">{{ __('+ New Type') }}</a>
     </div>
 
     <div class="card overflow-hidden p-0">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Blocking</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issues</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Name') }}</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Code') }}</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Severity') }}</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Blocking') }}</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Status') }}</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Issues') }}</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Actions') }}</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-100">
@@ -47,9 +47,9 @@
                         </td>
                         <td class="px-4 py-3">
                             @if($type->is_blocking)
-                                <span class="text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded">Blocking</span>
+                                <span class="text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded">{{ __('Blocking') }}</span>
                             @else
-                                <span class="text-xs text-gray-400">Non-blocking</span>
+                                <span class="text-xs text-gray-400">{{ __('Non-blocking') }}</span>
                             @endif
                         </td>
                         <td class="px-4 py-3" onclick="event.stopPropagation()">
@@ -57,20 +57,20 @@
                                 @csrf
                                 <button type="submit" class="text-xs px-2 py-0.5 rounded font-medium
                                     {{ $type->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
-                                    {{ $type->is_active ? 'Active' : 'Inactive' }}
+                                    {{ $type->is_active ? __('Active') : __('Inactive') }}
                                 </button>
                             </form>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">{{ $type->issues_count }}</td>
                         <td class="px-4 py-3" onclick="event.stopPropagation()">
                             <div class="flex gap-3">
-                                <a href="{{ route('admin.issue-types.edit', $type) }}" class="text-sm text-blue-600 hover:underline">Edit</a>
+                                <a href="{{ route('admin.issue-types.edit', $type) }}" class="text-sm text-blue-600 hover:underline">{{ __('Edit') }}</a>
                                 @if($type->issues_count === 0)
                                     <form method="POST" action="{{ route('admin.issue-types.destroy', $type) }}"
-                                          onsubmit="return confirm('Delete issue type {{ $type->name }}?')">
+                                          onsubmit="return confirm('{{ __('Delete issue type :name?', ['name' => $type->name]) }}')">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="text-sm text-red-500 hover:underline">Delete</button>
+                                        <button class="text-sm text-red-500 hover:underline">{{ __('Delete') }}</button>
                                     </form>
                                 @endif
                             </div>
@@ -79,8 +79,8 @@
                 @empty
                     <tr>
                         <td colspan="7" class="px-4 py-10 text-center text-gray-400">
-                            No issue types yet.
-                            <a href="{{ route('admin.issue-types.create') }}" class="text-blue-600 hover:underline ml-1">Create one</a>.
+                            {{ __('No issue types yet.') }}
+                            <a href="{{ route('admin.issue-types.create') }}" class="text-blue-600 hover:underline ml-1">{{ __('Create one') }}</a>.
                         </td>
                     </tr>
                 @endforelse
