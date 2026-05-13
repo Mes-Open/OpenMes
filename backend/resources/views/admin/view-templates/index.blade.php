@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'View Templates')
+@section('title', __('View Templates'))
 
 @section('content')
 <div class="max-w-4xl mx-auto">
 
     <x-breadcrumbs :items="[
-        ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-        ['label' => 'View Templates', 'url' => null],
+        ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+        ['label' => __('View Templates'), 'url' => null],
     ]" />
 
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">View Templates</h1>
-            <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Define column layouts for the operator workstation view</p>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">{{ __('View Templates') }}</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">{{ __('Define column layouts for the operator workstation view') }}</p>
         </div>
-        <a href="{{ route('admin.view-templates.create') }}" class="btn-touch btn-primary text-sm">+ New Template</a>
+        <a href="{{ route('admin.view-templates.create') }}" class="btn-touch btn-primary text-sm">{{ __('+ New Template') }}</a>
     </div>
 
     @if($templates->isEmpty())
@@ -23,8 +23,8 @@
             <svg class="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
             </svg>
-            <p class="text-gray-500 text-lg font-medium">No view templates yet</p>
-            <p class="text-gray-400 text-sm mt-1">Create a template to define which columns operators see in the workstation view.</p>
+            <p class="text-gray-500 text-lg font-medium">{{ __('No view templates yet') }}</p>
+            <p class="text-gray-400 text-sm mt-1">{{ __('Create a template to define which columns operators see in the workstation view.') }}</p>
         </div>
     @else
         <div class="space-y-3">
@@ -43,16 +43,16 @@
                         @endforeach
                     </div>
                     @if($tpl->lines_count > 0)
-                        <p class="text-xs text-blue-500 mt-1">Used by {{ $tpl->lines_count }} line(s)</p>
+                        <p class="text-xs text-blue-500 mt-1">{{ __('Used by :count line(s)', ['count' => $tpl->lines_count]) }}</p>
                     @endif
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                    <a href="{{ route('admin.view-templates.edit', $tpl) }}" class="btn-touch btn-secondary text-sm">Edit</a>
+                    <a href="{{ route('admin.view-templates.edit', $tpl) }}" class="btn-touch btn-secondary text-sm">{{ __('Edit') }}</a>
                     @if($tpl->lines_count === 0)
                     <form method="POST" action="{{ route('admin.view-templates.destroy', $tpl) }}"
-                          onsubmit="return confirm('Delete template \'{{ addslashes($tpl->name) }}\'?')">
+                          onsubmit="return confirm('{{ __('Delete template \\\':name\\\'?', ['name' => addslashes($tpl->name)]) }}')">
                         @csrf @method('DELETE')
-                        <button class="btn-touch btn-secondary text-sm text-red-500 hover:text-red-700">Delete</button>
+                        <button class="btn-touch btn-secondary text-sm text-red-500 hover:text-red-700">{{ __('Delete') }}</button>
                     </form>
                     @endif
                 </div>

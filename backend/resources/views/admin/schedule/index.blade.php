@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Production Schedule')
+@section('title', __('Production Schedule'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Production Schedule', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Production Schedule'), 'url' => null],
 ]" />
 
 <div>
@@ -13,13 +13,13 @@
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Production Schedule</h1>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Production Schedule') }}</h1>
             <p class="text-sm text-gray-500 mt-0.5">
-                Week {{ $weekStart->format('d M') }} – {{ $weekEnd->format('d M Y') }}
+                {{ __('Week') }} {{ $weekStart->format('d M') }} – {{ $weekEnd->format('d M Y') }}
                 @if($currentShift)
                     &nbsp;·&nbsp;
                     <span class="text-green-600 font-medium">
-                        Current shift: {{ $currentShift->name }} ({{ substr($currentShift->start_time, 0, 5) }}–{{ substr($currentShift->end_time, 0, 5) }})
+                        {{ __('Current shift') }}: {{ $currentShift->name }} ({{ substr($currentShift->start_time, 0, 5) }}–{{ substr($currentShift->end_time, 0, 5) }})
                     </span>
                 @endif
             </p>
@@ -28,7 +28,7 @@
         {{-- Filters --}}
         <div class="flex items-center gap-2 flex-wrap">
             <a href="{{ route('admin.schedule', ['week' => $weekStart->copy()->subWeek()->format('Y-\WW'), 'line_id' => $lineId]) }}"
-               class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200" title="Previous week">
+               class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200" title="{{ __('Previous week') }}">
                 &larr;
             </a>
             <form method="GET" class="flex items-center gap-2 flex-wrap">
@@ -37,7 +37,7 @@
                        onchange="this.form.submit()">
                 <select name="line_id" onchange="this.form.submit()"
                         class="form-input text-sm py-2 min-h-0">
-                    <option value="">All Lines</option>
+                    <option value="">{{ __('All Lines') }}</option>
                     @foreach($lines as $line)
                         <option value="{{ $line->id }}" {{ $lineId == $line->id ? 'selected' : '' }}>
                             {{ $line->name }}
@@ -46,12 +46,12 @@
                 </select>
             </form>
             <a href="{{ route('admin.schedule', ['week' => $weekStart->copy()->addWeek()->format('Y-\WW'), 'line_id' => $lineId]) }}"
-               class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200" title="Next week">
+               class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200" title="{{ __('Next week') }}">
                 &rarr;
             </a>
             @if(!$weekStart->isCurrentWeek())
                 <a href="{{ route('admin.schedule', ['line_id' => $lineId]) }}"
-                   class="text-sm text-blue-600 hover:underline">Today</a>
+                   class="text-sm text-blue-600 hover:underline">{{ __('Today') }}</a>
             @endif
         </div>
     </div>
@@ -61,9 +61,9 @@
             <svg class="w-14 h-14 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
-            <p class="text-gray-500">No work orders scheduled for this week.</p>
+            <p class="text-gray-500">{{ __('No work orders scheduled for this week.') }}</p>
             <a href="{{ route('admin.work-orders.create') }}" class="mt-4 btn-touch btn-primary">
-                Create Work Order
+                {{ __('Create Work Order') }}
             </a>
         </div>
     @else
@@ -78,7 +78,7 @@
                     <h2 class="flex items-center gap-2 text-base font-bold text-gray-700 mb-2">
                         <span class="w-2 h-2 rounded-full bg-blue-500"></span>
                         {{ $line->name }}
-                        <span class="text-xs font-normal text-gray-400">({{ $lineOrders->count() }} order{{ $lineOrders->count() !== 1 ? 's' : '' }})</span>
+                        <span class="text-xs font-normal text-gray-400">({{ $lineOrders->count() }} {{ trans_choice('order|orders', $lineOrders->count()) }})</span>
                     </h2>
                     @include('admin.schedule._table', ['orders' => $lineOrders])
                 </div>
@@ -90,7 +90,7 @@
                 <div>
                     <h2 class="flex items-center gap-2 text-base font-bold text-gray-700 mb-2">
                         <span class="w-2 h-2 rounded-full bg-gray-400"></span>
-                        No Line Assigned
+                        {{ __('No Line Assigned') }}
                     </h2>
                     @include('admin.schedule._table', ['orders' => $noLine])
                 </div>
