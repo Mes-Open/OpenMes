@@ -284,5 +284,10 @@
     "Revoke": "Usuń",
     "Created by": "Utworzony przez",
     "Last used": "Ostatnio użyty",
-    "No tokens created yet": "Brak utworzonych tokenów"
+    "No tokens created yet": "Brak utworzonych tokenów",
+    "Current Password": "Aktualne hasło",
+    "New Password": "Nowe hasło",
+    "Confirm New Password": "Potwierdź nowe hasło",
+    "Minimum 8 characters": "Minimum 8 znaków",
+    "Re-enter your password": "Wpisz ponownie hasło"
 }
