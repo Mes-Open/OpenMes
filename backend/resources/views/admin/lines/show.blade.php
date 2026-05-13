@@ -360,7 +360,7 @@
                                     @elseif($workOrder->status === 'BLOCKED') bg-red-100 text-red-800
                                     @else bg-gray-100 text-gray-800
                                     @endif">
-                                    {{ $workOrder->status }}
+                                    {{ __(['PENDING'=>'Pending','ACCEPTED'=>'Accepted','IN_PROGRESS'=>'In Progress','BLOCKED'=>'Blocked','PAUSED'=>'Paused','DONE'=>'Done','REJECTED'=>'Rejected','CANCELLED'=>'Cancelled'][$workOrder->status] ?? $workOrder->status) }}
                                 </span>
                             </div>
                         </div>
