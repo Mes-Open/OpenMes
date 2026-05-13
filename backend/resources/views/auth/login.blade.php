@@ -18,6 +18,12 @@
 }">
     <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">{{ __('Sign In') }}</h2>
 
+    @if($errors->has('session'))
+        <div class="mb-4 p-3 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg text-sm">
+            {{ $errors->first('session') }}
+        </div>
+    @endif
+
     @if($pinEnabled)
     {{-- Tab switcher --}}
     <div class="flex rounded-lg bg-gray-100 p-1 mb-6">
