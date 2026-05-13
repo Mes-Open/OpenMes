@@ -199,7 +199,7 @@
                                             @elseif($wo->status === 'PAUSED')   bg-yellow-100 text-yellow-700
                                             @else                               bg-gray-100 text-gray-500
                                             @endif">
-                                            {{ str_replace('_', ' ', $wo->status) }}
+                                            {{ __(['PENDING'=>'Pending','ACCEPTED'=>'Accepted','IN_PROGRESS'=>'In Progress','BLOCKED'=>'Blocked','PAUSED'=>'Paused','DONE'=>'Done','REJECTED'=>'Rejected','CANCELLED'=>'Cancelled'][$wo->status] ?? $wo->status) }}
                                         </span>
                                     </td>
                                     <td class="py-2 text-gray-600">

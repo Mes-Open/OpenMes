@@ -2,12 +2,12 @@
     <table class="min-w-full divide-y divide-gray-100">
         <thead>
             <tr>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Order</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Product</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden sm:table-cell">Due</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden md:table-cell">Qty</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden lg:table-cell">Priority</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">{{ __('Order') }}</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">{{ __('Product') }}</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden sm:table-cell">{{ __('Due') }}</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden md:table-cell">{{ __('Qty') }}</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">{{ __('Status') }}</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden lg:table-cell">{{ __('Priority') }}</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -43,10 +43,23 @@
                             'ACCEPTED'    => 'bg-green-100 text-green-700',
                             'PENDING'     => 'bg-gray-100 text-gray-600',
                             'PAUSED'      => 'bg-yellow-100 text-yellow-700',
+                            'DONE'        => 'bg-green-200 text-green-800',
+                            'REJECTED'    => 'bg-red-200 text-red-800',
+                            'CANCELLED'   => 'bg-gray-200 text-gray-600',
+                        ];
+                        $labels = [
+                            'PENDING'     => __('Pending'),
+                            'ACCEPTED'    => __('Accepted'),
+                            'IN_PROGRESS' => __('In Progress'),
+                            'BLOCKED'     => __('Blocked'),
+                            'PAUSED'      => __('Paused'),
+                            'DONE'        => __('Done'),
+                            'REJECTED'    => __('Rejected'),
+                            'CANCELLED'   => __('Cancelled'),
                         ];
                     @endphp
                     <span class="text-xs px-2 py-0.5 rounded-full font-medium {{ $colors[$wo->status] ?? 'bg-gray-100 text-gray-600' }}">
-                        {{ $wo->status }}
+                        {{ $labels[$wo->status] ?? $wo->status }}
                     </span>
                 </td>
                 <td class="px-4 py-3 hidden lg:table-cell">
