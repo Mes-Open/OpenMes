@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Create Workstation')
+@section('title', __('Create Workstation'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Lines', 'url' => route('admin.lines.index')],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Lines'), 'url' => route('admin.lines.index')],
     ['label' => $line->name, 'url' => route('admin.lines.show', $line)],
-    ['label' => 'Workstations', 'url' => route('admin.lines.workstations.index', $line)],
-    ['label' => 'New Workstation', 'url' => null],
+    ['label' => __('Workstations'), 'url' => route('admin.lines.workstations.index', $line)],
+    ['label' => __('New Workstation'), 'url' => null],
 ]" />
 
 <div class="max-w-2xl mx-auto">
@@ -17,9 +17,9 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Workstations
+            {{ __('Back to Workstations') }}
         </a>
-        <h1 class="text-3xl font-bold text-gray-800">Create Workstation</h1>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('Create Workstation') }}</h1>
         <p class="text-sm text-gray-600 mt-1">{{ $line->name }}</p>
     </div>
 
@@ -28,7 +28,7 @@
             @csrf
 
             <div class="mb-6">
-                <label for="code" class="form-label">Workstation Code</label>
+                <label for="code" class="form-label">{{ __('Workstation Code') }}</label>
                 <input
                     type="text"
                     id="code"
@@ -39,14 +39,14 @@
                     required
                     autofocus
                 >
-                <p class="text-sm text-gray-500 mt-1">Unique identifier for this workstation</p>
+                <p class="text-sm text-gray-500 mt-1">{{ __('Unique identifier for this workstation') }}</p>
                 @error('code')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
             <div class="mb-6">
-                <label for="name" class="form-label">Workstation Name</label>
+                <label for="name" class="form-label">{{ __('Workstation Name') }}</label>
                 <input
                     type="text"
                     id="name"
@@ -62,7 +62,7 @@
             </div>
 
             <div class="mb-6">
-                <label for="workstation_type" class="form-label">Workstation Type</label>
+                <label for="workstation_type" class="form-label">{{ __('Workstation Type') }}</label>
                 <input
                     type="text"
                     id="workstation_type"
@@ -71,7 +71,7 @@
                     class="form-input w-full @error('workstation_type') border-red-500 @enderror"
                     placeholder="e.g., Assembly, Quality Control, Packaging (optional)"
                 >
-                <p class="text-sm text-gray-500 mt-1">Optional classification for this workstation</p>
+                <p class="text-sm text-gray-500 mt-1">{{ __('Optional classification for this workstation') }}</p>
                 @error('workstation_type')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
@@ -86,16 +86,16 @@
                         class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         {{ old('is_active', true) ? 'checked' : '' }}
                     >
-                    <span class="ml-2 text-sm text-gray-700">Active (workstation is ready for use)</span>
+                    <span class="ml-2 text-sm text-gray-700">{{ __('Active (workstation is ready for use)') }}</span>
                 </label>
             </div>
 
             <div class="flex justify-end gap-3">
                 <a href="{{ route('admin.lines.workstations.index', $line) }}" class="btn-touch btn-secondary">
-                    Cancel
+                    {{ __('Cancel') }}
                 </a>
                 <button type="submit" class="btn-touch btn-primary">
-                    Create Workstation
+                    {{ __('Create Workstation') }}
                 </button>
             </div>
         </form>

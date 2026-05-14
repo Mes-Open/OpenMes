@@ -1,26 +1,26 @@
 @extends('layouts.app')
 
-@section('title', 'Supervisor Dashboard')
+@section('title', __('Supervisor Dashboard'))
 
 @section('content')
 <div class="max-w-7xl mx-auto">
     <!-- Header -->
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Supervisor Dashboard</h1>
-            <p class="text-gray-600 mt-2">Production analytics and insights</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Supervisor Dashboard') }}</h1>
+            <p class="text-gray-600 mt-2">{{ __('Production analytics and insights') }}</p>
         </div>
 
         <!-- Line Filter -->
         <div class="flex items-center gap-3">
-            <label for="line_filter" class="text-sm font-medium text-gray-700">Line:</label>
+            <label for="line_filter" class="text-sm font-medium text-gray-700">{{ __('Line') }}:</label>
             <select
                 id="line_filter"
                 name="line_id"
                 class="form-input min-w-[200px]"
                 onchange="window.location.href = '{{ route('supervisor.dashboard') }}?line_id=' + this.value"
             >
-                <option value="">All Lines</option>
+                <option value="">{{ __('All Lines') }}</option>
                 @foreach($lines as $line)
                     <option value="{{ $line->id }}" {{ $selectedLine && $selectedLine->id === $line->id ? 'selected' : '' }}>
                         {{ $line->name }}
@@ -35,7 +35,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Active Work Orders</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Active Work Orders') }}</p>
                     <p class="text-3xl font-bold text-blue-600">{{ $stats['active_work_orders'] }}</p>
                 </div>
                 <div class="bg-blue-100 rounded-full p-4">
@@ -49,7 +49,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Completed</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Completed') }}</p>
                     <p class="text-3xl font-bold text-green-600">{{ $stats['completed_work_orders'] }}</p>
                 </div>
                 <div class="bg-green-100 rounded-full p-4">
@@ -63,7 +63,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Blocked Orders</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Blocked Orders') }}</p>
                     <p class="text-3xl font-bold text-red-600">{{ $stats['blocked_work_orders'] }}</p>
                 </div>
                 <div class="bg-red-100 rounded-full p-4">
@@ -77,7 +77,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Open Issues</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Open Issues') }}</p>
                     <p class="text-3xl font-bold text-yellow-600">{{ $stats['open_issues'] }}</p>
                 </div>
                 <div class="bg-yellow-100 rounded-full p-4">
@@ -91,7 +91,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Blocking Issues</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Blocking Issues') }}</p>
                     <p class="text-3xl font-bold text-purple-600">{{ $stats['blocking_issues'] }}</p>
                 </div>
                 <div class="bg-purple-100 rounded-full p-4">
@@ -105,7 +105,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 mb-1">Total Orders</p>
+                    <p class="text-sm text-gray-600 mb-1">{{ __('Total Orders') }}</p>
                     <p class="text-3xl font-bold text-gray-800">{{ $stats['total_work_orders'] }}</p>
                 </div>
                 <div class="bg-gray-100 rounded-full p-4">
@@ -121,18 +121,18 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <!-- Throughput Chart -->
         <div class="card">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Daily Production (Last 30 Days)</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">{{ __('Daily Production (Last 30 Days)') }}</h2>
             <canvas id="throughputChart"></canvas>
             <p class="text-sm text-gray-600 mt-4 text-center">
-                Average: <span class="font-medium">{{ $throughputData['average'] }}</span> units/day
+                {{ __('Average') }}: <span class="font-medium">{{ $throughputData['average'] }}</span> {{ __('units/day') }}
             </p>
         </div>
 
         <!-- Issues by Type Chart -->
         <div class="card">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Issues by Type (Last 30 Days)</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">{{ __('Issues by Type (Last 30 Days)') }}</h2>
             @if(empty($issueStats['by_type']['labels']))
-                <div class="text-center py-12 text-gray-500">No issues reported</div>
+                <div class="text-center py-12 text-gray-500">{{ __('No issues reported') }}</div>
             @else
                 <canvas id="issuesTypeChart"></canvas>
             @endif
@@ -141,21 +141,21 @@
 
     <!-- Cycle Time Table -->
     <div class="card mb-8">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Batch Cycle Times</h2>
+        <h2 class="text-xl font-bold text-gray-800 mb-4">{{ __('Recent Batch Cycle Times') }}</h2>
 
         @if($cycleTimeData->isEmpty())
-            <div class="text-center py-12 text-gray-500">No completed batches in the last 30 days</div>
+            <div class="text-center py-12 text-gray-500">{{ __('No completed batches in the last 30 days') }}</div>
         @else
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Order</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cycle Time</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Batch') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Work Order') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Quantity') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Cycle Time') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ __('Completed') }}</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -166,7 +166,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $batch['product_type'] }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ number_format($batch['produced_qty'], 2) }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $batch['cycle_time_hours'] }} hrs</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ \Carbon\Carbon::parse($batch['completed_at'])->format('M d, H:i') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ \Carbon\Carbon::parse($batch['completed_at'])->translatedFormat('M d, H:i') }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -178,24 +178,24 @@
     <!-- Production Controls Overview -->
     @if(isset($productionControls))
     <div class="card mb-8">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Production Controls</h2>
+        <h2 class="text-xl font-bold text-gray-800 mb-4">{{ __('Production Controls') }}</h2>
 
         {{-- Alert Badges --}}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="p-4 rounded-lg {{ $productionControls['unconfirmed_today'] > 0 ? 'bg-orange-50 border border-orange-200' : 'bg-green-50 border border-green-200' }}">
                 <p class="text-sm font-medium {{ $productionControls['unconfirmed_today'] > 0 ? 'text-orange-800' : 'text-green-800' }}">
-                    Parameters Unconfirmed Today
+                    {{ __('Parameters Unconfirmed Today') }}
                 </p>
                 <p class="text-2xl font-bold {{ $productionControls['unconfirmed_today'] > 0 ? 'text-orange-600' : 'text-green-600' }}">
                     {{ $productionControls['unconfirmed_today'] }}
                 </p>
             </div>
             <div class="p-4 rounded-lg {{ $productionControls['qc_needed_count'] > 0 ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200' }}">
-                <p class="text-sm font-medium {{ $productionControls['qc_needed_count'] > 0 ? 'text-blue-800' : 'text-green-800' }}">QC Checks Needed</p>
+                <p class="text-sm font-medium {{ $productionControls['qc_needed_count'] > 0 ? 'text-blue-800' : 'text-green-800' }}">{{ __('QC Checks Needed') }}</p>
                 <p class="text-2xl font-bold {{ $productionControls['qc_needed_count'] > 0 ? 'text-blue-600' : 'text-green-600' }}">{{ $productionControls['qc_needed_count'] }}</p>
             </div>
             <div class="p-4 rounded-lg {{ $productionControls['unreleased_count'] > 0 ? 'bg-purple-50 border border-purple-200' : 'bg-green-50 border border-green-200' }}">
-                <p class="text-sm font-medium {{ $productionControls['unreleased_count'] > 0 ? 'text-purple-800' : 'text-green-800' }}">Awaiting Release</p>
+                <p class="text-sm font-medium {{ $productionControls['unreleased_count'] > 0 ? 'text-purple-800' : 'text-green-800' }}">{{ __('Awaiting Release') }}</p>
                 <p class="text-2xl font-bold {{ $productionControls['unreleased_count'] > 0 ? 'text-purple-600' : 'text-green-600' }}">{{ $productionControls['unreleased_count'] }}</p>
             </div>
         </div>
@@ -206,15 +206,15 @@
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Batch</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">LOT</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Workstation</th>
-                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Params</th>
-                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">QC</th>
-                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Checklist</th>
-                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Released</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Batch') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Order') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Product') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('LOT') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Workstation') }}</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{{ __('Params') }}</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{{ __('QC') }}</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{{ __('Checklist') }}</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{{ __('Released') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -229,7 +229,7 @@
                                     @if($b['confirmed_today'])
                                         <span class="text-green-600" title="Last: {{ $b['last_confirmation'] }}">OK</span>
                                     @else
-                                        <span class="text-orange-600">Needed</span>
+                                        <span class="text-orange-600">{{ __('Needed') }}</span>
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-center">
@@ -240,7 +240,7 @@
                                 <td class="px-3 py-2 text-center">
                                     @if($b['checklist_done'])
                                         <span class="{{ $b['checklist_passed'] ? 'text-green-600' : 'text-red-600' }}">
-                                            {{ $b['checklist_passed'] ? 'Pass' : 'Fail' }}
+                                            {{ $b['checklist_passed'] ? __('Pass') : __('Fail') }}
                                         </span>
                                     @else
                                         <span class="text-gray-400">-</span>
@@ -248,9 +248,9 @@
                                 </td>
                                 <td class="px-3 py-2 text-center">
                                     @if($b['released'])
-                                        <span class="text-green-600">{{ $b['release_type'] === 'for_sale' ? 'Sale' : 'Prod' }}</span>
+                                        <span class="text-green-600">{{ $b['release_type'] === 'for_sale' ? __('Sale') : __('Prod') }}</span>
                                     @elseif($b['status'] === 'DONE')
-                                        <span class="text-purple-600">Pending</span>
+                                        <span class="text-purple-600">{{ __('Pending') }}</span>
                                     @else
                                         <span class="text-gray-400">-</span>
                                     @endif
@@ -261,17 +261,17 @@
                 </table>
             </div>
         @else
-            <p class="text-center py-8 text-gray-500">No active batches.</p>
+            <p class="text-center py-8 text-gray-500">{{ __('No active batches.') }}</p>
         @endif
     </div>
     @endif
 
     <!-- Recent Issues -->
     <div class="card">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Issues</h2>
+        <h2 class="text-xl font-bold text-gray-800 mb-4">{{ __('Recent Issues') }}</h2>
 
         @if($recentIssues->isEmpty())
-            <div class="text-center py-12 text-gray-500">No recent issues</div>
+            <div class="text-center py-12 text-gray-500">{{ __('No recent issues') }}</div>
         @else
             <div class="space-y-3">
                 @foreach($recentIssues as $issue)
@@ -291,7 +291,7 @@
                                 </span>
                                 @if($issue->is_blocking)
                                     <span class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
-                                        Blocking
+                                        {{ __('Blocking') }}
                                     </span>
                                 @endif
                             </div>
@@ -300,7 +300,7 @@
                         <p class="text-xs text-gray-500">
                             {{ \Carbon\Carbon::parse($issue->reported_at)->diffForHumans() }}
                             @if($issue->reportedBy)
-                                by {{ $issue->reportedBy->name }}
+                                {{ __('by') }} {{ $issue->reportedBy->name }}
                             @endif
                         </p>
                     </div>

@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'Crews')
+@section('title', __('Crews'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Crews', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Crews'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Crews</h1>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('Crews') }}</h1>
         <a href="{{ route('admin.crews.create') }}" class="btn-touch btn-primary">
             <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
-            Add Crew
+            {{ __('Add Crew') }}
         </a>
     </div>
 
@@ -24,13 +24,13 @@
             <table class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-gray-200">
-                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Code</th>
-                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Name</th>
-                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Leader</th>
-                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Division</th>
-                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Workers</th>
-                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                        <th class="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Code') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Name') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Leader') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Division') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Workers') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Status') }}</th>
+                        <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -43,21 +43,21 @@
                             <td class="py-3 px-4 text-gray-600">{{ $crew->workers_count }}</td>
                             <td class="py-3 px-4">
                                 @if($crew->is_active)
-                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Active</span>
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">{{ __('Active') }}</span>
                                 @else
-                                    <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Inactive</span>
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">{{ __('Inactive') }}</span>
                                 @endif
                             </td>
                             <td class="py-3 px-4" onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="{{ route('admin.crews.edit', $crew) }}" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">
+                                    <a href="{{ route('admin.crews.edit', $crew) }}" class="text-blue-600 hover:text-blue-800 p-1" title="{{ __('Edit') }}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
                                     </a>
                                     <form method="POST" action="{{ route('admin.crews.toggle-active', $crew) }}" class="inline">
                                         @csrf
-                                        <button type="submit" class="text-gray-600 hover:text-gray-800 p-1" title="{{ $crew->is_active ? 'Deactivate' : 'Activate' }}">
+                                        <button type="submit" class="text-gray-600 hover:text-gray-800 p-1" title="{{ $crew->is_active ? __('Deactivate') : __('Activate') }}">
                                             @if($crew->is_active)
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
@@ -70,10 +70,10 @@
                                         </button>
                                     </form>
                                     <form method="POST" action="{{ route('admin.crews.destroy', $crew) }}" class="inline"
-                                          onsubmit="return confirm('Delete this crew?');">
+                                          onsubmit="return confirm('{{ __('Delete this crew?') }}');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:text-red-800 p-1" title="Delete">
+                                        <button type="submit" class="text-red-600 hover:text-red-800 p-1" title="{{ __('Delete') }}">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                             </svg>
@@ -88,8 +88,8 @@
                                 <svg class="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
-                                <p class="font-medium">No crews yet</p>
-                                <a href="{{ route('admin.crews.create') }}" class="inline-block mt-3 btn-touch btn-primary">Add Crew</a>
+                                <p class="font-medium">{{ __('No crews yet') }}</p>
+                                <a href="{{ route('admin.crews.create') }}" class="inline-block mt-3 btn-touch btn-primary">{{ __('Add Crew') }}</a>
                             </td>
                         </tr>
                     @endforelse

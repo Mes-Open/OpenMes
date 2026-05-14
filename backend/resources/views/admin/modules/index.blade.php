@@ -13,11 +13,11 @@
 
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Installed Modules</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-1">Enable and disable installed OpenMES extensions</p>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white">{{ __('Installed Modules') }}</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">{{ __('Enable and disable installed OpenMES extensions') }}</p>
         </div>
         <a href="{{ route('admin.modules.install') }}" class="btn-touch btn-primary text-sm">
-            + Install Module
+            + {{ __('Install Module') }}
         </a>
     </div>
 
@@ -44,11 +44,11 @@
                                 <span class="text-xs text-gray-400 font-mono">v{{ $module['version'] ?? '?' }}</span>
                                 @if($module['enabled'])
                                     <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                        Enabled
+                                        {{ __("Enabled") }}
                                     </span>
                                 @else
                                     <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                                        Disabled
+                                        {{ __("Disabled") }}
                                     </span>
                                 @endif
                                 @if($module['has_error'])
@@ -74,7 +74,7 @@
 
                     @if(!empty($module['hooks']))
                         <div>
-                            <p class="text-xs text-gray-400 mb-1">Used hooks</p>
+                            <p class="text-xs text-gray-400 mb-1">{{ __('Used hooks') }}</p>
                             <div class="flex flex-wrap gap-1">
                                 @foreach($module['hooks'] as $hook)
                                     <span class="text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-mono">{{ $hook }}</span>
@@ -87,12 +87,12 @@
                         @if($module['enabled'])
                             <form method="POST" action="{{ route('admin.modules.disable', $module['name']) }}">
                                 @csrf
-                                <button class="btn-touch btn-secondary text-sm">Disable</button>
+                                <button class="btn-touch btn-secondary text-sm">{{ __('Disable') }}</button>
                             </form>
                         @else
                             <form method="POST" action="{{ route('admin.modules.enable', $module['name']) }}">
                                 @csrf
-                                <button class="btn-touch btn-primary text-sm">Enable</button>
+                                <button class="btn-touch btn-primary text-sm">{{ __('Enable') }}</button>
                             </form>
                         @endif
 
@@ -102,7 +102,7 @@
                                   onsubmit="return confirm('Uninstall module {{ $confirmLabel }}? Files will be removed.')">
                                 @csrf
                                 @method('DELETE')
-                                <button class="btn-touch btn-secondary text-sm text-red-500 hover:text-red-700">Uninstall</button>
+                                <button class="btn-touch btn-secondary text-sm text-red-500 hover:text-red-700">{{ __('Uninstall') }}</button>
                             </form>
                         @endif
                     </div>

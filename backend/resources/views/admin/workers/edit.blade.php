@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Worker')
+@section('title', __('Edit Worker'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Workers', 'url' => route('admin.workers.index')],
-    ['label' => 'Edit Worker', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Workers'), 'url' => route('admin.workers.index')],
+    ['label' => __('Edit Worker'), 'url' => null],
 ]" />
 
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Edit Worker</h1>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Edit Worker') }}</h1>
             <p class="text-gray-600 mt-1 font-mono">{{ $worker->code }}</p>
         </div>
-        <a href="{{ route('admin.workers.index') }}" class="btn-touch btn-secondary">← Back</a>
+        <a href="{{ route('admin.workers.index') }}" class="btn-touch btn-secondary">{{ __('← Back') }}</a>
     </div>
 
     @php
@@ -41,40 +41,40 @@
 
             <!-- Basic info -->
             <div class="card mb-4">
-                <h2 class="text-lg font-semibold text-gray-700 mb-4">Basic Information</h2>
+                <h2 class="text-lg font-semibold text-gray-700 mb-4">{{ __('Basic Information') }}</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="form-label">Code <span class="text-red-500">*</span></label>
+                        <label class="form-label">{{ __('Code') }} <span class="text-red-500">*</span></label>
                         <input type="text" name="code" value="{{ old('code', $worker->code) }}"
                                class="form-input w-full" required maxlength="50">
                         @error('code') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="form-label">Name <span class="text-red-500">*</span></label>
+                        <label class="form-label">{{ __('Name') }} <span class="text-red-500">*</span></label>
                         <input type="text" name="name" value="{{ old('name', $worker->name) }}"
                                class="form-input w-full" required maxlength="200">
                         @error('name') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="form-label">Email</label>
+                        <label class="form-label">{{ __('Email') }}</label>
                         <input type="email" name="email" value="{{ old('email', $worker->email) }}"
                                class="form-input w-full" maxlength="200">
                         @error('email') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="form-label">Phone</label>
+                        <label class="form-label">{{ __('Phone') }}</label>
                         <input type="text" name="phone" value="{{ old('phone', $worker->phone) }}"
                                class="form-input w-full" maxlength="50">
                         @error('phone') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="form-label">Crew</label>
+                        <label class="form-label">{{ __('Crew') }}</label>
                         <select name="crew_id" class="form-input w-full">
-                            <option value="">— No crew —</option>
+                            <option value="">{{ __('— No crew —') }}</option>
                             @foreach($crews as $crew)
                                 <option value="{{ $crew->id }}" @selected(old('crew_id', $worker->crew_id) == $crew->id)>{{ $crew->name }}</option>
                             @endforeach
@@ -83,9 +83,9 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Wage Group</label>
+                        <label class="form-label">{{ __('Wage Group') }}</label>
                         <select name="wage_group_id" class="form-input w-full">
-                            <option value="">— No wage group —</option>
+                            <option value="">{{ __('— No wage group —') }}</option>
                             @foreach($wageGroups as $wg)
                                 <option value="{{ $wg->id }}" @selected(old('wage_group_id', $worker->wage_group_id) == $wg->id)>{{ $wg->name }}</option>
                             @endforeach
@@ -97,7 +97,7 @@
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="is_active" value="1" {{ old('is_active', $worker->is_active) ? 'checked' : '' }}
                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                            <span class="form-label mb-0">Active</span>
+                            <span class="form-label mb-0">{{ __('Active') }}</span>
                         </label>
                     </div>
                 </div>
@@ -105,11 +105,11 @@
 
             <!-- Skills section -->
             <div class="card mb-4">
-                <h2 class="text-lg font-semibold text-gray-700 mb-1">Skills</h2>
-                <p class="text-sm text-gray-500 mb-4">Toggle skills and set the proficiency level for each.</p>
+                <h2 class="text-lg font-semibold text-gray-700 mb-1">{{ __('Skills') }}</h2>
+                <p class="text-sm text-gray-500 mb-4">{{ __('Toggle skills and set the proficiency level for each.') }}</p>
 
                 <template x-if="skillRows.length === 0">
-                    <p class="text-sm text-gray-500 italic">No skills defined yet. <a href="{{ route('admin.skills.create') }}" class="text-blue-600 hover:underline">Add skills</a> first.</p>
+                    <p class="text-sm text-gray-500 italic">{{ __('No skills defined yet.') }} <a href="{{ route('admin.skills.create') }}" class="text-blue-600 hover:underline">{{ __('Add skills') }}</a> {{ __('first.') }}</p>
                 </template>
 
                 <div class="divide-y divide-gray-100">
@@ -127,9 +127,9 @@
                                     <input type="hidden" :name="'skills[' + index + '][id]'" :value="row.id">
                                     <select :name="'skills[' + index + '][level]'" x-model="row.level"
                                             class="form-input py-1 text-sm">
-                                        <option value="1">Basic</option>
-                                        <option value="2">Intermediate</option>
-                                        <option value="3">Expert</option>
+                                        <option value="1">{{ __('Basic') }}</option>
+                                        <option value="2">{{ __('Intermediate') }}</option>
+                                        <option value="3">{{ __('Expert') }}</option>
                                     </select>
                                 </div>
                             </template>
@@ -139,8 +139,8 @@
             </div>
 
             <div class="flex gap-3 justify-end">
-                <a href="{{ route('admin.workers.index') }}" class="btn-touch btn-secondary">Cancel</a>
-                <button type="submit" class="btn-touch btn-primary">Save Changes</button>
+                <a href="{{ route('admin.workers.index') }}" class="btn-touch btn-secondary">{{ __('Cancel') }}</a>
+                <button type="submit" class="btn-touch btn-primary">{{ __('Save Changes') }}</button>
             </div>
         </form>
     </div>

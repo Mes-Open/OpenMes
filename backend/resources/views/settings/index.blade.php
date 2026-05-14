@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Settings')
+@section('title', __('Settings'))
 
 @section('content')
 <div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Settings</h1>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ __("Settings") }}</h1>
 
     @hasrole('Admin')
     <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -16,8 +16,22 @@
                 </svg>
             </div>
             <div class="flex-1">
-                <h3 class="text-lg font-bold text-gray-800 mb-1">System Settings</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("System Settings") }}</h3>
                 <p class="text-gray-600 text-sm">Production period split, overproduction rules, step sequencing</p>
+            </div>
+            <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+        <a href="{{ route('admin.dashboard-widgets.index') }}" class="card hover:shadow-lg transition-shadow cursor-pointer flex items-start gap-4 border-l-4 border-amber-400">
+            <div class="bg-amber-100 rounded-full p-3 flex-shrink-0">
+                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __('Dashboard Setup') }}</h3>
+                <p class="text-gray-600 text-sm">{{ __('Enable, disable, and reorder dashboard widgets') }}</p>
             </div>
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -30,8 +44,8 @@
                 </svg>
             </div>
             <div class="flex-1">
-                <h3 class="text-lg font-bold text-gray-800 mb-1">Setup Wizard</h3>
-                <p class="text-gray-600 text-sm">Re-launch the onboarding wizard to create lines, products, and templates</p>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("Setup Wizard") }}</h3>
+                <p class="text-gray-600 text-sm">{{ __("Re-launch the onboarding wizard") }}</p>
             </div>
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -44,8 +58,8 @@
                 </svg>
             </div>
             <div class="flex-1">
-                <h3 class="text-lg font-bold text-gray-800 mb-1">API Tokens</h3>
-                <p class="text-gray-600 text-sm">Manage tokens for external integrations (PrestaShop, ERP, etc.)</p>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("API Tokens") }}</h3>
+                <p class="text-gray-600 text-sm">{{ __("Manage tokens for external integrations") }}</p>
             </div>
             <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -64,8 +78,8 @@
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-lg font-bold text-gray-800 mb-1">Profile</h3>
-                    <p class="text-gray-600 text-sm">Update your name and email address</p>
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("Profile") }}</h3>
+                    <p class="text-gray-600 text-sm">{{ __("Update your profile and account info") }}</p>
                 </div>
                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -82,8 +96,8 @@
                     </svg>
                 </div>
                 <div class="flex-1">
-                    <h3 class="text-lg font-bold text-gray-800 mb-1">Change Password</h3>
-                    <p class="text-gray-600 text-sm">Update your account password</p>
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">{{ __("Change Password") }}</h3>
+                    <p class="text-gray-600 text-sm">{{ __("Change your account password") }}</p>
                 </div>
                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -118,29 +132,5 @@
         @endif
     </div>
 
-    <!-- User Info -->
-    <div class="card mt-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Account Information</h2>
-        <div class="space-y-3">
-            <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                <span class="text-gray-600">Name</span>
-                <span class="font-medium text-gray-800">{{ auth()->user()->name }}</span>
-            </div>
-            <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                <span class="text-gray-600">Username</span>
-                <span class="font-medium text-gray-800">{{ auth()->user()->username }}</span>
-            </div>
-            <div class="flex justify-between items-center py-2 border-b border-gray-200">
-                <span class="text-gray-600">Email</span>
-                <span class="font-medium text-gray-800">{{ auth()->user()->email }}</span>
-            </div>
-            <div class="flex justify-between items-center py-2">
-                <span class="text-gray-600">Role</span>
-                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                    {{ auth()->user()->roles->first()->name ?? 'User' }}
-                </span>
-            </div>
-        </div>
-    </div>
 </div>
 @endsection

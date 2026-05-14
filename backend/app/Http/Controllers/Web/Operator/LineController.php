@@ -72,7 +72,6 @@ class LineController extends Controller
         $defaultView = $line?->default_operator_view ?? 'queue';
         $route = $defaultView === 'workstation' ? 'operator.workstation' : 'operator.queue';
 
-        return redirect()->route($route)
-            ->with('success', 'Line selected successfully.');
+        return redirect()->route($route);
     }
 }

@@ -1,17 +1,17 @@
 @extends('layouts.app')
 
-@section('title', 'Change Password')
+@section('title', __('Change Password'))
 
 @section('content')
 <div class="max-w-2xl mx-auto">
     <div class="card">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Change Password</h1>
-            <p class="text-gray-600 mt-2">Update your password to keep your account secure.</p>
+            <h1 class="text-2xl font-bold text-gray-800">{{ __('Change Password') }}</h1>
+            <p class="text-gray-600 mt-2">{{ __('Update your password to keep your account secure.') }}</p>
 
             @if(auth()->user()->force_password_change)
                 <div class="mt-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
-                    <strong>Action Required:</strong> You must change your password before continuing.
+                    <strong>{{ __('Action Required:') }}</strong> {{ __('You must change your password before continuing.') }}
                 </div>
             @endif
         </div>
@@ -29,7 +29,7 @@
 
             <!-- Current Password -->
             <div class="mb-4">
-                <label for="current_password" class="form-label">Current Password</label>
+                <label for="current_password" class="form-label">{{ __('Current Password') }}</label>
                 <div class="relative">
                     <input
                         :type="showCurrentPassword ? 'text' : 'password'"
@@ -61,7 +61,7 @@
 
             <!-- New Password -->
             <div class="mb-4">
-                <label for="new_password" class="form-label">New Password</label>
+                <label for="new_password" class="form-label">{{ __('New Password') }}</label>
                 <div class="relative">
                     <input
                         :type="showNewPassword ? 'text' : 'password'"
@@ -87,7 +87,7 @@
                         </svg>
                     </button>
                 </div>
-                <p class="mt-1 text-sm text-gray-500">Minimum 8 characters</p>
+                <p class="mt-1 text-sm text-gray-500">{{ __('Minimum 8 characters') }}</p>
                 @error('new_password')
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
@@ -95,7 +95,7 @@
 
             <!-- Confirm New Password -->
             <div class="mb-6">
-                <label for="new_password_confirmation" class="form-label">Confirm New Password</label>
+                <label for="new_password_confirmation" class="form-label">{{ __('Confirm New Password') }}</label>
                 <div class="relative">
                     <input
                         :type="showConfirmPassword ? 'text' : 'password'"
@@ -122,9 +122,9 @@
                     </button>
                 </div>
                 <p class="mt-1 text-sm" :class="newPassword && newPasswordConfirmation && newPassword === newPasswordConfirmation ? 'text-green-600' : 'text-gray-500'">
-                    <span x-show="!newPasswordConfirmation">Re-enter your new password</span>
-                    <span x-show="newPasswordConfirmation && newPassword !== newPasswordConfirmation" class="text-red-600">Passwords do not match</span>
-                    <span x-show="newPassword && newPasswordConfirmation && newPassword === newPasswordConfirmation">✓ Passwords match</span>
+                    <span x-show="!newPasswordConfirmation">{{ __('Re-enter your new password') }}</span>
+                    <span x-show="newPasswordConfirmation && newPassword !== newPasswordConfirmation" class="text-red-600">{{ __('Passwords do not match') }}</span>
+                    <span x-show="newPassword && newPasswordConfirmation && newPassword === newPasswordConfirmation">✓ {{ __('Passwords match') }}</span>
                 </p>
             </div>
 
@@ -137,13 +137,13 @@
                     :class="{ 'opacity-50 cursor-not-allowed': loading || !currentPassword || !newPassword || !newPasswordConfirmation || newPassword !== newPasswordConfirmation }"
                     @click="loading = true"
                 >
-                    <span x-show="!loading">Change Password</span>
-                    <span x-show="loading">Changing...</span>
+                    <span x-show="!loading">{{ __('Change Password') }}</span>
+                    <span x-show="loading">{{ __('Changing...') }}</span>
                 </button>
 
                 @if(!auth()->user()->force_password_change)
                     <a href="{{ route('operator.select-line') }}" class="btn-touch btn-secondary flex-1 text-center">
-                        Cancel
+                        {{ __('Cancel') }}
                     </a>
                 @endif
             </div>

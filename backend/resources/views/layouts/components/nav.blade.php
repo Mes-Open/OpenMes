@@ -27,18 +27,18 @@
 
                 {{-- OPERATOR --}}
                 @hasrole('Operator')
-                    <a href="{{ route('operator.select-line') }}" class="nav-link">Select Line</a>
+                    <a href="{{ route('operator.select-line') }}" class="nav-link">{{ __('Select Production Line') }}</a>
                     @if(session('selected_line_id'))
-                        <a href="{{ route('operator.queue') }}" class="nav-link">Work Orders</a>
+                        <a href="{{ route('operator.queue') }}" class="nav-link">{{ __('Work Orders') }}</a>
                     @endif
                 @endhasrole
 
                 {{-- SUPERVISOR --}}
                 @hasrole('Supervisor')
-                    <a href="{{ route('supervisor.dashboard') }}" class="nav-link">Dashboard</a>
-                    <a href="{{ route('supervisor.work-orders.index') }}" class="nav-link">Work Orders</a>
-                    <a href="{{ route('supervisor.issues.index') }}" class="nav-link">Issues</a>
-                    <a href="{{ route('supervisor.reports') }}" class="nav-link">Reports</a>
+                    <a href="{{ route('supervisor.dashboard') }}" class="nav-link">{{ __('Dashboard') }}</a>
+                    <a href="{{ route('supervisor.work-orders.index') }}" class="nav-link">{{ __('Work Orders') }}</a>
+                    <a href="{{ route('supervisor.issues.index') }}" class="nav-link">{{ __('Issues') }}</a>
+                    <a href="{{ route('supervisor.reports') }}" class="nav-link">{{ __('Reports') }}</a>
                 @endhasrole
 
                 {{-- ADMIN --}}
@@ -54,8 +54,8 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <div class="dd-item"><a href="{{ route('admin.work-orders.index') }}">Work Orders</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.csv-import') }}">Import CSV</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.work-orders.index') }}">{{ __('Work Orders') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.csv-import') }}">{{ __('CSV Import') }}</a></div>
                         @foreach($menuRegistry->getItems('orders') as $item)
                             @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
                             <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
@@ -73,14 +73,14 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <div class="dd-item"><a href="{{ route('admin.product-types.index') }}">Product Types</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.materials.index') }}">Materials</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.lines.index') }}">Lines</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.line-statuses.index') }}">Line Statuses</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.issues.index') }}">Issues</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.product-types.index') }}">{{ __('Product Types') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.materials.index') }}">{{ __('Materials') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.lines.index') }}">{{ __('Production Lines') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.line-statuses.index') }}">{{ __('Line Statuses') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.issues.index') }}">{{ __('Issues') }}</a></div>
                         <div class="my-1 border-t border-gray-100"></div>
-                        <div class="dd-item"><a href="{{ route('admin.companies.index') }}">Companies</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.anomaly-reasons.index') }}">Anomaly Reasons</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.companies.index') }}">{{ __('Companies') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.anomaly-reasons.index') }}">{{ __('Anomaly Reasons') }}</a></div>
                         @foreach($menuRegistry->getItems('production') as $item)
                             @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
                             <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
@@ -98,10 +98,10 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <div class="dd-item"><a href="{{ route('admin.factories.index') }}">Factories</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.divisions.index') }}">Divisions</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.workstation-types.index') }}">Workstation Types</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.subassemblies.index') }}">Subassemblies</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.factories.index') }}">{{ __('Factories') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.divisions.index') }}">{{ __('Divisions') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.workstation-types.index') }}">{{ __('Workstation Types') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.subassemblies.index') }}">{{ __('Subassemblies') }}</a></div>
                         @foreach($menuRegistry->getItems('structure') as $item)
                             @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
                             <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
@@ -121,10 +121,10 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <div class="dd-item"><a href="{{ route('admin.workers.index') }}">Workers</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.crews.index') }}">Crews</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.skills.index') }}">Skills</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.wage-groups.index') }}">Wage Groups</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.workers.index') }}">{{ __('Workers') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.crews.index') }}">{{ __('Crews') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.skills.index') }}">{{ __('Skills') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.wage-groups.index') }}">{{ __('Wage Groups') }}</a></div>
                         @foreach($menuRegistry->getItems('hr') as $item)
                             @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
                             <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
@@ -142,10 +142,10 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <div class="dd-item"><a href="{{ route('admin.maintenance-events.index') }}">Events</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.tools.index') }}">Tools</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.cost-sources.index') }}">Cost Sources</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.production-anomalies.index') }}">Anomalies</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.maintenance-events.index') }}">{{ __('Maintenance Events') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.tools.index') }}">{{ __('Tools') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.cost-sources.index') }}">{{ __('Cost Sources') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.production-anomalies.index') }}">{{ __('Anomalies') }}</a></div>
                         @foreach($menuRegistry->getItems('maintenance') as $item)
                             @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
                             <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
@@ -163,10 +163,10 @@
                          x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                          x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
                          class="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
-                        <div class="dd-item"><a href="{{ route('admin.users.index') }}">Users</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.reports') }}">Reports</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.audit-logs') }}">Audit Logs</a></div>
-                        <div class="dd-item"><a href="{{ route('admin.modules.index') }}">Modules</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.users.index') }}">{{ __('Users') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.reports') }}">{{ __('Reports') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.audit-logs') }}">{{ __('Audit Logs') }}</a></div>
+                        <div class="dd-item"><a href="{{ route('admin.modules.index') }}">{{ __('Modules') }}</a></div>
                         @foreach($menuRegistry->getItems('admin') as $item)
                             @if($loop->first)<div class="my-1 border-t border-gray-100"></div>@endif
                             <div class="dd-item"><a href="{{ $item['url'] }}">{{ $item['label'] }}</a></div>
@@ -207,7 +207,7 @@
                 {{-- Logout --}}
                 <form action="{{ route('logout') }}" method="POST" class="inline">
                     @csrf
-                    <button type="submit" class="nav-link text-red-600 hover:text-red-700 hover:bg-red-50">Logout</button>
+                    <button type="submit" class="nav-link text-red-600 hover:text-red-700 hover:bg-red-50">{{ __('Logout') }}</button>
                 </form>
 
                 @endauth
@@ -233,70 +233,70 @@
             @endauth
 
             @hasrole('Operator')
-                <a href="{{ route('operator.select-line') }}" class="mobile-link">Select Line</a>
+                <a href="{{ route('operator.select-line') }}" class="mobile-link">{{ __('Select Production Line') }}</a>
                 @if(session('selected_line_id'))
-                    <a href="{{ route('operator.queue') }}" class="mobile-link">Work Orders</a>
+                    <a href="{{ route('operator.queue') }}" class="mobile-link">{{ __('Work Orders') }}</a>
                 @endif
             @endhasrole
 
             @hasrole('Supervisor')
-                <a href="{{ route('supervisor.dashboard') }}" class="mobile-link">Dashboard</a>
-                <a href="{{ route('supervisor.work-orders.index') }}" class="mobile-link">Work Orders</a>
-                <a href="{{ route('supervisor.issues.index') }}" class="mobile-link">Issues</a>
-                <a href="{{ route('supervisor.reports') }}" class="mobile-link">Reports</a>
+                <a href="{{ route('supervisor.dashboard') }}" class="mobile-link">{{ __('Dashboard') }}</a>
+                <a href="{{ route('supervisor.work-orders.index') }}" class="mobile-link">{{ __('Work Orders') }}</a>
+                <a href="{{ route('supervisor.issues.index') }}" class="mobile-link">{{ __('Issues') }}</a>
+                <a href="{{ route('supervisor.reports') }}" class="mobile-link">{{ __('Reports') }}</a>
             @endhasrole
 
             @hasrole('Admin')
                 <p class="mobile-group-label">Orders</p>
-                <a href="{{ route('admin.work-orders.index') }}" class="mobile-link pl-6">Work Orders</a>
-                <a href="{{ route('admin.csv-import') }}" class="mobile-link pl-6">Import CSV</a>
+                <a href="{{ route('admin.work-orders.index') }}" class="mobile-link pl-6">{{ __('Work Orders') }}</a>
+                <a href="{{ route('admin.csv-import') }}" class="mobile-link pl-6">{{ __('CSV Import') }}</a>
                 @foreach($menuRegistry->getItems('orders') as $item)
                     <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
                 @endforeach
 
                 <p class="mobile-group-label">Production</p>
-                <a href="{{ route('admin.product-types.index') }}" class="mobile-link pl-6">Product Types</a>
-                <a href="{{ route('admin.lines.index') }}" class="mobile-link pl-6">Lines</a>
-                <a href="{{ route('admin.line-statuses.index') }}" class="mobile-link pl-6">Line Statuses</a>
-                <a href="{{ route('admin.issues.index') }}" class="mobile-link pl-6">Issues</a>
-                <a href="{{ route('admin.companies.index') }}" class="mobile-link pl-6">Companies</a>
-                <a href="{{ route('admin.anomaly-reasons.index') }}" class="mobile-link pl-6">Anomaly Reasons</a>
+                <a href="{{ route('admin.product-types.index') }}" class="mobile-link pl-6">{{ __('Product Types') }}</a>
+                <a href="{{ route('admin.lines.index') }}" class="mobile-link pl-6">{{ __('Production Lines') }}</a>
+                <a href="{{ route('admin.line-statuses.index') }}" class="mobile-link pl-6">{{ __('Line Statuses') }}</a>
+                <a href="{{ route('admin.issues.index') }}" class="mobile-link pl-6">{{ __('Issues') }}</a>
+                <a href="{{ route('admin.companies.index') }}" class="mobile-link pl-6">{{ __('Companies') }}</a>
+                <a href="{{ route('admin.anomaly-reasons.index') }}" class="mobile-link pl-6">{{ __('Anomaly Reasons') }}</a>
                 @foreach($menuRegistry->getItems('production') as $item)
                     <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
                 @endforeach
 
                 <p class="mobile-group-label">Structure</p>
-                <a href="{{ route('admin.factories.index') }}" class="mobile-link pl-6">Factories</a>
-                <a href="{{ route('admin.divisions.index') }}" class="mobile-link pl-6">Divisions</a>
-                <a href="{{ route('admin.workstation-types.index') }}" class="mobile-link pl-6">Workstation Types</a>
-                <a href="{{ route('admin.subassemblies.index') }}" class="mobile-link pl-6">Subassemblies</a>
+                <a href="{{ route('admin.factories.index') }}" class="mobile-link pl-6">{{ __('Factories') }}</a>
+                <a href="{{ route('admin.divisions.index') }}" class="mobile-link pl-6">{{ __('Divisions') }}</a>
+                <a href="{{ route('admin.workstation-types.index') }}" class="mobile-link pl-6">{{ __('Workstation Types') }}</a>
+                <a href="{{ route('admin.subassemblies.index') }}" class="mobile-link pl-6">{{ __('Subassemblies') }}</a>
                 @foreach($menuRegistry->getItems('structure') as $item)
                     <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
                 @endforeach
 
                 <p class="mobile-group-label">HR</p>
-                <a href="{{ route('admin.workers.index') }}" class="mobile-link pl-6">Workers</a>
-                <a href="{{ route('admin.crews.index') }}" class="mobile-link pl-6">Crews</a>
-                <a href="{{ route('admin.skills.index') }}" class="mobile-link pl-6">Skills</a>
-                <a href="{{ route('admin.wage-groups.index') }}" class="mobile-link pl-6">Wage Groups</a>
+                <a href="{{ route('admin.workers.index') }}" class="mobile-link pl-6">{{ __('Workers') }}</a>
+                <a href="{{ route('admin.crews.index') }}" class="mobile-link pl-6">{{ __('Crews') }}</a>
+                <a href="{{ route('admin.skills.index') }}" class="mobile-link pl-6">{{ __('Skills') }}</a>
+                <a href="{{ route('admin.wage-groups.index') }}" class="mobile-link pl-6">{{ __('Wage Groups') }}</a>
                 @foreach($menuRegistry->getItems('hr') as $item)
                     <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
                 @endforeach
 
                 <p class="mobile-group-label">Maintenance</p>
-                <a href="{{ route('admin.maintenance-events.index') }}" class="mobile-link pl-6">Events</a>
-                <a href="{{ route('admin.tools.index') }}" class="mobile-link pl-6">Tools</a>
-                <a href="{{ route('admin.cost-sources.index') }}" class="mobile-link pl-6">Cost Sources</a>
-                <a href="{{ route('admin.production-anomalies.index') }}" class="mobile-link pl-6">Anomalies</a>
+                <a href="{{ route('admin.maintenance-events.index') }}" class="mobile-link pl-6">{{ __('Maintenance Events') }}</a>
+                <a href="{{ route('admin.tools.index') }}" class="mobile-link pl-6">{{ __('Tools') }}</a>
+                <a href="{{ route('admin.cost-sources.index') }}" class="mobile-link pl-6">{{ __('Cost Sources') }}</a>
+                <a href="{{ route('admin.production-anomalies.index') }}" class="mobile-link pl-6">{{ __('Anomalies') }}</a>
                 @foreach($menuRegistry->getItems('maintenance') as $item)
                     <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
                 @endforeach
 
                 <p class="mobile-group-label">Admin</p>
-                <a href="{{ route('admin.users.index') }}" class="mobile-link pl-6">Users</a>
-                <a href="{{ route('admin.reports') }}" class="mobile-link pl-6">Reports</a>
-                <a href="{{ route('admin.audit-logs') }}" class="mobile-link pl-6">Audit Logs</a>
-                <a href="{{ route('admin.modules.index') }}" class="mobile-link pl-6">Modules</a>
+                <a href="{{ route('admin.users.index') }}" class="mobile-link pl-6">{{ __('Users') }}</a>
+                <a href="{{ route('admin.reports') }}" class="mobile-link pl-6">{{ __('Reports') }}</a>
+                <a href="{{ route('admin.audit-logs') }}" class="mobile-link pl-6">{{ __('Audit Logs') }}</a>
+                <a href="{{ route('admin.modules.index') }}" class="mobile-link pl-6">{{ __('Modules') }}</a>
                 @foreach($menuRegistry->getItems('admin') as $item)
                     <a href="{{ $item['url'] }}" class="mobile-link pl-6">{{ $item['label'] }}</a>
                 @endforeach
@@ -311,10 +311,10 @@
             @endhasrole
 
             <div class="border-t border-gray-200 mt-2 pt-2">
-                <a href="{{ route('settings.index') }}" class="mobile-link">Settings</a>
+                <a href="{{ route('settings.index') }}" class="mobile-link">{{ __('Settings') }}</a>
                 <form action="{{ route('logout') }}" method="POST" class="px-3 py-2">
                     @csrf
-                    <button type="submit" class="w-full btn-touch btn-secondary">Logout</button>
+                    <button type="submit" class="w-full btn-touch btn-secondary">{{ __('Logout') }}</button>
                 </form>
             </div>
         </div>

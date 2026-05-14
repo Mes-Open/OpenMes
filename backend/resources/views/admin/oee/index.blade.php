@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'OEE Report')
+@section('title', __('OEE Report'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'OEE', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('OEE'), 'url' => null],
 ]" />
 
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">OEE Report</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-1">Overall Equipment Effectiveness — Availability × Performance × Quality</p>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ __('OEE Report') }}</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">{{ __('Overall Equipment Effectiveness — Availability × Performance × Quality') }}</p>
         </div>
     </div>
 
@@ -20,23 +20,23 @@
     <form method="GET" class="card mb-6">
         <div class="flex flex-wrap gap-4 items-end">
             <div class="w-48">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Line</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('Line') }}</label>
                 <select name="line_id" class="form-input w-full">
-                    <option value="">All Lines</option>
+                    <option value="">{{ __('All Lines') }}</option>
                     @foreach($lines as $line)
                         <option value="{{ $line->id }}" {{ $lineId == $line->id ? 'selected' : '' }}>{{ $line->name }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('From') }}</label>
                 <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ __('To') }}</label>
                 <input type="date" name="date_to" value="{{ $dateTo }}" class="form-input">
             </div>
-            <button type="submit" class="btn-touch btn-primary">Filter</button>
+            <button type="submit" class="btn-touch btn-primary">{{ __('Filter') }}</button>
         </div>
     </form>
 
@@ -57,22 +57,22 @@
                         </div>
                         <div class="grid grid-cols-3 gap-2 text-center">
                             <div>
-                                <p class="text-xs text-gray-500 uppercase">Availability</p>
+                                <p class="text-xs text-gray-500 uppercase">{{ __('Availability') }}</p>
                                 <p class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ number_format($s['avg_availability'], 1) }}%</p>
                             </div>
                             <div>
-                                <p class="text-xs text-gray-500 uppercase">Performance</p>
+                                <p class="text-xs text-gray-500 uppercase">{{ __('Performance') }}</p>
                                 <p class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ $s['avg_performance'] ? number_format($s['avg_performance'], 1).'%' : 'N/A' }}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-gray-500 uppercase">Quality</p>
+                                <p class="text-xs text-gray-500 uppercase">{{ __('Quality') }}</p>
                                 <p class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ number_format($s['avg_quality'], 1) }}%</p>
                             </div>
                         </div>
                         <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex gap-4 text-xs text-gray-500">
-                            <span>Produced: {{ number_format($s['total_produced']) }}</span>
-                            <span>Scrap: {{ number_format($s['total_scrap']) }}</span>
-                            <span>Downtime: {{ $s['total_downtime'] }}min</span>
+                            <span>{{ __('Produced') }}: {{ number_format($s['total_produced']) }}</span>
+                            <span>{{ __('Scrap') }}: {{ number_format($s['total_scrap']) }}</span>
+                            <span>{{ __('Downtime') }}: {{ $s['total_downtime'] }}min</span>
                         </div>
                     </a>
                 @endif
@@ -83,7 +83,7 @@
     <!-- Trend Chart -->
     @if($trend->isNotEmpty())
         <div class="card mb-6">
-            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">OEE Trend</h2>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">{{ __('OEE Trend') }}</h2>
             <div class="h-48 flex items-end gap-1" x-data="{ trend: {{ $trend->toJson() }} }">
                 <template x-for="(day, i) in trend" :key="i">
                     <div class="flex-1 flex flex-col items-center gap-1">
@@ -105,7 +105,7 @@
                 </template>
             </div>
             <div class="mt-2 flex items-center gap-4 text-xs text-gray-500">
-                <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded"></span> ≥ 85% (World-class)</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded"></span> ≥ 85% ({{ __('World-class') }})</span>
                 <span class="flex items-center gap-1"><span class="w-3 h-3 bg-yellow-500 rounded"></span> 60-84%</span>
                 <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-500 rounded"></span> &lt; 60%</span>
             </div>
@@ -115,21 +115,21 @@
     <!-- Detail Table -->
     @if($records->isNotEmpty())
         <div class="card overflow-hidden">
-            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Daily Records</h2>
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">{{ __('Daily Records') }}</h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                     <thead class="bg-gray-50 dark:bg-slate-700">
                         <tr>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Line</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Shift</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Date') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Line') }}</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Shift') }}</th>
                             <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">A%</th>
                             <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">P%</th>
                             <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Q%</th>
                             <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">OEE%</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Produced</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Scrap</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Downtime</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Produced') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Scrap') }}</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Downtime') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -137,7 +137,7 @@
                             <tr>
                                 <td class="px-3 py-2 font-mono">{{ $record->record_date->format('Y-m-d') }}</td>
                                 <td class="px-3 py-2 font-medium">{{ $record->line->name }}</td>
-                                <td class="px-3 py-2 text-gray-500">{{ $record->shift?->name ?? 'All' }}</td>
+                                <td class="px-3 py-2 text-gray-500">{{ $record->shift?->name ?? __('All') }}</td>
                                 <td class="px-3 py-2 text-right">{{ $record->availability_pct !== null ? number_format($record->availability_pct, 1).'%' : '-' }}</td>
                                 <td class="px-3 py-2 text-right">{{ $record->performance_pct !== null ? number_format($record->performance_pct, 1).'%' : '-' }}</td>
                                 <td class="px-3 py-2 text-right">{{ $record->quality_pct !== null ? number_format($record->quality_pct, 1).'%' : '-' }}</td>
@@ -155,8 +155,8 @@
         </div>
     @else
         <div class="card text-center py-12">
-            <p class="text-gray-500 text-lg mb-2">No OEE data available</p>
-            <p class="text-sm text-gray-400">OEE data will appear once production batches are completed and downtimes are reported.</p>
+            <p class="text-gray-500 text-lg mb-2">{{ __('No OEE data available') }}</p>
+            <p class="text-sm text-gray-400">{{ __('OEE data will appear once production batches are completed and downtimes are reported.') }}</p>
         </div>
     @endif
 </div>

@@ -67,3 +67,9 @@ yarn-error.log*
 # Project-specific
 .init_prompt
 /reference-app
+
+
+# Modules — all managed externally, never committed to public repo
+# Core modules (Packaging etc.) stay in repo history but new ones go to private repos
+modules/*
+!modules/README.md

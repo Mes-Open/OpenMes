@@ -1,0 +1,11 @@
+#!/bin/bash
+# Block ALL commits to modules/ directory
+if git diff --cached --name-only | grep "^modules/" > /dev/null 2>&1; then
+    echo ""
+    echo "BLOCKED: Committing to modules/ is not allowed."
+    echo ""
+    echo "All modules are managed in separate repositories."
+    echo "Use: git reset HEAD modules/"
+    echo ""
+    exit 1
+fi

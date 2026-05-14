@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Admin Dashboard')
+@section('title', __('Admin Dashboard'))
 
 @section('content')
 <div class="max-w-7xl mx-auto">
@@ -8,12 +8,12 @@
     {{-- Header + Line Filter --}}
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-            <p class="text-gray-500 mt-1 text-sm">{{ now()->format('d M Y, H:i') }}
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Admin Dashboard') }}</h1>
+            <p class="text-gray-500 mt-1 text-sm">{{ now()->translatedFormat('d M Y, H:i') }}
                 @if($selectedLineId)
                     &mdash; <span class="font-medium text-blue-600">{{ $lines->find($selectedLineId)?->name }}</span>
                 @else
-                    &mdash; all lines
+                    &mdash; {{ __('all lines') }}
                 @endif
             </p>
         </div>
@@ -36,73 +36,134 @@
         </form>
     </div>
 
+    @php
+        $enabledWidgets = $enabledWidgets ?? [];
+        $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
+        $wOrder = array_flip($widgetOrder);
+    @endphp
+
+    <div class="flex flex-col">
+
     {{-- KPI Cards --}}
+    @if(empty($enabledWidgets) || in_array('kpi_cards', $enabledWidgets))
+    <div style="order: {{ ($wOrder['kpi_cards'] ?? 0) * 10 }}" class="mb-6">
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
 
         <a href="{{ route('admin.work-orders.index', $selectedLineId ? ['line_id' => $selectedLineId] : []) }}"
            class="card hover:shadow-md transition-shadow">
-            <p class="text-sm text-gray-500 mb-1">Total Work Orders</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Total Work Orders') }}</p>
             <p class="text-3xl font-bold text-gray-800">{{ $stats['total_work_orders'] }}</p>
         </a>
 
         <a href="{{ route('admin.work-orders.index', array_filter(['status' => 'IN_PROGRESS', 'line_id' => $selectedLineId])) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-blue-400">
-            <p class="text-sm text-gray-500 mb-1">In Progress</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('In Progress') }}</p>
             <p class="text-3xl font-bold text-blue-600">{{ $stats['in_progress'] }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">incl. accepted</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ __('incl. accepted') }}</p>
         </a>
 
         <a href="{{ route('admin.work-orders.index', array_filter(['status' => 'PENDING', 'line_id' => $selectedLineId])) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-gray-300">
-            <p class="text-sm text-gray-500 mb-1">Pending</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Pending') }}</p>
             <p class="text-3xl font-bold text-gray-600">{{ $stats['pending'] }}</p>
         </a>
 
         <a href="{{ route('admin.work-orders.index', array_filter(['status' => 'BLOCKED', 'line_id' => $selectedLineId])) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-red-400">
-            <p class="text-sm text-gray-500 mb-1">Blocked</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Blocked') }}</p>
             <p class="text-3xl font-bold text-red-600">{{ $stats['blocked'] }}</p>
         </a>
 
         <a href="{{ route('admin.work-orders.index', array_filter(['status' => 'DONE', 'line_id' => $selectedLineId])) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-green-400">
-            <p class="text-sm text-gray-500 mb-1">Done Today</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Done Today') }}</p>
             <p class="text-3xl font-bold text-green-600">{{ $stats['done_today'] }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">{{ $stats['done'] }} total done</p>
+            <p class="text-xs text-gray-400 mt-0.5">{{ $stats['done'] }} {{ __('total done') }}</p>
         </a>
 
         <a href="{{ route('admin.issues.index') }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-yellow-400">
-            <p class="text-sm text-gray-500 mb-1">Open Issues</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Open Issues') }}</p>
             <p class="text-3xl font-bold text-yellow-600">{{ $stats['open_issues'] }}</p>
         </a>
 
         <a href="{{ route('admin.issues.index', ['blocking' => 1]) }}"
            class="card hover:shadow-md transition-shadow border-l-4 border-red-600">
-            <p class="text-sm text-gray-500 mb-1">Blocking Issues</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Blocking Issues') }}</p>
             <p class="text-3xl font-bold text-red-700">{{ $stats['blocking_issues'] }}</p>
         </a>
 
         <a href="{{ route('admin.lines.index') }}"
            class="card hover:shadow-md transition-shadow">
-            <p class="text-sm text-gray-500 mb-1">Active Lines</p>
+            <p class="text-sm text-gray-500 mb-1">{{ __('Active Lines') }}</p>
             <p class="text-3xl font-bold text-purple-600">{{ $stats['active_lines'] }}</p>
         </a>
 
     </div>
+    </div>
+    @endif
 
     {{-- ── Widget zone: admin_dashboard.kpi ── --}}
     @foreach($widgetRegistry->getWidgets('admin_dashboard.kpi') as $widget)
         @include($widget['view'], array_merge($widget['data'], ['selectedLineId' => $selectedLineId]))
     @endforeach
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    {{-- OEE Overview — full width --}}
+    @if((empty($enabledWidgets) || in_array('oee_overview', $enabledWidgets)) && ($oeeRecords ?? collect())->isNotEmpty())
+    <div style="order: {{ ($wOrder['oee_overview'] ?? 1) * 10 }}" class="card mb-6">
+        <div class="flex justify-between items-center mb-3">
+            <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold text-gray-800">{{ __('OEE Overview') }}</h2>
+                <div class="relative" x-data="{ open: false }">
+                    <button @click="open = !open" @click.outside="open = false" class="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-300 flex items-center justify-center text-xs font-bold hover:bg-blue-100 hover:text-blue-600 transition-colors" title="What is OEE?">?</button>
+                    <div x-show="open" x-cloak x-transition class="absolute left-0 top-7 z-50 w-72 p-4 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 text-sm">
+                        <p class="font-bold text-gray-800 dark:text-white mb-2">OEE = A × P × Q</p>
+                        <ul class="space-y-1 text-gray-600 dark:text-gray-300">
+                            <li><strong>A</strong> — Availability: actual run time vs planned time (downtime impact)</li>
+                            <li><strong>P</strong> — Performance: actual speed vs ideal speed (slow cycles impact)</li>
+                            <li><strong>Q</strong> — Quality: good units vs total produced (defects impact)</li>
+                        </ul>
+                        <p class="mt-2 text-xs text-gray-400">Target: >85% world-class, 60-85% typical, &lt;60% needs improvement</p>
+                    </div>
+                </div>
+            </div>
+            <a href="{{ route('admin.oee.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('Full report') }} →</a>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            @foreach($lines as $line)
+                @php $oee = ($oeeRecords ?? collect())->get($line->id); @endphp
+                <div class="p-3 rounded-lg border {{ $oee ? ($oee->oee_pct >= 85 ? 'border-green-200 bg-green-50' : ($oee->oee_pct >= 60 ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50')) : 'border-gray-200 bg-gray-50' }}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-700 truncate" title="{{ $line->name }}">{{ $line->name }}</span>
+                        @if($oee)
+                            <span class="text-lg font-bold {{ $oee->oee_pct >= 85 ? 'text-green-700' : ($oee->oee_pct >= 60 ? 'text-yellow-700' : 'text-red-700') }}">
+                                {{ number_format($oee->oee_pct, 1) }}%
+                            </span>
+                        @else
+                            <span class="text-sm text-gray-400">N/A</span>
+                        @endif
+                    </div>
+                    @if($oee)
+                        <div class="flex gap-3 text-xs text-gray-500">
+                            <span>A: {{ number_format($oee->availability_pct, 0) }}%</span>
+                            <span>P: {{ $oee->performance_pct !== null ? number_format($oee->performance_pct, 0).'%' : '-' }}</span>
+                            <span>Q: {{ number_format($oee->quality_pct, 0) }}%</span>
+                        </div>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
-        {{-- Recent Work Orders --}}
+    <div style="order: {{ ($wOrder['recent_work_orders'] ?? 2) * 10 }}" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+        {{-- {{ __('Recent Work Orders') }} --}}
+        @if(empty($enabledWidgets) || in_array('recent_work_orders', $enabledWidgets))
         <div class="lg:col-span-2 card">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-bold text-gray-800">Recent Work Orders</h2>
-                <a href="{{ route('admin.work-orders.index') }}" class="text-sm text-blue-600 hover:underline">View all →</a>
+                <h2 class="text-lg font-bold text-gray-800">{{ __('Recent Work Orders') }}</h2>
+                <a href="{{ route('admin.work-orders.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('View all') }} →</a>
             </div>
             @if($recentWorkOrders->isEmpty())
                 <p class="text-sm text-gray-500 py-4 text-center">No work orders yet.</p>
@@ -138,7 +199,7 @@
                                             @elseif($wo->status === 'PAUSED')   bg-yellow-100 text-yellow-700
                                             @else                               bg-gray-100 text-gray-500
                                             @endif">
-                                            {{ str_replace('_', ' ', $wo->status) }}
+                                            {{ __(['PENDING'=>'Pending','ACCEPTED'=>'Accepted','IN_PROGRESS'=>'In Progress','BLOCKED'=>'Blocked','PAUSED'=>'Paused','DONE'=>'Done','REJECTED'=>'Rejected','CANCELLED'=>'Cancelled'][$wo->status] ?? $wo->status) }}
                                         </span>
                                     </td>
                                     <td class="py-2 text-gray-600">
@@ -161,49 +222,17 @@
                 </div>
             @endif
         </div>
+        @endif
 
         {{-- Sidebar --}}
         <div class="space-y-6">
 
-            {{-- OEE Overview --}}
-            @if(($oeeRecords ?? collect())->isNotEmpty())
+            {{-- {{ __('Open Issues') }} --}}
+            @if(empty($enabledWidgets) || in_array('open_issues', $enabledWidgets))
             <div class="card">
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-base font-bold text-gray-800">OEE Overview</h2>
-                    <a href="{{ route('admin.oee.index') }}" class="text-xs text-blue-600 hover:underline">Full report →</a>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    @foreach($lines as $line)
-                        @php $oee = ($oeeRecords ?? collect())->get($line->id); @endphp
-                        <div class="p-3 rounded-lg border {{ $oee ? ($oee->oee_pct >= 85 ? 'border-green-200 bg-green-50' : ($oee->oee_pct >= 60 ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50')) : 'border-gray-200 bg-gray-50' }}">
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-sm font-medium text-gray-700 truncate">{{ $line->name }}</span>
-                                @if($oee)
-                                    <span class="text-lg font-bold {{ $oee->oee_pct >= 85 ? 'text-green-700' : ($oee->oee_pct >= 60 ? 'text-yellow-700' : 'text-red-700') }}">
-                                        {{ number_format($oee->oee_pct, 1) }}%
-                                    </span>
-                                @else
-                                    <span class="text-sm text-gray-400">N/A</span>
-                                @endif
-                            </div>
-                            @if($oee)
-                                <div class="flex gap-3 text-xs text-gray-500">
-                                    <span>A: {{ number_format($oee->availability_pct, 0) }}%</span>
-                                    <span>P: {{ $oee->performance_pct !== null ? number_format($oee->performance_pct, 0).'%' : '-' }}</span>
-                                    <span>Q: {{ number_format($oee->quality_pct, 0) }}%</span>
-                                </div>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-            @endif
-
-            {{-- Open Issues --}}
-            <div class="card">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-base font-bold text-gray-800">Open Issues</h2>
-                    <a href="{{ route('admin.issues.index') }}" class="text-xs text-blue-600 hover:underline">View all →</a>
+                    <h2 class="text-base font-bold text-gray-800">{{ __('Open Issues') }}</h2>
+                    <a href="{{ route('admin.issues.index') }}" class="text-xs text-blue-600 hover:underline">{{ __('View all') }} →</a>
                 </div>
                 @if($recentIssues->isEmpty())
                     <p class="text-sm text-gray-500 text-center py-3">No open issues.</p>
@@ -223,24 +252,26 @@
                     </div>
                 @endif
             </div>
+            @endif
 
             {{-- ── Widget zone: admin_dashboard.sidebar ── --}}
             @foreach($widgetRegistry->getWidgets('admin_dashboard.sidebar') as $widget)
                 @include($widget['view'], array_merge($widget['data'], ['selectedLineId' => $selectedLineId]))
             @endforeach
 
-            {{-- Quick Links --}}
+            {{-- {{ __('Quick Links') }} --}}
+            @if(empty($enabledWidgets) || in_array('quick_links', $enabledWidgets))
             <div class="card">
-                <h2 class="text-base font-bold text-gray-800 mb-3">Quick Links</h2>
+                <h2 class="text-base font-bold text-gray-800 mb-3">{{ __('Quick Links') }}</h2>
                 <div class="space-y-1">
                     @foreach([
-                        ['route' => 'admin.work-orders.create', 'label' => '+ New Work Order'],
-                        ['route' => 'admin.lines.index',        'label' => 'Production Lines'],
-                        ['route' => 'admin.product-types.index','label' => 'Product Types'],
-                        ['route' => 'admin.users.index',        'label' => 'User Management'],
-                        ['route' => 'admin.issue-types.index',  'label' => 'Issue Types'],
-                        ['route' => 'admin.csv-import',         'label' => 'CSV Import'],
-                        ['route' => 'admin.audit-logs',         'label' => 'Audit Logs'],
+                        ['route' => 'admin.work-orders.create', 'label' => '+ ' . __('New Work Order')],
+                        ['route' => 'admin.lines.index',        'label' => __('Production Lines')],
+                        ['route' => 'admin.product-types.index','label' => __('Product Types')],
+                        ['route' => 'admin.users.index',        'label' => __('User Management')],
+                        ['route' => 'admin.issue-types.index',  'label' => __('Issue Types')],
+                        ['route' => 'admin.csv-import',         'label' => __('CSV Import')],
+                        ['route' => 'admin.audit-logs',         'label' => __('Audit Logs')],
                     ] as $link)
                         <a href="{{ route($link['route']) }}"
                            class="block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
@@ -249,6 +280,7 @@
                     @endforeach
                 </div>
             </div>
+            @endif
 
         </div>
     </div>
@@ -261,6 +293,8 @@
             @endforeach
         </div>
     @endif
+
+    </div> {{-- close flex container --}}
 
 </div>
 @endsection

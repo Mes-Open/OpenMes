@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Work Order Detail')
+@section('title', __('Work Order Details'))
 
 @section('content')
 <div class="max-w-7xl mx-auto"
@@ -18,7 +18,7 @@
                     @elseif($workOrder->status === 'BLOCKED')  bg-red-100 text-red-800
                     @else                                       bg-gray-100 text-gray-500
                     @endif">
-                    {{ ucfirst(str_replace('_', ' ', $workOrder->status)) }}
+                    {{ $workOrder->status === 'PENDING' ? 'Not Started' : ucfirst(str_replace('_', ' ', $workOrder->status)) }}
                 </span>
             </div>
             @if($workOrder->productType)
@@ -76,7 +76,7 @@
                         <div>
                             <p class="text-sm text-gray-500">Due Date</p>
                             <p class="font-medium {{ $workOrder->due_date->isPast() && $workOrder->status !== 'DONE' ? 'text-red-600' : 'text-gray-800' }}">
-                                {{ $workOrder->due_date->format('d M Y') }}
+                                {{ $workOrder->due_date->translatedFormat('d M Y') }}
                             </p>
                         </div>
                     @endif
@@ -178,7 +178,7 @@
                                             @elseif($batch->status === 'DONE')     bg-green-100 text-green-700
                                             @else                                  bg-gray-100 text-gray-400
                                             @endif">
-                                            {{ ucfirst(str_replace('_', ' ', $batch->status)) }}
+                                            {{ $batch->status === 'PENDING' ? 'Not Started' : ucfirst(str_replace('_', ' ', $batch->status)) }}
                                         </span>
                                         <span class="text-sm text-gray-500">
                                             {{ number_format($batch->produced_qty, 2) }} / {{ number_format($batch->target_qty, 2) }}

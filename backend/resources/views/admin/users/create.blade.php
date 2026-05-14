@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Create User')
+@section('title', __('Create User'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Users', 'url' => route('admin.users.index')],
-    ['label' => 'New User', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Users'), 'url' => route('admin.users.index')],
+    ['label' => __('New User'), 'url' => null],
 ]" />
 
 <div class="max-w-2xl mx-auto">
@@ -15,9 +15,9 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Users
+            {{ __('Back to Users') }}
         </a>
-        <h1 class="text-3xl font-bold text-gray-800">Create New User</h1>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('Create New User') }}</h1>
     </div>
 
     <form method="POST" action="{{ route('admin.users.store') }}" x-data="{
@@ -33,10 +33,10 @@
 
         {{-- ── Login Account ── --}}
         <div class="card">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">Login Account</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">{{ __('Login Account') }}</h2>
 
             <div class="mb-4">
-                <label class="form-label">Full Name <span class="text-red-500">*</span></label>
+                <label class="form-label">{{ __('Full Name') }} <span class="text-red-500">*</span></label>
                 <input type="text" name="name" value="{{ old('name') }}"
                        class="form-input w-full @error('name') border-red-500 @enderror"
                        required autofocus>
@@ -44,15 +44,15 @@
             </div>
 
             <div class="mb-4">
-                <label class="form-label">Username <span class="text-red-500">*</span></label>
+                <label class="form-label">{{ __('Username') }} <span class="text-red-500">*</span></label>
                 <input type="text" name="username" value="{{ old('username') }}"
                        class="form-input w-full @error('username') border-red-500 @enderror" required>
-                <p class="text-xs text-gray-500 mt-1">Used for login</p>
+                <p class="text-xs text-gray-500 mt-1">{{ __('Used for login') }}</p>
                 @error('username') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
             </div>
 
             <div class="mb-4">
-                <label class="form-label">Email <span class="text-red-500">*</span></label>
+                <label class="form-label">{{ __('Email') }} <span class="text-red-500">*</span></label>
                 <input type="email" name="email" value="{{ old('email') }}"
                        class="form-input w-full @error('email') border-red-500 @enderror" required>
                 @error('email') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
@@ -60,20 +60,20 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label class="form-label">Account Type <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Account Type') }} <span class="text-red-500">*</span></label>
                     <select name="account_type" x-model="accountType"
                             class="form-input w-full @error('account_type') border-red-500 @enderror" required>
-                        <option value="user">User (Personal)</option>
-                        <option value="workstation">Workstation (Shared)</option>
+                        <option value="user">{{ __('User (Personal)') }}</option>
+                        <option value="workstation">{{ __('Workstation (Shared)') }}</option>
                     </select>
                     @error('account_type') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div x-show="accountType === 'user'" x-cloak>
-                    <label class="form-label">Role <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Role') }} <span class="text-red-500">*</span></label>
                     <select name="role" class="form-input w-full @error('role') border-red-500 @enderror"
                             :required="accountType === 'user'">
-                        <option value="">Select a role</option>
+                        <option value="">{{ __('Select a role') }}</option>
                         @foreach($roles as $role)
                             <option value="{{ $role->name }}" {{ old('role') === $role->name ? 'selected' : '' }}>
                                 {{ $role->name }}
@@ -87,17 +87,17 @@
             {{-- Workstation select --}}
             <div class="mb-4">
                 <label class="form-label">
-                    Default Workstation
+                    {{ __('Default Workstation') }}
                     <span x-show="accountType === 'workstation'" x-cloak class="text-red-500">*</span>
-                    <span x-show="accountType === 'user'" x-cloak class="text-gray-400 font-normal text-sm">(optional — operator will skip line selection)</span>
+                    <span x-show="accountType === 'user'" x-cloak class="text-gray-400 font-normal text-sm">{{ __('(optional — operator will skip line selection)') }}</span>
                 </label>
                 <select name="workstation_id"
                         class="form-input w-full @error('workstation_id') border-red-500 @enderror"
                         :required="accountType === 'workstation'">
-                    <option value="">— None —</option>
+                    <option value="">{{ __('— None —') }}</option>
                     @foreach($workstations as $ws)
                         <option value="{{ $ws->id }}" {{ old('workstation_id') == $ws->id ? 'selected' : '' }}>
-                            {{ $ws->name }} ({{ $ws->line?->name ?? 'No line' }})
+                            {{ $ws->name }} ({{ $ws->line?->name ?? __('No line') }})
                         </option>
                     @endforeach
                 </select>
@@ -106,7 +106,7 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label class="form-label">Password <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Password') }} <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input :type="showPassword ? 'text' : 'password'" name="password"
                                x-model="password"
@@ -122,7 +122,7 @@
                 </div>
 
                 <div>
-                    <label class="form-label">Confirm Password <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Confirm Password') }} <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <input :type="showConfirm ? 'text' : 'password'" name="password_confirmation"
                                x-model="passwordConfirmation"
@@ -146,7 +146,7 @@
                 <input type="checkbox" name="force_password_change" value="1"
                        class="rounded border-gray-300 text-blue-600"
                        {{ old('force_password_change') ? 'checked' : '' }}>
-                <span class="text-sm text-gray-700">Force password change on first login</span>
+                <span class="text-sm text-gray-700">{{ __('Force password change on first login') }}</span>
             </label>
         </div>
 
@@ -154,20 +154,20 @@
         <div x-show="accountType === 'user'" x-cloak class="card">
             <div class="flex items-center justify-between mb-3">
                 <div>
-                    <h2 class="text-lg font-bold text-gray-800">Worker Profile</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">Optionally link this account to a production worker record.</p>
+                    <h2 class="text-lg font-bold text-gray-800">{{ __('Worker Profile') }}</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ __('Optionally link this account to a production worker record.') }}</p>
                 </div>
                 <label class="flex items-center gap-2 cursor-pointer select-none">
                     <input type="checkbox" x-model="workerEnabled"
                            class="rounded border-gray-300 text-blue-600">
-                    <span class="text-sm font-medium text-gray-700">Create worker profile</span>
+                    <span class="text-sm font-medium text-gray-700">{{ __('Create worker profile') }}</span>
                 </label>
             </div>
 
             <div x-show="workerEnabled" x-cloak class="space-y-4 border-t border-gray-100 pt-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="form-label">Worker Code <span class="text-red-500">*</span></label>
+                        <label class="form-label">{{ __('Worker Code') }} <span class="text-red-500">*</span></label>
                         <input type="text" name="worker_code" value="{{ old('worker_code') }}"
                                :required="workerEnabled"
                                class="form-input w-full @error('worker_code') border-red-500 @enderror"
@@ -176,7 +176,7 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Phone</label>
+                        <label class="form-label">{{ __('Phone') }}</label>
                         <input type="text" name="worker_phone" value="{{ old('worker_phone') }}"
                                class="form-input w-full @error('worker_phone') border-red-500 @enderror"
                                placeholder="+48 123 456 789" maxlength="50">
@@ -184,9 +184,9 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Crew</label>
+                        <label class="form-label">{{ __('Crew') }}</label>
                         <select name="worker_crew_id" class="form-input w-full">
-                            <option value="">— No crew —</option>
+                            <option value="">{{ __('— No crew —') }}</option>
                             @foreach($crews as $crew)
                                 <option value="{{ $crew->id }}" {{ old('worker_crew_id') == $crew->id ? 'selected' : '' }}>
                                     {{ $crew->name }}
@@ -197,9 +197,9 @@
                     </div>
 
                     <div>
-                        <label class="form-label">Wage Group</label>
+                        <label class="form-label">{{ __('Wage Group') }}</label>
                         <select name="worker_wage_group_id" class="form-input w-full">
-                            <option value="">— No wage group —</option>
+                            <option value="">{{ __('— No wage group —') }}</option>
                             @foreach($wageGroups as $wg)
                                 <option value="{{ $wg->id }}" {{ old('worker_wage_group_id') == $wg->id ? 'selected' : '' }}>
                                     {{ $wg->name }}
@@ -213,7 +213,7 @@
                 {{-- Skills --}}
                 @if($skills->isNotEmpty())
                 <div class="border-t border-gray-100 pt-3">
-                    <p class="text-sm font-medium text-gray-700 mb-2">Skills</p>
+                    <p class="text-sm font-medium text-gray-700 mb-2">{{ __('Skills') }}</p>
                     <div class="divide-y divide-gray-100">
                         <template x-for="(row, index) in skillRows" :key="row.id">
                             <div class="flex items-center gap-3 py-2">
@@ -246,11 +246,11 @@
         </div>
 
         <div class="flex justify-end gap-3">
-            <a href="{{ route('admin.users.index') }}" class="btn-touch btn-secondary">Cancel</a>
+            <a href="{{ route('admin.users.index') }}" class="btn-touch btn-secondary">{{ __('Cancel') }}</a>
             <button type="submit" class="btn-touch btn-primary"
                     :disabled="!password || !passwordConfirmation || password !== passwordConfirmation"
                     :class="{ 'opacity-50 cursor-not-allowed': !password || !passwordConfirmation || password !== passwordConfirmation }">
-                Create User
+                {{ __('Create User') }}
             </button>
         </div>
     </form>

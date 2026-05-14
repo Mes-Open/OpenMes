@@ -4,18 +4,20 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'OpenMES') }} — @yield('title', 'Manufacturing Execution System')</title>
+    <title>{{ config('app.name', 'OpenMES') }} - @yield('title', 'Manufacturing Execution System')</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1e40af">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="OpenMES">
-    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <script>
         /* Apply dark class immediately to avoid flash */
         (function(){
             var t = localStorage.getItem('theme');
-            if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            if (t === 'dark') {
                 document.documentElement.classList.add('dark');
             }
         })();
@@ -34,15 +36,15 @@
              document.documentElement.classList.toggle('dark', this.darkMode);
              localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
          },
-         orders: false,
-         production: false,
-         linesGroup: false,
-         structure: false,
-         hr: false,
-         maintenance: false,
-         connectivity: false,
-         adminGroup: false,
-         modulesGroup: false,
+         orders: {{ request()->routeIs('admin.work-orders.*', 'admin.csv-import*') ? 'true' : 'false' }},
+         production: {{ request()->routeIs('admin.product-types.*', 'admin.materials.*', 'admin.lot-sequences.*', 'admin.integrations.*', 'admin.lines.*', 'admin.line-statuses.*', 'admin.view-templates.*', 'admin.shifts.*', 'admin.issues.*', 'admin.companies.*', 'admin.anomaly-reasons.*', 'admin.process-templates.*') ? 'true' : 'false' }},
+         linesGroup: {{ request()->routeIs('admin.lines.*', 'admin.line-statuses.*', 'admin.view-templates.*', 'admin.shifts.*') ? 'true' : 'false' }},
+         structure: {{ request()->routeIs('admin.factories.*', 'admin.divisions.*', 'admin.workstation-types.*', 'admin.subassemblies.*') ? 'true' : 'false' }},
+         hr: {{ request()->routeIs('admin.workers.*', 'admin.crews.*', 'admin.skills.*', 'admin.wage-groups.*') ? 'true' : 'false' }},
+         maintenance: {{ request()->routeIs('admin.maintenance-events.*', 'admin.tools.*', 'admin.workstations.*') ? 'true' : 'false' }},
+         connectivity: {{ request()->routeIs('admin.connectivity.*') ? 'true' : 'false' }},
+         adminGroup: {{ request()->routeIs('admin.users.*', 'admin.audit-logs*', 'admin.settings*') ? 'true' : 'false' }},
+         modulesGroup: {{ request()->routeIs('admin.modules.*') ? 'true' : 'false' }},
          toggle() {
              const sb = this.$refs.sidebar;
              if (sb) {

@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Production Line Details')
+@section('title', __('Production Line Details'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Lines', 'url' => route('admin.lines.index')],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Lines'), 'url' => route('admin.lines.index')],
     ['label' => $line->name, 'url' => null],
 ]" />
 
@@ -15,15 +15,15 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Production Lines
+            {{ __('Back to Production Lines') }}
         </a>
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <h1 class="text-3xl font-bold text-gray-800">{{ $line->name }}</h1>
                 @if($line->is_active)
-                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Active</span>
+                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">{{ __('Active') }}</span>
                 @else
-                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">Inactive</span>
+                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">{{ __('Inactive') }}</span>
                 @endif
             </div>
             <div class="flex gap-2">
@@ -31,7 +31,7 @@
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
-                    Edit Line
+                    {{ __('Edit Line') }}
                 </a>
                 <form method="POST" action="{{ route('admin.lines.toggle-active', $line) }}" class="inline">
                     @csrf
@@ -40,12 +40,12 @@
                             <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
                             </svg>
-                            Deactivate
+                            {{ __('Deactivate') }}
                         @else
                             <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            Activate
+                            {{ __('Activate') }}
                         @endif
                     </button>
                 </form>
@@ -62,7 +62,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Work Orders</p>
+                    <p class="text-sm text-gray-600">{{ __('Work Orders') }}</p>
                     <p class="text-3xl font-bold text-blue-600">{{ $line->workOrders->count() }}</p>
                 </div>
                 <div class="bg-blue-100 rounded-full p-3">
@@ -76,7 +76,7 @@
         <a href="{{ route('admin.lines.workstations.index', $line) }}" class="card hover:shadow-lg transition-shadow block">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Workstations</p>
+                    <p class="text-sm text-gray-600">{{ __('Workstations') }}</p>
                     <p class="text-3xl font-bold text-green-600">{{ $line->workstations->count() }}</p>
                 </div>
                 <div class="bg-green-100 rounded-full p-3">
@@ -90,7 +90,7 @@
         <div class="card">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Assigned Operators</p>
+                    <p class="text-sm text-gray-600">{{ __('Assigned Operators') }}</p>
                     <p class="text-3xl font-bold text-purple-600">{{ $line->users->count() }}</p>
                 </div>
                 <div class="bg-purple-100 rounded-full p-3">
@@ -106,10 +106,10 @@
     <div class="card mb-6" x-data="{}">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Line Statuses</h2>
-                <p class="text-sm text-gray-500 mt-0.5">Kanban statuses available for work orders on this line. Global statuses are shown in gray.</p>
+                <h2 class="text-xl font-bold text-gray-800">{{ __('Line Statuses') }}</h2>
+                <p class="text-sm text-gray-500 mt-0.5">{{ __('Kanban statuses available for work orders on this line. Global statuses are shown in gray.') }}</p>
             </div>
-            <a href="{{ route('admin.line-statuses.index') }}" class="text-sm text-blue-600 hover:underline">Manage global statuses →</a>
+            <a href="{{ route('admin.line-statuses.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('Manage global statuses') }} →</a>
         </div>
 
             <div class="flex flex-wrap gap-2 mb-4">
@@ -118,17 +118,17 @@
                      style="background-color: {{ $status->color }}">
                     {{ $status->name }}
                     @if($status->is_default)
-                        <span class="text-xs opacity-75">(default)</span>
+                        <span class="text-xs opacity-75">{{ __('(default)') }}</span>
                     @endif
                     @if($status->line_id === null)
-                        <span class="text-xs opacity-60">global</span>
+                        <span class="text-xs opacity-60">{{ __('global') }}</span>
                     @else
                         <form method="POST" action="{{ route('admin.line-statuses.destroy', $status) }}"
-                              onsubmit="return confirm('Delete status \'{{ $status->name }}\'?')"
+                              onsubmit="return confirm('{{ __('Delete status') }} \'{{ $status->name }}\'?')"
                               class="inline">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="ml-1 opacity-75 hover:opacity-100" title="Delete">
+                            <button type="submit" class="ml-1 opacity-75 hover:opacity-100" title="{{ __('Delete') }}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
@@ -137,7 +137,7 @@
                     @endif
                 </div>
             @empty
-                <p class="text-sm text-gray-500">No statuses yet. Add one below or <a href="{{ route('admin.line-statuses.index') }}" class="text-blue-600 hover:underline">manage global statuses</a>.</p>
+                <p class="text-sm text-gray-500">{{ __('No statuses yet. Add one below or') }} <a href="{{ route('admin.line-statuses.index') }}" class="text-blue-600 hover:underline">{{ __('manage global statuses') }}</a>.</p>
             @endforelse
         </div>
 
@@ -146,17 +146,17 @@
               class="border-t border-gray-100 pt-4 flex items-end gap-3 flex-wrap">
             @csrf
             <div class="flex flex-col gap-1">
-                <label class="form-label text-xs">Color</label>
+                <label class="form-label text-xs">{{ __('Color') }}</label>
                 <input type="color" name="color" value="#F59E0B"
                        class="w-10 h-10 rounded cursor-pointer border border-gray-300 p-0.5" required>
             </div>
             <div class="flex flex-col gap-1 flex-1 min-w-[160px]">
-                <label class="form-label text-xs">Status name (line-specific)</label>
+                <label class="form-label text-xs">{{ __('Status name (line-specific)') }}</label>
                 <input type="text" name="name" placeholder="e.g. Waiting for parts"
                        class="form-input py-1.5 text-sm" maxlength="100" required>
             </div>
             <div class="flex flex-col gap-1 w-20">
-                <label class="form-label text-xs">Order</label>
+                <label class="form-label text-xs">{{ __('Order') }}</label>
                 <input type="number" name="sort_order" value="10" min="0"
                        class="form-input py-1.5 text-sm">
             </div>
@@ -164,7 +164,7 @@
                 <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Add to this line
+                {{ __('Add to this line') }}
             </button>
         </form>
     </div>
@@ -173,8 +173,8 @@
     <div class="card mb-6">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Assigned Product Types</h2>
-                <p class="text-sm text-gray-500 mt-0.5">Product types that can be produced on this line.</p>
+                <h2 class="text-xl font-bold text-gray-800">{{ __('Assigned Product Types') }}</h2>
+                <p class="text-sm text-gray-500 mt-0.5">{{ __('Product types that can be produced on this line.') }}</p>
             </div>
         </div>
 
@@ -185,7 +185,7 @@
                     {{ $pt->name }}
                 </span>
             @empty
-                <p class="text-sm text-gray-400">No product types assigned — all types are allowed.</p>
+                <p class="text-sm text-gray-400">{{ __('No product types assigned — all types are allowed.') }}</p>
             @endforelse
         </div>
 
@@ -198,12 +198,12 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span x-text="open ? 'Hide selector' : 'Change assignment'"></span>
+                <span x-text="open ? '{{ __('Hide selector') }}' : '{{ __('Change assignment') }}'"></span>
             </button>
 
             <div x-show="open" x-cloak class="mt-3">
                 @if($allProductTypes->isEmpty())
-                    <p class="text-sm text-gray-500">No active product types defined yet.</p>
+                    <p class="text-sm text-gray-500">{{ __('No active product types defined yet.') }}</p>
                 @else
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
                         @foreach($allProductTypes as $pt)
@@ -219,8 +219,8 @@
                             </label>
                         @endforeach
                     </div>
-                    <p class="text-xs text-gray-400 mb-3">Leave all unchecked to allow all product types on this line.</p>
-                    <button type="submit" class="btn-touch btn-primary py-1.5 text-sm">Save Assignment</button>
+                    <p class="text-xs text-gray-400 mb-3">{{ __('Leave all unchecked to allow all product types on this line.') }}</p>
+                    <button type="submit" class="btn-touch btn-primary py-1.5 text-sm">{{ __('Save Assignment') }}</button>
                 @endif
             </div>
         </form>
@@ -230,17 +230,17 @@
     <div class="card mb-6">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Workstations</h2>
+                <h2 class="text-xl font-bold text-gray-800">{{ __('Workstations') }}</h2>
                 @if($line->workstations->isEmpty())
                     <p class="text-sm text-amber-600 mt-0.5 font-medium">
-                        No workstations configured — line itself acts as a single workstation.
+                        {{ __('No workstations configured — line itself acts as a single workstation.') }}
                     </p>
                 @else
-                    <p class="text-sm text-gray-500 mt-0.5">{{ $line->workstations->count() }} workstation(s) on this line.</p>
+                    <p class="text-sm text-gray-500 mt-0.5">{{ $line->workstations->count() }} {{ __('workstation(s) on this line.') }}</p>
                 @endif
             </div>
             <a href="{{ route('admin.lines.workstations.index', $line) }}" class="btn-touch btn-secondary text-sm">
-                Manage
+                {{ __('Manage') }}
             </a>
         </div>
 
@@ -261,7 +261,7 @@
                         <p class="text-sm font-semibold text-gray-800 truncate">{{ $ws->name }}</p>
                         <p class="text-xs text-gray-400 font-mono">{{ $ws->code }}</p>
                         @if($ws->is_line_itself)
-                            <p class="text-xs text-amber-600">virtual (line = workstation)</p>
+                            <p class="text-xs text-amber-600">{{ __('virtual (line = workstation)') }}</p>
                         @endif
                     </div>
                 </div>
@@ -273,7 +273,7 @@
         <!-- Assigned Operators -->
         <div class="card">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Assigned Operators</h2>
+                <h2 class="text-xl font-bold text-gray-800">{{ __('Assigned Operators') }}</h2>
             </div>
 
             @if($line->users->count() > 0)
@@ -289,10 +289,10 @@
                                     <p class="text-sm text-gray-500">{{ $user->username }}</p>
                                 </div>
                             </div>
-                            <form method="POST" action="{{ route('admin.lines.unassign-operator', [$line, $user]) }}" class="inline" onsubmit="return confirm('Remove {{ $user->name }} from this line?');">
+                            <form method="POST" action="{{ route('admin.lines.unassign-operator', [$line, $user]) }}" class="inline" onsubmit="return confirm('{{ __('Remove') }} {{ $user->name }} {{ __('from this line?') }}');">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800 p-2" title="Remove operator">
+                                <button type="submit" class="text-red-600 hover:text-red-800 p-2" title="{{ __('Remove operator') }}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                     </svg>
@@ -306,7 +306,7 @@
                     <svg class="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                     </svg>
-                    <p class="text-gray-600">No operators assigned yet</p>
+                    <p class="text-gray-600">{{ __('No operators assigned yet') }}</p>
                 </div>
             @endif
 
@@ -314,10 +314,10 @@
             @if($availableOperators->count() > 0)
                 <form method="POST" action="{{ route('admin.lines.assign-operator', $line) }}" class="border-t border-gray-200 pt-4">
                     @csrf
-                    <label for="user_id" class="form-label">Assign New Operator</label>
+                    <label for="user_id" class="form-label">{{ __('Assign New Operator') }}</label>
                     <div class="flex gap-2">
                         <select name="user_id" id="user_id" class="form-input flex-1" required>
-                            <option value="">Select an operator...</option>
+                            <option value="">{{ __('Select an operator...') }}</option>
                             @foreach($availableOperators as $operator)
                                 <option value="{{ $operator->id }}">{{ $operator->name }} ({{ $operator->username }})</option>
                             @endforeach
@@ -326,20 +326,20 @@
                             <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
-                            Assign
+                            {{ __('Assign') }}
                         </button>
                     </div>
                 </form>
             @else
                 <div class="border-t border-gray-200 pt-4">
-                    <p class="text-sm text-gray-500 text-center">All available operators are already assigned to this line.</p>
+                    <p class="text-sm text-gray-500 text-center">{{ __('All available operators are already assigned to this line.') }}</p>
                 </div>
             @endif
         </div>
 
         <!-- Recent Work Orders -->
         <div class="card">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Work Orders</h2>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">{{ __('Recent Work Orders') }}</h2>
 
             @if($workOrders->count() > 0)
                 <div class="space-y-2">
@@ -350,7 +350,7 @@
                                     <p class="font-medium text-gray-800">{{ $workOrder->work_order_number }}</p>
                                     <p class="text-sm text-gray-600">{{ $workOrder->product_name }}</p>
                                     <p class="text-xs text-gray-500 mt-1">
-                                        Quantity: {{ $workOrder->planned_qty }} | Created: {{ $workOrder->created_at->format('Y-m-d H:i') }}
+                                        {{ __('Quantity') }}: {{ $workOrder->planned_qty }} | {{ __('Created') }}: {{ $workOrder->created_at->format('Y-m-d H:i') }}
                                     </p>
                                 </div>
                                 <span class="px-2 py-1 text-xs font-medium rounded-full
@@ -360,7 +360,7 @@
                                     @elseif($workOrder->status === 'BLOCKED') bg-red-100 text-red-800
                                     @else bg-gray-100 text-gray-800
                                     @endif">
-                                    {{ $workOrder->status }}
+                                    {{ __(['PENDING'=>'Pending','ACCEPTED'=>'Accepted','IN_PROGRESS'=>'In Progress','BLOCKED'=>'Blocked','PAUSED'=>'Paused','DONE'=>'Done','REJECTED'=>'Rejected','CANCELLED'=>'Cancelled'][$workOrder->status] ?? $workOrder->status) }}
                                 </span>
                             </div>
                         </div>
@@ -368,7 +368,7 @@
                 </div>
                 @if($line->workOrders->count() > 10)
                     <p class="text-sm text-gray-500 text-center mt-4">
-                        Showing 10 most recent of {{ $line->workOrders->count() }} total work orders
+                        {{ __('Showing 10 most recent of') }} {{ $line->workOrders->count() }} {{ __('total work orders') }}
                     </p>
                 @endif
             @else
@@ -376,7 +376,7 @@
                     <svg class="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                     </svg>
-                    <p class="text-gray-600">No work orders yet</p>
+                    <p class="text-gray-600">{{ __('No work orders yet') }}</p>
                 </div>
             @endif
         </div>
@@ -384,14 +384,14 @@
 
     {{-- ══════════════════ DEFAULT OPERATOR VIEW ══════════════════ --}}
     <div class="card mt-6">
-        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">Default Operator View</h2>
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">{{ __('Default Operator View') }}</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Choose which view operators see by default when they select this line.
+            {{ __('Choose which view operators see by default when they select this line.') }}
         </p>
         <form method="POST" action="{{ route('admin.lines.default-view.set', $line) }}" class="flex items-end gap-3">
             @csrf
             <div class="flex-1">
-                <label class="form-label">Default View</label>
+                <label class="form-label">{{ __('Default View') }}</label>
                 <div class="flex gap-3">
                     <label class="flex-1 flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors
                                   {{ ($line->default_operator_view ?? 'queue') === 'queue' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300' }}">
@@ -400,8 +400,8 @@
                                onchange="this.form.submit()"
                                class="text-blue-600 focus:ring-blue-500">
                         <div>
-                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">Queue</span>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Standard work order list with status, batches, priority and actions.</p>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ __('Queue') }}</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ __('Standard work order list with status, batches, priority and actions.') }}</p>
                         </div>
                     </label>
                     <label class="flex-1 flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors
@@ -411,8 +411,8 @@
                                onchange="this.form.submit()"
                                class="text-blue-600 focus:ring-blue-500">
                         <div>
-                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">Workstation</span>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Flat production table with quantities, Z1/Z2 shift inputs and inline entry.</p>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ __('Workstation') }}</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ __('Flat production table with quantities, Z1/Z2 shift inputs and inline entry.') }}</p>
                         </div>
                     </label>
                 </div>
@@ -422,16 +422,16 @@
 
     {{-- ══════════════════ WORKSTATION VIEW TEMPLATE ══════════════════ --}}
     <div class="card mt-6">
-        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">Workstation View</h2>
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">{{ __('Workstation View') }}</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Select a view template that defines which columns operators see in the Workstation view for this line.
+            {{ __('Select a view template that defines which columns operators see in the Workstation view for this line.') }}
         </p>
         <form method="POST" action="{{ route('admin.lines.view-template.assign', $line) }}" class="flex items-end gap-3">
             @csrf
             <div class="flex-1">
-                <label class="form-label">View Template</label>
+                <label class="form-label">{{ __('View Template') }}</label>
                 <select name="view_template_id" class="form-input w-full">
-                    <option value="">— Default (no custom columns) —</option>
+                    <option value="">— {{ __('Default (no custom columns)') }} —</option>
                     @foreach($allViewTemplates as $tpl)
                         <option value="{{ $tpl->id }}" {{ $line->view_template_id == $tpl->id ? 'selected' : '' }}>
                             {{ $tpl->name }}
@@ -440,12 +440,12 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="btn-touch btn-primary text-sm">Save</button>
+            <button type="submit" class="btn-touch btn-primary text-sm">{{ __('Save') }}</button>
         </form>
         @if($allViewTemplates->isEmpty())
             <p class="text-xs text-gray-400 mt-3">
-                No templates created yet.
-                <a href="{{ route('admin.view-templates.create') }}" class="text-blue-600 hover:underline">Create one</a>.
+                {{ __('No templates created yet.') }}
+                <a href="{{ route('admin.view-templates.create') }}" class="text-blue-600 hover:underline">{{ __('Create one') }}</a>.
             </p>
         @endif
     </div>
@@ -467,11 +467,11 @@
         moveUp(i) { if (i > 0) { [this.columns[i-1], this.columns[i]] = [this.columns[i], this.columns[i-1]]; } },
         moveDown(i) { if (i < this.columns.length - 1) { [this.columns[i], this.columns[i+1]] = [this.columns[i+1], this.columns[i]]; } }
     }">
-        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">Workstation View Columns</h2>
+        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">{{ __('Workstation View Columns') }}</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Configure which columns operators see in the Workstation view for this line.
-            Columns with source <strong>extra_data</strong> pull values from the work order's imported data.
-            Columns with source <strong>field</strong> pull from work order fields (order_no, description, due_date, priority).
+            {{ __('Configure which columns operators see in the Workstation view for this line.') }}
+            {{ __('Columns with source') }} <strong>extra_data</strong> {{ __('pull values from the work order\'s imported data.') }}
+            {{ __('Columns with source') }} <strong>field</strong> {{ __('pull from work order fields (order_no, description, due_date, priority).') }}
         </p>
 
         <form method="POST" action="{{ route('admin.lines.view-columns.save', $line) }}">
@@ -487,34 +487,34 @@
                         <input type="hidden" :name="'columns[' + i + '][source]'" :value="col.source">
                         <span class="flex-1 text-sm font-medium text-gray-800 dark:text-gray-200" x-text="col.label"></span>
                         <code class="text-xs text-gray-500 bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded" x-text="col.source + '.' + col.key"></code>
-                        <button type="button" @click="moveUp(i)" class="p-1 text-gray-400 hover:text-gray-700" title="Move up">
+                        <button type="button" @click="moveUp(i)" class="p-1 text-gray-400 hover:text-gray-700" title="{{ __('Move up') }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
                         </button>
-                        <button type="button" @click="moveDown(i)" class="p-1 text-gray-400 hover:text-gray-700" title="Move down">
+                        <button type="button" @click="moveDown(i)" class="p-1 text-gray-400 hover:text-gray-700" title="{{ __('Move down') }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
-                        <button type="button" @click="remove(i)" class="p-1 text-red-400 hover:text-red-600" title="Remove">
+                        <button type="button" @click="remove(i)" class="p-1 text-red-400 hover:text-red-600" title="{{ __('Remove') }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
                 </template>
                 <div x-show="columns.length === 0" class="text-sm text-gray-400 text-center py-4">
-                    No custom columns configured. Default view will be shown.
+                    {{ __('No custom columns configured. Default view will be shown.') }}
                 </div>
             </div>
 
             {{-- Add new column --}}
             <div class="flex flex-wrap gap-2 items-end border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
                 <div class="flex-1 min-w-[140px]">
-                    <label class="text-xs text-gray-500 block mb-1">Column Label</label>
+                    <label class="text-xs text-gray-500 block mb-1">{{ __('Column Label') }}</label>
                     <input type="text" x-model="newLabel" placeholder="e.g. Material" class="form-input w-full text-sm">
                 </div>
                 <div class="flex-1 min-w-[140px]">
-                    <label class="text-xs text-gray-500 block mb-1">Data Key</label>
+                    <label class="text-xs text-gray-500 block mb-1">{{ __('Data Key') }}</label>
                     <input type="text" x-model="newKey" placeholder="e.g. material" class="form-input w-full text-sm">
                 </div>
                 <div class="w-36">
-                    <label class="text-xs text-gray-500 block mb-1">Source</label>
+                    <label class="text-xs text-gray-500 block mb-1">{{ __('Source') }}</label>
                     <select x-model="newSource" class="form-input w-full text-sm">
                         <option value="extra_data">extra_data</option>
                         <option value="field">field</option>
@@ -523,12 +523,12 @@
                 <button type="button" @click="add()"
                         class="btn-touch btn-secondary text-sm"
                         :disabled="!newLabel || !newKey">
-                    + Add
+                    {{ __('+ Add') }}
                 </button>
             </div>
 
             <div class="flex justify-end">
-                <button type="submit" class="btn-touch btn-primary text-sm">Save View Columns</button>
+                <button type="submit" class="btn-touch btn-primary text-sm">{{ __('Save View Columns') }}</button>
             </div>
         </form>
     </div>

@@ -132,7 +132,7 @@
     @else
     <div class="bg-white dark:bg-gray-900 rounded-xl shadow overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full text-sm border-collapse">
+            <table class="min-w-full text-sm border-collapse border-2 border-gray-400 dark:border-gray-500">
                 <thead>
                     <tr class="bg-gray-100 dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-600">
                         {{-- Dynamic columns --}}
@@ -146,10 +146,12 @@
                         <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-l-2 border-gray-300 dark:border-gray-600">To Produce</th>
                         <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Produced</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-wider bg-blue-600 text-white">Remaining</th>
-                        {{-- Dynamic shift columns --}}
-                        @foreach($shifts as $shift)
+                        {{-- Dynamic shift columns (only if shifts configured for this line) --}}
+                        @if($shifts->isNotEmpty() && $shifts->contains(fn($s) => $s->line_id === $line->id))
+                        @foreach($shifts->where('line_id', $line->id) as $shift)
                         <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider" title="{{ $shift->name }} ({{ substr($shift->start_time, 0, 5) }}–{{ substr($shift->end_time, 0, 5) }})">{{ $shift->code }}</th>
                         @endforeach
+                        @endif
                         <th class="px-3 py-3 w-10"></th>
                     </tr>
                 </thead>
@@ -162,8 +164,8 @@
                         $isDone    = $wo->status === 'DONE';
                         $isActive  = $wo->status === 'IN_PROGRESS';
                     @endphp
-                    <tr class="border-b border-gray-200 dark:border-gray-700 transition-colors
-                               {{ $isDone ? 'bg-green-50/30 dark:bg-green-900/5' : ($isActive ? 'bg-blue-50/30 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50') }}
+                    <tr class="border-b-2 border-gray-400 dark:border-gray-500 transition-colors
+                               {{ $isDone ? 'bg-green-100 dark:bg-green-900/30 border-l-4 border-l-green-500' : ($isActive ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-500' : ($wo->status === 'BLOCKED' ? 'bg-red-50 dark:bg-red-900/20 border-l-4 border-l-red-500' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border-l-4 border-l-transparent')) }}
                                {{ !$isDone ? 'cursor-pointer active:bg-gray-100 dark:active:bg-gray-700' : '' }}"
                         @if(!$isDone && !$isActive)
                             @click="startModal = {
@@ -196,16 +198,16 @@
                                 {{ $wo->productType?->name ?? '—' }}
                             @elseif($col['key'] === 'status')
                                 @if($isDone)
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Done</span>
+                                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200">Done</span>
                                 @elseif($isActive)
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 animate-pulse">In Progress</span>
+                                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200 animate-pulse">In Progress</span>
                                 @elseif($wo->status === 'BLOCKED')
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Blocked</span>
+                                    <span class="px-3 py-1 rounded-full text-sm font-bold bg-red-200 text-red-800">Blocked</span>
                                 @else
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">{{ ucfirst(strtolower($wo->status)) }}</span>
+                                    <span class="px-3 py-1 rounded-full text-sm font-bold bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300">{{ $wo->status === 'PENDING' ? 'Not Started' : ucfirst(strtolower(str_replace('_', ' ', $wo->status))) }}</span>
                                 @endif
                             @elseif($col['key'] === 'due_date')
-                                {{ $wo->due_date ? $wo->due_date->format('d M') : '—' }}
+                                {{ $wo->due_date ? $wo->due_date->translatedFormat('d M') : '—' }}
                             @elseif($col['key'] === 'week_number')
                                 {{ $wo->week_number ? 'W' . str_pad($wo->week_number, 2, '0', STR_PAD_LEFT) : '—' }}
                             @else
@@ -230,8 +232,9 @@
                             {{ number_format($remaining, 0) }}
                         </td>
 
-                        {{-- Dynamic shift columns --}}
-                        @foreach($shifts as $shift)
+                        {{-- Dynamic shift columns (only if shifts configured for this line) --}}
+                        @if($shifts->isNotEmpty() && $shifts->contains(fn($s) => $s->line_id === $line->id))
+                        @foreach($shifts->where('line_id', $line->id) as $shift)
                         @php
                             $entryKey = $wo->id . '_' . $shift->id;
                             $entryQty = isset($shiftEntries[$entryKey]) ? (float) $shiftEntries[$entryKey]->first()->quantity : 0;
@@ -257,25 +260,51 @@
                             @endif
                         </td>
                         @endforeach
+                        @endif
 
                         {{-- Action (+) --}}
                         <td class="px-2 py-3 text-center" @click.stop>
-                            @if(!$isDone)
-                            <button type="button"
-                                    @click="completeModal = {
-                                        open: true,
-                                        id: {{ $wo->id }},
-                                        orderNo: '{{ addslashes($wo->order_no) }}',
-                                        product: '{{ addslashes($wo->productType?->name ?? $wo->order_no) }}',
-                                        planned: {{ $planned }},
-                                        produced: {{ $produced }},
-                                        url: '{{ route('operator.workstation.complete', $wo) }}'
-                                    }; producedQty = ''"
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow transition-colors"
-                                    title="Add produced quantity">
-                                +
-                            </button>
-                            @endif
+                            <div class="flex items-center justify-center gap-1">
+                                @if(!$isDone)
+                                <button type="button"
+                                        @click="completeModal = {
+                                            open: true,
+                                            id: {{ $wo->id }},
+                                            orderNo: '{{ addslashes($wo->order_no) }}',
+                                            product: '{{ addslashes($wo->productType?->name ?? $wo->order_no) }}',
+                                            planned: {{ $planned }},
+                                            produced: {{ $produced }},
+                                            url: '{{ route('operator.workstation.complete', $wo) }}'
+                                        }; producedQty = ''"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow transition-colors"
+                                        title="Add produced quantity">
+                                    +
+                                </button>
+                                @endif
+                                <button type="button"
+                                        @click="report = { open: true, woId: {{ $wo->id }}, woNo: '{{ addslashes($wo->order_no) }}', typeId: '', title: '', desc: '' }"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-lg font-bold shadow transition-colors"
+                                        title="Report problem">
+                                    !
+                                </button>
+                                <button type="button"
+                                        @click="$dispatch('show-wo-info', {
+                                            orderNo: '{{ addslashes($wo->order_no) }}',
+                                            product: '{{ addslashes($wo->productType?->name ?? '-') }}',
+                                            line: '{{ addslashes($wo->line?->name ?? '-') }}',
+                                            status: '{{ $wo->status === 'PENDING' ? 'Not Started' : ucfirst(strtolower(str_replace('_', ' ', $wo->status))) }}',
+                                            planned: '{{ number_format($planned, 0) }}',
+                                            produced: '{{ number_format($produced, 0) }}',
+                                            remaining: '{{ number_format($remaining, 0) }}',
+                                            priority: '{{ $wo->priority }}',
+                                            dueDate: '{{ $wo->due_date ? $wo->due_date->format('Y-m-d') : '-' }}',
+                                            description: '{{ addslashes($wo->description ?? '-') }}'
+                                        })"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-400 hover:bg-gray-500 text-white text-sm font-bold shadow transition-colors"
+                                        title="Details">
+                                    ?
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     @endforeach
@@ -348,6 +377,66 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    {{-- ═══════ WORK ORDER INFO MODAL ═══════ --}}
+    <div x-data="{ open: false, info: {} }"
+         x-on:show-wo-info.window="info = $event.detail; open = true"
+         x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+        <div class="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white">Order Details</h3>
+                <button @click="open = false" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Order #</span>
+                    <span class="text-sm font-bold font-mono" x-text="info.orderNo"></span>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Product</span>
+                    <span class="text-sm font-medium" x-text="info.product"></span>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Line</span>
+                    <span class="text-sm font-medium" x-text="info.line"></span>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Status</span>
+                    <span class="text-sm font-bold" x-text="info.status"></span>
+                </div>
+                <div class="grid grid-cols-3 gap-3 py-2">
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Planned</p>
+                        <p class="text-lg font-bold text-gray-800 dark:text-white" x-text="info.planned"></p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Produced</p>
+                        <p class="text-lg font-bold text-blue-600" x-text="info.produced"></p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Remaining</p>
+                        <p class="text-lg font-bold text-orange-600" x-text="info.remaining"></p>
+                    </div>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Priority</span>
+                    <span class="text-sm font-medium" x-text="info.priority"></span>
+                </div>
+                <div class="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <span class="text-sm text-gray-500">Due Date</span>
+                    <span class="text-sm font-medium" x-text="info.dueDate"></span>
+                </div>
+                <div x-show="info.description && info.description !== '-'">
+                    <p class="text-xs text-gray-500 mb-1">Description</p>
+                    <p class="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded p-2" x-text="info.description"></p>
+                </div>
+            </div>
+            <button @click="open = false" class="btn-touch btn-primary w-full mt-4">Close</button>
         </div>
     </div>
 
