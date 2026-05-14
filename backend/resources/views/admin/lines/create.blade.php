@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Create Production Line')
+@section('title', __('Create Production Line'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Lines', 'url' => route('admin.lines.index')],
-    ['label' => 'New Line', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Lines'), 'url' => route('admin.lines.index')],
+    ['label' => __('New Line'), 'url' => null],
 ]" />
 
 <div class="max-w-2xl mx-auto">
@@ -15,9 +15,9 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Production Lines
+            {{ __('Back to Production Lines') }}
         </a>
-        <h1 class="text-3xl font-bold text-gray-800">Create Production Line</h1>
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('Create Production Line') }}</h1>
     </div>
 
     <div class="card">
@@ -25,7 +25,7 @@
             @csrf
 
             <div class="mb-6">
-                <label for="code" class="form-label">Line Code</label>
+                <label for="code" class="form-label">{{ __('Line Code') }}</label>
                 <input
                     type="text"
                     id="code"
@@ -36,14 +36,14 @@
                     required
                     autofocus
                 >
-                <p class="text-sm text-gray-500 mt-1">Unique identifier for this production line</p>
+                <p class="text-sm text-gray-500 mt-1">{{ __('Unique identifier for this production line') }}</p>
                 @error('code')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
             <div class="mb-6">
-                <label for="name" class="form-label">Line Name</label>
+                <label for="name" class="form-label">{{ __('Line Name') }}</label>
                 <input
                     type="text"
                     id="name"
@@ -59,7 +59,7 @@
             </div>
 
             <div class="mb-6">
-                <label for="description" class="form-label">Description</label>
+                <label for="description" class="form-label">{{ __("Description") }}</label>
                 <textarea
                     id="description"
                     name="description"
@@ -81,16 +81,16 @@
                         class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         {{ old('is_active', true) ? 'checked' : '' }}
                     >
-                    <span class="ml-2 text-sm text-gray-700">Active (line is ready for production)</span>
+                    <span class="ml-2 text-sm text-gray-700">{{ __('Active (line is ready for production)') }}</span>
                 </label>
             </div>
 
             <div class="flex justify-end gap-3">
                 <a href="{{ route('admin.lines.index') }}" class="btn-touch btn-secondary">
-                    Cancel
+                    {{ __('Cancel') }}
                 </a>
                 <button type="submit" class="btn-touch btn-primary">
-                    Create Line
+                    {{ __('Create Line') }}
                 </button>
             </div>
         </form>

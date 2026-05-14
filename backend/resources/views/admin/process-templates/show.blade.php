@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Process Template - ' . $processTemplate->name)
+@section('title', __('Process Template') . ' - ' . $processTemplate->name)
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Product Types', 'url' => route('admin.product-types.index')],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Product Types'), 'url' => route('admin.product-types.index')],
     ['label' => $productType->name, 'url' => route('admin.product-types.show', $productType)],
-    ['label' => 'Process Templates', 'url' => route('admin.product-types.process-templates.index', $productType)],
+    ['label' => __('Process Templates'), 'url' => route('admin.product-types.process-templates.index', $productType)],
     ['label' => $processTemplate->name, 'url' => null],
 ]" />
 
@@ -17,39 +17,39 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
-            Back to Templates
+            {{ __('Back to Templates') }}
         </a>
         <div class="flex items-center justify-between">
             <div>
                 <div class="flex items-center gap-3">
                     <h1 class="text-3xl font-bold text-gray-800">{{ $processTemplate->name }}</h1>
                     @if($processTemplate->is_active)
-                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Active</span>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">{{ __('Active') }}</span>
                     @else
-                        <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">Inactive</span>
+                        <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">{{ __('Inactive') }}</span>
                     @endif
                     <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">v{{ $processTemplate->version }}</span>
                 </div>
-                <p class="text-sm text-gray-600 mt-1">{{ $productType->name }} • {{ $processTemplate->steps->count() }} steps</p>
+                <p class="text-sm text-gray-600 mt-1">{{ $productType->name }} • {{ $processTemplate->steps->count() }} {{ __('steps') }}</p>
             </div>
             <div class="flex gap-2">
                 <a href="{{ route('admin.product-types.process-templates.edit', [$productType, $processTemplate]) }}" class="btn-touch btn-secondary">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
-                    Edit Template
+                    {{ __('Edit Template') }}
                 </a>
                 <a href="{{ route('admin.product-types.process-templates.bom', [$productType, $processTemplate]) }}" class="btn-touch btn-secondary">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
-                    BOM
+                    {{ __('BOM') }}
                 </a>
                 <button @click="showAddForm = true" class="btn-touch btn-primary">
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Add Step
+                    {{ __('Add Step') }}
                 </button>
             </div>
         </div>
@@ -58,7 +58,7 @@
     <!-- Add Step Form -->
     <div x-show="showAddForm" x-cloak class="card mb-6" x-transition>
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold text-gray-800">Add New Step</h2>
+            <h2 class="text-xl font-bold text-gray-800">{{ __('Add New Step') }}</h2>
             <button @click="showAddForm = false" class="text-gray-600 hover:text-gray-800">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -69,7 +69,7 @@
             @csrf
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="name" class="form-label">Step Name</label>
+                    <label for="name" class="form-label">{{ __('Step Name') }}</label>
                     <input
                         type="text"
                         id="name"
@@ -80,16 +80,16 @@
                     >
                 </div>
                 <div>
-                    <label for="workstation_id" class="form-label">Workstation (Optional)</label>
+                    <label for="workstation_id" class="form-label">{{ __('Workstation (Optional)') }}</label>
                     <select name="workstation_id" id="workstation_id" class="form-input w-full">
-                        <option value="">No specific workstation</option>
+                        <option value="">{{ __('No specific workstation') }}</option>
                         @foreach($workstations as $workstation)
                             <option value="{{ $workstation->id }}">{{ $workstation->name }} ({{ $workstation->line?->name ?? '-' }})</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="md:col-span-2">
-                    <label for="instruction" class="form-label">Instructions</label>
+                    <label for="instruction" class="form-label">{{ __('Instructions') }}</label>
                     <textarea
                         id="instruction"
                         name="instruction"
@@ -99,7 +99,7 @@
                     ></textarea>
                 </div>
                 <div>
-                    <label for="estimated_duration_minutes" class="form-label">Estimated Duration (minutes)</label>
+                    <label for="estimated_duration_minutes" class="form-label">{{ __('Estimated Duration (minutes)') }}</label>
                     <input
                         type="number"
                         id="estimated_duration_minutes"
@@ -112,10 +112,10 @@
             </div>
             <div class="flex justify-end gap-3 mt-4">
                 <button type="button" @click="showAddForm = false" class="btn-touch btn-secondary">
-                    Cancel
+                    {{ __('Cancel') }}
                 </button>
                 <button type="submit" class="btn-touch btn-primary">
-                    Add Step
+                    {{ __('Add Step') }}
                 </button>
             </div>
         </form>
@@ -123,15 +123,15 @@
 
     <!-- Steps List -->
     <div class="flex items-center gap-2 mb-4">
-        <h2 class="text-xl font-bold text-gray-800">Production Steps</h2>
+        <h2 class="text-xl font-bold text-gray-800">{{ __('Production Steps') }}</h2>
         <span x-data="{ show: false }" class="relative inline-flex items-center" @mouseenter="show = true" @mouseleave="show = false">
             <span class="w-5 h-5 rounded-full bg-gray-200 text-gray-500 text-xs flex items-center justify-center cursor-default select-none font-bold hover:bg-blue-100 hover:text-blue-600 transition-colors">i</span>
             <div x-show="show" x-cloak class="absolute left-7 top-0 z-20 w-72 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-xl leading-relaxed">
-                <strong class="block mb-1 text-white">Production Steps</strong>
-                List of operations performed during production — ordered top to bottom (step 1 = first to execute). Use ↑↓ arrows to reorder. New steps are always added at the end. Estimated time is used to calculate operator efficiency.
+                <strong class="block mb-1 text-white">{{ __('Production Steps') }}</strong>
+                {{ __('List of operations performed during production — ordered top to bottom (step 1 = first to execute). Use drag handle or arrows to reorder. New steps are always added at the end. Estimated time is used to calculate operator efficiency.') }}
             </div>
         </span>
-        <span class="text-sm text-gray-500">(first to last)</span>
+        <span class="text-sm text-gray-500">({{ __('first to last') }})</span>
     </div>
 
     @if($processTemplate->steps->count() > 0)
@@ -143,7 +143,7 @@
                         <div class="flex items-start justify-between">
                             <div class="flex gap-4 flex-1">
                                 {{-- Drag handle --}}
-                                <div class="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 transition-colors px-1 self-start mt-3" title="Drag to reorder">
+                                <div class="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 transition-colors px-1 self-start mt-3" title="{{ __('Drag to reorder') }}">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                         <circle cx="9"  cy="5"  r="1.5"/><circle cx="15" cy="5"  r="1.5"/>
                                         <circle cx="9"  cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
@@ -176,7 +176,7 @@
                                         </div>
                                         <!-- Actions -->
                                         <div class="flex gap-1 ml-4">
-                                            <button @click="editingStep = {{ $step->id }}" class="text-blue-600 hover:text-blue-800 p-2" title="Edit">
+                                            <button @click="editingStep = {{ $step->id }}" class="text-blue-600 hover:text-blue-800 p-2" title="{{ __('Edit') }}">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                 </svg>
@@ -184,7 +184,7 @@
                                             @if(!$loop->first)
                                                 <form method="POST" action="{{ route('admin.product-types.process-templates.move-step-up', [$productType, $processTemplate, $step]) }}" class="inline">
                                                     @csrf
-                                                    <button type="submit" class="text-gray-600 hover:text-gray-800 p-2" title="Move up">
+                                                    <button type="submit" class="text-gray-600 hover:text-gray-800 p-2" title="{{ __('Move up') }}">
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
                                                         </svg>
@@ -194,17 +194,17 @@
                                             @if(!$loop->last)
                                                 <form method="POST" action="{{ route('admin.product-types.process-templates.move-step-down', [$productType, $processTemplate, $step]) }}" class="inline">
                                                     @csrf
-                                                    <button type="submit" class="text-gray-600 hover:text-gray-800 p-2" title="Move down">
+                                                    <button type="submit" class="text-gray-600 hover:text-gray-800 p-2" title="{{ __('Move down') }}">
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                                         </svg>
                                                     </button>
                                                 </form>
                                             @endif
-                                            <form method="POST" action="{{ route('admin.product-types.process-templates.delete-step', [$productType, $processTemplate, $step]) }}" class="inline" onsubmit="return confirm('Delete this step?');">
+                                            <form method="POST" action="{{ route('admin.product-types.process-templates.delete-step', [$productType, $processTemplate, $step]) }}" class="inline" onsubmit="return confirm('{{ __('Delete this step?') }}');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-800 p-2" title="Delete">
+                                                <button type="submit" class="text-red-600 hover:text-red-800 p-2" title="{{ __('Delete') }}">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                     </svg>
@@ -229,7 +229,7 @@
                             @method('PUT')
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="form-label">Step Name</label>
+                                    <label class="form-label">{{ __('Step Name') }}</label>
                                     <input
                                         type="text"
                                         name="name"
@@ -239,9 +239,9 @@
                                     >
                                 </div>
                                 <div>
-                                    <label class="form-label">Workstation (Optional)</label>
+                                    <label class="form-label">{{ __('Workstation (Optional)') }}</label>
                                     <select name="workstation_id" class="form-input w-full">
-                                        <option value="">No specific workstation</option>
+                                        <option value="">{{ __('No specific workstation') }}</option>
                                         @foreach($workstations as $workstation)
                                             <option value="{{ $workstation->id }}" {{ $step->workstation_id == $workstation->id ? 'selected' : '' }}>
                                                 {{ $workstation->name }} ({{ $workstation->line?->name ?? '-' }})
@@ -250,7 +250,7 @@
                                     </select>
                                 </div>
                                 <div class="md:col-span-2">
-                                    <label class="form-label">Instructions</label>
+                                    <label class="form-label">{{ __('Instructions') }}</label>
                                     <textarea
                                         name="instruction"
                                         rows="3"
@@ -258,7 +258,7 @@
                                     >{{ $step->instruction }}</textarea>
                                 </div>
                                 <div>
-                                    <label class="form-label">Estimated Duration (minutes)</label>
+                                    <label class="form-label">{{ __('Estimated Duration (minutes)') }}</label>
                                     <input
                                         type="number"
                                         name="estimated_duration_minutes"
@@ -270,10 +270,10 @@
                             </div>
                             <div class="flex justify-end gap-3 mt-4">
                                 <button type="button" @click="editingStep = null" class="btn-touch btn-secondary">
-                                    Cancel
+                                    {{ __('Cancel') }}
                                 </button>
                                 <button type="submit" class="btn-touch btn-primary">
-                                    Save Changes
+                                    {{ __('Save Changes') }}
                                 </button>
                             </div>
                         </form>
@@ -286,13 +286,13 @@
             <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
             </svg>
-            <p class="text-lg font-medium text-gray-700">No production steps yet</p>
-            <p class="text-sm text-gray-500 mt-1 mb-4">Add steps to define the manufacturing process for this product.</p>
+            <p class="text-lg font-medium text-gray-700">{{ __('No production steps yet') }}</p>
+            <p class="text-sm text-gray-500 mt-1 mb-4">{{ __('Add steps to define the manufacturing process for this product.') }}</p>
             <button @click="showAddForm = true" class="inline-block btn-touch btn-primary">
                 <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                Add First Step
+                {{ __('Add First Step') }}
             </button>
         </div>
     @endif

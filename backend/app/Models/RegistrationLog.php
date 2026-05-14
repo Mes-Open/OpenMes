@@ -13,6 +13,7 @@ class RegistrationLog extends Model
         'email',
         'username',
         'ip_address',
+        'marketing_consent',
         'registered_at',
     ];
 
@@ -20,6 +21,7 @@ class RegistrationLog extends Model
     {
         return [
             'registered_at' => 'datetime',
+            'marketing_consent' => 'boolean',
         ];
     }
 }
