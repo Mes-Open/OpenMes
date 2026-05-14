@@ -17,10 +17,15 @@ class SchedulePlannerController extends Controller
         // Load schedule settings
         $settings = $this->loadSettings();
 
-        $viewMode = $settings['schedule_view_mode'] ?? 'weekly';
-        $shiftsPerDay = (int) ($settings['schedule_shifts_per_day'] ?? 1);
-        $horizonWeeks = (int) ($settings['schedule_horizon_weeks'] ?? 4);
-        $showWeekends = filter_var($settings['schedule_show_weekends'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
+        $viewMode = trim($settings['schedule_view_mode'] ?? 'weekly', '"\'');
+        $shiftsPerDay = (int) trim($settings['schedule_shifts_per_day'] ?? '1', '"\'');
+        $horizonWeeks = (int) trim($settings['schedule_horizon_weeks'] ?? '4', '"\'');
+        $showWeekends = filter_var(trim($settings['schedule_show_weekends'] ?? 'true', '"\''), FILTER_VALIDATE_BOOLEAN);
+
+        // Allow query string override for view mode
+        if ($request->filled('view_mode') && in_array($request->view_mode, ['weekly', 'daily', 'monthly'])) {
+            $viewMode = $request->view_mode;
+        }
 
         // Calculate start date (default: current Monday)
         $startDate = $request->filled('start_date')
@@ -87,6 +92,19 @@ class SchedulePlannerController extends Controller
         // All lines for filter dropdown (unfiltered)
         $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
+        // Backlog: unassigned work orders (no line or no due_date/week)
+        $backlogOrders = WorkOrder::with(['productType', 'line'])
+            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            ->where(function ($q) {
+                $q->whereNull('line_id')
+                  ->orWhere(function ($q2) {
+                      $q2->whereNull('due_date')->whereNull('week_number');
+                  });
+            })
+            ->orderBy('priority', 'desc')
+            ->orderBy('due_date')
+            ->get();
+
         return view('admin.schedule.planner', compact(
             'data',
             'lines',
@@ -101,6 +119,7 @@ class SchedulePlannerController extends Controller
             'rangeEnd',
             'navPrev',
             'navNext',
+            'backlogOrders',
         ));
     }
 
@@ -110,9 +129,29 @@ class SchedulePlannerController extends Controller
             'line_id' => 'nullable|exists:lines,id',
             'due_date' => 'nullable|date',
             'week_number' => 'nullable|integer|min:1|max:53',
+            'shift_number' => 'nullable|integer|min:1|max:10',
         ]);
 
-        $workOrder->update($request->only(['line_id', 'due_date', 'week_number']));
+        $workOrder->update([
+            'line_id' => $request->input('line_id') ?: null,
+            'due_date' => $request->input('due_date') ?: null,
+            'week_number' => $request->input('week_number') ?: null,
+            'shift_number' => $request->input('shift_number') ?: null,
+        ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => __('Work order updated successfully.'),
+                'order' => [
+                    'id' => $workOrder->id,
+                    'order_no' => $workOrder->order_no,
+                    'line_id' => $workOrder->line_id,
+                    'due_date' => $workOrder->due_date?->format('Y-m-d'),
+                    'week_number' => $workOrder->week_number,
+                ],
+            ]);
+        }
 
         return back()->with('success', __('Work order updated successfully.'));
     }
@@ -178,9 +217,58 @@ class SchedulePlannerController extends Controller
                 $usedSlots = $lineOrders->count();
                 $loadPercent = $capacity > 0 ? min(100, round(($usedSlots / $capacity) * 100)) : 0;
 
+                // Build grid: map orders to specific day+shift slots
+                $grid = [];
+                $dayCursor = $weekStart->copy();
+                for ($d = 0; $d < $daysInWeek; $d++) {
+                    $dateKey = $dayCursor->format('Y-m-d');
+                    for ($s = 1; $s <= $shiftsPerDay; $s++) {
+                        $grid[$dateKey . '-' . $s] = null;
+                    }
+                    $dayCursor->addDay();
+                }
+
+                // Place orders with due_date into their specific day+shift
+                $dated = $lineOrders->filter(fn ($wo) => $wo->due_date !== null)->sortBy('priority', SORT_REGULAR, true);
+                // First pass: orders with explicit shift_number go to exact slot
+                foreach ($dated as $wo) {
+                    if ($wo->shift_number) {
+                        $key = $wo->due_date->format('Y-m-d') . '-' . $wo->shift_number;
+                        if (array_key_exists($key, $grid) && $grid[$key] === null) {
+                            $grid[$key] = $wo;
+                        }
+                    }
+                }
+                // Second pass: orders without shift_number go to first free shift of their day
+                foreach ($dated as $wo) {
+                    if ($wo->shift_number) {
+                        continue;
+                    }
+                    $dk = $wo->due_date->format('Y-m-d');
+                    for ($s = 1; $s <= $shiftsPerDay; $s++) {
+                        $key = $dk . '-' . $s;
+                        if (array_key_exists($key, $grid) && $grid[$key] === null) {
+                            $grid[$key] = $wo;
+                            break;
+                        }
+                    }
+                }
+
+                // Place orders with only week_number into first available slots
+                $undated = $lineOrders->filter(fn ($wo) => $wo->due_date === null);
+                $emptySlots = array_keys(array_filter($grid, fn ($v) => $v === null));
+                $si = 0;
+                foreach ($undated as $wo) {
+                    if (isset($emptySlots[$si])) {
+                        $grid[$emptySlots[$si]] = $wo;
+                        $si++;
+                    }
+                }
+
                 $weekLines[] = [
                     'line' => $line,
                     'orders' => $lineOrders,
+                    'grid' => $grid,
                     'total_planned_qty' => $lineOrders->sum('planned_qty'),
                     'total_shifts' => $capacity,
                     'capacity' => $capacity,
