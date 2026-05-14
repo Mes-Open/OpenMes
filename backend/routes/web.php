@@ -13,6 +13,7 @@ use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Web\Admin\SchedulePlannerController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
 use App\Http\Controllers\Web\Admin\IntegrationConfigController;
@@ -199,6 +200,8 @@ Route::middleware('auth')->group(function () {
 
         // Schedule
         Route::get('/schedule', [\App\Http\Controllers\Web\Admin\ScheduleController::class, 'index'])->name('schedule');
+        Route::get('/schedule/planner', [SchedulePlannerController::class, 'index'])->name('schedule.planner');
+        Route::put('/schedule/planner/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.planner.update');
 
         // Shifts
         Route::get('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'index'])->name('shifts.index');

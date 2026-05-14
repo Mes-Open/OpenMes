@@ -34,7 +34,7 @@ if ! grep -q "APP_KEY=base64:" .env; then
 fi
 
 # ── Clear stale bootstrap cache ─────────────────────────────────────────────
-rm -f bootstrap/cache/packages.php bootstrap/cache/services.php
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php bootstrap/cache/config.php
 php artisan package:discover --ansi 2>/dev/null || true
 
 # ── Migrations ───────────────────────────────────────────────────────────────

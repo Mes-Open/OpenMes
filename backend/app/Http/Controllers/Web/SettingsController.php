@@ -93,6 +93,11 @@ class SettingsController extends Controller
             'workflow_mode' => json_decode($rows['workflow_mode']->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']->value ?? 'false', true) ?? false,
             'language' => json_decode($rows['language']->value ?? '"en"', true) ?? 'en',
+            'schedule_view_mode' => json_decode($rows['schedule_view_mode']->value ?? '"weekly"', true) ?? 'weekly',
+            'schedule_shifts_per_day' => json_decode($rows['schedule_shifts_per_day']->value ?? '1', true) ?? 1,
+            'schedule_horizon_weeks' => json_decode($rows['schedule_horizon_weeks']->value ?? '6', true) ?? 6,
+            'schedule_show_weekends' => json_decode($rows['schedule_show_weekends']->value ?? 'true', true) ?? true,
+            'schedule_slot_duration_hours' => json_decode($rows['schedule_slot_duration_hours']->value ?? '8', true) ?? 8,
         ];
 
         return view('settings.system', compact('settings'));
@@ -235,7 +240,14 @@ class SettingsController extends Controller
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
             'language' => 'nullable|in:en,pl',
+            'schedule_view_mode' => 'required|in:weekly,daily,monthly',
+            'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
+            'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
+            'schedule_show_weekends' => 'nullable|boolean',
         ]);
+
+        $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
+        $slotDuration = $shiftsPerDay > 0 ? (int) (24 / $shiftsPerDay) : 8;
 
         $map = [
             'production_period' => $validated['production_period'],
@@ -244,6 +256,11 @@ class SettingsController extends Controller
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
             'language' => $validated['language'] ?? 'en',
+            'schedule_view_mode' => $validated['schedule_view_mode'],
+            'schedule_shifts_per_day' => $shiftsPerDay,
+            'schedule_horizon_weeks' => (int) $validated['schedule_horizon_weeks'],
+            'schedule_show_weekends' => (bool) ($validated['schedule_show_weekends'] ?? false),
+            'schedule_slot_duration_hours' => $slotDuration,
         ];
 
         foreach ($map as $key => $value) {
