@@ -198,10 +198,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/update/check', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'check'])->name('update.check');
         Route::post('/update/apply', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'apply'])->name('update.apply');
 
-        // Schedule
-        Route::get('/schedule', [\App\Http\Controllers\Web\Admin\ScheduleController::class, 'index'])->name('schedule');
-        Route::get('/schedule/planner', [SchedulePlannerController::class, 'index'])->name('schedule.planner');
-        Route::put('/schedule/planner/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.planner.update');
+        // Schedule (planner is the main view)
+        Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
+        Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
 
         // Shifts
         Route::get('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'index'])->name('shifts.index');
