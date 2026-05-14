@@ -165,6 +165,90 @@
             </div>
         </div>
 
+        {{-- {{ __('Schedule / Planner') }} --}}
+        <div class="card">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Schedule / Planner') }}</h2>
+            <p class="text-xs text-gray-500 mb-4">
+                {{ __('Configure how the production schedule planner displays data.') }}
+            </p>
+
+            <div class="mb-4">
+                <label class="form-label">{{ __('View mode') }}</label>
+                <p class="text-xs text-gray-500 mb-2">
+                    {{ __('Default time scale for the schedule view.') }}
+                </p>
+                <div class="grid grid-cols-3 gap-3">
+                    @foreach(['weekly' => ['label' => __('Weekly'), 'desc' => __('Plan by week')], 'daily' => ['label' => __('Daily'), 'desc' => __('Plan by day')], 'monthly' => ['label' => __('Monthly'), 'desc' => __('Plan by month')]] as $value => $opt)
+                        <label class="relative flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors
+                            {{ ($settings['schedule_view_mode'] ?? 'weekly') === $value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
+                            <input type="radio" name="schedule_view_mode" value="{{ $value }}"
+                                   class="sr-only"
+                                   {{ ($settings['schedule_view_mode'] ?? 'weekly') === $value ? 'checked' : '' }}>
+                            <span class="font-medium text-sm text-gray-800">{{ $opt['label'] }}</span>
+                            <span class="text-xs text-gray-500">{{ $opt['desc'] }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('schedule_view_mode')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">{{ __('Shifts per day') }}</label>
+                <p class="text-xs text-gray-500 mb-2">
+                    {{ __('Number of production shifts in a 24-hour period.') }}
+                </p>
+                <div class="grid grid-cols-4 gap-3">
+                    @foreach([1, 2, 3, 4] as $value)
+                        <label class="relative flex flex-col items-center gap-1 border rounded-lg p-3 cursor-pointer transition-colors
+                            {{ ($settings['schedule_shifts_per_day'] ?? 1) == $value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
+                            <input type="radio" name="schedule_shifts_per_day" value="{{ $value }}"
+                                   class="sr-only"
+                                   {{ ($settings['schedule_shifts_per_day'] ?? 1) == $value ? 'checked' : '' }}>
+                            <span class="font-medium text-sm text-gray-800">{{ $value }}</span>
+                            <span class="text-xs text-gray-500">{{ (int)(24 / $value) }}h</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('schedule_shifts_per_day')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label" for="schedule_horizon_weeks">{{ __('Planning horizon') }}</label>
+                <p class="text-xs text-gray-500 mb-2">
+                    {{ __('How many weeks ahead the planner displays.') }}
+                </p>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="schedule_horizon_weeks" id="schedule_horizon_weeks"
+                           class="form-input w-24"
+                           min="1" max="52"
+                           value="{{ $settings['schedule_horizon_weeks'] ?? 6 }}">
+                    <span class="text-sm text-gray-600">{{ __('weeks') }}</span>
+                </div>
+                @error('schedule_horizon_weeks')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div>
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <div class="pt-0.5">
+                        <input type="hidden" name="schedule_show_weekends" value="0">
+                        <input type="checkbox" name="schedule_show_weekends" value="1"
+                               class="rounded border-gray-300 text-blue-600"
+                               {{ ($settings['schedule_show_weekends'] ?? true) ? 'checked' : '' }}>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">{{ __('Show weekends') }}</p>
+                        <p class="text-xs text-gray-500">{{ __('Display Saturday and Sunday columns in the schedule view.') }}</p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="btn-touch btn-primary">{{ __('Save') }}</button>
         </div>
@@ -214,5 +298,7 @@ function initRadioHighlight(name) {
 }
 initRadioHighlight('production_period');
 initRadioHighlight('workflow_mode');
+initRadioHighlight('schedule_view_mode');
+initRadioHighlight('schedule_shifts_per_day');
 </script>
 @endsection
