@@ -74,7 +74,7 @@
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak>Select Line</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Select Production Line') }}</span>
                 </a>
                 <span x-show="collapsed && !mobileOpen" x-cloak
                       class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -94,7 +94,7 @@
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                         </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak>Work Orders</span>
+                        <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Work Orders') }}</span>
                     </a>
                     <span x-show="collapsed && !mobileOpen" x-cloak
                           class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -114,9 +114,9 @@
             @php
                 $links = [
                     ['route' => 'supervisor.dashboard',         'label' => 'Dashboard',    'icon' => 'home'],
-                    ['route' => 'supervisor.work-orders.index', 'label' => 'Work Orders',  'icon' => 'clipboard'],
-                    ['route' => 'supervisor.issues.index',      'label' => 'Issues',       'icon' => 'warning'],
-                    ['route' => 'supervisor.reports',           'label' => 'Reports',      'icon' => 'chart'],
+                    ['route' => 'supervisor.work-orders.index', 'label' => __('Work Orders'),  'icon' => 'clipboard'],
+                    ['route' => 'supervisor.issues.index',      'label' => __('Issues'),       'icon' => 'warning'],
+                    ['route' => 'supervisor.reports',           'label' => __('Reports'),      'icon' => 'chart'],
                 ];
             @endphp
 
@@ -130,7 +130,7 @@
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak>Dashboard</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Dashboard') }}</span>
                 </a>
                 <span x-show="collapsed && !mobileOpen" x-cloak
                       class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -150,7 +150,7 @@
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak>Work Orders</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Work Orders') }}</span>
                 </a>
                 <span x-show="collapsed && !mobileOpen" x-cloak
                       class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -170,7 +170,7 @@
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak>Issues</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Issues') }}</span>
                 </a>
                 <span x-show="collapsed && !mobileOpen" x-cloak
                       class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -190,7 +190,7 @@
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak>Reports</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Reports') }}</span>
                 </a>
                 <span x-show="collapsed && !mobileOpen" x-cloak
                       class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -215,7 +215,7 @@
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak>Dashboard</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Dashboard') }}</span>
                 </a>
                 <span x-show="collapsed && !mobileOpen" x-cloak
                       class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -270,7 +270,7 @@
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak>Schedule</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Schedule') }}</span>
                 </a>
                 <span x-show="collapsed && !mobileOpen" x-cloak
                       class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -296,7 +296,7 @@
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                         </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Orders</span>
+                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Orders') }}</span>
                         <svg x-show="!collapsed || mobileOpen" x-cloak
                              class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': orders}"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,12 +319,12 @@
                     <a href="{{ route('admin.work-orders.index') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
                               {{ request()->routeIs('admin.work-orders.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Work Orders
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Work Orders') }}
                     </a>
                     <a href="{{ route('admin.csv-import') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
                               {{ request()->routeIs('admin.csv-import') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Import CSV
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('CSV Import') }}
                     </a>
                     @foreach($menuRegistry->getItems('orders') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -347,7 +347,7 @@
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
                         </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Production</span>
+                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Production') }}</span>
                         <svg x-show="!collapsed || mobileOpen" x-cloak
                              class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': production}"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -368,23 +368,23 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.product-types.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.product-types.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Product Types
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Product Types') }}
                     </a>
                     <a href="{{ route('admin.materials.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.materials.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Materials
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Materials') }}
                     </a>
                     <a href="{{ route('admin.lot-sequences.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lot-sequences.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>LOT Sequences
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('LOT Sequences') }}
                     </a>
                     <a href="{{ route('admin.integrations.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.integrations.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Integrations
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Integrations') }}
                     </a>
-                    {{-- Production Lines sub-group --}}
+                    {{-- {{ __('Production Lines') }} sub-group --}}
                     <div>
                         <button @click="linesGroup = !linesGroup"
                                 class="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lines.*', 'admin.line-statuses.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                             <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>
-                            Production Lines
+                            {{ __('Production Lines') }}
                             <svg class="w-3 h-3 ml-auto shrink-0 transition-transform" :class="{'rotate-180': linesGroup}"
                                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -392,30 +392,30 @@
                         </button>
                         <div x-show="linesGroup" x-cloak class="ml-3 mt-0.5 space-y-0.5 border-l border-slate-700/40 pl-3">
                             <a href="{{ route('admin.lines.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lines.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>All Lines
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('All Lines') }}
                             </a>
                             <a href="{{ route('admin.line-statuses.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.line-statuses.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>Line Statuses
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('Line Statuses') }}
                             </a>
                             <a href="{{ route('admin.view-templates.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.view-templates.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                                 <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>View Templates
                             </a>
                             <a href="{{ route('admin.shifts.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.shifts.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>Shifts
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('Shifts') }}
                             </a>
                         </div>
                     </div>
                     <a href="{{ route('admin.issues.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.issues.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Issues
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Issues') }}
                     </a>
                     <a href="{{ route('admin.companies.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.companies.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Companies
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Companies') }}
                     </a>
                     <a href="{{ route('admin.anomaly-reasons.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.anomaly-reasons.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Anomaly Reasons
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Anomaly Reasons') }}
                     </a>
                     <a href="{{ route('admin.shifts.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.shifts.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Shifts
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Shifts') }}
                     </a>
                     @foreach($menuRegistry->getItems('production') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -438,7 +438,7 @@
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                         </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Structure</span>
+                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Structure') }}</span>
                         <svg x-show="!collapsed || mobileOpen" x-cloak
                              class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': structure}"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -459,16 +459,16 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.factories.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.factories.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Factories
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Factories') }}
                     </a>
                     <a href="{{ route('admin.divisions.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.divisions.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Divisions
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Divisions') }}
                     </a>
                     <a href="{{ route('admin.workstation-types.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.workstation-types.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Workstation Types
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Workstation Types') }}
                     </a>
                     <a href="{{ route('admin.subassemblies.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.subassemblies.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Subassemblies
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Subassemblies') }}
                     </a>
                     @foreach($menuRegistry->getItems('structure') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -491,7 +491,7 @@
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">HR</span>
+                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('HR') }}</span>
                         <svg x-show="!collapsed || mobileOpen" x-cloak
                              class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': hr}"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -512,16 +512,16 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.workers.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.workers.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Workers
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Workers') }}
                     </a>
                     <a href="{{ route('admin.crews.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.crews.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Crews
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Crews') }}
                     </a>
                     <a href="{{ route('admin.skills.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.skills.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Skills
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Skills') }}
                     </a>
                     <a href="{{ route('admin.wage-groups.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.wage-groups.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Wage Groups
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Wage Groups') }}
                     </a>
                     @foreach($menuRegistry->getItems('hr') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -544,7 +544,7 @@
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Maintenance</span>
+                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Maintenance') }}</span>
                         <svg x-show="!collapsed || mobileOpen" x-cloak
                              class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': maintenance}"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -565,19 +565,19 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.maintenance-events.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.maintenance-events.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Events
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Maintenance Events') }}
                     </a>
                     <a href="{{ route('admin.tools.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.tools.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Tools
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Tools') }}
                     </a>
                     <a href="{{ route('admin.cost-sources.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.cost-sources.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Cost Sources
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Cost Sources') }}
                     </a>
                     <a href="{{ route('admin.production-anomalies.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.production-anomalies.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Anomalies
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Anomalies') }}
                     </a>
                     <a href="{{ route('admin.oee.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.oee.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>OEE
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('OEE') }}
                     </a>
                     @foreach($menuRegistry->getItems('maintenance') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -601,7 +601,7 @@
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
                         </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Connectivity</span>
+                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Connectivity') }}</span>
                         <svg x-show="!collapsed || mobileOpen" x-cloak
                              class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': connectivity}"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -622,10 +622,10 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.connectivity.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.connectivity.index') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Overview
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Overview') }}
                     </a>
                     <a href="{{ route('admin.connectivity.mqtt.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.connectivity.mqtt.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>MQTT
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('MQTT') }}
                     </a>
                 </div>
             </div>
@@ -644,7 +644,7 @@
                         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                         </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Admin</span>
+                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Admin') }}</span>
                         <svg x-show="!collapsed || mobileOpen" x-cloak
                              class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': adminGroup}"
                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -665,13 +665,13 @@
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.users.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.users.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Users
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Users') }}
                     </a>
                     <a href="{{ route('admin.reports') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.reports') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Reports
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Reports') }}
                     </a>
                     <a href="{{ route('admin.audit-logs') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.audit-logs') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Audit Logs
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Audit Logs') }}
                     </a>
                     @foreach($menuRegistry->getItems('admin') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
@@ -695,7 +695,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                     </svg>
-                    <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">Modules</span>
+                    <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Modules') }}</span>
                     <svg x-show="!collapsed || mobileOpen" x-cloak
                          class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': modulesGroup}"
                          fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -716,16 +716,16 @@
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
                     <a href="{{ route('admin.modules.index') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.index') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Installed
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Installed') }}
                     </a>
                     <a href="{{ route('admin.modules.install') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.modules.install') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>Install
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Install') }}
                     </a>
-                    <span class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none" title="Coming soon">
+                    <span class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none" title="{{ __('Coming soon') }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>
-                        Store
-                        <span class="ml-auto text-[10px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">soon</span>
+                        {{ __('Store') }}
+                        <span class="ml-auto text-[10px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">{{ __('soon') }}</span>
                     </span>
                 </div>
             </div>
@@ -799,7 +799,7 @@
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
-                <span x-show="!collapsed || mobileOpen" x-cloak>Settings</span>
+                <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Settings') }}</span>
             </a>
             <span x-show="collapsed && !mobileOpen" x-cloak
                   class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
@@ -865,7 +865,7 @@
                      fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
                 </svg>
-                <span x-show="!collapsed" x-cloak class="ml-2 text-sm">Collapse</span>
+                <span x-show="!collapsed" x-cloak class="ml-2 text-sm">{{ __('Collapse') }}</span>
             </button>
         </div>
     </div>

@@ -75,9 +75,18 @@ class DashboardController extends Controller
             ->groupBy('line_id')
             ->map(fn ($records) => $records->first());
 
+        $enabledWidgets = \App\Models\DashboardWidget::enabled()
+            ->pluck('widget_id')
+            ->toArray();
+
+        $widgetOrder = \App\Models\DashboardWidget::orderBy('sort_order')
+            ->where('enabled', true)
+            ->pluck('widget_id')
+            ->toArray();
+
         return view('admin.dashboard', compact(
             'stats', 'recentWorkOrders', 'recentIssues',
-            'lines', 'selectedLineId', 'oeeRecords'
+            'lines', 'selectedLineId', 'oeeRecords', 'enabledWidgets', 'widgetOrder'
         ));
     }
 }

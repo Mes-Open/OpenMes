@@ -158,14 +158,14 @@
                             <div class="ml-11 text-sm text-gray-600 space-y-1">
                                 @if($step->started_at)
                                     <p>
-                                        Started: {{ \Carbon\Carbon::parse($step->started_at)->format('d M Y H:i') }}
+                                        Started: {{ \Carbon\Carbon::parse($step->started_at)->translatedFormat('d M Y H:i') }}
                                         @if($step->startedBy) by {{ $step->startedBy->name }} @endif
                                     </p>
                                 @endif
 
                                 @if($step->completed_at)
                                     <p>
-                                        Completed: {{ \Carbon\Carbon::parse($step->completed_at)->format('d M Y H:i') }}
+                                        Completed: {{ \Carbon\Carbon::parse($step->completed_at)->translatedFormat('d M Y H:i') }}
                                         @if($step->completedBy) by {{ $step->completedBy->name }} @endif
                                     </p>
                                 @endif

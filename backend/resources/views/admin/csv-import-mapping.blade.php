@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Map Columns')
+@section('title', __('Map Columns'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'CSV Import', 'url' => route('admin.csv-import')],
-    ['label' => 'Map Columns', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('CSV Import'), 'url' => route('admin.csv-import')],
+    ['label' => __('Map Columns'), 'url' => null],
 ]" />
 
 @php
@@ -18,15 +18,15 @@
 
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Map Columns</h1>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Map Columns') }}</h1>
             <p class="text-gray-600 mt-1">
-                Assign each CSV column to a system field or a custom key.
-                <span class="font-medium text-blue-700">{{ $totalRows }} rows</span> to import ·
-                Strategy: <span class="font-medium">{{ str_replace('_', ' ', $importStrategy) }}</span>
+                {{ __('Assign each CSV column to a system field or a custom key.') }}
+                <span class="font-medium text-blue-700">{{ $totalRows }} {{ __('rows') }}</span> {{ __('to import') }} ·
+                {{ __('Strategy') }}: <span class="font-medium">{{ str_replace('_', ' ', $importStrategy) }}</span>
             </p>
         </div>
         <a href="{{ route('admin.csv-import') }}" class="btn-touch btn-secondary text-sm">
-            ← Back
+            ← {{ __('Back') }}
         </a>
     </div>
 
@@ -55,17 +55,17 @@
             <div class="lg:col-span-2 space-y-4">
                 <div class="card">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-xl font-bold text-gray-800">Column Mapping</h2>
+                        <h2 class="text-xl font-bold text-gray-800">{{ __('Column Mapping') }}</h2>
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-gray-500">Quick-fill:</span>
+                            <span class="text-xs text-gray-500">{{ __('Quick-fill') }}:</span>
                             <button type="button" onclick="autoMap()"
                                     class="text-xs text-blue-600 hover:text-blue-800 underline">
-                                Auto-detect
+                                {{ __('Auto-detect') }}
                             </button>
                             <span class="text-gray-300">|</span>
                             <button type="button" onclick="clearAll()"
                                     class="text-xs text-red-500 hover:text-red-700 underline">
-                                Clear all
+                                {{ __('Clear all') }}
                             </button>
                         </div>
                     </div>
@@ -83,7 +83,7 @@
                                 {{-- CSV column name --}}
                                 <div class="flex-shrink-0 w-40">
                                     <p class="text-sm font-mono font-medium text-gray-800 truncate" title="{{ $h }}">{{ $h }}</p>
-                                    <p class="text-xs text-gray-400">CSV column</p>
+                                    <p class="text-xs text-gray-400">{{ __('CSV column') }}</p>
                                 </div>
 
                                 {{-- Arrow --}}
@@ -96,16 +96,16 @@
                                         class="form-input w-full text-sm mapping-select"
                                         onchange="onSelectChange(this)"
                                     >
-                                        <option value="_ignore" {{ $selValue === '_ignore' ? 'selected' : '' }}>— Ignore this column —</option>
-                                        <optgroup label="System Fields">
+                                        <option value="_ignore" {{ $selValue === '_ignore' ? 'selected' : '' }}>— {{ __('Ignore this column') }} —</option>
+                                        <optgroup label="{{ __('System Fields') }}">
                                             @foreach($systemFields as $key => $label)
                                                 <option value="{{ $key }}" {{ $selValue === $key ? 'selected' : '' }}>
-                                                    {{ $label }}@if(in_array($key, $requiredFields)) (required)@endif
+                                                    {{ $label }}@if(in_array($key, $requiredFields)) ({{ __('required') }})@endif
                                                 </option>
                                             @endforeach
                                         </optgroup>
-                                        <optgroup label="Custom Field">
-                                            <option value="__custom__" {{ $selValue === '__custom__' ? 'selected' : '' }}>Custom key…</option>
+                                        <optgroup label="{{ __('Custom Field') }}">
+                                            <option value="__custom__" {{ $selValue === '__custom__' ? 'selected' : '' }}>{{ __('Custom key…') }}</option>
                                         </optgroup>
                                     </select>
 
@@ -117,20 +117,20 @@
                                             placeholder="e.g. batch_code, color, weight_kg"
                                             value="{{ $customKey }}"
                                         >
-                                        <p class="text-xs text-gray-400 mt-1">Stored as <code class="text-purple-700">custom:your_key</code></p>
+                                        <p class="text-xs text-gray-400 mt-1">{{ __('Stored as') }} <code class="text-purple-700">custom:your_key</code></p>
                                     </div>
 
                                     {{-- Required badge (shown for required system fields) --}}
                                     @if(in_array($selValue, $requiredFields))
                                         <div class="mt-1">
-                                            <span class="text-xs text-red-600 font-medium">required field</span>
+                                            <span class="text-xs text-red-600 font-medium">{{ __('required field') }}</span>
                                         </div>
                                     @endif
                                 </div>
 
                                 {{-- Sample value --}}
                                 <div class="flex-shrink-0 w-32 hidden md:block">
-                                    <p class="text-xs text-gray-400 mb-1">Sample</p>
+                                    <p class="text-xs text-gray-400 mb-1">{{ __('Sample') }}</p>
                                     <p class="text-xs text-gray-600 font-mono truncate" title="{{ $previewRows[0][$h] ?? '' }}">
                                         {{ $previewRows[0][$h] ?? '—' }}
                                     </p>
@@ -143,8 +143,8 @@
                 {{-- Data Preview --}}
                 <div class="card overflow-hidden">
                     <h2 class="text-lg font-bold text-gray-800 mb-3">
-                        Data Preview
-                        <span class="text-sm font-normal text-gray-500">(first {{ count($previewRows) }} rows)</span>
+                        {{ __('Data Preview') }}
+                        <span class="text-sm font-normal text-gray-500">({{ __('first :count rows', ['count' => count($previewRows)]) }})</span>
                     </h2>
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-xs">
@@ -177,7 +177,7 @@
                 {{-- Load Mapping --}}
                 @if($savedMappings->isNotEmpty())
                 <div class="card">
-                    <h3 class="text-base font-bold text-gray-800 mb-3">Load Saved Profile</h3>
+                    <h3 class="text-base font-bold text-gray-800 mb-3">{{ __('Load Saved Profile') }}</h3>
                     <div class="space-y-2">
                         @foreach($savedMappings as $m)
                             <button
@@ -187,7 +187,7 @@
                             >
                                 <p class="text-sm font-medium text-gray-800">{{ $m->name }}{{ $m->is_default ? ' ✓' : '' }}</p>
                                 @php $cols = count($m->mapping_config['column_mappings'] ?? []); @endphp
-                                <p class="text-xs text-gray-500">{{ $cols }} column{{ $cols !== 1 ? 's' : '' }} mapped</p>
+                                <p class="text-xs text-gray-500">{{ $cols }} {{ trans_choice('column|columns', $cols) }} {{ __('mapped') }}</p>
                             </button>
                         @endforeach
                     </div>
@@ -196,18 +196,18 @@
 
                 {{-- Save Mapping --}}
                 <div class="card">
-                    <h3 class="text-base font-bold text-gray-800 mb-3">Save Mapping Profile</h3>
+                    <h3 class="text-base font-bold text-gray-800 mb-3">{{ __('Save Mapping Profile') }}</h3>
                     <div x-data="{ saveMapping: false }">
                         <label class="flex items-center gap-2 cursor-pointer mb-3">
                             <input type="checkbox" x-model="saveMapping" class="rounded border-gray-300">
-                            <span class="text-sm text-gray-700">Save this mapping for later</span>
+                            <span class="text-sm text-gray-700">{{ __('Save this mapping for later') }}</span>
                         </label>
                         <div x-show="saveMapping" x-cloak>
                             <input
                                 type="text"
                                 name="save_mapping_name"
                                 class="form-input w-full text-sm"
-                                placeholder="Profile name (e.g. ERP Export)"
+                                placeholder="{{ __('Profile name (e.g. ERP Export)') }}"
                                 maxlength="100"
                             >
                         </div>
@@ -216,42 +216,42 @@
 
                 {{-- Import summary --}}
                 <div class="card">
-                    <h3 class="text-base font-bold text-gray-800 mb-3">Import Summary</h3>
+                    <h3 class="text-base font-bold text-gray-800 mb-3">{{ __('Import Summary') }}</h3>
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between">
-                            <span class="text-gray-600">Total rows:</span>
+                            <span class="text-gray-600">{{ __('Total rows') }}:</span>
                             <span class="font-medium">{{ $totalRows }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">Strategy:</span>
+                            <span class="text-gray-600">{{ __('Strategy') }}:</span>
                             <span class="font-medium capitalize">{{ str_replace('_', ' ', $importStrategy) }}</span>
                         </div>
                         @if(!empty($targetLineId))
                             @php $tLine = \App\Models\Line::find($targetLineId); @endphp
                             <div class="flex justify-between">
-                                <span class="text-gray-600">Target line:</span>
+                                <span class="text-gray-600">{{ __('Target line') }}:</span>
                                 <span class="font-medium text-blue-700">{{ $tLine?->name ?? '—' }}</span>
                             </div>
                         @endif
                         @if(!empty($importWeek))
                             <div class="flex justify-between">
-                                <span class="text-gray-600">Week:</span>
+                                <span class="text-gray-600">{{ __('Week') }}:</span>
                                 <span class="font-medium">W{{ $importWeek }} / {{ $productionYear ?? now()->year }}</span>
                             </div>
                         @endif
                         @if(!empty($importMonth))
-                            @php $monthName = \Carbon\Carbon::create(null, $importMonth)->format('F'); @endphp
+                            @php $monthName = \Carbon\Carbon::create(null, $importMonth)->translatedFormat('F'); @endphp
                             <div class="flex justify-between">
-                                <span class="text-gray-600">Month:</span>
+                                <span class="text-gray-600">{{ __('Month') }}:</span>
                                 <span class="font-medium">{{ $monthName }} {{ $productionYear ?? now()->year }}</span>
                             </div>
                         @endif
                         <div class="flex justify-between">
-                            <span class="text-gray-600">Columns:</span>
+                            <span class="text-gray-600">{{ __('Columns') }}:</span>
                             <span class="font-medium">{{ count($headers) }}</span>
                         </div>
                         <div class="border-t pt-2 flex justify-between">
-                            <span class="text-gray-600">Mapped:</span>
+                            <span class="text-gray-600">{{ __('Mapped') }}:</span>
                             <span class="font-medium" id="mapped-count">0</span>
                         </div>
                     </div>
@@ -262,7 +262,7 @@
                     <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                     </svg>
-                    Run Import ({{ $totalRows }} rows)
+                    {{ __('Run Import (:count rows)', ['count' => $totalRows]) }}
                 </button>
             </div>
 

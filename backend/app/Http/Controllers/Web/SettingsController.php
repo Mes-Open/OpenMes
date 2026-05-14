@@ -41,7 +41,7 @@ class SettingsController extends Controller
         $user = auth()->user();
 
         // Verify current password
-        if (!Hash::check($validated['current_password'], $user->password)) {
+        if (! Hash::check($validated['current_password'], $user->password)) {
             return back()->withErrors(['current_password' => 'Current password is incorrect.']);
         }
 
@@ -70,7 +70,7 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . auth()->id(),
+            'email' => 'required|string|email|max:255|unique:users,email,'.auth()->id(),
         ]);
 
         auth()->user()->update($validated);
@@ -87,11 +87,12 @@ class SettingsController extends Controller
         $rows = DB::table('system_settings')->get()->keyBy('key');
 
         $settings = [
-            'production_period'     => json_decode($rows['production_period']->value ?? '"none"', true) ?? 'none',
-            'allow_overproduction'  => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
+            'production_period' => json_decode($rows['production_period']->value ?? '"none"', true) ?? 'none',
+            'allow_overproduction' => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']->value ?? 'true', true) ?? true,
-            'workflow_mode'         => json_decode($rows['workflow_mode']->value ?? '"status"', true) ?? 'status',
-            'pin_login_enabled'     => json_decode($rows['pin_login_enabled']->value ?? 'false', true) ?? false,
+            'workflow_mode' => json_decode($rows['workflow_mode']->value ?? '"status"', true) ?? 'status',
+            'pin_login_enabled' => json_decode($rows['pin_login_enabled']->value ?? 'false', true) ?? false,
+            'language' => json_decode($rows['language']->value ?? '"en"', true) ?? 'en',
         ];
 
         return view('settings.system', compact('settings'));
@@ -107,12 +108,12 @@ class SettingsController extends Controller
             true
         );
 
-        if (!$pinEnabled) {
+        if (! $pinEnabled) {
             return redirect()->route('settings.index')
                 ->with('error', 'PIN login is not enabled by administrator.');
         }
 
-        $hasPin = !empty(auth()->user()->pin);
+        $hasPin = ! empty(auth()->user()->pin);
 
         return view('settings.pin', compact('hasPin'));
     }
@@ -127,14 +128,14 @@ class SettingsController extends Controller
             true
         );
 
-        if (!$pinEnabled) {
+        if (! $pinEnabled) {
             return redirect()->route('settings.index')
                 ->with('error', 'PIN login is not enabled by administrator.');
         }
 
         $validated = $request->validated();
 
-        if (!Hash::check($validated['current_password'], auth()->user()->password)) {
+        if (! Hash::check($validated['current_password'], auth()->user()->password)) {
             return back()->withErrors(['current_password' => 'Current password is incorrect.']);
         }
 
@@ -155,7 +156,7 @@ class SettingsController extends Controller
             'current_password' => 'required|string',
         ]);
 
-        if (!Hash::check($validated['current_password'], auth()->user()->password)) {
+        if (! Hash::check($validated['current_password'], auth()->user()->password)) {
             return back()->withErrors(['current_password' => 'Current password is incorrect.']);
         }
 
@@ -228,19 +229,21 @@ class SettingsController extends Controller
     public function updateSystemSettings(Request $request)
     {
         $validated = $request->validate([
-            'production_period'      => 'required|in:none,weekly,monthly',
-            'allow_overproduction'   => 'nullable|boolean',
+            'production_period' => 'required|in:none,weekly,monthly',
+            'allow_overproduction' => 'nullable|boolean',
             'force_sequential_steps' => 'nullable|boolean',
-            'workflow_mode'          => 'required|in:status,board_status',
-            'pin_login_enabled'      => 'nullable|boolean',
+            'workflow_mode' => 'required|in:status,board_status',
+            'pin_login_enabled' => 'nullable|boolean',
+            'language' => 'nullable|in:en,pl',
         ]);
 
         $map = [
-            'production_period'      => $validated['production_period'],
-            'allow_overproduction'   => (bool) ($validated['allow_overproduction'] ?? false),
+            'production_period' => $validated['production_period'],
+            'allow_overproduction' => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
-            'workflow_mode'          => $validated['workflow_mode'],
-            'pin_login_enabled'      => (bool) ($validated['pin_login_enabled'] ?? false),
+            'workflow_mode' => $validated['workflow_mode'],
+            'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
+            'language' => $validated['language'] ?? 'en',
         ];
 
         foreach ($map as $key => $value) {

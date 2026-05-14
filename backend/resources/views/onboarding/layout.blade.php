@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenMES — Setup Wizard</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">

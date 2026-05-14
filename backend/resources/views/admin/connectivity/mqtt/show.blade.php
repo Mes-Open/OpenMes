@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', $connection->name . ' — MQTT Connection')
+@section('title', $connection->name . ' — ' . __('MQTT Connection'))
 
 @section('content')
 <div class="p-6 space-y-6">
@@ -12,7 +12,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                 </svg>
-                MQTT Connections
+                {{ __('MQTT Connections') }}
             </a>
             <div class="flex items-center gap-3">
                 @php
@@ -22,7 +22,7 @@
                 <span class="w-3 h-3 rounded-full {{ $dot }} {{ $connection->status === 'connected' ? 'animate-pulse' : '' }}"></span>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ $connection->name }}</h1>
                 @if(!$connection->is_active)
-                    <span class="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-full">Inactive</span>
+                    <span class="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-full">{{ __('Inactive') }}</span>
                 @endif
             </div>
             @if($connection->mqttConnection)
@@ -39,7 +39,7 @@
             <a href="{{ route('admin.connectivity.mqtt.edit', $connection) }}"
                class="px-4 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200
                       rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                Edit
+                {{ __('Edit') }}
             </a>
             <form method="POST" action="{{ route('admin.connectivity.mqtt.toggle-active', $connection) }}">
                 @csrf
@@ -48,7 +48,7 @@
                                {{ $connection->is_active
                                    ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100'
                                    : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-100' }}">
-                    {{ $connection->is_active ? 'Disable' : 'Enable' }}
+                    {{ $connection->is_active ? __('Disable') : __('Enable') }}
                 </button>
             </form>
         </div>
@@ -66,16 +66,16 @@
     <div class="grid grid-cols-3 gap-4">
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
             <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ $connection->topics->count() }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Topics</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ __('Topics') }}</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
             <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ number_format($connection->messages_received) }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Messages received</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ __('Messages received') }}</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
             <p class="text-2xl font-bold text-gray-900 dark:text-white capitalize">{{ $connection->status }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {{ $connection->last_connected_at ? $connection->last_connected_at->diffForHumans() : 'Never' }}
+                {{ $connection->last_connected_at ? $connection->last_connected_at->diffForHumans() : __('Never') }}
             </p>
         </div>
     </div>
@@ -83,7 +83,7 @@
     {{-- Topics & Mappings --}}
     <div>
         <div class="flex items-center justify-between mb-3">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Topics & Mappings</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('Topics & Mappings') }}</h2>
         </div>
 
         <div class="space-y-4">
@@ -94,7 +94,7 @@
                     <svg class="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
                     </svg>
-                    <p class="text-sm">No topics subscribed yet.</p>
+                    <p class="text-sm">{{ __('No topics subscribed yet.') }}</p>
                 </div>
             @endforelse
 
@@ -106,7 +106,7 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Add topic
+                    {{ __('Add topic') }}
                 </button>
                 <div x-show="open" x-cloak x-transition class="mt-4">
                     <form method="POST" action="{{ route('admin.connectivity.mqtt.topics.store', $connection) }}" class="space-y-3">
@@ -114,14 +114,14 @@
                         <div class="grid grid-cols-3 gap-3">
                             <div class="col-span-2">
                                 <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                    Topic pattern <span class="text-gray-400">(supports + and # wildcards)</span>
+                                    {{ __('Topic pattern') }} <span class="text-gray-400">({{ __('supports + and # wildcards') }})</span>
                                 </label>
                                 <input type="text" name="topic_pattern" placeholder="factory/line1/+/status" required
                                        class="w-full px-3 py-2 text-sm font-mono border border-gray-300 dark:border-gray-600 rounded-lg
                                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payload format</label>
+                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ __('Payload format') }}</label>
                                 <select name="payload_format"
                                         class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
                                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -133,7 +133,7 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Description (optional)</label>
+                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ __('Description (optional)') }}</label>
                             <input type="text" name="description" placeholder="e.g. Production count from Line 1"
                                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
                                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -141,11 +141,11 @@
                         <div class="flex gap-2">
                             <button type="submit"
                                     class="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
-                                Add Topic
+                                {{ __('Add Topic') }}
                             </button>
                             <button type="button" @click="open = false"
                                     class="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 transition-colors">
-                                Cancel
+                                {{ __('Cancel') }}
                             </button>
                         </div>
                     </form>
@@ -156,7 +156,7 @@
 
     {{-- Live Message Log --}}
     <div>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Live Message Log</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">{{ __('Live Message Log') }}</h2>
 
         <div class="bg-gray-900 dark:bg-gray-950 rounded-xl border border-gray-700 overflow-hidden"
              x-data="mqttLiveLog('{{ route('admin.connectivity.mqtt.messages', $connection) }}')"
@@ -167,17 +167,17 @@
                 <div class="flex items-center gap-3">
                     <div class="flex items-center gap-1.5">
                         <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span class="text-xs text-gray-400">Live (polling)</span>
+                        <span class="text-xs text-gray-400">{{ __('Live (polling)') }}</span>
                     </div>
                     <span class="text-xs text-gray-500" x-text="messages.length + ' new messages'"></span>
                 </div>
                 <div class="flex items-center gap-2">
                     <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
                         <input type="checkbox" x-model="autoScroll" class="rounded border-gray-600 text-blue-500">
-                        Auto-scroll
+                        {{ __('Auto-scroll') }}
                     </label>
                     <button @click="messages = []" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-                        Clear
+                        {{ __('Clear') }}
                     </button>
                 </div>
             </div>
@@ -217,7 +217,7 @@
                 </template>
 
                 <div x-show="messages.length === 0" class="text-gray-600 text-center py-8">
-                    Waiting for messages...
+                    {{ __('Waiting for messages...') }}
                 </div>
             </div>
         </div>

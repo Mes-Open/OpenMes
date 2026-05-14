@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Work Order Queue')
+@section('title', __('Active Work Orders'))
 
 @section('content')
 <div class="max-w-7xl mx-auto"
@@ -171,7 +171,7 @@
                                         {{ $workOrder->priority ?: '—' }}
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                                        {{ $workOrder->due_date ? \Carbon\Carbon::parse($workOrder->due_date)->format('d M') : '—' }}
+                                        {{ $workOrder->due_date ? \Carbon\Carbon::parse($workOrder->due_date)->translatedFormat('d M') : '—' }}
                                     </td>
                                     {{-- Actions cell — does NOT cycle status --}}
                                     <td class="px-3 py-2 whitespace-nowrap" data-actions-cell="1">
@@ -252,7 +252,7 @@
                                 <div class="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Priority: <span class="font-medium">{{ $workOrder->priority }}</span></span>
                                     @if($workOrder->due_date)
-                                        <span class="text-gray-600">Due: <span class="font-medium">{{ \Carbon\Carbon::parse($workOrder->due_date)->format('M d') }}</span></span>
+                                        <span class="text-gray-600">Due: <span class="font-medium">{{ \Carbon\Carbon::parse($workOrder->due_date)->translatedFormat('M d') }}</span></span>
                                     @endif
                                 </div>
                                 <div class="mt-4 flex items-center justify-between">
@@ -320,7 +320,7 @@
                                         {{ number_format($workOrder->produced_qty, 0) }}
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                                        {{ $workOrder->completed_at ? \Carbon\Carbon::parse($workOrder->completed_at)->format('d M Y, H:i') : '—' }}
+                                        {{ $workOrder->completed_at ? \Carbon\Carbon::parse($workOrder->completed_at)->translatedFormat('d M Y, H:i') : '—' }}
                                     </td>
                                     <td class="px-4 py-3 text-right">
                                         <svg class="w-5 h-5 text-gray-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,7 +353,7 @@
                             </div>
                             @if($workOrder->completed_at)
                                 <div class="border-t border-gray-200 pt-3 mt-3 text-sm text-gray-600">
-                                    Completed: {{ \Carbon\Carbon::parse($workOrder->completed_at)->format('M d, Y H:i') }}
+                                    Completed: {{ \Carbon\Carbon::parse($workOrder->completed_at)->translatedFormat('M d, Y H:i') }}
                                 </div>
                             @endif
                         </a>
