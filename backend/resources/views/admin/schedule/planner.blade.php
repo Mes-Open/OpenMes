@@ -5,8 +5,7 @@
 @section('content')
 <x-breadcrumbs :items="[
     ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
-    ['label' => __('Schedule'), 'url' => route('admin.schedule')],
-    ['label' => __('Planner'), 'url' => null],
+    ['label' => __('Production Schedule'), 'url' => null],
 ]" />
 
 @php
@@ -53,7 +52,7 @@
     {{-- ===== TOOLBAR ===== --}}
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-2.5 mb-4 flex flex-wrap items-center gap-3">
         {{-- Nav --}}
-        <a href="{{ route('admin.schedule.planner', ['start_date' => $navPrev->format('Y-m-d')]) }}"
+        <a href="{{ route('admin.schedule', ['start_date' => $navPrev->format('Y-m-d')]) }}"
            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition" title="{{ __('Previous') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </a>
@@ -62,7 +61,7 @@
             <span class="text-gray-400 mx-1">&middot;</span>
             {{ $rangeStart->translatedFormat('d.m') }} &ndash; {{ $rangeEnd->translatedFormat('d.m.Y') }}
         </span>
-        <a href="{{ route('admin.schedule.planner', ['start_date' => $navNext->format('Y-m-d')]) }}"
+        <a href="{{ route('admin.schedule', ['start_date' => $navNext->format('Y-m-d')]) }}"
            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition" title="{{ __('Next') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
@@ -72,7 +71,7 @@
         {{-- View mode --}}
         <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
             @foreach(['weekly' => __('Weekly'), 'daily' => __('Daily'), 'monthly' => __('Monthly')] as $mode => $ml)
-                <a href="{{ route('admin.schedule.planner', ['start_date' => $startDate->format('Y-m-d'), 'view_mode' => $mode, 'line_id' => request('line_id')]) }}"
+                <a href="{{ route('admin.schedule', ['start_date' => $startDate->format('Y-m-d'), 'view_mode' => $mode, 'line_id' => request('line_id')]) }}"
                    class="px-3 py-1 text-xs font-medium rounded-md transition {{ $viewMode === $mode ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                     {{ $ml }}
                 </a>
@@ -82,7 +81,7 @@
         <div class="h-6 border-l border-gray-300 dark:border-gray-600 mx-1"></div>
 
         {{-- Line filter --}}
-        <form method="GET" action="{{ route('admin.schedule.planner') }}" class="flex items-center gap-1.5">
+        <form method="GET" action="{{ route('admin.schedule') }}" class="flex items-center gap-1.5">
             <input type="hidden" name="start_date" value="{{ $startDate->format('Y-m-d') }}">
             <input type="hidden" name="view_mode" value="{{ $viewMode }}">
             <select name="line_id" onchange="this.form.submit()"
@@ -97,7 +96,7 @@
         <div class="flex-1"></div>
 
         {{-- Today --}}
-        <a href="{{ route('admin.schedule.planner') }}" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition">
+        <a href="{{ route('admin.schedule') }}" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition">
             {{ __('Today') }}
         </a>
     </div>
