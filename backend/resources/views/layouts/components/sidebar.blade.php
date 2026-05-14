@@ -280,6 +280,26 @@
                 </span>
             </div>
 
+            {{-- Schedule Planner --}}
+            @php $a = request()->routeIs('admin.schedule.planner*'); @endphp
+            <div class="relative group px-2">
+                <a href="{{ route('admin.schedule.planner') }}"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                          {{ $a ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }}"
+                   :class="{'justify-center !px-0': collapsed && !mobileOpen}">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/>
+                    </svg>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Planner') }}</span>
+                </a>
+                <span x-show="collapsed && !mobileOpen" x-cloak
+                      class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
+                             text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
+                             group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+                    Planner
+                </span>
+            </div>
+
             {{-- Separator --}}
             <div x-show="!collapsed || mobileOpen" x-cloak class="mx-4 my-2 border-t border-slate-700/60"></div>
 
