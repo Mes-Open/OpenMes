@@ -39,6 +39,7 @@ class WorkOrder extends Model
         'priority',
         'due_date',
         'week_number',
+        'shift_number',
         'month_number',
         'production_year',
         'description',
