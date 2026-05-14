@@ -25,7 +25,7 @@
                 </svg>
             </button>
             <form method="POST" action="{{ route('admin.connectivity.mqtt.topics.destroy', [$connection, $topic]) }}"
-                  onsubmit="return confirm('Delete this topic and all its mappings?')">
+                  onsubmit="return confirm('{{ __('Delete this topic and all its mappings?') }}')">
                 @csrf @method('DELETE')
                 <button type="submit"
                         class="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
@@ -42,13 +42,13 @@
         <form method="POST" action="{{ route('admin.connectivity.mqtt.topics.update', [$connection, $topic]) }}" class="flex gap-3 items-end flex-wrap">
             @csrf @method('PUT')
             <div class="flex-1 min-w-48">
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Pattern</label>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ __('Pattern') }}</label>
                 <input type="text" name="topic_pattern" value="{{ $topic->topic_pattern }}" required
                        class="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 dark:border-gray-600 rounded-lg
                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ __('Format') }}</label>
                 <select name="payload_format"
                         class="px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -58,14 +58,14 @@
                 </select>
             </div>
             <div class="flex-1 min-w-36">
-                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Description</label>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ __('Description') }}</label>
                 <input type="text" name="description" value="{{ $topic->description }}"
                        class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
             </div>
             <div class="flex gap-2">
-                <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors">Save</button>
-                <button type="button" @click="editTopic = false" class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg hover:bg-gray-200 transition-colors">Cancel</button>
+                <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors">{{ __('Save') }}</button>
+                <button type="button" @click="editTopic = false" class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg hover:bg-gray-200 transition-colors">{{ __('Cancel') }}</button>
             </div>
         </form>
     </div>
@@ -75,7 +75,7 @@
         @forelse($topic->mappings as $mapping)
             @include('admin.connectivity.mqtt.partials.mapping-row', ['mapping' => $mapping, 'topic' => $topic, 'connection' => $connection])
         @empty
-            <p class="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 italic">No mappings defined — messages will be logged only.</p>
+            <p class="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 italic">{{ __('No mappings defined — messages will be logged only.') }}</p>
         @endforelse
     </div>
 
@@ -86,7 +86,7 @@
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
-            Add mapping rule
+            {{ __('Add mapping rule') }}
         </button>
 
         <div x-show="addMapping" x-cloak x-transition class="mt-3">
@@ -95,7 +95,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            Field path
+                            {{ __('Field path') }}
                             <span class="text-gray-400 font-normal">(e.g. $.qty or $.data.value)</span>
                         </label>
                         <input type="text" name="field_path" placeholder="$.value"
@@ -103,7 +103,7 @@
                                       bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Action type <span class="text-red-500">*</span></label>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ __('Action type') }} <span class="text-red-500">*</span></label>
                         <select name="action_type" required
                                 class="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg
                                        bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -114,7 +114,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            Condition
+                            {{ __('Condition') }}
                             <span class="text-gray-400 font-normal">(e.g. value > 0)</span>
                         </label>
                         <input type="text" name="condition_expr" placeholder="value > 0"
@@ -122,7 +122,7 @@
                                       bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Priority</label>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ __('Priority') }}</label>
                         <input type="number" name="priority" value="100" min="1" max="9999"
                                class="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg
                                       bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -130,7 +130,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        Action params (JSON)
+                        {{ __('Action params (JSON)') }}
                         <span class="text-gray-400 font-normal">— e.g. {"order_no_path":"$.order_no","qty_path":"$.qty"}</span>
                     </label>
                     <textarea name="action_params" rows="3" placeholder='{"order_no_path": "$.order_no", "qty_path": "$.qty"}'
@@ -138,14 +138,14 @@
                                      bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Description</label>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{{ __('Description') }}</label>
                     <input type="text" name="description" placeholder="e.g. Update produced qty from machine counter"
                            class="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg
                                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 </div>
                 <div class="flex gap-2">
-                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors">Add Mapping</button>
-                    <button type="button" @click="addMapping = false" class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg hover:bg-gray-200 transition-colors">Cancel</button>
+                    <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors">{{ __('Add Mapping') }}</button>
+                    <button type="button" @click="addMapping = false" class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg hover:bg-gray-200 transition-colors">{{ __('Cancel') }}</button>
                 </div>
             </form>
         </div>

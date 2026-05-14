@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Cost Source')
+@section('title', __('Edit Cost Source'))
 
 @section('content')
 <x-breadcrumbs :items="[
-    ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
-    ['label' => 'Cost Sources', 'url' => route('admin.cost-sources.index')],
-    ['label' => 'Edit Cost Source', 'url' => null],
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Cost Sources'), 'url' => route('admin.cost-sources.index')],
+    ['label' => __('Edit Cost Source'), 'url' => null],
 ]" />
 
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Edit Cost Source</h1>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Edit Cost Source') }}</h1>
             <p class="text-gray-600 mt-1 font-mono">{{ $costSource->code }}</p>
         </div>
-        <a href="{{ route('admin.cost-sources.index') }}" class="btn-touch btn-secondary">← Back</a>
+        <a href="{{ route('admin.cost-sources.index') }}" class="btn-touch btn-secondary">{{ __('← Back') }}</a>
     </div>
 
     <div class="card">
@@ -25,42 +25,42 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="form-label">Code <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Code') }} <span class="text-red-500">*</span></label>
                     <input type="text" name="code" value="{{ old('code', $costSource->code) }}"
                            class="form-input w-full" required maxlength="50">
                     @error('code') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="form-label">Name <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Name') }} <span class="text-red-500">*</span></label>
                     <input type="text" name="name" value="{{ old('name', $costSource->name) }}"
                            class="form-input w-full" required maxlength="200">
                     @error('name') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="form-label">Unit Cost <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Unit Cost') }} <span class="text-red-500">*</span></label>
                     <input type="number" name="unit_cost" value="{{ old('unit_cost', $costSource->unit_cost) }}"
                            class="form-input w-full" step="0.01" min="0" required>
                     @error('unit_cost') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="form-label">Unit <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Unit') }} <span class="text-red-500">*</span></label>
                     <input type="text" name="unit" value="{{ old('unit', $costSource->unit) }}"
                            class="form-input w-full" required maxlength="50">
                     @error('unit') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="form-label">Currency <span class="text-red-500">*</span></label>
+                    <label class="form-label">{{ __('Currency') }} <span class="text-red-500">*</span></label>
                     <input type="text" name="currency" value="{{ old('currency', $costSource->currency) }}"
                            class="form-input w-full" required maxlength="10">
                     @error('currency') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="md:col-span-2">
-                    <label class="form-label">Description</label>
+                    <label class="form-label">{{ __("Description") }}</label>
                     <textarea name="description" rows="3" class="form-input w-full" maxlength="2000">{{ old('description', $costSource->description) }}</textarea>
                     @error('description') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
@@ -69,14 +69,14 @@
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" name="is_active" value="1" {{ old('is_active', $costSource->is_active) ? 'checked' : '' }}
                                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                        <span class="form-label mb-0">Active</span>
+                        <span class="form-label mb-0">{{ __('Active') }}</span>
                     </label>
                 </div>
             </div>
 
             <div class="flex gap-3 justify-end mt-6">
-                <a href="{{ route('admin.cost-sources.index') }}" class="btn-touch btn-secondary">Cancel</a>
-                <button type="submit" class="btn-touch btn-primary">Save Changes</button>
+                <a href="{{ route('admin.cost-sources.index') }}" class="btn-touch btn-secondary">{{ __('Cancel') }}</a>
+                <button type="submit" class="btn-touch btn-primary">{{ __('Save Changes') }}</button>
             </div>
         </form>
     </div>

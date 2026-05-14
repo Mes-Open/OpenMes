@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Issues')
+@section('title', __('Issues'))
 
 @php
     $isAdmin = auth()->user()->hasRole('Admin');
@@ -12,8 +12,8 @@
 
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Issues</h1>
-            <p class="text-gray-600 mt-1">{{ $issues->total() }} issues total</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ __('Issues') }}</h1>
+            <p class="text-gray-600 mt-1">{{ $issues->total() }} {{ __('issues total') }}</p>
         </div>
     </div>
 
@@ -21,18 +21,18 @@
     <form method="GET" class="card mb-6">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-                <label class="form-label">Status</label>
+                <label class="form-label">{{ __('Status') }}</label>
                 <select name="status" class="form-input w-full">
-                    <option value="">All statuses</option>
+                    <option value="">{{ __('All statuses') }}</option>
                     @foreach(['OPEN','ACKNOWLEDGED','RESOLVED','CLOSED'] as $s)
                         <option value="{{ $s }}" @selected(request('status') === $s)>{{ $s }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label class="form-label">Line</label>
+                <label class="form-label">{{ __('Line') }}</label>
                 <select name="line_id" class="form-input w-full">
-                    <option value="">All lines</option>
+                    <option value="">{{ __('All lines') }}</option>
                     @foreach($lines as $line)
                         <option value="{{ $line->id }}" @selected(request('line_id') == $line->id)>{{ $line->name }}</option>
                     @endforeach
@@ -41,13 +41,13 @@
             <div class="flex items-end">
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" name="blocking" value="1" @checked(request('blocking')) class="rounded border-gray-300">
-                    <span class="text-sm text-gray-700 font-medium">Blocking only</span>
+                    <span class="text-sm text-gray-700 font-medium">{{ __('Blocking only') }}</span>
                 </label>
             </div>
         </div>
         <div class="flex gap-2 mt-4">
-            <button type="submit" class="btn-touch btn-primary text-sm">Filter</button>
-            <a href="{{ route($routePrefix . '.issues.index') }}" class="btn-touch btn-secondary text-sm">Clear</a>
+            <button type="submit" class="btn-touch btn-primary text-sm">{{ __('Filter') }}</button>
+            <a href="{{ route($routePrefix . '.issues.index') }}" class="btn-touch btn-secondary text-sm">{{ __('Clear') }}</a>
         </div>
     </form>
 
@@ -67,7 +67,7 @@
                                 {{ $issue->status }}
                             </span>
                             @if($issue->isBlocking())
-                                <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">BLOCKING</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">{{ __('BLOCKING') }}</span>
                             @endif
                             <span class="px-2 py-0.5 rounded text-xs font-medium
                                 @if($issue->issueType->severity === 'CRITICAL')   bg-red-50 text-red-800
@@ -87,7 +87,7 @@
 
                         <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-500">
                             <span>
-                                Work Order:
+                                {{ __('Work Order') }}:
                                 @if($isAdmin)
                                     <a href="{{ route('admin.work-orders.show', $issue->workOrder) }}" class="inline-flex items-center font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">{{ $issue->workOrder->order_no }}</a>
                                 @else
@@ -95,11 +95,11 @@
                                 @endif
                             </span>
                             @if($issue->workOrder->line)
-                                <span>Line: {{ $issue->workOrder->line->name }}</span>
+                                <span>{{ __('Line') }}: {{ $issue->workOrder->line->name }}</span>
                             @endif
-                            <span>Reported {{ $issue->reported_at->diffForHumans() }} by {{ $issue->reportedBy->name ?? 'unknown' }}</span>
+                            <span>{{ __('Reported') }} {{ $issue->reported_at->diffForHumans() }} {{ __('by') }} {{ $issue->reportedBy->name ?? __('unknown') }}</span>
                             @if($issue->resolution_notes)
-                                <span class="text-green-700">Resolution: {{ Str::limit($issue->resolution_notes, 80) }}</span>
+                                <span class="text-green-700">{{ __('Resolution') }}: {{ Str::limit($issue->resolution_notes, 80) }}</span>
                             @endif
                         </div>
                     </div>
@@ -109,7 +109,7 @@
                         @if($issue->status === 'OPEN')
                             <form method="POST" action="{{ route($routePrefix . '.issues.acknowledge', $issue) }}">
                                 @csrf
-                                <button class="btn-touch btn-secondary text-sm w-full">Acknowledge</button>
+                                <button class="btn-touch btn-secondary text-sm w-full">{{ __('Acknowledge') }}</button>
                             </form>
                         @endif
 
@@ -117,14 +117,14 @@
                             <button
                                 @click="openResolve({{ $issue->id }}, '{{ route($routePrefix . '.issues.resolve', $issue) }}')"
                                 class="btn-touch btn-primary text-sm w-full">
-                                Resolve
+                                {{ __('Resolve') }}
                             </button>
                         @endif
 
                         @if($issue->status === 'RESOLVED')
                             <form method="POST" action="{{ route($routePrefix . '.issues.close', $issue) }}">
                                 @csrf
-                                <button class="btn-touch btn-secondary text-sm w-full">Close</button>
+                                <button class="btn-touch btn-secondary text-sm w-full">{{ __('Close') }}</button>
                             </form>
                         @endif
                     </div>
@@ -132,9 +132,9 @@
             </div>
         @empty
             <div class="card text-center py-12">
-                <p class="text-gray-400 text-lg">No issues found.</p>
+                <p class="text-gray-400 text-lg">{{ __('No issues found.') }}</p>
                 @if(request()->hasAny(['status','line_id','blocking']))
-                    <a href="{{ route($routePrefix . '.issues.index') }}" class="text-blue-600 hover:underline mt-2 block text-sm">Clear filters</a>
+                    <a href="{{ route($routePrefix . '.issues.index') }}" class="text-blue-600 hover:underline mt-2 block text-sm">{{ __('Clear filters') }}</a>
                 @endif
             </div>
         @endforelse
@@ -152,18 +152,18 @@
                  x-transition:enter="transition ease-out duration-150"
                  x-transition:enter-start="opacity-0 scale-95"
                  x-transition:enter-end="opacity-100 scale-100">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">Resolve Issue</h3>
+                <h3 class="text-xl font-bold text-gray-800 mb-4">{{ __('Resolve Issue') }}</h3>
                 <form :action="resolveAction" method="POST">
                     @csrf
                     <div class="mb-4">
-                        <label class="form-label">Resolution notes (optional)</label>
+                        <label class="form-label">{{ __('Resolution notes (optional)') }}</label>
                         <textarea name="resolution_notes" x-model="resolveNotes" rows="3"
                                   class="form-input w-full"
                                   placeholder="Describe how the issue was resolved…"></textarea>
                     </div>
                     <div class="flex gap-3 justify-end">
-                        <button type="button" @click="resolveOpen = false" class="btn-touch btn-secondary">Cancel</button>
-                        <button type="submit" class="btn-touch btn-primary">Mark Resolved</button>
+                        <button type="button" @click="resolveOpen = false" class="btn-touch btn-secondary">{{ __('Cancel') }}</button>
+                        <button type="submit" class="btn-touch btn-primary">{{ __('Mark Resolved') }}</button>
                     </div>
                 </form>
             </div>

@@ -12,5 +12,5 @@ $classes = match($status) {
 };
 @endphp
 <span class="px-2 py-1 rounded-full text-xs font-medium {{ $classes }}">
-    {{ str_replace('_', ' ', $status) }}
+    {{ match($status) { 'PENDING' => 'Not Started', 'IN_PROGRESS' => 'In Progress', 'ACCEPTED' => 'Accepted', 'PAUSED' => 'Paused', 'BLOCKED' => 'Blocked', 'DONE' => 'Done', 'REJECTED' => 'Rejected', 'CANCELLED' => 'Cancelled', default => str_replace('_', ' ', $status) } }}
 </span>
