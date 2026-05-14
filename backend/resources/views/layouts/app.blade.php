@@ -36,15 +36,15 @@
              document.documentElement.classList.toggle('dark', this.darkMode);
              localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
          },
-         orders: false,
-         production: false,
-         linesGroup: false,
-         structure: false,
-         hr: false,
-         maintenance: false,
-         connectivity: false,
-         adminGroup: false,
-         modulesGroup: false,
+         orders: {{ request()->routeIs('admin.work-orders.*', 'admin.csv-import*') ? 'true' : 'false' }},
+         production: {{ request()->routeIs('admin.product-types.*', 'admin.materials.*', 'admin.lot-sequences.*', 'admin.integrations.*', 'admin.lines.*', 'admin.line-statuses.*', 'admin.view-templates.*', 'admin.shifts.*', 'admin.issues.*', 'admin.companies.*', 'admin.anomaly-reasons.*', 'admin.process-templates.*') ? 'true' : 'false' }},
+         linesGroup: {{ request()->routeIs('admin.lines.*', 'admin.line-statuses.*', 'admin.view-templates.*', 'admin.shifts.*') ? 'true' : 'false' }},
+         structure: {{ request()->routeIs('admin.factories.*', 'admin.divisions.*', 'admin.workstation-types.*', 'admin.subassemblies.*') ? 'true' : 'false' }},
+         hr: {{ request()->routeIs('admin.workers.*', 'admin.crews.*', 'admin.skills.*', 'admin.wage-groups.*') ? 'true' : 'false' }},
+         maintenance: {{ request()->routeIs('admin.maintenance-events.*', 'admin.tools.*', 'admin.workstations.*') ? 'true' : 'false' }},
+         connectivity: {{ request()->routeIs('admin.connectivity.*') ? 'true' : 'false' }},
+         adminGroup: {{ request()->routeIs('admin.users.*', 'admin.audit-logs*', 'admin.settings*') ? 'true' : 'false' }},
+         modulesGroup: {{ request()->routeIs('admin.modules.*') ? 'true' : 'false' }},
          toggle() {
              const sb = this.$refs.sidebar;
              if (sb) {
