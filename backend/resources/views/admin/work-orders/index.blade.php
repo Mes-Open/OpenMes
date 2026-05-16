@@ -54,11 +54,60 @@
     </form>
 
     {{-- Table --}}
-    <div class="card overflow-hidden p-0">
+    @php
+        $woLabelTemplates = collect();
+        if (class_exists(\Modules\Packaging\Models\LabelTemplate::class)) {
+            $woLabelTemplates = \Modules\Packaging\Models\LabelTemplate::query()
+                ->where('type', \Modules\Packaging\Models\LabelTemplate::TYPE_WORK_ORDER)
+                ->where('is_active', true)
+                ->orderByDesc('is_default')->orderBy('name')->get();
+        }
+    @endphp
+    <div class="card overflow-hidden p-0"
+         x-data="{
+             selected: [],
+             allChecked: false,
+             toggleAll(checkboxes) {
+                 this.allChecked = !this.allChecked;
+                 this.selected = this.allChecked ? checkboxes.map(c => c.value) : [];
+                 checkboxes.forEach(c => c.checked = this.allChecked);
+             }
+         }">
+        @if($woLabelTemplates->isNotEmpty())
+        <div x-show="selected.length > 0" x-cloak
+             class="flex items-center justify-between gap-3 px-4 py-2.5 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
+            <span class="text-sm text-blue-900 dark:text-blue-100">
+                <strong x-text="selected.length"></strong> selected
+            </span>
+            <form method="POST" action="{{ route('packaging.labels.print-multiple') }}" class="flex items-center gap-2" target="_blank">
+                @csrf
+                <input type="hidden" name="type" value="work_order">
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="ids[]" :value="id">
+                </template>
+                <select name="template_id" class="form-input text-sm py-1 px-2">
+                    @foreach($woLabelTemplates as $t)
+                        <option value="{{ $t->id }}" {{ $t->is_default ? 'selected' : '' }}>{{ $t->name }} ({{ $t->size }} mm)</option>
+                    @endforeach
+                </select>
+                <button type="submit" name="format" value="pdf" class="btn-touch btn-primary text-sm">Print labels (PDF)</button>
+                <button type="submit" name="format" value="zpl" class="btn-touch btn-secondary text-sm">ZPL</button>
+                <button type="button" @click="selected = []; allChecked = false; document.querySelectorAll('.wo-select').forEach(c => c.checked = false)"
+                        class="text-sm text-gray-600 hover:text-gray-900 px-2">Clear</button>
+            </form>
+        </div>
+        @endif
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        @if($woLabelTemplates->isNotEmpty())
+                        <th class="px-3 py-3 w-10">
+                            <input type="checkbox"
+                                   @click="toggleAll(Array.from(document.querySelectorAll('.wo-select')))"
+                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        </th>
+                        @endif
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'order_no', 'direction' => ($sort === 'order_no' && $direction === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-700">
                                 {{ __('Order #') }}
@@ -122,6 +171,13 @@
                 <tbody class="bg-white divide-y divide-gray-100">
                     @forelse($workOrders as $wo)
                         <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ route('admin.work-orders.show', $wo) }}'">
+                            @if($woLabelTemplates->isNotEmpty())
+                            <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
+                                <input type="checkbox" class="wo-select rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                       value="{{ $wo->id }}"
+                                       @change="$event.target.checked ? selected.push($event.target.value) : selected = selected.filter(v => v !== $event.target.value)">
+                            </td>
+                            @endif
                             <td class="px-4 py-3">
                                 <a href="{{ route('admin.work-orders.show', $wo) }}" class="inline-flex items-center font-mono text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">
                                     {{ $wo->order_no }}
@@ -237,7 +293,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-4 py-10 text-center text-gray-400">
+                            <td colspan="{{ $woLabelTemplates->isNotEmpty() ? 10 : 9 }}" class="px-4 py-10 text-center text-gray-400">
                                 {{ __('No work orders found.') }}
                                 <a href="{{ route('admin.work-orders.create') }}" class="text-blue-600 hover:underline ml-1">{{ __('Create one') }}</a>
                                 {{ __('or') }} <a href="{{ route('admin.csv-import') }}" class="text-blue-600 hover:underline">{{ __('import from CSV') }}</a>.
