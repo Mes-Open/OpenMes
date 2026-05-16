@@ -260,8 +260,8 @@
                 </span>
             </div>
 
-            {{-- Schedule --}}
-            @php $a = request()->routeIs('admin.schedule'); @endphp
+            {{-- Schedule / Planner --}}
+            @php $a = request()->routeIs('admin.schedule*'); @endphp
             <div class="relative group px-2">
                 <a href="{{ route('admin.schedule') }}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
