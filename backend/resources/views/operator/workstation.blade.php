@@ -281,6 +281,7 @@
                                     +
                                 </button>
                                 @endif
+<<<<<<< HEAD
                                 <button type="button"
                                         @click="report = { open: true, woId: {{ $wo->id }}, woNo: '{{ addslashes($wo->order_no) }}', typeId: '', title: '', desc: '' }"
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-lg font-bold shadow transition-colors"
@@ -304,6 +305,15 @@
                                         title="Details">
                                     ?
                                 </button>
+                                @if(class_exists(\Modules\Packaging\Models\LabelTemplate::class) && \Modules\Packaging\Models\LabelTemplate::defaultFor(\Modules\Packaging\Models\LabelTemplate::TYPE_WORK_ORDER))
+                                <a href="{{ route('packaging.labels.work-order.pdf', $wo) }}" target="_blank"
+                                   class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+                                   title="{{ __('Print label') }}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                    </svg>
+                                </a>
+                                @endif
                             </div>
                         </td>
                     </tr>

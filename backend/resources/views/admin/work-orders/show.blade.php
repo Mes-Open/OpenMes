@@ -62,6 +62,7 @@
                 </form>
                 <a href="{{ route('admin.work-orders.edit', $workOrder) }}" class="btn-touch btn-secondary text-sm">{{ __('Edit') }}</a>
             @endif
+            @includeWhen(view()->exists('packaging::partials.label-print-dropdown'), 'packaging::partials.label-print-dropdown', ['workOrder' => $workOrder, 'type' => 'work_order'])
             <a href="{{ route('admin.work-orders.index') }}" class="btn-touch btn-secondary text-sm">{{ __('← Back') }}</a>
         </div>
     </div>
@@ -156,9 +157,14 @@
                                             {{ number_format($batch->produced_qty, 2) }} / {{ number_format($batch->target_qty, 2) }}
                                         </span>
                                     </div>
-                                    <svg class="w-4 h-4 text-gray-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                    </svg>
+                                    <div class="flex items-center gap-2" @click.stop>
+                                        @if($batch->released_at)
+                                            @includeWhen(view()->exists('packaging::partials.label-print-dropdown'), 'packaging::partials.label-print-dropdown', ['batch' => $batch, 'type' => 'finished_goods', 'label' => 'Print FG'])
+                                        @endif
+                                        <svg class="w-4 h-4 text-gray-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </div>
                                 </div>
                                 <div x-show="open" x-transition class="mt-3 space-y-1">
                                     @foreach($batch->steps as $step)
