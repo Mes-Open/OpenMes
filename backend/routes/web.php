@@ -200,6 +200,7 @@ Route::middleware('auth')->group(function () {
 
         // Schedule (planner is the main view)
         Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
+        Route::get('/schedule/check-updates', [SchedulePlannerController::class, 'checkUpdates'])->name('schedule.check-updates');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
 
         // Shifts
