@@ -73,6 +73,13 @@
             toast: null, toastTimeout: null,
             saving: false,
 
+            // Polling state
+            lastKnownUpdate: null,
+            pollingInterval: null,
+            realtimeMode: '{!! $realtimeMode !!}',
+            pollIntervalMs: 10000,
+            pollingActive: false,
+
             // Drag state
             dragOrderId: null,
             dragOrderNo: null,
@@ -226,6 +233,82 @@
                 this.assignShift = shift;
                 this.assignWeekNumber = weekNumber;
                 await this.assignOrder(orderId);
+            },
+
+            // Realtime methods
+            init() {
+                if (this.realtimeMode === 'websocket') {
+                    this.startWebSocket();
+                } else {
+                    this.startPolling();
+                }
+                window.addEventListener('beforeunload', () => {
+                    this.stopPolling();
+                    this.stopWebSocket();
+                });
+            },
+
+            // WebSocket methods
+            startWebSocket() {
+                if (typeof window.Echo === 'undefined') {
+                    console.warn('Laravel Echo not loaded — falling back to polling');
+                    this.realtimeMode = 'polling';
+                    this.startPolling();
+                    return;
+                }
+                this.wsChannel = window.Echo.channel('schedule')
+                    .listen('.schedule.updated', (e) => {
+                        if (!this.saving && !this.dragOrderId) {
+                            this.refreshContent();
+                        }
+                    });
+            },
+            stopWebSocket() {
+                if (this.wsChannel) {
+                    window.Echo.leaveChannel('schedule');
+                    this.wsChannel = null;
+                }
+            },
+
+            startPolling() {
+                this.stopPolling();
+                this.pollingActive = true;
+                this.pollingInterval = setInterval(() => this.checkForUpdates(), this.pollIntervalMs);
+            },
+
+            stopPolling() {
+                if (this.pollingInterval) {
+                    clearInterval(this.pollingInterval);
+                    this.pollingInterval = null;
+                }
+                this.pollingActive = false;
+            },
+
+            async checkForUpdates() {
+                if (this.dragOrderId || this.saving) return;
+                try {
+                    const res = await fetch('{{ route("schedule.check-updates") }}', {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (!data.last_updated) return;
+
+                    if (this.lastKnownUpdate === null) {
+                        this.lastKnownUpdate = data.last_updated;
+                        return;
+                    }
+
+                    if (data.last_updated !== this.lastKnownUpdate) {
+                        this.lastKnownUpdate = data.last_updated;
+                        await this.refreshContent();
+                    }
+                } catch (e) {
+                    // Silent fail — polling will retry on next interval
+                }
             }
         };
     }
@@ -284,6 +367,20 @@
 
         <div class="h-6 border-l border-gray-300 dark:border-gray-600 mx-1"></div>
 
+        {{-- Polling indicator --}}
+        <div class="flex items-center gap-1.5" :title="pollingActive ? '{{ __('Auto-refresh: polling every 10s') }}' : '{{ __('Auto-refresh disabled') }}'">
+            <span class="relative flex h-2.5 w-2.5">
+                <template x-if="pollingActive">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                </template>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5"
+                      :class="pollingActive ? 'bg-green-500' : 'bg-gray-400'"></span>
+            </span>
+            <span class="text-[10px] text-gray-400" x-text="pollingActive ? '{{ __('Live') }}' : '{{ __('Off') }}'"></span>
+        </div>
+
+        <div class="h-6 border-l border-gray-300 dark:border-gray-600 mx-1"></div>
+
         <a href="{{ route('admin.schedule') }}" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition">
             {{ __('Today') }}
         </a>
@@ -297,188 +394,71 @@
 
             {{-- ===== WEEKLY VIEW ===== --}}
             @if($viewMode === 'weekly')
-                <div class="space-y-4">
-                @foreach($data as $period)
-                    @php
-                        $isOverloaded = $period['total_load_percent'] > 100;
-                        $isCurrentWeek = now()->isoWeek() === $period['number'] && now()->isoWeekYear() === $period['start']->isoWeekYear();
-                    @endphp
-
-                    <div class="bg-white dark:bg-gray-800 rounded-xl border-2 overflow-hidden shadow-sm
-                                {{ $isOverloaded ? 'border-red-400' : ($isCurrentWeek ? 'border-blue-400' : 'border-gray-200 dark:border-gray-700') }}">
-
-                        {{-- Week header --}}
-                        <div class="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
-                            <div class="flex items-center gap-3">
-                                <span class="text-lg font-black text-gray-800 dark:text-gray-100">
-                                    {{ __('wk') }}. {{ $period['number'] }}
-                                </span>
-                                <span class="text-sm text-gray-500">{{ $period['start']->format('d.m') }}&ndash;{{ $period['end']->format('d.m') }}</span>
-                                <div class="flex gap-0.5">
-                                    @for($s = 1; $s <= $shiftsPerDay; $s++)
-                                        <div class="w-5 h-3 rounded-sm {{ $shiftColors[$s]['bg'] }} flex items-center justify-center text-[7px] font-bold text-white/80">
-                                            {{ $shiftColors[$s]['label'] }}
-                                        </div>
-                                    @endfor
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-4 text-xs">
-                                <span class="text-gray-500">{{ __('orders') }}: <strong class="text-gray-800 dark:text-gray-100">{{ $period['total_orders'] }}</strong></span>
-                                <span>
-                                    {{ __('load') }}:
-                                    <strong class="@if($period['total_load_percent'] > 100) text-red-600 @elseif($period['total_load_percent'] > 80) text-orange-600 @else text-green-600 @endif">
-                                        {{ $period['total_load_percent'] }}%
-                                    </strong>
-                                </span>
-                                <div class="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                    <div class="h-full rounded-full @if($period['total_load_percent'] > 100) bg-red-500 @elseif($period['total_load_percent'] > 80) bg-orange-500 @else bg-green-500 @endif"
-                                         style="width: {{ min($period['total_load_percent'], 100) }}%"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Gantt grid --}}
-                        <div>
-                            <table class="w-full border-collapse table-fixed">
-                                <colgroup>
-                                    <col style="width: 100px;">
-                                    @for($d = 0; $d < $daysInWeek; $d++)
-                                        <col style="width: {{ 100 / $daysInWeek }}%;">
-                                    @endfor
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th class="p-1.5 text-left text-[10px] font-semibold text-gray-400 uppercase border-r border-gray-100 dark:border-gray-700">
-                                            {{ __('Line') }} / {{ __('Shift') }}
-                                        </th>
-                                        @php $dayCursor = $period['start']->copy(); @endphp
-                                        @for($d = 0; $d < $daysInWeek; $d++)
-                                            @php $isToday = $dayCursor->isToday(); @endphp
-                                            <th class="p-1 text-center border-r border-gray-100 dark:border-gray-700
-                                                       {{ $isToday ? 'bg-blue-100 dark:bg-blue-900/40' : '' }}
-                                                       {{ $dayCursor->isWeekend() ? 'bg-gray-50/50' : '' }}">
-                                                <div class="text-[10px] text-gray-400 uppercase">{{ $dayCursor->translatedFormat('D') }}</div>
-                                                <div class="text-xs font-bold {{ $isToday ? 'text-blue-700' : 'text-gray-700 dark:text-gray-200' }}">{{ $dayCursor->format('d.m') }}</div>
-                                                @if($isToday)
-                                                    <div class="h-0.5 bg-blue-500 rounded-full mt-0.5 mx-auto w-8"></div>
-                                                @endif
-                                            </th>
-                                            @php $dayCursor->addDay(); @endphp
-                                        @endfor
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($period['lines'] as $lineData)
-                                        @php
-                                            $line = $lineData['line'];
-                                            $orders = $lineData['orders'];
-                                            $grid = $lineData['grid'] ?? [];
-                                            $lineLoad = $lineData['load_percent'];
-                                        @endphp
-
-                                        {{-- Line section header --}}
-                                        <tr class="bg-gray-50/80 dark:bg-gray-700/30">
-                                            <td colspan="{{ $daysInWeek + 1 }}" class="px-2 py-1">
-                                                <div class="flex items-center justify-between">
-                                                    <span class="text-xs font-bold text-gray-700 dark:text-gray-200">{{ $line->name }}</span>
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="text-[10px] text-gray-400">{{ __('load') }}:</span>
-                                                        <div class="w-16 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
-                                                            <div class="h-full rounded-full @if($lineLoad > 100) bg-red-500 @elseif($lineLoad > 80) bg-orange-500 @else bg-green-500 @endif"
-                                                                 style="width: {{ min($lineLoad, 100) }}%"></div>
-                                                        </div>
-                                                        <span class="text-[10px] font-semibold @if($lineLoad > 100) text-red-600 @elseif($lineLoad > 80) text-orange-600 @else text-green-600 @endif">{{ $lineLoad }}%</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        {{-- Shift rows --}}
-                                        @for($s = 1; $s <= $shiftsPerDay; $s++)
-                                            <tr class="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50/30">
-                                                <td class="px-2 py-0.5 text-[10px] font-medium border-r border-gray-100 dark:border-gray-700 whitespace-nowrap">
-                                                    <span class="inline-flex items-center gap-1">
-                                                        <span class="w-2.5 h-2 rounded-sm {{ $shiftColors[$s]['bg'] }}"></span>
-                                                        <span class="text-gray-500">{{ $shiftColors[$s]['label'] }}</span>
-                                                        <span class="text-gray-400">{{ $shiftColors[$s]['hours'] }}</span>
-                                                    </span>
-                                                </td>
-                                                @php $dayCursor2 = $period['start']->copy(); @endphp
-                                                @for($d = 0; $d < $daysInWeek; $d++)
-                                                    @php
-                                                        $cellDate = $dayCursor2->format('Y-m-d');
-                                                        $gridKey = $cellDate . '-' . $s;
-                                                        $slotOrder = $grid[$gridKey] ?? null;
-                                                        $isToday = $dayCursor2->isToday();
-                                                    @endphp
-                                                    <td class="p-0.5 border-r border-gray-50 dark:border-gray-700/30
-                                                               {{ $isToday ? 'bg-blue-50 dark:bg-blue-900/20' : '' }}
-                                                               {{ $dayCursor2->isWeekend() ? 'bg-gray-50/30' : '' }}">
-                                                        @php $cellId = "cell-{$line->id}-{$d}-{$s}-{$period['number']}"; @endphp
-                                                        @if($slotOrder)
-                                                            {{-- Assigned order - draggable + accepts drops --}}
-                                                            @php
-                                                                $isOverdue = $slotOrder->due_date
-                                                                    && $slotOrder->due_date->lt(today())
-                                                                    && !in_array($slotOrder->status, \App\Models\WorkOrder::TERMINAL_STATUSES);
-                                                            @endphp
-                                                            <div class="relative group/cell"
-                                                                 data-order-id="{{ $slotOrder->id }}" data-order-no="{{ $slotOrder->order_no }}"
-                                                                 draggable="true"
-                                                                 @dragstart="onDragStart($event, {{ $slotOrder->id }}, '{{ addslashes($slotOrder->order_no) }}')"
-                                                                 @dragend="onDragEnd($event)"
-                                                                 @dragover.prevent="onDragOver($event, '{{ $cellId }}')"
-                                                                 @dragleave="onDragLeave($event, '{{ $cellId }}')"
-                                                                 @drop="onDrop($event, {{ $line->id }}, '{{ $cellDate }}', {{ $s }}, {{ $period['number'] }})">
-                                                                <a href="{{ route('admin.work-orders.show', $slotOrder) }}"
-                                                                   class="block px-1.5 py-0.5 rounded border text-[10px] font-medium truncate cursor-grab active:cursor-grabbing hover:opacity-80 transition
-                                                                          @if($isOverdue) bg-red-500 border-red-600 text-white animate-pulse ring-2 ring-red-400 @else {{ $woColors[$slotOrder->status] ?? 'bg-gray-200 border-gray-300' }} {{ $woTextColors[$slotOrder->status] ?? 'text-gray-700' }} @endif"
-                                                                   @click.prevent
-                                                                   x-on:mouseenter="showTip($event, {
-                                                                       order_no: '{{ addslashes($slotOrder->order_no) }}',
-                                                                       product: '{{ addslashes($slotOrder->productType?->name ?? '-') }}',
-                                                                       qty: '{{ $slotOrder->planned_qty }}',
-                                                                       status: '{{ $statusLabels[$slotOrder->status] ?? $slotOrder->status }}'
-                                                                   })"
-                                                                   x-on:mouseleave="hideTip()">
-                                                                    {{ $slotOrder->order_no }}
-                                                                </a>
-                                                                <button @click.prevent="unassignOrder({{ $slotOrder->id }})"
-                                                                        class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold leading-none flex items-center justify-center
-                                                                               opacity-0 group-hover/cell:opacity-100 transition-opacity shadow-sm hover:bg-red-600 z-10"
-                                                                        title="{{ __('Remove from schedule') }}">
-                                                                    ✕
-                                                                </button>
-                                                            </div>
-                                                        @else
-                                                            {{-- Empty cell - click or drop --}}
-                                                            <div @click="openAssign({{ $line->id }}, '{{ $cellDate }}', {{ $s }}, {{ $period['number'] }})"
-                                                                 @dragover.prevent="onDragOver($event, '{{ $cellId }}')"
-                                                                 @dragleave="onDragLeave($event, '{{ $cellId }}')"
-                                                                 @drop="onDrop($event, {{ $line->id }}, '{{ $cellDate }}', {{ $s }}, {{ $period['number'] }})"
-                                                                 data-cell-line="{{ $line->id }}" data-cell-date="{{ $cellDate }}" data-cell-shift="{{ $s }}"
-                                                                 class="h-6 rounded transition-all cursor-pointer relative overflow-hidden"
-                                                                 :class="dragOverCell === '{{ $cellId }}'
-                                                                     ? 'bg-blue-200 border-2 border-dashed border-blue-500 scale-[1.02]'
-                                                                     : '{{ $shiftColors[$s]['bg'] }} opacity-15 hover:opacity-40'">
-                                                                {{-- Drag preview: show order number when hovering --}}
-                                                                <span x-show="dragOverCell === '{{ $cellId }}' && dragOrderNo"
-                                                                      x-text="dragOrderNo"
-                                                                      class="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-blue-700"></span>
-                                                            </div>
-                                                        @endif
-                                                    </td>
-                                                    @php $dayCursor2->addDay(); @endphp
-                                                @endfor
-                                            </tr>
-                                        @endfor
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                @endforeach
+                <div class="space-y-4" id="weeks-container">
+                    @include('admin.schedule.planner-weeks')
                 </div>
+
+                {{-- Infinite scroll sentinel --}}
+                <div id="scroll-sentinel" class="py-6 text-center">
+                    <div id="scroll-loader" class="hidden">
+                        <svg class="animate-spin h-6 w-6 text-gray-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <span class="text-xs text-gray-400 mt-1 block">{{ __('Loading more weeks...') }}</span>
+                    </div>
+                </div>
+
+                <script>
+                    (function() {
+                        let nextStart = '{{ $rangeEnd->copy()->addDay()->format('Y-m-d') }}';
+                        let loading = false;
+                        const container = document.getElementById('weeks-container');
+                        const sentinel = document.getElementById('scroll-sentinel');
+                        const loader = document.getElementById('scroll-loader');
+                        const lineId = '{{ request('line_id') }}';
+
+                        const scrollRoot = sentinel.closest('main') || null;
+                        const observer = new IntersectionObserver((entries) => {
+                            if (entries[0].isIntersecting && !loading) {
+                                loadMore();
+                            }
+                        }, { root: scrollRoot, rootMargin: '600px' });
+
+                        observer.observe(sentinel);
+
+                        async function loadMore() {
+                            loading = true;
+                            loader.classList.remove('hidden');
+
+                            let url = '/admin/schedule?view_mode=weekly&_partial=1&start_date=' + nextStart;
+                            if (lineId) url += '&line_id=' + lineId;
+
+                            try {
+                                const res = await fetch(url);
+                                const html = await res.text();
+
+                                if (html.trim().length < 50) {
+                                    observer.disconnect();
+                                    sentinel.remove();
+                                    return;
+                                }
+
+                                container.insertAdjacentHTML('beforeend', html);
+
+                                // Calculate next start: advance by horizonWeeks
+                                const d = new Date(nextStart);
+                                d.setDate(d.getDate() + {{ $horizonWeeks * 7 }});
+                                nextStart = d.toISOString().slice(0, 10);
+                            } catch(e) {
+                                console.error('Load more failed:', e);
+                            } finally {
+                                loading = false;
+                                loader.classList.add('hidden');
+                            }
+                        }
+                    })();
+                </script>
 
             {{-- ===== DAILY VIEW ===== --}}
             @elseif($viewMode === 'daily')
@@ -828,3 +808,22 @@
 
 </div>
 @endsection
+
+@if(($realtimeMode ?? 'polling') === 'websocket')
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
+<script>
+    window.Pusher = Pusher;
+    window.Echo = new Echo({
+        broadcaster: 'reverb',
+        key: '{{ config("reverb.apps.0.key", "") }}',
+        wsHost: window.location.hostname,
+        wsPort: {{ config('reverb.servers.0.port', 8080) }},
+        wssPort: {{ config('reverb.servers.0.port', 443) }},
+        forceTLS: {{ request()->isSecure() ? 'true' : 'false' }},
+        enabledTransports: ['ws', 'wss'],
+    });
+</script>
+@endpush
+@endif

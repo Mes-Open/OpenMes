@@ -105,7 +105,9 @@ class SchedulePlannerController extends Controller
             ->orderBy('due_date')
             ->get();
 
-        return view('admin.schedule.planner', compact(
+        $realtimeMode = trim($settings['realtime_mode'] ?? 'polling', '"\'');
+
+        $viewData = compact(
             'data',
             'lines',
             'allLines',
@@ -120,7 +122,15 @@ class SchedulePlannerController extends Controller
             'navPrev',
             'navNext',
             'backlogOrders',
-        ));
+            'realtimeMode',
+        );
+
+        // Partial response for infinite scroll — return only week cards HTML
+        if ($request->filled('_partial')) {
+            return view('admin.schedule.planner-weeks', $viewData);
+        }
+
+        return view('admin.schedule.planner', $viewData);
     }
 
     public function updateOrder(Request $request, WorkOrder $workOrder)
@@ -139,6 +149,8 @@ class SchedulePlannerController extends Controller
             'shift_number' => $request->input('shift_number') ?: null,
         ]);
 
+        event(new \App\Events\ScheduleUpdated());
+
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
@@ -156,6 +168,15 @@ class SchedulePlannerController extends Controller
         return back()->with('success', __('Work order updated successfully.'));
     }
 
+    public function checkUpdates()
+    {
+        $lastUpdated = WorkOrder::max('updated_at');
+
+        return response()->json([
+            'last_updated' => $lastUpdated ? Carbon::parse($lastUpdated)->toIso8601String() : null,
+        ]);
+    }
+
     private function loadSettings(): array
     {
         $keys = [
@@ -163,6 +184,7 @@ class SchedulePlannerController extends Controller
             'schedule_shifts_per_day',
             'schedule_horizon_weeks',
             'schedule_show_weekends',
+            'realtime_mode',
         ];
 
         return DB::table('system_settings')

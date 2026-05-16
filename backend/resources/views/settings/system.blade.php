@@ -247,6 +247,28 @@
                     </div>
                 </label>
             </div>
+
+            <div class="mt-4">
+                <label class="form-label">{{ __('Realtime updates') }}</label>
+                <p class="text-xs text-gray-500 mb-2">
+                    {{ __('How the planner receives live updates from other users.') }}
+                </p>
+                <div class="grid grid-cols-2 gap-3">
+                    @foreach(['polling' => ['label' => __('Polling'), 'desc' => __('Checks for changes every few seconds (default)')], 'websocket' => ['label' => __('WebSocket'), 'desc' => __('Instant updates via Laravel Reverb (requires Reverb server)')]] as $value => $opt)
+                        <label class="relative flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors
+                            {{ ($settings['realtime_mode'] ?? 'polling') === $value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
+                            <input type="radio" name="realtime_mode" value="{{ $value }}"
+                                   class="sr-only"
+                                   {{ ($settings['realtime_mode'] ?? 'polling') === $value ? 'checked' : '' }}>
+                            <span class="font-medium text-sm text-gray-800">{{ $opt['label'] }}</span>
+                            <span class="text-xs text-gray-500">{{ $opt['desc'] }}</span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('realtime_mode')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
         </div>
 
         <div class="flex justify-end">
@@ -300,5 +322,6 @@ initRadioHighlight('production_period');
 initRadioHighlight('workflow_mode');
 initRadioHighlight('schedule_view_mode');
 initRadioHighlight('schedule_shifts_per_day');
+initRadioHighlight('realtime_mode');
 </script>
 @endsection
