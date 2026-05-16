@@ -98,6 +98,7 @@ class SettingsController extends Controller
             'schedule_horizon_weeks' => json_decode($rows['schedule_horizon_weeks']->value ?? '6', true) ?? 6,
             'schedule_show_weekends' => json_decode($rows['schedule_show_weekends']->value ?? 'true', true) ?? true,
             'schedule_slot_duration_hours' => json_decode($rows['schedule_slot_duration_hours']->value ?? '8', true) ?? 8,
+            'realtime_mode' => json_decode($rows['realtime_mode']->value ?? '"polling"', true) ?? 'polling',
         ];
 
         return view('settings.system', compact('settings'));
@@ -244,6 +245,7 @@ class SettingsController extends Controller
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
             'schedule_show_weekends' => 'nullable|boolean',
+            'realtime_mode' => 'required|in:polling,websocket',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -261,6 +263,7 @@ class SettingsController extends Controller
             'schedule_horizon_weeks' => (int) $validated['schedule_horizon_weeks'],
             'schedule_show_weekends' => (bool) ($validated['schedule_show_weekends'] ?? false),
             'schedule_slot_duration_hours' => $slotDuration,
+            'realtime_mode' => $validated['realtime_mode'],
         ];
 
         foreach ($map as $key => $value) {
