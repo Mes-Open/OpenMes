@@ -287,7 +287,7 @@
             async checkForUpdates() {
                 if (this.dragOrderId || this.saving) return;
                 try {
-                    const res = await fetch('{{ route("schedule.check-updates") }}', {
+                    const res = await fetch('{{ route("admin.schedule.check-updates") }}', {
                         headers: {
                             'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest',
