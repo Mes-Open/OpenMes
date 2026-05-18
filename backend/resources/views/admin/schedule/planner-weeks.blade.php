@@ -118,6 +118,7 @@
                             $line = $lineData['line'];
                             $orders = $lineData['orders'];
                             $grid = $lineData['grid'] ?? [];
+                            $spans = $lineData['spans'] ?? [];
                             $lineLoad = $lineData['load_percent'];
                         @endphp
 
@@ -154,18 +155,51 @@
                                         $slotOrder = $grid[$gridKey] ?? null;
                                         $isToday = $dayCursor2->isToday();
                                     @endphp
-                                    <td class="p-0.5 border-r border-gray-50 dark:border-gray-700/30
+                                    @php
+                                        $cellId = "cell-{$line->id}-{$d}-{$s}-{$period['number']}";
+                                        $spanInfo = $spans[$gridKey] ?? null;
+                                        $isCont = $spanInfo && $spanInfo['type'] === 'cont';
+                                    @endphp
+                                    @if($isCont)
+                                        {{-- Continuation cell: covered by rowspan, do NOT output <td> --}}
+                                    @else
+                                    @php
+                                        $rowspan = ($spanInfo && in_array($spanInfo['type'], ['start', 'day-start'])) ? $spanInfo['rowspan'] : 1;
+                                        // Check if this order continues to next day (remove right border)
+                                        $spanType = $spanInfo['type'] ?? 'single';
+                                        $isWo = $slotOrder && is_object($slotOrder);
+                                        $isSpanStart = $spanType === 'start' && $isWo && $slotOrder->end_date && $slotOrder->end_date->format('Y-m-d') > $cellDate;
+                                        $isDayStart = $spanType === 'day-start';
+                                        // Check if this day-start continues to yet another day
+                                        $isDayStartContinues = $isDayStart && $isWo && $slotOrder->end_date && $slotOrder->end_date->format('Y-m-d') > $cellDate;
+                                    @endphp
+                                    @php
+                                        $isMultiDay = $isSpanStart || $isDayStart;
+                                        $tdPadding = $isMultiDay ? 'p-0' : 'p-0.5';
+                                        $tdBorderR = ($isSpanStart || $isDayStartContinues) ? 'border-r-0' : 'border-r border-gray-50 dark:border-gray-700/30';
+                                        $tdBorderL = $isDayStart ? 'border-l-0' : '';
+                                    @endphp
+                                    <td class="{{ $tdPadding }} relative {{ $tdBorderR }} {{ $tdBorderL }}
                                                {{ $isToday ? 'bg-blue-50 dark:bg-blue-900/20' : '' }}
-                                               {{ $dayCursor2->isWeekend() ? 'bg-gray-50/30' : '' }}">
-                                        @php $cellId = "cell-{$line->id}-{$d}-{$s}-{$period['number']}"; @endphp
-                                        @if($slotOrder)
+                                               {{ $dayCursor2->isWeekend() ? 'bg-gray-50/30' : '' }} transition-colors"
+                                        :class="isSelectedCell({{ $line->id }}, '{{ $cellDate }}', {{ $s }}) ? 'ring-2 ring-inset ring-blue-500 bg-blue-100 dark:bg-blue-900/40' : ''"
+                                        @if($rowspan > 1) rowspan="{{ $rowspan }}" style="height: 1px; padding: 0;" @endif
+                                        data-cell-line="{{ $line->id }}" data-cell-date="{{ $cellDate }}" data-cell-shift="{{ $s }}">
+                                        @if($slotOrder && $slotOrder !== '__span__')
                                             @php
                                                 $isOverdue = $slotOrder->due_date
                                                     && $slotOrder->due_date->lt(today())
                                                     && !in_array($slotOrder->status, \App\Models\WorkOrder::TERMINAL_STATUSES);
+                                                // Rounding: remove corners on connecting sides
+                                                $roundClass = 'rounded';
+                                                if ($isSpanStart) $roundClass = 'rounded-l rounded-r-none';
+                                                elseif ($isDayStart && !$isDayStartContinues) $roundClass = 'rounded-r rounded-l-none';
+                                                elseif ($isDayStartContinues) $roundClass = 'rounded-none';
                                             @endphp
-                                            <div class="relative group/cell"
+                                            <div class="relative group/cell h-full"
+                                                 :class="selectedOrderId === {{ $slotOrder->id }} ? 'ring-2 ring-blue-600 rounded z-10' : ''"
                                                  data-order-id="{{ $slotOrder->id }}" data-order-no="{{ $slotOrder->order_no }}"
+                                                 data-span-cells="{{ $rowspan }}"
                                                  draggable="true"
                                                  @dragstart="onDragStart($event, {{ $slotOrder->id }}, '{{ addslashes($slotOrder->order_no) }}')"
                                                  @dragend="onDragEnd($event)"
@@ -173,9 +207,10 @@
                                                  @dragleave="onDragLeave($event, '{{ $cellId }}')"
                                                  @drop="onDrop($event, {{ $line->id }}, '{{ $cellDate }}', {{ $s }}, {{ $period['number'] }})">
                                                 <a href="{{ route('admin.work-orders.show', $slotOrder) }}"
-                                                   class="block px-1.5 py-0.5 rounded border text-[10px] font-medium truncate cursor-grab active:cursor-grabbing hover:opacity-80 transition
-                                                          @if($isOverdue) bg-red-500 border-red-600 text-white animate-pulse ring-2 ring-red-400 @else {{ $woColors[$slotOrder->status] ?? 'bg-gray-200 border-gray-300' }} {{ $woTextColors[$slotOrder->status] ?? 'text-gray-700' }} @endif"
-                                                   @click.prevent
+                                                   class="block px-1.5 py-0.5 {{ $roundClass }} text-[10px] font-medium truncate cursor-pointer hover:opacity-80 transition h-full flex items-center
+                                                          @if($isOverdue) bg-red-500 text-white animate-pulse ring-2 ring-red-400 @else {{ $woColors[$slotOrder->status] ?? 'bg-gray-200 border-gray-300' }} {{ $woTextColors[$slotOrder->status] ?? 'text-gray-700' }} @endif
+                                                          {{ $isSpanStart ? 'border-2 border-r-0' : ($isDayStartContinues ? 'border-2 border-l-0 border-r-0' : ($isDayStart ? 'border-2 border-l-0' : 'border-2')) }}"
+                                                   @click.prevent="selectOrder({{ $slotOrder->id }}, '{{ addslashes($slotOrder->order_no) }}', {{ $line->id }}, '{{ $slotOrder->due_date?->format('Y-m-d') ?? '' }}', '{{ $slotOrder->shift_number ?? '' }}', '{{ $slotOrder->end_date?->format('Y-m-d') ?? '' }}', '{{ $slotOrder->end_shift_number ?? '' }}', '{{ route('admin.work-orders.show', $slotOrder) }}')"
                                                    x-on:mouseenter="showTip($event, {
                                                        order_no: '{{ addslashes($slotOrder->order_no) }}',
                                                        product: '{{ addslashes($slotOrder->productType?->name ?? '-') }}',
@@ -185,6 +220,11 @@
                                                    x-on:mouseleave="hideTip()">
                                                     {{ $slotOrder->order_no }}
                                                 </a>
+                                                {{-- Resize handle (bottom edge) --}}
+                                                <div class="absolute -bottom-3 left-0 w-full h-7 cursor-s-resize opacity-30 group-hover/cell:opacity-100 transition-opacity z-20 flex justify-center"
+                                                     @mousedown.prevent="startResize($event, {{ $slotOrder->id }}, '{{ addslashes($slotOrder->order_no) }}', '{{ $slotOrder->due_date?->format('Y-m-d') ?? $cellDate }}', {{ $slotOrder->shift_number ?? $s }}, {{ $line->id }}, {{ $period['number'] }}, '{{ $slotOrder->end_date?->format('Y-m-d') ?? '' }}', {{ $slotOrder->end_shift_number ?? 0 }})">
+                                                    <div class="h-1.5 w-8 bg-gray-600 rounded-full my-auto shadow"></div>
+                                                </div>
                                                 <button @click.prevent="unassignOrder({{ $slotOrder->id }})"
                                                         class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold leading-none flex items-center justify-center
                                                                opacity-0 group-hover/cell:opacity-100 transition-opacity shadow-sm hover:bg-red-600 z-10"
@@ -208,6 +248,7 @@
                                             </div>
                                         @endif
                                     </td>
+                                    @endif
                                     @php $dayCursor2->addDay(); @endphp
                                 @endfor
                             </tr>

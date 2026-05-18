@@ -80,9 +80,12 @@ class WorkstationController extends Controller
             ->get()
             ->groupBy(fn($e) => $e->work_order_id . '_' . $e->shift_id);
 
+        $settingRows = \Illuminate\Support\Facades\DB::table('system_settings')->get()->keyBy('key');
+        $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
+
         return view('operator.workstation', compact(
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
-            'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today'
+            'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode'
         ));
     }
 
