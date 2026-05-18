@@ -170,7 +170,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
                     @forelse($workOrders as $wo)
-                        <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='{{ route('admin.work-orders.show', $wo) }}'">
+                        @php $isOverdue = $wo->due_date && $wo->due_date->isPast() && !in_array($wo->status, ['DONE', 'REJECTED', 'CANCELLED']); @endphp
+                        <tr class="{{ $isOverdue ? 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500' : 'hover:bg-gray-50' }} cursor-pointer" onclick="window.location='{{ route('admin.work-orders.show', $wo) }}'">
                             @if($woLabelTemplates->isNotEmpty())
                             <td class="px-3 py-3 w-10" onclick="event.stopPropagation()">
                                 <input type="checkbox" class="wo-select rounded border-gray-300 text-blue-600 focus:ring-blue-500"
