@@ -15,14 +15,14 @@ class PinLoginRequest extends FormRequest
     {
         return [
             'username' => 'required|string',
-            'pin' => 'required|string|digits_between:4,6',
+            'pin' => 'required|string|digits_between:6,6',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'pin.digits_between' => 'PIN must be 4–6 digits.',
+            'pin.digits_between' => 'PIN must be exactly 6 digits.',
         ];
     }
 }
