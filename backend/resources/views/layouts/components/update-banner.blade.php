@@ -45,7 +45,7 @@
     </span>
 
     <form method="POST" action="{{ route('admin.update.apply') }}" class="flex items-center gap-2"
-          onsubmit="return confirm('Apply update now? The system will run migrations and clear caches.')">
+          onsubmit="return confirm('Download and install update? Files will be overwritten (storage, .env and vendor are preserved). The system will run migrations and clear caches.')">
         @csrf
         <button type="submit"
                 class="px-3 py-1 bg-white text-blue-700 rounded font-medium hover:bg-blue-50 transition-colors text-xs">
