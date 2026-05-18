@@ -419,13 +419,15 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::patch('/issue-types/{issueType}', [IssueTypeController::class, 'update']); // Admin only
     Route::delete('/issue-types/{issueType}', [IssueTypeController::class, 'destroy']); // Admin only
 
-    // CSV Import
-    Route::post('/csv-imports/upload', [CsvImportController::class, 'upload']); // Admin only
-    Route::post('/csv-imports/execute', [CsvImportController::class, 'execute']); // Admin only
-    Route::get('/csv-imports', [CsvImportController::class, 'index']);
-    Route::get('/csv-imports/{csvImport}', [CsvImportController::class, 'status']);
-    Route::get('/csv-import-mappings', [CsvImportController::class, 'mappings']);
-    Route::post('/csv-import-mappings', [CsvImportController::class, 'saveMapping']);
+    // CSV Import (Admin only)
+    Route::middleware('role:Admin')->group(function () {
+        Route::post('/csv-imports/upload', [CsvImportController::class, 'upload']);
+        Route::post('/csv-imports/execute', [CsvImportController::class, 'execute']);
+        Route::get('/csv-imports', [CsvImportController::class, 'index']);
+        Route::get('/csv-imports/{csvImport}', [CsvImportController::class, 'status']);
+        Route::get('/csv-import-mappings', [CsvImportController::class, 'mappings']);
+        Route::post('/csv-import-mappings', [CsvImportController::class, 'saveMapping']);
+    });
 
     // Audit Logs (Admin only)
     Route::middleware('role:Admin')->group(function () {

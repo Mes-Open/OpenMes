@@ -49,7 +49,7 @@
         'CANCELLED'   => __('Cancelled'),
     ];
     $daysInWeek = $showWeekends ? 7 : 5;
-    $backlogJson = $backlogOrders->map(fn($wo) => [
+    $backlogData = $backlogOrders->map(fn($wo) => [
         'id' => $wo->id,
         'order_no' => $wo->order_no,
         'product' => $wo->productType?->name ?? '-',
@@ -57,7 +57,7 @@
         'priority' => $wo->priority,
         'status' => $statusLabels[$wo->status] ?? $wo->status,
         'due_date' => $wo->due_date?->format('d.m.Y') ?? '-',
-    ])->values()->toJson();
+    ])->values();
     $confirmMsg = __('Remove this order from schedule?');
 @endphp
 
@@ -68,7 +68,7 @@
             backlogSearch: '', backlogLine: '', backlogPriority: '', backlogSort: 'due_date',
             backlogCollapsed: false,
             assignPopup: false, assignLineId: null, assignDate: null, assignShift: null, assignWeekNumber: null,
-            backlogItems: {!! $backlogJson !!},
+            backlogItems: {{ Js::from($backlogData) }},
             assignSearch: '',
             toast: null, toastTimeout: null,
             saving: false,
