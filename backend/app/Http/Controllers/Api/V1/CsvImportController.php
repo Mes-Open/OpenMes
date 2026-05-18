@@ -226,7 +226,7 @@ class CsvImportController extends Controller
             ],
             [
                 'mapping_config' => $validated['mapping_config'],
-                'is_default' => $validated['is_default'] ?? false,
+                'is_default' => ($validated['is_default'] ?? false) && $request->user()->hasRole('Admin'),
             ]
         );
 
