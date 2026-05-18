@@ -414,7 +414,6 @@
 
                     // Highlight all cells in range (start → current)
                     clearHighlights();
-                    const allCells = getAllLineCells();
                     // Determine range direction
                     const forward = isAfterStart(cDate, cShift);
                     const rangeStart = forward ? { d: cellDate, s: shift } : { d: cDate, s: cShift };
