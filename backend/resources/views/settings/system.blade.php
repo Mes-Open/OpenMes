@@ -165,6 +165,43 @@
             </div>
         </div>
 
+        {{-- Production Tracking Mode --}}
+        <div class="card">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Production Tracking Mode') }}</h2>
+            <p class="text-xs text-gray-500 mb-4">
+                {{ __('How operators register production progress on the shop floor.') }}
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                @foreach([
+                    'per_operation' => [
+                        'label' => __('Per Operation'),
+                        'desc'  => __('Operator clicks Start/Complete on each step at each workstation. Full traceability.'),
+                    ],
+                    'cumulative' => [
+                        'label' => __('Cumulative'),
+                        'desc'  => __('Operator enters total produced quantity at the end. No step tracking.'),
+                    ],
+                    'hybrid' => [
+                        'label' => __('Hybrid'),
+                        'desc'  => __('Key steps tracked per-operation, quantity entry also available. Best of both.'),
+                    ],
+                ] as $value => $opt)
+                    <label class="relative flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors production-tracking-mode-card
+                        {{ ($settings['production_tracking_mode'] ?? 'per_operation') === $value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300' }}">
+                        <input type="radio" name="production_tracking_mode" value="{{ $value }}"
+                               class="sr-only production-tracking-mode-radio"
+                               {{ ($settings['production_tracking_mode'] ?? 'per_operation') === $value ? 'checked' : '' }}>
+                        <span class="font-medium text-sm text-gray-800">{{ $opt['label'] }}</span>
+                        <span class="text-xs text-gray-500">{{ $opt['desc'] }}</span>
+                    </label>
+                @endforeach
+            </div>
+            @error('production_tracking_mode')
+                <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+            @enderror
+        </div>
+
         {{-- {{ __('Schedule / Planner') }} --}}
         <div class="card">
             <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Schedule / Planner') }}</h2>
@@ -323,5 +360,6 @@ initRadioHighlight('workflow_mode');
 initRadioHighlight('schedule_view_mode');
 initRadioHighlight('schedule_shifts_per_day');
 initRadioHighlight('realtime_mode');
+initRadioHighlight('production_tracking_mode');
 </script>
 @endsection

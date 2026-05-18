@@ -71,10 +71,89 @@
         </div>
     </div>
 
+    {{-- ===== WORKSTATION FILTER + TRACKING MODE BADGE ===== --}}
+    @if(($trackingMode ?? 'per_operation') !== 'cumulative' && ($lineWorkstations ?? collect())->isNotEmpty())
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+        <span class="text-xs font-semibold text-gray-500 uppercase">{{ __('Workstation filter') }}:</span>
+        <a href="{{ route('operator.queue') }}"
+           class="px-3 py-1.5 rounded-lg text-xs font-medium transition
+                  {{ !($selectedWorkstation ?? null) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+            {{ __('All') }}
+        </a>
+        @foreach($lineWorkstations as $ws)
+            <a href="{{ route('operator.queue', ['workstation' => $ws->id]) }}"
+               class="px-3 py-1.5 rounded-lg text-xs font-medium transition
+                      {{ ($selectedWorkstation?->id ?? null) === $ws->id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                {{ $ws->name }}
+                @if($selectedWorkstation?->id === $ws->id && ($workstationQueue ?? collect())->isNotEmpty())
+                    <span class="ml-1 inline-flex items-center justify-center w-5 h-5 bg-white text-blue-600 rounded-full text-[10px] font-bold">{{ $workstationQueue->count() }}</span>
+                @endif
+            </a>
+        @endforeach
+
+        <div class="ml-auto">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase
+                @if(($trackingMode ?? 'per_operation') === 'per_operation') bg-green-100 text-green-700
+                @elseif(($trackingMode ?? 'per_operation') === 'hybrid') bg-amber-100 text-amber-700
+                @else bg-gray-100 text-gray-600
+                @endif">
+                @if(($trackingMode ?? 'per_operation') === 'per_operation')
+                    {{ __('Per Operation') }}
+                @elseif(($trackingMode ?? 'per_operation') === 'hybrid')
+                    {{ __('Hybrid') }}
+                @else
+                    {{ __('Cumulative') }}
+                @endif
+            </span>
+        </div>
+    </div>
+    @endif
+
+    <!-- ===================== WORKSTATION QUEUE (filtered) ===================== -->
+    @if(($selectedWorkstation ?? null) && in_array($trackingMode ?? 'per_operation', ['per_operation', 'hybrid']) && ($workstationQueue ?? collect())->isNotEmpty())
+    <div class="mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-3">
+            {{ __('Ready at') }} {{ $selectedWorkstation->name }}
+            <span class="text-sm font-normal text-gray-500 ml-2">({{ $workstationQueue->count() }})</span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            @foreach($workstationQueue as $wo)
+                @php
+                    $currentBatch = $wo->batches->first(fn($b) => $b->currentStep()?->workstation_id === $selectedWorkstation->id);
+                    $currentStep = $currentBatch?->currentStep();
+                @endphp
+                <a href="{{ route('operator.work-order.detail', $wo) }}"
+                   class="block p-4 rounded-xl border-2 border-blue-200 bg-blue-50 hover:border-blue-400 transition group">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-bold text-gray-800">{{ $wo->order_no }}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold
+                            {{ $currentStep?->status === 'IN_PROGRESS' ? 'bg-amber-200 text-amber-800' : 'bg-green-200 text-green-800' }}">
+                            {{ $currentStep?->status === 'IN_PROGRESS' ? __('In Progress') : __('Ready') }}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-600">{{ $wo->productType?->name ?? '-' }}</div>
+                    @if($currentStep)
+                        <div class="mt-2 text-xs text-blue-700 font-medium">
+                            {{ __('Step') }} {{ $currentStep->step_number }}: {{ $currentStep->name }}
+                        </div>
+                    @endif
+                    <div class="mt-1 text-[10px] text-gray-500">
+                        {{ __('Qty') }}: {{ $wo->planned_qty }} &middot; {{ __('Batch') }} #{{ $currentBatch?->batch_number }}
+                    </div>
+                </a>
+            @endforeach
+        </div>
+    </div>
+    @elseif(($selectedWorkstation ?? null) && in_array($trackingMode ?? 'per_operation', ['per_operation', 'hybrid']) && ($workstationQueue ?? collect())->isEmpty())
+    <div class="mb-6 p-6 rounded-xl border border-gray-200 bg-gray-50 text-center">
+        <p class="text-sm text-gray-500">{{ __('No work orders currently waiting at') }} <strong>{{ $selectedWorkstation->name }}</strong></p>
+    </div>
+    @endif
+
     <!-- ===================== ACTIVE WORK ORDERS ===================== -->
     <div class="mb-8">
         <h2 class="text-xl font-bold text-gray-800 mb-3">
-            Active Work Orders
+            {{ __('Active Work Orders') }}
             <span class="text-sm font-normal text-gray-500 ml-2">({{ $activeWorkOrders->count() }})</span>
         </h2>
 

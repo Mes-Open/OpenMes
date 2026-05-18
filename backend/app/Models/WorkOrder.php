@@ -38,8 +38,10 @@ class WorkOrder extends Model
         'line_status_id',
         'priority',
         'due_date',
+        'end_date',
         'week_number',
         'shift_number',
+        'end_shift_number',
         'month_number',
         'production_year',
         'description',
@@ -57,6 +59,7 @@ class WorkOrder extends Model
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
             'due_date' => 'datetime',
+            'end_date' => 'datetime',
             'completed_at' => 'datetime',
         ];
     }
