@@ -13,7 +13,17 @@ class WorkOrderPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view work orders');
+        // Admin and Supervisor can always list work orders
+        if ($user->hasAnyRole(['Admin', 'Supervisor'])) {
+            return true;
+        }
+
+        // Operators can list (scoped by line via WorkOrder::scopeForUser)
+        if ($user->hasRole('Operator')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -48,7 +58,17 @@ class WorkOrderPolicy
      */
     public function update(User $user, WorkOrder $workOrder): bool
     {
-        return $user->can('edit work orders');
+        if (!$user->can('edit work orders')) {
+            return false;
+        }
+
+        // Admin and Supervisor can update all work orders
+        if ($user->hasAnyRole(['Admin', 'Supervisor'])) {
+            return true;
+        }
+
+        // Operators can only update work orders for their assigned lines
+        return $user->lines()->where('lines.id', $workOrder->line_id)->exists();
     }
 
     /**

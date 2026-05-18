@@ -132,6 +132,28 @@
             </div>
         </div>
 
+        {{-- CORS Origins --}}
+        <div class="card">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('CORS (Cross-Origin Requests)') }}</h2>
+            <p class="text-xs text-gray-500 mb-4">
+                {{ __('Control which external domains can make API requests to this application.') }}
+            </p>
+
+            <div>
+                <label class="form-label" for="cors_allowed_origins">{{ __('Allowed CORS Origins') }}</label>
+                <textarea name="cors_allowed_origins" id="cors_allowed_origins"
+                          rows="3"
+                          class="form-input w-full"
+                          placeholder="https://example.com, https://app.example.com">{{ old('cors_allowed_origins', $settings['cors_allowed_origins'] ?? '*') }}</textarea>
+                <p class="text-xs text-gray-500 mt-2">
+                    {{ __('Comma-separated list of allowed origins (e.g. https://example.com, https://app.example.com). Use * to allow all origins (not recommended for production).') }}
+                </p>
+                @error('cors_allowed_origins')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+        </div>
+
         {{-- {{ __('Production Rules') }} --}}
         <div class="card">
             <h2 class="text-lg font-bold text-gray-800 mb-4">{{ __('Production Rules') }}</h2>
