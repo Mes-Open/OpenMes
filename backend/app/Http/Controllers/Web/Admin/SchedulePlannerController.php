@@ -138,23 +138,72 @@ class SchedulePlannerController extends Controller
         $request->validate([
             'line_id' => 'nullable|exists:lines,id',
             'due_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:due_date',
             'week_number' => 'nullable|integer|min:1|max:53',
             'shift_number' => 'nullable|integer|min:1|max:10',
+            'end_shift_number' => 'nullable|integer|min:1|max:10',
         ]);
 
-        $workOrder->update([
+        $data = [
             'line_id' => $request->input('line_id') ?: null,
             'due_date' => $request->input('due_date') ?: null,
             'week_number' => $request->input('week_number') ?: null,
             'shift_number' => $request->input('shift_number') ?: null,
-        ]);
+        ];
+
+        // Handle span fields — only set if explicitly provided
+        if ($request->has('end_date')) {
+            $data['end_date'] = $request->input('end_date') ?: null;
+        }
+        if ($request->has('end_shift_number')) {
+            $data['end_shift_number'] = $request->input('end_shift_number') ?: null;
+        }
+
+        $workOrder->update($data);
+
+        // If line assigned and no process_snapshot yet — generate it from product type
+        if ($workOrder->line_id && $workOrder->product_type_id && empty($workOrder->process_snapshot)) {
+            $processTemplate = \App\Models\ProcessTemplate::where('product_type_id', $workOrder->product_type_id)
+                ->where('is_active', true)
+                ->orderBy('version', 'desc')
+                ->first();
+            if ($processTemplate) {
+                $workOrder->update(['process_snapshot' => $processTemplate->toSnapshot()]);
+            }
+        }
+
+        // Auto-create first batch if none exist and WO has line + snapshot
+        if ($workOrder->line_id && !empty($workOrder->process_snapshot) && $workOrder->batches()->count() === 0) {
+            app(\App\Services\WorkOrder\WorkOrderService::class)
+                ->createBatch($workOrder, $workOrder->planned_qty);
+        }
+
+        // Warn about cross-line workstations
+        $warnings = [];
+        if ($workOrder->line_id && !empty($workOrder->process_snapshot)) {
+            $lineWorkstationIds = \App\Models\Workstation::where('line_id', $workOrder->line_id)->pluck('id')->toArray();
+            foreach ($workOrder->process_snapshot['steps'] ?? [] as $step) {
+                if (!empty($step['workstation_id']) && !in_array($step['workstation_id'], $lineWorkstationIds)) {
+                    $warnings[] = __('Step ":step" uses workstation ":ws" from another line.', [
+                        'step' => $step['name'],
+                        'ws' => $step['workstation_name'] ?? $step['workstation_id'],
+                    ]);
+                }
+            }
+        }
 
         event(new \App\Events\ScheduleUpdated());
+
+        $message = __('Work order updated successfully.');
+        if (!empty($warnings)) {
+            $message .= ' ' . __('Warnings:') . ' ' . implode('; ', $warnings);
+        }
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => __('Work order updated successfully.'),
+                'message' => $message,
+                'warnings' => $warnings,
                 'order' => [
                     'id' => $workOrder->id,
                     'order_no' => $workOrder->order_no,
@@ -166,6 +215,38 @@ class SchedulePlannerController extends Controller
         }
 
         return back()->with('success', __('Work order updated successfully.'));
+    }
+
+    public function resizeOrder(Request $request, WorkOrder $workOrder)
+    {
+        // Allow null to clear span
+        if ($request->input('end_date') === null && $request->input('end_shift_number') === null) {
+            $workOrder->update(['end_date' => null, 'end_shift_number' => null]);
+        } else {
+            $request->validate([
+                'end_date' => 'required|date|after_or_equal:' . ($workOrder->due_date?->format('Y-m-d') ?? 'today'),
+                'end_shift_number' => 'required|integer|min:1|max:10',
+            ]);
+            $workOrder->update([
+                'end_date' => $request->input('end_date'),
+                'end_shift_number' => $request->input('end_shift_number'),
+            ]);
+        }
+
+        event(new \App\Events\ScheduleUpdated());
+
+        return response()->json([
+            'success' => true,
+            'message' => __('Work order span updated.'),
+            'order' => [
+                'id' => $workOrder->id,
+                'order_no' => $workOrder->order_no,
+                'due_date' => $workOrder->due_date?->format('Y-m-d'),
+                'shift_number' => $workOrder->shift_number,
+                'end_date' => $workOrder->end_date?->format('Y-m-d'),
+                'end_shift_number' => $workOrder->end_shift_number,
+            ],
+        ]);
     }
 
     public function checkUpdates()
@@ -287,10 +368,82 @@ class SchedulePlannerController extends Controller
                     }
                 }
 
+                // Build span map: vertical spanning through shifts, then next days.
+                // For each spanned cell, record type and rowspan (per-day vertical span).
+                $spans = [];     // gridKey => ['order' => $wo, 'type' => 'start'|'day-start'|'cont'|'single', 'rowspan' => int]
+                foreach ($grid as $key => $wo) {
+                    if ($wo === null) {
+                        continue;
+                    }
+                    if (! $wo->end_date || ! $wo->end_shift_number) {
+                        $spans[$key] = ['order' => $wo, 'type' => 'single', 'rowspan' => 1];
+                        continue;
+                    }
+
+                    // Parse start date+shift from grid key
+                    [$startDate, $startShift] = [substr($key, 0, 10), (int) substr($key, 11)];
+                    $endDate = $wo->end_date->format('Y-m-d');
+                    $endShift = (int) $wo->end_shift_number;
+
+                    // Enumerate all cells this order occupies (shift-by-shift, day-by-day)
+                    $spannedKeys = [];
+                    $curDate = $startDate;
+                    $curShift = $startShift;
+                    $maxIter = $shiftsPerDay * $daysInWeek * 2; // safety limit
+                    $iter = 0;
+                    while ($iter++ < $maxIter) {
+                        $curKey = $curDate . '-' . $curShift;
+                        if (! array_key_exists($curKey, $grid)) break;
+                        $spannedKeys[] = $curKey;
+                        if ($curDate === $endDate && $curShift === $endShift) break;
+                        // Advance: next shift, or wrap to next day
+                        $curShift++;
+                        if ($curShift > $shiftsPerDay) {
+                            $curShift = 1;
+                            $curDate = \Carbon\Carbon::parse($curDate)->addDay()->format('Y-m-d');
+                        }
+                    }
+
+                    if (count($spannedKeys) <= 1) {
+                        $spans[$key] = ['order' => $wo, 'type' => 'single', 'rowspan' => 1];
+                        continue;
+                    }
+
+                    // Group spanned keys by date for per-day rowspan
+                    $byDate = [];
+                    foreach ($spannedKeys as $sk) {
+                        $d = substr($sk, 0, 10);
+                        $byDate[$d][] = $sk;
+                    }
+
+                    $isFirst = true;
+                    foreach ($byDate as $date => $dateKeys) {
+                        // First key of each day = start of vertical span in that column
+                        $firstKey = $dateKeys[0];
+                        $spans[$firstKey] = [
+                            'order' => $wo,
+                            'type' => $isFirst ? 'start' : 'day-start',
+                            'rowspan' => count($dateKeys),
+                        ];
+                        // For day-start cells, set grid to the order so Blade renders it
+                        if (! $isFirst) {
+                            $grid[$firstKey] = $wo;
+                        }
+                        $isFirst = false;
+
+                        // Remaining keys in this day = continuation (skip rendering <td>)
+                        for ($ci = 1; $ci < count($dateKeys); $ci++) {
+                            $spans[$dateKeys[$ci]] = ['order' => $wo, 'type' => 'cont', 'rowspan' => 0];
+                            $grid[$dateKeys[$ci]] = '__span__';
+                        }
+                    }
+                }
+
                 $weekLines[] = [
                     'line' => $line,
                     'orders' => $lineOrders,
                     'grid' => $grid,
+                    'spans' => $spans,
                     'total_planned_qty' => $lineOrders->sum('planned_qty'),
                     'total_shifts' => $capacity,
                     'capacity' => $capacity,

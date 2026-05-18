@@ -85,6 +85,28 @@
             dragOrderNo: null,
             dragOverCell: null,
 
+            // Resize state
+            resizing: false,
+            resizeOrderId: null,
+            resizeOrderNo: null,
+            resizeLineId: null,
+            resizeWeekNumber: null,
+            resizeStartDate: null,
+            resizeStartShift: null,
+            resizeCurrentCell: null,
+            resizePreviewCells: [],
+
+            // Selected order state (click to highlight + edit)
+            selectedOrderId: null,
+            selectedOrderNo: null,
+            selectedLineId: null,
+            selectedDueDate: null,
+            selectedShift: null,
+            selectedEndDate: null,
+            selectedEndShift: null,
+            selectedOrderUrl: null,
+            editPanelOpen: false,
+
             showTip(e, d) {
                 this.tooltip = d;
                 const r = e.target.getBoundingClientRect();
@@ -233,6 +255,241 @@
                 this.assignShift = shift;
                 this.assignWeekNumber = weekNumber;
                 await this.assignOrder(orderId);
+            },
+
+            selectOrder(orderId, orderNo, lineId, dueDate, shift, endDate, endShift, showUrl) {
+                if (this.dragOrderId || this.resizing) return;
+                // Toggle selection
+                if (this.selectedOrderId === orderId) {
+                    this.deselectOrder();
+                    return;
+                }
+                this.selectedOrderId = orderId;
+                this.selectedOrderNo = orderNo;
+                this.selectedLineId = lineId;
+                this.selectedDueDate = dueDate || '';
+                this.selectedShift = shift || '';
+                this.selectedEndDate = endDate || '';
+                this.selectedEndShift = endShift || '';
+                this.selectedOrderUrl = showUrl;
+                this.editPanelOpen = true;
+            },
+            deselectOrder() {
+                this.selectedOrderId = null;
+                this.selectedOrderNo = null;
+                this.selectedLineId = null;
+                this.selectedDueDate = null;
+                this.selectedShift = null;
+                this.selectedEndDate = null;
+                this.selectedEndShift = null;
+                this.selectedOrderUrl = null;
+                this.editPanelOpen = false;
+            },
+            async saveSelectedDates() {
+                if (!this.selectedOrderId) return;
+                this.saving = true;
+                try {
+                    // Save main assignment (due_date + shift)
+                    const mainData = {
+                        due_date: this.selectedDueDate,
+                        shift_number: this.selectedShift ? parseInt(this.selectedShift) : '',
+                    };
+                    await this.saveOrder(this.selectedOrderId, mainData);
+
+                    // Save span (end_date + end_shift)
+                    const spanBody = (this.selectedEndDate && this.selectedEndShift)
+                        ? { end_date: this.selectedEndDate, end_shift_number: parseInt(this.selectedEndShift) }
+                        : { end_date: null, end_shift_number: null };
+                    const res = await fetch('/admin/schedule/' + this.selectedOrderId + '/resize', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        },
+                        body: JSON.stringify(spanBody),
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        this.showToast(json.message, 'success');
+                    } else {
+                        this.showToast(json.message || {!! json_encode(__('Error saving')) !!}, 'error');
+                    }
+                    await this.refreshContent();
+                    this.deselectOrder();
+                } catch (err) {
+                    this.showToast({!! json_encode(__('Connection error')) !!}, 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+            isSelectedCell(lineId, cellDate, shift) {
+                if (!this.selectedOrderId || lineId != this.selectedLineId) return false;
+                const startDate = this.selectedDueDate;
+                const startShift = parseInt(this.selectedShift) || 1;
+                const endDate = this.selectedEndDate || startDate;
+                const endShift = parseInt(this.selectedEndShift) || startShift;
+                if (!startDate) return false;
+                // Check if cell is in range
+                if (cellDate < startDate || cellDate > endDate) return false;
+                if (cellDate === startDate && shift < startShift) return false;
+                if (cellDate === endDate && shift > endShift) return false;
+                return true;
+            },
+
+            // Resize methods — vertical (shifts) then next day
+            startResize(e, orderId, orderNo, cellDate, shift, lineId, weekNumber, currentEndDate, currentEndShift) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.resizing = true;
+                this.resizeOrderId = orderId;
+                this.resizeOrderNo = orderNo;
+                this.resizeLineId = lineId;
+                this.resizeWeekNumber = weekNumber;
+                this.resizeStartDate = cellDate;
+                this.resizeStartShift = shift;
+                this.resizeCurrentCell = null;
+
+                const sourceEl = document.querySelector('[data-order-id="' + orderId + '"]');
+                if (sourceEl) sourceEl.style.pointerEvents = 'none';
+
+                // Helper: is cell "after" start? (same line, date+shift >= start)
+                const isAfterStart = (cDate, cShift) => {
+                    if (cDate > cellDate) return true;
+                    if (cDate === cellDate && cShift >= shift) return true;
+                    return false;
+                };
+
+                // Build ordered list of all cells for this line to highlight range
+                const getAllLineCells = () => {
+                    return Array.from(document.querySelectorAll('td[data-cell-line="' + lineId + '"]'))
+                        .filter(c => c.dataset.cellDate && c.dataset.cellShift)
+                        .sort((a, b) => {
+                            if (a.dataset.cellDate !== b.dataset.cellDate) return a.dataset.cellDate < b.dataset.cellDate ? -1 : 1;
+                            return parseInt(a.dataset.cellShift) - parseInt(b.dataset.cellShift);
+                        });
+                };
+
+                let highlightedCells = [];
+                const clearHighlights = () => {
+                    highlightedCells.forEach(c => {
+                        c.style.removeProperty('background');
+                        c.style.removeProperty('outline');
+                    });
+                    highlightedCells = [];
+                };
+
+                const onMouseMove = (ev) => {
+                    // Find the closest cell by Y position from allLineCells
+                    // This works even when rowspan hides intermediate <td> elements
+                    const allCells = getAllLineCells();
+                    if (!allCells.length) return;
+
+                    let bestCell = null;
+                    let bestDist = Infinity;
+                    for (const c of allCells) {
+                        const rect = c.getBoundingClientRect();
+                        // For cells with rowspan, compute virtual sub-rows
+                        const rs = c.rowSpan || 1;
+                        const rowHeight = rect.height / rs;
+                        const baseShift = parseInt(c.dataset.cellShift);
+                        for (let r = 0; r < rs; r++) {
+                            const virtualTop = rect.top + r * rowHeight;
+                            const virtualBottom = virtualTop + rowHeight;
+                            const virtualMidY = (virtualTop + virtualBottom) / 2;
+                            const midX = (rect.left + rect.right) / 2;
+                            const dist = Math.abs(ev.clientY - virtualMidY) + Math.abs(ev.clientX - midX) * 0.3;
+                            if (dist < bestDist) {
+                                bestDist = dist;
+                                bestCell = { date: c.dataset.cellDate, shift: baseShift + r, line: c.dataset.cellLine };
+                            }
+                        }
+                    }
+                    if (!bestCell || bestCell.line != lineId) return;
+
+                    const cDate = bestCell.date;
+                    const cShift = bestCell.shift;
+
+                    this.resizeCurrentCell = { date: cDate, shift: cShift };
+
+                    // Highlight all cells in range (start → current)
+                    clearHighlights();
+                    const allCells = getAllLineCells();
+                    // Determine range direction
+                    const forward = isAfterStart(cDate, cShift);
+                    const rangeStart = forward ? { d: cellDate, s: shift } : { d: cDate, s: cShift };
+                    const rangeEnd = forward ? { d: cDate, s: cShift } : { d: cellDate, s: shift };
+                    let inRange = false;
+                    for (const c of allCells) {
+                        const d = c.dataset.cellDate;
+                        const s = parseInt(c.dataset.cellShift);
+                        if (d === rangeStart.d && s === rangeStart.s) inRange = true;
+                        if (inRange) {
+                            c.style.background = forward ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                            c.style.outline = forward ? '1px dashed rgba(59, 130, 246, 0.4)' : '1px dashed rgba(239, 68, 68, 0.4)';
+                            highlightedCells.push(c);
+                        }
+                        if (d === rangeEnd.d && s === rangeEnd.s) break;
+                    }
+                };
+
+                const onMouseUp = async (ev) => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    clearHighlights();
+                    if (sourceEl) sourceEl.style.pointerEvents = '';
+
+                    if (!this.resizeCurrentCell) {
+                        this.resizing = false;
+                        return;
+                    }
+
+                    const endDate = this.resizeCurrentCell.date;
+                    const endShift = this.resizeCurrentCell.shift;
+
+                    // If dragged back to start or before start: clear span
+                    const isSameAsStart = endDate === cellDate && endShift === shift;
+                    const isBeforeStart = endDate < cellDate || (endDate === cellDate && endShift < shift);
+
+                    this.saving = true;
+                    try {
+                        const body = (isSameAsStart || isBeforeStart)
+                            ? { end_date: null, end_shift_number: null }
+                            : { end_date: endDate, end_shift_number: endShift };
+
+                        const res = await fetch('/admin/schedule/' + this.resizeOrderId + '/resize', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            },
+                            body: JSON.stringify({
+                                ...body,
+                            }),
+                        });
+                        const json = await res.json();
+                        if (json.success) {
+                            this.showToast(json.message, 'success');
+                            await this.refreshContent();
+                        } else {
+                            this.showToast(json.message || {!! json_encode(__('Error resizing')) !!}, 'error');
+                        }
+                    } catch (err) {
+                        this.showToast({!! json_encode(__('Connection error')) !!}, 'error');
+                    } finally {
+                        this.saving = false;
+                        this.resizing = false;
+                        this.resizeCurrentCell = null;
+                    }
+                };
+
+                document.body.style.cursor = 's-resize';
+                document.body.style.userSelect = 'none';
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
             },
 
             // Realtime methods
@@ -768,6 +1025,66 @@
                     {{ __('No matching orders found') }}
                 </div>
             </div>
+        </div>
+    </div>
+
+    {{-- ===== ORDER EDIT PANEL (floating) ===== --}}
+    <div x-show="editPanelOpen" x-transition.opacity.duration.150ms x-cloak
+         @click.self="deselectOrder()"
+         class="fixed inset-0 z-30">
+    </div>
+    <div x-show="editPanelOpen" x-transition x-cloak
+         class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 w-[480px] max-w-[95vw]">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-gray-800 dark:text-gray-100" x-text="selectedOrderNo"></span>
+                <a :href="selectedOrderUrl" class="text-[10px] text-blue-600 hover:underline">{{ __('View details') }} &rarr;</a>
+            </div>
+            <button @click="deselectOrder()" class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">{{ __('Start date') }}</label>
+                <input type="date" x-model="selectedDueDate"
+                       class="w-full text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg py-1.5 px-2">
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">{{ __('Start shift') }}</label>
+                <select x-model="selectedShift"
+                        class="w-full text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg py-1.5 px-2">
+                    <option value="">—</option>
+                    @for($s = 1; $s <= $shiftsPerDay; $s++)
+                        <option value="{{ $s }}">{{ $shiftColors[$s]['label'] }} ({{ $shiftColors[$s]['hours'] }})</option>
+                    @endfor
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">{{ __('End date') }}</label>
+                <input type="date" x-model="selectedEndDate"
+                       class="w-full text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg py-1.5 px-2">
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">{{ __('End shift') }}</label>
+                <select x-model="selectedEndShift"
+                        class="w-full text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg py-1.5 px-2">
+                    <option value="">—</option>
+                    @for($s = 1; $s <= $shiftsPerDay; $s++)
+                        <option value="{{ $s }}">{{ $shiftColors[$s]['label'] }} ({{ $shiftColors[$s]['hours'] }})</option>
+                    @endfor
+                </select>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 mt-3">
+            <button @click="saveSelectedDates()"
+                    class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+                {{ __('Save') }}
+            </button>
+            <button @click="deselectOrder()"
+                    class="px-3 py-2 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                {{ __('Cancel') }}
+            </button>
         </div>
     </div>
 
