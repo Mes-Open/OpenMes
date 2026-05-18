@@ -249,13 +249,60 @@ class SchedulePlannerController extends Controller
         ]);
     }
 
-    public function checkUpdates()
+    public function checkUpdates(Request $request)
     {
         $lastUpdated = WorkOrder::max('updated_at');
 
-        return response()->json([
+        $response = [
             'last_updated' => $lastUpdated ? Carbon::parse($lastUpdated)->toIso8601String() : null,
-        ]);
+        ];
+
+        // Live tracking: return real-time data for a specific work order
+        if ($request->filled('track')) {
+            $wo = WorkOrder::with(['productType', 'line', 'batches.steps.workstation'])
+                ->find($request->track);
+
+            if ($wo) {
+                $planned = (float) $wo->planned_qty;
+                $produced = (float) $wo->produced_qty;
+                $percent = $planned > 0 ? min(100, round(($produced / $planned) * 100, 1)) : 0;
+
+                // Current batch step info
+                $currentStep = null;
+                foreach ($wo->batches as $batch) {
+                    $step = $batch->steps->firstWhere('status', 'in_progress')
+                        ?? $batch->steps->firstWhere('status', 'pending');
+                    if ($step) {
+                        $currentStep = [
+                            'name' => $step->name ?? $step->workstation?->name ?? '-',
+                            'status' => $step->status,
+                            'batch_number' => $batch->batch_number,
+                        ];
+                        break;
+                    }
+                }
+
+                $isOverdue = $wo->due_date
+                    && $wo->due_date->lt(today())
+                    && ! in_array($wo->status, WorkOrder::TERMINAL_STATUSES);
+
+                $response['tracked_order'] = [
+                    'id' => $wo->id,
+                    'order_no' => $wo->order_no,
+                    'status' => $wo->status,
+                    'line' => $wo->line?->name ?? '-',
+                    'product' => $wo->productType?->name ?? '-',
+                    'planned_qty' => $planned,
+                    'produced_qty' => $produced,
+                    'progress_percent' => $percent,
+                    'is_overdue' => $isOverdue,
+                    'current_step' => $currentStep,
+                    'updated_at' => $wo->updated_at->toIso8601String(),
+                ];
+            }
+        }
+
+        return response()->json($response);
     }
 
     private function loadSettings(): array
