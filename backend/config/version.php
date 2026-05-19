@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'current' => 'v0.11.0',
+    'current' => 'v0.11.1',
 ];
