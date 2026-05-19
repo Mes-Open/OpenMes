@@ -132,4 +132,44 @@ class OeePrintSecurityTest extends TestCase
 
         $response->assertRedirect();
     }
+
+    public function test_pdf_endpoint_requires_admin(): void
+    {
+        $this->get('/admin/oee/print/pdf')->assertRedirect(route('login'));
+
+        $this->actingAs($this->operator)
+            ->get('/admin/oee/print/pdf')
+            ->assertForbidden();
+    }
+
+    public function test_pdf_endpoint_returns_pdf_response(): void
+    {
+        Line::factory()->create();
+
+        $response = $this->actingAs($this->admin)->get('/admin/oee/print/pdf');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith(
+            'attachment; filename=',
+            $response->headers->get('content-disposition'),
+            'PDF must be served as attachment'
+        );
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+    }
+
+    public function test_pdf_endpoint_rejects_invalid_inputs(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/admin/oee/print/pdf?line_id=abc')
+            ->assertRedirect();
+
+        $this->actingAs($this->admin)
+            ->get('/admin/oee/print/pdf?date_from=garbage')
+            ->assertRedirect();
+
+        $this->actingAs($this->admin)
+            ->get('/admin/oee/print/pdf?date_from=2000-01-01&date_to=2030-01-01')
+            ->assertStatus(422);
+    }
 }

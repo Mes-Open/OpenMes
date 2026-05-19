@@ -7,6 +7,7 @@ use App\Models\Line;
 use App\Models\OeeRecord;
 use App\Services\Production\DowntimeService;
 use App\Services\Production\OeeCalculationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -101,6 +102,29 @@ class OeeController extends Controller
 
     public function print(Request $request)
     {
+        $data = $this->gatherPrintData($request);
+
+        return view('admin.oee.print', $data);
+    }
+
+    public function printPdf(Request $request)
+    {
+        $data = $this->gatherPrintData($request);
+
+        $pdf = Pdf::loadView('admin.oee.print-pdf', $data)
+            ->setPaper('a4', 'portrait');
+
+        $rangeSlug = $data['dateFrom'] . '_' . $data['dateTo'];
+        $scopeSlug = $data['singleLine'] && $data['perLine']->count() === 1
+            ? str(($data['perLine']->first()['line']->code ?? 'line'))->slug()
+            : 'all-lines';
+        $filename = "oee-report-{$scopeSlug}-{$rangeSlug}.pdf";
+
+        return $pdf->download($filename);
+    }
+
+    private function gatherPrintData(Request $request): array
+    {
         $validated = $request->validate([
             'line_id' => ['nullable', 'integer', 'min:1', 'exists:lines,id'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
@@ -111,7 +135,6 @@ class OeeController extends Controller
         $dateTo = $validated['date_to'] ?? today()->toDateString();
         $lineId = $validated['line_id'] ?? null;
 
-        // Cap range to a reasonable window to avoid expensive queries.
         if (Carbon::parse($dateFrom)->diffInDays(Carbon::parse($dateTo)) > 366) {
             abort(422, 'Date range cannot exceed 366 days.');
         }
@@ -156,13 +179,13 @@ class OeeController extends Controller
             ];
         });
 
-        return view('admin.oee.print', [
+        return [
             'perLine' => $perLine,
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
             'singleLine' => $lineId !== null,
             'generatedAt' => now(),
-        ]);
+        ];
     }
 
     /**
