@@ -123,7 +123,7 @@
                             <li><strong>P</strong> — Performance: actual speed vs ideal speed (slow cycles impact)</li>
                             <li><strong>Q</strong> — Quality: good units vs total produced (defects impact)</li>
                         </ul>
-                        <p class="mt-2 text-xs text-gray-400">Target: >85% world-class, 60-85% typical, &lt;60% needs improvement</p>
+                        <p class="mt-2 text-xs text-gray-400">Target: ≥85% world-class, 65-84% typical, &lt;65% needs improvement</p>
                     </div>
                 </div>
             </div>
@@ -132,19 +132,11 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             @foreach($lines as $line)
                 @php $oee = ($oeeRecords ?? collect())->get($line->id); @endphp
-                <div class="p-3 rounded-lg border {{ $oee ? ($oee->oee_pct >= 85 ? 'border-green-200 bg-green-50' : ($oee->oee_pct >= 60 ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50')) : 'border-gray-200 bg-gray-50' }}">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-sm font-medium text-gray-700 truncate" title="{{ $line->name }}">{{ $line->name }}</span>
-                        @if($oee)
-                            <span class="text-lg font-bold {{ $oee->oee_pct >= 85 ? 'text-green-700' : ($oee->oee_pct >= 60 ? 'text-yellow-700' : 'text-red-700') }}">
-                                {{ number_format($oee->oee_pct, 1) }}%
-                            </span>
-                        @else
-                            <span class="text-sm text-gray-400">N/A</span>
-                        @endif
-                    </div>
+                <div class="p-3 rounded-lg border {{ \App\Support\OeeBand::cardClass($oee?->oee_pct) }} flex flex-col items-center">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate w-full text-center mb-1" title="{{ $line->name }}">{{ $line->name }}</span>
+                    <x-oee-gauge :value="$oee?->oee_pct" :size="110" />
                     @if($oee)
-                        <div class="flex gap-3 text-xs text-gray-500">
+                        <div class="flex gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
                             <span>A: {{ number_format($oee->availability_pct, 0) }}%</span>
                             <span>P: {{ $oee->performance_pct !== null ? number_format($oee->performance_pct, 0).'%' : '-' }}</span>
                             <span>Q: {{ number_format($oee->quality_pct, 0) }}%</span>
