@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -99,6 +100,8 @@ class SettingsController extends Controller
             'schedule_show_weekends' => json_decode($rows['schedule_show_weekends']->value ?? 'true', true) ?? true,
             'schedule_slot_duration_hours' => json_decode($rows['schedule_slot_duration_hours']->value ?? '8', true) ?? 8,
             'realtime_mode' => json_decode($rows['realtime_mode']->value ?? '"polling"', true) ?? 'polling',
+            'production_tracking_mode' => json_decode($rows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation',
+            'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']->value ?? '"*"', true) ?? '*',
         ];
 
         return view('settings.system', compact('settings'));
@@ -246,6 +249,8 @@ class SettingsController extends Controller
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
             'schedule_show_weekends' => 'nullable|boolean',
             'realtime_mode' => 'required|in:polling,websocket',
+            'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
+            'cors_allowed_origins' => 'nullable|string|max:1000',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -264,6 +269,8 @@ class SettingsController extends Controller
             'schedule_show_weekends' => (bool) ($validated['schedule_show_weekends'] ?? false),
             'schedule_slot_duration_hours' => $slotDuration,
             'realtime_mode' => $validated['realtime_mode'],
+            'production_tracking_mode' => $validated['production_tracking_mode'],
+            'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '*') ?: '*',
         ];
 
         foreach ($map as $key => $value) {
@@ -272,6 +279,8 @@ class SettingsController extends Controller
                 ['value' => json_encode($value)]
             );
         }
+
+        Cache::forget('cors_allowed_origins');
 
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');

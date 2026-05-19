@@ -376,9 +376,6 @@
                     <a href="{{ route('admin.lot-sequences.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lot-sequences.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('LOT Sequences') }}
                     </a>
-                    <a href="{{ route('admin.integrations.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.integrations.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Integrations') }}
-                    </a>
                     {{-- {{ __('Production Lines') }} sub-group --}}
                     <div>
                         <button @click="linesGroup = !linesGroup"
@@ -398,7 +395,7 @@
                                 <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('Line Statuses') }}
                             </a>
                             <a href="{{ route('admin.view-templates.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.view-templates.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>View Templates
+                                <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('View Templates') }}
                             </a>
                             <a href="{{ route('admin.shifts.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.shifts.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                                 <span class="w-1 h-1 rounded-full bg-current shrink-0 opacity-50"></span>{{ __('Shifts') }}
@@ -413,9 +410,6 @@
                     </a>
                     <a href="{{ route('admin.anomaly-reasons.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.anomaly-reasons.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Anomaly Reasons') }}
-                    </a>
-                    <a href="{{ route('admin.shifts.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.shifts.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Shifts') }}
                     </a>
                     @foreach($menuRegistry->getItems('production') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">

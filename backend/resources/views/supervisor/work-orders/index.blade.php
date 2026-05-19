@@ -60,7 +60,8 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
                     @forelse($workOrders as $wo)
-                        <tr class="hover:bg-gray-50">
+                        @php $isOverdue = $wo->due_date && $wo->due_date->isPast() && !in_array($wo->status, ['DONE', 'REJECTED', 'CANCELLED']); @endphp
+                        <tr class="{{ $isOverdue ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50' }}">
                             <td class="px-4 py-3">
                                 <a href="{{ route('supervisor.work-orders.show', $wo) }}" class="inline-flex items-center font-mono text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">
                                     {{ $wo->order_no }}

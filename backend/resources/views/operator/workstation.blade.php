@@ -281,7 +281,6 @@
                                     +
                                 </button>
                                 @endif
-<<<<<<< HEAD
                                 <button type="button"
                                         @click="report = { open: true, woId: {{ $wo->id }}, woNo: '{{ addslashes($wo->order_no) }}', typeId: '', title: '', desc: '' }"
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-lg font-bold shadow transition-colors"

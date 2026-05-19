@@ -40,7 +40,7 @@ class WorkOrderController extends Controller
         // Get active and completed work orders for this line
         $activeWorkOrders = WorkOrder::where('line_id', $lineId)
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-            ->with(['productType', 'batches', 'lineStatus'])
+            ->with(['productType', 'batches.steps.workstation', 'lineStatus'])
             ->orderBy('priority', 'desc')
             ->orderBy('due_date', 'asc')
             ->get();
@@ -54,9 +54,14 @@ class WorkOrderController extends Controller
 
         $line = \App\Models\Line::find($lineId);
 
-        $selectedWorkstationId = $request->session()->get('selected_workstation_id');
+        // Workstation filter: from query param, session, or workstation account
+        $selectedWorkstationId = $request->query('workstation')
+            ?? $request->session()->get('selected_workstation_id');
+        if ($request->has('workstation')) {
+            $request->session()->put('selected_workstation_id', $selectedWorkstationId);
+        }
         $selectedWorkstation = $selectedWorkstationId
-            ? Workstation::find($selectedWorkstationId)
+            ? Workstation::where('id', $selectedWorkstationId)->where('line_id', $lineId)->first()
             : null;
 
         $lineStatuses = LineStatus::forLine($lineId)->get();
@@ -65,11 +70,33 @@ class WorkOrderController extends Controller
 
         $settingRows = DB::table('system_settings')->get()->keyBy('key');
         $workflowMode = json_decode($settingRows['workflow_mode']->value ?? '"status"', true) ?? 'status';
+        $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
         $doneStatusIds = $lineStatuses->where('is_done_status', true)->pluck('id')->values();
+
+        // In per_operation/hybrid mode with selected workstation: filter to WOs with current step on this workstation
+        $workstationQueue = collect();
+        if (in_array($trackingMode, ['per_operation', 'hybrid']) && $selectedWorkstation) {
+            $workstationQueue = $activeWorkOrders->filter(function ($wo) use ($selectedWorkstation) {
+                foreach ($wo->batches as $batch) {
+                    $currentStep = $batch->currentStep();
+                    if ($currentStep && $currentStep->workstation_id === $selectedWorkstation->id) {
+                        return true;
+                    }
+                }
+                return false;
+            })->values();
+        }
+
+        // Load available workstations for this line (for the workstation filter dropdown)
+        $lineWorkstations = \App\Models\Workstation::where('line_id', $lineId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('operator.queue', compact(
             'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
-            'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds'
+            'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds',
+            'trackingMode', 'workstationQueue', 'lineWorkstations'
         ));
     }
 
