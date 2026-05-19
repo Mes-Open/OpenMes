@@ -52,8 +52,8 @@ use App\Http\Controllers\Web\RegisterController;
 use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
 use Illuminate\Support\Facades\Route;
 
-// Installation routes (no middleware)
-Route::prefix('install')->name('install.')->group(function () {
+// Installation routes (blocked after installation)
+Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\CheckInstallation::class)->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('index');
     Route::get('/environment', [InstallController::class, 'showEnvironmentForm'])->name('environment');
     Route::post('/environment', [InstallController::class, 'setupEnvironment'])->name('environment.setup');
@@ -81,7 +81,7 @@ Route::get('/offline', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
-    Route::post('/login/pin', [AuthController::class, 'loginWithPin'])->name('login.pin')->middleware('throttle:10,1');
+    Route::post('/login/pin', [AuthController::class, 'loginWithPin'])->name('login.pin')->middleware('throttle:5,1');
     Route::get('/register', [RegisterController::class, 'show'])->name('register');
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:5,1');
 });
@@ -202,6 +202,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
         Route::get('/schedule/check-updates', [SchedulePlannerController::class, 'checkUpdates'])->name('schedule.check-updates');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
+        Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
 
         // Shifts
         Route::get('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'index'])->name('shifts.index');

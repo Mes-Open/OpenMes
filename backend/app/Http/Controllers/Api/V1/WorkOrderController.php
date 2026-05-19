@@ -22,6 +22,8 @@ class WorkOrderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', WorkOrder::class);
+
         $user = $request->user();
 
         // Get filters from request

@@ -126,6 +126,52 @@ class ModuleManager
             throw new \RuntimeException('Invalid module.json: missing "name" field.');
         }
 
+        // Validate required manifest fields
+        if (empty($manifest['version'])) {
+            $zip->close();
+            throw new \RuntimeException('Invalid module.json: missing "version" field.');
+        }
+        if (empty($manifest['provider'])) {
+            $zip->close();
+            throw new \RuntimeException('Invalid module.json: missing "provider" field.');
+        }
+
+        // Validate provider namespace
+        if (!str_starts_with($manifest['provider'], 'Modules\\')) {
+            $zip->close();
+            throw new \RuntimeException('Invalid provider namespace: must start with "Modules\\".');
+        }
+
+        // Validate module name (alphanumeric + hyphens only, no path traversal)
+        if (!preg_match('/^[A-Za-z0-9_-]+$/', $manifest['name'])) {
+            $zip->close();
+            throw new \RuntimeException('Invalid module name: only alphanumeric characters, hyphens, and underscores are allowed.');
+        }
+
+        // Check for path traversal in ZIP entries
+        $dangerousFunctions = ['exec', 'system', 'passthru', 'shell_exec', 'proc_open', 'popen', 'eval'];
+        $dangerousPattern = '/\b(' . implode('|', $dangerousFunctions) . ')\s*\(/i';
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entryName = $zip->getNameIndex($i);
+
+            // Path traversal check
+            $normalized = str_replace('\\', '/', $entryName);
+            if (str_contains($normalized, '..') || str_starts_with($normalized, '/')) {
+                $zip->close();
+                throw new \RuntimeException("ZIP contains suspicious path: {$entryName}");
+            }
+
+            // Scan PHP files for dangerous functions
+            if (str_ends_with(strtolower($entryName), '.php')) {
+                $content = $zip->getFromIndex($i);
+                if ($content !== false && preg_match($dangerousPattern, $content)) {
+                    $zip->close();
+                    throw new \RuntimeException("PHP file contains prohibited function call: {$entryName}");
+                }
+            }
+        }
+
         $moduleName  = $manifest['name'];
         $destDir     = "{$this->modulesPath}/{$moduleName}";
 

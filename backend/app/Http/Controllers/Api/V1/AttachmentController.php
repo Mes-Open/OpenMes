@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attachment;
+use App\Models\WorkOrder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -18,6 +19,12 @@ class AttachmentController extends Controller
             'entity_type' => ['required', 'string', Rule::in(['work_order', 'issue', 'batch', 'maintenance_event'])],
             'entity_id' => ['required', 'integer'],
         ]);
+
+        // Authorize access to the parent entity to prevent IDOR
+        if ($request->entity_type === 'work_order') {
+            $workOrder = WorkOrder::findOrFail($request->entity_id);
+            $this->authorize('view', $workOrder);
+        }
 
         $attachments = Attachment::where('entity_type', $request->entity_type)
             ->where('entity_id', $request->entity_id)

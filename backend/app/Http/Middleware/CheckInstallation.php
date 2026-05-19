@@ -9,12 +9,18 @@ use Symfony\Component\HttpFoundation\Response;
 class CheckInstallation
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Block access to install routes if the application is already installed.
      */
     public function handle(Request $request, Closure $next): Response
     {
+        if (file_exists(storage_path('installed'))) {
+            if ($request->expectsJson()) {
+                abort(403, 'Application is already installed.');
+            }
+
+            return redirect('/');
+        }
+
         return $next($request);
     }
 }

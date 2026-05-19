@@ -49,7 +49,7 @@
         'CANCELLED'   => __('Cancelled'),
     ];
     $daysInWeek = $showWeekends ? 7 : 5;
-    $backlogJson = $backlogOrders->map(fn($wo) => [
+    $backlogData = $backlogOrders->map(fn($wo) => [
         'id' => $wo->id,
         'order_no' => $wo->order_no,
         'product' => $wo->productType?->name ?? '-',
@@ -57,7 +57,7 @@
         'priority' => $wo->priority,
         'status' => $statusLabels[$wo->status] ?? $wo->status,
         'due_date' => $wo->due_date?->format('d.m.Y') ?? '-',
-    ])->values()->toJson();
+    ])->values();
     $confirmMsg = __('Remove this order from schedule?');
 @endphp
 
@@ -68,7 +68,7 @@
             backlogSearch: '', backlogLine: '', backlogPriority: '', backlogSort: 'due_date',
             backlogCollapsed: false,
             assignPopup: false, assignLineId: null, assignDate: null, assignShift: null, assignWeekNumber: null,
-            backlogItems: {!! $backlogJson !!},
+            backlogItems: {{ Js::from($backlogData) }},
             assignSearch: '',
             toast: null, toastTimeout: null,
             saving: false,
@@ -84,6 +84,34 @@
             dragOrderId: null,
             dragOrderNo: null,
             dragOverCell: null,
+
+            // Resize state
+            resizing: false,
+            resizeOrderId: null,
+            resizeOrderNo: null,
+            resizeLineId: null,
+            resizeWeekNumber: null,
+            resizeStartDate: null,
+            resizeStartShift: null,
+            resizeCurrentCell: null,
+            resizePreviewCells: [],
+
+            // Selected order state (click to highlight + edit)
+            selectedOrderId: null,
+            selectedOrderNo: null,
+            selectedLineId: null,
+            selectedDueDate: null,
+            selectedShift: null,
+            selectedEndDate: null,
+            selectedEndShift: null,
+            selectedOrderUrl: null,
+            editPanelOpen: false,
+
+            // Live tracking state
+            trackingOrderId: null,
+            trackingData: null,
+            trackingInterval: null,
+            trackingPollMs: 5000,
 
             showTip(e, d) {
                 this.tooltip = d;
@@ -235,6 +263,270 @@
                 await this.assignOrder(orderId);
             },
 
+            selectOrder(orderId, orderNo, lineId, dueDate, shift, endDate, endShift, showUrl) {
+                if (this.dragOrderId || this.resizing) return;
+                // Toggle selection
+                if (this.selectedOrderId === orderId) {
+                    this.deselectOrder();
+                    return;
+                }
+                this.selectedOrderId = orderId;
+                this.selectedOrderNo = orderNo;
+                this.selectedLineId = lineId;
+                this.selectedDueDate = dueDate || '';
+                this.selectedShift = shift || '';
+                this.selectedEndDate = endDate || '';
+                this.selectedEndShift = endShift || '';
+                this.selectedOrderUrl = showUrl;
+                this.editPanelOpen = true;
+            },
+            deselectOrder() {
+                this.selectedOrderId = null;
+                this.selectedOrderNo = null;
+                this.selectedLineId = null;
+                this.selectedDueDate = null;
+                this.selectedShift = null;
+                this.selectedEndDate = null;
+                this.selectedEndShift = null;
+                this.selectedOrderUrl = null;
+                this.editPanelOpen = false;
+            },
+            async saveSelectedDates() {
+                if (!this.selectedOrderId) return;
+                this.saving = true;
+                try {
+                    // Save main assignment (due_date + shift)
+                    const mainData = {
+                        due_date: this.selectedDueDate,
+                        shift_number: this.selectedShift ? parseInt(this.selectedShift) : '',
+                    };
+                    await this.saveOrder(this.selectedOrderId, mainData);
+
+                    // Save span (end_date + end_shift)
+                    const spanBody = (this.selectedEndDate && this.selectedEndShift)
+                        ? { end_date: this.selectedEndDate, end_shift_number: parseInt(this.selectedEndShift) }
+                        : { end_date: null, end_shift_number: null };
+                    const res = await fetch('/admin/schedule/' + this.selectedOrderId + '/resize', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                        },
+                        body: JSON.stringify(spanBody),
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        this.showToast(json.message, 'success');
+                    } else {
+                        this.showToast(json.message || {!! json_encode(__('Error saving')) !!}, 'error');
+                    }
+                    await this.refreshContent();
+                    this.deselectOrder();
+                } catch (err) {
+                    this.showToast({!! json_encode(__('Connection error')) !!}, 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+            isSelectedCell(lineId, cellDate, shift) {
+                if (!this.selectedOrderId || lineId != this.selectedLineId) return false;
+                const startDate = this.selectedDueDate;
+                const startShift = parseInt(this.selectedShift) || 1;
+                const endDate = this.selectedEndDate || startDate;
+                const endShift = parseInt(this.selectedEndShift) || startShift;
+                if (!startDate) return false;
+                // Check if cell is in range
+                if (cellDate < startDate || cellDate > endDate) return false;
+                if (cellDate === startDate && shift < startShift) return false;
+                if (cellDate === endDate && shift > endShift) return false;
+                return true;
+            },
+
+            // Resize methods — vertical (shifts) then next day
+            startResize(e, orderId, orderNo, cellDate, shift, lineId, weekNumber, currentEndDate, currentEndShift) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.resizing = true;
+                this.resizeOrderId = orderId;
+                this.resizeOrderNo = orderNo;
+                this.resizeLineId = lineId;
+                this.resizeWeekNumber = weekNumber;
+                this.resizeStartDate = cellDate;
+                this.resizeStartShift = shift;
+                this.resizeCurrentCell = null;
+
+                const sourceEl = document.querySelector('[data-order-id="' + orderId + '"]');
+                if (sourceEl) sourceEl.style.pointerEvents = 'none';
+
+                // Helper: is cell "after" start? (same line, date+shift >= start)
+                const isAfterStart = (cDate, cShift) => {
+                    if (cDate > cellDate) return true;
+                    if (cDate === cellDate && cShift >= shift) return true;
+                    return false;
+                };
+
+                // Build ordered list of all cells for this line to highlight range
+                const getAllLineCells = () => {
+                    return Array.from(document.querySelectorAll('td[data-cell-line="' + lineId + '"]'))
+                        .filter(c => c.dataset.cellDate && c.dataset.cellShift)
+                        .sort((a, b) => {
+                            if (a.dataset.cellDate !== b.dataset.cellDate) return a.dataset.cellDate < b.dataset.cellDate ? -1 : 1;
+                            return parseInt(a.dataset.cellShift) - parseInt(b.dataset.cellShift);
+                        });
+                };
+
+                let highlightedCells = [];
+                const clearHighlights = () => {
+                    highlightedCells.forEach(c => {
+                        c.style.removeProperty('background');
+                        c.style.removeProperty('outline');
+                    });
+                    highlightedCells = [];
+                };
+
+                const onMouseMove = (ev) => {
+                    // Find the closest cell by Y position from allLineCells
+                    // This works even when rowspan hides intermediate <td> elements
+                    const allCells = getAllLineCells();
+                    if (!allCells.length) return;
+
+                    let bestCell = null;
+                    let bestDist = Infinity;
+                    for (const c of allCells) {
+                        const rect = c.getBoundingClientRect();
+                        // For cells with rowspan, compute virtual sub-rows
+                        const rs = c.rowSpan || 1;
+                        const rowHeight = rect.height / rs;
+                        const baseShift = parseInt(c.dataset.cellShift);
+                        for (let r = 0; r < rs; r++) {
+                            const virtualTop = rect.top + r * rowHeight;
+                            const virtualBottom = virtualTop + rowHeight;
+                            const virtualMidY = (virtualTop + virtualBottom) / 2;
+                            const midX = (rect.left + rect.right) / 2;
+                            const dist = Math.abs(ev.clientY - virtualMidY) + Math.abs(ev.clientX - midX) * 0.3;
+                            if (dist < bestDist) {
+                                bestDist = dist;
+                                bestCell = { date: c.dataset.cellDate, shift: baseShift + r, line: c.dataset.cellLine };
+                            }
+                        }
+                    }
+                    if (!bestCell || bestCell.line != lineId) return;
+
+                    const cDate = bestCell.date;
+                    const cShift = bestCell.shift;
+
+                    this.resizeCurrentCell = { date: cDate, shift: cShift };
+
+                    // Highlight all cells in range (start → current)
+                    clearHighlights();
+                    // Determine range direction
+                    const forward = isAfterStart(cDate, cShift);
+                    const rangeStart = forward ? { d: cellDate, s: shift } : { d: cDate, s: cShift };
+                    const rangeEnd = forward ? { d: cDate, s: cShift } : { d: cellDate, s: shift };
+                    let inRange = false;
+                    for (const c of allCells) {
+                        const d = c.dataset.cellDate;
+                        const s = parseInt(c.dataset.cellShift);
+                        if (d === rangeStart.d && s === rangeStart.s) inRange = true;
+                        if (inRange) {
+                            c.style.background = forward ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                            c.style.outline = forward ? '1px dashed rgba(59, 130, 246, 0.4)' : '1px dashed rgba(239, 68, 68, 0.4)';
+                            highlightedCells.push(c);
+                        }
+                        if (d === rangeEnd.d && s === rangeEnd.s) break;
+                    }
+                };
+
+                const onMouseUp = async (ev) => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    clearHighlights();
+                    if (sourceEl) sourceEl.style.pointerEvents = '';
+
+                    if (!this.resizeCurrentCell) {
+                        this.resizing = false;
+                        return;
+                    }
+
+                    const endDate = this.resizeCurrentCell.date;
+                    const endShift = this.resizeCurrentCell.shift;
+
+                    // If dragged back to start or before start: clear span
+                    const isSameAsStart = endDate === cellDate && endShift === shift;
+                    const isBeforeStart = endDate < cellDate || (endDate === cellDate && endShift < shift);
+
+                    this.saving = true;
+                    try {
+                        const body = (isSameAsStart || isBeforeStart)
+                            ? { end_date: null, end_shift_number: null }
+                            : { end_date: endDate, end_shift_number: endShift };
+
+                        const res = await fetch('/admin/schedule/' + this.resizeOrderId + '/resize', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            },
+                            body: JSON.stringify({
+                                ...body,
+                            }),
+                        });
+                        const json = await res.json();
+                        if (json.success) {
+                            this.showToast(json.message, 'success');
+                            await this.refreshContent();
+                        } else {
+                            this.showToast(json.message || {!! json_encode(__('Error resizing')) !!}, 'error');
+                        }
+                    } catch (err) {
+                        this.showToast({!! json_encode(__('Connection error')) !!}, 'error');
+                    } finally {
+                        this.saving = false;
+                        this.resizing = false;
+                        this.resizeCurrentCell = null;
+                    }
+                };
+
+                document.body.style.cursor = 's-resize';
+                document.body.style.userSelect = 'none';
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            },
+
+            // Live tracking methods
+            startTracking(orderId) {
+                this.stopTracking();
+                this.trackingOrderId = orderId;
+                this.trackingData = null;
+                this.fetchTrackingData();
+                this.trackingInterval = setInterval(() => this.fetchTrackingData(), this.trackingPollMs);
+            },
+            stopTracking() {
+                if (this.trackingInterval) {
+                    clearInterval(this.trackingInterval);
+                    this.trackingInterval = null;
+                }
+                this.trackingOrderId = null;
+                this.trackingData = null;
+            },
+            async fetchTrackingData() {
+                if (!this.trackingOrderId) return;
+                try {
+                    const res = await fetch('{{ route("admin.schedule.check-updates") }}?track=' + this.trackingOrderId, {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data.tracked_order) {
+                        this.trackingData = data.tracked_order;
+                    }
+                } catch (e) { /* silent */ }
+            },
+
             // Realtime methods
             init() {
                 if (this.realtimeMode === 'websocket') {
@@ -245,6 +537,7 @@
                 window.addEventListener('beforeunload', () => {
                     this.stopPolling();
                     this.stopWebSocket();
+                    this.stopTracking();
                 });
             },
 
@@ -768,6 +1061,151 @@
                     {{ __('No matching orders found') }}
                 </div>
             </div>
+        </div>
+    </div>
+
+    {{-- ===== ORDER EDIT PANEL (floating) ===== --}}
+    <div x-show="editPanelOpen" x-transition.opacity.duration.150ms x-cloak
+         @click.self="deselectOrder()"
+         class="fixed inset-0 z-30">
+    </div>
+    <div x-show="editPanelOpen" x-transition x-cloak
+         class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 w-[480px] max-w-[95vw]">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-gray-800 dark:text-gray-100" x-text="selectedOrderNo"></span>
+                <a :href="selectedOrderUrl" class="text-[10px] text-blue-600 hover:underline">{{ __('View details') }} &rarr;</a>
+            </div>
+            <div class="flex items-center gap-1">
+                <button @click="startTracking(selectedOrderId)"
+                        class="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg transition"
+                        :class="trackingOrderId === selectedOrderId ? 'bg-green-100 text-green-700 ring-1 ring-green-400' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300'"
+                        :title="trackingOrderId === selectedOrderId ? '{{ __('Tracking active') }}' : '{{ __('Track live') }}'">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    <span x-text="trackingOrderId === selectedOrderId ? '{{ __('Tracking') }}' : '{{ __('Track live') }}'"></span>
+                </button>
+                <button @click="deselectOrder()" class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">{{ __('Start date') }}</label>
+                <input type="date" x-model="selectedDueDate"
+                       class="w-full text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg py-1.5 px-2">
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">{{ __('Start shift') }}</label>
+                <select x-model="selectedShift"
+                        class="w-full text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg py-1.5 px-2">
+                    <option value="">—</option>
+                    @for($s = 1; $s <= $shiftsPerDay; $s++)
+                        <option value="{{ $s }}">{{ $shiftColors[$s]['label'] }} ({{ $shiftColors[$s]['hours'] }})</option>
+                    @endfor
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">{{ __('End date') }}</label>
+                <input type="date" x-model="selectedEndDate"
+                       class="w-full text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg py-1.5 px-2">
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">{{ __('End shift') }}</label>
+                <select x-model="selectedEndShift"
+                        class="w-full text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg py-1.5 px-2">
+                    <option value="">—</option>
+                    @for($s = 1; $s <= $shiftsPerDay; $s++)
+                        <option value="{{ $s }}">{{ $shiftColors[$s]['label'] }} ({{ $shiftColors[$s]['hours'] }})</option>
+                    @endfor
+                </select>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 mt-3">
+            <button @click="saveSelectedDates()"
+                    class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+                {{ __('Save') }}
+            </button>
+            <button @click="deselectOrder()"
+                    class="px-3 py-2 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                {{ __('Cancel') }}
+            </button>
+        </div>
+    </div>
+
+    {{-- ===== LIVE TRACKING PANEL ===== --}}
+    <div x-show="trackingOrderId && trackingData" x-transition x-cloak
+         class="fixed top-4 right-4 z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-[320px]">
+        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="relative flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                </span>
+                <span class="text-xs font-bold text-gray-800 dark:text-gray-100" x-text="trackingData?.order_no"></span>
+                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                      :class="trackingData?.is_overdue ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'"
+                      x-text="trackingData?.status"></span>
+            </div>
+            <button @click="stopTracking()" class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400" title="{{ __('Stop tracking') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="px-4 py-3 space-y-3">
+            {{-- Progress bar --}}
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-semibold text-gray-500 uppercase">{{ __('Progress') }}</span>
+                    <span class="text-xs font-bold" :class="trackingData?.progress_percent >= 100 ? 'text-green-600' : (trackingData?.is_overdue ? 'text-red-600' : 'text-blue-600')"
+                          x-text="trackingData?.progress_percent + '%'"></span>
+                </div>
+                <div class="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-500 ease-out"
+                         :class="trackingData?.progress_percent >= 100 ? 'bg-green-500' : (trackingData?.is_overdue ? 'bg-red-500' : 'bg-blue-500')"
+                         :style="'width: ' + Math.min(100, trackingData?.progress_percent || 0) + '%'"></div>
+                </div>
+            </div>
+
+            {{-- Quantities --}}
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 text-center">
+                    <div class="text-[10px] text-gray-400 uppercase">{{ __('Produced') }}</div>
+                    <div class="text-lg font-bold text-gray-800 dark:text-gray-100" x-text="trackingData?.produced_qty"></div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 text-center">
+                    <div class="text-[10px] text-gray-400 uppercase">{{ __('Planned') }}</div>
+                    <div class="text-lg font-bold text-gray-800 dark:text-gray-100" x-text="trackingData?.planned_qty"></div>
+                </div>
+            </div>
+
+            {{-- Details --}}
+            <div class="space-y-1.5 text-xs text-gray-600 dark:text-gray-400">
+                <div class="flex justify-between">
+                    <span>{{ __('Line') }}</span>
+                    <span class="font-medium text-gray-800 dark:text-gray-200" x-text="trackingData?.line"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span>{{ __('Product') }}</span>
+                    <span class="font-medium text-gray-800 dark:text-gray-200" x-text="trackingData?.product"></span>
+                </div>
+                <template x-if="trackingData?.current_step">
+                    <div class="flex justify-between">
+                        <span>{{ __('Current step') }}</span>
+                        <span class="font-medium text-gray-800 dark:text-gray-200" x-text="trackingData?.current_step?.name"></span>
+                    </div>
+                </template>
+            </div>
+
+            {{-- Overdue warning --}}
+            <template x-if="trackingData?.is_overdue">
+                <div class="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg text-xs text-red-700 dark:text-red-400">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                    <span>{{ __('This order is overdue!') }}</span>
+                </div>
+            </template>
+        </div>
+        <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-[10px] text-gray-400 text-center">
+            {{ __('Auto-refreshing every 5s') }}
         </div>
     </div>
 
