@@ -24,8 +24,10 @@ class OeeController extends Controller
         $lineId = $request->query('line_id');
         $dateFrom = $request->query('date_from', today()->subDays(7)->toDateString());
         $dateTo = $request->query('date_to', today()->toDateString());
+        $granularity = in_array($request->query('granularity'), ['day', 'week', 'month'], true)
+            ? $request->query('granularity')
+            : 'day';
 
-        // Auto-calculate OEE for today if not cached
         $this->ensureOeeCalculated();
 
         $query = OeeRecord::with(['line', 'shift'])
@@ -38,7 +40,6 @@ class OeeController extends Controller
 
         $records = $query->get();
 
-        // Aggregate per line for summary cards
         $summary = $records->groupBy('line_id')->map(function ($lineRecords) {
             return [
                 'avg_oee' => $lineRecords->whereNotNull('oee_pct')->avg('oee_pct'),
@@ -52,20 +53,27 @@ class OeeController extends Controller
             ];
         });
 
-        // Trend data for chart (per day)
-        $trend = $records->groupBy('record_date')->map(function ($dayRecords, $date) {
+        $trend = $records->groupBy(function ($record) use ($granularity) {
+            $date = Carbon::parse($record->record_date);
+
+            return match ($granularity) {
+                'week' => $date->isoFormat('GGGG-[W]WW'),
+                'month' => $date->format('Y-m'),
+                default => $date->toDateString(),
+            };
+        })->map(function ($bucket, $key) {
             return [
-                'date' => $date,
-                'oee' => round($dayRecords->whereNotNull('oee_pct')->avg('oee_pct') ?? 0, 1),
-                'availability' => round($dayRecords->whereNotNull('availability_pct')->avg('availability_pct') ?? 0, 1),
-                'performance' => round($dayRecords->whereNotNull('performance_pct')->avg('performance_pct') ?? 0, 1),
-                'quality' => round($dayRecords->whereNotNull('quality_pct')->avg('quality_pct') ?? 0, 1),
+                'date' => $key,
+                'oee' => round($bucket->whereNotNull('oee_pct')->avg('oee_pct') ?? 0, 1),
+                'availability' => round($bucket->whereNotNull('availability_pct')->avg('availability_pct') ?? 0, 1),
+                'performance' => round($bucket->whereNotNull('performance_pct')->avg('performance_pct') ?? 0, 1),
+                'quality' => round($bucket->whereNotNull('quality_pct')->avg('quality_pct') ?? 0, 1),
             ];
         })->sortKeys()->values();
 
         return view('admin.oee.index', compact(
             'lines', 'lineId', 'dateFrom', 'dateTo',
-            'records', 'summary', 'trend'
+            'records', 'summary', 'trend', 'granularity'
         ));
     }
 
@@ -89,6 +97,72 @@ class OeeController extends Controller
         );
 
         return view('admin.oee.show', compact('line', 'records', 'downtimeByReason', 'dateFrom', 'dateTo'));
+    }
+
+    public function print(Request $request)
+    {
+        $validated = $request->validate([
+            'line_id' => ['nullable', 'integer', 'min:1', 'exists:lines,id'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+        ]);
+
+        $dateFrom = $validated['date_from'] ?? today()->subDays(7)->toDateString();
+        $dateTo = $validated['date_to'] ?? today()->toDateString();
+        $lineId = $validated['line_id'] ?? null;
+
+        // Cap range to a reasonable window to avoid expensive queries.
+        if (Carbon::parse($dateFrom)->diffInDays(Carbon::parse($dateTo)) > 366) {
+            abort(422, 'Date range cannot exceed 366 days.');
+        }
+
+        $this->ensureOeeCalculated();
+
+        $linesQuery = Line::where('is_active', true);
+        if ($lineId !== null) {
+            $linesQuery->where('id', $lineId);
+        }
+        $lines = $linesQuery->orderBy('name')->get();
+
+        $perLine = $lines->map(function (Line $line) use ($dateFrom, $dateTo) {
+            $records = OeeRecord::where('line_id', $line->id)
+                ->whereBetween('record_date', [$dateFrom, $dateTo])
+                ->with('shift')
+                ->orderBy('record_date')
+                ->get();
+
+            $downtimeByReason = $this->downtimeService->getByReason(
+                $line->id,
+                Carbon::parse($dateFrom),
+                Carbon::parse($dateTo)
+            );
+
+            $summary = [
+                'avg_oee' => $records->whereNotNull('oee_pct')->avg('oee_pct'),
+                'avg_availability' => $records->whereNotNull('availability_pct')->avg('availability_pct'),
+                'avg_performance' => $records->whereNotNull('performance_pct')->avg('performance_pct'),
+                'avg_quality' => $records->whereNotNull('quality_pct')->avg('quality_pct'),
+                'total_produced' => $records->sum('total_produced'),
+                'total_scrap' => $records->sum('scrap_qty'),
+                'total_downtime' => $records->sum('downtime_minutes'),
+                'days' => $records->count(),
+            ];
+
+            return [
+                'line' => $line,
+                'records' => $records,
+                'downtimeByReason' => $downtimeByReason,
+                'summary' => $summary,
+            ];
+        });
+
+        return view('admin.oee.print', [
+            'perLine' => $perLine,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'singleLine' => $lineId !== null,
+            'generatedAt' => now(),
+        ]);
     }
 
     /**

@@ -54,8 +54,7 @@
                                 <option value="0">-- Select reason --</option>
                                 @foreach($reasons as $reason)
                                     <option value="{{ $reason->id }}">
-                                        {{ $reason->name }}
-                                        @if($reason->is_planned) (planned) @endif
+                                        {{ $reason->name }} ({{ $reason->kind?->label() }})
                                     </option>
                                 @endforeach
                             </select>
