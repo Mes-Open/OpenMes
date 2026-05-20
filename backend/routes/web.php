@@ -196,6 +196,8 @@ Route::middleware('auth')->group(function () {
 
         // OEE
         Route::get('/oee', [AdminOeeController::class, 'index'])->name('oee.index');
+        Route::get('/oee/print', [AdminOeeController::class, 'print'])->name('oee.print');
+        Route::get('/oee/print/pdf', [AdminOeeController::class, 'printPdf'])->name('oee.print.pdf');
         Route::get('/oee/{line}', [AdminOeeController::class, 'show'])->name('oee.show');
 
         // Reports

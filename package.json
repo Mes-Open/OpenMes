@@ -1,0 +1,27 @@
+{
+  "name": "openmes",
+  "version": "1.0.0",
+  "description": "<div align=\"center\">",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mes-Open/OpenMes.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Mes-Open/OpenMes/issues"
+  },
+  "homepage": "https://github.com/Mes-Open/OpenMes#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}
