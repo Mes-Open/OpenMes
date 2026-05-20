@@ -29,12 +29,12 @@ class OeeCalculationService
         }
 
         // Downtimes
-        $unplannedDowntime = $this->downtimeService->getUnplannedMinutes($line->id, $date, $shift?->id);
+        $lossDowntime = $this->downtimeService->getLossMinutes($line->id, $date, $shift?->id);
         $plannedDowntime = $this->downtimeService->getPlannedMinutes($line->id, $date, $shift?->id);
 
         // Subtract planned downtime from planned time (planned breaks don't count as losses)
         $netPlannedMinutes = $plannedMinutes - $plannedDowntime;
-        $operatingMinutes = max(0, $netPlannedMinutes - $unplannedDowntime);
+        $operatingMinutes = max(0, $netPlannedMinutes - $lossDowntime);
 
         // Production data
         $productionData = $this->getProductionData($line, $date, $shift);
@@ -78,7 +78,7 @@ class OeeCalculationService
             [
                 'planned_minutes' => $netPlannedMinutes,
                 'operating_minutes' => $operatingMinutes,
-                'downtime_minutes' => $unplannedDowntime,
+                'downtime_minutes' => $lossDowntime,
                 'ideal_cycle_minutes' => $idealCycle,
                 'total_produced' => $totalProduced,
                 'good_produced' => $goodProduced,
@@ -209,19 +209,22 @@ class OeeCalculationService
             }
         }
 
-        // 2. Best historical cycle time (fastest batch in last 30 days)
-        $bestCycle = Batch::whereHas('workOrder', fn ($q) => $q->where('line_id', $line->id))
+        // 2. Best historical cycle time (fastest batch in last 30 days).
+        // Computed in PHP so this query runs on both Postgres and SQLite (tests).
+        $batches = Batch::whereHas('workOrder', fn ($q) => $q->where('line_id', $line->id))
             ->where('status', Batch::STATUS_DONE)
             ->where('produced_qty', '>', 0)
             ->whereDate('completed_at', '>=', $date->copy()->subDays(30))
             ->whereNotNull('started_at')
             ->whereNotNull('completed_at')
-            ->selectRaw('EXTRACT(EPOCH FROM (completed_at - started_at)) / 60.0 / produced_qty AS cycle_time')
-            ->orderBy('cycle_time')
-            ->limit(1)
-            ->value('cycle_time');
+            ->get(['started_at', 'completed_at', 'produced_qty']);
 
-        if ($bestCycle && $bestCycle > 0) {
+        $bestCycle = $batches
+            ->map(fn ($b) => $b->started_at->diffInMinutes($b->completed_at) / max(0.0001, (float) $b->produced_qty))
+            ->filter(fn ($v) => $v > 0)
+            ->min();
+
+        if ($bestCycle !== null && $bestCycle > 0) {
             return round((float) $bestCycle, 4);
         }
 

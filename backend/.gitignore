@@ -28,3 +28,4 @@ Thumbs.db
 !/modules/README.md
 !/modules/.gitkeep
 !/modules/ExampleHooks
+backend/test-results/
