@@ -570,6 +570,12 @@
                     <a href="{{ route('admin.production-anomalies.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.production-anomalies.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Anomalies') }}
                     </a>
+                    <a href="{{ route('inspections.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('inspections.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Inbound Inspections') }}
+                    </a>
+                    <a href="{{ route('admin.inspection-plans.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.inspection-plans.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Inspection Plans') }}
+                    </a>
                     <a href="{{ route('admin.oee.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.oee.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('OEE') }}
                     </a>
