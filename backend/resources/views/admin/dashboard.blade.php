@@ -38,7 +38,7 @@
 
     @php
         $enabledWidgets = $enabledWidgets ?? [];
-        $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
+        $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'inbound_qc_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
         $wOrder = array_flip($widgetOrder);
     @endphp
 
@@ -153,6 +153,75 @@
                 </div>
             @endforeach
         </div>
+    </div>
+    @endif
+
+    {{-- Inbound QC Overview --}}
+    @if((empty($enabledWidgets) || in_array('inbound_qc_overview', $enabledWidgets)) && ($inboundQcStats ?? null))
+    <div style="order: {{ ($wOrder['inbound_qc_overview'] ?? 2) * 10 }}" class="card mb-6">
+        <div class="flex justify-between items-center mb-3">
+            <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">{{ __('Inbound QC Overview') }}</h2>
+                <span class="text-xs text-gray-400">{{ __('last 30 days') }}</span>
+            </div>
+            <a href="{{ route('inspections.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('View all') }} →</a>
+        </div>
+
+        @php
+            $passRate = $inboundQcStats['pass_rate_30d'];
+            $passColor = $passRate === null
+                ? 'border-gray-200 bg-gray-50 dark:bg-slate-700'
+                : ($passRate >= 95 ? 'border-green-200 bg-green-50 dark:bg-green-900/20'
+                    : ($passRate >= 80 ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20'
+                        : 'border-red-200 bg-red-50 dark:bg-red-900/20'));
+            $passTextColor = $passRate === null ? 'text-gray-400'
+                : ($passRate >= 95 ? 'text-green-700 dark:text-green-400'
+                    : ($passRate >= 80 ? 'text-yellow-700 dark:text-yellow-400'
+                        : 'text-red-700 dark:text-red-400'));
+        @endphp
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Pending') }}</div>
+                <div class="text-2xl font-bold {{ $inboundQcStats['pending'] > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-400' }}">{{ $inboundQcStats['pending'] }}</div>
+                <a href="{{ route('inspections.index', ['tab' => 'pending']) }}" class="text-xs text-blue-600 hover:underline">{{ __('Open queue') }} →</a>
+            </div>
+            <div class="p-3 rounded-lg border {{ $passColor }}">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Pass rate') }}</div>
+                <div class="text-2xl font-bold {{ $passTextColor }}">{{ $passRate !== null ? number_format($passRate, 1) . '%' : '—' }}</div>
+                <div class="text-xs text-gray-500">{{ $inboundQcStats['completed_30d'] }} {{ __('completed') }}</div>
+            </div>
+            <div class="p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Failed') }}</div>
+                <div class="text-2xl font-bold {{ $inboundQcStats['failed_30d'] > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-400' }}">{{ $inboundQcStats['failed_30d'] }}</div>
+                @if($inboundQcStats['failed_30d'] > 0)
+                    <a href="{{ route('inspections.index', ['tab' => 'failed']) }}" class="text-xs text-blue-600 hover:underline">{{ __('Review NCs') }} →</a>
+                @else
+                    <div class="text-xs text-gray-500">{{ __('no failures') }}</div>
+                @endif
+            </div>
+            <div class="p-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Conditional') }}</div>
+                <div class="text-2xl font-bold {{ $inboundQcStats['conditional_30d'] > 0 ? 'text-yellow-700 dark:text-yellow-400' : 'text-gray-400' }}">{{ $inboundQcStats['conditional_30d'] }}</div>
+                <div class="text-xs text-gray-500">{{ __('optional fails') }}</div>
+            </div>
+        </div>
+
+        @if($inboundQcStats['recent_failures']->isNotEmpty())
+            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{{ __('Recent failures') }}</h3>
+                <ul class="text-sm divide-y divide-gray-100 dark:divide-gray-700">
+                    @foreach($inboundQcStats['recent_failures'] as $f)
+                        <li class="py-1.5 flex justify-between items-center">
+                            <a href="{{ route('inspections.show', $f) }}" class="text-blue-600 hover:underline">
+                                {{ $f->material?->name ?? __('Unknown material') }} — lot <span class="font-mono">{{ $f->lot_number }}</span>
+                            </a>
+                            <span class="text-xs text-gray-400">{{ $f->completed_at?->diffForHumans() }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
     </div>
     @endif
 
