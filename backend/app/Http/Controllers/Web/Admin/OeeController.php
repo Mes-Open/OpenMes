@@ -23,7 +23,7 @@ class OeeController extends Controller
     {
         $lines = Line::where('is_active', true)->orderBy('name')->get();
         $lineId = $request->query('line_id');
-        $dateFrom = $request->query('date_from', today()->subDays(7)->toDateString());
+        $dateFrom = $request->query('date_from', today()->subDays(6)->toDateString());
         $dateTo = $request->query('date_to', today()->toDateString());
         $granularity = in_array($request->query('granularity'), ['day', 'week', 'month'], true)
             ? $request->query('granularity')
@@ -54,7 +54,7 @@ class OeeController extends Controller
             ];
         });
 
-        $trend = $records->groupBy(function ($record) use ($granularity) {
+        $bucketKey = function ($record) use ($granularity): string {
             $date = Carbon::parse($record->record_date);
 
             return match ($granularity) {
@@ -62,7 +62,10 @@ class OeeController extends Controller
                 'month' => $date->format('Y-m'),
                 default => $date->toDateString(),
             };
-        })->map(function ($bucket, $key) {
+        };
+
+        // Combined trend (average across all lines per bucket).
+        $trend = $records->groupBy($bucketKey)->map(function ($bucket, $key) {
             return [
                 'date' => $key,
                 'oee' => round($bucket->whereNotNull('oee_pct')->avg('oee_pct') ?? 0, 1),
@@ -72,15 +75,33 @@ class OeeController extends Controller
             ];
         })->sortKeys()->values();
 
+        // Per-line trend (multi-series). Only meaningful when no specific line is filtered.
+        $buckets = $records->pluck($bucketKey)->unique()->sort()->values();
+        $trendByLine = $lines
+            ->filter(fn ($l) => ! $lineId || $l->id == $lineId)
+            ->map(function (Line $line) use ($records, $bucketKey, $buckets) {
+                $byBucket = $records->where('line_id', $line->id)->groupBy($bucketKey);
+
+                return [
+                    'line_id' => $line->id,
+                    'line_name' => $line->name,
+                    'points' => $buckets->map(fn ($b) => [
+                        'date' => $b,
+                        'oee' => round($byBucket->get($b, collect())->whereNotNull('oee_pct')->avg('oee_pct') ?? 0, 1),
+                    ])->values(),
+                ];
+            })
+            ->values();
+
         return view('admin.oee.index', compact(
             'lines', 'lineId', 'dateFrom', 'dateTo',
-            'records', 'summary', 'trend', 'granularity'
+            'records', 'summary', 'trend', 'trendByLine', 'granularity'
         ));
     }
 
     public function show(Line $line, Request $request)
     {
-        $dateFrom = $request->query('date_from', today()->subDays(7)->toDateString());
+        $dateFrom = $request->query('date_from', today()->subDays(6)->toDateString());
         $dateTo = $request->query('date_to', today()->toDateString());
 
         $this->ensureOeeCalculated();
@@ -131,7 +152,7 @@ class OeeController extends Controller
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
         ]);
 
-        $dateFrom = $validated['date_from'] ?? today()->subDays(7)->toDateString();
+        $dateFrom = $validated['date_from'] ?? today()->subDays(6)->toDateString();
         $dateTo = $validated['date_to'] ?? today()->toDateString();
         $lineId = $validated['line_id'] ?? null;
 

@@ -44,13 +44,13 @@ test.describe('OEE feature — issue #12', () => {
   test('switching granularity updates the URL', async ({ page }) => {
     await page.goto('/admin/oee');
 
-    await page.getByRole('link', { name: 'Weekly' }).click();
+    await page.getByRole('link', { name: 'Weekly', exact: true }).click();
     await expect(page).toHaveURL(/granularity=week/);
 
-    await page.getByRole('link', { name: 'Monthly' }).click();
+    await page.getByRole('link', { name: 'Monthly', exact: true }).click();
     await expect(page).toHaveURL(/granularity=month/);
 
-    await page.getByRole('link', { name: 'Daily' }).click();
+    await page.getByRole('link', { name: 'Daily', exact: true }).click();
     await expect(page).toHaveURL(/granularity=day/);
   });
 
