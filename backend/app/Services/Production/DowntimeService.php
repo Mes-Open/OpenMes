@@ -2,6 +2,7 @@
 
 namespace App\Services\Production;
 
+use App\Enums\DowntimeKind;
 use App\Models\Line;
 use App\Models\ProductionDowntime;
 use App\Models\Shift;
@@ -15,7 +16,6 @@ class DowntimeService
      */
     public function start(Line $line, int $reasonId, User $user, ?int $workstationId = null, ?string $notes = null): ProductionDowntime
     {
-        // Find current shift for context
         $shiftId = $this->findCurrentShiftId($line);
 
         return ProductionDowntime::create([
@@ -51,13 +51,13 @@ class DowntimeService
     }
 
     /**
-     * Get total unplanned downtime minutes for a line on a date.
+     * Total minutes that count as availability loss (unplanned + changeover).
      */
-    public function getUnplannedMinutes(int $lineId, Carbon $date, ?int $shiftId = null): int
+    public function getLossMinutes(int $lineId, Carbon $date, ?int $shiftId = null): int
     {
         $query = ProductionDowntime::where('line_id', $lineId)
             ->whereDate('started_at', $date)
-            ->whereHas('reason', fn ($q) => $q->where('is_planned', false))
+            ->whereHas('reason', fn ($q) => $q->whereIn('kind', DowntimeKind::lossKinds()))
             ->whereNotNull('duration_minutes');
 
         if ($shiftId) {
@@ -68,13 +68,13 @@ class DowntimeService
     }
 
     /**
-     * Get total planned downtime minutes for a line on a date.
+     * Total planned downtime minutes (subtracted from planned time, does not count as A-loss).
      */
     public function getPlannedMinutes(int $lineId, Carbon $date, ?int $shiftId = null): int
     {
         $query = ProductionDowntime::where('line_id', $lineId)
             ->whereDate('started_at', $date)
-            ->whereHas('reason', fn ($q) => $q->where('is_planned', true))
+            ->whereHas('reason', fn ($q) => $q->where('kind', DowntimeKind::Planned->value))
             ->whereNotNull('duration_minutes');
 
         if ($shiftId) {
@@ -85,7 +85,7 @@ class DowntimeService
     }
 
     /**
-     * Get downtimes for a line grouped by reason (for reports).
+     * Downtimes for a line grouped by reason (for Pareto reports).
      */
     public function getByReason(int $lineId, Carbon $dateFrom, Carbon $dateTo): array
     {
@@ -95,13 +95,21 @@ class DowntimeService
             ->with('reason')
             ->get()
             ->groupBy('downtime_reason_id')
-            ->map(fn ($group) => [
-                'reason' => $group->first()->reason?->name ?? 'Unknown',
-                'code' => $group->first()->reason?->code ?? 'unknown',
-                'is_planned' => $group->first()->reason?->is_planned ?? false,
-                'count' => $group->count(),
-                'total_minutes' => $group->sum('duration_minutes'),
-            ])
+            ->map(function ($group) {
+                $reason = $group->first()->reason;
+                $kind = $reason?->kind ?? DowntimeKind::Unplanned;
+
+                return [
+                    'reason' => $reason?->name ?? 'Unknown',
+                    'code' => $reason?->code ?? 'unknown',
+                    'kind' => $kind instanceof DowntimeKind ? $kind->value : (string) $kind,
+                    'kind_label' => $kind instanceof DowntimeKind ? $kind->label() : (string) $kind,
+                    'kind_color' => $kind instanceof DowntimeKind ? $kind->badgeColor() : 'red',
+                    'is_loss' => $kind instanceof DowntimeKind ? $kind->countsAsAvailabilityLoss() : true,
+                    'count' => $group->count(),
+                    'total_minutes' => $group->sum('duration_minutes'),
+                ];
+            })
             ->sortByDesc('total_minutes')
             ->values()
             ->toArray();

@@ -64,6 +64,14 @@ yarn-error.log*
 *.tmp
 *.temp
 
+# Playwright E2E (config + specs tracked; artifacts and node_modules ignored)
+/node_modules
+/test-results
+/playwright-report
+
+# Local binaries / installers
+cloudflared.deb
+
 # Project-specific
 .init_prompt
 /reference-app
