@@ -12,10 +12,11 @@ use Illuminate\Support\Facades\Log;
 
 class UpdateController extends Controller
 {
-    private const CHECK_URL    = 'https://getopenmes.com/current-version.php';
-    private const CACHE_KEY    = 'update_check_result';
-    private const CACHE_TTL    = 3600; // 1 hour
-    private const BACKUP_KEEP  = 3;
+    private const CHECK_URL      = 'https://getopenmes.com/current-version.php';
+    private const CACHE_KEY      = 'update_check_result';
+    private const CACHE_TTL      = 3600; // 1 hour
+    private const BACKUP_KEEP    = 3;
+    private const CHECKSUM_ALGO  = 'sha256';
 
     /**
      * Check for available updates (returns JSON, cached 1h).
@@ -88,6 +89,13 @@ class UpdateController extends Controller
             @unlink($tempZip);
             Log::error('Update download failed: ' . $e->getMessage());
             return redirect()->back()->with('error', __('Failed to download update: :error', ['error' => $e->getMessage()]));
+        }
+
+        // 1b. Verify checksum (if advertised by release metadata)
+        $checksumError = $this->verifyChecksum($tempZip, $remote);
+        if ($checksumError !== null) {
+            @unlink($tempZip);
+            return redirect()->back()->with('error', $checksumError);
         }
 
         // 2. Extract ZIP
@@ -210,6 +218,55 @@ class UpdateController extends Controller
             'version' => $version,
             'count' => $copyCount,
         ]));
+    }
+
+    /**
+     * Verify the downloaded ZIP against the SHA-256 checksum advertised by the release.
+     *
+     * Looks for the expected hash in two locations on the remote payload:
+     *   - $remote['sha256']                       (top-level)
+     *   - $remote['assets'][0]['sha256']          (per-asset)
+     *
+     * Returns:
+     *   - null              when the file is OK, or when no checksum is advertised
+     *                       (backward-compat: older releases without a hash still update,
+     *                       just with a Log::warning recorded).
+     *   - string (message)  when a checksum is advertised but does not match. Caller is
+     *                       expected to abort the update and flash the message as error.
+     *
+     * No side effects on the file system — caller is responsible for unlinking the ZIP.
+     */
+    private function verifyChecksum(string $zipPath, array $remote): ?string
+    {
+        $expected = $remote['sha256'] ?? ($remote['assets'][0]['sha256'] ?? null);
+        $version  = $remote['version'] ?? 'unknown';
+
+        if (! is_string($expected) || trim($expected) === '') {
+            Log::warning("Update release does not advertise sha256 checksum — integrity check skipped for {$version}");
+            return null;
+        }
+
+        $actual = @hash_file(self::CHECKSUM_ALGO, $zipPath);
+        if ($actual === false) {
+            Log::error('Update checksum verification failed — unable to hash downloaded file', [
+                'version' => $version,
+                'path'    => $zipPath,
+            ]);
+            return __('Update package integrity check failed — file does not match expected checksum. Update aborted.');
+        }
+
+        if (strtolower($actual) !== strtolower(trim($expected))) {
+            Log::error('Update checksum mismatch', [
+                'version'   => $version,
+                'expected'  => strtolower(trim($expected)),
+                'actual'    => strtolower($actual),
+                'algorithm' => self::CHECKSUM_ALGO,
+                'size'      => @filesize($zipPath),
+            ]);
+            return __('Update package integrity check failed — file does not match expected checksum. Update aborted.');
+        }
+
+        return null;
     }
 
     /**
