@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Support\OeeBand;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OeeRecord extends Model
 {
+    use HasFactory;
     use HasTenant;
 
     protected $fillable = [
@@ -64,16 +67,6 @@ class OeeRecord extends Model
 
     public function getOeeColorAttribute(): string
     {
-        if ($this->oee_pct === null) {
-            return 'gray';
-        }
-        if ($this->oee_pct >= 85) {
-            return 'green';
-        }
-        if ($this->oee_pct >= 60) {
-            return 'yellow';
-        }
-
-        return 'red';
+        return OeeBand::colorFor($this->oee_pct !== null ? (float) $this->oee_pct : null);
     }
 }

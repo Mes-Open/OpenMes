@@ -15,7 +15,16 @@
             <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ $line->name }} — OEE</h1>
             <p class="text-gray-600 dark:text-gray-400 mt-1">{{ $dateFrom }} {{ __('to') }} {{ $dateTo }}</p>
         </div>
-        <a href="{{ route('admin.oee.index') }}" class="btn-touch btn-secondary">{{ __('Back to OEE') }}</a>
+        <div class="flex gap-2">
+            <a href="{{ route('admin.oee.print.pdf', ['line_id' => $line->id, 'date_from' => $dateFrom, 'date_to' => $dateTo]) }}"
+               class="btn-touch btn-secondary inline-flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                </svg>
+                {{ __('Download PDF') }}
+            </a>
+            <a href="{{ route('admin.oee.index') }}" class="btn-touch btn-secondary">{{ __('Back to OEE') }}</a>
+        </div>
     </div>
 
     <!-- Downtime by Reason -->
@@ -25,15 +34,20 @@
             <div class="space-y-2">
                 @php $maxMinutes = collect($downtimeByReason)->max('total_minutes') ?: 1; @endphp
                 @foreach($downtimeByReason as $item)
+                    @php
+                        $barColor = match($item['kind_color']) {
+                            'blue'  => 'bg-blue-400',
+                            'amber' => 'bg-amber-400',
+                            default => 'bg-red-400',
+                        };
+                    @endphp
                     <div class="flex items-center gap-3">
                         <div class="w-40 shrink-0">
                             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ $item['reason'] }}</span>
-                            @if($item['is_planned'])
-                                <span class="text-xs text-gray-400 ml-1">({{ __('planned') }})</span>
-                            @endif
+                            <span class="text-xs text-gray-400 ml-1">({{ $item['kind_label'] }})</span>
                         </div>
                         <div class="flex-1 bg-gray-100 dark:bg-slate-700 rounded-full h-5 overflow-hidden">
-                            <div class="h-full rounded-full {{ $item['is_planned'] ? 'bg-blue-400' : 'bg-red-400' }}"
+                            <div class="h-full rounded-full {{ $barColor }}"
                                  style="width: {{ ($item['total_minutes'] / $maxMinutes) * 100 }}%"></div>
                         </div>
                         <div class="w-24 text-right shrink-0">
@@ -78,7 +92,7 @@
                                 <td class="px-3 py-2 text-right">{{ $record->availability_pct !== null ? number_format($record->availability_pct, 1).'%' : '-' }}</td>
                                 <td class="px-3 py-2 text-right">{{ $record->performance_pct !== null ? number_format($record->performance_pct, 1).'%' : '-' }}</td>
                                 <td class="px-3 py-2 text-right">{{ $record->quality_pct !== null ? number_format($record->quality_pct, 1).'%' : '-' }}</td>
-                                <td class="px-3 py-2 text-right font-bold {{ ($record->oee_pct ?? 0) >= 85 ? 'text-green-600' : (($record->oee_pct ?? 0) >= 60 ? 'text-yellow-600' : 'text-red-600') }}">
+                                <td class="px-3 py-2 text-right font-bold {{ \App\Support\OeeBand::textClass($record->oee_pct) }}">
                                     {{ $record->oee_pct !== null ? number_format($record->oee_pct, 1).'%' : '-' }}
                                 </td>
                                 <td class="px-3 py-2 text-right font-mono">{{ number_format($record->total_produced) }}</td>
