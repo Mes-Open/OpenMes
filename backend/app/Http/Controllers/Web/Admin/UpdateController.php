@@ -18,10 +18,18 @@ class UpdateController extends Controller
     private const CACHE_KEY = UpdateApplier::CHECK_CACHE_KEY;
     private const CACHE_TTL = 3600; // 1 hour
 
+    /**
+     * Atomic concurrency guard for the apply flow. TTL matches the Job's
+     * 30-minute timeout so a hard-killed worker can never deadlock the system
+     * indefinitely. See `update:unlock` for manual recovery.
+     */
+    public const APPLY_LOCK_KEY = 'update_apply_lock';
+    public const APPLY_LOCK_TTL = 1800; // 30 min, matches ApplyUpdateJob::$timeout
+
     /** States that mean an update is currently in flight. */
     private const ACTIVE_STATES = [
         'queued', 'downloading', 'verifying', 'extracting',
-        'backing_up', 'copying', 'migrating', 'rolling_back',
+        'backing_up', 'copying', 'installing_dependencies', 'migrating', 'rolling_back',
     ];
 
     /**
@@ -67,34 +75,65 @@ class UpdateController extends Controller
      */
     public function apply(): RedirectResponse
     {
-        // Reject if an update is already in flight (avoid double-dispatch).
-        $current = Cache::get(UpdateApplier::STATUS_CACHE_KEY);
-        if (is_array($current) && in_array($current['state'] ?? null, self::ACTIVE_STATES, true)) {
+        // Atomic race-free guard: only one apply() can hold this lock at a
+        // time. The previous soft-check on STATUS_CACHE_KEY was vulnerable to a
+        // TOCTOU race when two admins clicked the button in the same tick.
+        // The lock is released by the Job (success, failure, or `failed()`
+        // hook) — NOT here. See ApplyUpdateJob::handle()/failed().
+        $lock = Cache::lock(self::APPLY_LOCK_KEY, self::APPLY_LOCK_TTL);
+
+        if (! $lock->get()) {
+            $current = Cache::get(UpdateApplier::STATUS_CACHE_KEY);
             return redirect()->back()->with('error', __(
                 'An update is already in progress (:version, started :time). Refresh to see status.',
                 [
-                    'version' => $current['version'] ?? '?',
-                    'time'    => $current['started_at'] ?? '?',
+                    'version' => is_array($current) ? ($current['version'] ?? '?') : '?',
+                    'time'    => is_array($current) ? ($current['started_at'] ?? '?') : '?',
                 ]
             ));
         }
 
-        // Validate that we still have a remote release in cache.
-        $remote = Cache::get(self::CACHE_KEY);
-        if (! $remote || empty($remote['version'])) {
-            return redirect()->back()->with('error', __(
-                'No update information available. Please check for updates first.'
-            ));
+        try {
+            // Defence-in-depth: if a stale ACTIVE status sits in cache (e.g.
+            // the previous worker died but its lock TTL'd out), refuse to
+            // dispatch and surface the dangling state to the admin.
+            $current = Cache::get(UpdateApplier::STATUS_CACHE_KEY);
+            if (is_array($current) && in_array($current['state'] ?? null, self::ACTIVE_STATES, true)) {
+                $lock->release();
+                return redirect()->back()->with('error', __(
+                    'An update is already in progress (:version, started :time). Refresh to see status.',
+                    [
+                        'version' => $current['version'] ?? '?',
+                        'time'    => $current['started_at'] ?? '?',
+                    ]
+                ));
+            }
+
+            // Validate that we still have a remote release in cache.
+            $remote = Cache::get(self::CACHE_KEY);
+            if (! $remote || empty($remote['version'])) {
+                $lock->release();
+                return redirect()->back()->with('error', __(
+                    'No update information available. Please check for updates first.'
+                ));
+            }
+
+            $version = $remote['version'];
+
+            // Initialise the status cache so the banner can immediately switch
+            // to progress mode after redirect.
+            app(UpdateApplier::class)->initStatus($version, auth()->id() ?? 0);
+
+            ApplyUpdateJob::dispatch($version, $remote, auth()->id() ?? 0);
+        } catch (\Throwable $e) {
+            // If anything between lock acquisition and successful dispatch
+            // blows up, free the lock so we do not strand future admins.
+            $lock->release();
+            throw $e;
         }
 
-        $version = $remote['version'];
-
-        // Initialise the status cache so the banner can immediately switch to
-        // progress mode after redirect.
-        app(UpdateApplier::class)->initStatus($version, auth()->id() ?? 0);
-
-        ApplyUpdateJob::dispatch($version, $remote, auth()->id() ?? 0);
-
+        // NOTE: do NOT release the lock here — the Job owns it now and will
+        // forceRelease() it from handle()/failed() once finalised.
         return redirect()->back()->with('success', __(
             'Update queued — system will install :version in the background. Refresh to see progress.',
             ['version' => $version]
