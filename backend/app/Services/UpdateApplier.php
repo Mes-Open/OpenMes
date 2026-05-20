@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 
 /**
@@ -170,15 +171,34 @@ class UpdateApplier
             return;
         }
 
+        // Detect composer dependency drift BEFORE copying — compare the lock
+        // file shipped by the release against the live one. We capture the
+        // 'old' hash up-front because copyDirectory will overwrite composer.lock.
+        $oldLockPath = $root . '/composer.lock';
+        $newLockPath = $sourceBackend . '/composer.lock';
+        $oldLockHash = file_exists($oldLockPath) ? md5_file($oldLockPath) : null;
+        $newLockHash = file_exists($newLockPath) ? md5_file($newLockPath) : null;
+        $composerChanged = $oldLockHash !== $newLockHash;
+
         $this->setStatus([
             'state'    => 'copying',
             'progress' => 70,
             'message'  => __('Installing new files…'),
         ]);
 
+        $composerWarning = null;
         $copyCount = 0;
         try {
             $copyCount = $this->copyDirectory($sourceBackend, $root, $protected);
+
+            // If composer.lock changed, vendor/ (which is in $protected and
+            // therefore NOT overwritten) is now out of sync with the new lock
+            // file. Run composer install to bring it in line before migrations
+            // — otherwise any new classes referenced by migrate/cache code
+            // will trigger fatal errors.
+            if ($composerChanged) {
+                $composerWarning = $this->runComposerInstall($root);
+            }
 
             $this->setStatus([
                 'state'    => 'migrating',
@@ -261,15 +281,111 @@ class UpdateApplier
         Log::info("System updated to {$version}", ['files_copied' => $copyCount]);
 
         $this->setStatus([
-            'state'        => 'completed',
-            'progress'     => 100,
-            'message'      => __('Updated to :version successfully (:count files updated).', [
+            'state'            => 'completed',
+            'progress'         => 100,
+            'message'          => __('Updated to :version successfully (:count files updated).', [
                 'version' => $version,
                 'count'   => $copyCount,
             ]),
-            'files_copied' => $copyCount,
-            'error'        => null,
+            'files_copied'     => $copyCount,
+            'error'            => null,
+            'composer_warning' => $composerWarning,
         ]);
+    }
+
+    /**
+     * Run `composer install --no-dev` against the freshly-copied codebase to
+     * bring vendor/ in sync with the new composer.lock.
+     *
+     * Returns null on success or when skipped silently (no warning). Returns a
+     * human-readable warning string if no composer binary could be located —
+     * the update is allowed to continue (e.g. on locked-down docker prod
+     * environments without a composer CLI) but the admin gets a warning.
+     *
+     * Throws \RuntimeException on hard composer execution failure so the
+     * caller's existing rollback path picks it up — a release whose
+     * composer install fails is broken and must be reverted.
+     */
+    private function runComposerInstall(string $root): ?string
+    {
+        $this->setStatus([
+            'state'    => 'installing_dependencies',
+            'progress' => 65,
+            'message'  => __('Installing PHP dependencies…'),
+        ]);
+
+        $composerPath = $this->locateComposerBinary($root);
+        if ($composerPath === null) {
+            $warning = 'Composer binary not found on server — vendor/ may be stale; run "composer install --no-dev" manually.';
+            Log::warning('composer binary not found, skipping vendor install — release may have broken dependencies', [
+                'root' => $root,
+            ]);
+            return $warning;
+        }
+
+        // --no-scripts: prevent post-install hooks from clearing caches in the
+        //   middle of the update (we do that ourselves at the end of run()).
+        // --optimize-autoloader: production-grade classmap for performance.
+        // --no-dev: production install only.
+        $result = Process::path($root)
+            ->timeout(600)
+            ->run([
+                $composerPath,
+                'install',
+                '--no-dev',
+                '--no-interaction',
+                '--prefer-dist',
+                '--optimize-autoloader',
+                '--no-scripts',
+            ]);
+
+        if ($result->exitCode() !== 0) {
+            Log::error('composer install failed', [
+                'exit'        => $result->exitCode(),
+                'output'      => $result->output(),
+                'errorOutput' => $result->errorOutput(),
+            ]);
+
+            throw new \RuntimeException('Composer install failed: ' . $result->errorOutput());
+        }
+
+        Log::info('composer install completed', [
+            'binary' => $composerPath,
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Try to locate a composer binary on the host. Returns null if none found.
+     *
+     * Search order:
+     *   1. `which composer` (system PATH)
+     *   2. /usr/local/bin/composer
+     *   3. $root/composer.phar (project-local)
+     */
+    private function locateComposerBinary(string $root): ?string
+    {
+        $which = Process::run(['which', 'composer']);
+        if ($which->exitCode() === 0) {
+            $path = trim($which->output());
+            if ($path !== '' && is_executable($path)) {
+                return $path;
+            }
+        }
+
+        $candidates = [
+            '/usr/local/bin/composer',
+            $root . '/composer.phar',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate) && is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     /**

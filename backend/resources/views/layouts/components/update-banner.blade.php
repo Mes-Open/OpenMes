@@ -211,6 +211,13 @@
                 </div>
                 <div class="text-xs text-white/90 truncate" x-text="status?.message || ''"></div>
 
+                {{-- Composer warning: surfaced on completed when vendor/ couldn't be refreshed --}}
+                <template x-if="status?.state === 'completed' && status?.composer_warning">
+                    <div class="mt-1 text-amber-200 text-xs">
+                        &#9888; Composer not found on server: vendor/ may be stale, run 'composer install --no-dev' manually.
+                    </div>
+                </template>
+
                 {{-- Progress bar while running --}}
                 <template x-if="ACTIVE_STATES.includes(status?.state)">
                     <div class="mt-1 h-1.5 bg-white/20 rounded overflow-hidden">
