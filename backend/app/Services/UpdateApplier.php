@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Self-update applier.
@@ -23,8 +24,9 @@ class UpdateApplier
     public const STATUS_CACHE_TTL = 86400; // 24h
     public const CHECK_CACHE_KEY  = 'update_check_result';
 
-    private const BACKUP_KEEP   = 3;
-    private const CHECKSUM_ALGO = 'sha256';
+    private const BACKUP_KEEP            = 3;
+    private const CHECKSUM_ALGO          = 'sha256';
+    private const MAINTENANCE_SECRET_KEY = 'update_maintenance_secret';
 
     /**
      * Run the full update flow.
@@ -153,6 +155,21 @@ class UpdateApplier
         }
 
         // 5. Copy + migrate (atomic — rollback on failure)
+        // Enter maintenance mode so end-users do not hit a half-copied app
+        // while files are being swapped in and migrations are being applied.
+        try {
+            $this->enterMaintenance();
+        } catch (\Throwable $e) {
+            Log::error('Failed to enter maintenance mode, aborting update', [
+                'version' => $version,
+                'error'   => $e->getMessage(),
+            ]);
+            $this->deleteDirectory($tempDir);
+            $this->deleteDirectory($backupDir);
+            $this->fail(__('Failed to enter maintenance mode before update: :error', ['error' => $e->getMessage()]));
+            return;
+        }
+
         $this->setStatus([
             'state'    => 'copying',
             'progress' => 70,
@@ -170,6 +187,10 @@ class UpdateApplier
             ]);
 
             Artisan::call('migrate', ['--force' => true]);
+
+            // Files + DB are now consistent — let end-users back in before
+            // cache-clear (which is safe to run with traffic flowing).
+            $this->exitMaintenance();
         } catch (\Throwable $e) {
             Log::error('Update failed, rolling back', [
                 'version' => $version,
@@ -182,7 +203,14 @@ class UpdateApplier
                 'error'   => $e->getMessage(),
             ]);
 
-            $this->restoreBackup($backupDir, $manifest, $root);
+            try {
+                $this->restoreBackup($backupDir, $manifest, $root);
+            } finally {
+                // Always exit maintenance after rollback — even if restore
+                // partially failed, leaving the app stuck in 'down' is worse
+                // than serving the (possibly inconsistent) restored state.
+                $this->exitMaintenance();
+            }
 
             try {
                 Artisan::call('config:clear');
@@ -270,11 +298,17 @@ class UpdateApplier
      */
     private function fail(string $message): void
     {
+        // Defensive: drop any maintenance bypass secret left over from a
+        // partially-started run so it cannot leak across update attempts.
+        Cache::forget(self::MAINTENANCE_SECRET_KEY);
+
         $this->setStatus([
-            'state'    => 'failed',
-            'progress' => 100,
-            'message'  => $message,
-            'error'    => $message,
+            'state'                  => 'failed',
+            'progress'               => 100,
+            'message'                => $message,
+            'error'                  => $message,
+            'maintenance_active'     => false,
+            'maintenance_bypass_url' => null,
         ]);
     }
 
@@ -289,6 +323,73 @@ class UpdateApplier
         ]);
 
         Cache::put(self::STATUS_CACHE_KEY, $merged, self::STATUS_CACHE_TTL);
+    }
+
+    /**
+     * Return the one-shot maintenance bypass secret for this update run,
+     * generating + caching it on first call.
+     */
+    private function maintenanceSecret(): string
+    {
+        return Cache::remember(
+            self::MAINTENANCE_SECRET_KEY,
+            self::STATUS_CACHE_TTL,
+            static fn (): string => Str::random(32)
+        );
+    }
+
+    /**
+     * Put Laravel into maintenance mode for the critical copy + migrate
+     * window. Publishes the bypass URL into the status cache so the admin
+     * banner can surface it.
+     */
+    private function enterMaintenance(): void
+    {
+        $secret = $this->maintenanceSecret();
+
+        // `--render` intentionally omitted: resources/views/errors/503.blade.php
+        // is not present in this repo, so Laravel's default maintenance screen
+        // will be served instead.
+        Artisan::call('down', [
+            '--retry'  => 60,
+            '--secret' => $secret,
+        ]);
+
+        $bypassUrl = rtrim(url('/'), '/') . '/' . $secret;
+
+        $this->setStatus([
+            'maintenance_active'      => true,
+            'maintenance_bypass_url'  => $bypassUrl,
+        ]);
+
+        Log::info('Update entered maintenance mode', [
+            'at' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Lift maintenance mode and clear the bypass advertisement from status.
+     * Safe to call multiple times — `artisan up` is a no-op when already up.
+     */
+    private function exitMaintenance(): void
+    {
+        try {
+            Artisan::call('up');
+        } catch (\Throwable $e) {
+            Log::error('Failed to exit maintenance mode: ' . $e->getMessage());
+            // Do not rethrow — leaving the system 'down' is worse than logging.
+        }
+
+        Cache::forget(self::MAINTENANCE_SECRET_KEY);
+
+        $this->setStatus([
+            'maintenance_active'     => false,
+            'maintenance_bypass_url' => null,
+        ]);
+
+        Log::info('Update exited maintenance mode', [
+            'at' => now()->toIso8601String(),
+        ]);
     }
 
     /**

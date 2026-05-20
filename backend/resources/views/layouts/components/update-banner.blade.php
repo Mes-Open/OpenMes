@@ -218,6 +218,19 @@
                              :style="'width:' + Math.max(2, Math.min(100, status?.progress || 0)) + '%'"></div>
                     </div>
                 </template>
+
+                {{-- Maintenance bypass: surfaced while the app is locked down --}}
+                <template x-if="status?.maintenance_active === true && status?.maintenance_bypass_url">
+                    <div class="mt-1 text-xs text-white/90">
+                        <a x-bind:href="status.maintenance_bypass_url" target="_blank" rel="noopener"
+                           class="underline hover:text-white font-medium">
+                            Bypass maintenance
+                        </a>
+                        <span class="text-white/70 ml-1">
+                            Visit this URL in another tab to keep using the system as Admin during the update.
+                        </span>
+                    </div>
+                </template>
             </div>
 
             {{-- Reload button on completed --}}
