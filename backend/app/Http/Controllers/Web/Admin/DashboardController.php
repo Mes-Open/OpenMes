@@ -84,9 +84,33 @@ class DashboardController extends Controller
             ->pluck('widget_id')
             ->toArray();
 
+        // Inbound QC widget data — computed only when the widget is enabled to
+        // avoid extra queries on dashboards where the user has hidden it.
+        $inboundQcStats = null;
+        if (in_array('inbound_qc_overview', $enabledWidgets, true)) {
+            $since = now()->subDays(29)->startOfDay(); // inclusive 30-day window
+            $base = \App\Models\Inspection::where('started_at', '>=', $since);
+            $completed = (clone $base)->whereIn('status', ['pass', 'fail', 'conditional_pass'])->count();
+            $passed = (clone $base)->where('status', 'pass')->count();
+
+            $inboundQcStats = [
+                'pending' => \App\Models\Inspection::where('status', 'pending')->count(),
+                'completed_30d' => $completed,
+                'failed_30d' => (clone $base)->where('status', 'fail')->count(),
+                'conditional_30d' => (clone $base)->where('status', 'conditional_pass')->count(),
+                'pass_rate_30d' => $completed > 0 ? round(($passed / $completed) * 100, 1) : null,
+                'recent_failures' => \App\Models\Inspection::with('material')
+                    ->where('status', 'fail')
+                    ->orderByDesc('completed_at')
+                    ->limit(3)
+                    ->get(),
+            ];
+        }
+
         return view('admin.dashboard', compact(
             'stats', 'recentWorkOrders', 'recentIssues',
-            'lines', 'selectedLineId', 'oeeRecords', 'enabledWidgets', 'widgetOrder'
+            'lines', 'selectedLineId', 'oeeRecords', 'enabledWidgets', 'widgetOrder',
+            'inboundQcStats'
         ));
     }
 }
