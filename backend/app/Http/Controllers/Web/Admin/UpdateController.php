@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\ApplyUpdateJob;
+use App\Models\SystemUpdate;
 use App\Services\UpdateApplier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -112,5 +113,38 @@ class UpdateController extends Controller
         }
 
         return response()->json($status);
+    }
+
+    /**
+     * JSON list of the most recent update runs for the admin audit view.
+     * Includes the triggering user so the UI can render "applied by X on Y".
+     */
+    public function history(): JsonResponse
+    {
+        $updates = SystemUpdate::with('user:id,name,email')
+            ->orderByDesc('started_at')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get()
+            ->map(fn (SystemUpdate $u) => [
+                'id'                   => $u->id,
+                'from_version'         => $u->from_version,
+                'to_version'           => $u->to_version,
+                'state'                => $u->state,
+                'started_at'           => $u->started_at?->toIso8601String(),
+                'finished_at'          => $u->finished_at?->toIso8601String(),
+                'duration_seconds'     => $u->duration_seconds,
+                'files_copied'         => $u->files_copied,
+                'error'                => $u->error,
+                'composer_install_ran' => $u->composer_install_ran,
+                'checksum_verified'    => $u->checksum_verified,
+                'user'                 => $u->user ? [
+                    'id'    => $u->user->id,
+                    'name'  => $u->user->name,
+                    'email' => $u->user->email,
+                ] : null,
+            ]);
+
+        return response()->json(['updates' => $updates]);
     }
 }

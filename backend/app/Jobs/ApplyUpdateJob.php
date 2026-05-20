@@ -99,5 +99,13 @@ class ApplyUpdateJob implements ShouldQueue
             ]),
             UpdateApplier::STATUS_CACHE_TTL
         );
+
+        // Close out the audit row that `UpdateApplier::run()` couldn't reach
+        // (e.g. fatal in the worker, deserialization error, OOM).
+        try {
+            app(UpdateApplier::class)->markPendingAuditFailed($this->version, $message);
+        } catch (\Throwable $auditErr) {
+            Log::warning('ApplyUpdateJob::failed audit patch swallowed: ' . $auditErr->getMessage());
+        }
     }
 }
