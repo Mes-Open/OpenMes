@@ -200,6 +200,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/update/check', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'check'])->name('update.check');
         Route::post('/update/apply', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'apply'])->name('update.apply');
         Route::get('/update/status', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'status'])->name('update.status');
+        Route::get('/update/history', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'history'])->name('update.history');
 
         // Schedule (planner is the main view)
         Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
