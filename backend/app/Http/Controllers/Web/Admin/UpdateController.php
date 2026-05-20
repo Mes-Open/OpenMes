@@ -15,6 +15,7 @@ class UpdateController extends Controller
     private const CHECK_URL    = 'https://getopenmes.com/current-version.php';
     private const CACHE_KEY    = 'update_check_result';
     private const CACHE_TTL    = 3600; // 1 hour
+    private const BACKUP_KEEP  = 3;
 
     /**
      * Check for available updates (returns JSON, cached 1h).
@@ -35,7 +36,7 @@ class UpdateController extends Controller
             return null;
         });
 
-        if (!$remote) {
+        if (! $remote) {
             return response()->json(['available' => false, 'current' => $current]);
         }
 
@@ -55,6 +56,8 @@ class UpdateController extends Controller
     /**
      * Apply the update: download ZIP from GitHub, extract, overwrite files.
      * Works on all environments: XAMPP, Docker, bare metal, Apache2.
+     *
+     * On any failure during copy or migrate, restores files from snapshot.
      */
     public function apply(): RedirectResponse
     {
@@ -115,27 +118,91 @@ class UpdateController extends Controller
             return redirect()->back()->with('error', __('Invalid update package structure.'));
         }
 
-        // 4. Copy files, preserving protected paths
         $protected = ['storage', 'bootstrap/cache', '.env', 'vendor', 'node_modules'];
-        $copyCount = $this->copyDirectory($sourceBackend, $root, $protected);
 
-        // 5. Cleanup temp
-        $this->deleteDirectory($tempDir);
+        // 4. Create snapshot of files about to be overwritten/created
+        $timestamp = date('Ymd-His');
+        $backupDir = storage_path("app/update-backups/{$timestamp}-{$version}");
 
-        // 6. Run migrations + clear caches
         try {
-            Artisan::call('migrate', ['--force' => true]);
+            if (! is_dir($backupDir)) {
+                @mkdir($backupDir, 0755, true);
+            }
+
+            $manifest = $this->createBackup($sourceBackend, $root, $protected, $backupDir);
+
+            // Persist manifest to disk for diagnostics / future manual recovery
+            @file_put_contents(
+                $backupDir . '/manifest.json',
+                json_encode([
+                    'version'   => $version,
+                    'timestamp' => $timestamp,
+                    'modified'  => $manifest['modified'],
+                    'created'   => $manifest['created'],
+                ], JSON_PRETTY_PRINT)
+            );
+
+            Log::info("Update backup created at {$backupDir}", [
+                'version'         => $version,
+                'modified_count'  => count($manifest['modified']),
+                'created_count'   => count($manifest['created']),
+            ]);
         } catch (\Throwable $e) {
-            Log::warning('Post-update migration failed: ' . $e->getMessage());
+            Log::error('Update backup failed: ' . $e->getMessage());
+            $this->deleteDirectory($tempDir);
+            $this->deleteDirectory($backupDir);
+            return redirect()->back()->with('error', __('Failed to create backup before update: :error', ['error' => $e->getMessage()]));
         }
 
+        // 5. Copy + migrate as one atomic unit; rollback on any failure
+        $copyCount = 0;
+        try {
+            $copyCount = $this->copyDirectory($sourceBackend, $root, $protected);
+            Artisan::call('migrate', ['--force' => true]);
+        } catch (\Throwable $e) {
+            Log::error('Update failed, rolling back', [
+                'version' => $version,
+                'error'   => $e->getMessage(),
+            ]);
+
+            $this->restoreBackup($backupDir, $manifest, $root);
+
+            // Best-effort cache flush so any half-applied bytecode/config is gone
+            try {
+                Artisan::call('config:clear');
+                Artisan::call('route:clear');
+                Artisan::call('view:clear');
+                Artisan::call('cache:clear');
+            } catch (\Throwable $clearErr) {
+                Log::warning('Post-rollback cache clear failed: ' . $clearErr->getMessage());
+            }
+
+            $this->deleteDirectory($tempDir);
+
+            Log::error('Update failed, rolled back to previous version', [
+                'version'    => $version,
+                'backup_dir' => $backupDir,
+            ]);
+
+            return redirect()->back()->with('error', __('Update failed and was rolled back: :error', [
+                'error' => $e->getMessage(),
+            ]));
+        }
+
+        // 6. Cleanup temp ZIP/dir
+        $this->deleteDirectory($tempDir);
+
+        // 7. Clear caches
         Artisan::call('config:clear');
         Artisan::call('route:clear');
         Artisan::call('view:clear');
         Artisan::call('cache:clear');
 
-        // 7. Invalidate update check cache
+        // 8. Invalidate update check cache
         Cache::forget(self::CACHE_KEY);
+
+        // 9. Keep last N backups
+        $this->pruneBackups(self::BACKUP_KEEP);
 
         Log::info("System updated to {$version}", ['files_copied' => $copyCount]);
 
@@ -146,6 +213,133 @@ class UpdateController extends Controller
     }
 
     /**
+     * Walk $source like copyDirectory would, but instead of copying:
+     *   - if destination file exists, copy it into $backupDir preserving relative path
+     *   - if destination file does NOT exist, record it as "created" (to be deleted on rollback)
+     *
+     * Returns manifest with relative paths: ['modified' => [...], 'created' => [...]].
+     */
+    private function createBackup(string $source, string $dest, array $protected, string $backupDir, string $relPath = ''): array
+    {
+        $manifest = ['modified' => [], 'created' => []];
+
+        $items = @scandir($source);
+        if ($items === false) {
+            return $manifest;
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $currentRel = $relPath ? $relPath . '/' . $item : $item;
+
+            if (in_array($currentRel, $protected, true)) {
+                continue;
+            }
+
+            $srcPath = $source . '/' . $item;
+            $dstPath = $dest . '/' . $item;
+
+            if (is_dir($srcPath)) {
+                $sub = $this->createBackup($srcPath, $dstPath, $protected, $backupDir, $currentRel);
+                $manifest['modified'] = array_merge($manifest['modified'], $sub['modified']);
+                $manifest['created']  = array_merge($manifest['created'], $sub['created']);
+                continue;
+            }
+
+            if (file_exists($dstPath)) {
+                $backupPath = $backupDir . '/files/' . $currentRel;
+                $backupParent = dirname($backupPath);
+                if (! is_dir($backupParent)) {
+                    @mkdir($backupParent, 0755, true);
+                }
+
+                if (! @copy($dstPath, $backupPath)) {
+                    throw new \RuntimeException("Failed to snapshot file: {$currentRel}");
+                }
+
+                $manifest['modified'][] = $currentRel;
+            } else {
+                $manifest['created'][] = $currentRel;
+            }
+        }
+
+        return $manifest;
+    }
+
+    /**
+     * Restore files from a backup manifest:
+     *   - copy each "modified" file back from $backupDir/files/{rel} to $root/{rel}
+     *   - delete each "created" file from $root/{rel} (and prune empty dirs we just made)
+     */
+    private function restoreBackup(string $backupDir, array $manifest, string $root): void
+    {
+        $filesDir = $backupDir . '/files';
+
+        foreach ($manifest['modified'] ?? [] as $rel) {
+            $src = $filesDir . '/' . $rel;
+            $dst = $root . '/' . $rel;
+
+            if (! file_exists($src)) {
+                Log::warning("Rollback: missing backup file {$rel}");
+                continue;
+            }
+
+            $dstParent = dirname($dst);
+            if (! is_dir($dstParent)) {
+                @mkdir($dstParent, 0755, true);
+            }
+
+            if (! @copy($src, $dst)) {
+                Log::warning("Rollback: failed to restore {$rel}");
+            }
+        }
+
+        foreach ($manifest['created'] ?? [] as $rel) {
+            $path = $root . '/' . $rel;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
+    /**
+     * Keep the N most recent backup directories, delete older ones.
+     */
+    private function pruneBackups(int $keep = 3): void
+    {
+        $base = storage_path('app/update-backups');
+        if (! is_dir($base)) {
+            return;
+        }
+
+        $entries = @scandir($base);
+        if ($entries === false) {
+            return;
+        }
+
+        $dirs = [];
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $path = $base . '/' . $entry;
+            if (is_dir($path)) {
+                $dirs[$path] = @filemtime($path) ?: 0;
+            }
+        }
+
+        arsort($dirs);
+        $stale = array_slice(array_keys($dirs), $keep);
+
+        foreach ($stale as $path) {
+            $this->deleteDirectory($path);
+        }
+    }
+
+    /**
      * Recursively copy directory, skipping protected paths.
      */
     private function copyDirectory(string $source, string $dest, array $protected, string $relPath = ''): int
@@ -153,7 +347,9 @@ class UpdateController extends Controller
         $count = 0;
 
         if (! is_dir($dest)) {
-            @mkdir($dest, 0755, true);
+            if (! @mkdir($dest, 0755, true) && ! is_dir($dest)) {
+                throw new \RuntimeException("Failed to create directory: {$dest}");
+            }
         }
 
         $items = @scandir($source);
@@ -169,7 +365,7 @@ class UpdateController extends Controller
             $currentRel = $relPath ? $relPath . '/' . $item : $item;
 
             // Skip protected paths
-            if (in_array($currentRel, $protected)) {
+            if (in_array($currentRel, $protected, true)) {
                 continue;
             }
 
@@ -179,9 +375,10 @@ class UpdateController extends Controller
             if (is_dir($srcPath)) {
                 $count += $this->copyDirectory($srcPath, $dstPath, $protected, $currentRel);
             } else {
-                if (@copy($srcPath, $dstPath)) {
-                    $count++;
+                if (! @copy($srcPath, $dstPath)) {
+                    throw new \RuntimeException("Failed to copy file: {$currentRel}");
                 }
+                $count++;
             }
         }
 
