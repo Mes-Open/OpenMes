@@ -3,6 +3,7 @@
 namespace Tests\Feature\Web\Admin;
 
 use App\Jobs\ApplyUpdateJob;
+use App\Models\SystemUpdate;
 use App\Models\User;
 use App\Services\UpdateApplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -181,6 +182,56 @@ class UpdateControllerTest extends TestCase
     public function test_apply_requires_admin_role(): void
     {
         $response = $this->actingAs($this->operator)->post('/admin/update/apply');
+
+        $response->assertStatus(403);
+    }
+
+    // ── history() ────────────────────────────────────────────────────────────
+
+    public function test_history_returns_recent_updates_with_user(): void
+    {
+        $completed = SystemUpdate::create([
+            'user_id'              => $this->admin->id,
+            'from_version'         => 'v1.0.0',
+            'to_version'           => 'v1.1.0',
+            'state'                => SystemUpdate::STATE_COMPLETED,
+            'started_at'           => now()->subMinutes(5),
+            'finished_at'          => now()->subMinutes(4),
+            'duration_seconds'     => 60,
+            'files_copied'         => 42,
+            'composer_install_ran' => true,
+            'checksum_verified'    => true,
+        ]);
+
+        $failed = SystemUpdate::create([
+            'user_id'      => $this->admin->id,
+            'from_version' => 'v1.1.0',
+            'to_version'   => 'v1.2.0',
+            'state'        => SystemUpdate::STATE_FAILED,
+            'started_at'   => now()->subMinute(),
+            'finished_at'  => now(),
+            'error'        => 'boom',
+        ]);
+
+        $response = $this->actingAs($this->admin)->getJson('/admin/update/history');
+
+        $response->assertOk();
+        $payload = $response->json('updates');
+        $this->assertCount(2, $payload);
+        // Most recent first (started_at desc).
+        $this->assertSame($failed->id, $payload[0]['id']);
+        $this->assertSame('failed', $payload[0]['state']);
+        $this->assertSame('boom', $payload[0]['error']);
+        $this->assertSame($this->admin->id, $payload[0]['user']['id']);
+        $this->assertSame($completed->id, $payload[1]['id']);
+        $this->assertSame('completed', $payload[1]['state']);
+        $this->assertSame(42, $payload[1]['files_copied']);
+        $this->assertTrue($payload[1]['checksum_verified']);
+    }
+
+    public function test_history_requires_admin_role(): void
+    {
+        $response = $this->actingAs($this->operator)->get('/admin/update/history');
 
         $response->assertStatus(403);
     }

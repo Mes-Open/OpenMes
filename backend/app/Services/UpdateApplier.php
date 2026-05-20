@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\SystemUpdate;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -43,6 +44,11 @@ class UpdateApplier
         $tempZip = storage_path("app/update-{$version}.zip");
         $tempDir = storage_path("app/update-{$version}");
 
+        // 0. Open audit record. A failure to persist must NOT abort the update
+        //    — admins still get cache + log telemetry, and the table is a
+        //    convenience, not a precondition.
+        $auditRecord = $this->openAuditRecord($version, $userId);
+
         // 1. Download
         $this->setStatus([
             'state'    => 'downloading',
@@ -55,13 +61,25 @@ class UpdateApplier
 
             if (! $response->ok() || ! file_exists($tempZip) || filesize($tempZip) < 1000) {
                 @unlink($tempZip);
-                $this->fail(__('Failed to download update package. Check server internet connection.'));
+                $msg = __('Failed to download update package. Check server internet connection.');
+                $this->patchAuditRecord($auditRecord, [
+                    'state'       => SystemUpdate::STATE_FAILED,
+                    'finished_at' => now(),
+                    'error'       => (string) $msg,
+                ]);
+                $this->fail($msg);
                 return;
             }
         } catch (\Throwable $e) {
             @unlink($tempZip);
             Log::error('Update download failed: ' . $e->getMessage());
-            $this->fail(__('Failed to download update: :error', ['error' => $e->getMessage()]));
+            $msg = __('Failed to download update: :error', ['error' => $e->getMessage()]);
+            $this->patchAuditRecord($auditRecord, [
+                'state'       => SystemUpdate::STATE_FAILED,
+                'finished_at' => now(),
+                'error'       => $e->getMessage(),
+            ]);
+            $this->fail($msg);
             return;
         }
 
@@ -72,11 +90,20 @@ class UpdateApplier
             'message'  => __('Verifying integrity…'),
         ]);
 
-        $checksumError = $this->verifyChecksum($tempZip, $remote);
-        if ($checksumError !== null) {
+        $checksumResult = $this->verifyChecksumDetailed($tempZip, $remote);
+        if ($checksumResult['error'] !== null) {
             @unlink($tempZip);
-            $this->fail($checksumError);
+            $this->patchAuditRecord($auditRecord, [
+                'state'       => SystemUpdate::STATE_FAILED,
+                'finished_at' => now(),
+                'error'       => $checksumResult['error'],
+            ]);
+            $this->fail($checksumResult['error']);
             return;
+        }
+
+        if ($checksumResult['verified']) {
+            $this->patchAuditRecord($auditRecord, ['checksum_verified' => true]);
         }
 
         // 2. Extract
@@ -89,7 +116,13 @@ class UpdateApplier
         $zip = new \ZipArchive();
         if ($zip->open($tempZip) !== true) {
             @unlink($tempZip);
-            $this->fail(__('Failed to open update package.'));
+            $msg = __('Failed to open update package.');
+            $this->patchAuditRecord($auditRecord, [
+                'state'       => SystemUpdate::STATE_FAILED,
+                'finished_at' => now(),
+                'error'       => (string) $msg,
+            ]);
+            $this->fail($msg);
             return;
         }
 
@@ -108,7 +141,13 @@ class UpdateApplier
 
         if (! is_dir($sourceBackend)) {
             $this->deleteDirectory($tempDir);
-            $this->fail(__('Invalid update package structure.'));
+            $msg = __('Invalid update package structure.');
+            $this->patchAuditRecord($auditRecord, [
+                'state'       => SystemUpdate::STATE_FAILED,
+                'finished_at' => now(),
+                'error'       => (string) $msg,
+            ]);
+            $this->fail($msg);
             return;
         }
 
@@ -151,6 +190,11 @@ class UpdateApplier
             Log::error('Update backup failed: ' . $e->getMessage());
             $this->deleteDirectory($tempDir);
             $this->deleteDirectory($backupDir);
+            $this->patchAuditRecord($auditRecord, [
+                'state'       => SystemUpdate::STATE_FAILED,
+                'finished_at' => now(),
+                'error'       => $e->getMessage(),
+            ]);
             $this->fail(__('Failed to create backup before update: :error', ['error' => $e->getMessage()]));
             return;
         }
@@ -167,6 +211,11 @@ class UpdateApplier
             ]);
             $this->deleteDirectory($tempDir);
             $this->deleteDirectory($backupDir);
+            $this->patchAuditRecord($auditRecord, [
+                'state'       => SystemUpdate::STATE_FAILED,
+                'finished_at' => now(),
+                'error'       => $e->getMessage(),
+            ]);
             $this->fail(__('Failed to enter maintenance mode before update: :error', ['error' => $e->getMessage()]));
             return;
         }
@@ -198,6 +247,12 @@ class UpdateApplier
             // will trigger fatal errors.
             if ($composerChanged) {
                 $composerWarning = $this->runComposerInstall($root);
+                // Stamp only when composer actually executed (no warning means
+                // the binary ran and returned 0). A warning here means the
+                // binary was missing — vendor/ stayed untouched.
+                if ($composerWarning === null) {
+                    $this->patchAuditRecord($auditRecord, ['composer_install_ran' => true]);
+                }
             }
 
             $this->setStatus([
@@ -254,6 +309,12 @@ class UpdateApplier
                 'message'  => __('Update failed and was rolled back: :error', ['error' => $e->getMessage()]),
                 'error'    => $e->getMessage(),
             ]);
+
+            $this->patchAuditRecord($auditRecord, [
+                'state'       => SystemUpdate::STATE_ROLLED_BACK,
+                'finished_at' => now(),
+                'error'       => $e->getMessage(),
+            ]);
             return;
         }
 
@@ -279,6 +340,12 @@ class UpdateApplier
         $this->pruneBackups(self::BACKUP_KEEP);
 
         Log::info("System updated to {$version}", ['files_copied' => $copyCount]);
+
+        $this->patchAuditRecord($auditRecord, [
+            'state'        => SystemUpdate::STATE_COMPLETED,
+            'finished_at'  => now(),
+            'files_copied' => $copyCount,
+        ]);
 
         $this->setStatus([
             'state'            => 'completed',
@@ -386,6 +453,98 @@ class UpdateApplier
         }
 
         return null;
+    }
+
+    /**
+     * Open the persistent audit row for this run. Returns null on storage
+     * failure (e.g. DB locked, table missing on a brand-new install before
+     * migrations) — the rest of the flow must tolerate a null record so an
+     * audit-side problem does not break the update itself.
+     */
+    private function openAuditRecord(string $version, int $userId): ?SystemUpdate
+    {
+        try {
+            return SystemUpdate::create([
+                'user_id'              => $userId > 0 ? $userId : null,
+                'from_version'         => config('version.current'),
+                'to_version'           => $version,
+                'state'                => SystemUpdate::STATE_QUEUED,
+                'started_at'           => now(),
+                'checksum_verified'    => false,
+                'composer_install_ran' => false,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to open system_updates audit row: ' . $e->getMessage(), [
+                'version' => $version,
+                'user_id' => $userId,
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Patch the audit row. Audit failures are swallowed — same rationale as
+     * `openAuditRecord()`: telemetry is best-effort and must not break updates.
+     */
+    private function patchAuditRecord(?SystemUpdate $record, array $changes): void
+    {
+        if ($record === null) {
+            return;
+        }
+
+        try {
+            // Compute duration_seconds whenever we are reaching a terminal
+            // state and the caller has not explicitly provided one.
+            if (
+                ! array_key_exists('duration_seconds', $changes)
+                && isset($changes['state'])
+                && in_array($changes['state'], [
+                    SystemUpdate::STATE_COMPLETED,
+                    SystemUpdate::STATE_FAILED,
+                    SystemUpdate::STATE_ROLLED_BACK,
+                ], true)
+                && $record->started_at !== null
+            ) {
+                $changes['finished_at']      = $changes['finished_at'] ?? now();
+                $changes['duration_seconds'] = max(
+                    0,
+                    $changes['finished_at']->diffInSeconds($record->started_at)
+                );
+            }
+
+            $record->update($changes);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to patch system_updates audit row: ' . $e->getMessage(), [
+                'changes' => array_keys($changes),
+            ]);
+        }
+    }
+
+    /**
+     * Mark the most recent queued audit row for the given target version as
+     * failed. Used by `ApplyUpdateJob::failed()` when the job blew up before
+     * `run()` could record a terminal state itself.
+     */
+    public function markPendingAuditFailed(string $version, string $error): void
+    {
+        try {
+            $record = SystemUpdate::where('to_version', $version)
+                ->where('state', SystemUpdate::STATE_QUEUED)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($record === null) {
+                return;
+            }
+
+            $this->patchAuditRecord($record, [
+                'state'       => SystemUpdate::STATE_FAILED,
+                'finished_at' => now(),
+                'error'       => $error,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('markPendingAuditFailed swallowed: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -506,6 +665,27 @@ class UpdateApplier
         Log::info('Update exited maintenance mode', [
             'at' => now()->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Same as `verifyChecksum()` but also reports whether the release actually
+     * advertised a hash that we successfully matched. Used by `run()` to set
+     * the `checksum_verified` audit flag — `false` means the release shipped
+     * without a hash (we still proceed), `true` means we actually verified.
+     *
+     * Returns ['error' => ?string, 'verified' => bool].
+     */
+    private function verifyChecksumDetailed(string $zipPath, array $remote): array
+    {
+        $expected = $remote['sha256'] ?? ($remote['assets'][0]['sha256'] ?? null);
+        $advertised = is_string($expected) && trim($expected) !== '';
+
+        $error = $this->verifyChecksum($zipPath, $remote);
+
+        return [
+            'error'    => $error,
+            'verified' => $advertised && $error === null,
+        ];
     }
 
     /**
