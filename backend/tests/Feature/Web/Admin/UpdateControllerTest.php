@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Web\Admin;
 
+use App\Http\Controllers\Web\Admin\UpdateController;
 use App\Jobs\ApplyUpdateJob;
 use App\Models\SystemUpdate;
 use App\Models\User;
@@ -141,6 +142,66 @@ class UpdateControllerTest extends TestCase
             'already in progress',
             session('error') ?? ''
         );
+    }
+
+    public function test_apply_concurrent_second_call_does_not_redispatch_job(): void
+    {
+        Bus::fake();
+
+        Cache::put(UpdateApplier::CHECK_CACHE_KEY, [
+            'version' => 'v9.0.0',
+            'zip_url' => 'https://example.com/openmes-v9.0.0.zip',
+        ], 60);
+
+        // First click acquires the lock and dispatches the Job (Bus is faked,
+        // so it never actually runs and never releases the lock).
+        $first = $this->actingAs($this->admin)
+            ->from('/admin/dashboard')
+            ->post('/admin/update/apply');
+
+        $first->assertRedirect('/admin/dashboard');
+        Bus::assertDispatchedTimes(ApplyUpdateJob::class, 1);
+        $this->assertStringContainsString('queued', session('success') ?? '');
+
+        // Second click — fired while the first Job still "holds" the lock —
+        // must be rejected, NOT dispatched again. This is the race the
+        // concurrency guard exists to defeat.
+        $second = $this->actingAs($this->admin)
+            ->from('/admin/dashboard')
+            ->post('/admin/update/apply');
+
+        $second->assertRedirect('/admin/dashboard');
+        Bus::assertDispatchedTimes(ApplyUpdateJob::class, 1);
+        $this->assertStringContainsString(
+            'already in progress',
+            session('error') ?? ''
+        );
+    }
+
+    public function test_apply_releases_lock_after_job_finishes(): void
+    {
+        // Acquire the lock as if a Job was in flight.
+        Cache::lock(UpdateController::APPLY_LOCK_KEY, UpdateController::APPLY_LOCK_TTL)->get();
+
+        // Job tear-down (handle() finally + failed()) always force-releases —
+        // verify that after force-release a new apply() succeeds without
+        // needing to wait for the TTL.
+        Cache::lock(UpdateController::APPLY_LOCK_KEY)->forceRelease();
+
+        Bus::fake();
+
+        Cache::put(UpdateApplier::CHECK_CACHE_KEY, [
+            'version' => 'v9.0.1',
+            'zip_url' => 'https://example.com/openmes-v9.0.1.zip',
+        ], 60);
+
+        $response = $this->actingAs($this->admin)
+            ->from('/admin/dashboard')
+            ->post('/admin/update/apply');
+
+        $response->assertRedirect('/admin/dashboard');
+        Bus::assertDispatched(ApplyUpdateJob::class);
+        $this->assertStringContainsString('queued', session('success') ?? '');
     }
 
     // ── status() ─────────────────────────────────────────────────────────────

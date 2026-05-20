@@ -19,6 +19,7 @@ namespace App\Jobs;
  *     (or run a long-lived Horizon / supervisor / docker-compose `queue` service)
  */
 
+use App\Http\Controllers\Web\Admin\UpdateController;
 use App\Services\UpdateApplier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,28 +49,37 @@ class ApplyUpdateJob implements ShouldQueue
     public function handle(UpdateApplier $applier): void
     {
         try {
-            $applier->run($this->version, $this->remote, $this->startedByUserId);
-        } catch (\Throwable $e) {
-            Log::error('ApplyUpdateJob crashed: ' . $e->getMessage(), [
-                'version' => $this->version,
-                'trace'   => $e->getTraceAsString(),
-            ]);
+            try {
+                $applier->run($this->version, $this->remote, $this->startedByUserId);
+            } catch (\Throwable $e) {
+                Log::error('ApplyUpdateJob crashed: ' . $e->getMessage(), [
+                    'version' => $this->version,
+                    'trace'   => $e->getTraceAsString(),
+                ]);
 
-            // Mark cache as failed so the banner stops polling.
-            $existing = Cache::get(UpdateApplier::STATUS_CACHE_KEY) ?? [];
-            Cache::put(
-                UpdateApplier::STATUS_CACHE_KEY,
-                array_merge($existing, [
-                    'state'      => 'failed',
-                    'progress'   => 100,
-                    'message'    => $e->getMessage(),
-                    'error'      => $e->getMessage(),
-                    'updated_at' => now()->toIso8601String(),
-                ]),
-                UpdateApplier::STATUS_CACHE_TTL
-            );
+                // Mark cache as failed so the banner stops polling.
+                $existing = Cache::get(UpdateApplier::STATUS_CACHE_KEY) ?? [];
+                Cache::put(
+                    UpdateApplier::STATUS_CACHE_KEY,
+                    array_merge($existing, [
+                        'state'      => 'failed',
+                        'progress'   => 100,
+                        'message'    => $e->getMessage(),
+                        'error'      => $e->getMessage(),
+                        'updated_at' => now()->toIso8601String(),
+                    ]),
+                    UpdateApplier::STATUS_CACHE_TTL
+                );
 
-            throw $e;
+                throw $e;
+            }
+        } finally {
+            // Always release the concurrency lock acquired by the controller,
+            // whether we completed, rolled back, or are about to rethrow. The
+            // Job is the sole owner of the lock once dispatched, so a blind
+            // forceRelease() is correct here. If we omit this and the Job
+            // succeeds, no further updates could run until the 30-min TTL.
+            Cache::lock(UpdateController::APPLY_LOCK_KEY)->forceRelease();
         }
     }
 
@@ -107,5 +117,10 @@ class ApplyUpdateJob implements ShouldQueue
         } catch (\Throwable $auditErr) {
             Log::warning('ApplyUpdateJob::failed audit patch swallowed: ' . $auditErr->getMessage());
         }
+
+        // Belt-and-braces lock release in case handle()'s finally never ran
+        // (e.g. deserialization failure before handle() executed). Safe to call
+        // even when the lock has already been released.
+        Cache::lock(UpdateController::APPLY_LOCK_KEY)->forceRelease();
     }
 }
