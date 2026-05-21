@@ -14,11 +14,14 @@ class LogRequest
      * Path prefixes always skipped: poll endpoints, assets, dev tools.
      */
     private const SKIP_PREFIXES = [
-        'livewire/',           // Livewire heartbeats
-        'build/',              // Vite assets
-        '_debugbar/',          // dev tool
-        '_ignition/',          // dev tool
-        'admin/update/status', // updater banner polling — very frequent
+        'livewire/',                  // Livewire heartbeats
+        'build/',                     // Vite assets
+        '_debugbar/',                 // dev tool
+        '_ignition/',                 // dev tool
+        'admin/update/status',        // updater banner polling — very frequent
+        'api/health',                 // liveness probe — anonymous, but be defensive
+        'api/v1/system/alerts',       // alert bell polling
+        'api/v1/system/update-check', // updater polling on API side
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -38,7 +41,10 @@ class LogRequest
 
     private function log(Request $request, Response $response, float $start): void
     {
-        if (! $request->user()) {
+        // Resolve user from the current guard, falling back to sanctum for
+        // API requests where session-bound resolution may not have run.
+        $user = $request->user() ?? auth('sanctum')->user();
+        if (! $user) {
             return; // do not log anonymous traffic
         }
 
@@ -62,7 +68,7 @@ class LogRequest
         }
 
         RequestLog::create([
-            'user_id'     => $request->user()->id,
+            'user_id'     => $user->getKey(),
             'method'      => $method,
             'path'        => '/'.$path,
             'route_name'  => optional($request->route())->getName(),
