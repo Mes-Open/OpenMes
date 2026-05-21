@@ -3,18 +3,34 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ApplyUpdateJob;
+use App\Models\SystemUpdate;
+use App\Services\UpdateApplier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class UpdateController extends Controller
 {
-    private const CHECK_URL    = 'https://getopenmes.com/current-version.php';
-    private const CACHE_KEY    = 'update_check_result';
-    private const CACHE_TTL    = 3600; // 1 hour
+    private const CHECK_URL = 'https://getopenmes.com/current-version.php';
+    private const CACHE_KEY = UpdateApplier::CHECK_CACHE_KEY;
+    private const CACHE_TTL = 3600; // 1 hour
+
+    /**
+     * Atomic concurrency guard for the apply flow. TTL matches the Job's
+     * 30-minute timeout so a hard-killed worker can never deadlock the system
+     * indefinitely. See `update:unlock` for manual recovery.
+     */
+    public const APPLY_LOCK_KEY = 'update_apply_lock';
+    public const APPLY_LOCK_TTL = 1800; // 30 min, matches ApplyUpdateJob::$timeout
+
+    /** States that mean an update is currently in flight. */
+    private const ACTIVE_STATES = [
+        'queued', 'downloading', 'verifying', 'extracting',
+        'backing_up', 'copying', 'installing_dependencies', 'migrating', 'rolling_back',
+    ];
 
     /**
      * Check for available updates (returns JSON, cached 1h).
@@ -35,7 +51,7 @@ class UpdateController extends Controller
             return null;
         });
 
-        if (!$remote) {
+        if (! $remote) {
             return response()->json(['available' => false, 'current' => $current]);
         }
 
@@ -53,164 +69,121 @@ class UpdateController extends Controller
     }
 
     /**
-     * Apply the update: download ZIP from GitHub, extract, overwrite files.
-     * Works on all environments: XAMPP, Docker, bare metal, Apache2.
+     * Dispatch a background Job that downloads, extracts, copies and migrates
+     * the latest release. Returns immediately — UI polls /update/status for
+     * progress so we never hit PHP-FPM/nginx request timeouts.
      */
     public function apply(): RedirectResponse
     {
-        $root = base_path();
+        // Atomic race-free guard: only one apply() can hold this lock at a
+        // time. The previous soft-check on STATUS_CACHE_KEY was vulnerable to a
+        // TOCTOU race when two admins clicked the button in the same tick.
+        // The lock is released by the Job (success, failure, or `failed()`
+        // hook) — NOT here. See ApplyUpdateJob::handle()/failed().
+        $lock = Cache::lock(self::APPLY_LOCK_KEY, self::APPLY_LOCK_TTL);
 
-        // Get latest release info
-        $remote = Cache::get(self::CACHE_KEY);
-        if (! $remote || empty($remote['version'])) {
-            return redirect()->back()->with('error', __('No update information available. Please check for updates first.'));
+        if (! $lock->get()) {
+            $current = Cache::get(UpdateApplier::STATUS_CACHE_KEY);
+            return redirect()->back()->with('error', __(
+                'An update is already in progress (:version, started :time). Refresh to see status.',
+                [
+                    'version' => is_array($current) ? ($current['version'] ?? '?') : '?',
+                    'time'    => is_array($current) ? ($current['started_at'] ?? '?') : '?',
+                ]
+            ));
         }
 
-        $version = $remote['version'];
-        $zipUrl = $remote['zip_url']
-            ?? "https://github.com/Mes-Open/OpenMes/archive/refs/tags/{$version}.zip";
-
-        // 1. Download ZIP to temp
-        $tempZip = storage_path("app/update-{$version}.zip");
-        $tempDir = storage_path("app/update-{$version}");
-
         try {
-            $response = Http::timeout(60)->withOptions(['sink' => $tempZip])->get($zipUrl);
-
-            if (! $response->ok() || ! file_exists($tempZip) || filesize($tempZip) < 1000) {
-                @unlink($tempZip);
-                return redirect()->back()->with('error', __('Failed to download update package. Check server internet connection.'));
+            // Defence-in-depth: if a stale ACTIVE status sits in cache (e.g.
+            // the previous worker died but its lock TTL'd out), refuse to
+            // dispatch and surface the dangling state to the admin.
+            $current = Cache::get(UpdateApplier::STATUS_CACHE_KEY);
+            if (is_array($current) && in_array($current['state'] ?? null, self::ACTIVE_STATES, true)) {
+                $lock->release();
+                return redirect()->back()->with('error', __(
+                    'An update is already in progress (:version, started :time). Refresh to see status.',
+                    [
+                        'version' => $current['version'] ?? '?',
+                        'time'    => $current['started_at'] ?? '?',
+                    ]
+                ));
             }
+
+            // Validate that we still have a remote release in cache.
+            $remote = Cache::get(self::CACHE_KEY);
+            if (! $remote || empty($remote['version'])) {
+                $lock->release();
+                return redirect()->back()->with('error', __(
+                    'No update information available. Please check for updates first.'
+                ));
+            }
+
+            $version = $remote['version'];
+
+            // Initialise the status cache so the banner can immediately switch
+            // to progress mode after redirect.
+            app(UpdateApplier::class)->initStatus($version, auth()->id() ?? 0);
+
+            ApplyUpdateJob::dispatch($version, $remote, auth()->id() ?? 0);
         } catch (\Throwable $e) {
-            @unlink($tempZip);
-            Log::error('Update download failed: ' . $e->getMessage());
-            return redirect()->back()->with('error', __('Failed to download update: :error', ['error' => $e->getMessage()]));
+            // If anything between lock acquisition and successful dispatch
+            // blows up, free the lock so we do not strand future admins.
+            $lock->release();
+            throw $e;
         }
 
-        // 2. Extract ZIP
-        $zip = new \ZipArchive();
-        if ($zip->open($tempZip) !== true) {
-            @unlink($tempZip);
-            return redirect()->back()->with('error', __('Failed to open update package.'));
-        }
-
-        // Clean previous extraction
-        if (is_dir($tempDir)) {
-            $this->deleteDirectory($tempDir);
-        }
-
-        $zip->extractTo($tempDir);
-        $zip->close();
-        @unlink($tempZip);
-
-        // 3. Find the extracted root (GitHub ZIPs have a prefix directory like "OpenMes-v0.10.0/")
-        $extracted = glob($tempDir . '/*', GLOB_ONLYDIR);
-        $sourceRoot = $extracted[0] ?? $tempDir;
-
-        // The backend code lives in /backend/ subfolder of the repo
-        $sourceBackend = is_dir($sourceRoot . '/backend') ? $sourceRoot . '/backend' : $sourceRoot;
-
-        if (! is_dir($sourceBackend)) {
-            $this->deleteDirectory($tempDir);
-            return redirect()->back()->with('error', __('Invalid update package structure.'));
-        }
-
-        // 4. Copy files, preserving protected paths
-        $protected = ['storage', 'bootstrap/cache', '.env', 'vendor', 'node_modules'];
-        $copyCount = $this->copyDirectory($sourceBackend, $root, $protected);
-
-        // 5. Cleanup temp
-        $this->deleteDirectory($tempDir);
-
-        // 6. Run migrations + clear caches
-        try {
-            Artisan::call('migrate', ['--force' => true]);
-        } catch (\Throwable $e) {
-            Log::warning('Post-update migration failed: ' . $e->getMessage());
-        }
-
-        Artisan::call('config:clear');
-        Artisan::call('route:clear');
-        Artisan::call('view:clear');
-        Artisan::call('cache:clear');
-
-        // 7. Invalidate update check cache
-        Cache::forget(self::CACHE_KEY);
-
-        Log::info("System updated to {$version}", ['files_copied' => $copyCount]);
-
-        return redirect()->back()->with('success', __('Updated to :version successfully (:count files updated).', [
-            'version' => $version,
-            'count' => $copyCount,
-        ]));
+        // NOTE: do NOT release the lock here — the Job owns it now and will
+        // forceRelease() it from handle()/failed() once finalised.
+        return redirect()->back()->with('success', __(
+            'Update queued — system will install :version in the background. Refresh to see progress.',
+            ['version' => $version]
+        ));
     }
 
     /**
-     * Recursively copy directory, skipping protected paths.
+     * JSON status for the admin banner to poll while an update runs.
      */
-    private function copyDirectory(string $source, string $dest, array $protected, string $relPath = ''): int
+    public function status(): JsonResponse
     {
-        $count = 0;
+        $status = Cache::get(UpdateApplier::STATUS_CACHE_KEY);
 
-        if (! is_dir($dest)) {
-            @mkdir($dest, 0755, true);
+        if (! is_array($status)) {
+            return response()->json(null);
         }
 
-        $items = @scandir($source);
-        if ($items === false) {
-            return 0;
-        }
-
-        foreach ($items as $item) {
-            if ($item === '.' || $item === '..') {
-                continue;
-            }
-
-            $currentRel = $relPath ? $relPath . '/' . $item : $item;
-
-            // Skip protected paths
-            if (in_array($currentRel, $protected)) {
-                continue;
-            }
-
-            $srcPath = $source . '/' . $item;
-            $dstPath = $dest . '/' . $item;
-
-            if (is_dir($srcPath)) {
-                $count += $this->copyDirectory($srcPath, $dstPath, $protected, $currentRel);
-            } else {
-                if (@copy($srcPath, $dstPath)) {
-                    $count++;
-                }
-            }
-        }
-
-        return $count;
+        return response()->json($status);
     }
 
     /**
-     * Recursively delete a directory.
+     * JSON list of the most recent update runs for the admin audit view.
+     * Includes the triggering user so the UI can render "applied by X on Y".
      */
-    private function deleteDirectory(string $dir): void
+    public function history(): JsonResponse
     {
-        if (! is_dir($dir)) {
-            return;
-        }
+        $updates = SystemUpdate::with('user:id,name,email')
+            ->orderByDesc('started_at')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get()
+            ->map(fn (SystemUpdate $u) => [
+                'id'                   => $u->id,
+                'from_version'         => $u->from_version,
+                'to_version'           => $u->to_version,
+                'state'                => $u->state,
+                'started_at'           => $u->started_at?->toIso8601String(),
+                'finished_at'          => $u->finished_at?->toIso8601String(),
+                'duration_seconds'     => $u->duration_seconds,
+                'files_copied'         => $u->files_copied,
+                'error'                => $u->error,
+                'composer_install_ran' => $u->composer_install_ran,
+                'checksum_verified'    => $u->checksum_verified,
+                'user'                 => $u->user ? [
+                    'id'    => $u->user->id,
+                    'name'  => $u->user->name,
+                    'email' => $u->user->email,
+                ] : null,
+            ]);
 
-        $items = @scandir($dir);
-        if ($items === false) {
-            return;
-        }
-
-        foreach ($items as $item) {
-            if ($item === '.' || $item === '..') {
-                continue;
-            }
-
-            $path = $dir . '/' . $item;
-            is_dir($path) ? $this->deleteDirectory($path) : @unlink($path);
-        }
-
-        @rmdir($dir);
+        return response()->json(['updates' => $updates]);
     }
 }
