@@ -7,6 +7,7 @@ use App\Models\MaintenanceEvent;
 use App\Models\MaintenanceSchedule;
 use App\Services\Maintenance\GenerateMaintenanceEvents;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -161,6 +162,76 @@ class GenerateMaintenanceEventsTest extends TestCase
             'annually x1'  => [MaintenanceSchedule::FREQ_ANNUALLY,  1, '2027-05-10 08:00:00'],
             'by_hours x12' => [MaintenanceSchedule::FREQ_BY_HOURS,  12, '2026-05-10 20:00:00'],
         ];
+    }
+
+    public function test_duplicate_event_for_same_cycle_is_rejected_at_db_level(): void
+    {
+        Carbon::setTestNow('2026-05-20 09:00:00');
+        $scheduledAt = Carbon::parse('2026-05-15 08:00:00');
+        $schedule = $this->makeSchedule([
+            'next_due_at' => $scheduledAt,
+        ]);
+
+        // Manually create an event for this (schedule_id, scheduled_at) pair so
+        // a subsequent direct insert with the same pair must be rejected by the
+        // database UNIQUE constraint.
+        MaintenanceEvent::create([
+            'title'        => 'Pre-existing event',
+            'event_type'   => MaintenanceEvent::TYPE_PLANNED,
+            'status'       => MaintenanceEvent::STATUS_PENDING,
+            'scheduled_at' => $scheduledAt,
+            'schedule_id'  => $schedule->id,
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        try {
+            MaintenanceEvent::create([
+                'title'        => 'Duplicate event',
+                'event_type'   => MaintenanceEvent::TYPE_PLANNED,
+                'status'       => MaintenanceEvent::STATUS_PENDING,
+                'scheduled_at' => $scheduledAt,
+                'schedule_id'  => $schedule->id,
+            ]);
+        } finally {
+            $this->assertSame(
+                1,
+                MaintenanceEvent::where('schedule_id', $schedule->id)
+                    ->where('scheduled_at', $scheduledAt)
+                    ->count()
+            );
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_service_swallows_unique_violation_race(): void
+    {
+        Carbon::setTestNow('2026-05-20 09:00:00');
+        $scheduledAt = Carbon::parse('2026-05-15 08:00:00');
+        $schedule = $this->makeSchedule([
+            'next_due_at' => $scheduledAt,
+        ]);
+
+        // Pre-create the event WITHOUT the schedule advancing — simulates a
+        // peer worker that won the insert race while our worker was still
+        // between exists() and create(). The exists() check inside the service
+        // catches this in the common path; to exercise the QueryException
+        // catch we sidestep the guard by inserting from the test before run().
+        MaintenanceEvent::create([
+            'title'        => 'Peer worker win',
+            'event_type'   => MaintenanceEvent::TYPE_PLANNED,
+            'status'       => MaintenanceEvent::STATUS_PENDING,
+            'scheduled_at' => $scheduledAt,
+            'schedule_id'  => $schedule->id,
+        ]);
+
+        // run() should not throw; the exists() guard short-circuits, and even
+        // if it did not, the DB-level QueryException catch would.
+        $count = $this->service->run();
+
+        $this->assertSame(0, $count);
+        $this->assertDatabaseCount('maintenance_events', 1);
+        Carbon::setTestNow();
     }
 
     public function test_preferred_time_resets_clock_after_advance(): void

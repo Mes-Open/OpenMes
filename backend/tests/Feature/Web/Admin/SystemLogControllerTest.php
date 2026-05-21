@@ -5,6 +5,7 @@ namespace Tests\Feature\Web\Admin;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -233,5 +234,42 @@ class SystemLogControllerTest extends TestCase
             ->get(route('admin.logs.system', ['tab' => 'bogus']));
 
         $response->assertStatus(404);
+    }
+
+    public function test_retry_failed_job_calls_artisan(): void
+    {
+        $uuid = 'retry-uuid-aaaa-bbbb-cccc';
+
+        \DB::table('failed_jobs')->insert([
+            'uuid' => $uuid,
+            'connection' => 'database',
+            'queue' => 'default',
+            'payload' => json_encode(['displayName' => 'RetryableJob']),
+            'exception' => 'RuntimeException: oops',
+            'failed_at' => now(),
+        ]);
+
+        Artisan::shouldReceive('call')
+            ->with('queue:retry', ['id' => [$uuid]])
+            ->once();
+
+        $response = $this->actingAs($this->admin)
+            ->from(route('admin.logs.system', ['tab' => 'failed_jobs']))
+            ->post(route('admin.logs.system.retry-failed-job', $uuid));
+
+        $response->assertRedirect(route('admin.logs.system', ['tab' => 'failed_jobs']));
+        $response->assertSessionHas('success');
+    }
+
+    public function test_retry_failed_job_returns_error_when_uuid_missing(): void
+    {
+        Artisan::shouldReceive('call')->never();
+
+        $response = $this->actingAs($this->admin)
+            ->from(route('admin.logs.system', ['tab' => 'failed_jobs']))
+            ->post(route('admin.logs.system.retry-failed-job', 'does-not-exist'));
+
+        $response->assertRedirect(route('admin.logs.system', ['tab' => 'failed_jobs']));
+        $response->assertSessionHas('error');
     }
 }

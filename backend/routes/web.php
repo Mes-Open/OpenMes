@@ -352,6 +352,8 @@ Route::middleware('auth')->group(function () {
         // System Logs (Laravel app log + failed jobs + deployments)
         Route::get('/logs/system', [\App\Http\Controllers\Web\Admin\SystemLogController::class, 'index'])->name('logs.system');
         Route::get('/logs/system/tail', [\App\Http\Controllers\Web\Admin\SystemLogController::class, 'tail'])->name('logs.system.tail');
+        Route::post('/logs/system/failed-jobs/{uuid}/retry', [\App\Http\Controllers\Web\Admin\SystemLogController::class, 'retryFailedJob'])
+            ->name('logs.system.retry-failed-job');
 
         // Modules
         Route::get('/modules', [AdminModulesController::class, 'index'])->name('modules.index');

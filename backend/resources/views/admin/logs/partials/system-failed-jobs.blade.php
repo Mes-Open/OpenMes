@@ -55,12 +55,15 @@
                                 {{ $job->failed_at }}
                             </td>
                             <td class="px-4 py-3 text-xs whitespace-nowrap">
-                                <button type="button"
-                                        disabled
-                                        title="{{ __('Retry is not implemented yet — run `php artisan queue:retry :id` on the host.', ['id' => $job->id]) }}"
-                                        class="px-3 py-1 text-xs rounded bg-gray-100 text-gray-400 cursor-not-allowed">
-                                    {{ __('Retry') }}
-                                </button>
+                                <form method="POST"
+                                      action="{{ route('admin.logs.system.retry-failed-job', $job->uuid) }}"
+                                      class="inline">
+                                    @csrf
+                                    <button type="submit"
+                                            class="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">
+                                        {{ __('Retry') }}
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     @empty
