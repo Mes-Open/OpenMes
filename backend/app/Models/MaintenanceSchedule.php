@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MaintenanceSchedule extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     public const FREQ_DAILY     = 'daily';
     public const FREQ_WEEKLY    = 'weekly';
