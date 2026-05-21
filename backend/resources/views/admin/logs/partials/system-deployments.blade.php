@@ -34,32 +34,38 @@
                                 {{ $row->finished_at ?? '—' }}
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-800 whitespace-nowrap font-mono">
-                                {{ $row->version ?? '—' }}
+                                {{ $row->from_version ?? '—' }} → {{ $row->to_version ?? '—' }}
                             </td>
                             <td class="px-4 py-3 text-xs whitespace-nowrap">
                                 @php
-                                    $status = $row->status ?? 'unknown';
-                                    $statusBadge = match($status) {
-                                        'success'   => 'bg-green-100 text-green-700',
-                                        'failed'    => 'bg-red-100 text-red-700',
-                                        'running'   => 'bg-blue-100 text-blue-700',
-                                        default     => 'bg-gray-100 text-gray-600',
+                                    $state = $row->state ?? 'unknown';
+                                    $statusBadge = match($state) {
+                                        'completed'    => 'bg-green-100 text-green-700',
+                                        'failed'       => 'bg-red-100 text-red-700',
+                                        'rolled_back'  => 'bg-red-100 text-red-700',
+                                        'queued',
+                                        'in_progress'  => 'bg-blue-100 text-blue-700',
+                                        default        => 'bg-gray-100 text-gray-600',
                                     };
                                 @endphp
                                 <span class="inline-block px-2 py-0.5 rounded text-xs font-medium {{ $statusBadge }}">
-                                    {{ ucfirst($status) }}
+                                    {{ ucfirst(str_replace('_', ' ', $state)) }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">
-                                {{ $row->triggered_by ?? '—' }}
+                                @php
+                                    $userId = $row->user_id ?? null;
+                                    $triggeredBy = $userId ? \App\Models\User::find($userId)?->name : null;
+                                @endphp
+                                {{ $triggeredBy ?? '—' }}
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-600">
-                                @if(! empty($row->output))
+                                @if(! empty($row->error))
                                     <details>
                                         <summary class="cursor-pointer text-blue-600 hover:underline">
                                             {{ __('View output') }}
                                         </summary>
-                                        <pre class="mt-2 bg-gray-50 p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">{{ \Illuminate\Support\Str::limit($row->output, 8000) }}</pre>
+                                        <pre class="mt-2 bg-gray-50 p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">{{ \Illuminate\Support\Str::limit($row->error, 8000) }}</pre>
                                     </details>
                                 @else
                                     <span class="text-gray-400">—</span>

@@ -110,7 +110,7 @@ class SystemLogControllerTest extends TestCase
 
     public function test_deployments_tab_shows_info_card_when_table_missing(): void
     {
-        // system_updates table is intentionally missing on this branch.
+        Schema::dropIfExists('system_updates');
         $this->assertFalse(Schema::hasTable('system_updates'));
 
         $response = $this->actingAs($this->admin)
@@ -119,6 +119,33 @@ class SystemLogControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Deployment audit log is not available');
         $response->assertSee('v0.12+ schema');
+    }
+
+    public function test_deployments_tab_renders_rows_when_table_present(): void
+    {
+        $this->assertTrue(Schema::hasTable('system_updates'));
+
+        \DB::table('system_updates')->insert([
+            'user_id' => $this->admin->id,
+            'from_version' => 'v0.11.0',
+            'to_version' => 'v0.11.1',
+            'state' => 'completed',
+            'started_at' => now()->subMinute(),
+            'finished_at' => now(),
+            'duration_seconds' => 60,
+            'files_copied' => 12,
+            'checksum_verified' => true,
+            'composer_install_ran' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.logs.system', ['tab' => 'deployments']));
+
+        $response->assertStatus(200);
+        $response->assertSee('v0.11.0');
+        $response->assertSee('v0.11.1');
     }
 
     public function test_app_log_reader_parses_laravel_format(): void
