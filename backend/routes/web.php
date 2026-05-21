@@ -333,6 +333,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');
         Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');
 
+        // Unified Activity Logs (audit + request + auth events)
+        Route::get('/logs/activity', [\App\Http\Controllers\Web\Admin\ActivityLogController::class, 'index'])->name('logs.activity');
+        Route::get('/logs/activity/export', [\App\Http\Controllers\Web\Admin\ActivityLogController::class, 'export'])->name('logs.activity.export');
+
         // Modules
         Route::get('/modules', [AdminModulesController::class, 'index'])->name('modules.index');
         Route::get('/modules/install', [AdminModulesController::class, 'install'])->name('modules.install');
