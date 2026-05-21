@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\RequestLog;
 use App\Models\User;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -184,7 +185,10 @@ class ActivityLogController extends Controller
             ->sortByDesc(fn ($row) => $row->created_at?->timestamp ?? 0)
             ->values();
 
-        $csv = "created_at,user,source,entity,action,path,method,status,duration_ms,ip\n";
+        $csv = Csv::row([
+            'created_at', 'user', 'source', 'entity', 'action',
+            'path', 'method', 'status', 'duration_ms', 'ip',
+        ]);
 
         foreach ($merged as $log) {
             if ($log->source === 'audit') {
@@ -219,7 +223,7 @@ class ActivityLogController extends Controller
                 ];
             }
 
-            $csv .= implode(',', array_map([$this, 'csvEscape'], $row))."\n";
+            $csv .= Csv::row($row);
         }
 
         $filename = 'activity_log_'.date('Y-m-d_H-i-s').'.csv';
@@ -246,21 +250,5 @@ class ActivityLogController extends Controller
             : Carbon::now()->endOfDay();
 
         return [$from, $to];
-    }
-
-    /**
-     * Minimal CSV escaping.
-     */
-    protected function csvEscape(string|int|null $value): string
-    {
-        if ($value === null || $value === '') {
-            return '';
-        }
-        $value = (string) $value;
-
-        if (preg_match('/[",\r\n]/', $value)) {
-            return '"'.str_replace('"', '""', $value).'"';
-        }
-        return $value;
     }
 }
