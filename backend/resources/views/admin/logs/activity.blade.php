@@ -125,7 +125,11 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-500">
+                                <button type="button"
+                                        @click="$dispatch('open-detail', { log: {{ Js::from($log->toArray() + ['source' => $log->source, 'user' => $log->user ? ['name' => $log->user->name, 'id' => $log->user->id] : null]) }} })"
+                                        class="text-blue-600 hover:underline text-xs">{{ __('Details') }}</button>
                                 @if($log->source === 'audit' && in_array($log->action, ['updated', 'created']))
+                                    <span class="text-gray-300 mx-1">|</span>
                                     <a href="{{ route('admin.audit-logs', ['user_id' => $log->user_id, 'entity_type' => $log->entity_type]) }}"
                                        class="text-blue-600 hover:underline">{{ __('View changes') }}</a>
                                 @endif
@@ -147,4 +151,154 @@
         @endif
     </div>
 </div>
+
+{{-- Log entry detail modal --}}
+<div x-data="logDetailModal()"
+     @open-detail.window="open($event.detail.log)"
+     x-show="visible"
+     @click.self="close()"
+     @keydown.escape.window="close()"
+     x-cloak
+     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="log-detail-title"
+     tabindex="-1">
+    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto"
+         @click.stop>
+        <div class="flex items-center justify-between p-4 border-b">
+            <h3 id="log-detail-title" class="text-lg font-semibold">{{ __('Log entry details') }}</h3>
+            <button type="button"
+                    @click="close()"
+                    class="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                    aria-label="{{ __('Close') }}">&times;</button>
+        </div>
+        <div class="p-4 space-y-3 text-sm">
+            <div>
+                <strong class="text-gray-700">{{ __('Timestamp') }}:</strong>
+                <span class="font-mono text-xs" x-text="formatTimestamp(data?.created_at)"></span>
+            </div>
+            <div>
+                <strong class="text-gray-700">{{ __('Source') }}:</strong>
+                <span class="px-2 py-0.5 rounded text-xs uppercase"
+                      :class="data?.source === 'audit' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'"
+                      x-text="data?.source || '—'"></span>
+            </div>
+            <div>
+                <strong class="text-gray-700">{{ __('User') }}:</strong>
+                <span x-text="(data?.user && data.user.name) ? data.user.name : '{{ __('Guest') }}'"></span>
+            </div>
+            <div>
+                <strong class="text-gray-700">{{ __('IP address') }}:</strong>
+                <span class="font-mono text-xs" x-text="data?.ip_address || '—'"></span>
+            </div>
+
+            {{-- Audit row: action + entity + before/after state --}}
+            <template x-if="data?.source === 'audit'">
+                <div class="space-y-2 border-t pt-3">
+                    <div>
+                        <strong class="text-gray-700">{{ __('Action') }}:</strong>
+                        <span x-text="data?.action || '—'"></span>
+                    </div>
+                    <div>
+                        <strong class="text-gray-700">{{ __('Entity') }}:</strong>
+                        <span x-text="entityLabel(data)"></span>
+                    </div>
+                    <template x-if="data?.before_state">
+                        <details class="mt-2">
+                            <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">{{ __('Before state') }}</summary>
+                            <pre class="bg-gray-50 p-2 rounded text-xs overflow-x-auto mt-1 whitespace-pre-wrap break-words"
+                                 x-text="prettyJson(data?.before_state)"></pre>
+                        </details>
+                    </template>
+                    <template x-if="data?.after_state">
+                        <details class="mt-2" open>
+                            <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">{{ __('After state') }}</summary>
+                            <pre class="bg-gray-50 p-2 rounded text-xs overflow-x-auto mt-1 whitespace-pre-wrap break-words"
+                                 x-text="prettyJson(data?.after_state)"></pre>
+                        </details>
+                    </template>
+                </div>
+            </template>
+
+            {{-- Request row: method, path, status, duration --}}
+            <template x-if="data?.source === 'request'">
+                <div class="space-y-2 border-t pt-3">
+                    <div>
+                        <strong class="text-gray-700">{{ __('Method') }}:</strong>
+                        <span class="font-mono px-2 py-0.5 rounded bg-gray-100 text-xs" x-text="data?.method || '—'"></span>
+                    </div>
+                    <div>
+                        <strong class="text-gray-700">{{ __('Path') }}:</strong>
+                        <span class="font-mono text-xs break-all" x-text="data?.path || '—'"></span>
+                    </div>
+                    <div>
+                        <strong class="text-gray-700">{{ __('Route name') }}:</strong>
+                        <span class="font-mono text-xs" x-text="data?.route_name || '—'"></span>
+                    </div>
+                    <div>
+                        <strong class="text-gray-700">{{ __('Status') }}:</strong>
+                        <span x-text="data?.status ?? '—'"></span>
+                    </div>
+                    <div>
+                        <strong class="text-gray-700">{{ __('Duration') }}:</strong>
+                        <span x-text="(data?.duration_ms ?? '—') + ' ms'"></span>
+                    </div>
+                    <div>
+                        <strong class="text-gray-700">{{ __('Sampled') }}:</strong>
+                        <span x-text="data?.sampled ? '{{ __('yes') }}' : '{{ __('no') }}'"></span>
+                    </div>
+                </div>
+            </template>
+
+            <div class="text-xs text-gray-400 pt-3 border-t break-words">
+                <strong>{{ __('User agent') }}:</strong>
+                <span x-text="data?.user_agent || '—'"></span>
+            </div>
+        </div>
+        <div class="flex justify-end p-3 border-t bg-gray-50">
+            <button type="button"
+                    @click="close()"
+                    class="btn-touch btn-secondary text-sm">{{ __('Close') }}</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function logDetailModal() {
+        return {
+            visible: false,
+            data: null,
+            open(log) {
+                this.data = log || null;
+                this.visible = true;
+                // Lock body scroll while modal is open
+                document.body.style.overflow = 'hidden';
+            },
+            close() {
+                this.visible = false;
+                this.data = null;
+                document.body.style.overflow = '';
+            },
+            formatTimestamp(v) {
+                if (!v) return '—';
+                // Carbon serializes as ISO 8601; show original for clarity
+                return String(v).replace('T', ' ').replace(/\.\d+Z?$/, '');
+            },
+            entityLabel(d) {
+                if (!d) return '—';
+                const type = d.entity_type ? String(d.entity_type).split('\\').pop() : '—';
+                return d.entity_id ? `${type} #${d.entity_id}` : type;
+            },
+            prettyJson(v) {
+                if (v === null || v === undefined) return '';
+                try {
+                    return JSON.stringify(v, null, 2);
+                } catch (e) {
+                    return String(v);
+                }
+            },
+        };
+    }
+</script>
 @endsection
