@@ -69,15 +69,19 @@ class MaintenanceEventController extends Controller
         $validated = $request->validate([
             'title'            => 'required|string|max:255',
             'event_type'       => 'required|string|in:planned,corrective,inspection',
-            'tool_id'          => 'nullable|exists:tools,id',
-            'line_id'          => 'nullable|exists:lines,id',
-            'workstation_id'   => 'nullable|exists:workstations,id',
+            'tool_id'          => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
+            'line_id'          => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
+            'workstation_id'   => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
             'cost_source_id'   => 'nullable|exists:cost_sources,id',
             'assigned_to_id'   => 'nullable|exists:users,id',
-            'scheduled_at'     => 'nullable|date',
+            'scheduled_at'     => 'required|date',
             'description'      => 'nullable|string|max:2000',
             'actual_cost'      => 'nullable|numeric|min:0',
             'currency'         => 'nullable|string|max:10',
+        ], [
+            'tool_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
+            'line_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
+            'workstation_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
         ]);
 
         $validated['status'] = MaintenanceEvent::STATUS_PENDING;
@@ -114,16 +118,20 @@ class MaintenanceEventController extends Controller
         $validated = $request->validate([
             'title'            => 'required|string|max:255',
             'event_type'       => 'required|string|in:planned,corrective,inspection',
-            'tool_id'          => 'nullable|exists:tools,id',
-            'line_id'          => 'nullable|exists:lines,id',
-            'workstation_id'   => 'nullable|exists:workstations,id',
+            'tool_id'          => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
+            'line_id'          => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
+            'workstation_id'   => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
             'cost_source_id'   => 'nullable|exists:cost_sources,id',
             'assigned_to_id'   => 'nullable|exists:users,id',
-            'scheduled_at'     => 'nullable|date',
+            'scheduled_at'     => 'required|date',
             'description'      => 'nullable|string|max:2000',
             'resolution_notes' => 'nullable|string|max:2000',
             'actual_cost'      => 'nullable|numeric|min:0',
             'currency'         => 'nullable|string|max:10',
+        ], [
+            'tool_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
+            'line_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
+            'workstation_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
         ]);
 
         $maintenanceEvent->update($validated);
