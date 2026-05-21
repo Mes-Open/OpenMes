@@ -430,5 +430,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/maintenance-events/{maintenanceEvent}/start', [MaintenanceEventController::class, 'start'])->name('maintenance-events.start');
         Route::post('/maintenance-events/{maintenanceEvent}/complete', [MaintenanceEventController::class, 'complete'])->name('maintenance-events.complete');
         Route::post('/maintenance-events/{maintenanceEvent}/cancel', [MaintenanceEventController::class, 'cancel'])->name('maintenance-events.cancel');
+
+        // Maintenance Schedules (recurring preventive maintenance)
+        Route::resource('maintenance-schedules', \App\Http\Controllers\Web\Admin\MaintenanceScheduleController::class)
+            ->except(['show']);
+        Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [\App\Http\Controllers\Web\Admin\MaintenanceScheduleController::class, 'generateNow'])
+            ->name('maintenance-schedules.generate-now');
     });
 });

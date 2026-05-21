@@ -9,113 +9,46 @@
     ['label' => __('Schedule Event'), 'url' => null],
 ]" />
 
-<div class="max-w-2xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
+<div class="max-w-3xl mx-auto">
+    {{-- Header --}}
+    <div class="flex items-center gap-3 mb-6">
+        <a href="{{ route('admin.maintenance-events.index') }}"
+           class="text-gray-500 hover:text-gray-700 inline-flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+            </svg>
+            <span class="text-sm">{{ __('Back') }}</span>
+        </a>
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">{{ __('Schedule Maintenance Event') }}</h1>
-            <p class="text-gray-600 mt-1">{{ __('Plan a maintenance, inspection, or calibration') }}</p>
+            <h1 class="text-2xl font-bold text-gray-800">{{ __('Schedule maintenance event') }}</h1>
+            <p class="text-sm text-gray-600">{{ __('Plan a maintenance, inspection, or calibration') }}</p>
         </div>
-        <a href="{{ route('admin.maintenance-events.index') }}" class="btn-touch btn-secondary">{{ __('← Back') }}</a>
     </div>
 
-    <div class="card">
-        <form method="POST" action="{{ route('admin.maintenance-events.store') }}">
-            @csrf
+    @if($errors->any())
+        <div class="card mb-4 border-l-4 border-red-400 bg-red-50">
+            <p class="text-sm font-semibold text-red-700 mb-1">{{ __('Please fix the errors below:') }}</p>
+            <ul class="text-sm text-red-700 list-disc pl-5">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="md:col-span-2">
-                    <label class="form-label">{{ __('Title') }} <span class="text-red-500">*</span></label>
-                    <input type="text" name="title" value="{{ old('title') }}"
-                           class="form-input w-full" placeholder="e.g. Quarterly Inspection — Lathe #3" required maxlength="200">
-                    @error('title') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
+    <form method="POST" action="{{ route('admin.maintenance-events.store') }}">
+        @csrf
 
-                <div>
-                    <label class="form-label">{{ __('Event Type') }} <span class="text-red-500">*</span></label>
-                    <select name="event_type" class="form-input w-full" required>
-                        <option value="">{{ __('— Select type —') }}</option>
-                        <option value="preventive" @selected(old('event_type') === 'preventive')>{{ __('Preventive') }}</option>
-                        <option value="corrective" @selected(old('event_type') === 'corrective')>{{ __('Corrective') }}</option>
-                        <option value="inspection" @selected(old('event_type') === 'inspection')>{{ __('Inspection') }}</option>
-                        <option value="calibration" @selected(old('event_type') === 'calibration')>{{ __('Calibration') }}</option>
-                    </select>
-                    @error('event_type') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
+        @include('admin.maintenance-events.partials.form-fields', ['event' => null])
 
-                <div>
-                    <label class="form-label">{{ __('Scheduled At') }} <span class="text-red-500">*</span></label>
-                    <input type="datetime-local" name="scheduled_at" value="{{ old('scheduled_at') }}"
-                           class="form-input w-full" required>
-                    @error('scheduled_at') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label class="form-label">{{ __('Tool') }}</label>
-                    <select name="tool_id" class="form-input w-full">
-                        <option value="">{{ __('— Not a tool —') }}</option>
-                        @foreach($tools as $tool)
-                            <option value="{{ $tool->id }}" @selected(old('tool_id') == $tool->id)>{{ $tool->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('tool_id') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label class="form-label">{{ __('Production Line') }}</label>
-                    <select name="line_id" class="form-input w-full">
-                        <option value="">{{ __('— Not a line —') }}</option>
-                        @foreach($lines as $line)
-                            <option value="{{ $line->id }}" @selected(old('line_id') == $line->id)>{{ $line->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('line_id') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label class="form-label">{{ __('Workstation') }}</label>
-                    <select name="workstation_id" class="form-input w-full">
-                        <option value="">{{ __('— Not a workstation —') }}</option>
-                        @foreach($workstations as $ws)
-                            <option value="{{ $ws->id }}" @selected(old('workstation_id') == $ws->id)>{{ $ws->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('workstation_id') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label class="form-label">{{ __('Cost Source') }}</label>
-                    <select name="cost_source_id" class="form-input w-full">
-                        <option value="">{{ __('— None —') }}</option>
-                        @foreach($costSources as $cs)
-                            <option value="{{ $cs->id }}" @selected(old('cost_source_id') == $cs->id)>{{ $cs->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('cost_source_id') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label class="form-label">{{ __('Assigned To') }}</label>
-                    <select name="assigned_to_id" class="form-input w-full">
-                        <option value="">{{ __('— Unassigned —') }}</option>
-                        @foreach($users as $user)
-                            <option value="{{ $user->id }}" @selected(old('assigned_to_id') == $user->id)>{{ $user->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('assigned_to_id') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
-
-                <div class="md:col-span-2">
-                    <label class="form-label">{{ __("Description") }}</label>
-                    <textarea name="description" rows="3" class="form-input w-full" maxlength="4000">{{ old('description') }}</textarea>
-                    @error('description') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
-                </div>
-            </div>
-
-            <div class="flex gap-3 justify-end mt-6">
-                <a href="{{ route('admin.maintenance-events.index') }}" class="btn-touch btn-secondary">{{ __('Cancel') }}</a>
-                <button type="submit" class="btn-touch btn-primary">{{ __('Schedule Event') }}</button>
-            </div>
-        </form>
-    </div>
+        <div class="flex justify-end gap-2 mt-6">
+            <a href="{{ route('admin.maintenance-events.index') }}" class="btn-touch btn-secondary">
+                {{ __('Cancel') }}
+            </a>
+            <button type="submit" class="btn-touch btn-primary">
+                {{ __('Schedule event') }}
+            </button>
+        </div>
+    </form>
 </div>
 @endsection
