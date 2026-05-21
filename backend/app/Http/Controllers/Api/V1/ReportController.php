@@ -7,6 +7,7 @@ use App\Models\WorkOrder;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -234,11 +235,11 @@ class ReportController extends Controller
 
     private function convertReportToCsv($reportData, $reportType): string
     {
-        $output = fopen('php://temp', 'r+');
+        $csv = '';
 
         // Add headers based on report type
         if ($reportType === 'batch_completion' && isset($reportData->batches)) {
-            fputcsv($output, [
+            $csv .= Csv::row([
                 'Batch ID',
                 'Batch Number',
                 'Work Order',
@@ -252,7 +253,7 @@ class ReportController extends Controller
             ]);
 
             foreach ($reportData->batches as $batch) {
-                fputcsv($output, [
+                $csv .= Csv::row([
                     $batch->batch_id,
                     $batch->batch_number,
                     $batch->work_order_no,
@@ -266,7 +267,7 @@ class ReportController extends Controller
                 ]);
             }
         } elseif ($reportType === 'downtime' && isset($reportData->issues)) {
-            fputcsv($output, [
+            $csv .= Csv::row([
                 'Issue ID',
                 'Title',
                 'Type',
@@ -278,7 +279,7 @@ class ReportController extends Controller
             ]);
 
             foreach ($reportData->issues as $issue) {
-                fputcsv($output, [
+                $csv .= Csv::row([
                     $issue->id,
                     $issue->title,
                     $issue->type,
@@ -290,10 +291,6 @@ class ReportController extends Controller
                 ]);
             }
         }
-
-        rewind($output);
-        $csv = stream_get_contents($output);
-        fclose($output);
 
         return $csv;
     }
