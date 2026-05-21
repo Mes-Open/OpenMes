@@ -70,6 +70,13 @@ class IssueTypesSeeder extends Seeder
                 'is_active' => true,
             ],
             [
+                'code' => 'INBOUND_QC_FAIL',
+                'name' => 'Inbound Quality — Inspection Failed',
+                'severity' => 'HIGH',
+                'is_blocking' => true,
+                'is_active' => true,
+            ],
+            [
                 'code' => 'OTHER',
                 'name' => 'Other Issue',
                 'severity' => 'MEDIUM',

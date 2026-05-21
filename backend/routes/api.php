@@ -23,6 +23,8 @@ use App\Http\Controllers\Api\V1\LineController;
 use App\Http\Controllers\Api\V1\LineStatusController;
 use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
+use App\Http\Controllers\Api\V1\InspectionController;
+use App\Http\Controllers\Api\V1\InspectionPlanController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
 use App\Http\Controllers\Api\V1\OeeController as ApiOeeController;
@@ -145,6 +147,16 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::patch('/downtimes/{downtime}', [ApiOeeController::class, 'stopDowntime']);
     Route::get('/oee', [ApiOeeController::class, 'index']);
     Route::get('/oee/{line}', [ApiOeeController::class, 'show']);
+
+    // Inspections (inbound quality) — inspectors + admins
+    Route::get('/inspection-plans', [InspectionPlanController::class, 'index']);
+    Route::get('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'show']);
+    Route::get('/inspections', [InspectionController::class, 'index']);
+    Route::get('/inspections/stats', [InspectionController::class, 'stats']);
+    Route::get('/inspections/{inspection}', [InspectionController::class, 'show']);
+    Route::post('/inspections', [InspectionController::class, 'store']);
+    Route::patch('/inspections/{inspection}/results/{result}', [InspectionController::class, 'recordResult']);
+    Route::post('/inspections/{inspection}/complete', [InspectionController::class, 'complete']);
 
     // Tools — read for any authenticated user
     Route::get('/tools', [ToolController::class, 'index']);
@@ -335,6 +347,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/materials/{material}', [MaterialController::class, 'update']);
         Route::delete('/materials/{material}', [MaterialController::class, 'destroy']);
         Route::post('/materials/import', [MaterialController::class, 'import']);
+
+        // Inspection plans — admin mutations
+        Route::post('/inspection-plans', [InspectionPlanController::class, 'store']);
+        Route::patch('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'update']);
+        Route::delete('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'destroy']);
 
         // BOM Items — admin mutations
         Route::post('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'store']);
