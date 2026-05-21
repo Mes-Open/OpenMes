@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class LogRequestTest extends TestCase
@@ -30,6 +31,15 @@ class LogRequestTest extends TestCase
             Route::get('/livewire/test', fn () => 'lw');
             Route::get('/build/foo', fn () => 'asset');
             Route::get('/admin/update/status', fn () => 'banner');
+        });
+
+        // Ad-hoc API routes exercise the api middleware group (where LogRequest
+        // is also appended) and the sanctum-based user resolution.
+        Route::middleware('api')->prefix('api')->group(function () {
+            Route::post('/_test/ping', fn () => response()->json(['ok' => true]))
+                ->name('api.test.ping.post');
+            Route::get('/_test/ping', fn () => response()->json(['ok' => true]));
+            Route::get('/v1/system/alerts', fn () => response()->json(['data' => []]));
         });
     }
 
@@ -153,6 +163,37 @@ class LogRequestTest extends TestCase
         $this->expectExceptionMessage('Request logs are immutable');
 
         $log->delete();
+    }
+
+    public function test_api_request_is_logged_when_authenticated_via_sanctum(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/_test/ping')->assertOk();
+
+        $this->assertSame(1, RequestLog::count(), 'Expected the API POST to be logged exactly once');
+
+        $row = RequestLog::first();
+        $this->assertSame($user->id, $row->user_id);
+        $this->assertSame('POST', $row->method);
+        $this->assertStringStartsWith('/api/', $row->path);
+        $this->assertFalse($row->sampled);
+    }
+
+    public function test_api_polling_endpoints_are_not_logged(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        // Hit a couple of polling endpoints that should match SKIP_PREFIXES.
+        $this->getJson('/api/v1/system/alerts')->assertOk();
+        $this->getJson('/api/v1/system/alerts')->assertOk();
+        $this->getJson('/api/v1/system/alerts')->assertOk();
+
+        $this->assertSame(0, RequestLog::count(), 'Polling API endpoints must be skipped');
     }
 
     public function test_middleware_failure_does_not_break_request(): void
