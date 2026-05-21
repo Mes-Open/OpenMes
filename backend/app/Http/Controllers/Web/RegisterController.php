@@ -41,6 +41,7 @@ class RegisterController extends Controller
             'password'              => Hash::make($request->password),
             'account_type'          => 'user',
             'force_password_change' => false,
+            'email_verified_at'     => now(),
         ]);
 
         $user->assignRole('Operator');
