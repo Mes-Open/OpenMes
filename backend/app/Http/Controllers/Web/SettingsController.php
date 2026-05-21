@@ -70,8 +70,10 @@ class SettingsController extends Controller
     public function updateProfile(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
             'email' => 'required|string|email|max:255|unique:users,email,'.auth()->id(),
+        ], [
+            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
         ]);
 
         auth()->user()->update($validated);
