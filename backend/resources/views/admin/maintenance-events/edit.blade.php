@@ -35,10 +35,9 @@
                     <label class="form-label">{{ __('Event Type') }} <span class="text-red-500">*</span></label>
                     <select name="event_type" class="form-input w-full" required>
                         <option value="">{{ __('— Select type —') }}</option>
-                        <option value="preventive" @selected(old('event_type', $event->event_type) === 'preventive')>{{ __('Preventive') }}</option>
+                        <option value="planned" @selected(old('event_type', $event->event_type) === 'planned')>{{ __('Planned') }}</option>
                         <option value="corrective" @selected(old('event_type', $event->event_type) === 'corrective')>{{ __('Corrective') }}</option>
                         <option value="inspection" @selected(old('event_type', $event->event_type) === 'inspection')>{{ __('Inspection') }}</option>
-                        <option value="calibration" @selected(old('event_type', $event->event_type) === 'calibration')>{{ __('Calibration') }}</option>
                     </select>
                     @error('event_type') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                 </div>
