@@ -82,7 +82,9 @@
                 }
                 this.pollErrors = 0;
                 const s = await r.json();
-                if (!s) {
+                // Laravel renders Cache::get(null) as {} which is truthy in JS,
+                // so also require a state field before treating it as in-flight.
+                if (!s || !s.state) {
                     if (!initial) this.stopPolling();
                     return;
                 }
