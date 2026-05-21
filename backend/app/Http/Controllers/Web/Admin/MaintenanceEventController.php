@@ -18,7 +18,7 @@ class MaintenanceEventController extends Controller
      */
     public function index(Request $request)
     {
-        $query = MaintenanceEvent::with(['tool', 'line', 'workstation', 'assignedTo'])
+        $query = MaintenanceEvent::with(['tool', 'line', 'workstation', 'assignedTo', 'costSource'])
             ->orderBy('scheduled_at', 'desc');
 
         if ($search = $request->input('search')) {
