@@ -124,6 +124,8 @@ class MaintenanceEventController extends Controller
             'cost_source_id'   => 'nullable|exists:cost_sources,id',
             'assigned_to_id'   => 'nullable|exists:users,id',
             'scheduled_at'     => 'required|date',
+            'started_at'       => 'nullable|date',
+            'completed_at'     => 'nullable|date|after_or_equal:started_at',
             'description'      => 'nullable|string|max:2000',
             'resolution_notes' => 'nullable|string|max:2000',
             'actual_cost'      => 'nullable|numeric|min:0',
