@@ -16,7 +16,7 @@ class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
             'username' => ['required', 'string', 'max:255', 'unique:users,username'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', Password::defaults()],
@@ -27,6 +27,13 @@ class StoreUserRequest extends FormRequest
             'force_password_change' => ['nullable', 'boolean'],
             'line_ids' => ['nullable', 'array'],
             'line_ids.*' => ['integer', 'exists:lines,id'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
         ];
     }
 }
