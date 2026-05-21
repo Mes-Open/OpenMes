@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -18,7 +20,8 @@ use Illuminate\Support\Facades\Schema;
  *  - failed_jobs  → failed_jobs database table (Laravel queue)
  *  - deployments  → system_updates table (added in updater hardening; may be missing on this branch)
  *
- * This controller is read-only. Retrying failed jobs is intentionally NOT implemented here.
+ * Failed jobs can be retried via {@see self::retryFailedJob()} which delegates to
+ * `php artisan queue:retry {uuid}` and flashes the result back to the operator.
  *
  * NOTE: Large log files are handled by reading at most the last 2 MB of bytes. Anything
  * older than that window is not exposed via this view — operators should use the host
@@ -64,6 +67,27 @@ class SystemLogController extends Controller
         return response()->json([
             'entries' => $entries->values(),
         ]);
+    }
+
+    /**
+     * Retry a failed job by delegating to `php artisan queue:retry {uuid}`.
+     *
+     * The UUID is verified against the failed_jobs table before invoking the
+     * Artisan command so we always have a deterministic error path even if
+     * the operator clicks Retry twice in a row (Laravel deletes the row once
+     * the retry is dispatched, so the second click will hit the "not found"
+     * branch).
+     */
+    public function retryFailedJob(string $uuid): RedirectResponse
+    {
+        $exists = DB::table('failed_jobs')->where('uuid', $uuid)->exists();
+        if (! $exists) {
+            return redirect()->back()->with('error', __('Failed job not found.'));
+        }
+
+        Artisan::call('queue:retry', ['id' => [$uuid]]);
+
+        return redirect()->back()->with('success', __('Job :uuid queued for retry.', ['uuid' => substr($uuid, 0, 8)]));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
