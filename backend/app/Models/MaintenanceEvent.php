@@ -27,6 +27,7 @@ class MaintenanceEvent extends Model
         'tool_id',
         'line_id',
         'workstation_id',
+        'schedule_id',
         'cost_source_id',
         'assigned_to_id',
         'scheduled_at',
@@ -86,5 +87,13 @@ class MaintenanceEvent extends Model
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
+    /**
+     * Get the schedule that generated this event (if any).
+     */
+    public function schedule(): BelongsTo
+    {
+        return $this->belongsTo(MaintenanceSchedule::class);
     }
 }
