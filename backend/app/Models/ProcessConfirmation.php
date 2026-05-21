@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProcessConfirmation extends Model
 {
-    use HasTenant;
+    use HasTenant, Auditable;
 
     const TYPE_PARAMETERS = 'parameters';
 

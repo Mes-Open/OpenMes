@@ -3,12 +3,14 @@
 namespace App\Providers;
 
 use App\Http\Controllers\Web\Admin\AlertController;
+use App\Listeners\LogAuthEvent;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +34,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
+
+        // Register the authentication event subscriber so login / logout /
+        // failed-login attempts are written to the audit_logs table.
+        Event::subscribe(LogAuthEvent::class);
 
         // Share registries with every view so layouts and dashboards can render
         // items registered by modules without additional controller work.
