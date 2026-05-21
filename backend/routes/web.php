@@ -154,6 +154,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/workstation/{workOrder}/shift-entry', [OperatorWorkstationController::class, 'shiftEntry'])->name('workstation.shift-entry');
     });
 
+    // Inbound Inspections (Supervisor + Admin) — inspectors perform from this UI
+    Route::prefix('inspections')->name('inspections.')->middleware('role:Supervisor|Admin')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Web\InspectionController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\Web\InspectionController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Web\InspectionController::class, 'store'])->name('store');
+        Route::get('/{inspection}', [\App\Http\Controllers\Web\InspectionController::class, 'show'])->name('show');
+        Route::post('/{inspection}/results', [\App\Http\Controllers\Web\InspectionController::class, 'recordResult'])->name('record-result');
+        Route::post('/{inspection}/complete', [\App\Http\Controllers\Web\InspectionController::class, 'complete'])->name('complete');
+    });
+
     // Supervisor routes (Supervisor and Admin)
     Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor|Admin')->group(function () {
         Route::get('/dashboard', [SupervisorDashboardController::class, 'index'])->name('dashboard');
@@ -399,6 +409,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/production-anomalies', [ProductionAnomalyController::class, 'store'])->name('production-anomalies.store');
         Route::post('/production-anomalies/{productionAnomaly}/process', [ProductionAnomalyController::class, 'process'])->name('production-anomalies.process');
         Route::delete('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'destroy'])->name('production-anomalies.destroy');
+
+        // Inspection Plans (admin CRUD)
+        Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);
 
         // ── Gate 6: Costing ───────────────────────────────────────────────────
         // Cost Sources

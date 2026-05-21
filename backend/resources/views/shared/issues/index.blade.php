@@ -86,16 +86,27 @@
                         @endif
 
                         <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-500">
-                            <span>
-                                {{ __('Work Order') }}:
-                                @if($isAdmin)
-                                    <a href="{{ route('admin.work-orders.show', $issue->workOrder) }}" class="inline-flex items-center font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">{{ $issue->workOrder->order_no }}</a>
-                                @else
-                                    <span class="inline-flex items-center font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5">{{ $issue->workOrder->order_no }}</span>
+                            @if($issue->workOrder)
+                                <span>
+                                    {{ __('Work Order') }}:
+                                    @if($isAdmin)
+                                        <a href="{{ route('admin.work-orders.show', $issue->workOrder) }}" class="inline-flex items-center font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 hover:bg-blue-100 hover:border-blue-300 transition-colors">{{ $issue->workOrder->order_no }}</a>
+                                    @else
+                                        <span class="inline-flex items-center font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5">{{ $issue->workOrder->order_no }}</span>
+                                    @endif
+                                </span>
+                                @if($issue->workOrder->line)
+                                    <span>{{ __('Line') }}: {{ $issue->workOrder->line->name }}</span>
                                 @endif
-                            </span>
-                            @if($issue->workOrder->line)
-                                <span>{{ __('Line') }}: {{ $issue->workOrder->line->name }}</span>
+                            @elseif($issue->material)
+                                <span>
+                                    {{ __('Material') }}:
+                                    <span class="inline-flex items-center font-mono font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5">{{ $issue->material->code }}</span>
+                                    <span class="text-gray-600">{{ $issue->material->name }}</span>
+                                </span>
+                            @endif
+                            @if($issue->source)
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 uppercase tracking-wide text-[10px] font-semibold">{{ str_replace('_', ' ', $issue->source) }}</span>
                             @endif
                             <span>{{ __('Reported') }} {{ $issue->reported_at->diffForHumans() }} {{ __('by') }} {{ $issue->reportedBy->name ?? __('unknown') }}</span>
                             @if($issue->resolution_notes)
