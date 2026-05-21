@@ -19,6 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'install/*',
         ]);
 
+        // Append request logging at the end of the web stack so $request->user()
+        // is populated by SubstituteBindings/StartSession/Authenticate before us.
+        $middleware->web(append: [
+            \App\Http\Middleware\LogRequest::class,
+        ]);
+
         // Register Spatie Permission middleware
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
