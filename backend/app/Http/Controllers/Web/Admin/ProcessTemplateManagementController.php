@@ -68,10 +68,16 @@ class ProcessTemplateManagementController extends Controller
         $processTemplate->load([
             'steps' => fn($q) => $q->orderBy('step_number', 'asc'),
             'steps.workstation',
+            'steps.processSegment',
         ]);
-        $workstations = Workstation::active()->orderBy('name')->get();
+        $workstations    = Workstation::active()->orderBy('name')->get();
+        $processSegments = \App\Models\ProcessSegment::query()
+            ->active()
+            ->orderBy('segment_type')
+            ->orderBy('code')
+            ->get();
 
-        return view('admin.process-templates.show', compact('productType', 'processTemplate', 'workstations'));
+        return view('admin.process-templates.show', compact('productType', 'processTemplate', 'workstations', 'processSegments'));
     }
 
     /**
@@ -165,6 +171,7 @@ class ProcessTemplateManagementController extends Controller
             'instruction' => 'nullable|string',
             'estimated_duration_minutes' => 'nullable|integer|min:0',
             'workstation_id' => 'nullable|exists:workstations,id',
+            'process_segment_id' => 'nullable|exists:process_segments,id',
         ]);
 
         // Get the next step number
@@ -193,6 +200,7 @@ class ProcessTemplateManagementController extends Controller
             'instruction' => 'nullable|string',
             'estimated_duration_minutes' => 'nullable|integer|min:0',
             'workstation_id' => 'nullable|exists:workstations,id',
+            'process_segment_id' => 'nullable|exists:process_segments,id',
         ]);
 
         $step->update($validated);
