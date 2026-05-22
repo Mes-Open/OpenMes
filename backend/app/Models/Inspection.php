@@ -67,6 +67,14 @@ class Inspection extends Model
         return $this->belongsTo(Issue::class);
     }
 
+    /**
+     * Material lots whose acceptance / quarantine was decided by this inspection.
+     */
+    public function lotsTested(): HasMany
+    {
+        return $this->hasMany(MaterialLot::class, 'inspection_id');
+    }
+
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;
