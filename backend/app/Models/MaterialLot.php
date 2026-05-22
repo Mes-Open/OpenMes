@@ -100,11 +100,18 @@ class MaterialLot extends Model
         return $this->hasMany(BatchStepLotConsumption::class, 'material_lot_id');
     }
 
+    /**
+     * Picks made by the allocation engine. One row per (allocation, lot) pair
+     * with picked_qty + strategy used. Complements ISA-95 BatchStepLotConsumption
+     * at the planning/allocation layer.
+     */
+    public function picks(): HasMany
+    {
+        return $this->hasMany(AllocationLotPick::class);
+    }
+
     // ── State checks ────────────────────────────────────────────────────────
 
-    /**
-     * A lot is usable in production only after QC release and while quantity remains.
-     */
     public function isAvailable(): bool
     {
         return $this->status === self::STATUS_RELEASED && (float) $this->quantity_available > 0;
@@ -115,14 +122,25 @@ class MaterialLot extends Model
         return $this->expiry_date !== null && $this->expiry_date->isPast();
     }
 
+    /**
+     * Flip a released lot to 'consumed' once quantity reaches zero. Status
+     * transitions for received → released and quarantine → rejected are
+     * owned by DispositionService.
+     */
+    public function markConsumedIfEmpty(): void
+    {
+        if ((float) $this->quantity_available <= 0 && $this->status === self::STATUS_RELEASED) {
+            $this->update([
+                'quantity_available' => 0,
+                'status' => self::STATUS_CONSUMED,
+            ]);
+        }
+    }
+
     // ── Mutations ───────────────────────────────────────────────────────────
 
     /**
      * Consume a quantity from this lot, transitioning to 'consumed' when depleted.
-     *
-     * Strict policy: throws on a non-positive amount, throws on overflow.
-     * Callers must clamp upstream if a partial consumption is acceptable —
-     * silent clamping here would hide bugs in BOM / production logic.
      *
      * @throws \InvalidArgumentException when $quantity <= 0
      * @throws \DomainException          when $quantity exceeds available
@@ -160,6 +178,9 @@ class MaterialLot extends Model
         return $query->where('status', self::STATUS_RELEASED);
     }
 
+    /**
+     * Released lots that still have quantity left — eligible for picking.
+     */
     public function scopeAvailable(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_RELEASED)

@@ -108,8 +108,53 @@ class InboundInspectionService
                 $inspection->update(['issue_id' => $issue->id]);
             }
 
+            // Create a MaterialLot for the inspected qty so production can
+            // pick from it via FEFO/FIFO. Quarantined on fail, available on
+            // pass / conditional. Opt-in via lot_tracking_enabled setting.
+            $this->ensureLotFromInspection($inspection, $overall);
+
             return $inspection->fresh('results', 'issue');
         });
+    }
+
+    private function ensureLotFromInspection(Inspection $inspection, string $overall): void
+    {
+        try {
+            $enabled = (bool) json_decode(
+                \DB::table('system_settings')->where('key', 'lot_tracking_enabled')->value('value') ?? 'false',
+                true,
+            );
+        } catch (\Throwable) {
+            $enabled = false;
+        }
+
+        if (! $enabled) {
+            return;
+        }
+
+        // Avoid duplicating a lot if the inspection completes twice for any reason.
+        if (\App\Models\MaterialLot::where('inspection_id', $inspection->id)->exists()) {
+            return;
+        }
+
+        $qty = $inspection->quantity_received ?? 0;
+        $status = $overall === Inspection::STATUS_FAIL
+            ? \App\Models\MaterialLot::STATUS_QUARANTINE
+            : \App\Models\MaterialLot::STATUS_RELEASED;
+
+        \App\Models\MaterialLot::create([
+            'tenant_id' => $inspection->tenant_id,
+            'material_id' => $inspection->material_id,
+            'lot_number' => $inspection->lot_number,
+            'unit_of_measure' => $inspection->material?->unit_of_measure ?? 'pcs',
+            'supplier_lot_no' => $inspection->supplier_lot_ref,
+            'quantity_received' => $qty,
+            'quantity_available' => $status === \App\Models\MaterialLot::STATUS_RELEASED ? $qty : 0,
+            'received_at' => $inspection->started_at ?? now(),
+            'inspection_id' => $inspection->id,
+            'created_by_id' => $inspection->inspector_id,
+            'status' => $status,
+        ]);
     }
 
     /**
