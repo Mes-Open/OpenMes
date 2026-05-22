@@ -625,7 +625,7 @@
         <div class="h-6 border-l border-gray-300 dark:border-gray-600 mx-1"></div>
 
         <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
-            @foreach(['weekly' => __('Weekly'), 'daily' => __('Daily'), 'monthly' => __('Monthly')] as $mode => $ml)
+            @foreach(['weekly' => __('Weekly'), 'daily' => __('Daily'), 'hourly' => __('Hourly'), 'monthly' => __('Monthly')] as $mode => $ml)
                 <a href="{{ route('admin.schedule', ['start_date' => $startDate->format('Y-m-d'), 'view_mode' => $mode, 'line_id' => request('line_id')]) }}"
                    class="px-3 py-1 text-xs font-medium rounded-md transition {{ $viewMode === $mode ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                     {{ $ml }}
@@ -825,6 +825,18 @@
                         </tbody>
                     </table>
                 </div>
+
+            {{-- ===== HOURLY VIEW ===== --}}
+            @elseif($viewMode === 'hourly')
+                @include('admin.schedule._hourly', [
+                    'data' => $data,
+                    'slotMinutes' => $slotMinutes,
+                    'startDate' => $startDate,
+                    'woColors' => $woColors,
+                    'woTextColors' => $woTextColors,
+                    'statusLabels' => $statusLabels,
+                    'shiftsPerDay' => $shiftsPerDay,
+                ])
 
             {{-- ===== MONTHLY VIEW ===== --}}
             @elseif($viewMode === 'monthly')

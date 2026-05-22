@@ -22,15 +22,30 @@ class SchedulePlannerController extends Controller
         $horizonWeeks = (int) trim($settings['schedule_horizon_weeks'] ?? '4', '"\'');
         $showWeekends = filter_var(trim($settings['schedule_show_weekends'] ?? 'true', '"\''), FILTER_VALIDATE_BOOLEAN);
 
+        // Snap granularity for the hourly view (in minutes). Defaults to 15
+        // and is constrained to a fixed list of UI-supported values.
+        $slotMinutes = (int) trim($settings['schedule_slot_minutes'] ?? '15', '"\'');
+        if (! in_array($slotMinutes, [5, 10, 15, 30, 60], true)) {
+            $slotMinutes = 15;
+        }
+
         // Allow query string override for view mode
-        if ($request->filled('view_mode') && in_array($request->view_mode, ['weekly', 'daily', 'monthly'])) {
+        if ($request->filled('view_mode') && in_array($request->view_mode, ['weekly', 'daily', 'hourly', 'monthly'])) {
             $viewMode = $request->view_mode;
         }
 
-        // Calculate start date (default: current Monday)
-        $startDate = $request->filled('start_date')
-            ? Carbon::parse($request->start_date)->startOfWeek()
-            : now()->startOfWeek();
+        // Calculate start date — anchor depends on view mode.
+        // Weekly/monthly snap to start of week; daily/hourly anchor to the
+        // specific day so navigating forward/back moves day-by-day.
+        $rawStart = $request->filled('start_date')
+            ? Carbon::parse($request->start_date)
+            : now();
+
+        $startDate = match ($viewMode) {
+            'hourly', 'daily' => $rawStart->copy()->startOfDay(),
+            'monthly' => $rawStart->copy()->startOfMonth(),
+            default => $rawStart->copy()->startOfWeek(),
+        };
 
         // Calculate date range based on view mode
         [$rangeStart, $rangeEnd] = $this->calculateDateRange($viewMode, $startDate, $horizonWeeks);
@@ -53,6 +68,13 @@ class SchedulePlannerController extends Controller
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
                 $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
                   ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
+                      // Minute-planned orders that overlap the visible range
+                      $q2->whereNotNull('planned_start_at')
+                          ->whereNotNull('planned_end_at')
+                          ->where('planned_start_at', '<', $rangeEnd)
+                          ->where('planned_end_at', '>', $rangeStart);
+                  })
+                  ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
                       $q2->whereNull('due_date')
                           ->where(function ($q3) use ($rangeStart, $rangeEnd) {
                               // Match by week_number if due_date is null
@@ -73,6 +95,7 @@ class SchedulePlannerController extends Controller
         // Build data structure based on view mode
         $data = match ($viewMode) {
             'daily' => $this->buildDailyData($startDate, $rangeEnd, $lines, $workOrders, $shiftsPerDay, $showWeekends),
+            'hourly' => $this->buildHourlyData($startDate, $lines, $workOrders, $slotMinutes, $showWeekends),
             'monthly' => $this->buildMonthlyData($startDate, $rangeEnd, $lines, $workOrders, $shiftsPerDay, $showWeekends),
             default => $this->buildWeeklyData($startDate, $rangeEnd, $lines, $workOrders, $shiftsPerDay, $showWeekends),
         };
@@ -80,11 +103,13 @@ class SchedulePlannerController extends Controller
         // Navigation dates
         $navPrev = match ($viewMode) {
             'daily' => $startDate->copy()->subWeeks(2),
+            'hourly' => $startDate->copy()->subDay(),
             'monthly' => $startDate->copy()->subMonths(3),
             default => $startDate->copy()->subWeeks($horizonWeeks),
         };
         $navNext = match ($viewMode) {
             'daily' => $startDate->copy()->addWeeks(2),
+            'hourly' => $startDate->copy()->addDay(),
             'monthly' => $startDate->copy()->addMonths(3),
             default => $startDate->copy()->addWeeks($horizonWeeks),
         };
@@ -114,6 +139,7 @@ class SchedulePlannerController extends Controller
             'shifts',
             'viewMode',
             'shiftsPerDay',
+            'slotMinutes',
             'horizonWeeks',
             'showWeekends',
             'startDate',
@@ -142,6 +168,8 @@ class SchedulePlannerController extends Controller
             'week_number' => 'nullable|integer|min:1|max:53',
             'shift_number' => 'nullable|integer|min:1|max:10',
             'end_shift_number' => 'nullable|integer|min:1|max:10',
+            'planned_start_at' => 'nullable|date',
+            'planned_end_at' => 'nullable|date|after:planned_start_at',
         ]);
 
         $data = [
@@ -157,6 +185,45 @@ class SchedulePlannerController extends Controller
         }
         if ($request->has('end_shift_number')) {
             $data['end_shift_number'] = $request->input('end_shift_number') ?: null;
+        }
+
+        // Minute-level planning timestamps. Only touch the columns if the
+        // request explicitly carried them so we don't accidentally wipe them
+        // out from shift-level edits.
+        if ($request->has('planned_start_at')) {
+            $data['planned_start_at'] = $request->input('planned_start_at') ?: null;
+        }
+        if ($request->has('planned_end_at')) {
+            $data['planned_end_at'] = $request->input('planned_end_at') ?: null;
+        }
+
+        // Conflict detection: if both timestamps are being set and a line is
+        // assigned, refuse the update when another active WO on the same line
+        // overlaps the proposed window — unless the caller explicitly forces.
+        $targetLineId = array_key_exists('line_id', $data) ? $data['line_id'] : $workOrder->line_id;
+        if (! empty($data['planned_start_at']) && ! empty($data['planned_end_at']) && $targetLineId) {
+            $conflict = WorkOrder::query()
+                ->where('line_id', $targetLineId)
+                ->where('id', '!=', $workOrder->id)
+                ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+                ->whereNotNull('planned_start_at')
+                ->whereNotNull('planned_end_at')
+                ->where('planned_start_at', '<', $data['planned_end_at'])
+                ->where('planned_end_at', '>', $data['planned_start_at'])
+                ->exists();
+
+            if ($conflict && ! $request->boolean('force_conflict')) {
+                $message = __('This time slot overlaps another work order on the same line.');
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => $message,
+                    ], 409);
+                }
+
+                return back()->with('error', $message);
+            }
         }
 
         $workOrder->update($data);
@@ -219,7 +286,55 @@ class SchedulePlannerController extends Controller
 
     public function resizeOrder(Request $request, WorkOrder $workOrder)
     {
-        // Allow null to clear span
+        // Minute-level resize: when both `planned_start_at` and
+        // `planned_end_at` are present we treat the request as a minute-level
+        // move/resize and bypass the legacy shift-level branch.
+        if ($request->filled('planned_start_at') && $request->filled('planned_end_at')) {
+            $validated = $request->validate([
+                'planned_start_at' => 'required|date',
+                'planned_end_at' => 'required|date|after:planned_start_at',
+            ]);
+
+            if ($workOrder->line_id) {
+                $conflict = WorkOrder::query()
+                    ->where('line_id', $workOrder->line_id)
+                    ->where('id', '!=', $workOrder->id)
+                    ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+                    ->whereNotNull('planned_start_at')
+                    ->whereNotNull('planned_end_at')
+                    ->where('planned_start_at', '<', $validated['planned_end_at'])
+                    ->where('planned_end_at', '>', $validated['planned_start_at'])
+                    ->exists();
+
+                if ($conflict && ! $request->boolean('force_conflict')) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => __('This time slot overlaps another work order on the same line.'),
+                    ], 409);
+                }
+            }
+
+            $workOrder->update([
+                'planned_start_at' => $validated['planned_start_at'],
+                'planned_end_at' => $validated['planned_end_at'],
+            ]);
+
+            event(new \App\Events\ScheduleUpdated());
+
+            return response()->json([
+                'success' => true,
+                'message' => __('Work order span updated.'),
+                'order' => [
+                    'id' => $workOrder->id,
+                    'order_no' => $workOrder->order_no,
+                    'planned_start_at' => $workOrder->planned_start_at?->toIso8601String(),
+                    'planned_end_at' => $workOrder->planned_end_at?->toIso8601String(),
+                ],
+            ]);
+        }
+
+        // Allow null to clear span (legacy shift-level behaviour)
         if ($request->input('end_date') === null && $request->input('end_shift_number') === null) {
             $workOrder->update(['end_date' => null, 'end_shift_number' => null]);
         } else {
@@ -312,6 +427,7 @@ class SchedulePlannerController extends Controller
             'schedule_shifts_per_day',
             'schedule_horizon_weeks',
             'schedule_show_weekends',
+            'schedule_slot_minutes',
             'realtime_mode',
         ];
 
@@ -327,6 +443,10 @@ class SchedulePlannerController extends Controller
             'daily' => [
                 $startDate->copy(),
                 $startDate->copy()->addDays(13)->endOfDay(),
+            ],
+            'hourly' => [
+                $startDate->copy()->startOfDay(),
+                $startDate->copy()->endOfDay(),
             ],
             'monthly' => [
                 $startDate->copy()->startOfMonth(),
@@ -582,6 +702,111 @@ class SchedulePlannerController extends Controller
         }
 
         return $days;
+    }
+
+    /**
+     * Build the per-line layout for the hourly (minute-level) view of a single
+     * day. Work orders that have minute planning (`planned_start_at` +
+     * `planned_end_at`) are positioned absolutely on a 24h * 60min timeline;
+     * orders that only have a legacy `due_date` are rendered as a fixed
+     * 1-hour block at the top of the day so they remain visible until they
+     * get minute timestamps assigned.
+     *
+     * Cross-midnight orders are clamped to the visible day (0..1440 min); the
+     * actual end timestamp is left untouched in the model. Conflict detection
+     * is per-line pairwise overlap on the clamped minute range.
+     */
+    private function buildHourlyData(Carbon $start, $lines, $workOrders, int $slotMinutes, bool $showWeekends): array
+    {
+        $dayStart = $start->copy()->startOfDay();
+        $dayEnd = $start->copy()->endOfDay();
+        $minutesPerDay = 24 * 60;
+        $slotsPerDay = (int) ($minutesPerDay / $slotMinutes);
+
+        // Filter WOs that are relevant to this day: either minute-planned and
+        // overlapping the day, or legacy with due_date inside the day.
+        $relevant = $workOrders->filter(function ($wo) use ($dayStart, $dayEnd) {
+            if ($wo->planned_start_at && $wo->planned_end_at) {
+                return $wo->planned_start_at->lt($dayEnd) && $wo->planned_end_at->gt($dayStart);
+            }
+
+            return $wo->due_date && $wo->due_date->between($dayStart, $dayEnd);
+        });
+
+        $lineRows = [];
+        foreach ($lines as $line) {
+            $lineOrders = $relevant->where('line_id', $line->id)->values();
+
+            // Compute minute layout for each order on this line. Cross-midnight
+            // spans are clamped to [0, minutesPerDay] for rendering only.
+            $layouts = $lineOrders->map(function ($wo) use ($dayStart, $minutesPerDay) {
+                $hasMinute = $wo->planned_start_at && $wo->planned_end_at;
+                if ($hasMinute) {
+                    $startMin = max(0, (int) $dayStart->diffInMinutes($wo->planned_start_at, false));
+                    $endMin = min($minutesPerDay, (int) $dayStart->diffInMinutes($wo->planned_end_at, false));
+                } else {
+                    // Legacy WO with only due_date: render as a 1h block at the
+                    // top of the day so it stays visible until rescheduled.
+                    $startMin = 0;
+                    $endMin = 60;
+                }
+
+                return [
+                    'wo' => $wo,
+                    'start_minute' => $startMin,
+                    'end_minute' => $endMin,
+                    'duration_minutes' => max(0, $endMin - $startMin),
+                    'is_legacy' => ! $hasMinute,
+                ];
+            })->values();
+
+            // Pairwise overlap detection on the clamped minute range. A pair
+            // (i, j) with i < j is in conflict when their minute intervals
+            // intersect with strictly positive duration.
+            $conflicts = [];
+            $count = $layouts->count();
+            for ($i = 0; $i < $count; $i++) {
+                for ($j = $i + 1; $j < $count; $j++) {
+                    $a = $layouts[$i];
+                    $b = $layouts[$j];
+                    if ($a['start_minute'] < $b['end_minute'] && $b['start_minute'] < $a['end_minute']) {
+                        $conflicts[$a['wo']->id] = true;
+                        $conflicts[$b['wo']->id] = true;
+                    }
+                }
+            }
+
+            $layouts = $layouts->map(function ($l) use ($conflicts) {
+                $l['has_conflict'] = isset($conflicts[$l['wo']->id]);
+
+                return $l;
+            });
+
+            $usedMinutes = (int) $layouts->sum('duration_minutes');
+            $loadPercent = $minutesPerDay > 0
+                ? min(100, (int) round(($usedMinutes / $minutesPerDay) * 100))
+                : 0;
+
+            $lineRows[] = [
+                'line' => $line,
+                'orders' => $layouts,
+                'used_minutes' => $usedMinutes,
+                'capacity_minutes' => $minutesPerDay,
+                'load_percent' => $loadPercent,
+                'free_minutes_percent' => 100 - $loadPercent,
+            ];
+        }
+
+        return [
+            'date' => $dayStart,
+            'label' => $dayStart->translatedFormat('l, d F Y'),
+            'is_weekend' => $dayStart->isWeekend(),
+            'show_weekends' => $showWeekends,
+            'slot_minutes' => $slotMinutes,
+            'slots_per_day' => $slotsPerDay,
+            'minutes_per_day' => $minutesPerDay,
+            'lines' => $lineRows,
+        ];
     }
 
     private function buildMonthlyData(Carbon $start, Carbon $end, $lines, $workOrders, int $shiftsPerDay, bool $showWeekends): array
