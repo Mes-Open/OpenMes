@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+const ADMIN = process.env.ADMIN_USERNAME || 'admin';
+const PASS = process.env.ADMIN_PASSWORD || 'Admin1234!';
+
 test('schedules index renders + create form has sections', async ({ page, context }) => {
   await context.clearCookies();
   await page.goto('/login');
-  await page.fill('input[name="username"]', 'admin');
-  await page.fill('input[name="password"]', 'Admin1234!');
+  await page.fill('input[name="username"]', ADMIN);
+  await page.fill('input[name="password"]', PASS);
   await Promise.all([
     page.waitForURL((url) => !url.pathname.startsWith('/login')),
     page.click('button[type="submit"]'),
