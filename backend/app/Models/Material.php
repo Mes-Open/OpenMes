@@ -63,6 +63,14 @@ class Material extends Model
         return $this->hasMany(BomItem::class);
     }
 
+    /**
+     * Physical lots received against this material (ISA-95).
+     */
+    public function lots(): HasMany
+    {
+        return $this->hasMany(MaterialLot::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

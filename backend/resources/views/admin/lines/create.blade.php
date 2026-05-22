@@ -59,6 +59,26 @@
             </div>
 
             <div class="mb-6">
+                <label for="area_id" class="form-label">{{ __('Area (ISA-95)') }}</label>
+                <select
+                    id="area_id"
+                    name="area_id"
+                    class="form-input w-full @error('area_id') border-red-500 @enderror"
+                >
+                    <option value="">{{ __('— Unassigned —') }}</option>
+                    @foreach(($areas ?? collect()) as $area)
+                        <option value="{{ $area->id }}" @selected(old('area_id') == $area->id)>
+                            {{ $area->site?->name ? $area->site->name . ' / ' : '' }}{{ $area->name }}
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-sm text-gray-500 mt-1">{{ __('Place this line under an Area to fit the ISA-95 hierarchy.') }}</p>
+                @error('area_id')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-6">
                 <label for="description" class="form-label">{{ __("Description") }}</label>
                 <textarea
                     id="description"

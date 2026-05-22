@@ -14,6 +14,7 @@ class TemplateStep extends Model
 
     protected $fillable = [
         'process_template_id',
+        'process_segment_id',
         'step_number',
         'name',
         'instruction',
@@ -47,5 +48,31 @@ class TemplateStep extends Model
     public function workstation(): BelongsTo
     {
         return $this->belongsTo(Workstation::class);
+    }
+
+    /**
+     * Optional Process Segment (ISA-95) this step references for its defaults.
+     */
+    public function processSegment(): BelongsTo
+    {
+        return $this->belongsTo(ProcessSegment::class);
+    }
+
+    /**
+     * Resolve the effective instruction — the step's own value overrides, but if
+     * empty we fall back to the linked Process Segment's standard instruction.
+     */
+    public function effectiveInstruction(): ?string
+    {
+        return $this->instruction ?? $this->processSegment?->standard_instruction;
+    }
+
+    /**
+     * Resolve the effective estimated duration — step value wins; otherwise
+     * fall back to the linked Process Segment's default.
+     */
+    public function effectiveDuration(): ?int
+    {
+        return $this->estimated_duration_minutes ?? $this->processSegment?->estimated_duration_minutes;
     }
 }
