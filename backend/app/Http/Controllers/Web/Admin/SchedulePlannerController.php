@@ -34,10 +34,18 @@ class SchedulePlannerController extends Controller
             $viewMode = $request->view_mode;
         }
 
-        // Calculate start date (default: current Monday)
-        $startDate = $request->filled('start_date')
-            ? Carbon::parse($request->start_date)->startOfWeek()
-            : now()->startOfWeek();
+        // Calculate start date — anchor depends on view mode.
+        // Weekly/monthly snap to start of week; daily/hourly anchor to the
+        // specific day so navigating forward/back moves day-by-day.
+        $rawStart = $request->filled('start_date')
+            ? Carbon::parse($request->start_date)
+            : now();
+
+        $startDate = match ($viewMode) {
+            'hourly', 'daily' => $rawStart->copy()->startOfDay(),
+            'monthly' => $rawStart->copy()->startOfMonth(),
+            default => $rawStart->copy()->startOfWeek(),
+        };
 
         // Calculate date range based on view mode
         [$rangeStart, $rangeEnd] = $this->calculateDateRange($viewMode, $startDate, $horizonWeeks);
