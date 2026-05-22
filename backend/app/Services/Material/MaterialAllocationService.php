@@ -18,23 +18,11 @@ class MaterialAllocationService
         protected StockMovementService $stockMovements,
     ) {}
 
-    /**
-     * Allocate materials whose BOM rows have consumed_at='start' (or
-     * unspecified, treated as start for backward compat).
-     *
-     * Called once per batch when the first step transitions PENDING→IN_PROGRESS.
-     * Materials tied to a specific step (consumed_at='during') wait for
-     * that step to start; consumed_at='end' waits for the last step.
-     */
     public function allocateForBatch(Batch $batch, User $user): Collection
     {
         return $this->allocateMatching($batch, $user, fn ($bom) => $this->isStartItem($bom));
     }
 
-    /**
-     * Allocate materials whose BOM rows target this specific step.
-     * Called when the given step transitions PENDING→IN_PROGRESS.
-     */
     public function allocateForStep(BatchStep $step, User $user): Collection
     {
         $batch = $step->batch;
@@ -48,17 +36,11 @@ class MaterialAllocationService
         );
     }
 
-    /**
-     * Allocate end-of-batch materials when the final step completes.
-     */
     public function allocateForBatchEnd(Batch $batch, User $user): Collection
     {
         return $this->allocateMatching($batch, $user, fn ($bom) => $this->isEndItem($bom));
     }
 
-    /**
-     * Get allocation preview for a batch (what will be allocated).
-     */
     public function previewForBatch(Batch $batch): array
     {
         $bom = $batch->workOrder->process_snapshot['bom'] ?? [];
@@ -67,17 +49,25 @@ class MaterialAllocationService
         foreach ($bom as $bomItem) {
             $material = $this->resolveMaterial($bomItem);
             $requiredQty = $this->calculateRequiredQty($bomItem, (float) $batch->target_qty);
+            $available = $material?->available_quantity ?? 0;
 
             $preview[] = [
                 'material_name' => $bomItem['material_name'] ?? $material?->name,
                 'material_code' => $bomItem['material_code'] ?? $material?->code,
                 'unit_of_measure' => $bomItem['unit_of_measure'] ?? $material?->unit_of_measure,
                 'required_qty' => $requiredQty,
-                'available_qty' => $material?->stock_quantity ?? 0,
-                'sufficient' => $material ? (float) $material->stock_quantity >= $requiredQty : false,
+                // Available = on-hand minus what is already reserved by other batches.
+                'available_qty' => $available,
+                'on_hand_qty' => (float) ($material?->stock_quantity ?? 0),
+                'reserved_qty' => (float) ($material?->reserved_quantity ?? 0),
+                'sufficient' => $material ? $available >= $requiredQty : false,
                 'material_exists' => $material !== null,
                 'consumed_at' => $bomItem['consumed_at'] ?? 'start',
                 'step_number' => $bomItem['step_number'] ?? null,
+                'estimated_cost' => $material?->unit_price
+                    ? round((float) $material->unit_price * $requiredQty, 2)
+                    : null,
+                'currency' => $material?->price_currency,
             ];
         }
 
@@ -85,21 +75,62 @@ class MaterialAllocationService
     }
 
     /**
-     * Mark allocations as consumed when batch is completed.
+     * Mark allocations as consumed when batch is completed. Reads each
+     * allocation's consumed_qty (set by recordConsumption) and falls back
+     * to allocated_qty for any rows where the operator did not record an
+     * explicit number. Also releases the reservation and applies any
+     * leftover difference (returned + scrap) back to stock.
      */
     public function consumeForBatch(Batch $batch): void
     {
-        MaterialAllocation::where('batch_id', $batch->id)
-            ->where('status', MaterialAllocation::STATUS_ALLOCATED)
-            ->update([
-                'status' => MaterialAllocation::STATUS_CONSUMED,
-                'consumed_at' => now(),
-            ]);
+        DB::transaction(function () use ($batch) {
+            $allocations = MaterialAllocation::where('batch_id', $batch->id)
+                ->where('status', MaterialAllocation::STATUS_ALLOCATED)
+                ->lockForUpdate()
+                ->with('material')
+                ->get();
+
+            foreach ($allocations as $allocation) {
+                // Default: operator did not record per-step consumption → assume planned.
+                $actualConsumed = (float) $allocation->consumed_qty > 0
+                    ? (float) $allocation->consumed_qty
+                    : (float) $allocation->allocated_qty;
+
+                $leftoverToReturn = max(0, (float) $allocation->allocated_qty - $actualConsumed - (float) $allocation->scrap_qty);
+
+                $this->releaseReservation($allocation->material, (float) $allocation->allocated_qty);
+
+                if ($leftoverToReturn > 0 && $allocation->material) {
+                    $this->stockMovements->record(
+                        $allocation->material,
+                        StockMovement::TYPE_RETURN,
+                        $leftoverToReturn,
+                        sourceType: StockMovement::SOURCE_BATCH,
+                        sourceId: $batch->id,
+                        reason: 'Batch #'.$batch->id.' completed — leftover returned to stock',
+                    );
+                }
+
+                if ((float) $allocation->scrap_qty > 0 && $allocation->material) {
+                    $this->stockMovements->record(
+                        $allocation->material,
+                        StockMovement::TYPE_SCRAP,
+                        0, // scrap is a status change, not a stock delta — already left stock at allocation time
+                        sourceType: StockMovement::SOURCE_BATCH,
+                        sourceId: $batch->id,
+                        reason: 'Batch #'.$batch->id.' scrap qty recorded',
+                    );
+                }
+
+                $allocation->update([
+                    'status' => MaterialAllocation::STATUS_CONSUMED,
+                    'consumed_qty' => $actualConsumed,
+                    'consumed_at' => now(),
+                ]);
+            }
+        });
     }
 
-    /**
-     * Return allocated materials when batch is cancelled.
-     */
     public function returnForBatch(Batch $batch): void
     {
         DB::transaction(function () use ($batch) {
@@ -119,6 +150,7 @@ class MaterialAllocationService
                         sourceId: $allocation->batch_id,
                         reason: 'Batch #'.$allocation->batch_id.' cancelled — return to stock',
                     );
+                    $this->releaseReservation($allocation->material, (float) $allocation->allocated_qty);
                 }
 
                 $allocation->update([
@@ -126,6 +158,80 @@ class MaterialAllocationService
                     'returned_qty' => $allocation->allocated_qty,
                 ]);
             }
+        });
+    }
+
+    /**
+     * Record actual consumed quantity for a single allocation. Operator
+     * calls this from the post-step UI. Optionally records scrap.
+     */
+    public function recordConsumption(
+        MaterialAllocation $allocation,
+        float $actualConsumed,
+        float $scrap = 0,
+        ?string $notes = null,
+    ): MaterialAllocation {
+        if ($allocation->status !== MaterialAllocation::STATUS_ALLOCATED) {
+            throw new \DomainException('Allocation must be in `allocated` status to record consumption.');
+        }
+        if ($actualConsumed < 0 || $scrap < 0) {
+            throw new \InvalidArgumentException('Consumed and scrap quantities must be non-negative.');
+        }
+
+        $allocation->update([
+            'consumed_qty' => $actualConsumed,
+            'scrap_qty' => $scrap,
+        ]);
+
+        return $allocation->fresh();
+    }
+
+    /**
+     * Mid-batch material adjustment (e.g. "operator added 5kg extra").
+     * Decrements stock + reserved by the delta and bumps allocated_qty.
+     */
+    public function adjustAllocation(
+        MaterialAllocation $allocation,
+        float $deltaQty,
+        User $user,
+        ?string $reason = null,
+    ): MaterialAllocation {
+        if ($allocation->status !== MaterialAllocation::STATUS_ALLOCATED) {
+            throw new \DomainException('Can only adjust allocations in `allocated` status.');
+        }
+        if ($deltaQty === 0.0) {
+            return $allocation;
+        }
+
+        return DB::transaction(function () use ($allocation, $deltaQty, $user, $reason) {
+            $material = $allocation->material;
+
+            if (! $material) {
+                throw new \DomainException('Allocation has no associated material.');
+            }
+
+            $this->stockMovements->record(
+                $material,
+                StockMovement::TYPE_ADJUSTMENT,
+                -$deltaQty,
+                user: $user,
+                sourceType: StockMovement::SOURCE_BATCH,
+                sourceId: $allocation->batch_id,
+                reason: $reason ?? 'Adjustment on batch #'.$allocation->batch_id,
+            );
+
+            if ($deltaQty > 0) {
+                $material->increment('reserved_quantity', $deltaQty);
+            } else {
+                $material->decrement('reserved_quantity', abs($deltaQty));
+            }
+
+            $allocation->update([
+                'allocated_qty' => (float) $allocation->allocated_qty + $deltaQty,
+                'adjustment_qty' => (float) $allocation->adjustment_qty + $deltaQty,
+            ]);
+
+            return $allocation->fresh();
         });
     }
 
@@ -164,16 +270,15 @@ class MaterialAllocationService
 
                 $requiredQty = $this->calculateRequiredQty($bomItem, (float) $batch->target_qty);
 
-                if ($blockNegative && (float) $material->stock_quantity < $requiredQty) {
+                if ($blockNegative && $material->available_quantity < $requiredQty) {
                     throw new InsufficientStockException(
                         $material,
                         $requiredQty,
-                        (float) $material->stock_quantity,
+                        $material->available_quantity,
                     );
                 }
 
-                // Route through StockMovementService so the ledger captures
-                // the change with proper balance_after + audit fields.
+                // Stock leaves the warehouse + reservation increases.
                 $this->stockMovements->record(
                     $material,
                     StockMovement::TYPE_ALLOCATION,
@@ -183,6 +288,7 @@ class MaterialAllocationService
                     sourceId: $stepId ?: $batch->id,
                     reason: 'Allocated to batch #'.$batch->id.($stepId ? ' (step '.$stepId.')' : ''),
                 );
+                $material->increment('reserved_quantity', $requiredQty);
 
                 $allocations->push(MaterialAllocation::create([
                     'batch_id' => $batch->id,
@@ -190,6 +296,7 @@ class MaterialAllocationService
                     'material_id' => $material->id,
                     'work_order_id' => $batch->work_order_id,
                     'allocated_qty' => $requiredQty,
+                    'expected_qty' => $requiredQty,
                     'status' => MaterialAllocation::STATUS_ALLOCATED,
                     'allocated_by' => $user->id,
                     'allocated_at' => now(),
@@ -200,10 +307,18 @@ class MaterialAllocationService
         });
     }
 
+    private function releaseReservation(?Material $material, float $qty): void
+    {
+        if (! $material || $qty <= 0) {
+            return;
+        }
+        $material->decrement('reserved_quantity', $qty);
+    }
+
     private function isStartItem(array $bomItem): bool
     {
         $at = $bomItem['consumed_at'] ?? 'start';
-        // 'start' or undefined → allocate at batch start
+
         return $at === 'start';
     }
 

@@ -26,7 +26,11 @@ class MaterialAllocation extends Model
         'material_id',
         'work_order_id',
         'allocated_qty',
+        'expected_qty',
         'returned_qty',
+        'consumed_qty',
+        'adjustment_qty',
+        'scrap_qty',
         'status',
         'allocated_by',
         'allocated_at',
@@ -38,10 +42,23 @@ class MaterialAllocation extends Model
     {
         return [
             'allocated_qty' => 'decimal:4',
+            'expected_qty' => 'decimal:4',
             'returned_qty' => 'decimal:4',
+            'consumed_qty' => 'decimal:4',
+            'adjustment_qty' => 'decimal:4',
+            'scrap_qty' => 'decimal:4',
             'allocated_at' => 'datetime',
             'consumed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Difference between what was actually consumed and what was expected.
+     * Positive = used more than BOM said. Useful for scrap analysis.
+     */
+    public function getVarianceQtyAttribute(): float
+    {
+        return (float) $this->consumed_qty - (float) $this->expected_qty;
     }
 
     public function batch(): BelongsTo
