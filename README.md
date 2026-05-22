@@ -10,6 +10,7 @@
 [![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
 [![Livewire](https://img.shields.io/badge/Livewire-4-4E56A6?logo=livewire&logoColor=white)](https://livewire.laravel.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![ISA-95](https://img.shields.io/badge/ISA--95-compatible-blueviolet)](./docs/isa95.md)
 
 **🚀 [Try the live demo → demo-2.getopenmes.com](https://demo-2.getopenmes.com/register)**
 *Free demo account — active for 3 hours, no credit card required*
@@ -32,6 +33,7 @@
 - 📊 **Real-time visibility** - Know exactly what's happening on every line
 - 🆓 **Truly open-source** - MIT licensed, no vendor lock-in
 - 🚀 **Deploy in minutes** - Single command Docker deployment
+- 📐 **ISA-95 aligned** — Level 3 MES with ISA-95 / IEC 62264 hierarchies and MOM coverage ([details](./docs/isa95.md))
 
 ---
 
@@ -200,6 +202,10 @@ OpenMES uses a **dead-simple** Laravel monolith architecture:
 - **LAN Optimized**: Server-rendered pages, perfect for local networks
 - **Mobile Ready**: Responsive Blade templates work on tablets
 - **Fast**: Built-in assets compilation with Vite
+
+### ISA-95 Compatibility
+
+OpenMES architecture maps onto the ISA-95 / IEC 62264 standard for Manufacturing Operations Management at Level 3. See [docs/isa95.md](./docs/isa95.md) for the full coverage matrix across Production, Maintenance, Quality, and Inventory operations.
 
 ---
 
