@@ -72,13 +72,22 @@ class PackagingServiceProvider extends ServiceProvider
             });
 
         // ── Navigation menu ────────────────────────────────────────────────────
+        // Rejestracja itemów wymagających auth() musi nastąpić w view composerze,
+        // bo ServiceProvider::boot() leci przed auth middleware i auth()->check()
+        // zawsze zwraca tam false.
         $menu = app(\App\Services\MenuRegistry::class);
         $menu->addGroup('packaging', 'Pakowanie', order: 40);
         $menu->addGroupItem('packaging', 'Stanowisko skanowania', '/packaging/station', order: 10);
 
-        if (auth()->check() && auth()->user()->hasAnyRole(['Admin', 'Supervisor'])) {
-            $menu->addGroupItem('packaging', 'Przegląd pakowania', '/packaging', order: 20);
-            $menu->addGroupItem('packaging', 'Zarządzanie EAN', '/packaging/eans', order: 30);
-        }
+        \Illuminate\Support\Facades\View::composer('layouts.components.sidebar', function () use ($menu) {
+            if (auth()->check() && auth()->user()->hasAnyRole(['Admin', 'Supervisor'])) {
+                $menu->addGroupItem('packaging', 'Przegląd pakowania', '/packaging', order: 20);
+                $menu->addGroupItem('packaging', 'Zarządzanie EAN', '/packaging/eans', order: 30);
+            }
+
+            if (auth()->check() && auth()->user()->hasRole('Admin')) {
+                $menu->addGroupItem('packaging', 'Szablony etykiet', '/packaging/label-templates', order: 40);
+            }
+        });
     }
 }
