@@ -16,6 +16,7 @@ class MaterialAllocationService
 {
     public function __construct(
         protected StockMovementService $stockMovements,
+        protected LotPickingService $lotPicking,
     ) {}
 
     public function allocateForBatch(Batch $batch, User $user): Collection
@@ -152,6 +153,9 @@ class MaterialAllocationService
                     );
                     $this->releaseReservation($allocation->material, (float) $allocation->allocated_qty);
                 }
+
+                // Lot tracking: return picked qty back to each lot.
+                $this->lotPicking->returnPicksForAllocation($allocation);
 
                 $allocation->update([
                     'status' => MaterialAllocation::STATUS_RETURNED,
@@ -290,7 +294,7 @@ class MaterialAllocationService
                 );
                 $material->increment('reserved_quantity', $requiredQty);
 
-                $allocations->push(MaterialAllocation::create([
+                $newAllocation = MaterialAllocation::create([
                     'batch_id' => $batch->id,
                     'batch_step_id' => $stepId,
                     'material_id' => $material->id,
@@ -300,7 +304,15 @@ class MaterialAllocationService
                     'status' => MaterialAllocation::STATUS_ALLOCATED,
                     'allocated_by' => $user->id,
                     'allocated_at' => now(),
-                ]));
+                ]);
+
+                // Lot picking (opt-in via setting). Errors here roll back
+                // the surrounding transaction so stock/reserved stay consistent.
+                if ($this->lotPicking->isLotTrackingEnabled()) {
+                    $this->lotPicking->pickForAllocation($newAllocation, $material, $requiredQty);
+                }
+
+                $allocations->push($newAllocation);
             }
 
             return $allocations;
