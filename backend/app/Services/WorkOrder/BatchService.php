@@ -42,9 +42,13 @@ class BatchService
             $this->updateBatchStatus($batch);
 
             // Allocate materials when batch first transitions to IN_PROGRESS
+            // (covers BOM rows with consumed_at='start' or unspecified).
             if ($wasPending && $batch->fresh()->status === Batch::STATUS_IN_PROGRESS) {
                 $this->allocationService->allocateForBatch($batch, $user);
             }
+
+            // Always check for BOM rows targeted at *this* step (consumed_at='during').
+            $this->allocationService->allocateForStep($step, $user);
 
             // Update work order status
             $this->workOrderService->updateWorkOrderStatus($batch->workOrder);
@@ -86,6 +90,9 @@ class BatchService
 
             // If batch is complete, update produced quantity and consume materials
             if ($batch->status === Batch::STATUS_DONE) {
+                // End-of-batch BOM rows (consumed_at='end') get allocated now,
+                // immediately before everything is marked consumed.
+                $this->allocationService->allocateForBatchEnd($batch, $user);
                 $this->completeBatch($batch, $data['produced_qty'] ?? $batch->target_qty);
                 $this->allocationService->consumeForBatch($batch);
             }

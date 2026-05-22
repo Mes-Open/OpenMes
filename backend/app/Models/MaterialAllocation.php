@@ -22,6 +22,7 @@ class MaterialAllocation extends Model
 
     protected $fillable = [
         'batch_id',
+        'batch_step_id',
         'material_id',
         'work_order_id',
         'allocated_qty',
