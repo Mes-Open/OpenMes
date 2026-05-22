@@ -107,10 +107,43 @@ class DashboardController extends Controller
             ];
         }
 
+        // Materials Overview widget — low stock + expiring lots.
+        $materialsStats = null;
+        if (in_array('materials_overview', $enabledWidgets, true)) {
+            $lowStock = \App\Models\Material::where('is_active', true)
+                ->whereNotNull('min_stock_level')
+                ->whereColumn('stock_quantity', '<=', 'min_stock_level')
+                ->limit(5)
+                ->get(['id', 'code', 'name', 'stock_quantity', 'min_stock_level', 'unit_of_measure']);
+
+            $expiringSoon = \App\Models\MaterialLot::with('material:id,name,code,unit_of_measure')
+                ->where('status', \App\Models\MaterialLot::STATUS_AVAILABLE)
+                ->whereNotNull('expiry_date')
+                ->whereBetween('expiry_date', [today(), today()->addDays(30)])
+                ->orderBy('expiry_date')
+                ->limit(5)
+                ->get();
+
+            $reservedTotal = (float) \App\Models\Material::sum('reserved_quantity');
+
+            $materialsStats = [
+                'low_stock_count' => \App\Models\Material::where('is_active', true)
+                    ->whereNotNull('min_stock_level')
+                    ->whereColumn('stock_quantity', '<=', 'min_stock_level')
+                    ->count(),
+                'low_stock_samples' => $lowStock,
+                'expiring_count' => $expiringSoon->count(),
+                'expiring_samples' => $expiringSoon,
+                'reserved_total' => $reservedTotal,
+                'lots_total' => \App\Models\MaterialLot::where('status', \App\Models\MaterialLot::STATUS_AVAILABLE)->count(),
+                'quarantined_count' => \App\Models\MaterialLot::where('status', \App\Models\MaterialLot::STATUS_QUARANTINED)->count(),
+            ];
+        }
+
         return view('admin.dashboard', compact(
             'stats', 'recentWorkOrders', 'recentIssues',
             'lines', 'selectedLineId', 'oeeRecords', 'enabledWidgets', 'widgetOrder',
-            'inboundQcStats'
+            'inboundQcStats', 'materialsStats'
         ));
     }
 }
