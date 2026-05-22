@@ -55,6 +55,7 @@ class LotPickingService
                 $take = min($remaining, (float) $lot->available_qty);
 
                 $picks[] = AllocationLotPick::create([
+                    'tenant_id' => $allocation->tenant_id,
                     'material_allocation_id' => $allocation->id,
                     'material_lot_id' => $lot->id,
                     'picked_qty' => $take,

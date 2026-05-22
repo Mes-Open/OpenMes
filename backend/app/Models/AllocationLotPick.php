@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AllocationLotPick extends Model
 {
     use HasFactory;
+    use HasTenant;
 
     public const STRATEGY_FEFO = 'fefo';
     public const STRATEGY_FIFO = 'fifo';
@@ -18,6 +20,7 @@ class AllocationLotPick extends Model
     protected $fillable = [
         'material_allocation_id',
         'material_lot_id',
+        'tenant_id',
         'picked_qty',
         'picking_strategy',
     ];
