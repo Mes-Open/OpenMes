@@ -2,11 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasTenant;
+use App\Traits\Auditable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MaterialAllocation extends Model
 {
+    use Auditable;
+    use HasFactory;
+    use HasTenant;
+
     const STATUS_ALLOCATED = 'allocated';
 
     const STATUS_CONSUMED = 'consumed';
@@ -23,6 +30,7 @@ class MaterialAllocation extends Model
         'allocated_by',
         'allocated_at',
         'consumed_at',
+        'tenant_id',
     ];
 
     protected function casts(): array
