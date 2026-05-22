@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Area;
 use App\Models\Line;
 use App\Models\LineStatus;
 use App\Models\ProductType;
@@ -15,7 +16,8 @@ class LineManagementController extends Controller
      */
     public function index()
     {
-        $lines = Line::withCount(['workstations', 'workOrders', 'users'])
+        $lines = Line::with('area.site')
+            ->withCount(['workstations', 'workOrders', 'users'])
             ->orderBy('is_active', 'desc')
             ->orderBy('name')
             ->get();
@@ -28,7 +30,8 @@ class LineManagementController extends Controller
      */
     public function create()
     {
-        return view('admin.lines.create');
+        $areas = Area::with('site')->active()->orderBy('name')->get();
+        return view('admin.lines.create', compact('areas'));
     }
 
     /**
@@ -37,10 +40,11 @@ class LineManagementController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:lines',
-            'name' => 'required|string|max:255',
+            'code'        => 'required|string|max:50|unique:lines',
+            'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
-            'is_active' => 'boolean',
+            'area_id'     => 'nullable|exists:areas,id',
+            'is_active'   => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -84,7 +88,8 @@ class LineManagementController extends Controller
      */
     public function edit(Line $line)
     {
-        return view('admin.lines.edit', compact('line'));
+        $areas = Area::with('site')->active()->orderBy('name')->get();
+        return view('admin.lines.edit', compact('line', 'areas'));
     }
 
     /**
@@ -93,10 +98,11 @@ class LineManagementController extends Controller
     public function update(Request $request, Line $line)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:lines,code,' . $line->id,
-            'name' => 'required|string|max:255',
+            'code'        => 'required|string|max:50|unique:lines,code,' . $line->id,
+            'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
-            'is_active' => 'boolean',
+            'area_id'     => 'nullable|exists:areas,id',
+            'is_active'   => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
