@@ -24,16 +24,18 @@ test('maintenance create form has all 5 sections', async ({ page, context }) => 
   await page.screenshot({ path: 'test-results/maintenance-create-new.png', fullPage: true });
 });
 
-test('maintenance edit form for in_progress event includes Resolution section', async ({ page, context }) => {
+test('maintenance edit form renders sections', async ({ page, context }) => {
   await context.clearCookies();
   await login(page);
   await page.setViewportSize({ width: 1400, height: 1800 });
-  // assume at least one in_progress event exists (seeded)
   await page.goto('/admin/maintenance-events');
   await page.waitForLoadState('networkidle');
-  // click first edit icon
-  const editLink = page.locator('a[title="Edit"]').first();
+  // First edit link in the cards list (cards use data-tip, not title)
+  const editLink = page.locator('a[href*="/admin/maintenance-events/"][href$="/edit"]').first();
   await editLink.click();
   await page.waitForLoadState('networkidle');
+  for (const sec of ['What', 'Where', 'When', 'Who']) {
+    await expect(page.getByRole('heading', { name: new RegExp(`^${sec}$`, 'i') })).toBeVisible();
+  }
   await page.screenshot({ path: 'test-results/maintenance-edit-new.png', fullPage: true });
 });
