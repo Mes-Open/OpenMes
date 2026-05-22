@@ -165,6 +165,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{inspection}', [\App\Http\Controllers\Web\InspectionController::class, 'show'])->name('show');
         Route::post('/{inspection}/results', [\App\Http\Controllers\Web\InspectionController::class, 'recordResult'])->name('record-result');
         Route::post('/{inspection}/complete', [\App\Http\Controllers\Web\InspectionController::class, 'complete'])->name('complete');
+        Route::post('/{inspection}/disposition', [\App\Http\Controllers\Web\InspectionController::class, 'disposition'])->name('disposition');
     });
 
     // Supervisor routes (Supervisor and Admin)
@@ -416,8 +417,14 @@ Route::middleware('auth')->group(function () {
         Route::resource('skills', SkillController::class)->except(['show']);
 
         // Workers
-        Route::resource('workers', WorkerController::class)->except(['show']);
+        Route::resource('workers', WorkerController::class);
         Route::post('/workers/{worker}/toggle-active', [WorkerController::class, 'toggleActive'])->name('workers.toggle-active');
+        // Worker certifications (ISA-95 Personnel Capability — pivot management)
+        Route::post('/workers/{worker}/skills', [WorkerController::class, 'attachSkill'])->name('workers.skills.attach');
+        Route::delete('/workers/{worker}/skills/{skill}', [WorkerController::class, 'detachSkill'])->name('workers.skills.detach');
+
+        // ISA-95 Personnel Classes (competency templates)
+        Route::resource('personnel-classes', \App\Http\Controllers\Web\Admin\PersonnelClassController::class);
 
         // ── Gate 5: Tracking Advanced ─────────────────────────────────────────
         // Production Anomalies
