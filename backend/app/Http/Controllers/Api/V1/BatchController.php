@@ -142,7 +142,11 @@ class BatchController extends Controller
             ], 422);
         }
 
-        $batch->update(['status' => Batch::STATUS_CANCELLED]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($batch) {
+            $batch->update(['status' => Batch::STATUS_CANCELLED]);
+            // Restore allocated material stock; no-op if nothing was allocated.
+            $this->allocationService->returnForBatch($batch);
+        });
 
         return response()->json([
             'message' => 'Batch cancelled',

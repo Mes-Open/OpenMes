@@ -22,7 +22,9 @@
                                 <tr>
                                     <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
                                     <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Required</th>
-                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">In Stock</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Available</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Cost</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Timing</th>
                                     <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                                 </tr>
                             </thead>
@@ -37,7 +39,31 @@
                                             {{ number_format($item['required_qty'], 2) }} {{ $item['unit_of_measure'] }}
                                         </td>
                                         <td class="px-3 py-2 text-right font-mono {{ !$item['sufficient'] ? 'text-red-600 font-bold' : 'text-gray-700 dark:text-gray-300' }}">
-                                            {{ $item['material_exists'] ? number_format($item['available_qty'], 2) : 'N/A' }} {{ $item['unit_of_measure'] }}
+                                            @if($item['material_exists'])
+                                                {{ number_format($item['available_qty'] ?? 0, 2) }} {{ $item['unit_of_measure'] }}
+                                                @if(($item['reserved_qty'] ?? 0) > 0)
+                                                    <div class="text-[10px] text-amber-600">({{ number_format($item['reserved_qty'], 2) }} reserved)</div>
+                                                @endif
+                                            @else
+                                                N/A
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono text-xs text-gray-600">
+                                            @if(!empty($item['estimated_cost']))
+                                                {{ number_format($item['estimated_cost'], 2) }} {{ $item['currency'] }}
+                                            @else —
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-center text-xs">
+                                            @php
+                                                $when = $item['consumed_at'] ?? 'start';
+                                                $timingBadge = match($when) {
+                                                    'during' => ['bg-purple-100 text-purple-800', 'step '.($item['step_number'] ?? '?')],
+                                                    'end' => ['bg-blue-100 text-blue-800', 'end'],
+                                                    default => ['bg-gray-100 text-gray-600', 'start'],
+                                                };
+                                            @endphp
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $timingBadge[0] }}">{{ $timingBadge[1] }}</span>
                                         </td>
                                         <td class="px-3 py-2 text-center">
                                             @if($item['sufficient'])
@@ -48,6 +74,17 @@
                                         </td>
                                     </tr>
                                 @endforeach
+                                @php
+                                    $totalCost = collect($allocationPreview)->sum(fn($i) => $i['estimated_cost'] ?? 0);
+                                    $currency = collect($allocationPreview)->pluck('currency')->filter()->first();
+                                @endphp
+                                @if($totalCost > 0)
+                                    <tr class="bg-gray-50 dark:bg-slate-700">
+                                        <td colspan="3" class="px-3 py-2 text-right text-xs uppercase tracking-wide text-gray-500">Total estimated</td>
+                                        <td class="px-3 py-2 text-right font-mono font-bold">{{ number_format($totalCost, 2) }} {{ $currency }}</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>

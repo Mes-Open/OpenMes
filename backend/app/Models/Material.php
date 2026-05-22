@@ -21,6 +21,7 @@ class Material extends Model
         'tracking_type',
         'default_scrap_percentage',
         'stock_quantity',
+        'reserved_quantity',
         'min_stock_level',
         'extra_data',
         'external_code',
@@ -41,11 +42,21 @@ class Material extends Model
             'is_active' => 'boolean',
             'default_scrap_percentage' => 'decimal:2',
             'stock_quantity' => 'decimal:3',
+            'reserved_quantity' => 'decimal:3',
             'min_stock_level' => 'decimal:3',
             'unit_price' => 'decimal:4',
             'last_stock_sync_at' => 'datetime',
             'extra_data' => 'array',
         ];
+    }
+
+    /**
+     * Material physically present minus what is currently reserved by
+     * active allocations. The truthful "free to allocate" number.
+     */
+    public function getAvailableQuantityAttribute(): float
+    {
+        return (float) $this->stock_quantity - (float) $this->reserved_quantity;
     }
 
     public function materialType(): BelongsTo

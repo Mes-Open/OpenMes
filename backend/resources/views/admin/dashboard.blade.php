@@ -38,7 +38,7 @@
 
     @php
         $enabledWidgets = $enabledWidgets ?? [];
-        $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'inbound_qc_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
+        $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'inbound_qc_overview', 'materials_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
         $wOrder = array_flip($widgetOrder);
     @endphp
 
@@ -212,6 +212,86 @@
                         </li>
                     @endforeach
                 </ul>
+            </div>
+        @endif
+    </div>
+    @endif
+
+    {{-- Materials Overview --}}
+    @if((empty($enabledWidgets) || in_array('materials_overview', $enabledWidgets)) && ($materialsStats ?? null))
+    <div style="order: {{ ($wOrder['materials_overview'] ?? 3) * 10 }}" class="card mb-6">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">{{ __('Materials Overview') }}</h2>
+            <a href="{{ route('admin.materials.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('All materials') }} →</a>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <div class="p-3 rounded-lg border {{ $materialsStats['low_stock_count'] > 0 ? 'border-red-200 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 bg-gray-50 dark:bg-slate-700' }}">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Low stock') }}</div>
+                <div class="text-2xl font-bold {{ $materialsStats['low_stock_count'] > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-400' }}">{{ $materialsStats['low_stock_count'] }}</div>
+                <div class="text-xs text-gray-500">{{ __('below min level') }}</div>
+            </div>
+            <div class="p-3 rounded-lg border {{ $materialsStats['expiring_count'] > 0 ? 'border-amber-200 bg-amber-50 dark:bg-amber-900/20' : 'border-gray-200 bg-gray-50 dark:bg-slate-700' }}">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Expiring 30d') }}</div>
+                <div class="text-2xl font-bold {{ $materialsStats['expiring_count'] > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-400' }}">{{ $materialsStats['expiring_count'] }}</div>
+                <div class="text-xs text-gray-500">{{ __('lots') }}</div>
+            </div>
+            <div class="p-3 rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Active lots') }}</div>
+                <div class="text-2xl font-bold text-purple-700 dark:text-purple-400">{{ $materialsStats['lots_total'] }}</div>
+                @if($materialsStats['quarantined_count'] > 0)
+                    <div class="text-xs text-red-600">{{ $materialsStats['quarantined_count'] }} {{ __('quarantined') }}</div>
+                @else
+                    <div class="text-xs text-gray-500">{{ __('available') }}</div>
+                @endif
+            </div>
+            <div class="p-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Reserved') }}</div>
+                <div class="text-2xl font-bold text-blue-700 dark:text-blue-400">{{ number_format($materialsStats['reserved_total'], 0) }}</div>
+                <div class="text-xs text-gray-500">{{ __('units across active batches') }}</div>
+            </div>
+        </div>
+
+        @if($materialsStats['low_stock_samples']->isNotEmpty() || $materialsStats['expiring_samples']->isNotEmpty())
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                @if($materialsStats['low_stock_samples']->isNotEmpty())
+                    <div>
+                        <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{{ __('Below min level') }}</h3>
+                        <ul class="text-sm divide-y divide-gray-100 dark:divide-gray-700">
+                            @foreach($materialsStats['low_stock_samples'] as $m)
+                                <li class="py-1.5 flex justify-between">
+                                    <a href="{{ route('admin.materials.show', $m) }}" class="text-blue-600 hover:underline">
+                                        {{ $m->code }} — {{ $m->name }}
+                                    </a>
+                                    <span class="text-xs font-mono text-red-700">
+                                        {{ number_format($m->stock_quantity, 1) }} / {{ number_format($m->min_stock_level, 1) }} {{ $m->unit_of_measure }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if($materialsStats['expiring_samples']->isNotEmpty())
+                    <div>
+                        <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{{ __('Lots expiring within 30 days') }}</h3>
+                        <ul class="text-sm divide-y divide-gray-100 dark:divide-gray-700">
+                            @foreach($materialsStats['expiring_samples'] as $lot)
+                                <li class="py-1.5 flex justify-between">
+                                    <span>
+                                        @if($lot->material)
+                                            <a href="{{ route('admin.materials.show', $lot->material) }}" class="text-blue-600 hover:underline">{{ $lot->material->name }}</a>
+                                        @else
+                                            {{ __('Unknown material') }}
+                                        @endif
+                                        — lot <span class="font-mono text-xs">{{ $lot->lot_number }}</span>
+                                    </span>
+                                    <span class="text-xs font-mono text-amber-700">{{ $lot->expiry_date?->format('Y-m-d') }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
             </div>
         @endif
     </div>
