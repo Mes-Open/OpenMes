@@ -34,6 +34,80 @@
         <span class="badge {{ $statusClass }} text-base">{{ str_replace('_', ' ', $inspection->status) }}</span>
     </div>
 
+    {{-- ISA-95 Quality Disposition --}}
+    <div class="card mb-4">
+        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{{ __('Disposition') }}</h3>
+
+        @if($inspection->hasDecision())
+            @php
+                $dColors = [
+                    'accept' => 'bg-green-100 text-green-700',
+                    'accept_with_deviation' => 'bg-green-100 text-green-800',
+                    'rework' => 'bg-amber-100 text-amber-700',
+                    'quarantine' => 'bg-blue-100 text-blue-700',
+                    'scrap' => 'bg-red-100 text-red-700',
+                    'reject' => 'bg-red-100 text-red-800',
+                    'return_to_supplier' => 'bg-purple-100 text-purple-700',
+                ];
+            @endphp
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1 rounded text-sm font-medium {{ $dColors[$inspection->disposition] ?? 'bg-gray-100 text-gray-700' }}">
+                    {{ ucfirst(str_replace('_', ' ', $inspection->disposition)) }}
+                </span>
+                <span class="text-sm text-gray-500">
+                    {{ __('by') }} {{ $inspection->dispositionBy?->name ?? '—' }}
+                    @if($inspection->disposition_at)
+                        · {{ $inspection->disposition_at->format('Y-m-d H:i') }}
+                    @endif
+                </span>
+            </div>
+            @if($inspection->disposition_notes)
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ $inspection->disposition_notes }}</p>
+            @endif
+        @else
+            <p class="text-sm text-gray-500">{{ __('No disposition recorded yet.') }}</p>
+            @auth
+                @if(auth()->user()->hasAnyRole(['Admin','Supervisor']))
+                    <div x-data="{ open: false }" class="mt-3">
+                        <button type="button" @click="open = true" class="btn-touch btn-primary text-sm">{{ __('Record Disposition') }}</button>
+                        <div x-show="open" x-cloak @click.outside="open = false" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                            <div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full p-6">
+                                <h3 class="text-lg font-semibold mb-3">{{ __('Record Disposition') }}</h3>
+                                <form method="POST" action="{{ route('inspections.disposition', $inspection) }}">
+                                    @csrf
+                                    <div class="space-y-2 mb-4">
+                                        @foreach([
+                                            'accept' => __('Accept — pass to production'),
+                                            'accept_with_deviation' => __('Accept with deviation — minor issue, documented'),
+                                            'rework' => __('Rework — fix and re-inspect'),
+                                            'quarantine' => __('Quarantine — hold pending decision'),
+                                            'scrap' => __('Scrap — discard'),
+                                            'return_to_supplier' => __('Return to supplier'),
+                                            'reject' => __('Reject (no further action)'),
+                                        ] as $val => $desc)
+                                            <label class="flex items-start gap-2 p-2 rounded border hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer">
+                                                <input type="radio" name="disposition" value="{{ $val }}" required class="mt-1">
+                                                <div>
+                                                    <div class="font-medium text-sm">{{ ucfirst(str_replace('_', ' ', $val)) }}</div>
+                                                    <div class="text-xs text-gray-500">{{ $desc }}</div>
+                                                </div>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    <textarea name="notes" rows="3" class="form-input w-full text-sm" placeholder="{{ __('Notes (optional)') }}"></textarea>
+                                    <div class="flex justify-end gap-2 mt-3">
+                                        <button type="button" @click="open = false" class="btn-touch btn-secondary text-sm">{{ __('Cancel') }}</button>
+                                        <button type="submit" class="btn-touch btn-primary text-sm">{{ __('Save') }}</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endauth
+        @endif
+    </div>
+
     @if($inspection->issue_id)
         <div class="card mb-4 border-l-4 border-red-500 bg-red-50 dark:bg-red-900/20">
             <strong>{{ __('Non-conformance created') }}: Issue #{{ $inspection->issue_id }}</strong>

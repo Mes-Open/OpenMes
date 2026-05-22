@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Inspection;
 use App\Models\InspectionPlan;
 use App\Models\Material;
+use App\Services\Quality\DispositionService;
 use App\Services\Quality\InboundInspectionService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class InspectionController extends Controller
 {
@@ -27,6 +29,10 @@ class InspectionController extends Controller
             default => $query->whereIn('status', ['pass', 'fail', 'conditional_pass'])->orderByDesc('completed_at'),
         };
 
+        if ($d = $request->query('disposition')) {
+            $query->where('disposition', $d);
+        }
+
         $inspections = $query->limit(100)->get();
 
         $stats = [
@@ -35,7 +41,9 @@ class InspectionController extends Controller
                 ->where('completed_at', '>=', now()->subDays(30))->count(),
         ];
 
-        return view('inspections.index', compact('inspections', 'tab', 'stats'));
+        $selectedDisposition = $request->query('disposition');
+
+        return view('inspections.index', compact('inspections', 'tab', 'stats', 'selectedDisposition'));
     }
 
     public function create()
@@ -133,5 +141,30 @@ class InspectionController extends Controller
         };
 
         return redirect()->route('inspections.show', $inspection)->with('success', $msg);
+    }
+
+    public function disposition(Request $request, Inspection $inspection, DispositionService $service)
+    {
+        $validated = $request->validate([
+            'disposition' => [
+                'required',
+                'string',
+                Rule::in(array_diff(Inspection::DISPOSITIONS, [Inspection::DISPOSITION_PENDING])),
+            ],
+            'notes' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $service->apply(
+                $inspection,
+                $validated['disposition'],
+                $validated['notes'] ?? null,
+                auth()->user(),
+            );
+        } catch (\Throwable $e) {
+            return back()->with('error', __('Failed to apply disposition: :err', ['err' => $e->getMessage()]));
+        }
+
+        return back()->with('success', __('Disposition recorded.'));
     }
 }
