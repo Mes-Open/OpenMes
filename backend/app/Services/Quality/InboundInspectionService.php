@@ -138,6 +138,7 @@ class InboundInspectionService
         }
 
         \App\Models\MaterialLot::create([
+            'tenant_id' => $inspection->tenant_id,
             'material_id' => $inspection->material_id,
             'lot_number' => $inspection->lot_number,
             'supplier_lot_ref' => $inspection->supplier_lot_ref,

@@ -178,4 +178,12 @@ class AllocationAccountingTest extends TestCase
 
         $this->assertEqualsWithDelta(5.0, $allocation->fresh()->variance_qty, 0.0001);
     }
+
+    public function test_adjust_allocation_throws_when_would_go_negative(): void
+    {
+        $this->svc->allocateForBatch($this->batch, $this->user); // 100 allocated
+        $allocation = MaterialAllocation::first();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->svc->adjustAllocation($allocation, -200, $this->user);
+    }
 }

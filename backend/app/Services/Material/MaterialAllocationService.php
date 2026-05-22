@@ -47,8 +47,35 @@ class MaterialAllocationService
         $bom = $batch->workOrder->process_snapshot['bom'] ?? [];
         $preview = [];
 
+        // Bulk load materials referenced by the BOM to avoid N+1. The
+        // preview is read-only, so we deliberately skip lockForUpdate
+        // (also: locking outside a transaction is a no-op on Postgres
+        // and only adds noise/contention on SQLite).
+        $materialIds = [];
+        $materialCodes = [];
         foreach ($bom as $bomItem) {
-            $material = $this->resolveMaterial($bomItem);
+            if (! empty($bomItem['material_id'])) {
+                $materialIds[] = $bomItem['material_id'];
+            } elseif (! empty($bomItem['material_code'])) {
+                $materialCodes[] = $bomItem['material_code'];
+            }
+        }
+
+        $materialsById = ! empty($materialIds)
+            ? Material::whereIn('id', array_unique($materialIds))->get()->keyBy('id')
+            : collect();
+        $materialsByCode = ! empty($materialCodes)
+            ? Material::whereIn('code', array_unique($materialCodes))->get()->keyBy('code')
+            : collect();
+
+        foreach ($bom as $bomItem) {
+            $material = null;
+            if (! empty($bomItem['material_id'])) {
+                $material = $materialsById->get($bomItem['material_id']);
+            }
+            if (! $material && ! empty($bomItem['material_code'])) {
+                $material = $materialsByCode->get($bomItem['material_code']);
+            }
             $requiredQty = $this->calculateRequiredQty($bomItem, (float) $batch->target_qty);
             $available = $material?->available_quantity ?? 0;
 
@@ -205,6 +232,11 @@ class MaterialAllocationService
         }
         if ($deltaQty === 0.0) {
             return $allocation;
+        }
+
+        $newAllocated = (float) $allocation->allocated_qty + $deltaQty;
+        if ($newAllocated < 0) {
+            throw new \InvalidArgumentException('Adjustment would make allocated_qty negative.');
         }
 
         return DB::transaction(function () use ($allocation, $deltaQty, $user, $reason) {
