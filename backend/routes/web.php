@@ -14,8 +14,10 @@ use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\SchedulePlannerController;
+use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
+use App\Http\Controllers\Web\Admin\SiteController;
 use App\Http\Controllers\Web\Admin\IntegrationConfigController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
@@ -23,6 +25,7 @@ use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceCont
 // Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 use App\Http\Controllers\Web\Admin\MaterialImportController;
+use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
@@ -162,6 +165,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{inspection}', [\App\Http\Controllers\Web\InspectionController::class, 'show'])->name('show');
         Route::post('/{inspection}/results', [\App\Http\Controllers\Web\InspectionController::class, 'recordResult'])->name('record-result');
         Route::post('/{inspection}/complete', [\App\Http\Controllers\Web\InspectionController::class, 'complete'])->name('complete');
+        Route::post('/{inspection}/disposition', [\App\Http\Controllers\Web\InspectionController::class, 'disposition'])->name('disposition');
     });
 
     // Supervisor routes (Supervisor and Admin)
@@ -315,6 +319,9 @@ Route::middleware('auth')->group(function () {
         // LOT Sequences
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
 
+        // ── ISA-95: Material Lots (physical lots) ───────────────────────────
+        Route::resource('material-lots', AdminMaterialLotController::class);
+
         // Dashboard Widgets Setup
         Route::get('/dashboard-widgets', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'index'])->name('dashboard-widgets.index');
         Route::post('/dashboard-widgets/{widget}/toggle', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'toggle'])->name('dashboard-widgets.toggle');
@@ -373,6 +380,13 @@ Route::middleware('auth')->group(function () {
         Route::resource('divisions', DivisionController::class)->except(['show']);
         Route::post('/divisions/{division}/toggle-active', [DivisionController::class, 'toggleActive'])->name('divisions.toggle-active');
 
+        // ISA-95 Equipment Hierarchy: Sites & Areas
+        Route::resource('sites', SiteController::class);
+        Route::post('/sites/{site}/toggle-active', [SiteController::class, 'toggleActive'])->name('sites.toggle-active');
+        Route::resource('sites.areas', AreaController::class)->shallow();
+        Route::get('/areas', [AreaController::class, 'index'])->name('areas.index'); // flat list across sites
+        Route::post('/areas/{area}/toggle-active', [AreaController::class, 'toggleActive'])->name('areas.toggle-active');
+
         // Workstation Types
         Route::resource('workstation-types', WorkstationTypeController::class)->except(['show']);
         Route::post('/workstation-types/{workstationType}/toggle-active', [WorkstationTypeController::class, 'toggleActive'])->name('workstation-types.toggle-active');
@@ -403,8 +417,14 @@ Route::middleware('auth')->group(function () {
         Route::resource('skills', SkillController::class)->except(['show']);
 
         // Workers
-        Route::resource('workers', WorkerController::class)->except(['show']);
+        Route::resource('workers', WorkerController::class);
         Route::post('/workers/{worker}/toggle-active', [WorkerController::class, 'toggleActive'])->name('workers.toggle-active');
+        // Worker certifications (ISA-95 Personnel Capability — pivot management)
+        Route::post('/workers/{worker}/skills', [WorkerController::class, 'attachSkill'])->name('workers.skills.attach');
+        Route::delete('/workers/{worker}/skills/{skill}', [WorkerController::class, 'detachSkill'])->name('workers.skills.detach');
+
+        // ISA-95 Personnel Classes (competency templates)
+        Route::resource('personnel-classes', \App\Http\Controllers\Web\Admin\PersonnelClassController::class);
 
         // ── Gate 5: Tracking Advanced ─────────────────────────────────────────
         // Production Anomalies
@@ -455,6 +475,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/maintenance-events/{maintenanceEvent}/start', [MaintenanceEventController::class, 'start'])->name('maintenance-events.start');
         Route::post('/maintenance-events/{maintenanceEvent}/complete', [MaintenanceEventController::class, 'complete'])->name('maintenance-events.complete');
         Route::post('/maintenance-events/{maintenanceEvent}/cancel', [MaintenanceEventController::class, 'cancel'])->name('maintenance-events.cancel');
+
+        // ── ISA-95: Process Segments (reusable operation definitions) ────────
+        Route::resource('process-segments', \App\Http\Controllers\Web\Admin\ProcessSegmentController::class);
 
         // Maintenance Schedules (recurring preventive maintenance)
         Route::resource('maintenance-schedules', \App\Http\Controllers\Web\Admin\MaintenanceScheduleController::class)

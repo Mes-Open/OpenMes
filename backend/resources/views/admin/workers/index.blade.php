@@ -28,6 +28,7 @@
                         <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Name') }}</th>
                         <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Crew') }}</th>
                         <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Wage Group') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Personnel Class') }}</th>
                         <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Skills') }}</th>
                         <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Status') }}</th>
                         <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Actions') }}</th>
@@ -40,6 +41,7 @@
                             <td class="py-3 px-4 font-medium text-gray-900">{{ $worker->name }}</td>
                             <td class="py-3 px-4 text-gray-600">{{ $worker->crew->name ?? '—' }}</td>
                             <td class="py-3 px-4 text-gray-600">{{ $worker->wageGroup->name ?? '—' }}</td>
+                            <td class="py-3 px-4 text-gray-600">{{ $worker->personnelClass->name ?? '—' }}</td>
                             <td class="py-3 px-4 text-gray-600">{{ $worker->skills_count }}</td>
                             <td class="py-3 px-4">
                                 @if($worker->is_active)
@@ -50,6 +52,11 @@
                             </td>
                             <td class="py-3 px-4" onclick="event.stopPropagation()">
                                 <div class="flex items-center justify-end gap-2">
+                                    <a href="{{ route('admin.workers.show', $worker) }}" class="text-blue-600 hover:text-blue-800 p-1" title="{{ __('Certifications') }}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </a>
                                     <a href="{{ route('admin.workers.edit', $worker) }}" class="text-blue-600 hover:text-blue-800 p-1" title="{{ __('Edit') }}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -84,7 +91,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="py-12 text-center text-gray-500">
+                            <td colspan="8" class="py-12 text-center text-gray-500">
                                 <svg class="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                 </svg>

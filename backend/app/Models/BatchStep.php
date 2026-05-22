@@ -88,6 +88,14 @@ class BatchStep extends Model
     }
 
     /**
+     * Material lot consumption events recorded against this step (ISA-95 genealogy).
+     */
+    public function lotConsumptions(): HasMany
+    {
+        return $this->hasMany(BatchStepLotConsumption::class);
+    }
+
+    /**
      * Check if this step can be started.
      */
     public function canStart(): bool

@@ -65,8 +65,31 @@
                 </svg>
             </button>
         </div>
-        <form method="POST" action="{{ route('admin.product-types.process-templates.add-step', [$productType, $processTemplate]) }}">
+        <form method="POST" action="{{ route('admin.product-types.process-templates.add-step', [$productType, $processTemplate]) }}"
+              x-data="processSegmentPicker({{ ($processSegments ?? collect())->map(fn($s) => [
+                'id' => $s->id,
+                'code' => $s->code,
+                'name' => $s->name,
+                'instruction' => $s->standard_instruction,
+                'duration' => $s->estimated_duration_minutes,
+              ])->values()->toJson() }})">
             @csrf
+
+            @if(($processSegments ?? collect())->isNotEmpty())
+                <div class="mb-4">
+                    <label class="form-label">{{ __('Use Process Segment (optional)') }}</label>
+                    <select name="process_segment_id" x-model="segmentId" @change="applySegment()" class="form-input w-full">
+                        <option value="">{{ __('— Define ad-hoc step —') }}</option>
+                        @foreach($processSegments as $segment)
+                            <option value="{{ $segment->id }}">
+                                [{{ ucfirst($segment->segment_type) }}] {{ $segment->code }} — {{ $segment->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">{{ __('Picking a segment pre-fills name, instruction and duration. You can still override after.') }}</p>
+                </div>
+            @endif
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="name" class="form-label">{{ __('Step Name') }}</label>
@@ -74,6 +97,7 @@
                         type="text"
                         id="name"
                         name="name"
+                        x-ref="name"
                         class="form-input w-full"
                         placeholder="e.g., Attach component A"
                         required
@@ -93,6 +117,7 @@
                     <textarea
                         id="instruction"
                         name="instruction"
+                        x-ref="instruction"
                         rows="3"
                         class="form-input w-full"
                         placeholder="Detailed instructions for this step..."
@@ -104,6 +129,7 @@
                         type="number"
                         id="estimated_duration_minutes"
                         name="estimated_duration_minutes"
+                        x-ref="duration"
                         min="0"
                         class="form-input w-full"
                         placeholder="e.g., 15"
@@ -157,6 +183,18 @@
                                     <div class="flex items-start justify-between mb-2">
                                         <div class="flex-1">
                                             <h3 class="text-lg font-bold text-gray-800">{{ $step->name }}</h3>
+                                            @if($step->processSegment)
+                                                <p class="mt-1">
+                                                    <a href="{{ route('admin.process-segments.show', $step->processSegment) }}"
+                                                       class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                                       title="{{ __('ISA-95 Process Segment') }}">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z"/>
+                                                        </svg>
+                                                        {{ $step->processSegment->code }}
+                                                    </a>
+                                                </p>
+                                            @endif
                                             @if($step->workstation)
                                                 <p class="text-sm text-gray-600 mt-1">
                                                     <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,6 +265,20 @@
                         <form method="POST" action="{{ route('admin.product-types.process-templates.update-step', [$productType, $processTemplate, $step]) }}">
                             @csrf
                             @method('PUT')
+                            @if(($processSegments ?? collect())->isNotEmpty())
+                                <div class="mb-4">
+                                    <label class="form-label">{{ __('Linked Process Segment') }}</label>
+                                    <select name="process_segment_id" class="form-input w-full">
+                                        <option value="">{{ __('— None (ad-hoc step) —') }}</option>
+                                        @foreach($processSegments as $segment)
+                                            <option value="{{ $segment->id }}" {{ $step->process_segment_id == $segment->id ? 'selected' : '' }}>
+                                                [{{ ucfirst($segment->segment_type) }}] {{ $segment->code }} — {{ $segment->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">{{ __('Step-level values override segment defaults; if blank, segment values apply.') }}</p>
+                                </div>
+                            @endif
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label class="form-label">{{ __('Step Name') }}</label>
@@ -306,6 +358,24 @@
 </style>
 
 @push('scripts')
+<script>
+// Alpine helper: dropdown selection pre-fills name/instruction/duration from the
+// chosen Process Segment. User can still override before submitting.
+function processSegmentPicker(segments) {
+    return {
+        segments: segments,
+        segmentId: '',
+        applySegment() {
+            if (!this.segmentId) return;
+            const seg = this.segments.find(s => String(s.id) === String(this.segmentId));
+            if (!seg) return;
+            if (this.$refs.name && !this.$refs.name.value) this.$refs.name.value = seg.name;
+            if (this.$refs.instruction && !this.$refs.instruction.value) this.$refs.instruction.value = seg.instruction ?? '';
+            if (this.$refs.duration && !this.$refs.duration.value && seg.duration) this.$refs.duration.value = seg.duration;
+        },
+    };
+}
+</script>
 <script src="{{ asset('vendor/sortable.min.js') }}"></script>
 <script>
 (function () {
