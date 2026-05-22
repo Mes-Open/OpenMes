@@ -80,4 +80,9 @@ class MaterialAllocation extends Model
     {
         return $this->belongsTo(User::class, 'allocated_by');
     }
+
+    public function lotPicks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AllocationLotPick::class, 'material_allocation_id');
+    }
 }
