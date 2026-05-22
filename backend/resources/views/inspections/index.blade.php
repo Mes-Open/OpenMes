@@ -32,11 +32,26 @@
     {{-- Tabs --}}
     <div class="flex gap-1 mb-3 border-b border-gray-200 dark:border-gray-700">
         @foreach(['pending' => __('Pending'), 'recent' => __('Recent'), 'failed' => __('Failed')] as $key => $label)
-            <a href="?tab={{ $key }}" class="px-4 py-2 text-sm font-medium border-b-2 -mb-px {{ $tab === $key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800' }}">
+            <a href="?tab={{ $key }}{{ ($selectedDisposition ?? null) ? '&disposition='.$selectedDisposition : '' }}" class="px-4 py-2 text-sm font-medium border-b-2 -mb-px {{ $tab === $key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800' }}">
                 {{ $label }}
             </a>
         @endforeach
     </div>
+
+    {{-- Filter: disposition --}}
+    <form method="GET" class="flex items-center gap-2 mb-3 text-sm">
+        <input type="hidden" name="tab" value="{{ $tab }}">
+        <label for="disposition" class="text-gray-600 dark:text-gray-400">{{ __('Disposition') }}:</label>
+        <select id="disposition" name="disposition" onchange="this.form.submit()" class="form-input w-48">
+            <option value="">{{ __('All') }}</option>
+            @foreach(['pending','accept','accept_with_deviation','rework','quarantine','scrap','reject','return_to_supplier'] as $d)
+                <option value="{{ $d }}" @selected(($selectedDisposition ?? '') === $d)>{{ ucfirst(str_replace('_', ' ', $d)) }}</option>
+            @endforeach
+        </select>
+        @if($selectedDisposition ?? null)
+            <a href="?tab={{ $tab }}" class="text-xs text-gray-500 hover:underline">{{ __('Clear') }}</a>
+        @endif
+    </form>
 
     @if($inspections->isEmpty())
         <div class="card text-center py-8 text-gray-500">{{ __('No inspections in this tab.') }}</div>
@@ -51,6 +66,7 @@
                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Qty') }}</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Inspector') }}</th>
                         <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{{ __('Status') }}</th>
+                        <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{{ __('Disposition') }}</th>
                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
@@ -76,6 +92,18 @@
                                 <a href="#" class="block text-xs text-red-600 mt-1">NC #{{ $insp->issue_id }}</a>
                             @endif
                         </td>
+                        <td class="px-3 py-2 text-center">
+                            @php
+                                $dispClass = match($insp->disposition) {
+                                    'accept', 'accept_with_deviation' => 'badge-green',
+                                    'rework' => 'badge-yellow',
+                                    'quarantine' => 'badge-blue',
+                                    'scrap', 'reject', 'return_to_supplier' => 'badge-red',
+                                    default => 'badge-gray',
+                                };
+                            @endphp
+                            <span class="badge {{ $dispClass }}">{{ str_replace('_', ' ', $insp->disposition ?? 'pending') }}</span>
+                        </td>
                         <td class="px-3 py-2 text-right">
                             <a href="{{ route('inspections.show', $insp) }}" class="text-blue-600 hover:underline">
                                 {{ $insp->isPending() ? __('Perform') : __('Open') }}
@@ -94,6 +122,7 @@
 .badge-green  { background:#dcfce7; color:#166534; }
 .badge-yellow { background:#fef9c3; color:#854d0e; }
 .badge-red    { background:#fee2e2; color:#991b1b; }
+.badge-blue   { background:#dbeafe; color:#1e40af; }
 .badge-gray   { background:#f3f4f6; color:#4b5563; }
 </style>
 @endsection
