@@ -6,7 +6,7 @@
 
 *Powerful, flexible, and tablet-ready MES for small manufacturers*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
 [![Livewire](https://img.shields.io/badge/Livewire-4-4E56A6?logo=livewire&logoColor=white)](https://livewire.laravel.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
@@ -30,7 +30,7 @@
 - 📱 **Tablet-first design** - Touch-optimized for shop floor operators
 - 🔒 **Security-first** - OWASP Top 10 compliant from day one
 - 📊 **Real-time visibility** - Know exactly what's happening on every line
-- 🆓 **Truly open-source** - MIT licensed, no vendor lock-in
+- 🆓 **Truly open-source** - AGPL-3.0 licensed, no vendor lock-in
 - 🚀 **Deploy in minutes** - Single command Docker deployment
 
 ---
@@ -378,13 +378,17 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details.
 
 ## 📄 License
 
-OpenMES is open-source software licensed under the **MIT License**.
+OpenMES is open-source software licensed under the **GNU AGPL-3.0**.
 
 This means you can:
 - ✅ Use it commercially
 - ✅ Modify it
 - ✅ Distribute it
 - ✅ Use it privately
+
+…provided you keep it open. If you modify OpenMES and run it as a network
+service, you must make the modified source available to users of that
+service (AGPL §13).
 
 See [LICENSE](LICENSE) for full details.
 
