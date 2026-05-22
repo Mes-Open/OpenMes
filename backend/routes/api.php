@@ -113,6 +113,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/workers', [WorkerController::class, 'index']);
     Route::get('/workers/{worker}', [WorkerController::class, 'show']);
 
+    // ISA-95 Personnel Classes — read for any authenticated user
+    Route::get('/personnel-classes', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'index']);
+    Route::get('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'show']);
+
     // Org structure — read for any authenticated user
     Route::get('/factories', [FactoryController::class, 'index']);
     Route::get('/factories/{factory}', [FactoryController::class, 'show']);
@@ -273,6 +277,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::post('/process-segments', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'store']);
         Route::patch('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'update']);
         Route::delete('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'destroy']);
+
+        // ISA-95 Personnel Classes — admin mutations
+        Route::post('/personnel-classes', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'store']);
+        Route::patch('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'update']);
+        Route::delete('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'destroy']);
 
         // Template Steps
         Route::post('/process-templates/{process_template}/steps', [ProcessTemplateController::class, 'addStep']);
