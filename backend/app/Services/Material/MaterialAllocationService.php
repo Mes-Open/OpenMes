@@ -4,22 +4,134 @@ namespace App\Services\Material;
 
 use App\Exceptions\InsufficientStockException;
 use App\Models\Batch;
+use App\Models\BatchStep;
 use App\Models\Material;
 use App\Models\MaterialAllocation;
+use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class MaterialAllocationService
 {
+    public function __construct(
+        protected StockMovementService $stockMovements,
+    ) {}
+
     /**
-     * Allocate materials for a batch based on work order BOM snapshot.
-     * Wraps the whole loop in a transaction with per-material row locks so
-     * concurrent batches cannot double-allocate the same stock. Idempotent:
-     * the unique index on (batch_id, material_id) means re-running on a
-     * partially-allocated batch is a no-op for already-allocated rows.
+     * Allocate materials whose BOM rows have consumed_at='start' (or
+     * unspecified, treated as start for backward compat).
+     *
+     * Called once per batch when the first step transitions PENDING→IN_PROGRESS.
+     * Materials tied to a specific step (consumed_at='during') wait for
+     * that step to start; consumed_at='end' waits for the last step.
      */
     public function allocateForBatch(Batch $batch, User $user): Collection
+    {
+        return $this->allocateMatching($batch, $user, fn ($bom) => $this->isStartItem($bom));
+    }
+
+    /**
+     * Allocate materials whose BOM rows target this specific step.
+     * Called when the given step transitions PENDING→IN_PROGRESS.
+     */
+    public function allocateForStep(BatchStep $step, User $user): Collection
+    {
+        $batch = $step->batch;
+        $stepNumber = $step->step_number;
+
+        return $this->allocateMatching(
+            $batch,
+            $user,
+            fn ($bom) => $this->isDuringItem($bom) && (int) ($bom['step_number'] ?? 0) === $stepNumber,
+            stepId: $step->id,
+        );
+    }
+
+    /**
+     * Allocate end-of-batch materials when the final step completes.
+     */
+    public function allocateForBatchEnd(Batch $batch, User $user): Collection
+    {
+        return $this->allocateMatching($batch, $user, fn ($bom) => $this->isEndItem($bom));
+    }
+
+    /**
+     * Get allocation preview for a batch (what will be allocated).
+     */
+    public function previewForBatch(Batch $batch): array
+    {
+        $bom = $batch->workOrder->process_snapshot['bom'] ?? [];
+        $preview = [];
+
+        foreach ($bom as $bomItem) {
+            $material = $this->resolveMaterial($bomItem);
+            $requiredQty = $this->calculateRequiredQty($bomItem, (float) $batch->target_qty);
+
+            $preview[] = [
+                'material_name' => $bomItem['material_name'] ?? $material?->name,
+                'material_code' => $bomItem['material_code'] ?? $material?->code,
+                'unit_of_measure' => $bomItem['unit_of_measure'] ?? $material?->unit_of_measure,
+                'required_qty' => $requiredQty,
+                'available_qty' => $material?->stock_quantity ?? 0,
+                'sufficient' => $material ? (float) $material->stock_quantity >= $requiredQty : false,
+                'material_exists' => $material !== null,
+                'consumed_at' => $bomItem['consumed_at'] ?? 'start',
+                'step_number' => $bomItem['step_number'] ?? null,
+            ];
+        }
+
+        return $preview;
+    }
+
+    /**
+     * Mark allocations as consumed when batch is completed.
+     */
+    public function consumeForBatch(Batch $batch): void
+    {
+        MaterialAllocation::where('batch_id', $batch->id)
+            ->where('status', MaterialAllocation::STATUS_ALLOCATED)
+            ->update([
+                'status' => MaterialAllocation::STATUS_CONSUMED,
+                'consumed_at' => now(),
+            ]);
+    }
+
+    /**
+     * Return allocated materials when batch is cancelled.
+     */
+    public function returnForBatch(Batch $batch): void
+    {
+        DB::transaction(function () use ($batch) {
+            $allocations = MaterialAllocation::where('batch_id', $batch->id)
+                ->where('status', MaterialAllocation::STATUS_ALLOCATED)
+                ->lockForUpdate()
+                ->with('material')
+                ->get();
+
+            foreach ($allocations as $allocation) {
+                if ($allocation->material) {
+                    $this->stockMovements->record(
+                        $allocation->material,
+                        StockMovement::TYPE_RETURN,
+                        (float) $allocation->allocated_qty,
+                        sourceType: StockMovement::SOURCE_BATCH,
+                        sourceId: $allocation->batch_id,
+                        reason: 'Batch #'.$allocation->batch_id.' cancelled — return to stock',
+                    );
+                }
+
+                $allocation->update([
+                    'status' => MaterialAllocation::STATUS_RETURNED,
+                    'returned_qty' => $allocation->allocated_qty,
+                ]);
+            }
+        });
+    }
+
+    // ── internals ─────────────────────────────────────────────────────────────
+
+    private function allocateMatching(Batch $batch, User $user, \Closure $filter, ?int $stepId = null): Collection
     {
         $bom = $batch->workOrder->process_snapshot['bom'] ?? [];
 
@@ -29,11 +141,14 @@ class MaterialAllocationService
 
         $blockNegative = $this->blockNegativeStockEnabled();
 
-        return DB::transaction(function () use ($batch, $user, $bom, $blockNegative) {
+        return DB::transaction(function () use ($batch, $user, $bom, $filter, $stepId, $blockNegative) {
             $allocations = collect();
 
             foreach ($bom as $bomItem) {
-                // Idempotency: skip if already allocated.
+                if (! $filter($bomItem)) {
+                    continue;
+                }
+
                 $existing = MaterialAllocation::where('batch_id', $batch->id)
                     ->where('material_id', $bomItem['material_id'] ?? null)
                     ->first();
@@ -57,10 +172,21 @@ class MaterialAllocationService
                     );
                 }
 
-                $material->decrement('stock_quantity', $requiredQty);
+                // Route through StockMovementService so the ledger captures
+                // the change with proper balance_after + audit fields.
+                $this->stockMovements->record(
+                    $material,
+                    StockMovement::TYPE_ALLOCATION,
+                    -$requiredQty,
+                    user: $user,
+                    sourceType: $stepId ? StockMovement::SOURCE_BATCH_STEP : StockMovement::SOURCE_BATCH,
+                    sourceId: $stepId ?: $batch->id,
+                    reason: 'Allocated to batch #'.$batch->id.($stepId ? ' (step '.$stepId.')' : ''),
+                );
 
                 $allocations->push(MaterialAllocation::create([
                     'batch_id' => $batch->id,
+                    'batch_step_id' => $stepId,
                     'material_id' => $material->id,
                     'work_order_id' => $batch->work_order_id,
                     'allocated_qty' => $requiredQty,
@@ -74,77 +200,23 @@ class MaterialAllocationService
         });
     }
 
-    /**
-     * Get allocation preview for a batch (what will be allocated).
-     */
-    public function previewForBatch(Batch $batch): array
+    private function isStartItem(array $bomItem): bool
     {
-        $bom = $batch->workOrder->process_snapshot['bom'] ?? [];
-        $preview = [];
-
-        foreach ($bom as $bomItem) {
-            $material = $this->resolveMaterial($bomItem);
-            $requiredQty = $this->calculateRequiredQty($bomItem, (float) $batch->target_qty);
-
-            $preview[] = [
-                'material_name' => $bomItem['material_name'] ?? $material?->name,
-                'material_code' => $bomItem['material_code'] ?? $material?->code,
-                'unit_of_measure' => $bomItem['unit_of_measure'] ?? $material?->unit_of_measure,
-                'required_qty' => $requiredQty,
-                'available_qty' => $material?->stock_quantity ?? 0,
-                'sufficient' => $material ? (float) $material->stock_quantity >= $requiredQty : false,
-                'material_exists' => $material !== null,
-            ];
-        }
-
-        return $preview;
+        $at = $bomItem['consumed_at'] ?? 'start';
+        // 'start' or undefined → allocate at batch start
+        return $at === 'start';
     }
 
-    /**
-     * Mark allocations as consumed when batch is completed.
-     */
-    public function consumeForBatch(Batch $batch): void
+    private function isDuringItem(array $bomItem): bool
     {
-        MaterialAllocation::where('batch_id', $batch->id)
-            ->where('status', MaterialAllocation::STATUS_ALLOCATED)
-            ->update([
-                'status' => MaterialAllocation::STATUS_CONSUMED,
-                'consumed_at' => now(),
-            ]);
+        return ($bomItem['consumed_at'] ?? null) === 'during';
     }
 
-    /**
-     * Return allocated materials when batch is cancelled.
-     * Wraps in a transaction with row locks so a concurrent allocate cannot
-     * race with the restore.
-     */
-    public function returnForBatch(Batch $batch): void
+    private function isEndItem(array $bomItem): bool
     {
-        DB::transaction(function () use ($batch) {
-            $allocations = MaterialAllocation::where('batch_id', $batch->id)
-                ->where('status', MaterialAllocation::STATUS_ALLOCATED)
-                ->lockForUpdate()
-                ->with('material')
-                ->get();
-
-            foreach ($allocations as $allocation) {
-                $allocation->material?->increment('stock_quantity', (float) $allocation->allocated_qty);
-
-                $allocation->update([
-                    'status' => MaterialAllocation::STATUS_RETURNED,
-                    'returned_qty' => $allocation->allocated_qty,
-                ]);
-            }
-        });
+        return ($bomItem['consumed_at'] ?? null) === 'end';
     }
 
-    /**
-     * Resolve a Material from a BOM snapshot item. Prefers material_id
-     * (immutable PK) and falls back to material_code for older snapshots
-     * created before id was carried through.
-     *
-     * Uses lockForUpdate so concurrent allocations are serialized per material.
-     */
     private function resolveMaterial(array $bomItem): ?Material
     {
         $query = Material::query()->lockForUpdate();
