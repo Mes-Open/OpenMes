@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Packaging\Models;
+namespace App\Models;
 
 use App\Models\User;
 use App\Models\WorkOrder;

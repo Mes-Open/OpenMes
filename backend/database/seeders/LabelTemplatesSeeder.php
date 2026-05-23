@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Tenant;
 use Illuminate\Database\Seeder;
-use Modules\Packaging\Models\LabelTemplate;
+use App\Models\LabelTemplate;
 
 class LabelTemplatesSeeder extends Seeder
 {

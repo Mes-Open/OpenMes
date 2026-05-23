@@ -1,14 +1,14 @@
 <?php
 
-namespace Modules\Packaging\Controllers\Api;
+namespace App\Http\Controllers\Api\V1;
 
 use App\Models\WorkOrder;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Modules\Packaging\Models\PackagingScanLog;
-use Modules\Packaging\Models\WorkOrderEan;
+use App\Http\Controllers\Controller;
+use App\Models\PackagingScanLog;
+use App\Models\WorkOrderEan;
 
 class PackagingApiController extends Controller
 {

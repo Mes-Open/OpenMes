@@ -56,9 +56,9 @@
     {{-- Table --}}
     @php
         $woLabelTemplates = collect();
-        if (class_exists(\Modules\Packaging\Models\LabelTemplate::class)) {
-            $woLabelTemplates = \Modules\Packaging\Models\LabelTemplate::query()
-                ->where('type', \Modules\Packaging\Models\LabelTemplate::TYPE_WORK_ORDER)
+        if (class_exists(\App\Models\LabelTemplate::class)) {
+            $woLabelTemplates = \App\Models\LabelTemplate::query()
+                ->where('type', \App\Models\LabelTemplate::TYPE_WORK_ORDER)
                 ->where('is_active', true)
                 ->orderByDesc('is_default')->orderBy('name')->get();
         }

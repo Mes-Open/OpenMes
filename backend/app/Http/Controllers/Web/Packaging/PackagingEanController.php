@@ -1,11 +1,11 @@
 <?php
 
-namespace Modules\Packaging\Controllers;
+namespace App\Http\Controllers\Web\Packaging;
 
 use App\Models\WorkOrder;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Modules\Packaging\Models\WorkOrderEan;
+use App\Http\Controllers\Controller;
+use App\Models\WorkOrderEan;
 
 class PackagingEanController extends Controller
 {
@@ -17,7 +17,7 @@ class PackagingEanController extends Controller
             ->paginate(30)
             ->withQueryString();
 
-        return view('packaging::eans.index', compact('workOrders'));
+        return view('packaging.eans.index', compact('workOrders'));
     }
 
     public function store(Request $request)
