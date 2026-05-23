@@ -610,14 +610,14 @@
 
     {{-- ===== TOOLBAR ===== --}}
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-2.5 mb-4 flex flex-wrap items-center gap-3">
-        <a href="{{ route('admin.schedule', ['start_date' => $navPrev->format('Y-m-d')]) }}"
+        <a href="{{ route('admin.schedule', ['start_date' => $navPrev->format('Y-m-d'), 'view_mode' => $viewMode, 'line_id' => request('line_id')]) }}"
            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition" title="{{ __('Previous') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </a>
         <span class="font-semibold text-sm text-gray-700 dark:text-gray-200">
             {{ $rangeStart->translatedFormat('d.m') }} &ndash; {{ $rangeEnd->translatedFormat('d.m.Y') }}
         </span>
-        <a href="{{ route('admin.schedule', ['start_date' => $navNext->format('Y-m-d')]) }}"
+        <a href="{{ route('admin.schedule', ['start_date' => $navNext->format('Y-m-d'), 'view_mode' => $viewMode, 'line_id' => request('line_id')]) }}"
            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition" title="{{ __('Next') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
