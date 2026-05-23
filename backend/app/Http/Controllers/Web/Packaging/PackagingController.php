@@ -1,13 +1,13 @@
 <?php
 
-namespace Modules\Packaging\Controllers;
+namespace App\Http\Controllers\Web\Packaging;
 
 use App\Models\WorkOrder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Modules\Packaging\Models\PackagingScanLog;
-use Modules\Packaging\Models\WorkOrderEan;
+use App\Http\Controllers\Controller;
+use App\Models\PackagingScanLog;
+use App\Models\WorkOrderEan;
 
 class PackagingController extends Controller
 {
@@ -15,14 +15,14 @@ class PackagingController extends Controller
 
     public function station()
     {
-        return view('packaging::station');
+        return view('packaging.station');
     }
 
     public function adminOverview()
     {
         $items = $this->buildItemList();
         $stats = $this->buildStats();
-        return view('packaging::admin', compact('items', 'stats'));
+        return view('packaging.admin', compact('items', 'stats'));
     }
 
     // ── JSON API (polling) ────────────────────────────────────────────────────
