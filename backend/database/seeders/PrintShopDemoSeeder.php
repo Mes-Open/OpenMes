@@ -410,19 +410,19 @@ class PrintShopDemoSeeder extends Seeder
 
         $defs = [
             [
-                'name' => 'Morning Shift', 'code' => 'SHIFT-MORNING',
+                'name' => 'Morning Shift', 'code' => 'SM',
                 'start_time' => '06:00', 'end_time' => '14:00',
                 'days_of_week' => $weekdays, 'line_codes' => ['DTG', 'SITO', 'HAFT', 'TRANSFER', 'PACKING'],
                 'sort_order' => 1,
             ],
             [
-                'name' => 'Afternoon Shift', 'code' => 'SHIFT-AFTERNOON',
+                'name' => 'Afternoon Shift', 'code' => 'SA',
                 'start_time' => '14:00', 'end_time' => '22:00',
                 'days_of_week' => $weekdays, 'line_codes' => ['DTG', 'SITO', 'HAFT', 'TRANSFER', 'PACKING'],
                 'sort_order' => 2,
             ],
             [
-                'name' => 'Night Shift', 'code' => 'SHIFT-NIGHT',
+                'name' => 'Night Shift', 'code' => 'SN',
                 'start_time' => '22:00', 'end_time' => '06:00',
                 'days_of_week' => $monToThu, 'line_codes' => ['DTG', 'SITO'],
                 'sort_order' => 3,
