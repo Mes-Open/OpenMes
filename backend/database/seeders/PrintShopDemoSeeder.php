@@ -712,7 +712,7 @@ class PrintShopDemoSeeder extends Seeder
                 'line_id'        => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,
                 'event_type'     => 'planned',
-                'frequency'      => 'biweekly',
+                'frequency'      => 'weekly',
                 'interval_value' => 2,
                 'preferred_time' => '06:30',
                 'next_due_at'    => now()->addWeeks(2)->setTime(6, 30),
