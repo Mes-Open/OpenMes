@@ -157,7 +157,7 @@ class MaterialLotController extends Controller
 
         if (! $materialLot->isAvailable()) {
             return response()->json([
-                'message' => 'Lot is not available for consumption (status=' . $materialLot->status . ').',
+                'message' => __('Lot is not available for consumption (status=:status).', ['status' => $materialLot->status]),
             ], 422);
         }
 
@@ -189,7 +189,7 @@ class MaterialLotController extends Controller
         }
 
         return response()->json([
-            'message' => 'Consumption recorded',
+            'message' => __('Consumption recorded'),
             'data' => [
                 'consumption' => $consumption->load(['materialLot', 'batchStep']),
                 'lot' => $materialLot->fresh(['material']),

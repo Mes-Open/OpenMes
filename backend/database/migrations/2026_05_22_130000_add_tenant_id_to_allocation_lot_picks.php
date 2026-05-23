@@ -18,14 +18,11 @@ return new class extends Migration
 
         // 2) Backfill tenant_id from the parent material_allocation. Portable
         // subquery form so it runs on both Postgres and SQLite (tests).
-        DB::statement('
-            UPDATE allocation_lot_picks
-            SET tenant_id = (
-                SELECT tenant_id FROM material_allocations
-                WHERE material_allocations.id = allocation_lot_picks.material_allocation_id
-            )
-            WHERE tenant_id IS NULL
-        ');
+        DB::table('allocation_lot_picks')
+            ->whereNull('tenant_id')
+            ->update([
+                'tenant_id' => DB::raw('(SELECT tenant_id FROM material_allocations WHERE material_allocations.id = allocation_lot_picks.material_allocation_id)'),
+            ]);
     }
 
     public function down(): void

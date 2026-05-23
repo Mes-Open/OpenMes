@@ -64,7 +64,7 @@ class PersonnelClassController extends Controller
         $personnelClass = PersonnelClass::create($data);
 
         return response()->json([
-            'message' => 'Personnel class created',
+            'message' => __('Personnel class created'),
             'data'    => $personnelClass,
         ], 201);
     }
@@ -75,7 +75,7 @@ class PersonnelClassController extends Controller
         $personnelClass->update($data);
 
         return response()->json([
-            'message' => 'Personnel class updated',
+            'message' => __('Personnel class updated'),
             'data'    => $personnelClass->fresh(),
         ]);
     }
@@ -86,7 +86,7 @@ class PersonnelClassController extends Controller
 
         if ($workerCount > 0 && ! $request->boolean('force')) {
             return response()->json([
-                'message' => "Cannot delete — {$workerCount} worker(s) assigned.",
+                'message' => __('Cannot delete — :count worker(s) assigned.', ['count' => $workerCount]),
             ], 422);
         }
 
@@ -97,7 +97,7 @@ class PersonnelClassController extends Controller
 
         $personnelClass->delete();
 
-        return response()->json(['message' => 'Personnel class deleted']);
+        return response()->json(['message' => __('Personnel class deleted')]);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

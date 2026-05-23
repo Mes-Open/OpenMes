@@ -27,18 +27,15 @@ return new class extends Migration
         // be no duplicates, but the statement is cheap and guarantees the
         // migration succeeds on production data that may have slipped through
         // before the application-level guard was added.
-        DB::statement('
-            DELETE FROM maintenance_events
-            WHERE id NOT IN (
-                SELECT keep_id FROM (
-                    SELECT MIN(id) AS keep_id
-                    FROM maintenance_events
-                    WHERE schedule_id IS NOT NULL
-                    GROUP BY schedule_id, scheduled_at
-                ) AS keepers
-            )
-            AND schedule_id IS NOT NULL
-        ');
+        $keepIds = DB::table('maintenance_events')
+            ->whereNotNull('schedule_id')
+            ->groupBy('schedule_id', 'scheduled_at')
+            ->pluck(DB::raw('MIN(id)'));
+
+        DB::table('maintenance_events')
+            ->whereNotNull('schedule_id')
+            ->whereNotIn('id', $keepIds)
+            ->delete();
 
         Schema::table('maintenance_events', function (Blueprint $table) {
             $table->unique(
