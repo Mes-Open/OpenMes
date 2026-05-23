@@ -67,7 +67,7 @@ class ProcessSegmentController extends Controller
         $segment = ProcessSegment::create($data);
 
         return response()->json([
-            'message' => 'Process segment created',
+            'message' => __('Process segment created'),
             'data'    => $segment->load('workstationType'),
         ], 201);
     }
@@ -78,7 +78,7 @@ class ProcessSegmentController extends Controller
         $processSegment->update($data);
 
         return response()->json([
-            'message' => 'Process segment updated',
+            'message' => __('Process segment updated'),
             'data'    => $processSegment->fresh(['workstationType']),
         ]);
     }
@@ -88,13 +88,13 @@ class ProcessSegmentController extends Controller
         $usage = $processSegment->templateSteps()->count();
         if ($usage > 0) {
             return response()->json([
-                'message' => "Cannot delete — used by {$usage} template step(s).",
+                'message' => __('Cannot delete — used by :count template step(s).', ['count' => $usage]),
             ], 422);
         }
 
         $processSegment->delete();
 
-        return response()->json(['message' => 'Process segment deleted']);
+        return response()->json(['message' => __('Process segment deleted')]);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

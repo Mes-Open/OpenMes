@@ -1132,6 +1132,7 @@
     "Work Order": "Zlecenie",
     "Work Order Details": "Szczegóły zlecenia",
     "Work Orders": "Zlecenia",
+    "All Orders": "Wszystkie zlecenia",
     "Work Orders by Status": "Zlecenia wg statusu",
     "Work order status is changed manually. Board statuses are visual labels.": "Status zlecenia zmeniany ręcznie. Statusy tablicy to etykiety wizualne.",
     "Work orders, issues, and lines summary cards": "Podsumowanie zleceń, problemów i linii",

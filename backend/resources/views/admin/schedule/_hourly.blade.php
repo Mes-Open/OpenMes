@@ -166,7 +166,7 @@
                                     $cardBase = 'bg-red-200 border-red-500 text-red-900';
                                 }
                             @endphp
-                            <div class="wo-card absolute rounded border-2 shadow-sm px-1.5 py-1 overflow-hidden cursor-grab active:cursor-grabbing select-none {{ $cardBase }}"
+                            <div class="wo-card group absolute rounded border-2 shadow-sm px-1.5 py-1 overflow-visible cursor-grab active:cursor-grabbing select-none {{ $cardBase }}"
                                  style="left: {{ $order['start_minute'] * $pxPerMinute }}px;
                                         width: {{ max(20, $order['duration_minutes'] * $pxPerMinute) }}px;
                                         top: 6px;
@@ -215,9 +215,15 @@
                                     </div>
                                 </div>
 
+                                {{-- Unassign button --}}
+                                <button class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold leading-none flex items-center justify-center
+                                               opacity-0 group-hover:opacity-100 hover:!opacity-100 transition-opacity shadow-sm hover:bg-red-600 z-20 pointer-events-auto"
+                                        @click.stop.prevent="if(confirm({{ json_encode(__('Remove this order from schedule?')) }})) { saveOrder({{ $wo->id }}, { line_id: '', due_date: '', week_number: '', shift_number: '', planned_start_at: '', planned_end_at: '' }).then(() => refreshContent()) }"
+                                        title="{{ __('Remove from schedule') }}">✕</button>
+
                                 {{-- Right edge resize handle --}}
                                 @if(! $order['is_legacy'])
-                                    <div class="wo-resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-black/0 hover:bg-black/10"
+                                    <div class="wo-resize-handle absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize bg-black/0 hover:bg-black/20 rounded-r"
                                          @mousedown.stop="onResizeMouseDown($event)"></div>
                                 @endif
                             </div>

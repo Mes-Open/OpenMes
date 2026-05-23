@@ -102,16 +102,14 @@ class SchedulePlannerController extends Controller
 
         // Navigation dates
         $navPrev = match ($viewMode) {
-            'daily' => $startDate->copy()->subWeeks(2),
-            'hourly' => $startDate->copy()->subDay(),
-            'monthly' => $startDate->copy()->subMonths(3),
-            default => $startDate->copy()->subWeeks($horizonWeeks),
+            'daily', 'hourly' => $startDate->copy()->subDay(),
+            'monthly' => $startDate->copy()->subMonth(),
+            default => $startDate->copy()->subWeek(),
         };
         $navNext = match ($viewMode) {
-            'daily' => $startDate->copy()->addWeeks(2),
-            'hourly' => $startDate->copy()->addDay(),
-            'monthly' => $startDate->copy()->addMonths(3),
-            default => $startDate->copy()->addWeeks($horizonWeeks),
+            'daily', 'hourly' => $startDate->copy()->addDay(),
+            'monthly' => $startDate->copy()->addMonth(),
+            default => $startDate->copy()->addWeek(),
         };
 
         // All lines for filter dropdown (unfiltered)
