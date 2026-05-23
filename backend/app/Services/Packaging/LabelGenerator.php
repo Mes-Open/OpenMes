@@ -65,7 +65,7 @@ class LabelGenerator
         return [
             'fields' => [
                 'wo_number' => $wo->order_no,
-                'product' => $wo->productType?->name ?? '—',
+                'product' => $wo->productType?->name ?? '-',
                 'quantity' => $this->formatQty($wo->planned_qty).' '.($wo->productType?->unit ?? 'pcs'),
                 'lot' => null,
                 'prod_date' => $wo->created_at?->format('Y-m-d'),
@@ -87,9 +87,9 @@ class LabelGenerator
         return [
             'fields' => [
                 'wo_number' => $wo->order_no,
-                'product' => $wo->productType?->name ?? '—',
+                'product' => $wo->productType?->name ?? '-',
                 'quantity' => $this->formatQty($batch->produced_qty).' '.($wo->productType?->unit ?? 'pcs'),
-                'lot' => $batch->lot_number ?: '—',
+                'lot' => $batch->lot_number ?: '-',
                 'prod_date' => ($batch->completed_at ?? $batch->released_at)?->format('Y-m-d'),
             ],
             'barcode_value' => $barcodeValue,
@@ -110,7 +110,7 @@ class LabelGenerator
         return [
             'fields' => [
                 'wo_number' => $wo->order_no,
-                'product' => $wo->productType?->name ?? '—',
+                'product' => $wo->productType?->name ?? '-',
                 'quantity' => $this->formatQty($batch->target_qty).' '.($wo->productType?->unit ?? 'pcs'),
                 'lot' => 'Step '.$step->step_number.': '.$step->name,
                 'prod_date' => optional($step->workstation)->name,
@@ -126,6 +126,14 @@ class LabelGenerator
     {
         $widthMm = $template->widthMm();
         $heightMm = $template->heightMm();
+
+        $labels = array_map(function (array $label) use ($template, $widthMm): array {
+            $label['has_qr'] = $template->hasField('qr') && ! empty($label['qr_png']);
+            $label['has_barcode'] = $template->hasField('barcode') && ! empty($label['barcode_png']);
+            $label['content_width'] = $label['has_qr'] ? $widthMm - 22 : $widthMm - 6;
+
+            return $label;
+        }, $labels);
 
         return Pdf::loadView($view, [
             'labels' => $labels,

@@ -35,31 +35,31 @@ class PackagingController extends Controller
 
     public function scan(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'ean' => 'required|string|max:100',
         ]);
 
-        $eanRecord = WorkOrderEan::where('ean', $request->ean)->first();
+        $eanRecord = WorkOrderEan::where('ean', $validated['ean'])->first();
 
         if (! $eanRecord) {
-            return response()->json(['message' => 'Nieznany kod EAN'], 404);
+            return response()->json(['message' => __('Unknown EAN')], 404);
         }
 
         $workOrder = WorkOrder::find($eanRecord->work_order_id);
 
         if (! $workOrder) {
-            return response()->json(['message' => 'Zlecenie nie istnieje'], 404);
+            return response()->json(['message' => __('Work order not found')], 404);
         }
 
         if (! in_array($workOrder->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])) {
             return response()->json([
-                'message' => 'Zlecenie nie jest w toku ani zakończone (status: '.$workOrder->status.')',
+                'message' => __('Work order not in a packable state (current: :status)', ['status' => $workOrder->status]),
             ], 422);
         }
 
         $planned = (int) $workOrder->planned_qty;
         if ($planned > 0 && $workOrder->packed_qty >= $planned) {
-            return response()->json(['message' => 'Zlecenie już w pełni spakowane'], 422);
+            return response()->json(['message' => __('Work order fully packed')], 422);
         }
 
         $workOrder->increment('packed_qty');
@@ -68,7 +68,7 @@ class PackagingController extends Controller
         PackagingScanLog::create([
             'user_id' => $request->user()?->id,
             'work_order_id' => $workOrder->id,
-            'ean' => $request->ean,
+            'ean' => $validated['ean'],
             'product_name' => $this->productLabel($workOrder),
             'scanned_at' => now(),
         ]);
@@ -81,7 +81,7 @@ class PackagingController extends Controller
                 'planned_qty' => (int) $workOrder->planned_qty,
                 'packed_qty' => $workOrder->packed_qty,
             ],
-            'message' => 'Spakowano: '.$this->productLabel($workOrder),
+            'message' => __('Packed: :name', ['name' => $this->productLabel($workOrder)]),
         ]);
     }
 

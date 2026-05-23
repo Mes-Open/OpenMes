@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LabelTemplate;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
@@ -16,8 +17,8 @@ class WorkOrderManagementController extends Controller
     public function index(Request $request)
     {
         $allowedSorts = ['order_no', 'status', 'planned_qty', 'produced_qty', 'priority', 'due_date', 'created_at'];
-        $sort         = in_array($request->input('sort'), $allowedSorts) ? $request->input('sort') : 'created_at';
-        $direction    = $request->input('direction') === 'asc' ? 'asc' : 'desc';
+        $sort = in_array($request->input('sort'), $allowedSorts) ? $request->input('sort') : 'created_at';
+        $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
 
         $query = WorkOrder::with(['line', 'productType'])->withCount('batches')
             ->orderBy($sort, $direction);
@@ -29,18 +30,25 @@ class WorkOrderManagementController extends Controller
             $query->where('line_id', $request->line_id);
         }
         if ($request->filled('search')) {
-            $query->where('order_no', 'ilike', '%' . $request->search . '%');
+            $query->where('order_no', 'ilike', '%'.$request->search.'%');
         }
 
         $workOrders = $query->paginate(25)->withQueryString();
-        $lines      = Line::orderBy('name')->get();
+        $lines = Line::orderBy('name')->get();
 
-        return view('admin.work-orders.index', compact('workOrders', 'lines', 'sort', 'direction'));
+        $woLabelTemplates = LabelTemplate::query()
+            ->where('type', LabelTemplate::TYPE_WORK_ORDER)
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.work-orders.index', compact('workOrders', 'lines', 'sort', 'direction', 'woLabelTemplates'));
     }
 
     public function create()
     {
-        $lines        = Line::where('is_active', true)->orderBy('name')->get();
+        $lines = Line::where('is_active', true)->orderBy('name')->get();
         $productTypes = ProductType::where('is_active', true)->orderBy('name')->get();
 
         return view('admin.work-orders.create', compact('lines', 'productTypes'));
@@ -49,20 +57,20 @@ class WorkOrderManagementController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'order_no'        => 'required|string|max:100|unique:work_orders,order_no',
-            'line_id'         => 'nullable|exists:lines,id',
+            'order_no' => 'required|string|max:100|unique:work_orders,order_no',
+            'line_id' => 'nullable|exists:lines,id',
             'product_type_id' => 'nullable|exists:product_types,id',
-            'planned_qty'     => 'required|numeric|min:0.01',
-            'priority'        => 'nullable|integer|min:0|max:100',
-            'due_date'        => 'nullable|date',
-            'description'     => 'nullable|string|max:2000',
+            'planned_qty' => 'required|numeric|min:0.01',
+            'priority' => 'nullable|integer|min:0|max:100',
+            'due_date' => 'nullable|date',
+            'description' => 'nullable|string|max:2000',
         ]);
 
         try {
             $workOrder = $this->workOrderService->createWorkOrder($validated);
         } catch (\Exception $e) {
             return back()->withInput()
-                ->with('error', 'Failed to create work order: ' . $e->getMessage());
+                ->with('error', 'Failed to create work order: '.$e->getMessage());
         }
 
         return redirect()->route('admin.work-orders.index')
@@ -78,7 +86,7 @@ class WorkOrderManagementController extends Controller
 
     public function edit(WorkOrder $workOrder)
     {
-        $lines        = Line::where('is_active', true)->orderBy('name')->get();
+        $lines = Line::where('is_active', true)->orderBy('name')->get();
         $productTypes = ProductType::where('is_active', true)->orderBy('name')->get();
 
         return view('admin.work-orders.edit', compact('workOrder', 'lines', 'productTypes'));
@@ -87,14 +95,14 @@ class WorkOrderManagementController extends Controller
     public function update(Request $request, WorkOrder $workOrder)
     {
         $validated = $request->validate([
-            'order_no'        => 'required|string|max:100|unique:work_orders,order_no,' . $workOrder->id,
-            'line_id'         => 'nullable|exists:lines,id',
+            'order_no' => 'required|string|max:100|unique:work_orders,order_no,'.$workOrder->id,
+            'line_id' => 'nullable|exists:lines,id',
             'product_type_id' => 'nullable|exists:product_types,id',
-            'planned_qty'     => 'required|numeric|min:0.01',
-            'priority'        => 'nullable|integer|min:0|max:100',
-            'due_date'        => 'nullable|date',
-            'description'     => 'nullable|string|max:2000',
-            'status'          => 'required|in:PENDING,ACCEPTED,IN_PROGRESS,PAUSED,BLOCKED,DONE,REJECTED,CANCELLED',
+            'planned_qty' => 'required|numeric|min:0.01',
+            'priority' => 'nullable|integer|min:0|max:100',
+            'due_date' => 'nullable|date',
+            'description' => 'nullable|string|max:2000',
+            'status' => 'required|in:PENDING,ACCEPTED,IN_PROGRESS,PAUSED,BLOCKED,DONE,REJECTED,CANCELLED',
         ]);
 
         // Warn when marking as DONE with zero produced quantity
@@ -142,15 +150,17 @@ class WorkOrderManagementController extends Controller
             return redirect()->back()->with('error', 'Only PENDING work orders can be accepted.');
         }
         $workOrder->update(['status' => WorkOrder::STATUS_ACCEPTED]);
+
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} accepted.");
     }
 
     public function reject(WorkOrder $workOrder)
     {
-        if (!in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
+        if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
             return redirect()->back()->with('error', 'Only PENDING or ACCEPTED work orders can be rejected.');
         }
         $workOrder->update(['status' => WorkOrder::STATUS_REJECTED]);
+
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} rejected.");
     }
 
@@ -160,6 +170,7 @@ class WorkOrderManagementController extends Controller
             return redirect()->back()->with('error', 'Only IN_PROGRESS work orders can be paused.');
         }
         $workOrder->update(['status' => WorkOrder::STATUS_PAUSED]);
+
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} paused.");
     }
 
@@ -169,15 +180,17 @@ class WorkOrderManagementController extends Controller
             return redirect()->back()->with('error', 'Only PAUSED work orders can be resumed.');
         }
         $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
     }
 
     public function reopen(WorkOrder $workOrder)
     {
-        if (!in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
+        if (! in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES)) {
             return redirect()->back()->with('error', 'Only terminal work orders (DONE, REJECTED, CANCELLED) can be reopened.');
         }
         $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} reopened.");
     }
 
@@ -192,7 +205,7 @@ class WorkOrderManagementController extends Controller
         ]);
 
         $workOrder->update([
-            'status'       => WorkOrder::STATUS_DONE,
+            'status' => WorkOrder::STATUS_DONE,
             'produced_qty' => $validated['produced_qty'],
             'completed_at' => now(),
         ]);

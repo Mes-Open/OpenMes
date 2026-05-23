@@ -11,8 +11,10 @@ class PackagingEanController extends Controller
 {
     public function index(Request $request)
     {
+        $search = (string) $request->query('search', '');
+
         $workOrders = WorkOrder::with('productType', 'eans')
-            ->when($request->search, fn ($q) => $q->where('order_no', 'like', '%'.$request->search.'%'))
+            ->when($search !== '', fn ($q) => $q->where('order_no', 'ilike', '%'.$search.'%'))
             ->orderBy('order_no')
             ->paginate(30)
             ->withQueryString();
@@ -22,23 +24,20 @@ class PackagingEanController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'work_order_id' => 'required|exists:work_orders,id',
             'ean' => 'required|string|max:100|unique:work_order_eans,ean',
         ]);
 
-        WorkOrderEan::create([
-            'work_order_id' => $request->work_order_id,
-            'ean' => $request->ean,
-        ]);
+        WorkOrderEan::create($validated);
 
-        return back()->with('success', 'Kod EAN został dodany.');
+        return back()->with('success', __('EAN code added.'));
     }
 
     public function destroy(WorkOrderEan $ean)
     {
         $ean->delete();
 
-        return back()->with('success', 'Kod EAN został usunięty.');
+        return back()->with('success', __('EAN code removed.'));
     }
 }

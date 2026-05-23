@@ -9,7 +9,11 @@ class ResetPackagingShiftCommand extends Command
 {
     protected $signature = 'packaging:reset-shift';
 
-    protected $description = 'Reset packed_qty counters on work_orders for new shift start';
+    public function __construct()
+    {
+        parent::__construct();
+        $this->description = __('Reset packed_qty counters on work_orders for new shift start');
+    }
 
     public function handle(): int
     {
