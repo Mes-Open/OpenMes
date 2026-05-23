@@ -681,7 +681,7 @@ class PrintShopDemoSeeder extends Seeder
                 'description'    => 'Clean DTG printhead nozzles to prevent clogging and colour shift',
                 'line_id'        => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
-                'event_type'     => 'preventive',
+                'event_type'     => 'planned',
                 'frequency'      => 'weekly',
                 'interval_value' => 1,
                 'preferred_time' => '06:00',
@@ -696,7 +696,7 @@ class PrintShopDemoSeeder extends Seeder
                 'description'    => 'Calibrate embroidery machine tension, needle position, and hoop alignment',
                 'line_id'        => $lines['HAFT']->id,
                 'workstation_id' => $workstations['HAFT-1']->id,
-                'event_type'     => 'preventive',
+                'event_type'     => 'planned',
                 'frequency'      => 'monthly',
                 'interval_value' => 1,
                 'preferred_time' => '07:00',
@@ -711,7 +711,7 @@ class PrintShopDemoSeeder extends Seeder
                 'description'    => 'Inspect and maintain screen printing press — squeegee, clamps, off-contact',
                 'line_id'        => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,
-                'event_type'     => 'preventive',
+                'event_type'     => 'planned',
                 'frequency'      => 'biweekly',
                 'interval_value' => 2,
                 'preferred_time' => '06:30',
@@ -724,7 +724,7 @@ class PrintShopDemoSeeder extends Seeder
         $events = [
             [
                 'title'        => 'DTG Printhead Cleaning (completed)',
-                'event_type'   => 'preventive',
+                'event_type'   => 'planned',
                 'status'       => 'completed',
                 'line_id'      => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
@@ -734,7 +734,7 @@ class PrintShopDemoSeeder extends Seeder
             ],
             [
                 'title'        => 'Embroidery Calibration (completed)',
-                'event_type'   => 'preventive',
+                'event_type'   => 'planned',
                 'status'       => 'completed',
                 'line_id'      => $lines['HAFT']->id,
                 'workstation_id' => $workstations['HAFT-1']->id,
@@ -744,7 +744,7 @@ class PrintShopDemoSeeder extends Seeder
             ],
             [
                 'title'        => 'Screen Press Maintenance (scheduled)',
-                'event_type'   => 'preventive',
+                'event_type'   => 'planned',
                 'status'       => 'scheduled',
                 'line_id'      => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,
@@ -754,7 +754,7 @@ class PrintShopDemoSeeder extends Seeder
             ],
             [
                 'title'        => 'DTG Printhead Cleaning (overdue)',
-                'event_type'   => 'preventive',
+                'event_type'   => 'planned',
                 'status'       => 'overdue',
                 'line_id'      => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
