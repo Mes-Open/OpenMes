@@ -18,7 +18,7 @@ return new class extends Migration
             ['key' => 'schedule_slot_minutes'],
             [
                 'value' => '"15"',
-                'description' => 'Snap granularity in minutes for the hourly schedule view (5, 10, 15, 30 or 60).',
+                'description' => __('Snap granularity in minutes for the hourly schedule view (5, 10, 15, 30 or 60).'),
                 'updated_at' => now(),
             ]
         );

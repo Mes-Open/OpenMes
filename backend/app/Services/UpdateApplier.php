@@ -39,7 +39,7 @@ class UpdateApplier
     {
         $root = base_path();
         $zipUrl = $remote['zip_url']
-            ?? "https://github.com/Mes-Open/OpenMes/archive/refs/tags/{$version}.zip";
+            ?? str_replace('{version}', $version, config('version.archive_url'));
 
         $tempZip = storage_path("app/update-{$version}.zip");
         $tempDir = storage_path("app/update-{$version}");

@@ -63,6 +63,7 @@ if [ "$USER_COUNT" = "0" ]; then
             'email'                 => '${ADMIN_EMAIL}',
             'password'              => bcrypt('${ADMIN_PASSWORD}'),
             'force_password_change' => false,
+            'email_verified_at'     => now(),
         ]);
         \$u->assignRole('Admin');
     "
