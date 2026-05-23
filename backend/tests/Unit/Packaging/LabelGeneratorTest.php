@@ -3,11 +3,10 @@
 namespace Tests\Unit\Packaging;
 
 use App\Models\Batch;
-use App\Models\BatchStep;
-use App\Models\WorkOrder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\LabelTemplate;
+use App\Models\WorkOrder;
 use App\Services\Packaging\LabelGenerator;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class LabelGeneratorTest extends TestCase

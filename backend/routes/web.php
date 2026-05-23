@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
+use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Web\Admin\BomManagementController;
 use App\Http\Controllers\Web\Admin\CompanyController;
@@ -13,25 +14,24 @@ use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Web\Admin\SchedulePlannerController;
-use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
-use App\Http\Controllers\Web\Admin\SiteController;
 use App\Http\Controllers\Web\Admin\IntegrationConfigController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
 use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceController;
-// Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 use App\Http\Controllers\Web\Admin\MaterialImportController;
+// Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
-// Gate 3 — Basics
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Web\Admin\SchedulePlannerController;
+// Gate 3 — Basics
+use App\Http\Controllers\Web\Admin\SiteController;
 use App\Http\Controllers\Web\Admin\SkillController;
 // Gate 4 — HR
 use App\Http\Controllers\Web\Admin\SubassemblyController;
