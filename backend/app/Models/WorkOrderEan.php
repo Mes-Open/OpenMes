@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Packaging\Models;
+namespace App\Models;
 
 use App\Models\WorkOrder;
 use Illuminate\Database\Eloquent\Model;

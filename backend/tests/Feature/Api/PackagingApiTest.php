@@ -5,8 +5,8 @@ namespace Tests\Feature\Api;
 use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\Packaging\Models\PackagingScanLog;
-use Modules\Packaging\Models\WorkOrderEan;
+use App\Models\PackagingScanLog;
+use App\Models\WorkOrderEan;
 use Tests\TestCase;
 
 class PackagingApiTest extends TestCase
@@ -24,16 +24,6 @@ class PackagingApiTest extends TestCase
     {
         parent::setUp();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-
-        // The Packaging module is conditionally loaded based on system_settings;
-        // in tests, RefreshDatabase rolls everything back so the module is never
-        // seen as "enabled". Register the service provider directly and run its
-        // migrations so the packaging tables exist.
-        $this->app->register(\Modules\Packaging\Providers\PackagingServiceProvider::class);
-        $this->artisan('migrate', [
-            '--path' => '/var/www/html/modules/Packaging/migrations',
-            '--realpath' => true,
-        ]);
 
         $this->admin = User::factory()->create();
         $this->admin->assignRole('Admin');

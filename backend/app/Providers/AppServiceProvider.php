@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Console\Commands\ResetPackagingShiftCommand;
 use App\Http\Controllers\Web\Admin\AlertController;
 use App\Listeners\LogAuthEvent;
 use App\Services\MenuRegistry;
@@ -86,6 +87,28 @@ class AppServiceProvider extends ServiceProvider
 
         // Share current language name
         View::share('currentLocaleName', $this->availableLocales()[App::getLocale()] ?? 'English');
+
+        // Packaging menu items — registered via View::composer so auth() check
+        // works (boot runs before auth middleware, so direct auth()->check() always false).
+        $menu = $this->app->make(MenuRegistry::class);
+        $menu->addGroup('packaging', __('Packaging'), order: 40);
+        $menu->addGroupItem('packaging', __('Scanning Station'), '/packaging/station', order: 10);
+
+        View::composer('layouts.components.sidebar', function () use ($menu) {
+            if (Auth::check() && Auth::user()->hasAnyRole(['Admin', 'Supervisor'])) {
+                $menu->addGroupItem('packaging', __('Packaging Overview'), '/packaging', order: 20);
+                $menu->addGroupItem('packaging', __('EAN Management'), '/packaging/eans', order: 30);
+            }
+
+            if (Auth::check() && Auth::user()->hasRole('Admin')) {
+                $menu->addGroupItem('packaging', __('Label Templates'), '/packaging/label-templates', order: 40);
+            }
+        });
+
+        // Register Packaging console commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([ResetPackagingShiftCommand::class]);
+        }
 
         // Load enabled modules — wrapped in try/catch so a bad module
         // never prevents the application from booting.

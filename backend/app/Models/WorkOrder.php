@@ -132,6 +132,11 @@ class WorkOrder extends Model
         return $this->hasMany(Issue::class);
     }
 
+    public function eans(): HasMany
+    {
+        return $this->hasMany(WorkOrderEan::class);
+    }
+
     /**
      * Get the open blocking issues for this work order.
      */
