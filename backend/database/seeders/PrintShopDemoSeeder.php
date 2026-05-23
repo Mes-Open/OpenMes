@@ -413,6 +413,59 @@ class PrintShopDemoSeeder extends Seeder
                 array_merge($orderData, ['produced_qty' => 0])
             );
         }
+
+        // Generate additional orders spread over 3 months
+        $allLines = array_values($lines);
+        $allPt    = array_values($pt);
+        $descriptions = [
+            'Rush order — client event next week',
+            'Reprint batch — colour correction applied',
+            'Seasonal collection — autumn/winter lineup',
+            'Trade show giveaways — branded merch',
+            'Employee uniforms — new logo rollout',
+            'Charity event — custom artwork',
+            'Wholesale order — repeat customer',
+            'Sample run — new fabric test',
+            'E-commerce fulfilment — multi-SKU',
+            'Prototype — client approval pending',
+        ];
+
+        $n = 8; // start after WO-2026-007
+        for ($day = -7; $day <= 83; $day += 2) {
+            $n++;
+            $orderNo = sprintf('WO-2026-%04d', $n);
+            $line = $allLines[array_rand($allLines)];
+            $product = $allPt[array_rand($allPt)];
+            $qty = rand(10, 200);
+            $priority = rand(1, 5);
+            $startDate = now()->addDays($day)->setTime(rand(6, 14), 0);
+            $durationHours = rand(4, 48);
+            $endDate = $startDate->copy()->addHours($durationHours);
+
+            $status = match (true) {
+                $day < -3  => WorkOrder::STATUS_DONE,
+                $day < 0   => WorkOrder::STATUS_IN_PROGRESS,
+                $day < 3   => WorkOrder::STATUS_ACCEPTED,
+                default    => WorkOrder::STATUS_PENDING,
+            };
+
+            WorkOrder::updateOrCreate(
+                ['order_no' => $orderNo],
+                [
+                    'line_id'          => $line->id,
+                    'product_type_id'  => $product->id,
+                    'planned_qty'      => $qty,
+                    'produced_qty'     => $status === WorkOrder::STATUS_DONE ? $qty : 0,
+                    'status'           => $status,
+                    'priority'         => $priority,
+                    'due_date'         => $endDate->copy()->addDays(rand(0, 3)),
+                    'planned_start_at' => $startDate,
+                    'planned_end_at'   => $endDate,
+                    'description'      => $descriptions[array_rand($descriptions)],
+                    'completed_at'     => $status === WorkOrder::STATUS_DONE ? $endDate : null,
+                ]
+            );
+        }
     }
 
     // ── Shifts ───────────────────────────────────────────────────────────────
