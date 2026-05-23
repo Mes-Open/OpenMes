@@ -55,8 +55,8 @@ class ProductionAnomalyController extends Controller
             'batch_step_id'     => 'nullable|exists:batch_steps,id',
             'anomaly_reason_id' => 'nullable|exists:anomaly_reasons,id',
             'product_name'      => 'nullable|string|max:255',
-            'planned_qty'       => 'nullable|numeric|min:0',
-            'actual_qty'        => 'nullable|numeric|min:0',
+            'planned_qty'       => 'nullable|numeric|min:0|max:99999999',
+            'actual_qty'        => 'nullable|numeric|min:0|max:99999999',
             'comment'           => 'nullable|string|max:2000',
         ]);
 
