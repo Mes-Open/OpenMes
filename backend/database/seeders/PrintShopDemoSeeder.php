@@ -11,6 +11,19 @@ use App\Models\Workstation;
 use App\Models\ProductType;
 use App\Models\ProcessTemplate;
 use App\Models\WorkOrder;
+use App\Models\Shift;
+use App\Models\MaterialType;
+use App\Models\Material;
+use App\Models\MaterialLot;
+use App\Models\Site;
+use App\Models\Area;
+use App\Models\Skill;
+use App\Models\PersonnelClass;
+use App\Models\ProcessSegment;
+use App\Models\MaintenanceSchedule;
+use App\Models\MaintenanceEvent;
+use App\Models\InspectionPlan;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -29,6 +42,14 @@ class PrintShopDemoSeeder extends Seeder
         $this->seedProcessTemplates($productTypes, $workstations, $lines);
         $this->seedUsers($lines);
         $this->seedWorkOrders($productTypes, $lines);
+        $this->seedShifts($lines);
+        $materials = $this->seedMaterials();
+        $this->seedMaterialLots($materials);
+        $site = $this->seedISA95Hierarchy($lines);
+        $this->seedSkillsAndPersonnelClasses();
+        $this->seedProcessSegments();
+        $this->seedMaintenanceSchedulesAndEvents($lines, $workstations);
+        $this->seedInspectionPlans($materials);
     }
 
     // ── Issue types ──────────────────────────────────────────────────────────
@@ -307,6 +328,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_IN_PROGRESS,
                 'priority'        => 3,
                 'due_date'        => now()->addDays(2),
+                'planned_start_at' => now()->setTime(8, 0),
+                'planned_end_at'   => now()->addDays(1)->setTime(14, 0),
                 'description'     => 'Corporate t-shirts — XYZ Ltd. logo, white base, DTG print, sizes M/L/XL',
             ],
             [
@@ -317,6 +340,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_PENDING,
                 'priority'        => 2,
                 'due_date'        => now()->addDays(5),
+                'planned_start_at' => now()->addDays(1)->setTime(6, 0),
+                'planned_end_at'   => now()->addDays(2)->setTime(12, 0),
                 'description'     => 'Sports team caps — 3D embroidery logo, navy blue',
             ],
             [
@@ -327,6 +352,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_ACCEPTED,
                 'priority'        => 4,
                 'due_date'        => now()->addDay(),
+                'planned_start_at' => now()->setTime(6, 0),
+                'planned_end_at'   => now()->setTime(18, 0),
                 'description'     => 'Polo shirts screen print 2 colours — workwear for construction company',
             ],
             [
@@ -337,6 +364,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_PENDING,
                 'priority'        => 1,
                 'due_date'        => now()->addDays(7),
+                'planned_start_at' => now()->addDays(2)->setTime(8, 0),
+                'planned_end_at'   => now()->addDays(4)->setTime(16, 0),
                 'description'     => 'Conference tote bags — flex transfer, single colour print',
             ],
             [
@@ -347,6 +376,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_DONE,
                 'priority'        => 2,
                 'due_date'        => now()->subDay(),
+                'planned_start_at' => now()->subDays(2)->setTime(8, 0),
+                'planned_end_at'   => now()->subDay()->setTime(14, 0),
                 'description'     => 'Artist hoodies — limited edition, full-colour DTG print',
                 'completed_at'    => now()->subHours(3),
             ],
@@ -358,6 +389,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_IN_PROGRESS,
                 'priority'        => 3,
                 'due_date'        => now()->addDays(3),
+                'planned_start_at' => now()->addDay()->setTime(10, 0),
+                'planned_end_at'   => now()->addDays(2)->setTime(16, 0),
                 'description'     => 'Sublimation mugs — personalised customer photos, gift order',
             ],
             [
@@ -368,6 +401,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_PENDING,
                 'priority'        => 2,
                 'due_date'        => now()->addDays(4),
+                'planned_start_at' => now()->addDays(3)->setTime(6, 0),
+                'planned_end_at'   => now()->addDays(3)->setTime(18, 0),
                 'description'     => 'University crewneck sweatshirts — embroidered crest, black, sizes S–XXL',
             ],
         ];
@@ -378,5 +413,401 @@ class PrintShopDemoSeeder extends Seeder
                 array_merge($orderData, ['produced_qty' => 0])
             );
         }
+    }
+
+    // ── Shifts ───────────────────────────────────────────────────────────────
+
+    private function seedShifts(array $lines): void
+    {
+        $weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+        $monToThu = ['monday', 'tuesday', 'wednesday', 'thursday'];
+
+        $defs = [
+            [
+                'name' => 'Morning Shift', 'code' => 'SM',
+                'start_time' => '06:00', 'end_time' => '14:00',
+                'days_of_week' => $weekdays, 'line_codes' => ['DTG', 'SITO', 'HAFT', 'TRANSFER', 'PACKING'],
+                'sort_order' => 1,
+            ],
+            [
+                'name' => 'Afternoon Shift', 'code' => 'SA',
+                'start_time' => '14:00', 'end_time' => '22:00',
+                'days_of_week' => $weekdays, 'line_codes' => ['DTG', 'SITO', 'HAFT', 'TRANSFER', 'PACKING'],
+                'sort_order' => 2,
+            ],
+            [
+                'name' => 'Night Shift', 'code' => 'SN',
+                'start_time' => '22:00', 'end_time' => '06:00',
+                'days_of_week' => $monToThu, 'line_codes' => ['DTG', 'SITO'],
+                'sort_order' => 3,
+            ],
+        ];
+
+        foreach ($defs as $def) {
+            foreach ($def['line_codes'] as $lineCode) {
+                $shortLine = substr($lineCode, 0, 4);
+                $uniqueCode = $def['code'] . '-' . $shortLine;
+                Shift::updateOrCreate(
+                    ['code' => $uniqueCode],
+                    [
+                        'name'         => $def['name'],
+                        'start_time'   => $def['start_time'],
+                        'end_time'     => $def['end_time'],
+                        'days_of_week' => $def['days_of_week'],
+                        'line_id'      => $lines[$lineCode]->id,
+                        'is_active'    => true,
+                        'sort_order'   => $def['sort_order'],
+                    ]
+                );
+            }
+        }
+    }
+
+    // ── Materials & Material Types ───────────────────────────────────────────
+
+    private function seedMaterials(): array
+    {
+        $types = [
+            ['code' => 'INK',            'name' => 'Ink'],
+            ['code' => 'GARMENT',        'name' => 'Garment'],
+            ['code' => 'THREAD',         'name' => 'Thread'],
+            ['code' => 'TRANSFER_MEDIA', 'name' => 'Transfer Media'],
+            ['code' => 'PACKAGING',      'name' => 'Packaging'],
+        ];
+
+        $typeModels = [];
+        foreach ($types as $type) {
+            $typeModels[$type['code']] = MaterialType::updateOrCreate(
+                ['code' => $type['code']],
+                ['name' => $type['name']]
+            );
+        }
+
+        $materialDefs = [
+            ['code' => 'MAT-INK-DTG-W',    'name' => 'White DTG Ink',                    'description' => 'White ink for DTG printers, 1 litre bottle',         'type' => 'INK',            'unit' => 'litre',  'tracking' => 'lot',   'stock' => 25,   'min' => 5,   'supplier' => 'Epson'],
+            ['code' => 'MAT-INK-DTG-CMYK', 'name' => 'CMYK DTG Ink Set',                 'description' => 'Full CMYK ink set for DTG printers',                 'type' => 'INK',            'unit' => 'set',    'tracking' => 'lot',   'stock' => 12,   'min' => 3,   'supplier' => 'Epson'],
+            ['code' => 'MAT-INK-PLAST-BK', 'name' => 'Plastisol Black Ink',              'description' => 'Plastisol screen printing ink, black',               'type' => 'INK',            'unit' => 'kg',     'tracking' => 'lot',   'stock' => 40,   'min' => 10,  'supplier' => 'Union Ink'],
+            ['code' => 'MAT-GAR-TSH-W',    'name' => 'Cotton T-Shirt Blank White',       'description' => '100% cotton t-shirt blank, white, assorted sizes',   'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 500,  'min' => 100, 'supplier' => 'Fruit of the Loom'],
+            ['code' => 'MAT-GAR-HOOD-BK',  'name' => 'Cotton Hoodie Blank Black',        'description' => 'Cotton/poly blend hoodie blank, black',              'type' => 'GARMENT',        'unit' => 'pcs',    'tracking' => 'batch', 'stock' => 200,  'min' => 50,  'supplier' => 'Gildan'],
+            ['code' => 'MAT-THR-POLY',     'name' => 'Polyester Embroidery Thread',       'description' => 'High-sheen polyester thread for machine embroidery', 'type' => 'THREAD',         'unit' => 'spool',  'tracking' => 'none',  'stock' => 80,   'min' => 20,  'supplier' => 'Madeira'],
+            ['code' => 'MAT-TRN-SUB-A3',   'name' => 'Sublimation Transfer Paper A3',    'description' => 'A3 sublimation transfer paper, 100gsm',              'type' => 'TRANSFER_MEDIA', 'unit' => 'sheet',  'tracking' => 'batch', 'stock' => 1000, 'min' => 200, 'supplier' => 'Texprint'],
+            ['code' => 'MAT-PKG-POLY30',   'name' => 'Poly Bag 30x40cm',                 'description' => 'Clear poly bag for garment packing, 30x40 cm',      'type' => 'PACKAGING',      'unit' => 'pcs',    'tracking' => 'none',  'stock' => 2000, 'min' => 500, 'supplier' => 'Generic'],
+        ];
+
+        $materials = [];
+        foreach ($materialDefs as $def) {
+            $mat = Material::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name'             => $def['name'],
+                    'description'      => $def['description'],
+                    'material_type_id' => $typeModels[$def['type']]->id,
+                    'unit_of_measure'  => $def['unit'],
+                    'tracking_type'    => $def['tracking'],
+                    'stock_quantity'   => $def['stock'],
+                    'min_stock_level'  => $def['min'],
+                    'is_active'        => true,
+                    'supplier_name'    => $def['supplier'],
+                ]
+            );
+            $materials[$def['code']] = $mat;
+        }
+
+        return $materials;
+    }
+
+    // ── Material Lots ────────────────────────────────────────────────────────
+
+    private function seedMaterialLots(array $materials): void
+    {
+        $lots = [
+            ['lot' => 'LOT-INK-2026-001', 'material' => 'MAT-INK-DTG-W',    'qty' => 10, 'unit' => 'litre', 'supplier_lot' => 'EPS-W-20260101'],
+            ['lot' => 'LOT-INK-2026-002', 'material' => 'MAT-INK-DTG-CMYK', 'qty' => 5,  'unit' => 'set',   'supplier_lot' => 'EPS-CMYK-20260115'],
+            ['lot' => 'LOT-INK-2026-003', 'material' => 'MAT-INK-PLAST-BK', 'qty' => 20, 'unit' => 'kg',    'supplier_lot' => 'UI-BK-20260210'],
+            ['lot' => 'LOT-GAR-2026-001', 'material' => 'MAT-GAR-TSH-W',    'qty' => 250,'unit' => 'pcs',   'supplier_lot' => 'FOTL-WHT-B4420'],
+            ['lot' => 'LOT-GAR-2026-002', 'material' => 'MAT-GAR-HOOD-BK',  'qty' => 100,'unit' => 'pcs',   'supplier_lot' => 'GIL-BLK-H1822'],
+        ];
+
+        foreach ($lots as $def) {
+            MaterialLot::updateOrCreate(
+                ['lot_number' => $def['lot']],
+                [
+                    'material_id'        => $materials[$def['material']]->id,
+                    'quantity_received'   => $def['qty'],
+                    'quantity_available'  => $def['qty'],
+                    'unit_of_measure'     => $def['unit'],
+                    'received_at'         => now()->subDays(rand(5, 30)),
+                    'status'              => 'available',
+                    'supplier_lot_no'     => $def['supplier_lot'],
+                ]
+            );
+        }
+    }
+
+    // ── ISA-95 Hierarchy ─────────────────────────────────────────────────────
+
+    private function seedISA95Hierarchy(array $lines): Site
+    {
+        $site = Site::updateOrCreate(
+            ['code' => 'PS-HQ'],
+            [
+                'name'        => 'PrintShop HQ',
+                'description' => 'Main production facility for garment printing and decoration',
+                'address'     => 'ul. Drukarska 15',
+                'city'        => 'Warsaw',
+                'country'     => 'PL',
+                'timezone'    => 'Europe/Warsaw',
+                'is_active'   => true,
+            ]
+        );
+
+        $areaDefs = [
+            ['code' => 'HALL-A', 'name' => 'Production Hall A', 'description' => 'Main production hall — all printing and embroidery lines'],
+            ['code' => 'WH-1',   'name' => 'Warehouse',         'description' => 'Raw materials and finished goods warehouse'],
+            ['code' => 'SHIP-1', 'name' => 'Shipping',          'description' => 'Shipping and dispatch area'],
+        ];
+
+        $areas = [];
+        foreach ($areaDefs as $def) {
+            $areas[$def['code']] = Area::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name'        => $def['name'],
+                    'site_id'     => $site->id,
+                    'description' => $def['description'],
+                    'is_active'   => true,
+                ]
+            );
+        }
+
+        // Link lines to areas (if column exists)
+        if (Schema::hasColumn('lines', 'area_id')) {
+            $lineAreaMap = [
+                'DTG'      => 'HALL-A',
+                'SITO'     => 'HALL-A',
+                'HAFT'     => 'HALL-A',
+                'TRANSFER' => 'HALL-A',
+                'PACKING'  => 'SHIP-1',
+            ];
+
+            foreach ($lineAreaMap as $lineCode => $areaCode) {
+                if (isset($lines[$lineCode], $areas[$areaCode])) {
+                    $lines[$lineCode]->update(['area_id' => $areas[$areaCode]->id]);
+                }
+            }
+        }
+
+        return $site;
+    }
+
+    // ── Skills & Personnel Classes ───────────────────────────────────────────
+
+    private function seedSkillsAndPersonnelClasses(): void
+    {
+        $skillDefs = [
+            ['code' => 'DTG_OPERATION',    'name' => 'DTG Operation',    'description' => 'Operating DTG digital printers including pretreatment and curing'],
+            ['code' => 'SCREEN_PRINTING',  'name' => 'Screen Printing',  'description' => 'Screen preparation, registration, and manual/semi-auto printing'],
+            ['code' => 'EMBROIDERY',       'name' => 'Embroidery',       'description' => 'Machine embroidery operation, hooping, thread management'],
+            ['code' => 'HEAT_TRANSFER',    'name' => 'Heat Transfer',    'description' => 'Heat press and sublimation operations'],
+            ['code' => 'QUALITY_CONTROL',  'name' => 'Quality Control',  'description' => 'Visual and instrumental quality inspection of printed goods'],
+        ];
+
+        $skills = [];
+        foreach ($skillDefs as $def) {
+            $skills[$def['code']] = Skill::updateOrCreate(
+                ['code' => $def['code']],
+                ['name' => $def['name'], 'description' => $def['description']]
+            );
+        }
+
+        $classDefs = [
+            [
+                'code' => 'PRINT_OPERATOR',
+                'name' => 'Print Operator',
+                'description' => 'Operates DTG and screen printing equipment',
+                'required_skill_ids' => [$skills['DTG_OPERATION']->id, $skills['SCREEN_PRINTING']->id],
+            ],
+            [
+                'code' => 'EMBROIDERY_SPECIALIST',
+                'name' => 'Embroidery Specialist',
+                'description' => 'Specialist in machine embroidery operations',
+                'required_skill_ids' => [$skills['EMBROIDERY']->id],
+            ],
+            [
+                'code' => 'QC_INSPECTOR',
+                'name' => 'QC Inspector',
+                'description' => 'Quality control inspector for all product types',
+                'required_skill_ids' => [$skills['QUALITY_CONTROL']->id],
+            ],
+        ];
+
+        foreach ($classDefs as $def) {
+            PersonnelClass::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name'               => $def['name'],
+                    'description'        => $def['description'],
+                    'required_skill_ids' => $def['required_skill_ids'],
+                    'is_active'          => true,
+                ]
+            );
+        }
+    }
+
+    // ── Process Segments ─────────────────────────────────────────────────────
+
+    private function seedProcessSegments(): void
+    {
+        $defs = [
+            ['code' => 'SEG-PRETREAT',     'name' => 'Pretreatment',       'description' => 'Apply pretreat solution to garment before DTG printing',       'segment_type' => 'production', 'duration' => 10, 'operators' => 1, 'instruction' => 'Shake pretreat bottle. Apply evenly over print area. Press with heat press to dry.'],
+            ['code' => 'SEG-DTG-PRINT',    'name' => 'DTG Print',          'description' => 'Direct-to-garment digital printing',                           'segment_type' => 'production', 'duration' => 15, 'operators' => 1, 'instruction' => 'Load garment on platen, centre artwork, select correct colour profile, run print.'],
+            ['code' => 'SEG-SCREEN-PRINT', 'name' => 'Screen Print',       'description' => 'Screen printing production run',                               'segment_type' => 'production', 'duration' => 30, 'operators' => 2, 'instruction' => 'Mount screen, set registration, pull test print, run production batch.'],
+            ['code' => 'SEG-EMBROIDERY',   'name' => 'Embroidery Run',     'description' => 'Machine embroidery of design onto garment or accessory',       'segment_type' => 'production', 'duration' => 25, 'operators' => 1, 'instruction' => 'Thread machine per colour card, hoop garment, start machine, monitor tension.'],
+            ['code' => 'SEG-HEAT-PRESS',   'name' => 'Heat Press',         'description' => 'Heat transfer pressing for flex, foil, or sublimation',        'segment_type' => 'production', 'duration' => 8,  'operators' => 1, 'instruction' => 'Set temperature and time per transfer type. Position transfer, press, peel.'],
+            ['code' => 'SEG-QC-CHECK',     'name' => 'Quality Check',      'description' => 'Visual and dimensional quality inspection of finished product','segment_type' => 'inspection',    'duration' => 5,  'operators' => 1, 'instruction' => 'Inspect colour accuracy, coverage, edge sharpness. Reject defects. Log results.'],
+        ];
+
+        foreach ($defs as $def) {
+            ProcessSegment::updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name'                       => $def['name'],
+                    'description'                => $def['description'],
+                    'segment_type'               => $def['segment_type'],
+                    'estimated_duration_minutes' => $def['duration'],
+                    'required_operators'         => $def['operators'],
+                    'standard_instruction'       => $def['instruction'],
+                    'is_active'                  => true,
+                ]
+            );
+        }
+    }
+
+    // ── Maintenance Schedules & Events ───────────────────────────────────────
+
+    private function seedMaintenanceSchedulesAndEvents(array $lines, array $workstations): void
+    {
+        $schedules = [];
+
+        $schedules['dtg_cleaning'] = MaintenanceSchedule::updateOrCreate(
+            ['name' => 'Weekly DTG Printhead Cleaning'],
+            [
+                'description'    => 'Clean DTG printhead nozzles to prevent clogging and colour shift',
+                'line_id'        => $lines['DTG']->id,
+                'workstation_id' => $workstations['DTG-1']->id,
+                'event_type'     => 'planned',
+                'frequency'      => 'weekly',
+                'interval_value' => 1,
+                'preferred_time' => '06:00',
+                'next_due_at'    => now()->next('Monday')->setTime(6, 0),
+                'is_active'      => true,
+            ]
+        );
+
+        $schedules['embroidery_calibration'] = MaintenanceSchedule::updateOrCreate(
+            ['name' => 'Monthly Embroidery Machine Calibration'],
+            [
+                'description'    => 'Calibrate embroidery machine tension, needle position, and hoop alignment',
+                'line_id'        => $lines['HAFT']->id,
+                'workstation_id' => $workstations['HAFT-1']->id,
+                'event_type'     => 'planned',
+                'frequency'      => 'monthly',
+                'interval_value' => 1,
+                'preferred_time' => '07:00',
+                'next_due_at'    => now()->startOfMonth()->addMonth()->setTime(7, 0),
+                'is_active'      => true,
+            ]
+        );
+
+        $schedules['screen_press'] = MaintenanceSchedule::updateOrCreate(
+            ['name' => 'Bi-weekly Screen Press Maintenance'],
+            [
+                'description'    => 'Inspect and maintain screen printing press — squeegee, clamps, off-contact',
+                'line_id'        => $lines['SITO']->id,
+                'workstation_id' => $workstations['SITO-1']->id,
+                'event_type'     => 'planned',
+                'frequency'      => 'weekly',
+                'interval_value' => 2,
+                'preferred_time' => '06:30',
+                'next_due_at'    => now()->addWeeks(2)->setTime(6, 30),
+                'is_active'      => true,
+            ]
+        );
+
+        // Events — 2 completed, 1 scheduled, 1 overdue
+        $events = [
+            [
+                'title'        => 'DTG Printhead Cleaning (completed)',
+                'event_type'   => 'planned',
+                'status'       => 'completed',
+                'line_id'      => $lines['DTG']->id,
+                'workstation_id' => $workstations['DTG-1']->id,
+                'schedule_id'  => $schedules['dtg_cleaning']->id,
+                'scheduled_at' => now()->subWeeks(2)->setTime(6, 0),
+                'description'  => 'Routine printhead cleaning completed without issues.',
+            ],
+            [
+                'title'        => 'Embroidery Calibration (completed)',
+                'event_type'   => 'planned',
+                'status'       => 'completed',
+                'line_id'      => $lines['HAFT']->id,
+                'workstation_id' => $workstations['HAFT-1']->id,
+                'schedule_id'  => $schedules['embroidery_calibration']->id,
+                'scheduled_at' => now()->subMonth()->setTime(7, 0),
+                'description'  => 'Monthly calibration done. Tension adjusted on head 3.',
+            ],
+            [
+                'title'        => 'Screen Press Maintenance (scheduled)',
+                'event_type'   => 'planned',
+                'status'       => 'pending',
+                'line_id'      => $lines['SITO']->id,
+                'workstation_id' => $workstations['SITO-1']->id,
+                'schedule_id'  => $schedules['screen_press']->id,
+                'scheduled_at' => now()->addWeeks(2)->setTime(6, 30),
+                'description'  => 'Upcoming bi-weekly screen press inspection.',
+            ],
+            [
+                'title'        => 'DTG Printhead Cleaning (overdue)',
+                'event_type'   => 'planned',
+                'status'       => 'pending',
+                'line_id'      => $lines['DTG']->id,
+                'workstation_id' => $workstations['DTG-1']->id,
+                'schedule_id'  => $schedules['dtg_cleaning']->id,
+                'scheduled_at' => now()->subWeek()->setTime(6, 0),
+                'description'  => 'Missed weekly printhead cleaning — needs immediate attention.',
+            ],
+        ];
+
+        foreach ($events as $event) {
+            MaintenanceEvent::updateOrCreate(
+                ['title' => $event['title']],
+                $event
+            );
+        }
+    }
+
+    // ── Inspection Plans ─────────────────────────────────────────────────────
+
+    private function seedInspectionPlans(array $materials): void
+    {
+        InspectionPlan::updateOrCreate(
+            ['name' => 'Garment Incoming Inspection'],
+            [
+                'description' => 'Quality inspection for incoming garment blanks',
+                'material_id' => $materials['MAT-GAR-TSH-W']->id,
+                'criteria'    => ['fabric_weight', 'colour_consistency', 'stitching_quality'],
+                'is_active'   => true,
+            ]
+        );
+
+        InspectionPlan::updateOrCreate(
+            ['name' => 'Ink Quality Check'],
+            [
+                'description' => 'Quality verification for DTG ink batches',
+                'material_id' => $materials['MAT-INK-DTG-W']->id,
+                'criteria'    => ['viscosity', 'colour_accuracy', 'expiry_check'],
+                'is_active'   => true,
+            ]
+        );
     }
 }

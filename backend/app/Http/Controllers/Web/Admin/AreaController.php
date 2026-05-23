@@ -102,7 +102,7 @@ class AreaController extends Controller
     {
         if ($area->lines()->count() > 0) {
             return redirect()->route('admin.areas.index')
-                ->with('error', 'Cannot delete area with assigned production lines. Reassign or deactivate them first.');
+                ->with('error', __('Cannot delete area with assigned production lines. Reassign or deactivate them first.'));
         }
 
         $area->delete();

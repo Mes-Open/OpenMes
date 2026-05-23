@@ -286,23 +286,29 @@
             {{-- ── ORDERS ─── --}}
             <div class="px-2">
                 <div class="relative group">
-                    <button @click="expandGroup('orders')"
-                            class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium
-                                   transition-colors text-slate-300 hover:bg-slate-700 hover:text-white"
-                            :class="{
-                                'justify-center !px-0':    collapsed && !mobileOpen,
-                                'bg-slate-700/50 text-white': orders && (!collapsed || mobileOpen)
-                            }">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Orders') }}</span>
-                        <svg x-show="!collapsed || mobileOpen" x-cloak
-                             class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': orders}"
-                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
+                    <div class="flex items-center w-full rounded-lg text-sm font-medium
+                                transition-colors text-slate-300 hover:bg-slate-700 hover:text-white"
+                         :class="{
+                             'justify-center !px-0': collapsed && !mobileOpen,
+                             'bg-slate-700/50 text-white': orders && (!collapsed || mobileOpen)
+                         }">
+                        <a href="{{ route('admin.work-orders.index') }}"
+                           class="flex items-center gap-3 flex-1 px-3 py-2.5 rounded-l-lg"
+                           :class="{ 'justify-center !px-0': collapsed && !mobileOpen }">
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Orders') }}</span>
+                        </a>
+                        <button x-show="!collapsed || mobileOpen" x-cloak
+                                @click.stop="expandGroup('orders')"
+                                class="px-2 py-2.5 rounded-r-lg hover:bg-slate-600 transition-colors">
+                            <svg class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': orders}"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                    </div>
                     <span x-show="collapsed && !mobileOpen" x-cloak
                           class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
                                  text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
@@ -319,7 +325,7 @@
                     <a href="{{ route('admin.work-orders.index') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
                               {{ request()->routeIs('admin.work-orders.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Work Orders') }}
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('All Orders') }}
                     </a>
                     <a href="{{ route('admin.csv-import') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors

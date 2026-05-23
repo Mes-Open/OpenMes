@@ -27,7 +27,7 @@ class UpdateUnlock extends Command
         Cache::lock(UpdateController::APPLY_LOCK_KEY)->forceRelease();
         Cache::forget(UpdateApplier::STATUS_CACHE_KEY);
 
-        $this->info('Update lock released and status cleared.');
+        $this->info(__('Update lock released and status cleared.'));
 
         return self::SUCCESS;
     }

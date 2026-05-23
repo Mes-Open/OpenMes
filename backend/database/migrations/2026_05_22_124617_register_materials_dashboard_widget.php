@@ -14,9 +14,9 @@ return new class extends Migration
         if (! $exists) {
             DB::table('dashboard_widgets')->insert([
                 'widget_id' => 'materials_overview',
-                'name' => 'Materials Overview',
+                'name' => __('Materials Overview'),
                 'zone' => 'main',
-                'description' => 'Low stock alerts and expiring lots (30-day window)',
+                'description' => __('Low stock alerts and expiring lots (30-day window)'),
                 'source' => 'builtin',
                 'enabled' => true,
                 'sort_order' => 27,
