@@ -541,7 +541,7 @@ class PrintShopDemoSeeder extends Seeder
                 'description' => 'Main production facility for garment printing and decoration',
                 'address'     => 'ul. Drukarska 15',
                 'city'        => 'Warsaw',
-                'country'     => 'Poland',
+                'country'     => 'PL',
                 'timezone'    => 'Europe/Warsaw',
                 'is_active'   => true,
             ]
