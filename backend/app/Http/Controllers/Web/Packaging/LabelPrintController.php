@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Web\Packaging;
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\LabelTemplate;
 use App\Models\WorkOrder;
+use App\Services\Packaging\LabelGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use App\Models\LabelTemplate;
-use App\Services\Packaging\LabelGenerator;
 
 class LabelPrintController extends Controller
 {

@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\LabelTemplate;
 use App\Models\Tenant;
 use Illuminate\Database\Seeder;
-use App\Models\LabelTemplate;
 
 class LabelTemplatesSeeder extends Seeder
 {

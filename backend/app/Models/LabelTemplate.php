@@ -11,7 +11,9 @@ class LabelTemplate extends Model
     use HasFactory, HasTenant;
 
     const TYPE_WORK_ORDER = 'work_order';
+
     const TYPE_FINISHED_GOODS = 'finished_goods';
+
     const TYPE_WORKSTATION_STEP = 'workstation_step';
 
     const TYPES = [

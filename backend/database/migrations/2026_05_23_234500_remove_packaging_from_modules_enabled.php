@@ -7,12 +7,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!DB::getSchemaBuilder()->hasTable('system_settings')) {
+        if (! DB::getSchemaBuilder()->hasTable('system_settings')) {
             return;
         }
 
         $row = DB::table('system_settings')->where('key', 'modules_enabled')->first();
-        if (!$row) {
+        if (! $row) {
             return;
         }
 

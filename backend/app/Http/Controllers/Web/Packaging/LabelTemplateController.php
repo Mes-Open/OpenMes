@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Web\Packaging;
 
 use App\Http\Controllers\Controller;
+use App\Models\LabelTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use App\Models\LabelTemplate;
 
 class LabelTemplateController extends Controller
 {

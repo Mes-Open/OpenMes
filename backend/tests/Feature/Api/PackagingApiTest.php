@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\PackagingScanLog;
 use App\Models\User;
 use App\Models\WorkOrder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Models\PackagingScanLog;
 use App\Models\WorkOrderEan;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PackagingApiTest extends TestCase
@@ -14,10 +14,15 @@ class PackagingApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $supervisor;
+
     protected User $operator;
+
     protected string $adminToken;
+
     protected string $supervisorToken;
+
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -36,9 +41,20 @@ class PackagingApiTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
-    private function authSupervisor() { return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}"); }
-    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
+    private function authAdmin()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
+    }
+
+    private function authSupervisor()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}");
+    }
+
+    private function authOperator()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
+    }
 
     // ── EAN management ───────────────────────────────────────────────────────
 
@@ -111,6 +127,7 @@ class PackagingApiTest extends TestCase
             'planned_qty' => 10,
             'packed_qty' => 0,
         ]);
+        $this->operator->lines()->attach($wo->line_id);
         WorkOrderEan::create(['work_order_id' => $wo->id, 'ean' => '12345']);
 
         $r = $this->authOperator()->postJson('/api/v1/packaging/scan', ['ean' => '12345']);
@@ -133,6 +150,7 @@ class PackagingApiTest extends TestCase
             'status' => WorkOrder::STATUS_PENDING,
             'planned_qty' => 10,
         ]);
+        $this->operator->lines()->attach($wo->line_id);
         WorkOrderEan::create(['work_order_id' => $wo->id, 'ean' => 'X']);
 
         $this->authOperator()->postJson('/api/v1/packaging/scan', ['ean' => 'X'])
@@ -146,6 +164,7 @@ class PackagingApiTest extends TestCase
             'planned_qty' => 5,
             'packed_qty' => 5,
         ]);
+        $this->operator->lines()->attach($wo->line_id);
         WorkOrderEan::create(['work_order_id' => $wo->id, 'ean' => 'X']);
 
         $this->authOperator()->postJson('/api/v1/packaging/scan', ['ean' => 'X'])
