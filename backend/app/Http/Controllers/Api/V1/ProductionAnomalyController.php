@@ -57,8 +57,8 @@ class ProductionAnomalyController extends Controller
             'batch_step_id' => ['nullable', 'integer', 'exists:batch_steps,id'],
             'anomaly_reason_id' => ['required', 'integer', 'exists:anomaly_reasons,id'],
             'product_name' => ['nullable', 'string', 'max:255'],
-            'planned_qty' => ['required', 'numeric', 'min:0'],
-            'actual_qty' => ['required', 'numeric', 'min:0'],
+            'planned_qty' => ['required', 'numeric', 'min:0', 'max:99999999'],
+            'actual_qty' => ['required', 'numeric', 'min:0', 'max:99999999'],
             'comment' => ['nullable', 'string'],
             'status' => ['nullable', Rule::in([ProductionAnomaly::STATUS_DRAFT, ProductionAnomaly::STATUS_PROCESSED])],
         ]);
@@ -85,8 +85,8 @@ class ProductionAnomalyController extends Controller
         $data = $request->validate([
             'anomaly_reason_id' => ['sometimes', 'integer', 'exists:anomaly_reasons,id'],
             'product_name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'planned_qty' => ['sometimes', 'numeric', 'min:0'],
-            'actual_qty' => ['sometimes', 'numeric', 'min:0'],
+            'planned_qty' => ['sometimes', 'numeric', 'min:0', 'max:99999999'],
+            'actual_qty' => ['sometimes', 'numeric', 'min:0', 'max:99999999'],
             'comment' => ['sometimes', 'nullable', 'string'],
         ]);
         $productionAnomaly->update($data);
