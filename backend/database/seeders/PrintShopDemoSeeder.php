@@ -328,6 +328,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_IN_PROGRESS,
                 'priority'        => 3,
                 'due_date'        => now()->addDays(2),
+                'planned_start_at' => now()->setTime(8, 0),
+                'planned_end_at'   => now()->addDays(1)->setTime(14, 0),
                 'description'     => 'Corporate t-shirts — XYZ Ltd. logo, white base, DTG print, sizes M/L/XL',
             ],
             [
@@ -338,6 +340,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_PENDING,
                 'priority'        => 2,
                 'due_date'        => now()->addDays(5),
+                'planned_start_at' => now()->addDays(1)->setTime(6, 0),
+                'planned_end_at'   => now()->addDays(2)->setTime(12, 0),
                 'description'     => 'Sports team caps — 3D embroidery logo, navy blue',
             ],
             [
@@ -348,6 +352,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_ACCEPTED,
                 'priority'        => 4,
                 'due_date'        => now()->addDay(),
+                'planned_start_at' => now()->setTime(6, 0),
+                'planned_end_at'   => now()->setTime(18, 0),
                 'description'     => 'Polo shirts screen print 2 colours — workwear for construction company',
             ],
             [
@@ -358,6 +364,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_PENDING,
                 'priority'        => 1,
                 'due_date'        => now()->addDays(7),
+                'planned_start_at' => now()->addDays(2)->setTime(8, 0),
+                'planned_end_at'   => now()->addDays(4)->setTime(16, 0),
                 'description'     => 'Conference tote bags — flex transfer, single colour print',
             ],
             [
@@ -368,6 +376,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_DONE,
                 'priority'        => 2,
                 'due_date'        => now()->subDay(),
+                'planned_start_at' => now()->subDays(2)->setTime(8, 0),
+                'planned_end_at'   => now()->subDay()->setTime(14, 0),
                 'description'     => 'Artist hoodies — limited edition, full-colour DTG print',
                 'completed_at'    => now()->subHours(3),
             ],
@@ -379,6 +389,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_IN_PROGRESS,
                 'priority'        => 3,
                 'due_date'        => now()->addDays(3),
+                'planned_start_at' => now()->addDay()->setTime(10, 0),
+                'planned_end_at'   => now()->addDays(2)->setTime(16, 0),
                 'description'     => 'Sublimation mugs — personalised customer photos, gift order',
             ],
             [
@@ -389,6 +401,8 @@ class PrintShopDemoSeeder extends Seeder
                 'status'          => WorkOrder::STATUS_PENDING,
                 'priority'        => 2,
                 'due_date'        => now()->addDays(4),
+                'planned_start_at' => now()->addDays(3)->setTime(6, 0),
+                'planned_end_at'   => now()->addDays(3)->setTime(18, 0),
                 'description'     => 'University crewneck sweatshirts — embroidered crest, black, sizes S–XXL',
             ],
         ];

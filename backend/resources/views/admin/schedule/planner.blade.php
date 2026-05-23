@@ -215,7 +215,7 @@
 
             async unassignOrder(orderId) {
                 if (!confirm({!! json_encode($confirmMsg) !!})) return;
-                const result = await this.saveOrder(orderId, { line_id: '', due_date: '', week_number: '', shift_number: '' });
+                const result = await this.saveOrder(orderId, { line_id: '', due_date: '', week_number: '', shift_number: '', end_date: '', end_shift_number: '', planned_start_at: '', planned_end_at: '' });
                 if (result) {
                     await this.refreshContent();
                 }
