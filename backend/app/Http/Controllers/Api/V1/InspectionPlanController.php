@@ -43,7 +43,7 @@ class InspectionPlanController extends Controller
 
         $plan = InspectionPlan::create($validated);
 
-        return response()->json(['message' => 'Inspection plan created', 'data' => $plan], 201);
+        return response()->json(['message' => __('Inspection plan created'), 'data' => $plan], 201);
     }
 
     public function update(Request $request, InspectionPlan $inspectionPlan): JsonResponse
@@ -52,14 +52,14 @@ class InspectionPlanController extends Controller
 
         $inspectionPlan->update($validated);
 
-        return response()->json(['message' => 'Inspection plan updated', 'data' => $inspectionPlan->fresh()]);
+        return response()->json(['message' => __('Inspection plan updated'), 'data' => $inspectionPlan->fresh()]);
     }
 
     public function destroy(InspectionPlan $inspectionPlan): JsonResponse
     {
         $inspectionPlan->delete();
 
-        return response()->json(['message' => 'Inspection plan deleted']);
+        return response()->json(['message' => __('Inspection plan deleted')]);
     }
 
     private function validatedPayload(Request $request, ?int $id = null): array
@@ -82,7 +82,7 @@ class InspectionPlanController extends Controller
         // Exactly-one rule: either tie to a material, a material_type, or be generic.
         // Both set is invalid (ambiguous scope).
         if (! empty($validated['material_id']) && ! empty($validated['material_type_id'])) {
-            abort(422, 'A plan can target either a material OR a material type, not both.');
+            abort(422, __('A plan can target either a material OR a material type, not both.'));
         }
 
         // Force measurement specs to be coherent if both provided.
@@ -90,7 +90,7 @@ class InspectionPlanController extends Controller
             if (($c['type'] ?? null) === 'measurement'
                 && isset($c['spec_min'], $c['spec_max'])
                 && $c['spec_min'] > $c['spec_max']) {
-                abort(422, "Criterion #{$i}: spec_min cannot exceed spec_max.");
+                abort(422, __('Criterion #:index: spec_min cannot exceed spec_max.', ['index' => $i]));
             }
         }
 

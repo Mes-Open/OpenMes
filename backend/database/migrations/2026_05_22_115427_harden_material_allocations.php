@@ -18,13 +18,11 @@ return new class extends Migration
 
         // 2) Backfill tenant_id from the parent work_order. Subquery form
         // is portable across Postgres and SQLite (tests).
-        DB::statement('
-            UPDATE material_allocations
-            SET tenant_id = (
-                SELECT tenant_id FROM work_orders WHERE work_orders.id = material_allocations.work_order_id
-            )
-            WHERE tenant_id IS NULL
-        ');
+        DB::table('material_allocations')
+            ->whereNull('tenant_id')
+            ->update([
+                'tenant_id' => DB::raw('(SELECT tenant_id FROM work_orders WHERE work_orders.id = material_allocations.work_order_id)'),
+            ]);
 
         // 3) Replace plain index with UNIQUE on (batch_id, material_id) to
         // prevent double allocation of the same material to the same batch.
