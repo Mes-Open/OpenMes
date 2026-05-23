@@ -650,7 +650,7 @@ class PrintShopDemoSeeder extends Seeder
             ['code' => 'SEG-SCREEN-PRINT', 'name' => 'Screen Print',       'description' => 'Screen printing production run',                               'segment_type' => 'production', 'duration' => 30, 'operators' => 2, 'instruction' => 'Mount screen, set registration, pull test print, run production batch.'],
             ['code' => 'SEG-EMBROIDERY',   'name' => 'Embroidery Run',     'description' => 'Machine embroidery of design onto garment or accessory',       'segment_type' => 'production', 'duration' => 25, 'operators' => 1, 'instruction' => 'Thread machine per colour card, hoop garment, start machine, monitor tension.'],
             ['code' => 'SEG-HEAT-PRESS',   'name' => 'Heat Press',         'description' => 'Heat transfer pressing for flex, foil, or sublimation',        'segment_type' => 'production', 'duration' => 8,  'operators' => 1, 'instruction' => 'Set temperature and time per transfer type. Position transfer, press, peel.'],
-            ['code' => 'SEG-QC-CHECK',     'name' => 'Quality Check',      'description' => 'Visual and dimensional quality inspection of finished product','segment_type' => 'quality',    'duration' => 5,  'operators' => 1, 'instruction' => 'Inspect colour accuracy, coverage, edge sharpness. Reject defects. Log results.'],
+            ['code' => 'SEG-QC-CHECK',     'name' => 'Quality Check',      'description' => 'Visual and dimensional quality inspection of finished product','segment_type' => 'inspection',    'duration' => 5,  'operators' => 1, 'instruction' => 'Inspect colour accuracy, coverage, edge sharpness. Reject defects. Log results.'],
         ];
 
         foreach ($defs as $def) {
