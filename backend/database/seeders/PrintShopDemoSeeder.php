@@ -745,7 +745,7 @@ class PrintShopDemoSeeder extends Seeder
             [
                 'title'        => 'Screen Press Maintenance (scheduled)',
                 'event_type'   => 'planned',
-                'status'       => 'scheduled',
+                'status'       => 'pending',
                 'line_id'      => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,
                 'schedule_id'  => $schedules['screen_press']->id,
@@ -755,7 +755,7 @@ class PrintShopDemoSeeder extends Seeder
             [
                 'title'        => 'DTG Printhead Cleaning (overdue)',
                 'event_type'   => 'planned',
-                'status'       => 'overdue',
+                'status'       => 'pending',
                 'line_id'      => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
                 'schedule_id'  => $schedules['dtg_cleaning']->id,
