@@ -431,7 +431,8 @@ class PrintShopDemoSeeder extends Seeder
 
         foreach ($defs as $def) {
             foreach ($def['line_codes'] as $lineCode) {
-                $uniqueCode = $def['code'] . '-' . $lineCode;
+                $shortLine = substr($lineCode, 0, 4);
+                $uniqueCode = $def['code'] . '-' . $shortLine;
                 Shift::updateOrCreate(
                     ['code' => $uniqueCode],
                     [
