@@ -4,12 +4,12 @@ namespace App\Services\Packaging;
 
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\LabelTemplate;
 use App\Models\WorkOrder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Support\Collection;
-use App\Models\LabelTemplate;
 use Picqer\Barcode\BarcodeGeneratorPNG;
 
 class LabelGenerator
@@ -148,7 +148,7 @@ class LabelGenerator
             default => BarcodeGeneratorPNG::TYPE_CODE_128,
         };
 
-        $generator = new BarcodeGeneratorPNG();
+        $generator = new BarcodeGeneratorPNG;
         $png = $generator->getBarcode($value, $type, 2, 60);
 
         return 'data:image/png;base64,'.base64_encode($png);
@@ -157,7 +157,7 @@ class LabelGenerator
     public function qrPng(string $value, int $size = 240): string
     {
         $result = Builder::create()
-            ->writer(new PngWriter())
+            ->writer(new PngWriter)
             ->data($value)
             ->size($size)
             ->margin(0)

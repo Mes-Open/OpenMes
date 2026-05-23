@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers\Web\Packaging;
 
-use App\Models\WorkOrder;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
+use Illuminate\Http\Request;
 
 class PackagingEanController extends Controller
 {
     public function index(Request $request)
     {
         $workOrders = WorkOrder::with('productType', 'eans')
-            ->when($request->search, fn($q) => $q->where('order_no', 'like', '%' . $request->search . '%'))
+            ->when($request->search, fn ($q) => $q->where('order_no', 'like', '%'.$request->search.'%'))
             ->orderBy('order_no')
             ->paginate(30)
             ->withQueryString();
@@ -24,12 +24,12 @@ class PackagingEanController extends Controller
     {
         $request->validate([
             'work_order_id' => 'required|exists:work_orders,id',
-            'ean'           => 'required|string|max:100|unique:work_order_eans,ean',
+            'ean' => 'required|string|max:100|unique:work_order_eans,ean',
         ]);
 
         WorkOrderEan::create([
             'work_order_id' => $request->work_order_id,
-            'ean'           => $request->ean,
+            'ean' => $request->ean,
         ]);
 
         return back()->with('success', 'Kod EAN został dodany.');
@@ -38,6 +38,7 @@ class PackagingEanController extends Controller
     public function destroy(WorkOrderEan $ean)
     {
         $ean->delete();
+
         return back()->with('success', 'Kod EAN został usunięty.');
     }
 }
