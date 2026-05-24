@@ -2,6 +2,8 @@
 
 # OpenMES
 
+[![Beta](https://img.shields.io/badge/Status-BETA-orange?style=for-the-badge)](https://github.com/Mes-Open/OpenMes/releases)
+
 ### Open-Source Manufacturing Execution System
 
 *Powerful, flexible, and tablet-ready MES for small manufacturers*
