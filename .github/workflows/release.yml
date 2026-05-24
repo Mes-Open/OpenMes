@@ -120,19 +120,16 @@ jobs:
               echo "" >> /tmp/changelog_entry.md
             fi
 
-            # Insert after [Unreleased] section using python for reliability
-            python3 -c "
-import re, sys
-entry = open('/tmp/changelog_entry.md').read()
-content = open('CHANGELOG.md').read()
-# Insert before the first ## [x.y.z] line (after [Unreleased] content)
-pattern = r'(## \[Unreleased\].*?\n(?:.*?\n)*?)\n(## \[)'
-replacement = r'\1\n' + entry + r'\2'
-result = re.sub(pattern, replacement, content, count=1)
-# Update unreleased link
-result = re.sub(r'\[Unreleased\]: .*', '[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/${VERSION}...develop', result)
-open('CHANGELOG.md', 'w').write(result)
-" || echo "CHANGELOG update skipped"
+            # Insert new version entry after [Unreleased] section
+            FIRST_VERSION_LINE=$(grep -n "^## \[0\." CHANGELOG.md | head -1 | cut -d: -f1)
+            if [ -n "$FIRST_VERSION_LINE" ]; then
+              head -n $((FIRST_VERSION_LINE - 1)) CHANGELOG.md > /tmp/changelog_top.md
+              echo "" >> /tmp/changelog_top.md
+              cat /tmp/changelog_entry.md >> /tmp/changelog_top.md
+              tail -n +${FIRST_VERSION_LINE} CHANGELOG.md >> /tmp/changelog_top.md
+              mv /tmp/changelog_top.md CHANGELOG.md
+            fi
+            sed -i "s|\[Unreleased\]: .*|[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/${VERSION}...develop|" CHANGELOG.md
 
             git add CHANGELOG.md
           fi
