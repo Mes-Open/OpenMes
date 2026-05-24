@@ -238,7 +238,7 @@
                                                  @dragleave="onDragLeave($event, '{{ $cellId }}')"
                                                  @drop="onDrop($event, {{ $line->id }}, '{{ $cellDate }}', {{ $s }}, {{ $period['number'] }})"
                                                  data-cell-line="{{ $line->id }}" data-cell-date="{{ $cellDate }}" data-cell-shift="{{ $s }}"
-                                                 class="h-6 rounded transition-all cursor-pointer relative overflow-hidden"
+                                                 class="h-[52px] rounded transition-all cursor-pointer relative overflow-hidden"
                                                  :class="dragOverCell === '{{ $cellId }}'
                                                      ? 'bg-blue-200 border-2 border-dashed border-blue-500 scale-[1.02]'
                                                      : '{{ $shiftColors[$s]['bg'] }} opacity-15 hover:opacity-40'">
