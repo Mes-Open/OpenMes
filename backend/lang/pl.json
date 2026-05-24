@@ -1,5 +1,11 @@
 {
     "% of Total": "% całości",
+    "Manage Shifts": "Zarządzaj zmianami",
+    "This shift overlaps with an existing shift. Adjust the times and try again.": "Ta zmiana nakłada się na istniejącą. Dostosuj godziny i spróbuj ponownie.",
+    "Cannot delete shift with production entries. Deactivate it instead.": "Nie można usunąć zmiany z wpisami produkcyjnymi. Dezaktywuj ją zamiast tego.",
+    "Shift created.": "Zmiana utworzona.",
+    "Shift updated.": "Zmiana zaktualizowana.",
+    "Shift deleted.": "Zmiana usunięta.",
     "(default)": "(domyślnie)",
     "(leave blank to keep)": "(pozostaw puste, aby zachować)",
     "(optional — operator will skip line selection)": "(opcjonalne — operator pominie wybór linii)",
