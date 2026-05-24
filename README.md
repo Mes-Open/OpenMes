@@ -72,6 +72,8 @@ Drag-and-drop production scheduling with Gantt-style views across multiple produ
 
 ![Operator Queue](docs/screenshots/operator-queue.png)
 
+![Operator Workstation View](docs/screenshots/operator-workstation.png)
+
 - **Step-by-step guidance** - Clear instructions for every operation
 - **Sequential workflow** - Enforce process order to prevent mistakes
 - **One-tap actions** - Start, complete, report issues with single tap
