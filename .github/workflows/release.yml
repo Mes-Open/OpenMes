@@ -82,8 +82,9 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Bump version and update CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           DATE=$(date +%Y-%m-%d)
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -95,9 +96,8 @@ jobs:
           # Bump version.php
           sed -i "s/'current' => '.*'/'current' => '${VERSION}'/" backend/config/version.php
 
-          # Update CHANGELOG.md — replace [Unreleased] header with version + date, add new Unreleased
+          # Update CHANGELOG.md
           if [ -f CHANGELOG.md ]; then
-            # Build changelog entry from conventional commits
             PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1 || echo "")
             FEATURES=""
             FIXES=""
@@ -106,25 +106,33 @@ jobs:
               FIXES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"%s" --no-merges | grep -E "^fix" | sed 's/^fix[^:]*: /- /' || true)
             fi
 
-            # Build the new entry
-            ENTRY="## [${VERSION}] - ${DATE}\n"
+            # Build entry file
+            echo "## [${VERSION}] - ${DATE}" > /tmp/changelog_entry.md
+            echo "" >> /tmp/changelog_entry.md
             if [ -n "$FEATURES" ]; then
-              ENTRY="${ENTRY}\n### Added\n${FEATURES}\n"
+              echo "### Added" >> /tmp/changelog_entry.md
+              echo "$FEATURES" >> /tmp/changelog_entry.md
+              echo "" >> /tmp/changelog_entry.md
             fi
             if [ -n "$FIXES" ]; then
-              ENTRY="${ENTRY}\n### Fixed\n${FIXES}\n"
+              echo "### Fixed" >> /tmp/changelog_entry.md
+              echo "$FIXES" >> /tmp/changelog_entry.md
+              echo "" >> /tmp/changelog_entry.md
             fi
 
-            # Insert after the [Unreleased] section marker
-            sed -i "/^## \[Unreleased\]/,/^## \[/ {
-              /^## \[Unreleased\]/! {
-                /^## \[/ i\\
-${ENTRY}
-              }
-            }" CHANGELOG.md
-
-            # Update comparison links
-            sed -i "s|\[Unreleased\]: .*|[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/${VERSION}...develop|" CHANGELOG.md
+            # Insert after [Unreleased] section using python for reliability
+            python3 -c "
+import re, sys
+entry = open('/tmp/changelog_entry.md').read()
+content = open('CHANGELOG.md').read()
+# Insert before the first ## [x.y.z] line (after [Unreleased] content)
+pattern = r'(## \[Unreleased\].*?\n(?:.*?\n)*?)\n(## \[)'
+replacement = r'\1\n' + entry + r'\2'
+result = re.sub(pattern, replacement, content, count=1)
+# Update unreleased link
+result = re.sub(r'\[Unreleased\]: .*', '[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/${VERSION}...develop', result)
+open('CHANGELOG.md', 'w').write(result)
+" || echo "CHANGELOG update skipped"
 
             git add CHANGELOG.md
           fi
