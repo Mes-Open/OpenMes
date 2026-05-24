@@ -23,6 +23,7 @@ use App\Models\ProcessSegment;
 use App\Models\MaintenanceSchedule;
 use App\Models\MaintenanceEvent;
 use App\Models\InspectionPlan;
+use App\Models\OeeRecord;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
@@ -50,6 +51,7 @@ class PrintShopDemoSeeder extends Seeder
         $this->seedProcessSegments();
         $this->seedMaintenanceSchedulesAndEvents($lines, $workstations);
         $this->seedInspectionPlans($materials);
+        $this->seedOeeRecords($lines);
     }
 
     // ── Issue types ──────────────────────────────────────────────────────────
@@ -862,5 +864,45 @@ class PrintShopDemoSeeder extends Seeder
                 'is_active'   => true,
             ]
         );
+    }
+
+    // ── OEE Records ─────────────────────────────────────────────────────────
+
+    private function seedOeeRecords(array $lines): void
+    {
+        foreach ($lines as $code => $line) {
+            if ($code === 'PACKING') continue; // skip non-production line
+
+            for ($day = -14; $day <= 0; $day++) {
+                $date = now()->addDays($day)->format('Y-m-d');
+                $planned = rand(420, 480);          // 7-8h planned
+                $downtime = rand(10, 60);
+                $operating = $planned - $downtime;
+                $totalProduced = rand(40, 200);
+                $scrap = rand(0, (int)($totalProduced * 0.08));
+                $good = $totalProduced - $scrap;
+
+                $availability = round($operating / max($planned, 1) * 100, 1);
+                $performance = round(rand(70, 98), 1);
+                $quality = $totalProduced > 0 ? round($good / $totalProduced * 100, 1) : 100;
+                $oee = round($availability * $performance * $quality / 10000, 1);
+
+                OeeRecord::updateOrCreate(
+                    ['line_id' => $line->id, 'record_date' => $date],
+                    [
+                        'planned_minutes'   => $planned,
+                        'operating_minutes' => $operating,
+                        'downtime_minutes'  => $downtime,
+                        'total_produced'    => $totalProduced,
+                        'good_produced'     => $good,
+                        'scrap_qty'         => $scrap,
+                        'availability_pct'  => $availability,
+                        'performance_pct'   => $performance,
+                        'quality_pct'       => $quality,
+                        'oee_pct'           => $oee,
+                    ]
+                );
+            }
+        }
     }
 }
