@@ -801,7 +801,7 @@
                                                     @php $isOverdue = $wo->due_date && $wo->due_date->lt(today()) && !in_array($wo->status, \App\Models\WorkOrder::TERMINAL_STATUSES); @endphp
                                                     <div class="relative group/cell">
                                                         <a href="{{ route('admin.work-orders.show', $wo) }}"
-                                                           class="block px-2 py-1.5 rounded text-[11px] font-medium truncate border
+                                                           class="block px-2 py-4 rounded text-[11px] font-medium truncate border
                                                                   @if($isOverdue) bg-red-500 border-red-600 text-white animate-pulse ring-2 ring-red-400 @else {{ $woColors[$wo->status] ?? 'bg-gray-200 border-gray-300' }} {{ $woTextColors[$wo->status] ?? 'text-gray-800' }} @endif"
                                                            title="{{ $wo->order_no }}">
                                                             {{ $wo->order_no }}
