@@ -286,23 +286,29 @@
             {{-- ── ORDERS ─── --}}
             <div class="px-2">
                 <div class="relative group">
-                    <button @click="expandGroup('orders')"
-                            class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium
-                                   transition-colors text-slate-300 hover:bg-slate-700 hover:text-white"
-                            :class="{
-                                'justify-center !px-0':    collapsed && !mobileOpen,
-                                'bg-slate-700/50 text-white': orders && (!collapsed || mobileOpen)
-                            }">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                        <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Orders') }}</span>
-                        <svg x-show="!collapsed || mobileOpen" x-cloak
-                             class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': orders}"
-                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
+                    <div class="flex items-center w-full rounded-lg text-sm font-medium
+                                transition-colors text-slate-300 hover:bg-slate-700 hover:text-white"
+                         :class="{
+                             'justify-center !px-0': collapsed && !mobileOpen,
+                             'bg-slate-700/50 text-white': orders && (!collapsed || mobileOpen)
+                         }">
+                        <a href="{{ route('admin.work-orders.index') }}"
+                           class="flex items-center gap-3 flex-1 px-3 py-2.5 rounded-l-lg"
+                           :class="{ 'justify-center !px-0': collapsed && !mobileOpen }">
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            <span x-show="!collapsed || mobileOpen" x-cloak class="flex-1 text-left">{{ __('Orders') }}</span>
+                        </a>
+                        <button x-show="!collapsed || mobileOpen" x-cloak
+                                @click.stop="expandGroup('orders')"
+                                class="px-2 py-2.5 rounded-r-lg hover:bg-slate-600 transition-colors">
+                            <svg class="w-4 h-4 shrink-0 transition-transform" :class="{'rotate-180': orders}"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                    </div>
                     <span x-show="collapsed && !mobileOpen" x-cloak
                           class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
                                  text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
@@ -319,7 +325,7 @@
                     <a href="{{ route('admin.work-orders.index') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
                               {{ request()->routeIs('admin.work-orders.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Work Orders') }}
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('All Orders') }}
                     </a>
                     <a href="{{ route('admin.csv-import') }}"
                        class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
@@ -373,8 +379,14 @@
                     <a href="{{ route('admin.materials.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.materials.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Materials') }}
                     </a>
+                    <a href="{{ route('admin.material-lots.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.material-lots.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Material Lots') }}
+                    </a>
                     <a href="{{ route('admin.lot-sequences.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.lot-sequences.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('LOT Sequences') }}
+                    </a>
+                    <a href="{{ route('admin.process-segments.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.process-segments.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Process Segments') }}
                     </a>
                     {{-- {{ __('Production Lines') }} sub-group --}}
                     <div>
@@ -452,6 +464,12 @@
                      x-transition:leave="transition-opacity ease-in duration-100"
                      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
                      class="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
+                    <a href="{{ route('admin.sites.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.sites.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Sites') }}
+                    </a>
+                    <a href="{{ route('admin.areas.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.areas.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Areas') }}
+                    </a>
                     <a href="{{ route('admin.factories.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.factories.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Factories') }}
                     </a>
@@ -508,6 +526,9 @@
                     <a href="{{ route('admin.workers.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.workers.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Workers') }}
                     </a>
+                    <a href="{{ route('admin.personnel-classes.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.personnel-classes.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Personnel Classes') }}
+                    </a>
                     <a href="{{ route('admin.crews.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.crews.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Crews') }}
                     </a>
@@ -561,6 +582,9 @@
                     <a href="{{ route('admin.maintenance-events.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.maintenance-events.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Maintenance Events') }}
                     </a>
+                    <a href="{{ route('admin.maintenance-schedules.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.maintenance-schedules.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Maintenance Schedules') }}
+                    </a>
                     <a href="{{ route('admin.tools.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.tools.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Tools') }}
                     </a>
@@ -569,6 +593,12 @@
                     </a>
                     <a href="{{ route('admin.production-anomalies.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.production-anomalies.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Anomalies') }}
+                    </a>
+                    <a href="{{ route('inspections.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('inspections.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Inbound Inspections') }}
+                    </a>
+                    <a href="{{ route('admin.inspection-plans.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.inspection-plans.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Inspection Plans') }}
                     </a>
                     <a href="{{ route('admin.oee.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.oee.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('OEE') }}
@@ -663,6 +693,12 @@
                     </a>
                     <a href="{{ route('admin.reports') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.reports') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Reports') }}
+                    </a>
+                    <a href="{{ route('admin.logs.activity') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.logs.activity') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Activity Logs') }}
+                    </a>
+                    <a href="{{ route('admin.logs.system') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.logs.system') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('System Logs') }}
                     </a>
                     <a href="{{ route('admin.audit-logs') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.audit-logs') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Audit Logs') }}

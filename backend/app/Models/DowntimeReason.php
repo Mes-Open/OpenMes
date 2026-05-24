@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use App\Enums\DowntimeKind;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class DowntimeReason extends Model
 {
+    use HasFactory;
 
     protected $fillable = [
         'name',
         'code',
-        'is_planned',
+        'kind',
         'is_active',
         'tenant_id',
     ];
@@ -18,7 +21,7 @@ class DowntimeReason extends Model
     protected function casts(): array
     {
         return [
-            'is_planned' => 'boolean',
+            'kind' => DowntimeKind::class,
             'is_active' => 'boolean',
         ];
     }

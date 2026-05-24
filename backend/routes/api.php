@@ -17,6 +17,8 @@ use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\DivisionController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\FactoryController;
+use App\Http\Controllers\Api\V1\InspectionController;
+use App\Http\Controllers\Api\V1\InspectionPlanController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueTypeController;
 use App\Http\Controllers\Api\V1\LineController;
@@ -24,8 +26,10 @@ use App\Http\Controllers\Api\V1\LineStatusController;
 use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
 use App\Http\Controllers\Api\V1\MaterialController;
+use App\Http\Controllers\Api\V1\MaterialLotController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
 use App\Http\Controllers\Api\V1\OeeController as ApiOeeController;
+use App\Http\Controllers\Api\V1\PackagingApiController;
 use App\Http\Controllers\Api\V1\PackagingChecklistController;
 use App\Http\Controllers\Api\V1\ProcessConfirmationController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
@@ -91,6 +95,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Process Templates (read for any authenticated user)
     Route::get('/process-templates/{process_template}', [ProcessTemplateController::class, 'show']);
 
+    // ISA-95 Process Segments — read for any authenticated user
+    Route::get('/process-segments', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'index']);
+    Route::get('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'show']);
+
     // Workstation Types (read for any authenticated user)
     Route::get('/workstation-types', [WorkstationTypeController::class, 'index']);
     Route::get('/workstation-types/{workstation_type}', [WorkstationTypeController::class, 'show']);
@@ -106,12 +114,20 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/workers', [WorkerController::class, 'index']);
     Route::get('/workers/{worker}', [WorkerController::class, 'show']);
 
+    // ISA-95 Personnel Classes — read for any authenticated user
+    Route::get('/personnel-classes', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'index']);
+    Route::get('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'show']);
+
     // Org structure — read for any authenticated user
     Route::get('/factories', [FactoryController::class, 'index']);
     Route::get('/factories/{factory}', [FactoryController::class, 'show']);
     Route::get('/factories/{factory}/divisions', [DivisionController::class, 'index']);
     Route::get('/divisions/{division}', [DivisionController::class, 'show']);
     Route::get('/lines/{line}/statuses', [LineStatusController::class, 'index']);
+
+    // ISA-95 equipment hierarchy — sites & areas
+    Route::apiResource('sites', \App\Http\Controllers\Api\V1\SiteController::class)->only(['index', 'show']);
+    Route::apiResource('areas', \App\Http\Controllers\Api\V1\AreaController::class)->only(['index', 'show']);
 
     // Ops support — read for any auth user
     Route::get('/companies', [CompanyController::class, 'index']);
@@ -138,6 +154,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'index']);
     Route::get('/process-templates/{processTemplate}/bom-items/requirements', [BomItemController::class, 'requirements']);
 
+    // ISA-95 Material Lots — read access for any authenticated user; consumption
+    // recording for operators / supervisors (no admin role required by design).
+    Route::get('/material-lots', [MaterialLotController::class, 'index']);
+    Route::get('/material-lots/{materialLot}', [MaterialLotController::class, 'show']);
+    Route::get('/material-lots/{materialLot}/genealogy/forward', [MaterialLotController::class, 'forwardGenealogy']);
+    Route::get('/material-lots/{materialLot}/genealogy/backward', [MaterialLotController::class, 'backwardGenealogy']);
+    Route::post('/material-lots/{materialLot}/consume', [MaterialLotController::class, 'consume']);
+
     // OEE & Downtimes — accessible by all authenticated users (operators need to report)
     Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);
     Route::get('/downtimes', [ApiOeeController::class, 'downtimes']);
@@ -145,6 +169,16 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::patch('/downtimes/{downtime}', [ApiOeeController::class, 'stopDowntime']);
     Route::get('/oee', [ApiOeeController::class, 'index']);
     Route::get('/oee/{line}', [ApiOeeController::class, 'show']);
+
+    // Inspections (inbound quality) — inspectors + admins
+    Route::get('/inspection-plans', [InspectionPlanController::class, 'index']);
+    Route::get('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'show']);
+    Route::get('/inspections', [InspectionController::class, 'index']);
+    Route::get('/inspections/stats', [InspectionController::class, 'stats']);
+    Route::get('/inspections/{inspection}', [InspectionController::class, 'show']);
+    Route::post('/inspections', [InspectionController::class, 'store']);
+    Route::patch('/inspections/{inspection}/results/{result}', [InspectionController::class, 'recordResult']);
+    Route::post('/inspections/{inspection}/complete', [InspectionController::class, 'complete']);
 
     // Tools — read for any authenticated user
     Route::get('/tools', [ToolController::class, 'index']);
@@ -239,6 +273,16 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/process-templates/{process_template}', [ProcessTemplateController::class, 'update']);
         Route::delete('/process-templates/{process_template}', [ProcessTemplateController::class, 'destroy']);
         Route::post('/process-templates/{process_template}/toggle-active', [ProcessTemplateController::class, 'toggleActive']);
+
+        // ISA-95 Process Segments — admin mutations
+        Route::post('/process-segments', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'store']);
+        Route::patch('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'update']);
+        Route::delete('/process-segments/{process_segment}', [\App\Http\Controllers\Api\V1\ProcessSegmentController::class, 'destroy']);
+
+        // ISA-95 Personnel Classes — admin mutations
+        Route::post('/personnel-classes', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'store']);
+        Route::patch('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'update']);
+        Route::delete('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'destroy']);
 
         // Template Steps
         Route::post('/process-templates/{process_template}/steps', [ProcessTemplateController::class, 'addStep']);
@@ -335,6 +379,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/materials/{material}', [MaterialController::class, 'update']);
         Route::delete('/materials/{material}', [MaterialController::class, 'destroy']);
         Route::post('/materials/import', [MaterialController::class, 'import']);
+
+        // Inspection plans — admin mutations
+        Route::post('/inspection-plans', [InspectionPlanController::class, 'store']);
+        Route::patch('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'update']);
+        Route::delete('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'destroy']);
 
         // BOM Items — admin mutations
         Route::post('/process-templates/{processTemplate}/bom-items', [BomItemController::class, 'store']);
@@ -471,5 +520,17 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/reports/batch-completion', [ReportController::class, 'batchCompletion']);
         Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
+    });
+
+    // Packaging
+    Route::prefix('packaging')->group(function () {
+        Route::post('/scan', [PackagingApiController::class, 'scan']);
+        Route::get('/items', [PackagingApiController::class, 'items']);
+        Route::get('/stats', [PackagingApiController::class, 'stats']);
+        Route::get('/scan-logs', [PackagingApiController::class, 'scanLogs']);
+        Route::get('/eans', [PackagingApiController::class, 'listEans']);
+        Route::get('/eans/{workOrderEan}', [PackagingApiController::class, 'showEan']);
+        Route::post('/eans', [PackagingApiController::class, 'storeEan']);
+        Route::delete('/eans/{workOrderEan}', [PackagingApiController::class, 'destroyEan']);
     });
 });

@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\PackagingScanLog;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderEan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\Packaging\Models\PackagingScanLog;
-use Modules\Packaging\Models\WorkOrderEan;
 use Tests\TestCase;
 
 class PackagingApiTest extends TestCase
@@ -14,26 +14,21 @@ class PackagingApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $supervisor;
+
     protected User $operator;
+
     protected string $adminToken;
+
     protected string $supervisorToken;
+
     protected string $operatorToken;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
-
-        // The Packaging module is conditionally loaded based on system_settings;
-        // in tests, RefreshDatabase rolls everything back so the module is never
-        // seen as "enabled". Register the service provider directly and run its
-        // migrations so the packaging tables exist.
-        $this->app->register(\Modules\Packaging\Providers\PackagingServiceProvider::class);
-        $this->artisan('migrate', [
-            '--path' => '/var/www/html/modules/Packaging/migrations',
-            '--realpath' => true,
-        ]);
 
         $this->admin = User::factory()->create();
         $this->admin->assignRole('Admin');
@@ -46,9 +41,20 @@ class PackagingApiTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
-    private function authSupervisor() { return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}"); }
-    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
+    private function authAdmin()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
+    }
+
+    private function authSupervisor()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->supervisorToken}");
+    }
+
+    private function authOperator()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
+    }
 
     // ── EAN management ───────────────────────────────────────────────────────
 
@@ -121,6 +127,7 @@ class PackagingApiTest extends TestCase
             'planned_qty' => 10,
             'packed_qty' => 0,
         ]);
+        $this->operator->lines()->attach($wo->line_id);
         WorkOrderEan::create(['work_order_id' => $wo->id, 'ean' => '12345']);
 
         $r = $this->authOperator()->postJson('/api/v1/packaging/scan', ['ean' => '12345']);
@@ -143,6 +150,7 @@ class PackagingApiTest extends TestCase
             'status' => WorkOrder::STATUS_PENDING,
             'planned_qty' => 10,
         ]);
+        $this->operator->lines()->attach($wo->line_id);
         WorkOrderEan::create(['work_order_id' => $wo->id, 'ean' => 'X']);
 
         $this->authOperator()->postJson('/api/v1/packaging/scan', ['ean' => 'X'])
@@ -156,6 +164,7 @@ class PackagingApiTest extends TestCase
             'planned_qty' => 5,
             'packed_qty' => 5,
         ]);
+        $this->operator->lines()->attach($wo->line_id);
         WorkOrderEan::create(['work_order_id' => $wo->id, 'ean' => 'X']);
 
         $this->authOperator()->postJson('/api/v1/packaging/scan', ['ean' => 'X'])

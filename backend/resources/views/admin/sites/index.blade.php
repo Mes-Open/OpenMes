@@ -1,0 +1,134 @@
+@extends('layouts.app')
+
+@section('title', __('Sites'))
+
+@section('content')
+<x-breadcrumbs :items="[
+    ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+    ['label' => __('Sites'), 'url' => null],
+]" />
+
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">{{ __('Sites') }}</h1>
+        <a href="{{ route('admin.sites.create') }}" class="btn-touch btn-primary">
+            <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            {{ __('Add Site') }}
+        </a>
+    </div>
+
+    <form method="GET" class="card mb-4 p-4 flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-[180px]">
+            <label class="form-label">{{ __('Search') }}</label>
+            <input type="text" name="search" value="{{ request('search') }}"
+                   class="form-input w-full" placeholder="{{ __('Code, name or city…') }}">
+        </div>
+        <div class="min-w-[180px]">
+            <label class="form-label">{{ __('Company') }}</label>
+            <select name="company_id" class="form-input w-full">
+                <option value="">{{ __('— All —') }}</option>
+                @foreach($companies as $c)
+                    <option value="{{ $c->id }}" @selected(request('company_id') == $c->id)>{{ $c->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="min-w-[140px]">
+            <label class="form-label">{{ __('Status') }}</label>
+            <select name="is_active" class="form-input w-full">
+                <option value="">{{ __('— All —') }}</option>
+                <option value="1" @selected(request('is_active') === '1')>{{ __('Active') }}</option>
+                <option value="0" @selected(request('is_active') === '0')>{{ __('Inactive') }}</option>
+            </select>
+        </div>
+        <button type="submit" class="btn-touch btn-primary">{{ __('Filter') }}</button>
+    </form>
+
+    <div class="card">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Code') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Name') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Company') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('City') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Areas') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Lines') }}</th>
+                        <th class="text-left py-3 px-4 font-semibold text-gray-700">{{ __('Status') }}</th>
+                        <th class="text-right py-3 px-4 font-semibold text-gray-700">{{ __('Actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse($sites as $site)
+                        <tr class="hover:bg-gray-50">
+                            <td class="py-3 px-4 font-mono text-gray-600">{{ $site->code }}</td>
+                            <td class="py-3 px-4 font-medium text-gray-900">
+                                <a href="{{ route('admin.sites.show', $site) }}" class="text-blue-600 hover:text-blue-800">{{ $site->name }}</a>
+                            </td>
+                            <td class="py-3 px-4 text-gray-600">{{ $site->company?->name ?? '—' }}</td>
+                            <td class="py-3 px-4 text-gray-600">{{ $site->city ?? '—' }}</td>
+                            <td class="py-3 px-4 text-gray-600">{{ $site->areas_count }}</td>
+                            <td class="py-3 px-4 text-gray-600">{{ $site->lines_count }}</td>
+                            <td class="py-3 px-4">
+                                @if($site->is_active)
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">{{ __('Active') }}</span>
+                                @else
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">{{ __('Inactive') }}</span>
+                                @endif
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{{ route('admin.sites.edit', $site) }}" class="text-blue-600 hover:text-blue-800 p-1" title="{{ __('Edit') }}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                    </a>
+                                    <form method="POST" action="{{ route('admin.sites.toggle-active', $site) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-gray-600 hover:text-gray-800 p-1" title="{{ $site->is_active ? __('Deactivate') : __('Activate') }}">
+                                            @if($site->is_active)
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                                                </svg>
+                                            @else
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            @endif
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ route('admin.sites.destroy', $site) }}" class="inline"
+                                          onsubmit="return confirm('{{ __('Delete this site?') }}');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:text-red-800 p-1" title="{{ __('Delete') }}">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="py-12 text-center text-gray-500">
+                                <svg class="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                                <p class="font-medium">{{ __('No sites yet') }}</p>
+                                <a href="{{ route('admin.sites.create') }}" class="inline-block mt-3 btn-touch btn-primary">{{ __('Add Site') }}</a>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($sites->hasPages())
+            <div class="mt-4 px-4">{{ $sites->links() }}</div>
+        @endif
+    </div>
+</div>
+@endsection

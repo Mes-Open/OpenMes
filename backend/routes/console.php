@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('tenants:prune')->everyMinute();
 Schedule::command('oee:calculate')->dailyAt('01:00');
+Schedule::command('maintenance:generate-events')->hourly();

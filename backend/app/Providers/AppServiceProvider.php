@@ -2,13 +2,16 @@
 
 namespace App\Providers;
 
+use App\Console\Commands\ResetPackagingShiftCommand;
 use App\Http\Controllers\Web\Admin\AlertController;
+use App\Listeners\LogAuthEvent;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
+
+        // Register the authentication event subscriber so login / logout /
+        // failed-login attempts are written to the audit_logs table.
+        Event::subscribe(LogAuthEvent::class);
 
         // Share registries with every view so layouts and dashboards can render
         // items registered by modules without additional controller work.
@@ -80,6 +87,28 @@ class AppServiceProvider extends ServiceProvider
 
         // Share current language name
         View::share('currentLocaleName', $this->availableLocales()[App::getLocale()] ?? 'English');
+
+        // Packaging menu items — registered via View::composer so auth() check
+        // works (boot runs before auth middleware, so direct auth()->check() always false).
+        $menu = $this->app->make(MenuRegistry::class);
+        $menu->addGroup('packaging', __('Packaging'), order: 40);
+        $menu->addGroupItem('packaging', __('Scanning Station'), '/packaging/station', order: 10);
+
+        View::composer('layouts.components.sidebar', function () use ($menu) {
+            if (Auth::check() && Auth::user()->hasAnyRole(['Admin', 'Supervisor'])) {
+                $menu->addGroupItem('packaging', __('Packaging Overview'), '/packaging', order: 20);
+                $menu->addGroupItem('packaging', __('EAN Management'), '/packaging/eans', order: 30);
+            }
+
+            if (Auth::check() && Auth::user()->hasRole('Admin')) {
+                $menu->addGroupItem('packaging', __('Label Templates'), '/packaging/label-templates', order: 40);
+            }
+        });
+
+        // Register Packaging console commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([ResetPackagingShiftCommand::class]);
+        }
 
         // Load enabled modules — wrapped in try/catch so a bad module
         // never prevents the application from booting.

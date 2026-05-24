@@ -21,6 +21,7 @@ services:
       - openmmes-network
 
   backend:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -56,6 +57,7 @@ services:
   # Set MQTT_CONNECTION_ID to the ID from the admin panel.
   # Example: MQTT_CONNECTION_ID=1 docker compose up -d mqtt-listener
   mqtt-listener:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     build:
       context: .
       dockerfile: backend/Dockerfile

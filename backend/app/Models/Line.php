@@ -15,6 +15,7 @@ class Line extends Model
     use HasFactory, HasTenant;
 
     protected $fillable = [
+        'area_id',
         'division_id',
         'code',
         'name',
@@ -38,6 +39,14 @@ class Line extends Model
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
+    }
+
+    /**
+     * Get the ISA-95 area this line belongs to.
+     */
+    public function area(): BelongsTo
+    {
+        return $this->belongsTo(Area::class);
     }
 
     /**

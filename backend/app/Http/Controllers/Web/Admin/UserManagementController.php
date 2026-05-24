@@ -48,7 +48,7 @@ class UserManagementController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
             'username' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Password::defaults()],
@@ -62,6 +62,8 @@ class UserManagementController extends Controller
             'skills' => 'nullable|array',
             'skills.*.id' => 'required|exists:skills,id',
             'skills.*.level' => 'nullable|integer|min:1|max:5',
+        ], [
+            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
         ]);
 
         $user = User::create([
@@ -125,7 +127,7 @@ class UserManagementController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
             'username' => 'required|string|max:255|unique:users,username,'.$user->id,
             'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
             'password' => ['nullable', 'confirmed', Password::defaults()],
@@ -139,6 +141,8 @@ class UserManagementController extends Controller
             'skills' => 'nullable|array',
             'skills.*.id' => 'required|exists:skills,id',
             'skills.*.level' => 'nullable|integer|min:1|max:5',
+        ], [
+            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
         ]);
 
         $updateData = [

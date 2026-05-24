@@ -84,9 +84,66 @@ class DashboardController extends Controller
             ->pluck('widget_id')
             ->toArray();
 
+        // Inbound QC widget data — computed only when the widget is enabled to
+        // avoid extra queries on dashboards where the user has hidden it.
+        $inboundQcStats = null;
+        if (in_array('inbound_qc_overview', $enabledWidgets, true)) {
+            $since = now()->subDays(29)->startOfDay(); // inclusive 30-day window
+            $base = \App\Models\Inspection::where('started_at', '>=', $since);
+            $completed = (clone $base)->whereIn('status', ['pass', 'fail', 'conditional_pass'])->count();
+            $passed = (clone $base)->where('status', 'pass')->count();
+
+            $inboundQcStats = [
+                'pending' => \App\Models\Inspection::where('status', 'pending')->count(),
+                'completed_30d' => $completed,
+                'failed_30d' => (clone $base)->where('status', 'fail')->count(),
+                'conditional_30d' => (clone $base)->where('status', 'conditional_pass')->count(),
+                'pass_rate_30d' => $completed > 0 ? round(($passed / $completed) * 100, 1) : null,
+                'recent_failures' => \App\Models\Inspection::with('material')
+                    ->where('status', 'fail')
+                    ->orderByDesc('completed_at')
+                    ->limit(3)
+                    ->get(),
+            ];
+        }
+
+        // Materials Overview widget — low stock + expiring lots.
+        $materialsStats = null;
+        if (in_array('materials_overview', $enabledWidgets, true)) {
+            $lowStock = \App\Models\Material::where('is_active', true)
+                ->whereNotNull('min_stock_level')
+                ->whereColumn('stock_quantity', '<=', 'min_stock_level')
+                ->limit(5)
+                ->get(['id', 'code', 'name', 'stock_quantity', 'min_stock_level', 'unit_of_measure']);
+
+            $expiringSoon = \App\Models\MaterialLot::with('material:id,name,code,unit_of_measure')
+                ->where('status', \App\Models\MaterialLot::STATUS_RELEASED)
+                ->whereNotNull('expiry_date')
+                ->whereBetween('expiry_date', [today(), today()->addDays(30)])
+                ->orderBy('expiry_date')
+                ->limit(5)
+                ->get();
+
+            $reservedTotal = (float) \App\Models\Material::sum('reserved_quantity');
+
+            $materialsStats = [
+                'low_stock_count' => \App\Models\Material::where('is_active', true)
+                    ->whereNotNull('min_stock_level')
+                    ->whereColumn('stock_quantity', '<=', 'min_stock_level')
+                    ->count(),
+                'low_stock_samples' => $lowStock,
+                'expiring_count' => $expiringSoon->count(),
+                'expiring_samples' => $expiringSoon,
+                'reserved_total' => $reservedTotal,
+                'lots_total' => \App\Models\MaterialLot::where('status', \App\Models\MaterialLot::STATUS_RELEASED)->count(),
+                'quarantined_count' => \App\Models\MaterialLot::where('status', \App\Models\MaterialLot::STATUS_QUARANTINE)->count(),
+            ];
+        }
+
         return view('admin.dashboard', compact(
             'stats', 'recentWorkOrders', 'recentIssues',
-            'lines', 'selectedLineId', 'oeeRecords', 'enabledWidgets', 'widgetOrder'
+            'lines', 'selectedLineId', 'oeeRecords', 'enabledWidgets', 'widgetOrder',
+            'inboundQcStats', 'materialsStats'
         ));
     }
 }
