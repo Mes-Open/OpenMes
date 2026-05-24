@@ -17,18 +17,19 @@ use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\DivisionController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\FactoryController;
+use App\Http\Controllers\Api\V1\InspectionController;
+use App\Http\Controllers\Api\V1\InspectionPlanController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueTypeController;
 use App\Http\Controllers\Api\V1\LineController;
 use App\Http\Controllers\Api\V1\LineStatusController;
 use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
-use App\Http\Controllers\Api\V1\InspectionController;
-use App\Http\Controllers\Api\V1\InspectionPlanController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialLotController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
 use App\Http\Controllers\Api\V1\OeeController as ApiOeeController;
+use App\Http\Controllers\Api\V1\PackagingApiController;
 use App\Http\Controllers\Api\V1\PackagingChecklistController;
 use App\Http\Controllers\Api\V1\ProcessConfirmationController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
@@ -519,5 +520,17 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/reports/batch-completion', [ReportController::class, 'batchCompletion']);
         Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
+    });
+
+    // Packaging
+    Route::prefix('packaging')->group(function () {
+        Route::post('/scan', [PackagingApiController::class, 'scan']);
+        Route::get('/items', [PackagingApiController::class, 'items']);
+        Route::get('/stats', [PackagingApiController::class, 'stats']);
+        Route::get('/scan-logs', [PackagingApiController::class, 'scanLogs']);
+        Route::get('/eans', [PackagingApiController::class, 'listEans']);
+        Route::get('/eans/{workOrderEan}', [PackagingApiController::class, 'showEan']);
+        Route::post('/eans', [PackagingApiController::class, 'storeEan']);
+        Route::delete('/eans/{workOrderEan}', [PackagingApiController::class, 'destroyEan']);
     });
 });

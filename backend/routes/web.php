@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
+use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Web\Admin\BomManagementController;
 use App\Http\Controllers\Web\Admin\CompanyController;
@@ -13,25 +14,24 @@ use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Web\Admin\SchedulePlannerController;
-use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
-use App\Http\Controllers\Web\Admin\SiteController;
 use App\Http\Controllers\Web\Admin\IntegrationConfigController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
 use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceController;
-// Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 use App\Http\Controllers\Web\Admin\MaterialImportController;
+// Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
-// Gate 3 — Basics
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Web\Admin\SchedulePlannerController;
+// Gate 3 — Basics
+use App\Http\Controllers\Web\Admin\SiteController;
 use App\Http\Controllers\Web\Admin\SkillController;
 // Gate 4 — HR
 use App\Http\Controllers\Web\Admin\SubassemblyController;
@@ -51,6 +51,10 @@ use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
+use App\Http\Controllers\Web\Packaging\LabelPrintController;
+use App\Http\Controllers\Web\Packaging\LabelTemplateController;
+use App\Http\Controllers\Web\Packaging\PackagingController;
+use App\Http\Controllers\Web\Packaging\PackagingEanController;
 use App\Http\Controllers\Web\RegisterController;
 use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -484,5 +488,39 @@ Route::middleware('auth')->group(function () {
             ->except(['show']);
         Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [\App\Http\Controllers\Web\Admin\MaintenanceScheduleController::class, 'generateNow'])
             ->name('maintenance-schedules.generate-now');
+    });
+
+    // ── Packaging ───────────────────────────────────────────────────────────
+    Route::name('packaging.')->prefix('packaging')->group(function () {
+        Route::middleware('role:Operator|Supervisor|Admin')->group(function () {
+            Route::get('/station', [PackagingController::class, 'station'])->name('station');
+            Route::post('/scan', [PackagingController::class, 'scan'])->name('scan');
+            Route::get('/items', [PackagingController::class, 'items'])->name('items');
+            Route::get('/history', [PackagingController::class, 'history'])->name('history');
+            Route::get('/history/poll', [PackagingController::class, 'historyAfter'])->name('history.poll');
+            Route::get('/stats', [PackagingController::class, 'stats'])->name('stats');
+        });
+
+        Route::middleware('role:Supervisor|Admin')->group(function () {
+            Route::get('/', [PackagingController::class, 'adminOverview'])->name('overview');
+            Route::get('/eans', [PackagingEanController::class, 'index'])->name('eans.index');
+            Route::post('/eans', [PackagingEanController::class, 'store'])->name('eans.store');
+            Route::delete('/eans/{ean}', [PackagingEanController::class, 'destroy'])->name('eans.destroy');
+        });
+
+        Route::middleware('role:Operator|Supervisor|Admin')->prefix('labels')->name('labels.')->group(function () {
+            Route::get('/work-order/{workOrder}/pdf', [LabelPrintController::class, 'workOrderPdf'])->name('work-order.pdf');
+            Route::get('/work-order/{workOrder}/zpl', [LabelPrintController::class, 'workOrderZpl'])->name('work-order.zpl');
+            Route::get('/finished-goods/{batch}/pdf', [LabelPrintController::class, 'finishedGoodsPdf'])->name('finished-goods.pdf');
+            Route::get('/finished-goods/{batch}/zpl', [LabelPrintController::class, 'finishedGoodsZpl'])->name('finished-goods.zpl');
+            Route::get('/workstation-step/{batchStep}/pdf', [LabelPrintController::class, 'batchStepPdf'])->name('workstation-step.pdf');
+            Route::get('/workstation-step/{batchStep}/zpl', [LabelPrintController::class, 'batchStepZpl'])->name('workstation-step.zpl');
+            Route::post('/print-multiple', [LabelPrintController::class, 'printMultiple'])->name('print-multiple');
+        });
+
+        Route::middleware('role:Admin')->group(function () {
+            Route::resource('label-templates', LabelTemplateController::class)->except(['show']);
+            Route::post('/label-templates/{labelTemplate}/set-default', [LabelTemplateController::class, 'setDefault'])->name('label-templates.set-default');
+        });
     });
 });

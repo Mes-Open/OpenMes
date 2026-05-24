@@ -304,7 +304,7 @@
                                         title="Details">
                                     ?
                                 </button>
-                                @if(class_exists(\Modules\Packaging\Models\LabelTemplate::class) && \Modules\Packaging\Models\LabelTemplate::defaultFor(\Modules\Packaging\Models\LabelTemplate::TYPE_WORK_ORDER))
+                                @if(class_exists(\App\Models\LabelTemplate::class) && \App\Models\LabelTemplate::defaultFor(\App\Models\LabelTemplate::TYPE_WORK_ORDER))
                                 <a href="{{ route('packaging.labels.work-order.pdf', $wo) }}" target="_blank"
                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
                                    title="{{ __('Print label') }}">

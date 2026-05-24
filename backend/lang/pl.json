@@ -1272,5 +1272,17 @@
     "— Select factory —": "— Wybierz zakład —",
     "— Select type —": "— Wybierz typ —",
     "— Unassigned —": "— Nieprzypisane —",
-    "← Back": "← Wróć"
+    "← Back": "← Wróć",
+    "Unknown EAN": "Nieznany kod EAN",
+    "Work order not found": "Zlecenie nie istnieje",
+    "Work order not in a packable state (current: :status)": "Zlecenie nie jest w toku ani zakończone (status: :status)",
+    "Work order fully packed": "Zlecenie już w pełni spakowane",
+    "Packed: :name": "Spakowano: :name",
+    "EAN added": "Kod EAN dodany",
+    "EAN deleted": "Kod EAN usunięty",
+    "EAN code added.": "Kod EAN został dodany.",
+    "EAN code removed.": "Kod EAN został usunięty.",
+    "You do not have access to this line.": "Nie masz dostępu do tej linii.",
+    "Forbidden": "Brak dostępu",
+    "Reset packed_qty counters on work_orders for new shift start": "Zresetuj liczniki packed_qty dla zleceń produkcyjnych na początek nowej zmiany"
 }
