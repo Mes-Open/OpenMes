@@ -1,14 +1,14 @@
 <?php
 
-namespace Modules\Packaging\Controllers\Api;
+namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Controller;
+use App\Models\PackagingScanLog;
 use App\Models\WorkOrder;
+use App\Models\WorkOrderEan;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
-use Modules\Packaging\Models\PackagingScanLog;
-use Modules\Packaging\Models\WorkOrderEan;
 
 class PackagingApiController extends Controller
 {
@@ -22,7 +22,7 @@ class PackagingApiController extends Controller
             $query->where('work_order_id', $woId);
         }
         if ($q = $request->query('q')) {
-            $query->whereRaw('LOWER(ean) LIKE ?', ['%' . strtolower($q) . '%']);
+            $query->where('ean', 'ilike', '%'.$q.'%');
         }
 
         $perPage = (int) $request->query('per_page', 50);
@@ -44,87 +44,89 @@ class PackagingApiController extends Controller
     public function showEan(WorkOrderEan $workOrderEan): JsonResponse
     {
         $workOrderEan->load('workOrder.productType');
+
         return response()->json(['data' => $workOrderEan]);
     }
 
     public function storeEan(Request $request): JsonResponse
     {
-        if (!$request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (! $request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
+            return response()->json(['message' => __('Forbidden')], 403);
         }
 
-        $data = $request->validate([
+        $validated = $request->validate([
             'work_order_id' => ['required', 'integer', 'exists:work_orders,id'],
             'ean' => ['required', 'string', 'max:100', 'unique:work_order_eans,ean'],
         ]);
 
-        $ean = WorkOrderEan::create($data);
+        $ean = WorkOrderEan::create($validated);
 
         return response()->json([
-            'message' => 'EAN added',
+            'message' => __('EAN added'),
             'data' => $ean->load('workOrder.productType'),
         ], 201);
     }
 
     public function destroyEan(Request $request, WorkOrderEan $workOrderEan): JsonResponse
     {
-        if (!$request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        if (! $request->user()->hasAnyRole(['Admin', 'Supervisor'])) {
+            return response()->json(['message' => __('Forbidden')], 403);
         }
         $workOrderEan->delete();
-        return response()->json(['message' => 'EAN deleted']);
+
+        return response()->json(['message' => __('EAN deleted')]);
     }
 
     // ── Scan ────────────────────────────────────────────────────────────────
 
     public function scan(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'ean' => ['required', 'string', 'max:100'],
         ]);
 
-        $eanRecord = WorkOrderEan::where('ean', $request->ean)->first();
-        if (!$eanRecord) {
-            return response()->json(['message' => 'Unknown EAN'], 404);
+        $eanRecord = WorkOrderEan::where('ean', $validated['ean'])->first();
+        if (! $eanRecord) {
+            return response()->json(['message' => __('Unknown EAN')], 404);
         }
 
         $workOrder = WorkOrder::find($eanRecord->work_order_id);
-        if (!$workOrder) {
-            return response()->json(['message' => 'Work order not found'], 404);
+        if (! $workOrder) {
+            return response()->json(['message' => __('Work order not found')], 404);
         }
 
         $user = $request->user();
         if ($user->hasRole('Operator')) {
             $hasAccess = $user->lines()->where('lines.id', $workOrder->line_id)->exists();
-            if (!$hasAccess) {
-                return response()->json(['message' => 'You do not have access to this line.'], 403);
+            if (! $hasAccess) {
+                return response()->json(['message' => __('You do not have access to this line.')], 403);
             }
         }
 
-        if (!in_array($workOrder->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS], true)) {
+        if (! in_array($workOrder->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS], true)) {
             return response()->json([
-                'message' => "Work order not in a packable state (current: {$workOrder->status})",
+                'message' => __('Work order not in a packable state (current: :status)', ['status' => $workOrder->status]),
             ], 422);
         }
 
         $planned = (int) $workOrder->planned_qty;
         if ($planned > 0 && $workOrder->packed_qty >= $planned) {
-            return response()->json(['message' => 'Work order fully packed'], 422);
+            return response()->json(['message' => __('Work order fully packed')], 422);
         }
 
         $workOrder->increment('packed_qty');
         $workOrder->refresh();
 
         $log = PackagingScanLog::create([
-            'user_id' => $request->user()?->id,
+            'user_id' => $user?->id,
             'work_order_id' => $workOrder->id,
-            'ean' => $request->ean,
+            'ean' => $validated['ean'],
             'product_name' => $this->productLabel($workOrder),
             'scanned_at' => now(),
         ]);
 
         return response()->json([
-            'message' => 'Packed: ' . $this->productLabel($workOrder),
+            'message' => __('Packed: :name', ['name' => $this->productLabel($workOrder)]),
             'data' => [
                 'work_order' => [
                     'id' => $workOrder->id,
@@ -190,10 +192,11 @@ class PackagingApiController extends Controller
             ->with('productType', 'line')
             ->orderByDesc('priority')
             ->get()
-            ->filter(fn($wo) => $eansByWorkOrder->has($wo->id))
+            ->filter(fn ($wo) => $eansByWorkOrder->has($wo->id))
             ->map(function ($wo) use ($eansByWorkOrder) {
                 $planned = (int) $wo->planned_qty;
                 $packed = (int) $wo->packed_qty;
+
                 return [
                     'id' => $wo->id,
                     'order_no' => $wo->order_no,
@@ -242,6 +245,7 @@ class PackagingApiController extends Controller
     private function productLabel(WorkOrder $wo): string
     {
         $parts = array_filter([$wo->productType?->name, $wo->order_no]);
+
         return implode(' — ', $parts) ?: $wo->order_no;
     }
 
@@ -249,8 +253,13 @@ class PackagingApiController extends Controller
     {
         $now = Carbon::now();
         $hour = $now->hour;
-        if ($hour >= 6 && $hour < 18) return $now->copy()->setTime(6, 0, 0);
-        if ($hour >= 18) return $now->copy()->setTime(18, 0, 0);
+        if ($hour >= 6 && $hour < 18) {
+            return $now->copy()->setTime(6, 0, 0);
+        }
+        if ($hour >= 18) {
+            return $now->copy()->setTime(18, 0, 0);
+        }
+
         return $now->copy()->subDay()->setTime(18, 0, 0);
     }
 }

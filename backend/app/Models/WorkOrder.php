@@ -11,14 +11,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkOrder extends Model
 {
-    use HasFactory, Auditable, HasTenant;
+    use Auditable, HasFactory, HasTenant;
+
     const STATUS_PENDING = 'PENDING';
+
     const STATUS_ACCEPTED = 'ACCEPTED';
+
     const STATUS_IN_PROGRESS = 'IN_PROGRESS';
+
     const STATUS_BLOCKED = 'BLOCKED';
+
     const STATUS_PAUSED = 'PAUSED';
+
     const STATUS_DONE = 'DONE';
+
     const STATUS_REJECTED = 'REJECTED';
+
     const STATUS_CANCELLED = 'CANCELLED';
 
     /** Statuses that allow operators to work on the order */
@@ -132,6 +140,11 @@ class WorkOrder extends Model
         return $this->hasMany(Issue::class);
     }
 
+    public function eans(): HasMany
+    {
+        return $this->hasMany(WorkOrderEan::class);
+    }
+
     /**
      * Get the open blocking issues for this work order.
      */
@@ -194,6 +207,7 @@ class WorkOrder extends Model
         }
 
         $lineIds = $user->lines()->pluck('lines.id');
+
         return $query->whereIn('line_id', $lineIds);
     }
 
