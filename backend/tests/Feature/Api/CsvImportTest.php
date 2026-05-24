@@ -26,7 +26,7 @@ class CsvImportTest extends TestCase
     {
         parent::setUp();
 
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->admin()->create();
 
         $this->line = Line::factory()->create(['code' => 'LINE-A']);
 
