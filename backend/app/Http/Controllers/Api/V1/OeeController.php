@@ -52,8 +52,9 @@ class OeeController extends Controller
     {
         $days = (int) $request->query('days', 7);
 
+        // -($days - 1) keeps the window inclusive of today (e.g. days=7 → today + 6 prior).
         $records = OeeRecord::where('line_id', $line->id)
-            ->where('record_date', '>=', today()->subDays($days))
+            ->where('record_date', '>=', today()->subDays(max(0, $days - 1)))
             ->with('shift')
             ->orderByDesc('record_date')
             ->get();

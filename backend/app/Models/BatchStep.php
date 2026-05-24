@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BatchStep extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     const STATUS_PENDING = 'PENDING';
 
@@ -84,6 +85,14 @@ class BatchStep extends Model
     public function issues(): HasMany
     {
         return $this->hasMany(Issue::class);
+    }
+
+    /**
+     * Material lot consumption events recorded against this step (ISA-95 genealogy).
+     */
+    public function lotConsumptions(): HasMany
+    {
+        return $this->hasMany(BatchStepLotConsumption::class);
     }
 
     /**

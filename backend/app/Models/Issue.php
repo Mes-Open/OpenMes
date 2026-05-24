@@ -16,9 +16,15 @@ class Issue extends Model
     const STATUS_RESOLVED = 'RESOLVED';
     const STATUS_CLOSED = 'CLOSED';
 
+    public const SOURCE_INBOUND_INSPECTION = 'inbound_inspection';
+    public const SOURCE_IN_PROCESS = 'in_process';
+    public const SOURCE_CUSTOMER_COMPLAINT = 'customer_complaint';
+
     protected $fillable = [
         'work_order_id',
         'batch_step_id',
+        'material_id',
+        'source',
         'issue_type_id',
         'title',
         'description',
@@ -80,6 +86,15 @@ class Issue extends Model
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
+    /**
+     * Material referenced by this issue (set when source = inbound_inspection
+     * or any non-WO context).
+     */
+    public function material(): BelongsTo
+    {
+        return $this->belongsTo(Material::class);
     }
 
     /**

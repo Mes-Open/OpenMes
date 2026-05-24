@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
+use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Web\Admin\BomManagementController;
 use App\Http\Controllers\Web\Admin\CompanyController;
@@ -13,22 +14,24 @@ use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Web\Admin\SchedulePlannerController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
 use App\Http\Controllers\Web\Admin\IntegrationConfigController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
 use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceController;
-// Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 use App\Http\Controllers\Web\Admin\MaterialImportController;
+// Gate 2 — Company structure
+use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
-// Gate 3 — Basics
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Web\Admin\SchedulePlannerController;
+// Gate 3 — Basics
+use App\Http\Controllers\Web\Admin\SiteController;
 use App\Http\Controllers\Web\Admin\SkillController;
 // Gate 4 — HR
 use App\Http\Controllers\Web\Admin\SubassemblyController;
@@ -48,6 +51,10 @@ use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
+use App\Http\Controllers\Web\Packaging\LabelPrintController;
+use App\Http\Controllers\Web\Packaging\LabelTemplateController;
+use App\Http\Controllers\Web\Packaging\PackagingController;
+use App\Http\Controllers\Web\Packaging\PackagingEanController;
 use App\Http\Controllers\Web\RegisterController;
 use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -154,6 +161,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/workstation/{workOrder}/shift-entry', [OperatorWorkstationController::class, 'shiftEntry'])->name('workstation.shift-entry');
     });
 
+    // Inbound Inspections (Supervisor + Admin) — inspectors perform from this UI
+    Route::prefix('inspections')->name('inspections.')->middleware('role:Supervisor|Admin')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Web\InspectionController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\Web\InspectionController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Web\InspectionController::class, 'store'])->name('store');
+        Route::get('/{inspection}', [\App\Http\Controllers\Web\InspectionController::class, 'show'])->name('show');
+        Route::post('/{inspection}/results', [\App\Http\Controllers\Web\InspectionController::class, 'recordResult'])->name('record-result');
+        Route::post('/{inspection}/complete', [\App\Http\Controllers\Web\InspectionController::class, 'complete'])->name('complete');
+        Route::post('/{inspection}/disposition', [\App\Http\Controllers\Web\InspectionController::class, 'disposition'])->name('disposition');
+    });
+
     // Supervisor routes (Supervisor and Admin)
     Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor|Admin')->group(function () {
         Route::get('/dashboard', [SupervisorDashboardController::class, 'index'])->name('dashboard');
@@ -186,6 +204,8 @@ Route::middleware('auth')->group(function () {
 
         // OEE
         Route::get('/oee', [AdminOeeController::class, 'index'])->name('oee.index');
+        Route::get('/oee/print', [AdminOeeController::class, 'print'])->name('oee.print');
+        Route::get('/oee/print/pdf', [AdminOeeController::class, 'printPdf'])->name('oee.print.pdf');
         Route::get('/oee/{line}', [AdminOeeController::class, 'show'])->name('oee.show');
 
         // Reports
@@ -197,6 +217,8 @@ Route::middleware('auth')->group(function () {
         // Update
         Route::get('/update/check', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'check'])->name('update.check');
         Route::post('/update/apply', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'apply'])->name('update.apply');
+        Route::get('/update/status', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'status'])->name('update.status');
+        Route::get('/update/history', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'history'])->name('update.history');
 
         // Schedule (planner is the main view)
         Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
@@ -301,6 +323,9 @@ Route::middleware('auth')->group(function () {
         // LOT Sequences
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
 
+        // ── ISA-95: Material Lots (physical lots) ───────────────────────────
+        Route::resource('material-lots', AdminMaterialLotController::class);
+
         // Dashboard Widgets Setup
         Route::get('/dashboard-widgets', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'index'])->name('dashboard-widgets.index');
         Route::post('/dashboard-widgets/{widget}/toggle', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'toggle'])->name('dashboard-widgets.toggle');
@@ -331,6 +356,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');
         Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');
 
+        // Unified Activity Logs (audit + request + auth events)
+        Route::get('/logs/activity', [\App\Http\Controllers\Web\Admin\ActivityLogController::class, 'index'])->name('logs.activity');
+        Route::get('/logs/activity/export', [\App\Http\Controllers\Web\Admin\ActivityLogController::class, 'export'])->name('logs.activity.export');
+
+        // System Logs (Laravel app log + failed jobs + deployments)
+        Route::get('/logs/system', [\App\Http\Controllers\Web\Admin\SystemLogController::class, 'index'])->name('logs.system');
+        Route::get('/logs/system/tail', [\App\Http\Controllers\Web\Admin\SystemLogController::class, 'tail'])->name('logs.system.tail');
+        Route::post('/logs/system/failed-jobs/{uuid}/retry', [\App\Http\Controllers\Web\Admin\SystemLogController::class, 'retryFailedJob'])
+            ->name('logs.system.retry-failed-job');
+
         // Modules
         Route::get('/modules', [AdminModulesController::class, 'index'])->name('modules.index');
         Route::get('/modules/install', [AdminModulesController::class, 'install'])->name('modules.install');
@@ -348,6 +383,13 @@ Route::middleware('auth')->group(function () {
         // Divisions
         Route::resource('divisions', DivisionController::class)->except(['show']);
         Route::post('/divisions/{division}/toggle-active', [DivisionController::class, 'toggleActive'])->name('divisions.toggle-active');
+
+        // ISA-95 Equipment Hierarchy: Sites & Areas
+        Route::resource('sites', SiteController::class);
+        Route::post('/sites/{site}/toggle-active', [SiteController::class, 'toggleActive'])->name('sites.toggle-active');
+        Route::resource('sites.areas', AreaController::class)->shallow();
+        Route::get('/areas', [AreaController::class, 'index'])->name('areas.index'); // flat list across sites
+        Route::post('/areas/{area}/toggle-active', [AreaController::class, 'toggleActive'])->name('areas.toggle-active');
 
         // Workstation Types
         Route::resource('workstation-types', WorkstationTypeController::class)->except(['show']);
@@ -379,8 +421,14 @@ Route::middleware('auth')->group(function () {
         Route::resource('skills', SkillController::class)->except(['show']);
 
         // Workers
-        Route::resource('workers', WorkerController::class)->except(['show']);
+        Route::resource('workers', WorkerController::class);
         Route::post('/workers/{worker}/toggle-active', [WorkerController::class, 'toggleActive'])->name('workers.toggle-active');
+        // Worker certifications (ISA-95 Personnel Capability — pivot management)
+        Route::post('/workers/{worker}/skills', [WorkerController::class, 'attachSkill'])->name('workers.skills.attach');
+        Route::delete('/workers/{worker}/skills/{skill}', [WorkerController::class, 'detachSkill'])->name('workers.skills.detach');
+
+        // ISA-95 Personnel Classes (competency templates)
+        Route::resource('personnel-classes', \App\Http\Controllers\Web\Admin\PersonnelClassController::class);
 
         // ── Gate 5: Tracking Advanced ─────────────────────────────────────────
         // Production Anomalies
@@ -389,6 +437,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/production-anomalies', [ProductionAnomalyController::class, 'store'])->name('production-anomalies.store');
         Route::post('/production-anomalies/{productionAnomaly}/process', [ProductionAnomalyController::class, 'process'])->name('production-anomalies.process');
         Route::delete('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'destroy'])->name('production-anomalies.destroy');
+
+        // Inspection Plans (admin CRUD)
+        Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);
 
         // ── Gate 6: Costing ───────────────────────────────────────────────────
         // Cost Sources
@@ -428,5 +479,48 @@ Route::middleware('auth')->group(function () {
         Route::post('/maintenance-events/{maintenanceEvent}/start', [MaintenanceEventController::class, 'start'])->name('maintenance-events.start');
         Route::post('/maintenance-events/{maintenanceEvent}/complete', [MaintenanceEventController::class, 'complete'])->name('maintenance-events.complete');
         Route::post('/maintenance-events/{maintenanceEvent}/cancel', [MaintenanceEventController::class, 'cancel'])->name('maintenance-events.cancel');
+
+        // ── ISA-95: Process Segments (reusable operation definitions) ────────
+        Route::resource('process-segments', \App\Http\Controllers\Web\Admin\ProcessSegmentController::class);
+
+        // Maintenance Schedules (recurring preventive maintenance)
+        Route::resource('maintenance-schedules', \App\Http\Controllers\Web\Admin\MaintenanceScheduleController::class)
+            ->except(['show']);
+        Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [\App\Http\Controllers\Web\Admin\MaintenanceScheduleController::class, 'generateNow'])
+            ->name('maintenance-schedules.generate-now');
+    });
+
+    // ── Packaging ───────────────────────────────────────────────────────────
+    Route::name('packaging.')->prefix('packaging')->group(function () {
+        Route::middleware('role:Operator|Supervisor|Admin')->group(function () {
+            Route::get('/station', [PackagingController::class, 'station'])->name('station');
+            Route::post('/scan', [PackagingController::class, 'scan'])->name('scan');
+            Route::get('/items', [PackagingController::class, 'items'])->name('items');
+            Route::get('/history', [PackagingController::class, 'history'])->name('history');
+            Route::get('/history/poll', [PackagingController::class, 'historyAfter'])->name('history.poll');
+            Route::get('/stats', [PackagingController::class, 'stats'])->name('stats');
+        });
+
+        Route::middleware('role:Supervisor|Admin')->group(function () {
+            Route::get('/', [PackagingController::class, 'adminOverview'])->name('overview');
+            Route::get('/eans', [PackagingEanController::class, 'index'])->name('eans.index');
+            Route::post('/eans', [PackagingEanController::class, 'store'])->name('eans.store');
+            Route::delete('/eans/{ean}', [PackagingEanController::class, 'destroy'])->name('eans.destroy');
+        });
+
+        Route::middleware('role:Operator|Supervisor|Admin')->prefix('labels')->name('labels.')->group(function () {
+            Route::get('/work-order/{workOrder}/pdf', [LabelPrintController::class, 'workOrderPdf'])->name('work-order.pdf');
+            Route::get('/work-order/{workOrder}/zpl', [LabelPrintController::class, 'workOrderZpl'])->name('work-order.zpl');
+            Route::get('/finished-goods/{batch}/pdf', [LabelPrintController::class, 'finishedGoodsPdf'])->name('finished-goods.pdf');
+            Route::get('/finished-goods/{batch}/zpl', [LabelPrintController::class, 'finishedGoodsZpl'])->name('finished-goods.zpl');
+            Route::get('/workstation-step/{batchStep}/pdf', [LabelPrintController::class, 'batchStepPdf'])->name('workstation-step.pdf');
+            Route::get('/workstation-step/{batchStep}/zpl', [LabelPrintController::class, 'batchStepZpl'])->name('workstation-step.zpl');
+            Route::post('/print-multiple', [LabelPrintController::class, 'printMultiple'])->name('print-multiple');
+        });
+
+        Route::middleware('role:Admin')->group(function () {
+            Route::resource('label-templates', LabelTemplateController::class)->except(['show']);
+            Route::post('/label-templates/{labelTemplate}/set-default', [LabelTemplateController::class, 'setDefault'])->name('label-templates.set-default');
+        });
     });
 });

@@ -215,7 +215,7 @@
 
             async unassignOrder(orderId) {
                 if (!confirm({!! json_encode($confirmMsg) !!})) return;
-                const result = await this.saveOrder(orderId, { line_id: '', due_date: '', week_number: '', shift_number: '' });
+                const result = await this.saveOrder(orderId, { line_id: '', due_date: '', week_number: '', shift_number: '', end_date: '', end_shift_number: '', planned_start_at: '', planned_end_at: '' });
                 if (result) {
                     await this.refreshContent();
                 }
@@ -610,14 +610,14 @@
 
     {{-- ===== TOOLBAR ===== --}}
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-2.5 mb-4 flex flex-wrap items-center gap-3">
-        <a href="{{ route('admin.schedule', ['start_date' => $navPrev->format('Y-m-d')]) }}"
+        <a href="{{ route('admin.schedule', ['start_date' => $navPrev->format('Y-m-d'), 'view_mode' => $viewMode, 'line_id' => request('line_id')]) }}"
            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition" title="{{ __('Previous') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </a>
         <span class="font-semibold text-sm text-gray-700 dark:text-gray-200">
             {{ $rangeStart->translatedFormat('d.m') }} &ndash; {{ $rangeEnd->translatedFormat('d.m.Y') }}
         </span>
-        <a href="{{ route('admin.schedule', ['start_date' => $navNext->format('Y-m-d')]) }}"
+        <a href="{{ route('admin.schedule', ['start_date' => $navNext->format('Y-m-d'), 'view_mode' => $viewMode, 'line_id' => request('line_id')]) }}"
            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition" title="{{ __('Next') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
@@ -625,7 +625,7 @@
         <div class="h-6 border-l border-gray-300 dark:border-gray-600 mx-1"></div>
 
         <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
-            @foreach(['weekly' => __('Weekly'), 'daily' => __('Daily'), 'monthly' => __('Monthly')] as $mode => $ml)
+            @foreach(['weekly' => __('Weekly'), 'daily' => __('Daily'), 'hourly' => __('Hourly'), 'monthly' => __('Monthly')] as $mode => $ml)
                 <a href="{{ route('admin.schedule', ['start_date' => $startDate->format('Y-m-d'), 'view_mode' => $mode, 'line_id' => request('line_id')]) }}"
                    class="px-3 py-1 text-xs font-medium rounded-md transition {{ $viewMode === $mode ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700' }}">
                     {{ $ml }}
@@ -801,7 +801,7 @@
                                                     @php $isOverdue = $wo->due_date && $wo->due_date->lt(today()) && !in_array($wo->status, \App\Models\WorkOrder::TERMINAL_STATUSES); @endphp
                                                     <div class="relative group/cell">
                                                         <a href="{{ route('admin.work-orders.show', $wo) }}"
-                                                           class="block px-1 py-0.5 rounded text-[9px] font-medium truncate border
+                                                           class="block px-2 py-4 rounded text-[11px] font-medium truncate border
                                                                   @if($isOverdue) bg-red-500 border-red-600 text-white animate-pulse ring-2 ring-red-400 @else {{ $woColors[$wo->status] ?? 'bg-gray-200 border-gray-300' }} {{ $woTextColors[$wo->status] ?? 'text-gray-800' }} @endif"
                                                            title="{{ $wo->order_no }}">
                                                             {{ $wo->order_no }}
@@ -815,7 +815,7 @@
                                                     </div>
                                                 @endforeach
                                                 @if($dayOrders->isEmpty())
-                                                    <div class="h-5"></div>
+                                                    <div class="h-8"></div>
                                                 @endif
                                             </div>
                                         </td>
@@ -825,6 +825,18 @@
                         </tbody>
                     </table>
                 </div>
+
+            {{-- ===== HOURLY VIEW ===== --}}
+            @elseif($viewMode === 'hourly')
+                @include('admin.schedule._hourly', [
+                    'data' => $data,
+                    'slotMinutes' => $slotMinutes,
+                    'startDate' => $startDate,
+                    'woColors' => $woColors,
+                    'woTextColors' => $woTextColors,
+                    'statusLabels' => $statusLabels,
+                    'shiftsPerDay' => $shiftsPerDay,
+                ])
 
             {{-- ===== MONTHLY VIEW ===== --}}
             @elseif($viewMode === 'monthly')

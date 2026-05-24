@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Line;
 use App\Models\MaintenanceEvent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,10 +53,13 @@ class MaintenanceEventTest extends TestCase
 
     public function test_admin_can_create_maintenance_event(): void
     {
+        $line = Line::factory()->create();
+
         $response = $this->actingAs($this->admin)->post(route('admin.maintenance-events.store'), [
             'title'        => 'Quarterly Machine Check',
             'event_type'   => 'inspection',
             'scheduled_at' => '2026-03-01 08:00:00',
+            'line_id'      => $line->id,
             'description'  => 'Standard quarterly inspection of all presses.',
         ]);
 
@@ -69,11 +73,15 @@ class MaintenanceEventTest extends TestCase
 
     public function test_create_stores_pending_status_regardless_of_input(): void
     {
+        $line = Line::factory()->create();
+
         // Even if someone somehow passes a non-pending status, the controller
         // always sets status = pending on create.
         $this->actingAs($this->admin)->post(route('admin.maintenance-events.store'), [
-            'title'      => 'Auto-Pending Event',
-            'event_type' => 'planned',
+            'title'        => 'Auto-Pending Event',
+            'event_type'   => 'planned',
+            'scheduled_at' => '2026-03-15 08:00:00',
+            'line_id'      => $line->id,
         ]);
 
         $this->assertDatabaseHas('maintenance_events', [
@@ -84,11 +92,14 @@ class MaintenanceEventTest extends TestCase
 
     public function test_admin_can_update_maintenance_event(): void
     {
-        $event = $this->createEvent(['title' => 'Original Title']);
+        $line = Line::factory()->create();
+        $event = $this->createEvent(['title' => 'Original Title', 'line_id' => $line->id]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.maintenance-events.update', $event), [
-            'title'      => 'Updated Title',
-            'event_type' => 'corrective',
+            'title'        => 'Updated Title',
+            'event_type'   => 'corrective',
+            'scheduled_at' => '2026-04-01 09:00:00',
+            'line_id'      => $line->id,
         ]);
 
         $response->assertRedirect(route('admin.maintenance-events.index'));

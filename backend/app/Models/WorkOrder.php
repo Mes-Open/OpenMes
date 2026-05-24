@@ -11,14 +11,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkOrder extends Model
 {
-    use HasFactory, Auditable, HasTenant;
+    use Auditable, HasFactory, HasTenant;
+
     const STATUS_PENDING = 'PENDING';
+
     const STATUS_ACCEPTED = 'ACCEPTED';
+
     const STATUS_IN_PROGRESS = 'IN_PROGRESS';
+
     const STATUS_BLOCKED = 'BLOCKED';
+
     const STATUS_PAUSED = 'PAUSED';
+
     const STATUS_DONE = 'DONE';
+
     const STATUS_REJECTED = 'REJECTED';
+
     const STATUS_CANCELLED = 'CANCELLED';
 
     /** Statuses that allow operators to work on the order */
@@ -42,6 +50,8 @@ class WorkOrder extends Model
         'week_number',
         'shift_number',
         'end_shift_number',
+        'planned_start_at',
+        'planned_end_at',
         'month_number',
         'production_year',
         'description',
@@ -60,8 +70,34 @@ class WorkOrder extends Model
             'priority' => 'integer',
             'due_date' => 'datetime',
             'end_date' => 'datetime',
+            'planned_start_at' => 'datetime',
+            'planned_end_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Determine whether this work order has minute-level planning timestamps
+     * set on both ends. Used by the hourly schedule view to decide between
+     * absolute time positioning and a legacy fallback (due_date-based block).
+     */
+    public function hasMinutePlanning(): bool
+    {
+        return $this->planned_start_at !== null && $this->planned_end_at !== null;
+    }
+
+    /**
+     * Return the planned duration in whole minutes when minute planning is
+     * set, otherwise null. Cross-midnight spans are reported as the raw
+     * difference between the two timestamps without clamping.
+     */
+    public function plannedDurationMinutes(): ?int
+    {
+        if (! $this->hasMinutePlanning()) {
+            return null;
+        }
+
+        return (int) $this->planned_start_at->diffInMinutes($this->planned_end_at, false);
     }
 
     /**
@@ -102,6 +138,11 @@ class WorkOrder extends Model
     public function issues(): HasMany
     {
         return $this->hasMany(Issue::class);
+    }
+
+    public function eans(): HasMany
+    {
+        return $this->hasMany(WorkOrderEan::class);
     }
 
     /**
@@ -166,6 +207,7 @@ class WorkOrder extends Model
         }
 
         $lineIds = $user->lines()->pluck('lines.id');
+
         return $query->whereIn('line_id', $lineIds);
     }
 

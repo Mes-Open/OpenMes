@@ -38,7 +38,7 @@
 
     @php
         $enabledWidgets = $enabledWidgets ?? [];
-        $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
+        $widgetOrder = $widgetOrder ?? ['kpi_cards', 'oee_overview', 'inbound_qc_overview', 'materials_overview', 'recent_work_orders', 'open_issues', 'quick_links'];
         $wOrder = array_flip($widgetOrder);
     @endphp
 
@@ -123,7 +123,7 @@
                             <li><strong>P</strong> — Performance: actual speed vs ideal speed (slow cycles impact)</li>
                             <li><strong>Q</strong> — Quality: good units vs total produced (defects impact)</li>
                         </ul>
-                        <p class="mt-2 text-xs text-gray-400">Target: >85% world-class, 60-85% typical, &lt;60% needs improvement</p>
+                        <p class="mt-2 text-xs text-gray-400">Target: ≥85% world-class, 65-84% typical, &lt;65% needs improvement</p>
                     </div>
                 </div>
             </div>
@@ -132,19 +132,11 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             @foreach($lines as $line)
                 @php $oee = ($oeeRecords ?? collect())->get($line->id); @endphp
-                <div class="p-3 rounded-lg border {{ $oee ? ($oee->oee_pct >= 85 ? 'border-green-200 bg-green-50' : ($oee->oee_pct >= 60 ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50')) : 'border-gray-200 bg-gray-50' }}">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-sm font-medium text-gray-700 truncate" title="{{ $line->name }}">{{ $line->name }}</span>
-                        @if($oee)
-                            <span class="text-lg font-bold {{ $oee->oee_pct >= 85 ? 'text-green-700' : ($oee->oee_pct >= 60 ? 'text-yellow-700' : 'text-red-700') }}">
-                                {{ number_format($oee->oee_pct, 1) }}%
-                            </span>
-                        @else
-                            <span class="text-sm text-gray-400">N/A</span>
-                        @endif
-                    </div>
+                <div class="p-3 rounded-lg border {{ \App\Support\OeeBand::cardClass($oee?->oee_pct) }} flex flex-col items-center">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate w-full text-center mb-1" title="{{ $line->name }}">{{ $line->name }}</span>
+                    <x-oee-gauge :value="$oee?->oee_pct" :size="110" />
                     @if($oee)
-                        <div class="flex gap-3 text-xs text-gray-500">
+                        <div class="flex gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
                             <span>A: {{ number_format($oee->availability_pct, 0) }}%</span>
                             <span>P: {{ $oee->performance_pct !== null ? number_format($oee->performance_pct, 0).'%' : '-' }}</span>
                             <span>Q: {{ number_format($oee->quality_pct, 0) }}%</span>
@@ -153,6 +145,155 @@
                 </div>
             @endforeach
         </div>
+    </div>
+    @endif
+
+    {{-- Inbound QC Overview --}}
+    @if((empty($enabledWidgets) || in_array('inbound_qc_overview', $enabledWidgets)) && ($inboundQcStats ?? null))
+    <div style="order: {{ ($wOrder['inbound_qc_overview'] ?? 2) * 10 }}" class="card mb-6">
+        <div class="flex justify-between items-center mb-3">
+            <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">{{ __('Inbound QC Overview') }}</h2>
+                <span class="text-xs text-gray-400">{{ __('last 30 days') }}</span>
+            </div>
+            <a href="{{ route('inspections.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('View all') }} →</a>
+        </div>
+
+        @php
+            $passRate = $inboundQcStats['pass_rate_30d'];
+            $passColor = $passRate === null
+                ? 'border-gray-200 bg-gray-50 dark:bg-slate-700'
+                : ($passRate >= 95 ? 'border-green-200 bg-green-50 dark:bg-green-900/20'
+                    : ($passRate >= 80 ? 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20'
+                        : 'border-red-200 bg-red-50 dark:bg-red-900/20'));
+            $passTextColor = $passRate === null ? 'text-gray-400'
+                : ($passRate >= 95 ? 'text-green-700 dark:text-green-400'
+                    : ($passRate >= 80 ? 'text-yellow-700 dark:text-yellow-400'
+                        : 'text-red-700 dark:text-red-400'));
+        @endphp
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Pending') }}</div>
+                <div class="text-2xl font-bold {{ $inboundQcStats['pending'] > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-400' }}">{{ $inboundQcStats['pending'] }}</div>
+                <a href="{{ route('inspections.index', ['tab' => 'pending']) }}" class="text-xs text-blue-600 hover:underline">{{ __('Open queue') }} →</a>
+            </div>
+            <div class="p-3 rounded-lg border {{ $passColor }}">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Pass rate') }}</div>
+                <div class="text-2xl font-bold {{ $passTextColor }}">{{ $passRate !== null ? number_format($passRate, 1) . '%' : '—' }}</div>
+                <div class="text-xs text-gray-500">{{ $inboundQcStats['completed_30d'] }} {{ __('completed') }}</div>
+            </div>
+            <div class="p-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Failed') }}</div>
+                <div class="text-2xl font-bold {{ $inboundQcStats['failed_30d'] > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-400' }}">{{ $inboundQcStats['failed_30d'] }}</div>
+                @if($inboundQcStats['failed_30d'] > 0)
+                    <a href="{{ route('inspections.index', ['tab' => 'failed']) }}" class="text-xs text-blue-600 hover:underline">{{ __('Review NCs') }} →</a>
+                @else
+                    <div class="text-xs text-gray-500">{{ __('no failures') }}</div>
+                @endif
+            </div>
+            <div class="p-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Conditional') }}</div>
+                <div class="text-2xl font-bold {{ $inboundQcStats['conditional_30d'] > 0 ? 'text-yellow-700 dark:text-yellow-400' : 'text-gray-400' }}">{{ $inboundQcStats['conditional_30d'] }}</div>
+                <div class="text-xs text-gray-500">{{ __('optional fails') }}</div>
+            </div>
+        </div>
+
+        @if($inboundQcStats['recent_failures']->isNotEmpty())
+            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{{ __('Recent failures') }}</h3>
+                <ul class="text-sm divide-y divide-gray-100 dark:divide-gray-700">
+                    @foreach($inboundQcStats['recent_failures'] as $f)
+                        <li class="py-1.5 flex justify-between items-center">
+                            <a href="{{ route('inspections.show', $f) }}" class="text-blue-600 hover:underline">
+                                {{ $f->material?->name ?? __('Unknown material') }} — lot <span class="font-mono">{{ $f->lot_number }}</span>
+                            </a>
+                            <span class="text-xs text-gray-400">{{ $f->completed_at?->diffForHumans() }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+    </div>
+    @endif
+
+    {{-- Materials Overview --}}
+    @if((empty($enabledWidgets) || in_array('materials_overview', $enabledWidgets)) && ($materialsStats ?? null))
+    <div style="order: {{ ($wOrder['materials_overview'] ?? 3) * 10 }}" class="card mb-6">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">{{ __('Materials Overview') }}</h2>
+            <a href="{{ route('admin.materials.index') }}" class="text-sm text-blue-600 hover:underline">{{ __('All materials') }} →</a>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <div class="p-3 rounded-lg border {{ $materialsStats['low_stock_count'] > 0 ? 'border-red-200 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 bg-gray-50 dark:bg-slate-700' }}">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Low stock') }}</div>
+                <div class="text-2xl font-bold {{ $materialsStats['low_stock_count'] > 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-400' }}">{{ $materialsStats['low_stock_count'] }}</div>
+                <div class="text-xs text-gray-500">{{ __('below min level') }}</div>
+            </div>
+            <div class="p-3 rounded-lg border {{ $materialsStats['expiring_count'] > 0 ? 'border-amber-200 bg-amber-50 dark:bg-amber-900/20' : 'border-gray-200 bg-gray-50 dark:bg-slate-700' }}">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Expiring 30d') }}</div>
+                <div class="text-2xl font-bold {{ $materialsStats['expiring_count'] > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-gray-400' }}">{{ $materialsStats['expiring_count'] }}</div>
+                <div class="text-xs text-gray-500">{{ __('lots') }}</div>
+            </div>
+            <div class="p-3 rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Active lots') }}</div>
+                <div class="text-2xl font-bold text-purple-700 dark:text-purple-400">{{ $materialsStats['lots_total'] }}</div>
+                @if($materialsStats['quarantined_count'] > 0)
+                    <div class="text-xs text-red-600">{{ $materialsStats['quarantined_count'] }} {{ __('quarantined') }}</div>
+                @else
+                    <div class="text-xs text-gray-500">{{ __('available') }}</div>
+                @endif
+            </div>
+            <div class="p-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+                <div class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">{{ __('Reserved') }}</div>
+                <div class="text-2xl font-bold text-blue-700 dark:text-blue-400">{{ number_format($materialsStats['reserved_total'], 0) }}</div>
+                <div class="text-xs text-gray-500">{{ __('units across active batches') }}</div>
+            </div>
+        </div>
+
+        @if($materialsStats['low_stock_samples']->isNotEmpty() || $materialsStats['expiring_samples']->isNotEmpty())
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                @if($materialsStats['low_stock_samples']->isNotEmpty())
+                    <div>
+                        <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{{ __('Below min level') }}</h3>
+                        <ul class="text-sm divide-y divide-gray-100 dark:divide-gray-700">
+                            @foreach($materialsStats['low_stock_samples'] as $m)
+                                <li class="py-1.5 flex justify-between">
+                                    <a href="{{ route('admin.materials.show', $m) }}" class="text-blue-600 hover:underline">
+                                        {{ $m->code }} — {{ $m->name }}
+                                    </a>
+                                    <span class="text-xs font-mono text-red-700">
+                                        {{ number_format($m->stock_quantity, 1) }} / {{ number_format($m->min_stock_level, 1) }} {{ $m->unit_of_measure }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if($materialsStats['expiring_samples']->isNotEmpty())
+                    <div>
+                        <h3 class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">{{ __('Lots expiring within 30 days') }}</h3>
+                        <ul class="text-sm divide-y divide-gray-100 dark:divide-gray-700">
+                            @foreach($materialsStats['expiring_samples'] as $lot)
+                                <li class="py-1.5 flex justify-between">
+                                    <span>
+                                        @if($lot->material)
+                                            <a href="{{ route('admin.materials.show', $lot->material) }}" class="text-blue-600 hover:underline">{{ $lot->material->name }}</a>
+                                        @else
+                                            {{ __('Unknown material') }}
+                                        @endif
+                                        — lot <span class="font-mono text-xs">{{ $lot->lot_number }}</span>
+                                    </span>
+                                    <span class="text-xs font-mono text-amber-700">{{ $lot->expiry_date?->format('Y-m-d') }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+        @endif
     </div>
     @endif
 

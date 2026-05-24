@@ -15,7 +15,7 @@ class IssueManagementController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Issue::with(['workOrder.line', 'issueType', 'reportedBy', 'assignedTo'])
+        $query = Issue::with(['workOrder.line', 'material', 'issueType', 'reportedBy', 'assignedTo'])
             ->orderByRaw("CASE status
                 WHEN 'OPEN'         THEN 1
                 WHEN 'ACKNOWLEDGED' THEN 2

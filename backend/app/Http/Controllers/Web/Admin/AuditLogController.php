@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\Csv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 
@@ -81,19 +82,19 @@ class AuditLogController extends Controller
         $auditLogs = $query->limit(10000)->get();
 
         // Generate CSV
-        $csv = "Timestamp,User,Entity,Action,IP Address,Changes\n";
+        $csv = Csv::row(['Timestamp', 'User', 'Entity', 'Action', 'IP Address', 'Changes']);
 
         foreach ($auditLogs as $log) {
             $changes = $this->formatChanges($log);
 
-            $csv .= implode(',', [
+            $csv .= Csv::row([
                 $log->created_at->toIso8601String(),
-                $log->user ? '"' . $log->user->username . '"' : 'System',
-                '"' . class_basename($log->entity_type) . ' #' . $log->entity_id . '"',
+                $log->user ? $log->user->username : 'System',
+                class_basename($log->entity_type) . ' #' . $log->entity_id,
                 $log->action,
                 $log->ip_address ?? 'N/A',
-                '"' . str_replace('"', '""', $changes) . '"',
-            ]) . "\n";
+                $changes,
+            ]);
         }
 
         return Response::make($csv, 200, [

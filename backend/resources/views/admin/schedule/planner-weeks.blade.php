@@ -140,7 +140,7 @@
 
                         @for($s = 1; $s <= $shiftsPerDay; $s++)
                             <tr class="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50/30">
-                                <td class="px-2 py-0.5 text-[10px] font-medium border-r border-gray-100 dark:border-gray-700 whitespace-nowrap">
+                                <td class="px-2 py-2 text-[10px] font-medium border-r border-gray-100 dark:border-gray-700 whitespace-nowrap">
                                     <span class="inline-flex items-center gap-1">
                                         <span class="w-2.5 h-2 rounded-sm {{ $shiftColors[$s]['bg'] }}"></span>
                                         <span class="text-gray-500">{{ $shiftColors[$s]['label'] }}</span>
@@ -207,7 +207,7 @@
                                                  @dragleave="onDragLeave($event, '{{ $cellId }}')"
                                                  @drop="onDrop($event, {{ $line->id }}, '{{ $cellDate }}', {{ $s }}, {{ $period['number'] }})">
                                                 <a href="{{ route('admin.work-orders.show', $slotOrder) }}"
-                                                   class="block px-1.5 py-0.5 {{ $roundClass }} text-[10px] font-medium truncate cursor-pointer hover:opacity-80 transition h-full flex items-center
+                                                   class="block px-2 py-4 {{ $roundClass }} text-[11px] font-medium truncate cursor-pointer hover:opacity-80 transition h-full flex items-center
                                                           @if($isOverdue) bg-red-500 text-white animate-pulse ring-2 ring-red-400 @else {{ $woColors[$slotOrder->status] ?? 'bg-gray-200 border-gray-300' }} {{ $woTextColors[$slotOrder->status] ?? 'text-gray-700' }} @endif
                                                           {{ $isSpanStart ? 'border-2 border-r-0' : ($isDayStartContinues ? 'border-2 border-l-0 border-r-0' : ($isDayStart ? 'border-2 border-l-0' : 'border-2')) }}"
                                                    @click.prevent="selectOrder({{ $slotOrder->id }}, '{{ addslashes($slotOrder->order_no) }}', {{ $line->id }}, '{{ $slotOrder->due_date?->format('Y-m-d') ?? '' }}', '{{ $slotOrder->shift_number ?? '' }}', '{{ $slotOrder->end_date?->format('Y-m-d') ?? '' }}', '{{ $slotOrder->end_shift_number ?? '' }}', '{{ route('admin.work-orders.show', $slotOrder) }}')"
@@ -238,7 +238,7 @@
                                                  @dragleave="onDragLeave($event, '{{ $cellId }}')"
                                                  @drop="onDrop($event, {{ $line->id }}, '{{ $cellDate }}', {{ $s }}, {{ $period['number'] }})"
                                                  data-cell-line="{{ $line->id }}" data-cell-date="{{ $cellDate }}" data-cell-shift="{{ $s }}"
-                                                 class="h-6 rounded transition-all cursor-pointer relative overflow-hidden"
+                                                 class="h-[52px] rounded transition-all cursor-pointer relative overflow-hidden"
                                                  :class="dragOverCell === '{{ $cellId }}'
                                                      ? 'bg-blue-200 border-2 border-dashed border-blue-500 scale-[1.02]'
                                                      : '{{ $shiftColors[$s]['bg'] }} opacity-15 hover:opacity-40'">

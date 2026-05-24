@@ -17,7 +17,7 @@ class UpdateUserRequest extends FormRequest
         $userId = $this->route('user')?->id;
 
         return [
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'name' => ['sometimes', 'required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
             'username' => ['sometimes', 'required', 'string', 'max:255', Rule::unique('users', 'username')->ignore($userId)],
             'email' => ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'account_type' => ['sometimes', 'required', 'in:user,workstation'],
@@ -27,6 +27,13 @@ class UpdateUserRequest extends FormRequest
             'force_password_change' => ['sometimes', 'boolean'],
             'line_ids' => ['sometimes', 'nullable', 'array'],
             'line_ids.*' => ['integer', 'exists:lines,id'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
         ];
     }
 }

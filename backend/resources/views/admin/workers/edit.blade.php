@@ -94,6 +94,17 @@
                     </div>
 
                     <div class="md:col-span-2">
+                        <label class="form-label">{{ __('Personnel Class') }}</label>
+                        <select name="personnel_class_id" class="form-input w-full">
+                            <option value="">{{ __('— None —') }}</option>
+                            @foreach($personnelClasses as $pc)
+                                <option value="{{ $pc->id }}" @selected(old('personnel_class_id', $worker->personnel_class_id) == $pc->id)>{{ $pc->name }} ({{ $pc->code }})</option>
+                            @endforeach
+                        </select>
+                        @error('personnel_class_id') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="md:col-span-2">
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="is_active" value="1" {{ old('is_active', $worker->is_active) ? 'checked' : '' }}
                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">

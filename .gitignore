@@ -64,12 +64,20 @@ yarn-error.log*
 *.tmp
 *.temp
 
+# Playwright E2E (config + specs tracked; artifacts and node_modules ignored)
+/node_modules
+/test-results
+/playwright-report
+
+# Local binaries / installers
+cloudflared.deb
+
 # Project-specific
 .init_prompt
 /reference-app
 
 
 # Modules — all managed externally, never committed to public repo
-# Core modules (Packaging etc.) stay in repo history but new ones go to private repos
+# (Packaging was promoted to core; remaining modules ship via private repos)
 modules/*
 !modules/README.md
