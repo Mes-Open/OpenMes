@@ -60,8 +60,18 @@ We will keep you informed of the progress and may ask for additional information
 - Social engineering (phishing, pretexting)
 - Vulnerabilities in third-party dependencies (report to the upstream project instead, and let us know)
 - Issues on the public demo instance (demo.getopenmes.com) that don't affect self-hosted deployments
-- Missing security headers on non-production environments
+- Missing or misconfigured CSP (Content-Security-Policy) headers
+- CORS configuration issues
+- Docker / Docker Compose configuration hardening
+- Missing security headers on non-production environments (HSTS, X-Frame-Options, etc.)
 - Clickjacking on pages with no sensitive actions
+- SSL/TLS configuration or certificate issues
+- Information disclosure in HTTP headers (server version, powered-by, etc.)
+- Rate limiting or brute-force protection suggestions
+- Username / email enumeration via login or registration timing
+- Password complexity policy suggestions
+- Findings from automated scanners without a demonstrated exploit (Informational / Low severity)
+- Best-practice recommendations without a concrete attack scenario
 
 ## Responsible Disclosure
 
