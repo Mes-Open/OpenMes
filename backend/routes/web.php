@@ -50,6 +50,7 @@ use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
+use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
 use App\Http\Controllers\Web\Packaging\LabelPrintController;
 use App\Http\Controllers\Web\Packaging\LabelTemplateController;
@@ -159,6 +160,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/workstation/{workOrder}/start', [OperatorWorkstationController::class, 'start'])->name('workstation.start');
         Route::post('/workstation/{workOrder}/complete', [OperatorWorkstationController::class, 'complete'])->name('workstation.complete');
         Route::post('/workstation/{workOrder}/shift-entry', [OperatorWorkstationController::class, 'shiftEntry'])->name('workstation.shift-entry');
+
+        // Production quantity corrections
+        Route::get('/shift-entry/{shiftEntry}/correct', [ProductionCorrectionController::class, 'edit'])->name('shift-entry.correct');
+        Route::put('/shift-entry/{shiftEntry}/correct', [ProductionCorrectionController::class, 'update'])->name('shift-entry.correct.update');
     });
 
     // Inbound Inspections (Supervisor + Admin) — inspectors perform from this UI

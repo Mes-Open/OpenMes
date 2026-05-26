@@ -104,6 +104,8 @@ class SettingsController extends Controller
             'realtime_mode' => json_decode($rows['realtime_mode']->value ?? '"polling"', true) ?? 'polling',
             'production_tracking_mode' => json_decode($rows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation',
             'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']->value ?? '"*"', true) ?? '*',
+            'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none',
+            'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1,
         ];
 
         return view('settings.system', compact('settings'));
@@ -253,6 +255,8 @@ class SettingsController extends Controller
             'realtime_mode' => 'required|in:polling,websocket',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
             'cors_allowed_origins' => 'nullable|string|max:1000',
+            'production_qty_edit_policy' => 'required|in:none,timed,full',
+            'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -273,6 +277,8 @@ class SettingsController extends Controller
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
             'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '*') ?: '*',
+            'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
+            'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
         ];
 
         foreach ($map as $key => $value) {
