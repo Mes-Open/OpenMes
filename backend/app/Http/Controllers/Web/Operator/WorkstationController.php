@@ -82,10 +82,13 @@ class WorkstationController extends Controller
 
         $settingRows = \Illuminate\Support\Facades\DB::table('system_settings')->get()->keyBy('key');
         $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
+        $qtyEditPolicy = json_decode($settingRows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none';
+        $qtyEditWindowMinutes = json_decode($settingRows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1;
 
         return view('operator.workstation', compact(
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
-            'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode'
+            'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode',
+            'qtyEditPolicy', 'qtyEditWindowMinutes'
         ));
     }
 

@@ -207,6 +207,56 @@
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
+
+            {{-- Production Quantity Corrections --}}
+            <div class="card" x-data="{ policy: '{{ $settings['production_qty_edit_policy'] ?? 'none' }}' }">
+                <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Production Quantity Corrections') }}</h2>
+                <p class="text-xs text-gray-500 mb-4">
+                    {{ __('Defines whether and when operators can correct previously reported quantities.') }}
+                </p>
+
+                <input type="hidden" name="production_qty_edit_policy" :value="policy">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div @click="policy = 'none'"
+                         :class="policy === 'none' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('No corrections') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Operators cannot edit reported quantities. All entries are final.') }}</span>
+                    </div>
+                    <div @click="policy = 'timed'"
+                         :class="policy === 'timed' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('Timed window') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Operators can correct quantities within a configurable time window after submission.') }}</span>
+                    </div>
+                    <div @click="policy = 'full'"
+                         :class="policy === 'full' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('Full edit') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Operators can edit reported quantities at any time.') }}</span>
+                    </div>
+                </div>
+                @error('production_qty_edit_policy')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+
+                <div x-show="policy === 'timed'" x-cloak class="mt-4">
+                    <label class="form-label" for="production_qty_edit_window_minutes">{{ __('Correction time window') }}</label>
+                    <p class="text-xs text-gray-500 mb-2">
+                        {{ __('How many minutes after submission an operator can still correct the quantity.') }}
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <input type="number" name="production_qty_edit_window_minutes" id="production_qty_edit_window_minutes"
+                               class="form-input w-24"
+                               min="1" max="60"
+                               value="{{ $settings['production_qty_edit_window_minutes'] ?? 1 }}">
+                        <span class="text-sm text-gray-600">{{ __('minutes') }}</span>
+                    </div>
+                    @error('production_qty_edit_window_minutes')
+                        <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
         </div>
 
         {{-- ═══ TAB: Schedule ═══ --}}
