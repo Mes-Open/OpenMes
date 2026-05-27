@@ -222,6 +222,7 @@ Route::middleware('auth')->group(function () {
 
         // Alerts
         Route::get('/alerts', [\App\Http\Controllers\Web\Admin\AlertController::class, 'index'])->name('alerts');
+        Route::get('/alerts/check', [\App\Http\Controllers\Web\Admin\AlertController::class, 'check'])->name('alerts.check');
 
         // Update
         Route::get('/update/check', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'check'])->name('update.check');

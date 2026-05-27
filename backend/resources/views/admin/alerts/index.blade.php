@@ -8,16 +8,29 @@
     ['label' => __('Alerts'), 'url' => null],
 ]" />
 
-<div class="max-w-7xl mx-auto">
+<div class="max-w-7xl mx-auto" x-data="alertPoller()" x-init="startPolling()">
 
     <div class="flex items-center gap-3 mb-6">
         <h1 class="text-3xl font-bold text-gray-800">{{ __('Alerts') }}</h1>
-        @php $total = $blockingIssues->count() + $overdueOrders->count() + $blockedOrders->count(); @endphp
+        @php $total = $blockingIssues->count() + $nonBlockingIssues->count() + $overdueOrders->count() + $blockedOrders->count(); @endphp
         @if($total > 0)
-            <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-600 text-white text-sm font-bold">
+            <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-600 text-white text-sm font-bold" x-ref="badge">
                 {{ $total }}
             </span>
         @endif
+        <span class="ml-auto flex items-center gap-1.5 text-xs text-gray-400">
+            <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span>
+            {{ __('Live') }}
+        </span>
+    </div>
+
+    {{-- New alert banner (shown by polling) --}}
+    <div x-show="newAlert" x-cloak x-transition
+         class="mb-4 p-4 bg-red-600 text-white rounded-xl shadow-lg flex items-center gap-3 animate-pulse cursor-pointer"
+         @click="window.location.reload()">
+        <svg class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        <span class="font-bold text-lg" x-text="newAlertMsg"></span>
+        <span class="ml-auto text-sm opacity-80">{{ __('Click to refresh') }}</span>
     </div>
 
     @if($total === 0)
@@ -178,7 +191,115 @@
             </div>
 
         </div>
+
+        {{-- NON-BLOCKING ISSUES (below the grid) --}}
+        @if($nonBlockingIssues->count() > 0)
+        <div class="mt-6">
+            <h2 class="flex items-center gap-2 text-lg font-bold text-amber-700 mb-3">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                {{ __('Open Issues') }} ({{ $nonBlockingIssues->count() }})
+            </h2>
+            <div class="card overflow-hidden p-0">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-amber-50">
+                        <tr>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Issue') }}</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Work Order') }}</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Type') }}</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Reported') }}</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Status') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($nonBlockingIssues as $issue)
+                        <tr class="hover:bg-amber-50/50">
+                            <td class="px-4 py-3">
+                                <span class="font-medium text-gray-800">{{ $issue->title ?? $issue->description }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @if($issue->workOrder)
+                                    <a href="{{ route('admin.work-orders.show', $issue->workOrder) }}" class="text-blue-600 hover:underline font-mono text-xs">{{ $issue->workOrder->order_no }}</a>
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-xs text-gray-600">{{ $issue->issueType?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-xs text-gray-500">{{ $issue->created_at->diffForHumans() }}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $issue->status === 'OPEN' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700' }}">
+                                    {{ $issue->status }}
+                                </span>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
     @endif
 
 </div>
+
+<script>
+function alertPoller() {
+    return {
+        knownTotal: {{ $total }},
+        knownLatest: '{{ $blockingIssues->merge($nonBlockingIssues ?? collect())->max("created_at") ?? "" }}',
+        newAlert: false,
+        newAlertMsg: '',
+        pollInterval: null,
+
+        startPolling() {
+            this.pollInterval = setInterval(() => this.check(), 5000);
+        },
+
+        async check() {
+            try {
+                const res = await fetch('{{ route("admin.alerts.check") }}', {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+
+                if (data.total > this.knownTotal || (data.latest_issue_at && data.latest_issue_at > this.knownLatest)) {
+                    this.newAlert = true;
+                    const diff = data.total - this.knownTotal;
+                    this.newAlertMsg = diff > 0
+                        ? '{{ __("New alert!") }} (+' + diff + ')'
+                        : '{{ __("New alert!") }}';
+                    this.knownTotal = data.total;
+                    this.knownLatest = data.latest_issue_at || this.knownLatest;
+                    this.playAlertSound();
+
+                    // Update badge
+                    if (this.$refs.badge) {
+                        this.$refs.badge.textContent = data.total;
+                    }
+                }
+            } catch(e) {}
+        },
+
+        playAlertSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                // Urgent beep pattern: beep-beep-beep
+                [0, 0.2, 0.4].forEach(delay => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = 880;
+                    osc.type = 'square';
+                    gain.gain.value = 0.3;
+                    osc.start(ctx.currentTime + delay);
+                    osc.stop(ctx.currentTime + delay + 0.1);
+                });
+            } catch(e) {}
+        }
+    };
+}
+</script>
 @endsection
