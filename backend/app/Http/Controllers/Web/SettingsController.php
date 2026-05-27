@@ -333,8 +333,18 @@ class SettingsController extends Controller
                 return back()->with('error', __('Invalid settings file format. Missing "settings" key.'));
             }
 
-            // Whitelist of allowed setting keys — never import sensitive keys
-            $forbidden = ['app_key', 'db_host', 'db_port', 'db_database', 'db_username', 'db_password'];
+            // Forbidden keys — never import sensitive or infrastructure settings
+            $forbidden = [
+                'app_key', 'app_debug', 'app_env',
+                'db_host', 'db_port', 'db_database', 'db_username', 'db_password', 'db_connection',
+                'mail_host', 'mail_port', 'mail_username', 'mail_password',
+                'cors_allowed_origins', 'cors_allowed_methods',
+                'reverb_app_id', 'reverb_app_key', 'reverb_app_secret',
+                'modules_enabled',
+            ];
+
+            // Only import keys that already exist in the database (no arbitrary key injection)
+            $existingKeys = DB::table('system_settings')->pluck('key')->toArray();
 
             $imported = 0;
             foreach ($data['settings'] as $key => $value) {
@@ -343,6 +353,16 @@ class SettingsController extends Controller
                 }
 
                 if (!is_string($value) && !is_numeric($value)) {
+                    continue;
+                }
+
+                // Only update existing keys — never create new ones from import
+                if (!in_array($key, $existingKeys, true)) {
+                    continue;
+                }
+
+                // Limit value length to prevent abuse
+                if (strlen((string) $value) > 1000) {
                     continue;
                 }
 

@@ -1319,5 +1319,6 @@
     "Invalid JSON file.": "Nieprawidłowy plik JSON.",
     "Invalid settings file format. Missing \"settings\" key.": "Nieprawidłowy format pliku ustawień. Brak klucza \"settings\".",
     ":count settings imported successfully.": "Zaimportowano :count ustawień pomyślnie.",
-    "Failed to import settings. Please check the file and try again.": "Nie udało się zaimportować ustawień. Sprawdź plik i spróbuj ponownie."
+    "Failed to import settings. Please check the file and try again.": "Nie udało się zaimportować ustawień. Sprawdź plik i spróbuj ponownie.",
+    "You can only correct your own entries.": "Możesz korygować tylko własne wpisy."
 }
