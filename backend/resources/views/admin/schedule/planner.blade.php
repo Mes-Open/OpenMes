@@ -202,7 +202,15 @@
 
             async assignOrder(orderId) {
                 const data = { line_id: this.assignLineId };
-                if (this.assignDate) data.due_date = this.assignDate;
+                if (this.assignDate) {
+                    data.due_date = this.assignDate;
+                    // Also update planned_start_at/planned_end_at to match the target date
+                    // so the WO appears on the correct day in minute-level views
+                    const shiftHours = {1: 0, 2: 6, 3: 12, 4: 18};
+                    const startHour = shiftHours[this.assignShift] ?? 8;
+                    data.planned_start_at = this.assignDate + 'T' + String(startHour).padStart(2, '0') + ':00:00';
+                    data.planned_end_at = this.assignDate + 'T' + String(startHour + 6).padStart(2, '0') + ':00:00';
+                }
                 if (this.assignWeekNumber) data.week_number = this.assignWeekNumber;
                 if (this.assignShift) data.shift_number = this.assignShift;
 
