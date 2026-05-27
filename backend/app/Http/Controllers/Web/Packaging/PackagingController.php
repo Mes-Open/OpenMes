@@ -15,7 +15,12 @@ class PackagingController extends Controller
 
     public function station()
     {
-        return view('packaging.station');
+        $scannerMode = json_decode(
+            \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'scanner_mode')->value('value') ?? '"hid"',
+            true
+        ) ?? 'hid';
+
+        return view('packaging.station', compact('scannerMode'));
     }
 
     public function adminOverview()

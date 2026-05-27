@@ -257,6 +257,33 @@
                     @enderror
                 </div>
             </div>
+
+            {{-- Scanner --}}
+            <div class="card" x-data="{ mode: '{{ $settings['scanner_mode'] ?? 'hid' }}' }">
+                <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Barcode Scanner') }}</h2>
+                <p class="text-xs text-gray-500 mb-4">
+                    {{ __('How the workstation receives input from a barcode scanner.') }}
+                </p>
+
+                <input type="hidden" name="scanner_mode" :value="mode">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div @click="mode = 'hid'"
+                         :class="mode === 'hid' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('HID / Keyboard wedge') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Scanner acts as a keyboard. Codes are captured automatically on the workstation, no input field required.') }}</span>
+                    </div>
+                    <div @click="mode = 'manual'"
+                         :class="mode === 'manual' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('Manual input') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Operator types the code into a visible field and confirms with Enter. Use when no scanner is available.') }}</span>
+                    </div>
+                </div>
+                @error('scanner_mode')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
         </div>
 
         {{-- ═══ TAB: Schedule ═══ --}}
