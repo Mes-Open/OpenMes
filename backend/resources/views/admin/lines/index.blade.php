@@ -11,12 +11,21 @@
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-800">{{ __('Production Lines') }}</h1>
-        <a href="{{ route('admin.lines.create') }}" class="btn-touch btn-primary">
-            <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            {{ __('Add Production Line') }}
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('admin.csv-import') }}" class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                {{ __('Import') }}
+            </a>
+            <a href="{{ route('admin.import-example', ['type' => 'lines']) }}"
+               class="w-6 h-6 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold hover:bg-blue-100 hover:text-blue-600 transition"
+               title="{{ __('Download example CSV file for lines import') }}">?</a>
+            <a href="{{ route('admin.lines.create') }}" class="btn-touch btn-primary">
+                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                {{ __('Add Production Line') }}
+            </a>
+        </div>
     </div>
 
     <!-- Lines Grid -->

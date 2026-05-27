@@ -464,6 +464,17 @@
                 </div>
             </form>
         </div>
+
+        <div class="mt-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Export Settings') }}</h2>
+            <p class="text-sm text-gray-500 mb-4">
+                {{ __('Download current system settings as a JSON file. This includes all configuration options but no production data.') }}
+            </p>
+            <a href="{{ route('settings.export') }}" class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200 inline-flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                {{ __('Export Settings (JSON)') }}
+            </a>
+        </div>
     </div>
 </div>
 

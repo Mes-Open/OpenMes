@@ -1307,5 +1307,11 @@
     "Quantity corrections are not allowed.": "Korekty ilości są niedozwolone.",
     "The correction time window has expired.": "Okno czasowe korekty wygasło.",
     "Production Date": "Data produkcji",
-    "Shift": "Zmiana"
+    "Shift": "Zmiana",
+    "Download example CSV file for materials import": "Pobierz przykładowy plik CSV do importu materiałów",
+    "Download example CSV file for product types import": "Pobierz przykładowy plik CSV do importu typów produktów",
+    "Download example CSV file for lines import": "Pobierz przykładowy plik CSV do importu linii produkcyjnych",
+    "Export Settings": "Eksport ustawień",
+    "Download current system settings as a JSON file. This includes all configuration options but no production data.": "Pobierz aktualne ustawienia systemu jako plik JSON. Zawiera wszystkie opcje konfiguracji, ale nie dane produkcyjne.",
+    "Export Settings (JSON)": "Eksportuj ustawienia (JSON)"
 }

@@ -293,4 +293,22 @@ class SettingsController extends Controller
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');
     }
+
+    /**
+     * Export system settings as JSON file
+     */
+    public function exportSettings()
+    {
+        $settings = DB::table('system_settings')->pluck('value', 'key')->toArray();
+
+        $export = [
+            'exported_at' => now()->toISOString(),
+            'version' => config('version.current'),
+            'settings' => $settings,
+        ];
+
+        return response()->json($export, 200, [
+            'Content-Disposition' => 'attachment; filename="openmes-settings-' . date('Y-m-d') . '.json"',
+        ]);
+    }
 }
