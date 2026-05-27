@@ -411,13 +411,24 @@ class SettingsController extends Controller
                     continue;
                 }
 
-                // For all other tables: clear and re-insert
+                // For all other tables: upsert by unique key (code or name)
                 if (empty($rows)) continue;
 
-                DB::table($tableName)->truncate();
+                // Determine unique key for upsert
+                $uniqueKey = match ($tableName) {
+                    'lines', 'workstations', 'product_types', 'material_types',
+                    'materials', 'issue_types', 'shifts', 'skills',
+                    'personnel_classes', 'process_segments', 'sites', 'areas' => 'code',
+                    'line_statuses' => 'name',
+                    'dashboard_widgets' => 'widget_id',
+                    default => null,
+                };
 
                 foreach ($rows as $row) {
                     if (!is_array($row)) continue;
+
+                    $originalId = $row['id'] ?? null;
+
                     // Remove auto-generated columns
                     foreach ($skipColumns as $col) {
                         unset($row[$col]);
@@ -425,14 +436,21 @@ class SettingsController extends Controller
                     // Remove null values for columns that might not accept null
                     $row = array_filter($row, fn($v) => $v !== null);
 
-                    if (!empty($row)) {
-                        try {
+                    if (empty($row)) continue;
+
+                    try {
+                        if ($uniqueKey && isset($row[$uniqueKey])) {
+                            DB::table($tableName)->updateOrInsert(
+                                [$uniqueKey => $row[$uniqueKey]],
+                                $row
+                            );
+                        } else {
                             DB::table($tableName)->insert($row);
-                            $imported++;
-                        } catch (\Exception $e) {
-                            // Skip invalid rows silently
-                            continue;
                         }
+                        $imported++;
+                    } catch (\Exception $e) {
+                        // Skip invalid rows silently
+                        continue;
                     }
                 }
             }
