@@ -87,6 +87,15 @@ class ProductionCorrectionController extends Controller
      */
     private function authorizeCorrection(WorkOrderShiftEntry $shiftEntry): void
     {
+        // Ownership check — only entry creator or Supervisor/Admin can correct
+        $user = auth()->user();
+        if (
+            $shiftEntry->user_id !== $user->id
+            && ! $user->hasRole(['Supervisor', 'Admin'])
+        ) {
+            abort(403, __('You can only correct your own entries.'));
+        }
+
         $settings = DB::table('system_settings')
             ->whereIn('key', ['production_qty_edit_policy', 'production_qty_edit_window_minutes'])
             ->pluck('value', 'key');
