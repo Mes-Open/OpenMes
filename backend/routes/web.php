@@ -112,8 +112,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/system', [\App\Http\Controllers\Web\SettingsController::class, 'updateSystemSettings'])->name('update-system')->middleware('role:Admin');
         // Admin-only sample data
         Route::post('/sample-data', [\App\Http\Controllers\Web\SettingsController::class, 'loadSampleData'])->name('sample-data')->middleware('role:Admin');
-        // Admin-only settings export
+        // Admin-only settings export/import
         Route::get('/export', [\App\Http\Controllers\Web\SettingsController::class, 'exportSettings'])->name('export')->middleware('role:Admin');
+        Route::post('/import', [\App\Http\Controllers\Web\SettingsController::class, 'importSettings'])->name('import')->middleware('role:Admin');
         // PIN management
         Route::get('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'showPinForm'])->name('pin');
         Route::post('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'updatePin'])->name('update-pin');

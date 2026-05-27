@@ -311,4 +311,54 @@ class SettingsController extends Controller
             'Content-Disposition' => 'attachment; filename="openmes-settings-' . date('Y-m-d') . '.json"',
         ]);
     }
+
+    /**
+     * Import system settings from JSON file
+     */
+    public function importSettings(Request $request)
+    {
+        $request->validate([
+            'settings_file' => 'required|file|mimes:json,txt|max:1024',
+        ]);
+
+        try {
+            $content = file_get_contents($request->file('settings_file')->getRealPath());
+            $data = json_decode($content, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return back()->with('error', __('Invalid JSON file.'));
+            }
+
+            if (!isset($data['settings']) || !is_array($data['settings'])) {
+                return back()->with('error', __('Invalid settings file format. Missing "settings" key.'));
+            }
+
+            // Whitelist of allowed setting keys — never import sensitive keys
+            $forbidden = ['app_key', 'db_host', 'db_port', 'db_database', 'db_username', 'db_password'];
+
+            $imported = 0;
+            foreach ($data['settings'] as $key => $value) {
+                if (in_array(strtolower($key), $forbidden, true)) {
+                    continue;
+                }
+
+                if (!is_string($value) && !is_numeric($value)) {
+                    continue;
+                }
+
+                DB::table('system_settings')->updateOrInsert(
+                    ['key' => $key],
+                    ['value' => (string) $value]
+                );
+                $imported++;
+            }
+
+            Cache::flush();
+
+            return back()->with('success', __(':count settings imported successfully.', ['count' => $imported]));
+        } catch (\Exception $e) {
+            report($e);
+            return back()->with('error', __('Failed to import settings. Please check the file and try again.'));
+        }
+    }
 }

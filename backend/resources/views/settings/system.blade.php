@@ -475,6 +475,25 @@
                 {{ __('Export Settings (JSON)') }}
             </a>
         </div>
+
+        <div class="mt-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Import Settings') }}</h2>
+            <p class="text-sm text-gray-500 mb-4">
+                {{ __('Upload a previously exported JSON settings file. This will overwrite current settings. Database credentials and sensitive keys are never imported.') }}
+            </p>
+            <form method="POST" action="{{ route('settings.import') }}" enctype="multipart/form-data" class="flex items-center gap-3">
+                @csrf
+                <input type="file" name="settings_file" accept=".json,.txt" required
+                       class="text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
+                <button type="submit" class="btn-touch bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    {{ __('Import Settings') }}
+                </button>
+            </form>
+            @error('settings_file')
+                <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
+            @enderror
+        </div>
     </div>
 </div>
 
