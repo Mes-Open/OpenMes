@@ -22,7 +22,6 @@
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/fw3fG78pZj)
 
-[![Watch the demo](https://img.youtube.com/vi/G8vHW-fjXV0/maxresdefault.jpg)](https://youtu.be/G8vHW-fjXV0)
 
 </div>
 
