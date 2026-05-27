@@ -419,7 +419,8 @@ class SettingsController extends Controller
                     'lines', 'workstations', 'product_types', 'material_types',
                     'materials', 'issue_types', 'shifts', 'skills',
                     'personnel_classes', 'process_segments', 'sites', 'areas' => 'code',
-                    'line_statuses' => 'name',
+                    'line_statuses', 'process_templates', 'maintenance_schedules',
+                    'inspection_plans', 'label_templates' => 'name',
                     'dashboard_widgets' => 'widget_id',
                     default => null,
                 };
@@ -439,6 +440,7 @@ class SettingsController extends Controller
                     if (empty($row)) continue;
 
                     try {
+                        DB::statement('SAVEPOINT row_insert');
                         if ($uniqueKey && isset($row[$uniqueKey])) {
                             DB::table($tableName)->updateOrInsert(
                                 [$uniqueKey => $row[$uniqueKey]],
@@ -447,9 +449,10 @@ class SettingsController extends Controller
                         } else {
                             DB::table($tableName)->insert($row);
                         }
+                        DB::statement('RELEASE SAVEPOINT row_insert');
                         $imported++;
                     } catch (\Exception $e) {
-                        // Skip invalid rows silently
+                        DB::statement('ROLLBACK TO SAVEPOINT row_insert');
                         continue;
                     }
                 }
