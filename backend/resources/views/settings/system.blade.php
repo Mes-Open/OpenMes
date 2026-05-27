@@ -412,21 +412,45 @@
             <div class="card">
                 <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('CORS (Cross-Origin Requests)') }}</h2>
                 <p class="text-xs text-gray-500 mb-4">
-                    {{ __('Control which external domains can make API requests to this application.') }}
+                    {{ __('Control which external domains can make API requests to this application. Leave empty to block all cross-origin requests (most secure).') }}
                 </p>
 
-                <div>
-                    <label class="form-label" for="cors_allowed_origins">{{ __('Allowed CORS Origins') }}</label>
-                    <textarea name="cors_allowed_origins" id="cors_allowed_origins"
-                              rows="3"
-                              class="form-input w-full"
-                              placeholder="https://example.com, https://app.example.com">{{ old('cors_allowed_origins', $settings['cors_allowed_origins'] ?? '*') }}</textarea>
-                    <p class="text-xs text-gray-500 mt-2">
-                        {{ __('Comma-separated list of allowed origins (e.g. https://example.com, https://app.example.com). Use * to allow all origins (not recommended for production).') }}
-                    </p>
-                    @error('cors_allowed_origins')
-                        <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                    @enderror
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label" for="cors_allowed_origins">{{ __('Allowed Origins') }}</label>
+                        <textarea name="cors_allowed_origins" id="cors_allowed_origins"
+                                  rows="3"
+                                  class="form-input w-full"
+                                  placeholder="https://erp.yourcompany.com">{{ old('cors_allowed_origins', $settings['cors_allowed_origins'] ?? '') }}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ __('Comma-separated list of allowed origins. Only HTTPS URLs recommended. Leave empty to block all cross-origin requests.') }}
+                        </p>
+                        @error('cors_allowed_origins')
+                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="cors_allowed_methods">{{ __('Allowed Methods') }}</label>
+                        <input type="text" name="cors_allowed_methods" id="cors_allowed_methods"
+                               class="form-input w-full"
+                               value="{{ old('cors_allowed_methods', $settings['cors_allowed_methods'] ?? 'GET, POST') }}"
+                               placeholder="GET, POST">
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ __('HTTP methods allowed for cross-origin requests. Default: GET, POST (minimal).') }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="cors_max_age">{{ __('Preflight Cache (seconds)') }}</label>
+                        <input type="number" name="cors_max_age" id="cors_max_age"
+                               class="form-input w-32"
+                               value="{{ old('cors_max_age', $settings['cors_max_age'] ?? '0') }}"
+                               min="0" max="86400" placeholder="0">
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ __('How long browsers cache preflight responses. 0 = no caching (strictest).') }}
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

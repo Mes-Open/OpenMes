@@ -255,6 +255,8 @@ class SettingsController extends Controller
             'realtime_mode' => 'required|in:polling,websocket',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
             'cors_allowed_origins' => 'nullable|string|max:1000',
+            'cors_allowed_methods' => 'nullable|string|max:200',
+            'cors_max_age' => 'nullable|integer|min:0|max:86400',
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
         ]);
@@ -276,7 +278,9 @@ class SettingsController extends Controller
             'schedule_slot_duration_hours' => $slotDuration,
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
-            'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '*') ?: '*',
+            'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: '',
+            'cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST',
+            'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
         ];

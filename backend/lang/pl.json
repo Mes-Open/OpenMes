@@ -1320,5 +1320,12 @@
     "Invalid settings file format. Missing \"settings\" key.": "Nieprawidłowy format pliku ustawień. Brak klucza \"settings\".",
     ":count settings imported successfully.": "Zaimportowano :count ustawień pomyślnie.",
     "Failed to import settings. Please check the file and try again.": "Nie udało się zaimportować ustawień. Sprawdź plik i spróbuj ponownie.",
-    "You can only correct your own entries.": "Możesz korygować tylko własne wpisy."
+    "You can only correct your own entries.": "Możesz korygować tylko własne wpisy.",
+    "Control which external domains can make API requests to this application. Leave empty to block all cross-origin requests (most secure).": "Kontroluj, które zewnętrzne domeny mogą wysyłać żądania API. Pozostaw puste, aby zablokować wszystkie żądania cross-origin (najbezpieczniej).",
+    "Allowed Origins": "Dozwolone źródła",
+    "Comma-separated list of allowed origins. Only HTTPS URLs recommended. Leave empty to block all cross-origin requests.": "Lista dozwolonych źródeł oddzielona przecinkami. Zalecane tylko adresy HTTPS. Pozostaw puste, aby zablokować wszystkie żądania cross-origin.",
+    "Allowed Methods": "Dozwolone metody",
+    "HTTP methods allowed for cross-origin requests. Default: GET, POST (minimal).": "Metody HTTP dozwolone dla żądań cross-origin. Domyślnie: GET, POST (minimalne).",
+    "Preflight Cache (seconds)": "Cache preflight (sekundy)",
+    "How long browsers cache preflight responses. 0 = no caching (strictest).": "Jak długo przeglądarki cachują odpowiedzi preflight. 0 = brak cachowania (najsurowsze)."
 }
