@@ -1313,5 +1313,11 @@
     "Download example CSV file for lines import": "Pobierz przykładowy plik CSV do importu linii produkcyjnych",
     "Export Settings": "Eksport ustawień",
     "Download current system settings as a JSON file. This includes all configuration options but no production data.": "Pobierz aktualne ustawienia systemu jako plik JSON. Zawiera wszystkie opcje konfiguracji, ale nie dane produkcyjne.",
-    "Export Settings (JSON)": "Eksportuj ustawienia (JSON)"
+    "Export Settings (JSON)": "Eksportuj ustawienia (JSON)",
+    "Import Settings": "Import ustawień",
+    "Upload a previously exported JSON settings file. This will overwrite current settings. Database credentials and sensitive keys are never imported.": "Wgraj wcześniej wyeksportowany plik JSON z ustawieniami. Nadpisze bieżące ustawienia. Dane dostępowe do bazy i klucze wrażliwe nigdy nie są importowane.",
+    "Invalid JSON file.": "Nieprawidłowy plik JSON.",
+    "Invalid settings file format. Missing \"settings\" key.": "Nieprawidłowy format pliku ustawień. Brak klucza \"settings\".",
+    ":count settings imported successfully.": "Zaimportowano :count ustawień pomyślnie.",
+    "Failed to import settings. Please check the file and try again.": "Nie udało się zaimportować ustawień. Sprawdź plik i spróbuj ponownie."
 }
