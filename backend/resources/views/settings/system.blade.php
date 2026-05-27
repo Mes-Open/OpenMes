@@ -492,7 +492,7 @@
         <div class="mt-8">
             <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Export Settings') }}</h2>
             <p class="text-sm text-gray-500 mb-4">
-                {{ __('Download current system settings as a JSON file. This includes all configuration options but no production data.') }}
+                {{ __('Download complete system configuration as a JSON file. Includes lines, workstations, product types, templates, materials, shifts, and all settings. No production data or user accounts are exported.') }}
             </p>
             <a href="{{ route('settings.export') }}" class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200 inline-flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
@@ -503,7 +503,7 @@
         <div class="mt-8">
             <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Import Settings') }}</h2>
             <p class="text-sm text-gray-500 mb-4">
-                {{ __('Upload a previously exported JSON settings file. This will overwrite current settings. Database credentials and sensitive keys are never imported.') }}
+                {{ __('Upload a previously exported configuration file. This will overwrite current configuration including lines, products, templates, materials, and settings. Production data (work orders, batches, issues) is never affected. Database credentials are never imported.') }}
             </p>
             <form method="POST" action="{{ route('settings.import') }}" enctype="multipart/form-data" class="flex items-center gap-3">
                 @csrf
