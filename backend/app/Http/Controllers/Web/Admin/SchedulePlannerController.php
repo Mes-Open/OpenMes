@@ -774,8 +774,33 @@ class SchedulePlannerController extends Controller
                 }
             }
 
-            $layouts = $layouts->map(function ($l) use ($conflicts) {
+            // Assign lanes to overlapping orders so they stack vertically
+            $sortedLayouts = $layouts->sortBy('start_minute')->values();
+            $laneEnds = []; // laneEnds[lane] = end_minute of last WO in that lane
+            $laneMap = [];
+            foreach ($sortedLayouts as $l) {
+                $woId = $l['wo']->id;
+                $placed = false;
+                foreach ($laneEnds as $lane => $end) {
+                    if ($l['start_minute'] >= $end) {
+                        $laneMap[$woId] = $lane;
+                        $laneEnds[$lane] = $l['end_minute'];
+                        $placed = true;
+                        break;
+                    }
+                }
+                if (! $placed) {
+                    $lane = count($laneEnds);
+                    $laneMap[$woId] = $lane;
+                    $laneEnds[$lane] = $l['end_minute'];
+                }
+            }
+            $totalLanes = max(1, count($laneEnds));
+
+            $layouts = $layouts->map(function ($l) use ($conflicts, $laneMap, $totalLanes) {
                 $l['has_conflict'] = isset($conflicts[$l['wo']->id]);
+                $l['lane'] = $laneMap[$l['wo']->id] ?? 0;
+                $l['total_lanes'] = $totalLanes;
 
                 return $l;
             });
