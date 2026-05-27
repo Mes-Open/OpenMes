@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -299,30 +300,56 @@ class SettingsController extends Controller
     }
 
     /**
-     * Export system settings as JSON file
+     * Export full system configuration as JSON file
      */
     public function exportSettings()
     {
-        $settings = DB::table('system_settings')->pluck('value', 'key')->toArray();
-
         $export = [
             'exported_at' => now()->toISOString(),
             'version' => config('version.current'),
-            'settings' => $settings,
+            'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
         ];
 
+        $tables = [
+            'lines', 'workstations', 'product_types', 'process_templates',
+            'template_steps', 'material_types', 'materials', 'bom_items',
+            'issue_types', 'shifts', 'line_statuses', 'dashboard_widgets',
+            'maintenance_schedules', 'sites', 'areas', 'skills',
+            'personnel_classes', 'process_segments',
+        ];
+
+        foreach ($tables as $table) {
+            try {
+                $export[$table] = DB::table($table)->get()->map(fn($r) => (array) $r)->toArray();
+            } catch (\Exception $e) {
+                // table may not exist yet
+            }
+        }
+
+        // Add optional tables only if they exist
+        $optionalTables = ['inspection_plans', 'view_templates', 'label_templates'];
+        foreach ($optionalTables as $table) {
+            try {
+                if (Schema::hasTable($table)) {
+                    $export[$table] = DB::table($table)->get()->map(fn($r) => (array) $r)->toArray();
+                }
+            } catch (\Exception $e) {
+                // table may not exist yet
+            }
+        }
+
         return response()->json($export, 200, [
-            'Content-Disposition' => 'attachment; filename="openmes-settings-' . date('Y-m-d') . '.json"',
+            'Content-Disposition' => 'attachment; filename="openmes-config-' . date('Y-m-d') . '.json"',
         ]);
     }
 
     /**
-     * Import system settings from JSON file
+     * Import system configuration from JSON file
      */
     public function importSettings(Request $request)
     {
         $request->validate([
-            'settings_file' => 'required|file|mimes:json,txt|max:1024',
+            'settings_file' => 'required|file|mimes:json,txt|max:10240',
         ]);
 
         try {
@@ -333,12 +360,24 @@ class SettingsController extends Controller
                 return back()->with('error', __('Invalid JSON file.'));
             }
 
-            if (!isset($data['settings']) || !is_array($data['settings'])) {
-                return back()->with('error', __('Invalid settings file format. Missing "settings" key.'));
+            // Backward compat: old format with just 'settings' key
+            if (isset($data['settings']) && !isset($data['system_settings'])) {
+                $data['system_settings'] = $data['settings'];
             }
 
-            // Forbidden keys — never import sensitive or infrastructure settings
-            $forbidden = [
+            $allowedTables = [
+                'system_settings', 'lines', 'workstations', 'product_types',
+                'process_templates', 'template_steps', 'material_types', 'materials',
+                'bom_items', 'issue_types', 'shifts', 'line_statuses',
+                'dashboard_widgets', 'maintenance_schedules',
+                'sites', 'areas', 'skills', 'personnel_classes', 'process_segments',
+                'inspection_plans', 'view_templates', 'label_templates',
+            ];
+
+            $skipColumns = ['id', 'created_at', 'updated_at', 'tenant_id'];
+
+            // Forbidden system_settings keys
+            $forbiddenSettings = [
                 'app_key', 'app_debug', 'app_env',
                 'db_host', 'db_port', 'db_database', 'db_username', 'db_password', 'db_connection',
                 'mail_host', 'mail_port', 'mail_username', 'mail_password',
@@ -347,40 +386,63 @@ class SettingsController extends Controller
                 'modules_enabled',
             ];
 
-            // Only import keys that already exist in the database (no arbitrary key injection)
-            $existingKeys = DB::table('system_settings')->pluck('key')->toArray();
-
             $imported = 0;
-            foreach ($data['settings'] as $key => $value) {
-                if (in_array(strtolower($key), $forbidden, true)) {
+
+            DB::beginTransaction();
+
+            foreach ($data as $tableName => $rows) {
+                if (!in_array($tableName, $allowedTables, true)) continue;
+                if (!is_array($rows)) continue;
+                if (!Schema::hasTable($tableName)) continue;
+
+                if ($tableName === 'system_settings') {
+                    // Special handling: key-value update, not replace
+                    $existingKeys = DB::table('system_settings')->pluck('key')->toArray();
+
+                    foreach ($rows as $key => $value) {
+                        if (in_array(strtolower($key), $forbiddenSettings, true)) continue;
+                        if (!is_string($value) && !is_numeric($value)) continue;
+                        if (strlen((string) $value) > 1000) continue;
+                        if (!in_array($key, $existingKeys, true)) continue;
+
+                        DB::table('system_settings')->where('key', $key)->update(['value' => (string) $value]);
+                        $imported++;
+                    }
                     continue;
                 }
 
-                if (!is_string($value) && !is_numeric($value)) {
-                    continue;
-                }
+                // For all other tables: clear and re-insert
+                if (empty($rows)) continue;
 
-                // Only update existing keys — never create new ones from import
-                if (!in_array($key, $existingKeys, true)) {
-                    continue;
-                }
+                DB::table($tableName)->truncate();
 
-                // Limit value length to prevent abuse
-                if (strlen((string) $value) > 1000) {
-                    continue;
-                }
+                foreach ($rows as $row) {
+                    if (!is_array($row)) continue;
+                    // Remove auto-generated columns
+                    foreach ($skipColumns as $col) {
+                        unset($row[$col]);
+                    }
+                    // Remove null values for columns that might not accept null
+                    $row = array_filter($row, fn($v) => $v !== null);
 
-                DB::table('system_settings')->updateOrInsert(
-                    ['key' => $key],
-                    ['value' => (string) $value]
-                );
-                $imported++;
+                    if (!empty($row)) {
+                        try {
+                            DB::table($tableName)->insert($row);
+                            $imported++;
+                        } catch (\Exception $e) {
+                            // Skip invalid rows silently
+                            continue;
+                        }
+                    }
+                }
             }
 
+            DB::commit();
             Cache::flush();
 
-            return back()->with('success', __(':count settings imported successfully.', ['count' => $imported]));
+            return back()->with('success', __(':count configuration items imported successfully.', ['count' => $imported]));
         } catch (\Exception $e) {
+            DB::rollBack();
             report($e);
             return back()->with('error', __('Failed to import settings. Please check the file and try again.'));
         }
