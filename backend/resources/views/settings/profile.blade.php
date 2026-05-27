@@ -69,17 +69,17 @@
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">{{ __('Account Information') }}</h3>
                 <div class="space-y-2">
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">{{ __('Username') }}:/span>
+                        <span class="text-gray-600">{{ __('Username') }}:</span>
                         <span class="font-medium text-gray-800">{{ auth()->user()->username }}</span>
                     </div>
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">{{ __('Role') }}:/span>
+                        <span class="text-gray-600">{{ __('Role') }}:</span>
                         <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
                             {{ auth()->user()->roles->first()->name ?? 'User' }}
                         </span>
                     </div>
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">{{ __('Member Since') }}:/span>
+                        <span class="text-gray-600">{{ __('Member Since') }}:</span>
                         <span class="font-medium text-gray-800">{{ auth()->user()->created_at->translatedFormat('F d, Y') }}</span>
                     </div>
                 </div>
@@ -92,7 +92,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <div class="text-sm text-blue-800">
-                        <p class="font-semibold mb-1">{{ __('Note') }}:/p>
+                        <p class="font-semibold mb-1">{{ __('Note') }}:</p>
                         <p>{{ __('To change your username or role, contact an administrator.') }}</p>
                     </div>
                 </div>
