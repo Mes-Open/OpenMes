@@ -248,7 +248,10 @@
                         @foreach($lineMaint as $maint)
                             @php
                                 $maintMinute = $maint->scheduled_at->diffInMinutes($startDate->copy()->startOfDay());
-                                $maintDuration = 60; // 1h block for maintenance
+                                $maintDuration = $maint->scheduled_end_at
+                                    ? $maint->scheduled_at->diffInMinutes($maint->scheduled_end_at)
+                                    : 60;
+                                $maintDuration = max(30, $maintDuration);
                             @endphp
                             <div class="absolute rounded border-2 border-purple-500 bg-purple-200 px-1.5 py-1 text-[10px] font-medium text-purple-900 truncate z-5 opacity-80"
                                  style="left: {{ $maintMinute * $pxPerMinute }}px; width: {{ max(40, $maintDuration * $pxPerMinute) }}px; bottom: 4px; height: 24px;"
