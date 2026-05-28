@@ -857,6 +857,7 @@
                     'woTextColors' => $woTextColors,
                     'statusLabels' => $statusLabels,
                     'shiftsPerDay' => $shiftsPerDay,
+                    'maintenanceEvents' => $maintenanceEvents,
                 ])
 
             {{-- ===== MONTHLY VIEW ===== --}}
