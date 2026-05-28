@@ -822,7 +822,20 @@
                                                         </button>
                                                     </div>
                                                 @endforeach
-                                                @if($dayOrders->isEmpty())
+                                                @php
+                                                    $dayMaint = ($maintenanceEvents ?? collect())->filter(fn($m) =>
+                                                        $m->line_id == $line->id &&
+                                                        $m->scheduled_at->format('Y-m-d') === $day['date']->format('Y-m-d')
+                                                    );
+                                                @endphp
+                                                @foreach($dayMaint as $maint)
+                                                    <div class="block px-2 py-2 rounded text-[10px] font-medium truncate border-2 border-purple-400 bg-purple-100 text-purple-800"
+                                                         title="{{ $maint->title }} — {{ $maint->scheduled_at->format('H:i') }}">
+                                                        <svg class="w-3 h-3 inline -mt-0.5 mr-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17l-5.384-3.19A1 1 0 005 12.874V17a2 2 0 002 2h10a2 2 0 002-2v-4.126a1 1 0 00-1.036-.894l-5.384 3.19a1 1 0 01-1.16 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 2a1 1 0 011 0l6 3.5a1 1 0 01.5.866V11"/></svg>
+                                                        {{ $maint->title }}
+                                                    </div>
+                                                @endforeach
+                                                @if($dayOrders->isEmpty() && $dayMaint->isEmpty())
                                                     <div class="h-8"></div>
                                                 @endif
                                             </div>

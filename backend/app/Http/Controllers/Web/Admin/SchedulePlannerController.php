@@ -112,6 +112,15 @@ class SchedulePlannerController extends Controller
             default => $startDate->copy()->addWeek(),
         };
 
+        // Maintenance events in range (pending/in_progress, with scheduled_at)
+        $maintenanceEvents = \App\Models\MaintenanceEvent::with(['line', 'workstation'])
+            ->whereIn('status', ['pending', 'in_progress'])
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>=', $rangeStart)
+            ->where('scheduled_at', '<=', $rangeEnd)
+            ->orderBy('scheduled_at')
+            ->get();
+
         // All lines for filter dropdown (unfiltered)
         $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
@@ -146,6 +155,7 @@ class SchedulePlannerController extends Controller
             'navPrev',
             'navNext',
             'backlogOrders',
+            'maintenanceEvents',
             'realtimeMode',
         );
 
