@@ -253,8 +253,8 @@
                                     : 60;
                                 $maintDuration = max(30, $maintDuration);
                             @endphp
-                            <div class="absolute rounded-lg border-2 border-purple-500 bg-purple-100 px-2 py-1.5 text-[11px] font-bold text-purple-900 truncate z-10 shadow-sm"
-                                 style="left: {{ $maintMinute * $pxPerMinute }}px; width: {{ max(60, $maintDuration * $pxPerMinute) }}px; bottom: 6px; height: 36px; display: flex; align-items: center; gap: 4px;"
+                            <div class="absolute rounded-lg border-2 border-purple-500 bg-purple-200 px-2 py-1.5 text-[11px] font-bold text-purple-900 truncate z-10 shadow-md"
+                                 style="left: {{ $maintMinute * $pxPerMinute }}px; width: {{ max(80, $maintDuration * $pxPerMinute) }}px; top: 6px; height: 40px; display: flex; align-items: center; gap: 4px;"
                                  title="{{ $maint->title }} — {{ $maint->scheduled_at->format('H:i') }}{{ $maint->scheduled_end_at ? ' - ' . $maint->scheduled_end_at->format('H:i') : '' }}">
                                 <span>🔧</span> <span class="truncate">{{ $maint->title }}</span>
                             </div>
