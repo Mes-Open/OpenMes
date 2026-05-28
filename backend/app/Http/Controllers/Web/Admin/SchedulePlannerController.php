@@ -121,36 +121,66 @@ class SchedulePlannerController extends Controller
             ->orderBy('scheduled_at')
             ->get();
 
-        // Also show upcoming scheduled maintenance from recurring schedules
-        // (next_due_at falls within visible range but no event generated yet)
-        $upcomingSchedules = \App\Models\MaintenanceSchedule::with(['line', 'workstation'])
+        // Generate virtual maintenance events from recurring schedules
+        // for the entire visible range (not just next_due_at)
+        $activeSchedules = \App\Models\MaintenanceSchedule::with(['line', 'workstation'])
             ->where('is_active', true)
             ->whereNotNull('next_due_at')
-            ->where('next_due_at', '>=', $rangeStart)
-            ->where('next_due_at', '<=', $rangeEnd)
             ->get();
 
-        // Create virtual maintenance events from schedules that don't have a matching event
-        foreach ($upcomingSchedules as $schedule) {
-            $hasEvent = $maintenanceEvents->contains(function ($e) use ($schedule) {
-                return $e->schedule_id === $schedule->id
-                    && $e->scheduled_at->format('Y-m-d') === $schedule->next_due_at->format('Y-m-d');
-            });
-            if (! $hasEvent) {
-                $virtual = new \App\Models\MaintenanceEvent([
-                    'title' => $schedule->name,
-                    'event_type' => $schedule->event_type,
-                    'status' => 'pending',
-                    'line_id' => $schedule->line_id,
-                    'workstation_id' => $schedule->workstation_id,
-                    'schedule_id' => $schedule->id,
-                    'scheduled_at' => $schedule->next_due_at,
-                    'scheduled_end_at' => $schedule->next_due_at->copy()->addHour(),
-                    'description' => $schedule->description,
-                ]);
-                $virtual->setRelation('line', $schedule->line);
-                $virtual->setRelation('workstation', $schedule->workstation);
-                $maintenanceEvents->push($virtual);
+        foreach ($activeSchedules as $schedule) {
+            // Calculate interval in days
+            $intervalDays = match ($schedule->frequency) {
+                'daily' => 1,
+                'weekly' => 7,
+                'monthly' => 30,
+                'quarterly' => 91,
+                'annually' => 365,
+                default => 7,
+            };
+
+            // Generate occurrences within visible range
+            $cursor = $schedule->next_due_at->copy();
+
+            // If next_due is after range, walk backwards to find first occurrence in range
+            while ($cursor->gt($rangeEnd)) {
+                $cursor->subDays($intervalDays);
+            }
+            // Walk backwards to find the earliest occurrence in range
+            while ($cursor->copy()->subDays($intervalDays)->gte($rangeStart)) {
+                $cursor->subDays($intervalDays);
+            }
+
+            // Now walk forward generating events
+            while ($cursor->lte($rangeEnd)) {
+                if ($cursor->gte($rangeStart)) {
+                    // Check if a real event already exists on this date
+                    $dateStr = $cursor->format('Y-m-d');
+                    $hasEvent = $maintenanceEvents->contains(function ($e) use ($schedule, $dateStr) {
+                        return $e->schedule_id === $schedule->id
+                            && $e->scheduled_at->format('Y-m-d') === $dateStr;
+                    });
+
+                    if (! $hasEvent) {
+                        $time = $schedule->preferred_time ?? '06:00';
+                        $scheduledAt = $cursor->copy()->setTimeFromTimeString($time);
+                        $virtual = new \App\Models\MaintenanceEvent([
+                            'title' => $schedule->name,
+                            'event_type' => $schedule->event_type,
+                            'status' => 'pending',
+                            'line_id' => $schedule->line_id,
+                            'workstation_id' => $schedule->workstation_id,
+                            'schedule_id' => $schedule->id,
+                            'scheduled_at' => $scheduledAt,
+                            'scheduled_end_at' => $scheduledAt->copy()->addHour(),
+                            'description' => $schedule->description,
+                        ]);
+                        $virtual->setRelation('line', $schedule->line);
+                        $virtual->setRelation('workstation', $schedule->workstation);
+                        $maintenanceEvents->push($virtual);
+                    }
+                }
+                $cursor->addDays($intervalDays);
             }
         }
 
