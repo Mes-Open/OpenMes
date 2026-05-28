@@ -95,6 +95,10 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:5,1');
 });
 
+// 2FA challenge routes (no auth middleware — user is mid-login)
+Route::get('/2fa/challenge', [\App\Http\Controllers\Web\TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
+Route::post('/2fa/challenge', [\App\Http\Controllers\Web\TwoFactorChallengeController::class, 'verify'])->name('two-factor.verify')->middleware('throttle:5,1');
+
 // Authenticated routes
 Route::middleware('auth')->group(function () {
     // Logout
@@ -125,6 +129,11 @@ Route::middleware('auth')->group(function () {
         // Admin-only settings export/import
         Route::get('/export', [\App\Http\Controllers\Web\SettingsController::class, 'exportSettings'])->name('export')->middleware('role:Admin');
         Route::post('/import', [\App\Http\Controllers\Web\SettingsController::class, 'importSettings'])->name('import')->middleware('role:Admin');
+        // Two-Factor Authentication management
+        Route::get('/two-factor/enable', [\App\Http\Controllers\Web\TwoFactorController::class, 'enable'])->name('two-factor.enable');
+        Route::post('/two-factor/confirm', [\App\Http\Controllers\Web\TwoFactorController::class, 'confirm'])->name('two-factor.confirm');
+        Route::post('/two-factor/disable', [\App\Http\Controllers\Web\TwoFactorController::class, 'disable'])->name('two-factor.disable');
+        Route::post('/two-factor/recovery-codes', [\App\Http\Controllers\Web\TwoFactorController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery-codes');
         // PIN management
         Route::get('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'showPinForm'])->name('pin');
         Route::post('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'updatePin'])->name('update-pin');

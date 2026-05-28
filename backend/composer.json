@@ -18,6 +18,7 @@
         "maatwebsite/excel": "^3.1",
         "php-mqtt/client": "^2.0",
         "picqer/php-barcode-generator": "^3.2",
+        "pragmarx/google2fa-laravel": "^3.0",
         "spatie/laravel-permission": "^7.1"
     },
     "require-dev": {
