@@ -141,6 +141,48 @@ class WorkOrderController extends Controller
     }
 
     /**
+     * JSON endpoint for polling — returns current queue counts.
+     */
+    public function check(Request $request)
+    {
+        $lineId = $request->session()->get('selected_line_id');
+        if (!$lineId) {
+            return response()->json(['active' => 0, 'workstation' => 0]);
+        }
+
+        $activeCount = WorkOrder::where('line_id', $lineId)
+            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            ->count();
+
+        $workstationCount = 0;
+        $wsId = $request->session()->get('selected_workstation_id');
+        $settingRows = DB::table('system_settings')->get()->keyBy('key');
+        $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
+
+        if ($wsId && in_array($trackingMode, ['per_operation', 'hybrid'])) {
+            $workstationCount = WorkOrder::where('line_id', $lineId)
+                ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+                ->with('batches.steps')
+                ->get()
+                ->filter(function ($wo) use ($wsId) {
+                    foreach ($wo->batches as $batch) {
+                        $step = $batch->currentStep();
+                        if ($step && $step->workstation_id == $wsId) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })->count();
+        }
+
+        return response()->json([
+            'active' => $activeCount,
+            'workstation' => $workstationCount,
+            'timestamp' => now()->timestamp,
+        ]);
+    }
+
+    /**
      * Show work order detail page.
      */
     public function show(Request $request, WorkOrder $workOrder)

@@ -160,6 +160,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/select-line', [OperatorLineController::class, 'index'])->name('select-line');
         Route::post('/select-line', [OperatorLineController::class, 'select'])->name('select-line.post');
         Route::get('/queue', [OperatorWorkOrderController::class, 'queue'])->name('queue');
+        Route::get('/queue/check', [OperatorWorkOrderController::class, 'check'])->name('queue.check');
         Route::post('/work-order/{workOrder}/line-status', [OperatorWorkOrderController::class, 'updateLineStatus'])->name('work-order.line-status');
         Route::get('/work-order/{workOrder}', [OperatorWorkOrderController::class, 'show'])->name('work-order.detail');
         Route::post('/batch', [OperatorBatchController::class, 'store'])->name('batch.store');
@@ -171,6 +172,7 @@ Route::middleware('auth')->group(function () {
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
+        Route::get('/workstation/check', [OperatorWorkstationController::class, 'check'])->name('workstation.check');
         Route::post('/workstation/{workOrder}/start', [OperatorWorkstationController::class, 'start'])->name('workstation.start');
         Route::post('/workstation/{workOrder}/complete', [OperatorWorkstationController::class, 'complete'])->name('workstation.complete');
         Route::post('/workstation/{workOrder}/shift-entry', [OperatorWorkstationController::class, 'shiftEntry'])->name('workstation.shift-entry');

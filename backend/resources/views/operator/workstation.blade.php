@@ -531,6 +531,30 @@
 </div>
 
 <script>
+// ── Auto-refresh polling ──
+(function() {
+    let lastHash = '';
+    const POLL_INTERVAL = 5000;
+    const checkUrl = '{{ route("operator.workstation.check") }}' + ({{ $weekFilter ? "'" . $weekFilter . "'" : 'null' }} ? '?week={{ $weekFilter }}' : '');
+    // Initial hash fetch
+    fetch(checkUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json()).then(d => lastHash = d.hash).catch(() => {});
+    setInterval(async () => {
+        try {
+            const res = await fetch(checkUrl, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (lastHash && data.hash !== lastHash) {
+                lastHash = data.hash;
+                window.location.reload();
+            }
+            lastHash = data.hash;
+        } catch(e) {}
+    }, POLL_INTERVAL);
+})();
+
 function workstationView(allColumns, defaultVisible, lineId) {
     return {
         allColumns: allColumns,
