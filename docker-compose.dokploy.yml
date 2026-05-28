@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: mes-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mes}
+      POSTGRES_USER: ${POSTGRES_USER:-mes_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - mes_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mes_user} -d ${POSTGRES_DB:-mes}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mes-internal
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: mes-backend
+    environment:
+      APP_NAME: ${APP_NAME:-CheesecakeMES}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      APP_URL: ${APP_URL}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-mes}
+      DB_USERNAME: ${POSTGRES_USER:-mes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SESSION_DRIVER: cookie
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: file
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: warning
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - mes_storage:/var/www/html/storage
+      - mes_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - mes-internal
+      - dokploy-network
+
+volumes:
+  mes_postgres_data:
+  mes_storage:
+  mes_cache:
+
+networks:
+  mes-internal:
+    driver: bridge
+  dokploy-network:
+    external: true
