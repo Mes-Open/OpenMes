@@ -8,6 +8,7 @@ use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PackagingController extends Controller
 {
@@ -16,7 +17,7 @@ class PackagingController extends Controller
     public function station()
     {
         $scannerMode = json_decode(
-            \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'scanner_mode')->value('value') ?? '"hid"',
+            DB::table('system_settings')->where('key', 'scanner_mode')->value('value') ?? '"hid"',
             true
         ) ?? 'hid';
 

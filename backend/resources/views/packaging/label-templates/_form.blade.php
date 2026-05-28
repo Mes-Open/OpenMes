@@ -1,33 +1,4 @@
-@php
-    $fields = $template->fields_config ?? \App\Models\LabelTemplate::defaultFieldsFor($template->type ?? \App\Models\LabelTemplate::TYPE_WORK_ORDER);
-    $initialFields = [];
-    foreach (array_keys(\App\Models\LabelTemplate::AVAILABLE_FIELDS) as $key) {
-        $initialFields[$key] = (bool) old("fields.$key", $fields[$key] ?? false);
-    }
-    // Code type derived from individual fields. barcode wins over qr if (incorrectly) both set.
-    $initialCodeType = 'none';
-    if (!empty($initialFields['barcode'])) {
-        $initialCodeType = 'barcode';
-    } elseif (!empty($initialFields['qr'])) {
-        $initialCodeType = 'qr';
-    }
-    // Fields shown in the "Other fields" grid (exclude barcode/qr — handled separately).
-    $otherFields = collect(\App\Models\LabelTemplate::AVAILABLE_FIELDS)
-        ->except(['barcode', 'qr'])
-        ->toArray();
-
-    $previewInitial = [
-        'name'           => old('name', $template->name ?? ''),
-        'type'           => old('type', $template->type ?? \App\Models\LabelTemplate::TYPE_WORK_ORDER),
-        'size'           => old('size', $template->size ?? '100x50'),
-        'barcode_format' => old('barcode_format', $template->barcode_format ?? 'code128'),
-        'fields'         => $initialFields,
-        'code_type'      => $initialCodeType,
-    ];
-@endphp
-
 <div x-data="labelPreview({{ json_encode($previewInitial) }})"
-     x-init="init()"
      class="space-y-6">
 
 {{-- ── Basic info ── --}}
@@ -95,7 +66,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         @foreach([
-            'none'    => ['title' => __('No code'),       'desc' => __('Text only — for visual labels or stickers.')],
+            'none'    => ['title' => __('No code'),       'desc' => __('Text only - for visual labels or stickers.')],
             'barcode' => ['title' => __('Barcode (1D)'),  'desc' => __('Linear barcode (CODE 128 / EAN-13).')],
             'qr'      => ['title' => __('QR code'),       'desc' => __('2D QR code, scans from any angle.')],
         ] as $value => $opt)
@@ -393,16 +364,6 @@
 function labelPreview(initial) {
     return {
         data: initial,
-        init() {
-            // Keep individual barcode/qr field flags in sync with code_type.
-            this.$watch('data.code_type', (v) => {
-                this.data.fields.barcode = (v === 'barcode');
-                this.data.fields.qr      = (v === 'qr');
-            });
-            // Initial sync on load (in case backend state is inconsistent).
-            this.data.fields.barcode = (this.data.code_type === 'barcode');
-            this.data.fields.qr      = (this.data.code_type === 'qr');
-        },
         dims() {
             const parts = (this.data.size || '100x50').split('x');
             return {

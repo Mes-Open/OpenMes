@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', __('EAN Codes — Management'))
+@section('title', __('EAN Codes - Management'))
 
 @section('content')
 <div class="max-w-7xl mx-auto">
@@ -12,7 +12,7 @@
 
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ __('EAN Codes — Management') }}</h1>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ __('EAN Codes - Management') }}</h1>
             <p class="text-sm text-gray-500 mt-1">{{ __('Assign barcodes to work orders') }}</p>
         </div>
         <a href="{{ route('packaging.overview') }}" class="btn-touch btn-secondary">← {{ __('Packaging overview') }}</a>
@@ -32,7 +32,7 @@
             <div>
                 <label class="form-label">{{ __('Work order') }}</label>
                 <select name="work_order_id" class="form-input w-full" required>
-                    <option value="">— {{ __('select work order') }} —</option>
+                    <option value="">- {{ __('select work order') }} -</option>
                     @foreach($workOrders as $wo)
                         <option value="{{ $wo->id }}" @selected(old('work_order_id') == $wo->id)>
                             {{ $wo->order_no }}{{ $wo->productType ? ' — ' . $wo->productType->name : '' }}
