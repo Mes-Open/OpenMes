@@ -121,6 +121,39 @@ class SchedulePlannerController extends Controller
             ->orderBy('scheduled_at')
             ->get();
 
+        // Also show upcoming scheduled maintenance from recurring schedules
+        // (next_due_at falls within visible range but no event generated yet)
+        $upcomingSchedules = \App\Models\MaintenanceSchedule::with(['line', 'workstation'])
+            ->where('is_active', true)
+            ->whereNotNull('next_due_at')
+            ->where('next_due_at', '>=', $rangeStart)
+            ->where('next_due_at', '<=', $rangeEnd)
+            ->get();
+
+        // Create virtual maintenance events from schedules that don't have a matching event
+        foreach ($upcomingSchedules as $schedule) {
+            $hasEvent = $maintenanceEvents->contains(function ($e) use ($schedule) {
+                return $e->schedule_id === $schedule->id
+                    && $e->scheduled_at->format('Y-m-d') === $schedule->next_due_at->format('Y-m-d');
+            });
+            if (! $hasEvent) {
+                $virtual = new \App\Models\MaintenanceEvent([
+                    'title' => $schedule->name,
+                    'event_type' => $schedule->event_type,
+                    'status' => 'pending',
+                    'line_id' => $schedule->line_id,
+                    'workstation_id' => $schedule->workstation_id,
+                    'schedule_id' => $schedule->id,
+                    'scheduled_at' => $schedule->next_due_at,
+                    'scheduled_end_at' => $schedule->next_due_at->copy()->addHour(),
+                    'description' => $schedule->description,
+                ]);
+                $virtual->setRelation('line', $schedule->line);
+                $virtual->setRelation('workstation', $schedule->workstation);
+                $maintenanceEvents->push($virtual);
+            }
+        }
+
         // All lines for filter dropdown (unfiltered)
         $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
