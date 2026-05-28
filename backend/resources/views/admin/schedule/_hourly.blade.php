@@ -247,7 +247,7 @@
                         @endphp
                         @foreach($lineMaint as $maint)
                             @php
-                                $maintMinute = $maint->scheduled_at->diffInMinutes($startDate->copy()->startOfDay());
+                                $maintMinute = (int) $startDate->copy()->startOfDay()->diffInMinutes($maint->scheduled_at, false);
                                 $maintDuration = $maint->scheduled_end_at
                                     ? $maint->scheduled_at->diffInMinutes($maint->scheduled_end_at)
                                     : 60;
