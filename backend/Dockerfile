@@ -1,4 +1,4 @@
-FROM php:8.3-fpm-alpine
+FROM dunglas/frankenphp:php8.3-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -34,7 +34,7 @@ COPY backend/docker-php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /app
 
 # Copy application files
 COPY backend/ .
@@ -54,7 +54,7 @@ COPY backend/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache
 
 # Expose port
 EXPOSE 8000
@@ -62,5 +62,4 @@ EXPOSE 8000
 # Set entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-# Start Laravel development server
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+CMD ["frankenphp", "php-server", "--root", "/app/public", "--listen", "0.0.0.0:8000"]

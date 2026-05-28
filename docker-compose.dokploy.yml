@@ -36,6 +36,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SERVER_NAME: ":8000"
       SESSION_DRIVER: cookie
       QUEUE_CONNECTION: sync
       CACHE_STORE: file
@@ -47,8 +48,8 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - mes_storage:/var/www/html/storage
-      - mes_cache:/var/www/html/bootstrap/cache
+      - mes_storage:/app/storage
+      - mes_cache:/app/bootstrap/cache
     restart: unless-stopped
     networks:
       - mes-internal
