@@ -11,7 +11,7 @@
                     @endif
                 @else{{ route('login') }}
                 @endauth">
-                    <img src="/logo_open_mes.png" alt="OpenMES" class="h-8">
+                    <img src="/logo.svg" alt="{{ config('app.name') }}" class="h-8">
                 </a>
                 @if(session('selected_line_id'))
                     @php $selectedLine = \App\Models\Line::find(session('selected_line_id')); @endphp

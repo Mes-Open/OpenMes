@@ -1,6 +1,6 @@
 {
-    "name": "OpenMES",
-    "short_name": "OpenMES",
+    "name": "CheesecakeMES",
+    "short_name": "CheesecakeMES",
     "description": "Manufacturing Execution System",
     "start_url": "/",
     "display": "standalone",

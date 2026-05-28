@@ -4,12 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'OpenMES') }} - @yield('title', 'Manufacturing Execution System')</title>
+    <title>{{ config('app.name', 'CheesecakeMES') }} - @yield('title', 'Manufacturing Execution System')</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1e40af">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="OpenMES">
+    <meta name="apple-mobile-web-app-title" content="{{ config('app.name', 'CheesecakeMES') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -137,7 +137,7 @@
                     @else{{ route('operator.select-line') }}
                     @endif
                 @else{{ route('login') }}@endauth">
-                <img src="/logo_open_mes.png" alt="OpenMES" class="h-7">
+                <img src="/logo.svg" alt="{{ config('app.name') }}" class="h-7">
             </a>
             @auth @if(auth()->user()->hasAnyRole(['Admin','Supervisor']))
             <a href="{{ route('admin.alerts') }}" class="relative ml-auto p-2 text-gray-600 hover:text-red-600 transition-colors">
@@ -288,7 +288,7 @@ if ('serviceWorker' in navigator) {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
         </div>
-        <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Welcome to OpenMES!</h3>
+        <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Welcome to {{ config('app.name') }}!</h3>
         <p class="text-gray-600 dark:text-gray-300 mb-6">Looks like this is a fresh installation. Would you like to run the setup wizard? It takes about 2 minutes.</p>
         <div class="flex flex-col gap-3">
             <a href="{{ route('onboarding.step1') }}" class="btn-touch btn-primary w-full">Start Setup Wizard</a>
