@@ -1330,5 +1330,6 @@
     "Allowed Methods": "Dozwolone metody",
     "HTTP methods allowed for cross-origin requests. Default: GET, POST (minimal).": "Metody HTTP dozwolone dla żądań cross-origin. Domyślnie: GET, POST (minimalne).",
     "Preflight Cache (seconds)": "Cache preflight (sekundy)",
-    "How long browsers cache preflight responses. 0 = no caching (strictest).": "Jak długo przeglądarki cachują odpowiedzi preflight. 0 = brak cachowania (najsurowsze)."
+    "How long browsers cache preflight responses. 0 = no caching (strictest).": "Jak długo przeglądarki cachują odpowiedzi preflight. 0 = brak cachowania (najsurowsze).",
+    "Maintenance Reminder": "Przypomnienie o konserwacji"
 }

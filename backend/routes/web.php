@@ -100,6 +100,16 @@ Route::middleware('auth')->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    // Maintenance upcoming count (for reminder polling — all authenticated users)
+    Route::get('/maintenance/upcoming-count', function () {
+        $count = \App\Models\MaintenanceEvent::whereIn('status', ['pending', 'in_progress'])
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>=', now())
+            ->where('scheduled_at', '<=', now()->addHours(2))
+            ->count();
+        return response()->json(['count' => $count]);
+    })->name('maintenance.upcoming-count');
+
     // Settings
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Web\SettingsController::class, 'index'])->name('index');
