@@ -13,8 +13,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-5434}:5432"
     networks:
-      - mes-internal
+      - dokploy-network
 
   backend:
     build:
@@ -28,7 +30,7 @@ services:
       APP_KEY: ${APP_KEY}
       APP_URL: ${APP_URL}
       DB_CONNECTION: pgsql
-      DB_HOST: postgres
+      DB_HOST: mes-postgres
       DB_PORT: 5432
       DB_DATABASE: ${POSTGRES_DB:-mes}
       DB_USERNAME: ${POSTGRES_USER:-mes_user}
@@ -52,7 +54,6 @@ services:
       - mes_cache:/app/bootstrap/cache
     restart: unless-stopped
     networks:
-      - mes-internal
       - dokploy-network
 
 volumes:
@@ -61,7 +62,5 @@ volumes:
   mes_cache:
 
 networks:
-  mes-internal:
-    driver: bridge
   dokploy-network:
     external: true
