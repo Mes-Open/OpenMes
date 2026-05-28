@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 
-    <title>{{ config('app.name', 'CheesecakeMES') }} - @yield('title', 'Authentication')</title>
+    <title>{{ config('app.name', 'OpenMES') }} - @yield('title', 'Authentication')</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -14,7 +14,7 @@
     <div class="w-full max-w-md">
         <!-- Logo / Header -->
         <div class="text-center mb-8">
-            <img src="/logo.svg" alt="{{ config('app.name') }}" class="h-16 md:h-20 mx-auto mb-2">
+            <img src="/logo_open_mes.png" alt="OpenMES" class="h-16 md:h-20 mx-auto mb-2">
             <p class="text-gray-600 mt-2">Manufacturing Execution System</p>
         </div>
 
