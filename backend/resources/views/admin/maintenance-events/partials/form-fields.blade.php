@@ -106,11 +106,18 @@
     <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{{ __('When') }}</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-            <label class="form-label">{{ __('Scheduled at') }} <span class="text-red-500">*</span></label>
+            <label class="form-label">{{ __('Scheduled start') }} <span class="text-red-500">*</span></label>
             <input type="datetime-local" name="scheduled_at"
                    value="{{ old('scheduled_at', $event?->scheduled_at?->format('Y-m-d\TH:i')) }}"
                    class="form-input w-full" required>
             @error('scheduled_at') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div>
+            <label class="form-label">{{ __('Scheduled end') }}</label>
+            <input type="datetime-local" name="scheduled_end_at"
+                   value="{{ old('scheduled_end_at', $event?->scheduled_end_at?->format('Y-m-d\TH:i')) }}"
+                   class="form-input w-full">
+            @error('scheduled_end_at') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
         </div>
     </div>
 </section>

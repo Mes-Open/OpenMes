@@ -31,6 +31,7 @@ class MaintenanceEvent extends Model
         'cost_source_id',
         'assigned_to_id',
         'scheduled_at',
+        'scheduled_end_at',
         'started_at',
         'completed_at',
         'description',
@@ -42,8 +43,9 @@ class MaintenanceEvent extends Model
     protected function casts(): array
     {
         return [
-            'scheduled_at'  => 'datetime',
-            'started_at'    => 'datetime',
+            'scheduled_at'      => 'datetime',
+            'scheduled_end_at'  => 'datetime',
+            'started_at'        => 'datetime',
             'completed_at'  => 'datetime',
             'actual_cost'   => 'decimal:2',
         ];
