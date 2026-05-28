@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', __('Packaging — Overview'))
+@section('title', __('Packaging - Overview'))
 
 @section('content')
 <div class="max-w-7xl mx-auto">
@@ -11,8 +11,8 @@
 
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ __('Packaging — Overview') }}</h1>
-            <p class="text-sm text-gray-500 mt-1">{{ __('Current shift') }}: {{ (now()->hour >= 6 && now()->hour < 18) ? '06:00 – 18:00' : '18:00 – 06:00' }}</p>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ __('Packaging - Overview') }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ __('Current shift') }}: {{ (now()->hour >= 6 && now()->hour < 18) ? '06:00 - 18:00' : '18:00 - 06:00' }}</p>
         </div>
         <div class="flex gap-2">
             <a href="{{ route('packaging.station') }}" class="btn-touch btn-primary">

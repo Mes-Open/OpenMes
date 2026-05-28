@@ -30,7 +30,10 @@ class LabelTemplateController extends Controller
             'is_active' => true,
         ]);
 
-        return view('packaging.label-templates.create', compact('template'));
+        return view('packaging.label-templates.create', [
+            'template' => $template,
+            ...$this->formData($template),
+        ]);
     }
 
     public function store(Request $request)
@@ -49,7 +52,10 @@ class LabelTemplateController extends Controller
 
     public function edit(LabelTemplate $labelTemplate)
     {
-        return view('packaging.label-templates.edit', ['template' => $labelTemplate]);
+        return view('packaging.label-templates.edit', [
+            'template' => $labelTemplate,
+            ...$this->formData($labelTemplate),
+        ]);
     }
 
     public function update(Request $request, LabelTemplate $labelTemplate)
@@ -81,6 +87,44 @@ class LabelTemplateController extends Controller
 
         return redirect()->route('packaging.label-templates.index')
             ->with('success', __('Default template updated.'));
+    }
+
+    /**
+     * Build the view data the create/edit form needs: the resolved field
+     * toggles (honoring old() input), the derived code type, the non-code
+     * fields, and the initial state for the live Alpine preview.
+     */
+    private function formData(LabelTemplate $template): array
+    {
+        $fields = $template->fields_config
+            ?? LabelTemplate::defaultFieldsFor($template->type ?? LabelTemplate::TYPE_WORK_ORDER);
+
+        $initialFields = [];
+        foreach (array_keys(LabelTemplate::AVAILABLE_FIELDS) as $key) {
+            $initialFields[$key] = (bool) old("fields.$key", $fields[$key] ?? false);
+        }
+
+        // Code type derived from individual fields. barcode wins over qr if both set.
+        $codeType = 'none';
+        if (! empty($initialFields['barcode'])) {
+            $codeType = 'barcode';
+        } elseif (! empty($initialFields['qr'])) {
+            $codeType = 'qr';
+        }
+
+        return [
+            'otherFields' => collect(LabelTemplate::AVAILABLE_FIELDS)
+                ->except(['barcode', 'qr'])
+                ->toArray(),
+            'previewInitial' => [
+                'name' => old('name', $template->name ?? ''),
+                'type' => old('type', $template->type ?? LabelTemplate::TYPE_WORK_ORDER),
+                'size' => old('size', $template->size ?? '100x50'),
+                'barcode_format' => old('barcode_format', $template->barcode_format ?? 'code128'),
+                'fields' => $initialFields,
+                'code_type' => $codeType,
+            ],
+        ];
     }
 
     private function validateRequest(Request $request): array

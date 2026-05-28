@@ -528,7 +528,7 @@ function packagingStation(scannerMode) {
                         packed_qty:  wo.packed_qty,
                         planned_qty: wo.planned_qty,
                         progress:    wo.planned_qty > 0 ? Math.min(100, Math.round(wo.packed_qty / wo.planned_qty * 100)) : 0,
-                        scanned_at:  new Date().toLocaleTimeString('pl-PL'),
+                        scanned_at:  new Date().toLocaleTimeString(),
                     };
                     this.flash = 'success';
                     await Promise.all([this.fetchItems(), this.fetchStats()]);
@@ -536,10 +536,10 @@ function packagingStation(scannerMode) {
                         id: Date.now(),
                         ean: ean,
                         product_name: wo.product,
-                        scanned_at: new Date().toLocaleTimeString('pl-PL'),
+                        scanned_at: new Date().toLocaleTimeString(),
                     });
                 } else {
-                    this.lastScan = { success: false, ean, error: data.message, scanned_at: new Date().toLocaleTimeString('pl-PL') };
+                    this.lastScan = { success: false, ean, error: data.message, scanned_at: new Date().toLocaleTimeString() };
                     this.flash = 'error';
                 }
             } catch {

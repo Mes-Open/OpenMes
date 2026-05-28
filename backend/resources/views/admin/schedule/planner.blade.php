@@ -204,12 +204,20 @@
                 const data = { line_id: this.assignLineId };
                 if (this.assignDate) {
                     data.due_date = this.assignDate;
-                    // Also update planned_start_at/planned_end_at to match the target date
-                    // so the WO appears on the correct day in minute-level views
-                    const shiftHours = {1: 0, 2: 6, 3: 12, 4: 18};
-                    const startHour = shiftHours[this.assignShift] ?? 8;
-                    data.planned_start_at = this.assignDate + 'T' + String(startHour).padStart(2, '0') + ':00:00';
-                    data.planned_end_at = this.assignDate + 'T' + String(startHour + 6).padStart(2, '0') + ':00:00';
+                    // Derive planned_start_at/planned_end_at from the shift slot so the
+                    // WO lands at the right time in minute-level views. The day is split
+                    // into `shiftsPerDay` equal slots, matching the planner grid columns.
+                    const shiftsPerDay = {{ (int) $shiftsPerDay }};
+                    const slotMinutes = Math.round(24 * 60 / shiftsPerDay);
+                    const shiftIndex = this.assignShift ? parseInt(this.assignShift) - 1 : 0;
+                    const toIso = (offsetMinutes) => {
+                        const d = new Date(this.assignDate + 'T00:00:00');
+                        d.setMinutes(d.getMinutes() + offsetMinutes);
+                        const p = (n) => String(n).padStart(2, '0');
+                        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+                    };
+                    data.planned_start_at = toIso(shiftIndex * slotMinutes);
+                    data.planned_end_at = toIso((shiftIndex + 1) * slotMinutes);
                 }
                 if (this.assignWeekNumber) data.week_number = this.assignWeekNumber;
                 if (this.assignShift) data.shift_number = this.assignShift;
