@@ -162,6 +162,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/material-lots/{materialLot}/genealogy/backward', [MaterialLotController::class, 'backwardGenealogy']);
     Route::post('/material-lots/{materialLot}/consume', [MaterialLotController::class, 'consume']);
 
+    // Per-unit (serial) genealogy
+    Route::get('/serial-units', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'index']);
+    Route::get('/serial-units/{serialUnit}', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'show']);
+    Route::post('/serial-units', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'store']);
+    Route::post('/serial-units/{serialUnit}/steps', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'recordStep']);
+
     // OEE & Downtimes — accessible by all authenticated users (operators need to report)
     Route::get('/downtime-reasons', [ApiOeeController::class, 'reasons']);
     Route::get('/downtimes', [ApiOeeController::class, 'downtimes']);

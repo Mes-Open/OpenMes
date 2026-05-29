@@ -51,6 +51,7 @@ class MaterialLot extends Model
         'supplier_lot_no',
         'supplier_reference',
         'inspection_id',
+        'source_batch_id',
         'created_by_id',
         'tenant_id',
         'extra_data',
@@ -83,6 +84,15 @@ class MaterialLot extends Model
     public function inspection(): BelongsTo
     {
         return $this->belongsTo(Inspection::class);
+    }
+
+    /**
+     * The batch that produced this lot (for semi-finished / multi-stage lots).
+     * Null for inbound raw lots received from a supplier.
+     */
+    public function sourceBatch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class, 'source_batch_id');
     }
 
     public function createdBy(): BelongsTo

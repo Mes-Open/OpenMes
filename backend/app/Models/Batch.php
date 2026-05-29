@@ -104,6 +104,15 @@ class Batch extends Model
     }
 
     /**
+     * Material lots produced by this batch (semi-finished / multi-stage output).
+     * The inverse of MaterialLot::sourceBatch().
+     */
+    public function outputLots(): HasMany
+    {
+        return $this->hasMany(MaterialLot::class, 'source_batch_id');
+    }
+
+    /**
      * Get the current (in progress or next pending) step.
      */
     public function currentStep()
