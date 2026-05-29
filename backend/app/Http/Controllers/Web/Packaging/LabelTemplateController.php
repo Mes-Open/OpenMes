@@ -6,31 +6,33 @@ use App\Http\Controllers\Controller;
 use App\Models\LabelTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class LabelTemplateController extends Controller
 {
     public function index()
     {
-        $templates = LabelTemplate::query()
-            ->orderBy('type')
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
+        return Inertia::render('packaging/label-templates/Index', [
+            'typeLabels' => LabelTemplate::TYPES,
+        ]);
+    }
 
-        return view('packaging.label-templates.index', compact('templates'));
+    /** Option maps shared by the create/edit forms. */
+    private function formData(): array
+    {
+        return [
+            'types' => LabelTemplate::TYPES,
+            'sizes' => LabelTemplate::SIZES,
+            'barcodeFormats' => LabelTemplate::BARCODE_FORMATS,
+            'availableFields' => LabelTemplate::AVAILABLE_FIELDS,
+        ];
     }
 
     public function create()
     {
-        $template = new LabelTemplate([
-            'type' => LabelTemplate::TYPE_WORK_ORDER,
-            'size' => '100x50',
-            'barcode_format' => 'code128',
-            'fields_config' => LabelTemplate::defaultFieldsFor(LabelTemplate::TYPE_WORK_ORDER),
-            'is_active' => true,
-        ]);
-
-        return view('packaging.label-templates.create', compact('template'));
+        return Inertia::render('packaging/label-templates/Create', array_merge($this->formData(), [
+            'defaultFields' => LabelTemplate::defaultFieldsFor(LabelTemplate::TYPE_WORK_ORDER),
+        ]));
     }
 
     public function store(Request $request)
@@ -49,7 +51,9 @@ class LabelTemplateController extends Controller
 
     public function edit(LabelTemplate $labelTemplate)
     {
-        return view('packaging.label-templates.edit', ['template' => $labelTemplate]);
+        return Inertia::render('packaging/label-templates/Edit', array_merge($this->formData(), [
+            'template' => $labelTemplate->only('id', 'name', 'type', 'size', 'barcode_format', 'fields_config', 'is_default', 'is_active'),
+        ]));
     }
 
     public function update(Request $request, LabelTemplate $labelTemplate)

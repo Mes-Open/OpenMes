@@ -106,21 +106,21 @@ class SystemLogController extends Controller
         $entries = $this->readLogFile($date, $level, $search);
         $availableDates = $this->listLogDates();
 
-        return view('admin.logs.system', [
-            'tab' => 'app',
-            'entries' => $entries,
+        return \Inertia\Inertia::render('admin/logs/System', [
+            'tab'            => 'app',
+            'entries'        => $entries->values(),
             'availableDates' => $availableDates,
-            'date' => $date,
-            'level' => $level,
-            'search' => $search,
+            'date'           => $date->format('Y-m-d'),
+            'level'          => $level ?? '',
+            'search'         => $search ?? '',
         ]);
     }
 
     private function renderFailedJobsTab(Request $request)
     {
         if (! Schema::hasTable('failed_jobs')) {
-            return view('admin.logs.system', [
-                'tab' => 'failed_jobs',
+            return \Inertia\Inertia::render('admin/logs/System', [
+                'tab'     => 'failed_jobs',
                 'entries' => new LengthAwarePaginator([], 0, self::PER_PAGE),
                 'missing' => true,
             ]);
@@ -131,8 +131,8 @@ class SystemLogController extends Controller
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
-        return view('admin.logs.system', [
-            'tab' => 'failed_jobs',
+        return \Inertia\Inertia::render('admin/logs/System', [
+            'tab'     => 'failed_jobs',
             'entries' => $entries,
             'missing' => false,
         ]);
@@ -145,8 +145,8 @@ class SystemLogController extends Controller
         // TODO: once the system_updates table lands (updater v0.12+ schema), surface
         // the deployment history here instead of the info card.
         if (! Schema::hasTable('system_updates')) {
-            return view('admin.logs.system', [
-                'tab' => 'deployments',
+            return \Inertia\Inertia::render('admin/logs/System', [
+                'tab'     => 'deployments',
                 'entries' => new LengthAwarePaginator([], 0, self::PER_PAGE),
                 'missing' => true,
             ]);
@@ -157,8 +157,8 @@ class SystemLogController extends Controller
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
-        return view('admin.logs.system', [
-            'tab' => 'deployments',
+        return \Inertia\Inertia::render('admin/logs/System', [
+            'tab'     => 'deployments',
             'entries' => $entries,
             'missing' => false,
         ]);

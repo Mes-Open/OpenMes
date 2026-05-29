@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PackagingEanController extends Controller
 {
@@ -19,7 +20,9 @@ class PackagingEanController extends Controller
             ->paginate(30)
             ->withQueryString();
 
-        return view('packaging.eans.index', compact('workOrders'));
+        return Inertia::render('packaging/eans/Index', [
+            'workOrders' => $workOrders,
+        ]);
     }
 
     public function store(Request $request)

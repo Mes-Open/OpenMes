@@ -7,6 +7,7 @@ use App\Models\Line;
 use App\Models\Shift;
 use App\Models\WorkOrder;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ScheduleController extends Controller
 {
@@ -49,15 +50,28 @@ class ScheduleController extends Controller
         // Days of the week for the schedule header
         $days = collect(range(0, 6))->map(fn($i) => $weekStart->copy()->addDays($i));
 
-        return view('admin.schedule.index', compact(
-            'workOrders',
-            'byLine',
-            'lines',
-            'days',
-            'weekStart',
-            'weekEnd',
-            'lineId',
-            'currentShift',
-        ));
+        return Inertia::render('admin/schedule/Index', [
+            'workOrders' => $workOrders->map(fn ($wo) => [
+                'id'          => $wo->id,
+                'order_no'    => $wo->order_no,
+                'product_name'=> $wo->productType?->name,
+                'line_id'     => $wo->line_id,
+                'due_date'    => $wo->due_date?->format('Y-m-d'),
+                'planned_qty' => $wo->planned_qty,
+                'status'      => $wo->status,
+                'priority'    => $wo->priority,
+            ])->values(),
+            'byLine'       => $byLine->keys()->all(),
+            'lines'        => $lines->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'code' => $l->code])->values(),
+            'days'         => $days->map(fn ($d) => $d->format('Y-m-d'))->values(),
+            'weekStart'    => $weekStart->toIso8601String(),
+            'weekEnd'      => $weekEnd->toIso8601String(),
+            'lineId'       => $lineId,
+            'currentShift' => $currentShift ? [
+                'name'       => $currentShift->name,
+                'start_time' => $currentShift->start_time,
+                'end_time'   => $currentShift->end_time,
+            ] : null,
+        ]);
     }
 }

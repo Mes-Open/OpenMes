@@ -1,0 +1,277 @@
+import { useState } from 'react';
+import { useForm } from '@inertiajs/react';
+
+/**
+ * Shared create/edit form for MachineConnection (protocol=mqtt) + MqttConnection config.
+ *
+ * Props:
+ *   action       — POST/PUT URL
+ *   method       — 'post' | 'put'
+ *   submitLabel  — button text
+ *   cancelHref   — cancel link URL
+ *   connection   — existing MachineConnection (edit mode); null for create
+ *   onDelete     — optional callback for delete button (edit mode only)
+ */
+export default function MqttConnectionForm({ action, method, submitLabel, cancelHref, connection = null, onDelete }) {
+    const mqtt = connection?.mqtt ?? null;
+
+    const form = useForm({
+        name:                    connection?.name ?? '',
+        description:             connection?.description ?? '',
+        is_active:               connection?.is_active ?? false,
+        broker_host:             mqtt?.broker_host ?? '',
+        broker_port:             String(mqtt?.broker_port ?? 1883),
+        client_id:               mqtt?.client_id ?? '',
+        username:                mqtt?.username ?? '',
+        password:                '',
+        use_tls:                 mqtt?.use_tls ?? false,
+        ca_cert:                 mqtt?.ca_cert ?? '',
+        qos_default:             String(mqtt?.qos_default ?? 0),
+        keep_alive_seconds:      String(mqtt?.keep_alive_seconds ?? 60),
+        connect_timeout:         String(mqtt?.connect_timeout ?? 10),
+        reconnect_delay_seconds: String(mqtt?.reconnect_delay_seconds ?? 5),
+        clean_session:           mqtt?.clean_session ?? true,
+    });
+
+    const { data, setData, errors, processing } = form;
+
+    const submit = (e) => {
+        e.preventDefault();
+        form.submit(method, action);
+    };
+
+    return (
+        <form onSubmit={submit} className="space-y-6">
+            {/* General */}
+            <Section title="General">
+                <Field label="Name" required error={errors.name}>
+                    <input
+                        type="text"
+                        value={data.name}
+                        onChange={(e) => setData('name', e.target.value)}
+                        required
+                        className="form-input w-full"
+                    />
+                </Field>
+                <Field label="Description" error={errors.description}>
+                    <textarea
+                        value={data.description}
+                        onChange={(e) => setData('description', e.target.value)}
+                        rows={2}
+                        className="form-input w-full"
+                    />
+                </Field>
+                <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <input
+                        type="checkbox"
+                        checked={data.is_active}
+                        onChange={(e) => setData('is_active', e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Active (start listening on daemon start)
+                </label>
+            </Section>
+
+            {/* Broker */}
+            <Section title="Broker">
+                <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-2">
+                        <Field label="Host" required error={errors.broker_host}>
+                            <input
+                                type="text"
+                                value={data.broker_host}
+                                onChange={(e) => setData('broker_host', e.target.value)}
+                                placeholder="broker.example.com"
+                                required
+                                className="form-input w-full font-mono"
+                            />
+                        </Field>
+                    </div>
+                    <div>
+                        <Field label="Port" required error={errors.broker_port}>
+                            <input
+                                type="number"
+                                value={data.broker_port}
+                                onChange={(e) => setData('broker_port', e.target.value)}
+                                min="1"
+                                max="65535"
+                                required
+                                className="form-input w-full font-mono"
+                            />
+                        </Field>
+                    </div>
+                </div>
+                <Field label="Client ID" error={errors.client_id}>
+                    <input
+                        type="text"
+                        value={data.client_id}
+                        onChange={(e) => setData('client_id', e.target.value)}
+                        placeholder="Auto-generated if empty"
+                        className="form-input w-full font-mono"
+                    />
+                </Field>
+            </Section>
+
+            {/* Authentication */}
+            <Section title="Authentication">
+                <div className="grid grid-cols-2 gap-4">
+                    <Field label="Username" error={errors.username}>
+                        <input
+                            type="text"
+                            value={data.username}
+                            onChange={(e) => setData('username', e.target.value)}
+                            autoComplete="off"
+                            className="form-input w-full"
+                        />
+                    </Field>
+                    <Field
+                        label={
+                            <>
+                                Password
+                                {mqtt?.has_password && (
+                                    <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1">(leave blank to keep current)</span>
+                                )}
+                            </>
+                        }
+                        error={errors.password}
+                    >
+                        <input
+                            type="password"
+                            value={data.password}
+                            onChange={(e) => setData('password', e.target.value)}
+                            autoComplete="new-password"
+                            className="form-input w-full"
+                        />
+                    </Field>
+                </div>
+            </Section>
+
+            {/* TLS */}
+            <Section title="TLS / Security">
+                <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <input
+                        type="checkbox"
+                        checked={data.use_tls}
+                        onChange={(e) => setData('use_tls', e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Enable TLS (port 8883)
+                </label>
+                {data.use_tls && (
+                    <Field label="CA Certificate (PEM)" error={errors.ca_cert}>
+                        <textarea
+                            value={data.ca_cert}
+                            onChange={(e) => setData('ca_cert', e.target.value)}
+                            rows={4}
+                            placeholder="-----BEGIN CERTIFICATE-----"
+                            className="form-input w-full text-xs font-mono"
+                        />
+                    </Field>
+                )}
+            </Section>
+
+            {/* Advanced */}
+            <Section title="Advanced">
+                <div className="grid grid-cols-2 gap-4">
+                    <Field label="QoS default" error={errors.qos_default}>
+                        <select
+                            value={data.qos_default}
+                            onChange={(e) => setData('qos_default', e.target.value)}
+                            className="form-input w-full"
+                        >
+                            <option value="0">QoS 0 — At most once</option>
+                            <option value="1">QoS 1 — At least once</option>
+                            <option value="2">QoS 2 — Exactly once</option>
+                        </select>
+                    </Field>
+                    <Field label="Keep-alive (seconds)" error={errors.keep_alive_seconds}>
+                        <input
+                            type="number"
+                            value={data.keep_alive_seconds}
+                            onChange={(e) => setData('keep_alive_seconds', e.target.value)}
+                            min="5"
+                            max="3600"
+                            className="form-input w-full"
+                        />
+                    </Field>
+                    <Field label="Connect timeout (seconds)" error={errors.connect_timeout}>
+                        <input
+                            type="number"
+                            value={data.connect_timeout}
+                            onChange={(e) => setData('connect_timeout', e.target.value)}
+                            min="1"
+                            max="120"
+                            className="form-input w-full"
+                        />
+                    </Field>
+                    <Field label="Reconnect delay (seconds)" error={errors.reconnect_delay_seconds}>
+                        <input
+                            type="number"
+                            value={data.reconnect_delay_seconds}
+                            onChange={(e) => setData('reconnect_delay_seconds', e.target.value)}
+                            min="1"
+                            max="300"
+                            className="form-input w-full"
+                        />
+                    </Field>
+                </div>
+                <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <input
+                        type="checkbox"
+                        checked={data.clean_session}
+                        onChange={(e) => setData('clean_session', e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Clean session (recommended for stateless connections)
+                </label>
+            </Section>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+                <button
+                    type="submit"
+                    disabled={processing}
+                    className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                    {processing ? 'Saving…' : submitLabel}
+                </button>
+                <a
+                    href={cancelHref}
+                    className="px-5 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                    Cancel
+                </a>
+                {onDelete && (
+                    <button
+                        type="button"
+                        onClick={onDelete}
+                        className="ml-auto px-5 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                    >
+                        Delete Connection
+                    </button>
+                )}
+            </div>
+        </form>
+    );
+}
+
+function Section({ title, children }) {
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{title}</h2>
+            {children}
+        </div>
+    );
+}
+
+function Field({ label, required, error, children }) {
+    return (
+        <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            {children}
+            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        </div>
+    );
+}

@@ -7,6 +7,7 @@ use App\Models\Area;
 use App\Models\Site;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class AreaController extends Controller
 {
@@ -17,32 +18,22 @@ class AreaController extends Controller
      */
     public function index(Request $request, ?Site $site = null)
     {
-        $query = Area::with('site')
-            ->withCount('lines')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = \App\Models\Area::withCount('lines')->get(['id'])->mapWithKeys(fn ($a) => [$a->id => $a->lines_count]);
+        $siteNames = \App\Models\Site::pluck('name', 'id');
 
-        if ($site && $site->exists) {
-            $query->where('site_id', $site->id);
-        }
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        $areas = $query->paginate(25)->withQueryString();
-        $sites = Site::active()->orderBy('name')->get();
-
-        return view('admin.areas.index', compact('areas', 'sites', 'site'));
+        return Inertia::render('admin/areas/Index', [
+            'counts' => $counts,
+            'siteNames' => $siteNames,
+        ]);
     }
 
     public function create(?Site $site = null)
     {
-        $sites = Site::active()->orderBy('name')->get();
-        return view('admin.areas.create', compact('sites', 'site'));
+        $sites = \App\Models\Site::active()->orderBy('name')->get(['id', 'name']);
+
+        return Inertia::render('admin/areas/Create', [
+            'sites' => $sites,
+        ]);
     }
 
     public function store(Request $request, ?Site $site = null)
@@ -77,13 +68,28 @@ class AreaController extends Controller
             },
         ]);
 
-        return view('admin.areas.show', compact('area'));
+        return Inertia::render('admin/areas/Show', [
+            'area' => array_merge(
+                $area->only('id', 'code', 'name', 'description', 'is_active'),
+                [
+                    'site' => $area->site ? $area->site->only('id', 'name') : null,
+                    'lines' => $area->lines->map(fn ($l) => array_merge(
+                        $l->only('id', 'code', 'name', 'is_active'),
+                        ['workstations_count' => $l->workstations_count],
+                    )),
+                ],
+            ),
+        ]);
     }
 
     public function edit(Area $area)
     {
-        $sites = Site::active()->orderBy('name')->get();
-        return view('admin.areas.edit', compact('area', 'sites'));
+        $sites = \App\Models\Site::active()->orderBy('name')->get(['id', 'name']);
+
+        return Inertia::render('admin/areas/Edit', [
+            'area' => $area->only('id', 'site_id', 'code', 'name', 'description', 'is_active'),
+            'sites' => $sites,
+        ]);
     }
 
     public function update(Request $request, Area $area)

@@ -9,6 +9,7 @@ use App\Models\Shift;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderShiftEntry;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class WorkstationController extends Controller
 {
@@ -85,10 +86,16 @@ class WorkstationController extends Controller
         $qtyEditPolicy = json_decode($settingRows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none';
         $qtyEditWindowMinutes = json_decode($settingRows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1;
 
-        return view('operator.workstation', compact(
+        // Active label templates (by type) for the React label-print menu —
+        // 1:1 with the old workstation Blade's "Print label" button.
+        $labelTemplates = \App\Models\LabelTemplate::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'type', 'size', 'barcode_format', 'is_default']);
+
+        return Inertia::render('operator/Workstation', compact(
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
             'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode',
-            'qtyEditPolicy', 'qtyEditWindowMinutes'
+            'qtyEditPolicy', 'qtyEditWindowMinutes', 'labelTemplates'
         ));
     }
 

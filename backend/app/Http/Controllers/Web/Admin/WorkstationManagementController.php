@@ -7,6 +7,7 @@ use App\Models\Line;
 use App\Models\Worker;
 use App\Models\Workstation;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class WorkstationManagementController extends Controller
 {
@@ -20,7 +21,16 @@ class WorkstationManagementController extends Controller
             ->orderBy('code')
             ->get();
 
-        return view('admin.workstations.index', compact('line', 'workstations'));
+        return Inertia::render('admin/workstations/Index', [
+            'line' => $line->only('id', 'name', 'code'),
+            'workstations' => $workstations->map(fn ($ws) => array_merge(
+                $ws->only('id', 'code', 'name', 'workstation_type', 'is_active'),
+                [
+                    'template_steps_count' => $ws->template_steps_count,
+                    'workers_count'        => $ws->workers_count,
+                ]
+            ))->values(),
+        ]);
     }
 
     /**
@@ -28,7 +38,9 @@ class WorkstationManagementController extends Controller
      */
     public function create(Line $line)
     {
-        return view('admin.workstations.create', compact('line'));
+        return Inertia::render('admin/workstations/Create', [
+            'line' => $line->only('id', 'name', 'code'),
+        ]);
     }
 
     /**
@@ -61,9 +73,20 @@ class WorkstationManagementController extends Controller
             abort(404);
         }
 
-        $workers = Worker::active()->orderBy('name')->with('workstation')->get();
+        $workers = Worker::active()->orderBy('name')->with(['workstation', 'crew'])->get();
 
-        return view('admin.workstations.edit', compact('line', 'workstation', 'workers'));
+        return Inertia::render('admin/workstations/Edit', [
+            'line'        => $line->only('id', 'name', 'code'),
+            'workstation' => $workstation->only('id', 'code', 'name', 'workstation_type', 'is_active'),
+            'workers'     => $workers->map(fn ($w) => [
+                'id'               => $w->id,
+                'name'             => $w->name,
+                'code'             => $w->code,
+                'workstation_id'   => $w->workstation_id,
+                'workstation_name' => $w->workstation?->name,
+                'crew_name'        => $w->crew?->name,
+            ])->values(),
+        ]);
     }
 
     /**

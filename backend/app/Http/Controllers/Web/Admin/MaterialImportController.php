@@ -9,6 +9,7 @@ use App\Models\Material;
 use App\Models\MaterialType;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class MaterialImportController extends Controller
@@ -21,7 +22,11 @@ class MaterialImportController extends Controller
         $materialTypes = MaterialType::orderBy('name')->get();
         $recentCount = Material::where('last_stock_sync_at', '>=', now()->subDay())->count();
 
-        return view('admin.materials.import', compact('materialTypes', 'recentCount'));
+        return Inertia::render('admin/materials/Import', [
+            'materialTypes' => $materialTypes,
+            'recentCount'   => $recentCount,
+            'import_result' => session('import_result'),
+        ]);
     }
 
     /**
@@ -42,10 +47,15 @@ class MaterialImportController extends Controller
         $importStrategy = $request->import_strategy;
         $externalSystem = $request->input('external_system', '');
 
-        return view('admin.materials.import-mapping', compact(
-            'headers', 'previewRows', 'totalRows',
-            'path', 'systemFields', 'importStrategy', 'externalSystem'
-        ));
+        return Inertia::render('admin/materials/ImportMapping', [
+            'headers'        => $headers,
+            'previewRows'    => $previewRows,
+            'totalRows'      => $totalRows,
+            'path'           => $path,
+            'systemFields'   => $systemFields,
+            'importStrategy' => $importStrategy,
+            'externalSystem' => $externalSystem,
+        ]);
     }
 
     /**

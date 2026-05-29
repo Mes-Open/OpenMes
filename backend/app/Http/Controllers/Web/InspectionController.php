@@ -10,6 +10,7 @@ use App\Services\Quality\DispositionService;
 use App\Services\Quality\InboundInspectionService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class InspectionController extends Controller
 {
@@ -43,14 +44,21 @@ class InspectionController extends Controller
 
         $selectedDisposition = $request->query('disposition');
 
-        return view('inspections.index', compact('inspections', 'tab', 'stats', 'selectedDisposition'));
+        return Inertia::render('inspections/Index', [
+            'inspections' => $inspections->map(fn ($i) => array_merge($i->toArray(), [
+                'started_at_formatted' => $i->started_at?->format('Y-m-d H:i'),
+            ])),
+            'tab' => $tab,
+            'stats' => $stats,
+            'selectedDisposition' => $selectedDisposition,
+        ]);
     }
 
     public function create()
     {
-        return view('inspections.create', [
-            'materials' => Material::orderBy('name')->get(),
-            'plans' => InspectionPlan::active()->orderBy('name')->get(),
+        return Inertia::render('inspections/Create', [
+            'materials' => Material::orderBy('name')->get(['id', 'code', 'name']),
+            'plans' => InspectionPlan::active()->orderBy('name')->with(['material:id,name', 'materialType:id,name'])->get(),
         ]);
     }
 
@@ -84,8 +92,8 @@ class InspectionController extends Controller
 
     public function show(Inspection $inspection)
     {
-        return view('inspections.show', [
-            'inspection' => $inspection->load(['results', 'material', 'plan', 'inspector', 'issue']),
+        return Inertia::render('inspections/Show', [
+            'inspection' => $inspection->load(['results', 'material', 'plan', 'inspector', 'issue', 'dispositionBy']),
         ]);
     }
 

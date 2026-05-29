@@ -5,21 +5,24 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\IntegrationConfig;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class IntegrationConfigController extends Controller
 {
     public function index()
     {
-        $configs = IntegrationConfig::withCount('materialSources')
-            ->orderBy('system_name')
-            ->get();
+        $counts = IntegrationConfig::withCount('materialSources')
+            ->get(['id'])
+            ->mapWithKeys(fn ($r) => [$r->id => $r->material_sources_count]);
 
-        return view('admin.integrations.index', compact('configs'));
+        return Inertia::render('admin/integrations/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     public function create()
     {
-        return view('admin.integrations.create');
+        return Inertia::render('admin/integrations/Create');
     }
 
     public function store(Request $request)
@@ -40,7 +43,9 @@ class IntegrationConfigController extends Controller
 
     public function edit(IntegrationConfig $integration)
     {
-        return view('admin.integrations.edit', compact('integration'));
+        return Inertia::render('admin/integrations/Edit', [
+            'integration' => $integration->only('id', 'system_type', 'system_name', 'is_active'),
+        ]);
     }
 
     public function update(Request $request, IntegrationConfig $integration)

@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Illuminate\Http\Request;
+use Inertia\Middleware;
+
+class HandleInertiaRequests extends Middleware
+{
+    protected $rootView = 'inertia';
+
+    public function version(Request $request): ?string
+    {
+        return parent::version($request);
+    }
+
+    public function share(Request $request): array
+    {
+        $user = $request->user();
+
+        return [
+            ...parent::share($request),
+            'auth' => [
+                'user' => $user ? [
+                    ...$user->only('id', 'name', 'username', 'email'),
+                    'roles' => $user->getRoleNames(),
+                    'initial' => mb_strtoupper(mb_substr($user->name, 0, 1)),
+                ] : null,
+            ],
+            // Nav chrome needs the alert badge and a CSRF token for the
+            // logout form. Lazy closures so they only run when a page renders.
+            'nav' => [
+                'alertCount' => fn () => $this->alertCount($user),
+            ],
+            'csrf_token' => fn () => csrf_token(),
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
+            ],
+        ];
+    }
+
+    private function alertCount($user): int
+    {
+        if (! $user || ! $user->hasAnyRole(['Admin', 'Supervisor'])) {
+            return 0;
+        }
+
+        try {
+            return \App\Http\Controllers\Web\Admin\AlertController::totalCount();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+}

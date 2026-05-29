@@ -13,19 +13,24 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 
 class UserManagementController extends Controller
 {
     /**
-     * Display a listing of users
+     * Display a listing of users. Rows live-sync via the `users` shape (safe
+     * columns only); role + workstation names come as props keyed by id.
      */
     public function index()
     {
-        $users = User::with(['roles', 'workstation', 'worker'])->orderBy('created_at', 'desc')->get();
-        $roles = Role::all();
+        $users = User::with('roles')->get(['id']);
 
-        return view('admin.users.index', compact('users', 'roles'));
+        return Inertia::render('admin/users/Index', [
+            'userRoles' => $users->mapWithKeys(fn ($u) => [$u->id => $u->roles->pluck('name')->first()]),
+            'workstationNames' => Workstation::pluck('name', 'id'),
+            'currentUserId' => auth()->id(),
+        ]);
     }
 
     /**
@@ -33,13 +38,20 @@ class UserManagementController extends Controller
      */
     public function create()
     {
-        $roles = Role::all();
-        $workstations = Workstation::with('line')->orderBy('name')->get();
-        $crews = Crew::active()->orderBy('name')->get();
-        $wageGroups = WageGroup::active()->orderBy('name')->get();
-        $skills = Skill::orderBy('name')->get();
+        return Inertia::render('admin/users/Create', $this->formData());
+    }
 
-        return view('admin.users.create', compact('roles', 'workstations', 'crews', 'wageGroups', 'skills'));
+    /** Shared option lists for the create/edit forms. */
+    private function formData(): array
+    {
+        return [
+            'roles' => Role::orderBy('name')->pluck('name'),
+            'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(['id', 'name', 'line_id'])
+                ->map(fn ($w) => ['id' => $w->id, 'name' => $w->line ? "{$w->name} ({$w->line->name})" : $w->name]),
+            'crews' => Crew::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'wageGroups' => WageGroup::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'skills' => Skill::orderBy('name')->get(['id', 'name']),
+        ];
     }
 
     /**
@@ -112,13 +124,26 @@ class UserManagementController extends Controller
     public function edit(User $user)
     {
         $user->load('worker.skills');
-        $roles = Role::all();
-        $workstations = Workstation::with('line')->orderBy('name')->get();
-        $crews = Crew::active()->orderBy('name')->get();
-        $wageGroups = WageGroup::active()->orderBy('name')->get();
-        $skills = Skill::orderBy('name')->get();
 
-        return view('admin.users.edit', compact('user', 'roles', 'workstations', 'crews', 'wageGroups', 'skills'));
+        return Inertia::render('admin/users/Edit', array_merge($this->formData(), [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'email' => $user->email,
+                'account_type' => $user->account_type,
+                'workstation_id' => $user->workstation_id,
+                'force_password_change' => (bool) $user->force_password_change,
+                'role' => $user->roles->pluck('name')->first(),
+                'worker' => $user->worker ? [
+                    'code' => $user->worker->code,
+                    'phone' => $user->worker->phone,
+                    'crew_id' => $user->worker->crew_id,
+                    'wage_group_id' => $user->worker->wage_group_id,
+                    'skills' => $user->worker->skills->map(fn ($s) => ['id' => $s->id, 'level' => $s->pivot->level ?? 1]),
+                ] : null,
+            ],
+        ]));
     }
 
     /**
