@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class SettingsController extends Controller
@@ -19,7 +20,13 @@ class SettingsController extends Controller
      */
     public function index()
     {
-        return view('settings.index');
+        $pinSetting = DB::table('system_settings')->where('key', 'pin_login_enabled')->first();
+        $pinLoginEnabled = json_decode($pinSetting->value ?? 'false', true) === true;
+
+        return Inertia::render('settings/Index', [
+            'pinLoginEnabled' => $pinLoginEnabled,
+            'hasPin' => ! empty(auth()->user()->pin),
+        ]);
     }
 
     /**
@@ -27,7 +34,7 @@ class SettingsController extends Controller
      */
     public function showChangePasswordForm()
     {
-        return view('settings.change-password');
+        return Inertia::render('settings/ChangePassword');
     }
 
     /**
@@ -62,7 +69,7 @@ class SettingsController extends Controller
      */
     public function showProfileForm()
     {
-        return view('settings.profile');
+        return Inertia::render('settings/Profile');
     }
 
     /**
@@ -109,7 +116,22 @@ class SettingsController extends Controller
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1,
         ];
 
-        return view('settings.system', compact('settings'));
+        $availableLocales = ['en' => 'English', 'pl' => 'Polski'];
+        $reverbAvailable = config('broadcasting.default') === 'reverb'
+            || class_exists(\Laravel\Reverb\ServerManager::class);
+
+        // Append CORS fields not in the standard settings map (they may exist in DB)
+        $corsRow = DB::table('system_settings')->where('key', 'cors_allowed_methods')->first();
+        $settings['cors_allowed_methods'] = json_decode($corsRow->value ?? '"GET, POST"', true) ?? 'GET, POST';
+        $corsMaxRow = DB::table('system_settings')->where('key', 'cors_max_age')->first();
+        $settings['cors_max_age'] = json_decode($corsMaxRow->value ?? '0', true) ?? 0;
+
+        return Inertia::render('settings/System', [
+            'settings' => $settings,
+            'availableLocales' => $availableLocales,
+            'reverbAvailable' => $reverbAvailable,
+            'appUrl' => config('app.url'),
+        ]);
     }
 
     /**
@@ -129,7 +151,7 @@ class SettingsController extends Controller
 
         $hasPin = ! empty(auth()->user()->pin);
 
-        return view('settings.pin', compact('hasPin'));
+        return Inertia::render('settings/Pin', compact('hasPin'));
     }
 
     /**
@@ -188,9 +210,21 @@ class SettingsController extends Controller
         $tokens = PersonalAccessToken::where('tokenable_type', 'App\Models\User')
             ->with('tokenable')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'tokenable_name' => $t->tokenable?->name ?? 'Unknown',
+                'created_at_formatted' => $t->created_at->translatedFormat('d M Y, H:i'),
+                'last_used_at_human' => $t->last_used_at?->diffForHumans(),
+            ]);
 
-        return view('settings.api-tokens', compact('tokens'));
+        return Inertia::render('settings/ApiTokens', [
+            'tokens' => $tokens,
+            'newToken' => session('new_token'),
+            'newTokenName' => session('new_token_name'),
+            'appUrl' => config('app.url'),
+        ]);
     }
 
     /**

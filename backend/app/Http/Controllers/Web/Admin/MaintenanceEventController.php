@@ -10,6 +10,7 @@ use App\Models\Tool;
 use App\Models\User;
 use App\Models\Workstation;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class MaintenanceEventController extends Controller
 {
@@ -18,31 +19,12 @@ class MaintenanceEventController extends Controller
      */
     public function index(Request $request)
     {
-        $query = MaintenanceEvent::with(['tool', 'line', 'workstation', 'assignedTo', 'costSource'])
-            ->orderBy('scheduled_at', 'desc');
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%");
-            });
-        }
-
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        if ($eventType = $request->input('event_type')) {
-            $query->where('event_type', $eventType);
-        }
-
-        if ($lineId = $request->input('line_id')) {
-            $query->where('line_id', $lineId);
-        }
-
-        $events = $query->paginate(25)->withQueryString();
-        $lines  = Line::orderBy('name')->get();
-
-        return view('admin.maintenance-events.index', compact('events', 'lines'));
+        return Inertia::render('admin/maintenance-events/Index', [
+            'toolNames'        => Tool::pluck('name', 'id'),
+            'lineNames'        => Line::pluck('name', 'id'),
+            'workstationNames' => Workstation::pluck('name', 'id'),
+            'userNames'        => User::pluck('name', 'id'),
+        ]);
     }
 
     /**
@@ -50,15 +32,13 @@ class MaintenanceEventController extends Controller
      */
     public function create()
     {
-        $lines        = Line::active()->orderBy('name')->get();
-        $workstations = Workstation::active()->orderBy('name')->get();
-        $tools        = Tool::orderBy('name')->get();
-        $costSources  = CostSource::active()->orderBy('name')->get();
-        $users        = User::orderBy('name')->get();
-
-        return view('admin.maintenance-events.create', compact(
-            'lines', 'workstations', 'tools', 'costSources', 'users'
-        ));
+        return Inertia::render('admin/maintenance-events/Create', [
+            'tools'        => Tool::orderBy('name')->get(['id', 'name']),
+            'lines'        => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
+            'costSources'  => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users'        => User::orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     /**
@@ -98,17 +78,19 @@ class MaintenanceEventController extends Controller
      */
     public function edit(MaintenanceEvent $maintenanceEvent)
     {
-        $lines        = Line::active()->orderBy('name')->get();
-        $workstations = Workstation::active()->orderBy('name')->get();
-        $tools        = Tool::orderBy('name')->get();
-        $costSources  = CostSource::active()->orderBy('name')->get();
-        $users        = User::orderBy('name')->get();
-
-        $event = $maintenanceEvent;
-
-        return view('admin.maintenance-events.edit', compact(
-            'event', 'lines', 'workstations', 'tools', 'costSources', 'users'
-        ));
+        return Inertia::render('admin/maintenance-events/Edit', [
+            'event' => $maintenanceEvent->only(
+                'id', 'title', 'event_type', 'tool_id', 'line_id', 'workstation_id',
+                'cost_source_id', 'assigned_to_id', 'description', 'actual_cost', 'currency'
+            ),
+            'scheduled_at'     => $maintenanceEvent->scheduled_at?->format('Y-m-d\TH:i'),
+            'scheduled_end_at' => $maintenanceEvent->scheduled_end_at?->format('Y-m-d\TH:i'),
+            'tools'            => Tool::orderBy('name')->get(['id', 'name']),
+            'lines'            => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workstations'     => Workstation::orderBy('name')->get(['id', 'name']),
+            'costSources'      => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users'            => User::orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     /**

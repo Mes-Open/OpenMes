@@ -7,23 +7,29 @@ use App\Models\InspectionPlan;
 use App\Models\Material;
 use App\Models\MaterialType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class InspectionPlanController extends Controller
 {
     public function index()
     {
-        $plans = InspectionPlan::with(['material', 'materialType'])->orderBy('name')->get();
+        return Inertia::render('admin/inspection-plans/Index', [
+            'materialNames' => Material::pluck('name', 'id'),
+            'materialTypeNames' => MaterialType::pluck('name', 'id'),
+        ]);
+    }
 
-        return view('admin.inspection-plans.index', compact('plans'));
+    private function formData(): array
+    {
+        return [
+            'materials' => Material::orderBy('name')->get(['id', 'name']),
+            'materialTypes' => MaterialType::orderBy('name')->get(['id', 'name']),
+        ];
     }
 
     public function create()
     {
-        return view('admin.inspection-plans.form', [
-            'plan' => new InspectionPlan(['criteria' => []]),
-            'materials' => Material::orderBy('name')->get(),
-            'materialTypes' => MaterialType::orderBy('name')->get(),
-        ]);
+        return Inertia::render('admin/inspection-plans/Create', $this->formData());
     }
 
     public function store(Request $request)
@@ -36,11 +42,15 @@ class InspectionPlanController extends Controller
 
     public function edit(InspectionPlan $inspectionPlan)
     {
-        return view('admin.inspection-plans.form', [
-            'plan' => $inspectionPlan,
-            'materials' => Material::orderBy('name')->get(),
-            'materialTypes' => MaterialType::orderBy('name')->get(),
-        ]);
+        // Derive scope from which target FK is set (scope isn't a stored column).
+        $scope = $inspectionPlan->material_id ? 'material' : ($inspectionPlan->material_type_id ? 'material_type' : 'generic');
+
+        return Inertia::render('admin/inspection-plans/Edit', array_merge($this->formData(), [
+            'plan' => [
+                ...$inspectionPlan->only('id', 'name', 'description', 'material_id', 'material_type_id', 'criteria', 'is_active'),
+                'scope' => $scope,
+            ],
+        ]));
     }
 
     public function update(Request $request, InspectionPlan $inspectionPlan)

@@ -6,36 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Tool;
 use App\Models\WorkstationType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ToolController extends Controller
 {
     /**
-     * Display a listing of tools.
+     * Display a listing of tools. Rows live-sync via the `tools` shape; the
+     * workstation-type name map is passed for display.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = Tool::with('workstationType')
-            ->orderBy('name');
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        if ($workstationTypeId = $request->input('workstation_type_id')) {
-            $query->where('workstation_type_id', $workstationTypeId);
-        }
-
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        $tools            = $query->paginate(25)->withQueryString();
-        $workstationTypes = WorkstationType::orderBy('name')->get();
-
-        return view('admin.tools.index', compact('tools', 'workstationTypes'));
+        return Inertia::render('admin/tools/Index', [
+            'workstationTypeNames' => WorkstationType::pluck('name', 'id'),
+        ]);
     }
 
     /**
@@ -43,9 +26,9 @@ class ToolController extends Controller
      */
     public function create()
     {
-        $workstationTypes = WorkstationType::active()->orderBy('name')->get();
-
-        return view('admin.tools.create', compact('workstationTypes'));
+        return Inertia::render('admin/tools/Create', [
+            'workstationTypes' => WorkstationType::active()->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     /**
@@ -75,9 +58,10 @@ class ToolController extends Controller
      */
     public function edit(Tool $tool)
     {
-        $workstationTypes = WorkstationType::active()->orderBy('name')->get();
-
-        return view('admin.tools.edit', compact('tool', 'workstationTypes'));
+        return Inertia::render('admin/tools/Edit', [
+            'tool' => $tool->only('id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'next_service_at'),
+            'workstationTypes' => WorkstationType::active()->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     /**

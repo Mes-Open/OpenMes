@@ -7,43 +7,71 @@ use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class WorkOrderController extends Controller
 {
     public function index(Request $request)
     {
-        $query = WorkOrder::with(['line', 'productType'])->withCount('batches')
-            ->orderByRaw("CASE status
-                WHEN 'BLOCKED'     THEN 1
-                WHEN 'IN_PROGRESS' THEN 2
-                WHEN 'PAUSED'      THEN 3
-                WHEN 'PENDING'     THEN 4
-                WHEN 'ACCEPTED'    THEN 5
-                WHEN 'DONE'        THEN 6
-                ELSE 7 END")
-            ->orderBy('priority', 'desc')
-            ->orderBy('due_date', 'asc');
+        $counts = WorkOrder::withCount('batches')->get(['id'])
+            ->mapWithKeys(fn ($w) => [$w->id => $w->batches_count]);
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('line_id')) {
-            $query->where('line_id', $request->line_id);
-        }
-        if ($request->filled('search')) {
-            $query->where('order_no', 'ilike', '%' . $request->search . '%');
-        }
-
-        $workOrders = $query->paginate(25)->withQueryString();
-        $lines      = Line::orderBy('name')->get();
-
-        return view('supervisor.work-orders.index', compact('workOrders', 'lines'));
+        return Inertia::render('supervisor/work-orders/Index', [
+            'counts'           => $counts,
+            'lineNames'        => Line::pluck('name', 'id'),
+            'productTypeNames' => ProductType::pluck('name', 'id'),
+        ]);
     }
 
     public function show(WorkOrder $workOrder)
     {
         $workOrder->load(['line', 'productType', 'batches.steps', 'issues.issueType', 'issues.reportedBy']);
-        return view('supervisor.work-orders.show', compact('workOrder'));
+
+        $batches = $workOrder->batches->map(function ($batch) {
+            return [
+                'id'           => $batch->id,
+                'batch_number' => $batch->batch_number,
+                'status'       => $batch->status,
+                'produced_qty' => $batch->produced_qty,
+                'target_qty'   => $batch->target_qty,
+                'started_at'   => $batch->started_at?->toISOString(),
+                'completed_at' => $batch->completed_at?->toISOString(),
+                'steps'        => $batch->steps->map(fn ($s) => [
+                    'id'           => $s->id,
+                    'step_number'  => $s->step_number,
+                    'name'         => $s->name,
+                    'status'       => $s->status,
+                    'duration_minutes' => $s->duration_minutes,
+                ])->values(),
+            ];
+        })->values();
+
+        $issues = $workOrder->issues->map(fn ($i) => [
+            'id'              => $i->id,
+            'title'           => $i->title,
+            'status'          => $i->status,
+            'issue_type_name' => $i->issueType?->name,
+            'is_blocking'     => (bool) ($i->issueType?->is_blocking ?? false),
+        ])->values();
+
+        return Inertia::render('supervisor/work-orders/Show', [
+            'workOrder' => [
+                'id'               => $workOrder->id,
+                'order_no'         => $workOrder->order_no,
+                'status'           => $workOrder->status,
+                'planned_qty'      => $workOrder->planned_qty,
+                'produced_qty'     => $workOrder->produced_qty,
+                'priority'         => $workOrder->priority,
+                'due_date'         => $workOrder->due_date?->toDateString(),
+                'description'      => $workOrder->description,
+                'process_snapshot' => $workOrder->process_snapshot,
+                'created_at'       => $workOrder->created_at->toISOString(),
+                'line_name'        => $workOrder->line?->name,
+                'product_type_name' => $workOrder->productType?->name,
+                'batches'          => $batches,
+                'issues'           => $issues,
+            ],
+        ]);
     }
 
     public function accept(WorkOrder $workOrder)
@@ -121,10 +149,14 @@ class WorkOrderController extends Controller
 
     public function edit(WorkOrder $workOrder)
     {
-        $lines        = Line::where('is_active', true)->orderBy('name')->get();
-        $productTypes = ProductType::where('is_active', true)->orderBy('name')->get();
-
-        return view('admin.work-orders.edit', compact('workOrder', 'lines', 'productTypes'));
+        return Inertia::render('supervisor/work-orders/Edit', [
+            'workOrder' => [
+                ...$workOrder->only('id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status'),
+                'due_date' => $workOrder->due_date?->format('Y-m-d'),
+            ],
+            'lines'        => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function update(Request $request, WorkOrder $workOrder)

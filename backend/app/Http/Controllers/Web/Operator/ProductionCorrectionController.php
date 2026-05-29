@@ -8,6 +8,7 @@ use App\Models\WorkOrder;
 use App\Models\WorkOrderShiftEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class ProductionCorrectionController extends Controller
 {
@@ -18,11 +19,22 @@ class ProductionCorrectionController extends Controller
     {
         $this->authorizeCorrection($shiftEntry);
 
-        $shiftEntry->load(['workOrder.productType', 'shift']);
+        $shiftEntry->load(['workOrder.productType', 'workOrder.line', 'shift']);
 
-        return view('operator.correct-quantity', [
-            'shiftEntry' => $shiftEntry,
-            'workOrder' => $shiftEntry->workOrder,
+        return Inertia::render('operator/CorrectQuantity', [
+            'shiftEntry' => [
+                'id' => $shiftEntry->id,
+                'quantity' => (float) $shiftEntry->quantity,
+                'production_date' => $shiftEntry->production_date->format('Y-m-d'),
+                'shift' => ['name' => $shiftEntry->shift->name ?? null, 'code' => $shiftEntry->shift->code ?? null],
+            ],
+            'workOrder' => [
+                'order_no' => $shiftEntry->workOrder->order_no,
+                'product_name' => $shiftEntry->workOrder->productType?->name,
+            ],
+            'line' => $shiftEntry->workOrder->line
+                ? ['id' => $shiftEntry->workOrder->line->id, 'name' => $shiftEntry->workOrder->line->name]
+                : null,
         ]);
     }
 

@@ -6,15 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\LineStatus;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class LineStatusController extends Controller
 {
-    /** Global statuses (line_id = null) management page */
+    /** Global statuses (line_id = null) management page. Rows live-sync via the
+     *  `line_statuses_global` shape; this just renders the inline editor. */
     public function index()
     {
-        $globalStatuses = LineStatus::global()->get();
-
-        return view('admin.line-statuses.index', compact('globalStatuses'));
+        return Inertia::render('admin/line-statuses/Index');
     }
 
     /** Store a new global status */

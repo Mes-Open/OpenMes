@@ -8,6 +8,7 @@ use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PackagingController extends Controller
 {
@@ -15,7 +16,7 @@ class PackagingController extends Controller
 
     public function station()
     {
-        return view('packaging.station');
+        return Inertia::render('packaging/Station');
     }
 
     public function adminOverview()
@@ -23,7 +24,7 @@ class PackagingController extends Controller
         $items = $this->buildItemList();
         $stats = $this->buildStats();
 
-        return view('packaging.admin', compact('items', 'stats'));
+        return Inertia::render('packaging/Admin', compact('items', 'stats'));
     }
 
     // ── JSON API (polling) ────────────────────────────────────────────────────

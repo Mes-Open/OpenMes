@@ -1,0 +1,106 @@
+import { useRef, useState } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+
+export default function ModulesInstall() {
+    const { csrf_token } = usePage().props;
+    const fileRef = useRef(null);
+    const [filename, setFilename] = useState('');
+
+    return (
+        <>
+            <Head title="Install Module" />
+            <div className="max-w-3xl mx-auto">
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Install Module</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mt-1">Upload a module from a ZIP file or place the folder manually</p>
+                </div>
+
+                {/* Upload ZIP */}
+                <div className="card mb-6">
+                    <h2 className="text-base font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Upload ZIP file
+                    </h2>
+
+                    <form method="POST" action="/admin/modules/upload" encType="multipart/form-data">
+                        <input type="hidden" name="_token" value={csrf_token} />
+
+                        <div
+                            className="border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 rounded-xl p-8 cursor-pointer text-center transition-colors mb-4"
+                            onClick={() => fileRef.current?.click()}
+                        >
+                            <svg className="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {filename || 'Click to select a .zip file'}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">Max 20 MB</p>
+                            <input
+                                type="file"
+                                name="module_zip"
+                                ref={fileRef}
+                                accept=".zip"
+                                className="hidden"
+                                onChange={(e) => setFilename(e.target.files?.[0]?.name ?? '')}
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={!filename}
+                            className={`btn-touch btn-primary${!filename ? ' opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            Install Module
+                        </button>
+                    </form>
+
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
+                        The ZIP must contain a{' '}
+                        <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">module.json</code>
+                        {' '}file in the root directory or inside a single subfolder.
+                    </p>
+                </div>
+
+                {/* Manual install guide */}
+                <div className="card bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                    <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-2">Manual Installation</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        Place the module folder directly in{' '}
+                        <code className="bg-white dark:bg-gray-700 border rounded px-1 text-xs">modules/</code>,
+                        {' '}then go to{' '}
+                        <a href="/admin/modules" className="text-blue-600 hover:underline">Installed Modules</a>
+                        {' '}and enable it.
+                    </p>
+                    <div className="text-xs font-mono bg-white dark:bg-gray-900 border dark:border-gray-700 rounded p-3 text-gray-700 dark:text-gray-300 space-y-0.5 mb-4">
+                        <p>modules/YourModule/</p>
+                        <p className="pl-4">├── module.json</p>
+                        <p className="pl-4">├── Providers/</p>
+                        <p className="pl-8">│   └── YourModuleServiceProvider.php</p>
+                        <p className="pl-4">├── Controllers/</p>
+                        <p className="pl-4">├── Models/</p>
+                        <p className="pl-4">├── migrations/</p>
+                        <p className="pl-4">├── views/</p>
+                        <p className="pl-4">└── README.md</p>
+                    </div>
+                    <a
+                        href="https://github.com/Mes-Open/OpenMes/blob/main/HOOKS.md"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline"
+                    >
+                        Available hooks and events (HOOKS.md) ↗
+                    </a>
+                </div>
+            </div>
+        </>
+    );
+}
+
+ModulesInstall.layout = (page) => <AppLayout>{page}</AppLayout>;
