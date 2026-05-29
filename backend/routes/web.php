@@ -73,13 +73,32 @@ Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\Chec
     Route::get('/complete', [InstallController::class, 'complete'])->name('complete');
 });
 
-// Redirect root to installer or login
+// Redirect root to installer, login, or dashboard depending on auth state.
 Route::get('/', function () {
     if (! file_exists(storage_path('installed'))) {
         return redirect()->route('install.index');
     }
 
-    return redirect()->route('login');
+    if (! auth()->check()) {
+        return redirect()->route('login');
+    }
+
+    $user = auth()->user();
+
+    if ($user->hasRole('Admin')) {
+        return redirect()->route('admin.dashboard');
+    }
+    if ($user->hasRole('Supervisor')) {
+        return redirect()->route('supervisor.dashboard');
+    }
+    if ($user->account_type === 'workstation' && $user->workstation_id) {
+        $lineId = $user->workstation?->line_id;
+        if ($lineId) {
+            return redirect()->route('operator.queue', ['line' => $lineId]);
+        }
+    }
+
+    return redirect()->route('operator.select-line');
 });
 
 Route::get('/offline', function () {

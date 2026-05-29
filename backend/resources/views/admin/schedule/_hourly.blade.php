@@ -73,9 +73,8 @@
             </div>
 
             @foreach($data['lines'] as $lineRow)
-                @php $maxLanesLabel = $lineRow['orders']->max('total_lanes') ?? 1; $labelHeight = max(114, 6 + $maxLanesLabel * 34); @endphp
                 <div class="border-b border-gray-100 dark:border-gray-700/60 px-3 py-2 flex flex-col justify-center"
-                     style="height: {{ $labelHeight }}px;"
+                     style="height: {{ $lineRow['row_height'] }}px;"
                      data-line-id="{{ $lineRow['line']->id }}">
                     <div class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ $lineRow['line']->name }}">
                         {{ $lineRow['line']->code ?? $lineRow['line']->name }}
@@ -119,9 +118,8 @@
 
                 {{-- Lane rows --}}
                 @foreach($data['lines'] as $lineRow)
-                    @php $maxLanes = $lineRow['orders']->max('total_lanes') ?? 1; $rowHeight = max(114, 6 + $maxLanes * 34); @endphp
                     <div class="lane relative border-b border-gray-100 dark:border-gray-700/60"
-                         style="height: {{ $rowHeight }}px;"
+                         style="height: {{ $lineRow['row_height'] }}px;"
                          data-line-id="{{ $lineRow['line']->id }}"
                          @drop.prevent="onLaneDrop($event, {{ $lineRow['line']->id }})"
                          @dragover.prevent
@@ -169,17 +167,11 @@
                                     $cardBase = 'bg-red-200 border-red-500 text-red-900';
                                 }
                             @endphp
-                            @php
-                                $totalLanes = $order['total_lanes'] ?? 1;
-                                $lane = $order['lane'] ?? 0;
-                                $laneHeight = $totalLanes > 1 ? max(30, (int)(90 / $totalLanes)) : 90;
-                                $laneTop = 6 + ($lane * ($laneHeight + 2));
-                            @endphp
                             <div class="wo-card group absolute rounded border-2 shadow-sm px-1.5 py-1 overflow-visible cursor-grab active:cursor-grabbing select-none {{ $cardBase }}"
                                  style="left: {{ $order['start_minute'] * $pxPerMinute }}px;
                                         width: {{ max(20, $order['duration_minutes'] * $pxPerMinute) }}px;
-                                        top: {{ $laneTop }}px;
-                                        height: {{ $laneHeight }}px;"
+                                        top: {{ $order['lane_top'] }}px;
+                                        height: {{ $order['lane_height'] }}px;"
                                  data-wo-id="{{ $wo->id }}"
                                  data-line-id="{{ $lineRow['line']->id }}"
                                  data-start-minute="{{ $order['start_minute'] }}"
