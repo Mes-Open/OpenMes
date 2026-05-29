@@ -5,26 +5,28 @@ namespace App\Http\Controllers\Web\Admin\Connectivity;
 use App\Http\Controllers\Controller;
 use App\Models\MachineConnection;
 use App\Models\MachineTag;
-use App\Models\ModbusConnection;
+use App\Models\OpcuaConnection;
 use App\Models\Workstation;
+use App\Services\Machine\RuntimeMonitor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 
-class ModbusConnectionController extends Controller
+class OpcuaConnectionController extends Controller
 {
     public function index()
     {
-        $connections = MachineConnection::where('protocol', MachineConnection::PROTOCOL_MODBUS)
-            ->with(['modbusConnection', 'tags'])
+        $connections = MachineConnection::where('protocol', MachineConnection::PROTOCOL_OPCUA)
+            ->with(['opcuaConnection', 'tags'])
             ->orderBy('name')
             ->get();
 
-        return view('admin.connectivity.modbus.index', compact('connections'));
+        return view('admin.connectivity.opcua.index', compact('connections'));
     }
 
     public function create()
     {
-        return view('admin.connectivity.modbus.create', [
+        return view('admin.connectivity.opcua.create', [
             'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(),
         ]);
     }
@@ -33,54 +35,54 @@ class ModbusConnectionController extends Controller
     {
         $data = $this->validateData($request);
 
-        DB::transaction(function () use ($data) {
+        DB::transaction(function () use ($data, $request) {
             $connection = MachineConnection::create([
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
-                'protocol' => MachineConnection::PROTOCOL_MODBUS,
+                'protocol' => MachineConnection::PROTOCOL_OPCUA,
                 'is_active' => $request->boolean('is_active'),
                 'status' => MachineConnection::STATUS_DISCONNECTED,
             ]);
 
-            ModbusConnection::create([
+            OpcuaConnection::create([
                 'machine_connection_id' => $connection->id,
-                'host' => $data['host'],
-                'port' => $data['port'],
-                'unit_id' => $data['unit_id'],
-                'poll_interval_ms' => $data['poll_interval_ms'],
-                'timeout_seconds' => $data['timeout_seconds'],
-                'byte_order' => $data['byte_order'],
-                'word_order' => $data['word_order'],
+                'endpoint_url' => $data['endpoint_url'],
+                'security_policy' => $data['security_policy'],
+                'security_mode' => $data['security_mode'],
+                'auth_mode' => $data['auth_mode'],
+                'username' => $data['username'] ?? null,
+                'password_encrypted' => ! empty($data['password']) ? Crypt::encryptString($data['password']) : null,
+                'publishing_interval_ms' => $data['publishing_interval_ms'],
             ]);
         });
 
-        return redirect()->route('admin.connectivity.modbus.index')
-            ->with('success', __('Modbus connection created.'));
+        return redirect()->route('admin.connectivity.opcua.index')
+            ->with('success', __('OPC UA connection created.'));
     }
 
     public function show(MachineConnection $machineConnection)
     {
-        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_MODBUS, 404);
-        $machineConnection->load(['modbusConnection', 'tags.workstation']);
+        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_OPCUA, 404);
+        $machineConnection->load(['opcuaConnection', 'tags.workstation']);
 
-        return view('admin.connectivity.modbus.show', [
+        return view('admin.connectivity.opcua.show', [
             'connection' => $machineConnection,
             'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(),
-            'runtime' => app(\App\Services\Machine\RuntimeMonitor::class)->connectionRuntime($machineConnection),
+            'runtime' => app(RuntimeMonitor::class)->connectionRuntime($machineConnection),
         ]);
     }
 
     public function edit(MachineConnection $machineConnection)
     {
-        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_MODBUS, 404);
-        $machineConnection->load('modbusConnection');
+        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_OPCUA, 404);
+        $machineConnection->load('opcuaConnection');
 
-        return view('admin.connectivity.modbus.edit', ['connection' => $machineConnection]);
+        return view('admin.connectivity.opcua.edit', ['connection' => $machineConnection]);
     }
 
     public function update(Request $request, MachineConnection $machineConnection)
     {
-        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_MODBUS, 404);
+        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_OPCUA, 404);
         $data = $this->validateData($request);
 
         DB::transaction(function () use ($machineConnection, $data, $request) {
@@ -89,41 +91,42 @@ class ModbusConnectionController extends Controller
                 'description' => $data['description'] ?? null,
                 'is_active' => $request->boolean('is_active'),
             ]);
-            $machineConnection->modbusConnection->update([
-                'host' => $data['host'],
-                'port' => $data['port'],
-                'unit_id' => $data['unit_id'],
-                'poll_interval_ms' => $data['poll_interval_ms'],
-                'timeout_seconds' => $data['timeout_seconds'],
-                'byte_order' => $data['byte_order'],
-                'word_order' => $data['word_order'],
-            ]);
+            $update = [
+                'endpoint_url' => $data['endpoint_url'],
+                'security_policy' => $data['security_policy'],
+                'security_mode' => $data['security_mode'],
+                'auth_mode' => $data['auth_mode'],
+                'username' => $data['username'] ?? null,
+                'publishing_interval_ms' => $data['publishing_interval_ms'],
+            ];
+            if (! empty($data['password'])) {
+                $update['password_encrypted'] = Crypt::encryptString($data['password']);
+            }
+            $machineConnection->opcuaConnection->update($update);
         });
 
-        return redirect()->route('admin.connectivity.modbus.show', $machineConnection)
-            ->with('success', __('Modbus connection updated.'));
+        return redirect()->route('admin.connectivity.opcua.show', $machineConnection)
+            ->with('success', __('OPC UA connection updated.'));
     }
 
     public function destroy(MachineConnection $machineConnection)
     {
-        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_MODBUS, 404);
+        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_OPCUA, 404);
         $machineConnection->delete();
 
-        return redirect()->route('admin.connectivity.modbus.index')
-            ->with('success', __('Modbus connection deleted.'));
+        return redirect()->route('admin.connectivity.opcua.index')
+            ->with('success', __('OPC UA connection deleted.'));
     }
 
-    /** Add a tag to a connection. */
     public function storeTag(Request $request, MachineConnection $machineConnection)
     {
-        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_MODBUS, 404);
+        abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_OPCUA, 404);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'address' => ['required', 'string', 'max:255'],
+            'address' => ['required', 'string', 'max:255'], // node id, e.g. ns=2;s=State
             'signal_type' => ['required', 'string', 'max:30'],
             'data_type' => ['required', 'string', 'max:20'],
-            'register_type' => ['required', 'string', 'max:20'],
             'workstation_id' => ['nullable', 'integer', 'exists:workstations,id'],
             'value_map' => ['nullable', 'string'],
             'scale' => ['nullable', 'numeric'],
@@ -131,7 +134,6 @@ class ModbusConnectionController extends Controller
 
         $transform = [];
         if (! empty($data['value_map'])) {
-            // "1=RUNNING,2=IDLE,3=FAULT" → map
             $map = [];
             foreach (explode(',', $data['value_map']) as $pair) {
                 [$k, $v] = array_pad(explode('=', trim($pair), 2), 2, null);
@@ -154,7 +156,7 @@ class ModbusConnectionController extends Controller
             'address' => $data['address'],
             'signal_type' => $data['signal_type'],
             'data_type' => $data['data_type'],
-            'register_type' => $data['register_type'],
+            'register_type' => null,
             'transform' => $transform ?: null,
         ]);
 
@@ -174,13 +176,13 @@ class ModbusConnectionController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:500'],
-            'host' => ['required', 'string', 'max:255'],
-            'port' => ['required', 'integer', 'min:1', 'max:65535'],
-            'unit_id' => ['required', 'integer', 'min:0', 'max:255'],
-            'poll_interval_ms' => ['required', 'integer', 'min:100', 'max:60000'],
-            'timeout_seconds' => ['required', 'integer', 'min:1', 'max:60'],
-            'byte_order' => ['required', 'in:big,little'],
-            'word_order' => ['required', 'in:big,little'],
+            'endpoint_url' => ['required', 'string', 'max:500'],
+            'security_policy' => ['required', 'in:None,Basic256Sha256'],
+            'security_mode' => ['required', 'in:None,Sign,SignAndEncrypt'],
+            'auth_mode' => ['required', 'in:anonymous,username,certificate'],
+            'username' => ['nullable', 'string', 'max:100'],
+            'password' => ['nullable', 'string', 'max:255'],
+            'publishing_interval_ms' => ['required', 'integer', 'min:100', 'max:60000'],
         ]);
     }
 }

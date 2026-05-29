@@ -20,7 +20,7 @@ class ModbusPollCommand extends Command
 
     protected $description = 'Poll a Modbus TCP device and ingest machine signals';
 
-    public function handle(MachineSignalIngestor $ingestor): int
+    public function handle(MachineSignalIngestor $ingestor, \App\Services\Machine\RuntimeMonitor $runtime): int
     {
         $connection = MachineConnection::with(['modbusConnection', 'activeTags.workstation'])
             ->find($this->option('connection'));
@@ -46,6 +46,7 @@ class ModbusPollCommand extends Command
 
                 do {
                     $cycleStart = microtime(true);
+                    $runtime->heartbeat($connection->protocol, $connection->id);
                     foreach ($tags as $tag) {
                         try {
                             $value = $reader->readTag($tag);
