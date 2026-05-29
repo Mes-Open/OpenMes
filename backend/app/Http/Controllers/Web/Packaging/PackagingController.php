@@ -8,6 +8,7 @@ use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PackagingController extends Controller
 {
@@ -15,7 +16,12 @@ class PackagingController extends Controller
 
     public function station()
     {
-        return view('packaging.station');
+        $scannerMode = json_decode(
+            DB::table('system_settings')->where('key', 'scanner_mode')->value('value') ?? '"hid"',
+            true
+        ) ?? 'hid';
+
+        return view('packaging.station', compact('scannerMode'));
     }
 
     public function adminOverview()

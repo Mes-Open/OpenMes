@@ -90,7 +90,6 @@
                     class="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
                 <span class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
                     {{ __('I agree to receive product updates and marketing communications via email.') }}
-                    <span class="text-gray-400 dark:text-gray-500">/ Wyrażam zgodę na kontakt w celach marketingowych drogą mailową.</span>
                 </span>
             </label>
         </div>

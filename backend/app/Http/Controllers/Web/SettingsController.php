@@ -108,6 +108,7 @@ class SettingsController extends Controller
             'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']->value ?? '"*"', true) ?? '*',
             'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none',
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1,
+            'scanner_mode' => json_decode($rows['scanner_mode']->value ?? '"hid"', true) ?? 'hid',
         ];
 
         return view('settings.system', compact('settings'));
@@ -262,6 +263,7 @@ class SettingsController extends Controller
             'cors_max_age' => 'nullable|integer|min:0|max:86400',
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
+            'scanner_mode' => 'required|in:hid,manual',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -287,6 +289,7 @@ class SettingsController extends Controller
             'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
+            'scanner_mode' => $validated['scanner_mode'],
         ];
 
         foreach ($map as $key => $value) {
