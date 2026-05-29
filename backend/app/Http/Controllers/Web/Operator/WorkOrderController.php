@@ -54,32 +54,48 @@ class WorkOrderController extends Controller
 
         $line = \App\Models\Line::find($lineId);
 
-        // Workstation filter: from query param, session, or workstation account
+        $settingRows = DB::table('system_settings')->get()->keyBy('key');
+        $workflowMode = json_decode($settingRows['workflow_mode']->value ?? '"status"', true) ?? 'status';
+        $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
+        $routingEnabled = json_decode($settingRows['workstation_routing_enabled']->value ?? 'false', true) ?? false;
+
+        // Workstation filter: from query param, session, or workstation account.
+        // Workstation accounts default to their own assigned workstation.
         $selectedWorkstationId = $request->query('workstation')
-            ?? $request->session()->get('selected_workstation_id');
+            ?? $request->session()->get('selected_workstation_id')
+            ?? (auth()->user()->account_type === 'workstation' ? auth()->user()->workstation_id : null);
         if ($request->has('workstation')) {
             $request->session()->put('selected_workstation_id', $selectedWorkstationId);
         }
+        // A workstation may belong to another line when routing spans lines, so
+        // only constrain to the current line when routing is disabled.
         $selectedWorkstation = $selectedWorkstationId
-            ? Workstation::where('id', $selectedWorkstationId)->where('line_id', $lineId)->first()
+            ? ($routingEnabled
+                ? Workstation::find($selectedWorkstationId)
+                : Workstation::where('id', $selectedWorkstationId)->where('line_id', $lineId)->first())
             : null;
 
         $lineStatuses = LineStatus::forLine($lineId)->get();
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
 
-        $settingRows = DB::table('system_settings')->get()->keyBy('key');
-        $workflowMode = json_decode($settingRows['workflow_mode']->value ?? '"status"', true) ?? 'status';
-        $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
         $doneStatusIds = $lineStatuses->where('is_done_status', true)->pluck('id')->values();
 
         // In per_operation/hybrid mode with selected workstation: filter to WOs with current step on this workstation
         $workstationQueue = collect();
         if (in_array($trackingMode, ['per_operation', 'hybrid']) && $selectedWorkstation) {
-            $workstationQueue = $activeWorkOrders->filter(function ($wo) use ($selectedWorkstation) {
+            // When routing is enabled, scan all active work orders (steps may route
+            // across lines, e.g. a shared packing station); otherwise stay on this line.
+            $queueSource = $routingEnabled
+                ? WorkOrder::whereIn('status', WorkOrder::ACTIVE_STATUSES)
+                    ->with(['productType', 'batches.steps.workstation'])
+                    ->get()
+                : $activeWorkOrders;
+
+            $workstationQueue = $queueSource->filter(function ($wo) use ($selectedWorkstation) {
                 foreach ($wo->batches as $batch) {
                     $currentStep = $batch->currentStep();
-                    if ($currentStep && $currentStep->workstation_id === $selectedWorkstation->id) {
+                    if ($currentStep && (int) $currentStep->workstation_id === (int) $selectedWorkstation->id) {
                         return true;
                     }
                 }
