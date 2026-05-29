@@ -507,6 +507,17 @@ Route::middleware('auth')->group(function () {
         Route::put('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'update'])->name('connectivity.mqtt.topics.mappings.update');
         Route::delete('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'destroy'])->name('connectivity.mqtt.topics.mappings.destroy');
 
+        // Modbus connections
+        Route::resource('connectivity/modbus', \App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class)
+            ->parameters(['modbus' => 'machineConnection'])
+            ->names('connectivity.modbus');
+        Route::post('/connectivity/modbus/{machineConnection}/tags', [\App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class, 'storeTag'])->name('connectivity.modbus.tags.store');
+        Route::delete('/connectivity/modbus/{machineConnection}/tags/{tag}', [\App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class, 'destroyTag'])->name('connectivity.modbus.tags.destroy');
+
+        // Live machine monitor
+        Route::get('/machine-monitor', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'index'])->name('machine-monitor.index');
+        Route::get('/machine-monitor/check', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'check'])->name('machine-monitor.check');
+
         // ── Gate 7: Maintenance ───────────────────────────────────────────────
         // Tools
         Route::resource('tools', ToolController::class)->except(['show']);
