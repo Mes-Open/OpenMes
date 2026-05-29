@@ -112,7 +112,9 @@ class MaterialLotController extends Controller
      */
     public function backwardGenealogy(MaterialLot $materialLot): JsonResponse
     {
-        $sourceBatchId = data_get($materialLot->extra_data, 'source_batch_id');
+        // Prefer the formal FK column; fall back to the legacy extra_data hint.
+        $sourceBatchId = $materialLot->source_batch_id
+            ?? data_get($materialLot->extra_data, 'source_batch_id');
         $upstream = collect();
 
         if ($sourceBatchId) {
