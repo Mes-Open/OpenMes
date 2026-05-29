@@ -246,6 +246,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
 
+        // Schedule · Employees (tachograph-style day/team/month planner)
+        Route::get('/schedule/employees', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'index'])->name('schedule.employees');
+        Route::get('/schedule/employees/add', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'create'])->name('schedule.employees.create');
+        Route::post('/schedule/employees', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'store'])->name('schedule.employees.store');
+        Route::delete('/schedule/employees/{activity}', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'destroy'])->name('schedule.employees.destroy');
+
         // Shifts
         Route::get('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'index'])->name('shifts.index');
         Route::get('/shifts/create', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'create'])->name('shifts.create');

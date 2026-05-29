@@ -9,12 +9,17 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']);
         // CheckInstallation is applied per-route on install/* routes only (see routes/web.php)
-        $middleware->append(\App\Http\Middleware\DynamicCors::class);
+        // Prepend (not append) so DynamicCors runs before Laravel's built-in
+        // HandleCors. HandleCors short-circuits preflight OPTIONS responses
+        // when config/cors.allowed_origins is empty and skips later middleware,
+        // so DynamicCors never sees them. Running first lets us own preflight.
+        $middleware->prepend(\App\Http\Middleware\DynamicCors::class);
         $middleware->validateCsrfTokens(except: [
             'install/*',
         ]);

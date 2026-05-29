@@ -261,11 +261,14 @@
             </div>
 
             {{-- Schedule / Planner --}}
-            @php $a = request()->routeIs('admin.schedule*'); @endphp
+            @php
+                $isSchedule = request()->routeIs('admin.schedule') || request()->routeIs('admin.schedule.update') || request()->routeIs('admin.schedule.resize') || request()->routeIs('admin.schedule.check-updates');
+                $isEmpSched = request()->routeIs('admin.schedule.employees*');
+            @endphp
             <div class="relative group px-2">
                 <a href="{{ route('admin.schedule') }}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                          {{ $a ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }}"
+                          {{ $isSchedule ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }}"
                    :class="{'justify-center !px-0': collapsed && !mobileOpen}">
                     <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -277,6 +280,25 @@
                              text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
                              group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
                     Schedule
+                </span>
+            </div>
+
+            {{-- Employee day planner (tachograph view) --}}
+            <div class="relative group px-2">
+                <a href="{{ route('admin.schedule.employees') }}"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                          {{ $isEmpSched ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }}"
+                   :class="{'justify-center !px-0': collapsed && !mobileOpen}">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 0a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <span x-show="!collapsed || mobileOpen" x-cloak>{{ __('Employees') }}</span>
+                </a>
+                <span x-show="collapsed && !mobileOpen" x-cloak
+                      class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700
+                             text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0
+                             group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+                    {{ __('Employee day planner') }}
                 </span>
             </div>
 

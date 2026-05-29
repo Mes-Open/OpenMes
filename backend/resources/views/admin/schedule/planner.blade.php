@@ -639,6 +639,11 @@
                     {{ $ml }}
                 </a>
             @endforeach
+            <a href="{{ route('admin.schedule.employees', ['date' => $startDate->format('Y-m-d')]) }}"
+               class="px-3 py-1 text-xs font-medium rounded-md transition text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+               title="{{ __('Employee day planner — tachograph view') }}">
+                {{ __('Employees') }}
+            </a>
         </div>
 
         <div class="h-6 border-l border-gray-300 dark:border-gray-600 mx-1"></div>
