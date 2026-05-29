@@ -31,6 +31,10 @@ class User extends Authenticatable
         'force_password_change',
         'last_login_at',
         'tenant_id',
+        'two_factor_secret',
+        'two_factor_enabled',
+        'two_factor_confirmed_at',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -42,7 +46,8 @@ class User extends Authenticatable
         'password',
         'pin',
         'remember_token',
-        'pin',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -56,6 +61,8 @@ class User extends Authenticatable
             'force_password_change' => 'boolean',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_enabled' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 

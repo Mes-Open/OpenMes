@@ -112,6 +112,78 @@ class SchedulePlannerController extends Controller
             default => $startDate->copy()->addWeek(),
         };
 
+        // Maintenance events in range (pending/in_progress, with scheduled_at)
+        $maintenanceEvents = \App\Models\MaintenanceEvent::with(['line', 'workstation'])
+            ->whereIn('status', ['pending', 'in_progress'])
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>=', $rangeStart)
+            ->where('scheduled_at', '<=', $rangeEnd)
+            ->orderBy('scheduled_at')
+            ->get();
+
+        // Generate virtual maintenance events from recurring schedules
+        // for the entire visible range (not just next_due_at)
+        $activeSchedules = \App\Models\MaintenanceSchedule::with(['line', 'workstation'])
+            ->where('is_active', true)
+            ->whereNotNull('next_due_at')
+            ->get();
+
+        foreach ($activeSchedules as $schedule) {
+            // Calculate interval in days
+            $intervalDays = match ($schedule->frequency) {
+                'daily' => 1,
+                'weekly' => 7,
+                'monthly' => 30,
+                'quarterly' => 91,
+                'annually' => 365,
+                default => 7,
+            };
+
+            // Generate occurrences within visible range
+            $cursor = $schedule->next_due_at->copy();
+
+            // If next_due is after range, walk backwards to find first occurrence in range
+            while ($cursor->gt($rangeEnd)) {
+                $cursor->subDays($intervalDays);
+            }
+            // Walk backwards to find the earliest occurrence in range
+            while ($cursor->copy()->subDays($intervalDays)->gte($rangeStart)) {
+                $cursor->subDays($intervalDays);
+            }
+
+            // Now walk forward generating events
+            while ($cursor->lte($rangeEnd)) {
+                if ($cursor->gte($rangeStart)) {
+                    // Check if a real event already exists on this date
+                    $dateStr = $cursor->format('Y-m-d');
+                    $hasEvent = $maintenanceEvents->contains(function ($e) use ($schedule, $dateStr) {
+                        return $e->schedule_id === $schedule->id
+                            && $e->scheduled_at->format('Y-m-d') === $dateStr;
+                    });
+
+                    if (! $hasEvent) {
+                        $time = $schedule->preferred_time ?? '06:00';
+                        $scheduledAt = $cursor->copy()->setTimeFromTimeString($time);
+                        $virtual = new \App\Models\MaintenanceEvent([
+                            'title' => $schedule->name,
+                            'event_type' => $schedule->event_type,
+                            'status' => 'pending',
+                            'line_id' => $schedule->line_id,
+                            'workstation_id' => $schedule->workstation_id,
+                            'schedule_id' => $schedule->id,
+                            'scheduled_at' => $scheduledAt,
+                            'scheduled_end_at' => $scheduledAt->copy()->addHour(),
+                            'description' => $schedule->description,
+                        ]);
+                        $virtual->setRelation('line', $schedule->line);
+                        $virtual->setRelation('workstation', $schedule->workstation);
+                        $maintenanceEvents->push($virtual);
+                    }
+                }
+                $cursor->addDays($intervalDays);
+            }
+        }
+
         // All lines for filter dropdown (unfiltered)
         $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
@@ -146,6 +218,7 @@ class SchedulePlannerController extends Controller
             'navPrev',
             'navNext',
             'backlogOrders',
+            'maintenanceEvents',
             'realtimeMode',
         );
 

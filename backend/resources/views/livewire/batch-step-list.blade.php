@@ -174,10 +174,11 @@
                                     {{ $step->step_number }}
                                 </span>
                                 <h4 class="text-lg font-bold text-gray-800 dark:text-gray-100">{{ $step->name }}</h4>
+                                @php
+                                    $isMyStation = $myWorkstationId && $step->workstation_id == $myWorkstationId;
+                                    $stepLocked = !$this->canOperateStep($step);
+                                @endphp
                                 @if($step->workstation)
-                                    @php
-                                        $isMyStation = session('selected_workstation_id') == $step->workstation_id;
-                                    @endphp
                                     <span class="px-2 py-0.5 rounded text-xs font-medium {{ $isMyStation ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
                                         {{ $step->workstation->name }}
                                     </span>
@@ -235,7 +236,16 @@
 
                         <!-- Actions -->
                         <div class="flex flex-col gap-2 min-w-[110px]">
-                            @if($step->status === 'PENDING')
+                            @if($stepLocked && in_array($step->status, ['PENDING', 'IN_PROGRESS']))
+                                {{-- Step belongs to another workstation under routing rules --}}
+                                <span class="px-3 py-2 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium flex items-center gap-1.5 justify-center text-center">
+                                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                    <span>{{ __('Other station') }}</span>
+                                </span>
+                                <p class="text-[11px] text-gray-400 text-center leading-tight">{{ $step->workstation?->name }}</p>
+                            @elseif($step->status === 'PENDING')
                                 @php
                                     $previousStep = $batch->steps->where('step_number', $step->step_number - 1)->first();
                                     $canStart = !$previousStep || in_array($previousStep->status, ['DONE', 'SKIPPED']);
