@@ -514,6 +514,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/connectivity/modbus/{machineConnection}/tags', [\App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class, 'storeTag'])->name('connectivity.modbus.tags.store');
         Route::delete('/connectivity/modbus/{machineConnection}/tags/{tag}', [\App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class, 'destroyTag'])->name('connectivity.modbus.tags.destroy');
 
+        // OPC UA connections (served by an external gateway sidecar)
+        Route::resource('connectivity/opcua', \App\Http\Controllers\Web\Admin\Connectivity\OpcuaConnectionController::class)
+            ->parameters(['opcua' => 'machineConnection'])
+            ->names('connectivity.opcua');
+        Route::post('/connectivity/opcua/{machineConnection}/tags', [\App\Http\Controllers\Web\Admin\Connectivity\OpcuaConnectionController::class, 'storeTag'])->name('connectivity.opcua.tags.store');
+        Route::delete('/connectivity/opcua/{machineConnection}/tags/{tag}', [\App\Http\Controllers\Web\Admin\Connectivity\OpcuaConnectionController::class, 'destroyTag'])->name('connectivity.opcua.tags.destroy');
+
         // Live machine monitor
         Route::get('/machine-monitor', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'index'])->name('machine-monitor.index');
         Route::get('/machine-monitor/check', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'check'])->name('machine-monitor.check');
