@@ -250,7 +250,7 @@ class SettingsController extends Controller
             'workstation_routing_enabled' => 'nullable|boolean',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
-            'language' => 'nullable|in:en,pl',
+            'language' => 'nullable|in:en,pl,tr',
             'schedule_view_mode' => 'required|in:weekly,daily,monthly',
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
