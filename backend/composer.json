@@ -11,6 +11,7 @@
         "dedoc/scramble": "^0.12",
         "endroid/qr-code": "^5.0",
         "laravel/framework": "^12.0",
+        "laravel/reverb": "^1.10",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "league/csv": "^9.28",

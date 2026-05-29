@@ -123,9 +123,12 @@ class WorkOrderService
      */
     public function updateWorkOrderStatus(WorkOrder $workOrder): void
     {
+        $previous = $workOrder->status;
+
         // Check if blocked by issues
         if ($workOrder->isBlocked()) {
             $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
+            $this->maybeBroadcastScheduleUpdate($workOrder, $previous);
 
             return;
         }
@@ -136,6 +139,7 @@ class WorkOrderService
                 'status' => WorkOrder::STATUS_DONE,
                 'completed_at' => now(),
             ]);
+            $this->maybeBroadcastScheduleUpdate($workOrder, $previous);
 
             return;
         }
@@ -147,6 +151,7 @@ class WorkOrderService
 
         if ($hasInProgressBatch) {
             $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
+            $this->maybeBroadcastScheduleUpdate($workOrder, $previous);
 
             return;
         }
@@ -155,7 +160,23 @@ class WorkOrderService
         if ($workOrder->status !== WorkOrder::STATUS_PENDING &&
             $workOrder->status !== WorkOrder::STATUS_DONE) {
             $workOrder->update(['status' => WorkOrder::STATUS_PENDING]);
+            $this->maybeBroadcastScheduleUpdate($workOrder, $previous);
         }
+    }
+
+    /**
+     * Fire ScheduleUpdated (broad channel + per-line) AND WorkOrderUpdated
+     * (per-WO channel) when the status actually changed. Both events gate on
+     * system_settings.realtime_mode='websocket', so this is a no-op while
+     * admins are still on polling.
+     */
+    protected function maybeBroadcastScheduleUpdate(WorkOrder $workOrder, ?string $previous): void
+    {
+        if ($previous === $workOrder->status) {
+            return;
+        }
+        \App\Events\ScheduleUpdated::dispatch('status', $workOrder->line_id);
+        \App\Events\WorkOrderUpdated::dispatch($workOrder->id, 'status');
     }
 
     /**

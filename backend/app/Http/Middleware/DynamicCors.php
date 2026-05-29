@@ -12,12 +12,34 @@ class DynamicCors
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
-
         $origin = $request->headers->get('Origin');
 
-        if (! $origin) {
+        // Preflight: respond directly with full CORS headers instead of
+        // letting Laravel's HandleCors short-circuit with no headers (its
+        // config has allowed_origins=[] because this middleware is the
+        // source of truth for the allowlist).
+        $isPreflight = $request->getMethod() === 'OPTIONS'
+            && $request->headers->has('Access-Control-Request-Method');
+
+        if ($isPreflight) {
+            $response = response('', 204);
+            $this->applyCorsHeaders($response, $request, $origin, true);
             return $response;
+        }
+
+        $response = $next($request);
+
+        if ($origin) {
+            $this->applyCorsHeaders($response, $request, $origin, false);
+        }
+
+        return $response;
+    }
+
+    private function applyCorsHeaders(Response $response, Request $request, ?string $origin, bool $isPreflight): void
+    {
+        if (! $origin) {
+            return;
         }
 
         $corsSettings = Cache::remember('cors_settings', 60, function () {
@@ -35,36 +57,38 @@ class DynamicCors
 
         // Empty = block all cross-origin requests (most secure default)
         if (empty($allowedRaw) || $allowedRaw === '""') {
-            return $response;
+            return;
         }
 
         if ($allowedRaw === '*') {
             $response->headers->set('Access-Control-Allow-Origin', '*');
         } else {
-            $origins = array_map('trim', explode(',', $allowedRaw));
-            $origins = array_filter($origins);
+            $origins = array_filter(array_map('trim', explode(',', $allowedRaw)));
 
-            if (in_array($origin, $origins, true)) {
-                $response->headers->set('Access-Control-Allow-Origin', $origin);
-                $response->headers->set('Vary', 'Origin');
-            } else {
-                return $response; // Origin not allowed — no CORS headers
+            if (! in_array($origin, $origins, true)) {
+                return;
             }
+
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+            $response->headers->set('Vary', 'Origin');
         }
 
-        $methods = $corsSettings['cors_allowed_methods'] ?? 'GET, POST';
-        if (str_starts_with($methods, '"')) {
-            $methods = json_decode($methods, true) ?? $methods;
-        }
-        $response->headers->set('Access-Control-Allow-Methods', $methods);
-        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept');
         $response->headers->set('Access-Control-Allow-Credentials', 'true');
 
-        $maxAge = (int) ($corsSettings['cors_max_age'] ?? 0);
-        if ($maxAge > 0) {
-            $response->headers->set('Access-Control-Max-Age', (string) $maxAge);
-        }
+        if ($isPreflight) {
+            $methods = $corsSettings['cors_allowed_methods'] ?? 'GET, POST';
+            if (str_starts_with($methods, '"')) {
+                $methods = json_decode($methods, true) ?? $methods;
+            }
 
-        return $response;
+            $requestedHeaders = $request->headers->get('Access-Control-Request-Headers')
+                ?: 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN, Accept';
+
+            $response->headers->set('Access-Control-Allow-Methods', $methods);
+            $response->headers->set('Access-Control-Allow-Headers', $requestedHeaders);
+
+            $maxAge = (int) ($corsSettings['cors_max_age'] ?? 600);
+            $response->headers->set('Access-Control-Max-Age', (string) ($maxAge > 0 ? $maxAge : 600));
+        }
     }
 }
