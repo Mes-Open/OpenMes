@@ -357,6 +357,9 @@ Route::middleware('auth')->group(function () {
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
 
+        // ── Material Traceability / Genealogy ───────────────────────────────
+        Route::get('/traceability', [\App\Http\Controllers\Web\Admin\TraceabilityController::class, 'index'])->name('traceability.index');
+
         // Dashboard Widgets Setup
         Route::get('/dashboard-widgets', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'index'])->name('dashboard-widgets.index');
         Route::post('/dashboard-widgets/{widget}/toggle', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'toggle'])->name('dashboard-widgets.toggle');
