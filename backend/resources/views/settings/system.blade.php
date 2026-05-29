@@ -169,6 +169,19 @@
                             <p class="text-xs text-gray-500">{{ __('Require production steps to be completed in defined order.') }}</p>
                         </div>
                     </label>
+
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <div class="pt-0.5">
+                            <input type="hidden" name="workstation_routing_enabled" value="0">
+                            <input type="checkbox" name="workstation_routing_enabled" value="1"
+                                   class="rounded border-gray-300 text-blue-600"
+                                   {{ ($settings['workstation_routing_enabled'] ?? false) ? 'checked' : '' }}>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">{{ __('Workstation routing') }}</p>
+                            <p class="text-xs text-gray-500">{{ __('Restrict each operator to steps assigned to their own workstation. Work passes from one station to the next as steps are completed. Supervisors and admins are not restricted.') }}</p>
+                        </div>
+                    </label>
                 </div>
             </div>
 

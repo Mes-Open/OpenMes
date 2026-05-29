@@ -20,10 +20,42 @@ class BatchStepList extends Component
 
     public ?int $pendingStepId = null;
 
+    /** Workstation routing context (set on mount) */
+    public bool $routingEnabled = false;
+
+    public ?int $myWorkstationId = null;
+
+    public bool $canOperateAnyStation = false;
+
     public function mount(int $batchId): void
     {
         $this->batchId = $batchId;
+
+        $user = auth()->user();
+        $this->routingEnabled = (bool) (json_decode(
+            \Illuminate\Support\Facades\DB::table('system_settings')
+                ->where('key', 'workstation_routing_enabled')->value('value') ?? 'false',
+            true
+        ) ?? false);
+        $this->myWorkstationId = $user->workstation_id ?? session('selected_workstation_id');
+        $this->canOperateAnyStation = $user->hasRole('Admin') || $user->hasRole('Supervisor') || ! $user->workstation_id;
+
         $this->loadBatch();
+    }
+
+    /**
+     * Whether the current user may operate the given step under routing rules.
+     */
+    public function canOperateStep(BatchStep $step): bool
+    {
+        if (! $this->routingEnabled || ! $step->workstation_id) {
+            return true;
+        }
+        if ($this->canOperateAnyStation) {
+            return true;
+        }
+
+        return (int) $step->workstation_id === (int) $this->myWorkstationId;
     }
 
     /** Estimated durations keyed by step_number, from process_snapshot */
