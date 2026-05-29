@@ -63,6 +63,26 @@ class MachineConnection extends Model
         return $this->hasMany(MachineMessage::class);
     }
 
+    public function modbusConnection(): HasOne
+    {
+        return $this->hasOne(ModbusConnection::class);
+    }
+
+    public function opcuaConnection(): HasOne
+    {
+        return $this->hasOne(OpcuaConnection::class);
+    }
+
+    public function tags(): HasMany
+    {
+        return $this->hasMany(MachineTag::class);
+    }
+
+    public function activeTags(): HasMany
+    {
+        return $this->hasMany(MachineTag::class)->where('is_active', true);
+    }
+
     public function isConnected(): bool
     {
         return $this->status === self::STATUS_CONNECTED;
