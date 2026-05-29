@@ -699,6 +699,27 @@ function submitLineStatusForm(url, statusId) {
     form.submit();
 }
 
+// ── Auto-refresh polling ──
+(function() {
+    let lastActive = {{ $activeWorkOrders->count() }};
+    let lastWs = {{ ($workstationQueue ?? collect())->count() }};
+    const POLL_INTERVAL = 5000;
+    setInterval(async () => {
+        try {
+            const res = await fetch('{{ route("operator.queue.check") }}', {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.active !== lastActive || data.workstation !== lastWs) {
+                lastActive = data.active;
+                lastWs = data.workstation;
+                window.location.reload();
+            }
+        } catch(e) {}
+    }, POLL_INTERVAL);
+})();
+
 function handleBoardStatusChange(select) {
     const selectedId = select.value ? parseInt(select.value) : null;
 
