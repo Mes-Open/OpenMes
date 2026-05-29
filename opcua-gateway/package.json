@@ -1,0 +1,14 @@
+{
+  "name": "openmes-opcua-gateway",
+  "version": "1.0.0",
+  "description": "OPC UA → OpenMES gateway. Subscribes to OPC UA nodes and forwards normalized readings to the OpenMES machine-signal ingest API.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "node-opcua-client": "^2.130.0"
+  }
+}
