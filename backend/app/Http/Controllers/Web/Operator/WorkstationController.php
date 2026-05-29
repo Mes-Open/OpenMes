@@ -93,6 +93,34 @@ class WorkstationController extends Controller
     }
 
     /**
+     * JSON endpoint for polling — returns work order count and hash for change detection.
+     */
+    public function check(Request $request)
+    {
+        $lineId = $request->session()->get('selected_line_id');
+        if (!$lineId) {
+            return response()->json(['count' => 0, 'hash' => '']);
+        }
+
+        $weekFilter = $request->query('week');
+        $query = WorkOrder::where('line_id', $lineId)
+            ->whereNotIn('status', [WorkOrder::STATUS_REJECTED, WorkOrder::STATUS_CANCELLED]);
+
+        if ($weekFilter && $weekFilter !== 'all') {
+            $query->where('week_number', (int) $weekFilter);
+        }
+
+        $orders = $query->select('id', 'status', 'produced_qty')->get();
+        $hash = md5($orders->map(fn($o) => "{$o->id}:{$o->status}:{$o->produced_qty}")->implode('|'));
+
+        return response()->json([
+            'count' => $orders->count(),
+            'hash' => $hash,
+            'timestamp' => now()->timestamp,
+        ]);
+    }
+
+    /**
      * Build complete column list: system fields first, then all extra_data keys.
      */
     private function buildAllColumns($workOrders, Line $line): array

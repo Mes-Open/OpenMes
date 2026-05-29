@@ -109,5 +109,91 @@
             </div>
         </form>
     </div>
+
+    {{-- Two-Factor Authentication --}}
+    <div class="card mt-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-2">{{ __('Two-Factor Authentication') }}</h2>
+        <p class="text-sm text-gray-500 mb-4">{{ __('Add an extra layer of security to your account using a TOTP authenticator app.') }}</p>
+
+        @if(auth()->user()->two_factor_enabled)
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div class="flex items-center gap-3">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    <div>
+                        <p class="font-semibold text-green-800">{{ __('2FA is enabled') }}</p>
+                        <p class="text-sm text-green-700">{{ __('Enabled') }} {{ auth()->user()->two_factor_confirmed_at?->diffForHumans() }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                {{-- Regenerate recovery codes --}}
+                <div x-data="{ open: false }">
+                    <button type="button" @click="open = true" class="btn-touch btn-secondary text-sm">
+                        {{ __('Regenerate Recovery Codes') }}
+                    </button>
+                    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+                        <div class="relative bg-white rounded-xl shadow-2xl max-w-sm w-full p-6" @click.stop>
+                            <h3 class="text-lg font-bold mb-3">{{ __('Regenerate Recovery Codes') }}</h3>
+                            <p class="text-sm text-gray-600 mb-4">{{ __('This will invalidate your existing recovery codes. Enter your password to continue.') }}</p>
+                            <form method="POST" action="{{ route('settings.two-factor.recovery-codes') }}">
+                                @csrf
+                                <input type="password" name="password" class="form-input w-full mb-4" placeholder="{{ __('Current password') }}" required>
+                                @error('password')<p class="text-red-600 text-sm mb-2">{{ $message }}</p>@enderror
+                                <div class="flex gap-3">
+                                    <button type="button" @click="open = false" class="btn-touch btn-secondary flex-1">{{ __('Cancel') }}</button>
+                                    <button type="submit" class="btn-touch btn-primary flex-1">{{ __('Regenerate') }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Disable 2FA --}}
+                <div x-data="{ open: false }">
+                    <button type="button" @click="open = true" class="btn-touch text-sm text-red-600 border border-red-200 hover:bg-red-50 rounded-lg px-4 py-2">
+                        {{ __('Disable 2FA') }}
+                    </button>
+                    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div class="fixed inset-0 bg-black/50" @click="open = false"></div>
+                        <div class="relative bg-white rounded-xl shadow-2xl max-w-sm w-full p-6" @click.stop>
+                            <h3 class="text-lg font-bold text-red-700 mb-3">{{ __('Disable Two-Factor Authentication') }}</h3>
+                            <p class="text-sm text-gray-600 mb-4">{{ __('Your account will be less secure. Enter your password to confirm.') }}</p>
+                            <form method="POST" action="{{ route('settings.two-factor.disable') }}">
+                                @csrf
+                                <input type="password" name="password" class="form-input w-full mb-4" placeholder="{{ __('Current password') }}" required>
+                                @error('password')<p class="text-red-600 text-sm mb-2">{{ $message }}</p>@enderror
+                                <div class="flex gap-3">
+                                    <button type="button" @click="open = false" class="btn-touch btn-secondary flex-1">{{ __('Cancel') }}</button>
+                                    <button type="submit" class="btn-touch flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg">{{ __('Disable') }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @else
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                <div class="flex items-center gap-3">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <div>
+                        <p class="font-semibold text-gray-700">{{ __('2FA is not enabled') }}</p>
+                        <p class="text-sm text-gray-500">{{ __('Protect your account with a TOTP authenticator app.') }}</p>
+                    </div>
+                </div>
+            </div>
+            <a href="{{ route('settings.two-factor.enable') }}" class="btn-touch btn-primary inline-flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+                {{ __('Enable Two-Factor Authentication') }}
+            </a>
+        @endif
+    </div>
 </div>
 @endsection

@@ -230,7 +230,29 @@
                             </div>
                         @endforeach
 
-                        @if($lineRow['orders']->isEmpty())
+                        {{-- Maintenance events on this line today --}}
+                        @php
+                            $lineMaint = ($maintenanceEvents ?? collect())->filter(fn($m) =>
+                                $m->line_id == $lineRow['line']->id &&
+                                $m->scheduled_at->format('Y-m-d') === $startDate->format('Y-m-d')
+                            );
+                        @endphp
+                        @foreach($lineMaint as $maint)
+                            @php
+                                $maintMinute = (int) $startDate->copy()->startOfDay()->diffInMinutes($maint->scheduled_at, false);
+                                $maintDuration = $maint->scheduled_end_at
+                                    ? $maint->scheduled_at->diffInMinutes($maint->scheduled_end_at)
+                                    : 60;
+                                $maintDuration = max(30, $maintDuration);
+                            @endphp
+                            <div class="absolute rounded-lg border-2 border-purple-500 bg-purple-200 px-2 py-1.5 text-[11px] font-bold text-purple-900 truncate z-10 shadow-md"
+                                 style="left: {{ $maintMinute * $pxPerMinute }}px; width: {{ max(80, $maintDuration * $pxPerMinute) }}px; top: 6px; height: 40px; display: flex; align-items: center; gap: 4px;"
+                                 title="{{ $maint->title }} — {{ $maint->scheduled_at->format('H:i') }}{{ $maint->scheduled_end_at ? ' - ' . $maint->scheduled_end_at->format('H:i') : '' }}">
+                                <span>🔧</span> <span class="truncate">{{ $maint->title }}</span>
+                            </div>
+                        @endforeach
+
+                        @if($lineRow['orders']->isEmpty() && $lineMaint->isEmpty())
                             <div class="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 italic pointer-events-none">
                                 {{ __('No scheduled orders') }}
                             </div>

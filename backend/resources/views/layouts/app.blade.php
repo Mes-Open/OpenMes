@@ -243,6 +243,9 @@
     </div>
 </div>
 
+{{-- Maintenance reminder (all authenticated users) --}}
+<x-maintenance-reminder />
+
 <style>[x-cloak]{display:none!important}</style>
 <script>
 if ('serviceWorker' in navigator) {
