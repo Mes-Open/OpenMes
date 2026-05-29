@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Stanowisko Pakowania')
+@section('title', __('Packaging Station'))
 
 @section('content')
 <div class="max-w-7xl mx-auto"
@@ -15,17 +15,17 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
                 </svg>
-                Stanowisko Pakowania
+                {{ __('Packaging Station') }}
             </h1>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Zmiana: <span class="font-semibold" x-text="shiftLabel"></span>
-                &nbsp;·&nbsp; Zalogowany: <span class="font-semibold">{{ auth()->user()->name }}</span>
+                {{ __('Shift:') }} <span class="font-semibold" x-text="shiftLabel"></span>
+                &nbsp;·&nbsp; {{ __('Logged in:') }} <span class="font-semibold">{{ auth()->user()->name }}</span>
             </p>
         </div>
         <div class="flex items-center gap-2">
             <span class="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-3 py-1.5 rounded-full">
                 <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                Skanowanie aktywne
+                {{ __('Scanning active') }}
             </span>
         </div>
     </div>
@@ -34,23 +34,23 @@
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div class="card text-center">
             <p class="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400" x-text="stats.today_packed ?? '—'"></p>
-            <p class="text-xs text-gray-500 mt-1">Spakowano (zmiana)</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('Packed (shift)') }}</p>
         </div>
         <div class="card text-center">
             <p class="text-3xl font-extrabold text-gray-700 dark:text-gray-200" x-text="stats.plan ?? '—'"></p>
-            <p class="text-xs text-gray-500 mt-1">Plan łącznie</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('Total plan') }}</p>
         </div>
         <div class="card text-center">
             <p class="text-3xl font-extrabold"
                :class="(stats.backlog ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'"
                x-text="stats.backlog ?? '—'"></p>
-            <p class="text-xs text-gray-500 mt-1">Backlog</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('Backlog') }}</p>
         </div>
         <div class="card text-center">
             <p class="text-3xl font-extrabold"
                :class="realizacja >= 100 ? 'text-green-600' : realizacja >= 50 ? 'text-yellow-600' : 'text-red-600'"
                x-text="realizacja + '%'"></p>
-            <p class="text-xs text-gray-500 mt-1">Realizacja</p>
+            <p class="text-xs text-gray-500 mt-1">{{ __('Completion') }}</p>
         </div>
     </div>
 
@@ -58,10 +58,10 @@
 
         {{-- Last scan ───────────────────────────────────────────────────── --}}
         <div class="card">
-            <h2 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">Ostatnie skanowanie</h2>
+            <h2 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">{{ __('Last scan') }}</h2>
 
             <div x-show="!lastScan" class="py-8 text-center text-gray-400 dark:text-gray-600 text-sm">
-                Przyłóż kod EAN do skanera…
+                {{ __('Scan EAN code…') }}
             </div>
 
             <div x-show="lastScan" x-cloak>
@@ -75,7 +75,7 @@
                     </div>
                     <span class="shrink-0 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold"
                           :class="lastScan?.success ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'"
-                          x-text="lastScan?.success ? 'OK' : 'Błąd'"></span>
+                          x-text="lastScan?.success ? 'OK' : '{{ __('Error') }}'"></span>
                 </div>
 
                 <div x-show="lastScan?.success" class="mt-3 flex items-center gap-3">
@@ -85,7 +85,7 @@
                              :style="'width:' + (lastScan?.progress ?? 0) + '%'"></div>
                     </div>
                     <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        <span x-text="lastScan?.packed_qty"></span> / <span x-text="lastScan?.planned_qty"></span> szt.
+                        <span x-text="lastScan?.packed_qty"></span> / <span x-text="lastScan?.planned_qty"></span> {{ __('pcs.') }}
                     </span>
                 </div>
 
@@ -106,19 +106,19 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                           d="M12 4v1m6.364 1.636l-.707.707M20 12h-1M17.657 17.657l-.707-.707M12 20v-1M6.343 17.657l-.707.707M4 12H3M6.343 6.343l.707.707"/>
                 </svg>
-                Czekam na skan…
+                {{ __('Waiting for scan…') }}
             </div>
             <div x-show="flash === 'success'" x-cloak class="text-center">
                 <svg class="mx-auto w-14 h-14 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                 </svg>
-                <p class="text-green-700 dark:text-green-300 font-bold mt-2">Zeskanowano!</p>
+                <p class="text-green-700 dark:text-green-300 font-bold mt-2">{{ __('Scanned!') }}</p>
             </div>
             <div x-show="flash === 'error'" x-cloak class="text-center">
                 <svg class="mx-auto w-14 h-14 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
-                <p class="text-red-700 dark:text-red-300 font-bold mt-2">Błąd skanowania</p>
+                <p class="text-red-700 dark:text-red-300 font-bold mt-2">{{ __('Scan error') }}</p>
             </div>
         </div>
     </div>
@@ -127,25 +127,25 @@
     <div class="card overflow-hidden p-0 mb-6">
         <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h2 class="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
-                Zlecenia do spakowania
+                {{ __('Work orders to pack') }}
             </h2>
-            <span class="text-xs text-gray-400" x-text="items.length + ' pozycji'"></span>
+            <span class="text-xs text-gray-400" x-text="items.length + ' {{ __('items') }}'"></span>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead class="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Zlecenie</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Produkt</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Work Order') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EAN</th>
-                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Spakowano</th>
-                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Plan</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Postęp</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Packed') }}</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Plan') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">{{ __('Progress') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
                     <template x-if="items.length === 0">
-                        <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400 text-sm">Brak zleceń z przypisanymi kodami EAN</td></tr>
+                        <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400 text-sm">{{ __('No work orders with assigned EAN codes') }}</td></tr>
                     </template>
                     <template x-for="item in items" :key="item.id">
                         <tr :class="item.done ? 'bg-green-50 dark:bg-green-900/10' : ''">
@@ -179,21 +179,21 @@
     <div class="card overflow-hidden p-0">
         <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <h2 class="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
-                Historia skanowań (zmiana)
+                {{ __('Scan history (shift)') }}
             </h2>
         </div>
         <div class="overflow-x-auto max-h-64 overflow-y-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0">
                     <tr>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Czas</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Produkt</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Time') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Product') }}</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">EAN</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
                     <template x-if="history.length === 0">
-                        <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400 text-sm">Brak skanowań w tej zmianie</td></tr>
+                        <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400 text-sm">{{ __('No scans in this shift') }}</td></tr>
                     </template>
                     <template x-for="entry in history" :key="entry.id">
                         <tr>
@@ -317,7 +317,7 @@ function packagingStation() {
                         packed_qty:  wo.packed_qty,
                         planned_qty: wo.planned_qty,
                         progress:    wo.planned_qty > 0 ? Math.min(100, Math.round(wo.packed_qty / wo.planned_qty * 100)) : 0,
-                        scanned_at:  new Date().toLocaleTimeString('pl-PL'),
+                        scanned_at:  new Date().toLocaleTimeString(),
                     };
                     this.flash = 'success';
                     await Promise.all([this.fetchItems(), this.fetchStats()]);
@@ -325,14 +325,14 @@ function packagingStation() {
                         id: Date.now(),
                         ean: ean,
                         product_name: wo.product,
-                        scanned_at: new Date().toLocaleTimeString('pl-PL'),
+                        scanned_at: new Date().toLocaleTimeString(),
                     });
                 } else {
-                    this.lastScan = { success: false, ean, error: data.message, scanned_at: new Date().toLocaleTimeString('pl-PL') };
+                    this.lastScan = { success: false, ean, error: data.message, scanned_at: new Date().toLocaleTimeString() };
                     this.flash = 'error';
                 }
             } catch {
-                this.lastScan = { success: false, ean, error: 'Błąd połączenia', scanned_at: new Date().toLocaleTimeString('pl-PL') };
+                this.lastScan = { success: false, ean, error: '{{ __('Connection error') }}', scanned_at: new Date().toLocaleTimeString() };
                 this.flash = 'error';
             }
 
