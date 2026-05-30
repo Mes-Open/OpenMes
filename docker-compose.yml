@@ -131,6 +131,93 @@ services:
     profiles:
       - connectivity
 
+  # ── Modbus TCP poller daemon ──────────────────────────────────────────────
+  # One instance per active Modbus machine_connection.
+  # Example: MODBUS_CONNECTION_ID=1 docker compose --profile connectivity up -d modbus-poller
+  modbus-poller:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: openmmes-modbus-poller
+    command:
+      ["php", "artisan", "modbus:poll", "--connection=${MODBUS_CONNECTION_ID:-1}"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+    profiles:
+      - connectivity
+
+  # ── OPC UA gateway sidecar (Node.js) ──────────────────────────────────────
+  # Bridges an OPC UA server into the OpenMES ingest API. OpenMES cannot speak
+  # OPC UA natively. Requires an API token (Admin → API Tokens).
+  # Example: OPCUA_CONNECTION_ID=1 OPENMES_API_TOKEN=xxx \
+  #          docker compose --profile connectivity up -d opcua-gateway
+  opcua-gateway:
+    build:
+      context: ./opcua-gateway
+      dockerfile: Dockerfile
+    container_name: openmmes-opcua-gateway
+    environment:
+      OPENMES_API_URL: ${OPENMES_API_URL:-http://backend:8000}
+      OPENMES_API_TOKEN: ${OPENMES_API_TOKEN}
+      OPCUA_CONNECTION_ID: ${OPCUA_CONNECTION_ID:-1}
+      OPCUA_PASSWORD: ${OPCUA_PASSWORD:-}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+    profiles:
+      - connectivity
+
+  # ── Queue worker ──────────────────────────────────────────────────────────
+  # Consumes queued jobs (e.g. MQTT message processing). Start in production if
+  # you use MQTT or other queued work.
+  # Example: docker compose --profile workers up -d queue-worker
+  queue-worker:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: openmmes-queue-worker
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=120"]
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+      - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+    profiles:
+      - workers
+
   caddy:
     image: caddy:2-alpine
     container_name: openmmes-caddy

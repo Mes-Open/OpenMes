@@ -1,12 +1,13 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "mes-open/openmes",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "description": "OpenMES — open-source Manufacturing Execution System.",
+    "keywords": ["openmes", "mes", "manufacturing", "laravel"],
+    "license": "AGPL-3.0-only",
     "require": {
         "php": "^8.2",
+        "aldas/modbus-tcp-client": "^3.6",
         "barryvdh/laravel-dompdf": "^3.1",
         "dedoc/scramble": "^0.12",
         "endroid/qr-code": "^5.0",
@@ -19,6 +20,7 @@
         "maatwebsite/excel": "^3.1",
         "php-mqtt/client": "^2.0",
         "picqer/php-barcode-generator": "^3.2",
+        "pragmarx/google2fa-laravel": "^3.0",
         "spatie/laravel-permission": "^7.1",
         "spiral/roadrunner-cli": "^2.6.0",
         "spiral/roadrunner-http": "^3.3.0"

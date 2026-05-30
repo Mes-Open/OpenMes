@@ -74,7 +74,7 @@ Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\Chec
     Route::get('/complete', [InstallController::class, 'complete'])->name('complete');
 });
 
-// Redirect root to installer or login
+// Redirect root to installer, login, or dashboard depending on auth state.
 Route::get('/', function () {
     if (! file_exists(storage_path('installed'))) {
         return redirect()->route('install.index');
@@ -195,6 +195,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/select-line', [OperatorLineController::class, 'index'])->name('select-line');
         Route::post('/select-line', [OperatorLineController::class, 'select'])->name('select-line.post');
         Route::get('/queue', [OperatorWorkOrderController::class, 'queue'])->name('queue');
+        Route::get('/queue/check', [OperatorWorkOrderController::class, 'check'])->name('queue.check');
         Route::post('/work-order/{workOrder}/line-status', [OperatorWorkOrderController::class, 'updateLineStatus'])->name('work-order.line-status');
         Route::get('/work-order/{workOrder}', [OperatorWorkOrderController::class, 'show'])->name('work-order.detail');
         Route::post('/batch', [OperatorBatchController::class, 'store'])->name('batch.store');
@@ -216,6 +217,7 @@ Route::middleware('auth')->group(function () {
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
+        Route::get('/workstation/check', [OperatorWorkstationController::class, 'check'])->name('workstation.check');
         Route::post('/workstation/{workOrder}/start', [OperatorWorkstationController::class, 'start'])->name('workstation.start');
         Route::post('/workstation/{workOrder}/complete', [OperatorWorkstationController::class, 'complete'])->name('workstation.complete');
         Route::post('/workstation/{workOrder}/shift-entry', [OperatorWorkstationController::class, 'shiftEntry'])->name('workstation.shift-entry');
@@ -544,6 +546,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings', [TopicMappingController::class, 'store'])->name('connectivity.mqtt.topics.mappings.store');
         Route::put('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'update'])->name('connectivity.mqtt.topics.mappings.update');
         Route::delete('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'destroy'])->name('connectivity.mqtt.topics.mappings.destroy');
+
+        // NOTE: Modbus / OPC UA connectivity and the live machine-monitor were
+        // merged from `develop` as backend-only (models, services, commands, API
+        // gateway, opcua-gateway sidecar). Their admin web routes + Blade views
+        // were dropped pending React/Inertia pages. See routes/api.php for the
+        // machine-gateway ingest endpoint.
 
         // ── Gate 7: Maintenance ───────────────────────────────────────────────
         // Tools
