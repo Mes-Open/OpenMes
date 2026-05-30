@@ -169,6 +169,19 @@
                             <p class="text-xs text-gray-500">{{ __('Require production steps to be completed in defined order.') }}</p>
                         </div>
                     </label>
+
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <div class="pt-0.5">
+                            <input type="hidden" name="workstation_routing_enabled" value="0">
+                            <input type="checkbox" name="workstation_routing_enabled" value="1"
+                                   class="rounded border-gray-300 text-blue-600"
+                                   {{ ($settings['workstation_routing_enabled'] ?? false) ? 'checked' : '' }}>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-800">{{ __('Workstation routing') }}</p>
+                            <p class="text-xs text-gray-500">{{ __('Restrict each operator to steps assigned to their own workstation. Work passes from one station to the next as steps are completed. Supervisors and admins are not restricted.') }}</p>
+                        </div>
+                    </label>
                 </div>
             </div>
 
@@ -204,6 +217,83 @@
                     @endforeach
                 </div>
                 @error('production_tracking_mode')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            {{-- Production Quantity Corrections --}}
+            <div class="card" x-data="{ policy: '{{ $settings['production_qty_edit_policy'] ?? 'none' }}' }">
+                <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Production Quantity Corrections') }}</h2>
+                <p class="text-xs text-gray-500 mb-4">
+                    {{ __('Defines whether and when operators can correct previously reported quantities.') }}
+                </p>
+
+                <input type="hidden" name="production_qty_edit_policy" :value="policy">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div @click="policy = 'none'"
+                         :class="policy === 'none' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('No corrections') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Operators cannot edit reported quantities. All entries are final.') }}</span>
+                    </div>
+                    <div @click="policy = 'timed'"
+                         :class="policy === 'timed' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('Timed window') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Operators can correct quantities within a configurable time window after submission.') }}</span>
+                    </div>
+                    <div @click="policy = 'full'"
+                         :class="policy === 'full' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('Full edit') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Operators can edit reported quantities at any time.') }}</span>
+                    </div>
+                </div>
+                @error('production_qty_edit_policy')
+                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                @enderror
+
+                <div x-show="policy === 'timed'" x-cloak class="mt-4">
+                    <label class="form-label" for="production_qty_edit_window_minutes">{{ __('Correction time window') }}</label>
+                    <p class="text-xs text-gray-500 mb-2">
+                        {{ __('How many minutes after submission an operator can still correct the quantity.') }}
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <input type="number" name="production_qty_edit_window_minutes" id="production_qty_edit_window_minutes"
+                               class="form-input w-24"
+                               min="1" max="60"
+                               value="{{ $settings['production_qty_edit_window_minutes'] ?? 1 }}">
+                        <span class="text-sm text-gray-600">{{ __('minutes') }}</span>
+                    </div>
+                    @error('production_qty_edit_window_minutes')
+                        <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
+
+            {{-- Scanner --}}
+            <div class="card" x-data="{ mode: '{{ $settings['scanner_mode'] ?? 'hid' }}' }">
+                <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Barcode Scanner') }}</h2>
+                <p class="text-xs text-gray-500 mb-4">
+                    {{ __('How the workstation receives input from a barcode scanner.') }}
+                </p>
+
+                <input type="hidden" name="scanner_mode" :value="mode">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div @click="mode = 'hid'"
+                         :class="mode === 'hid' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('HID / Keyboard wedge') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Scanner acts as a keyboard. Codes are captured automatically on the workstation, no input field required.') }}</span>
+                    </div>
+                    <div @click="mode = 'manual'"
+                         :class="mode === 'manual' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'"
+                         class="flex flex-col gap-1 border rounded-lg p-3 cursor-pointer transition-colors">
+                        <span class="font-medium text-sm text-gray-800">{{ __('Manual input') }}</span>
+                        <span class="text-xs text-gray-500">{{ __('Operator types the code into a visible field and confirms with Enter. Use when no scanner is available.') }}</span>
+                    </div>
+                </div>
+                @error('scanner_mode')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
@@ -362,21 +452,45 @@
             <div class="card">
                 <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('CORS (Cross-Origin Requests)') }}</h2>
                 <p class="text-xs text-gray-500 mb-4">
-                    {{ __('Control which external domains can make API requests to this application.') }}
+                    {{ __('Control which external domains can make API requests to this application. Leave empty to block all cross-origin requests (most secure).') }}
                 </p>
 
-                <div>
-                    <label class="form-label" for="cors_allowed_origins">{{ __('Allowed CORS Origins') }}</label>
-                    <textarea name="cors_allowed_origins" id="cors_allowed_origins"
-                              rows="3"
-                              class="form-input w-full"
-                              placeholder="https://example.com, https://app.example.com">{{ old('cors_allowed_origins', $settings['cors_allowed_origins'] ?? '*') }}</textarea>
-                    <p class="text-xs text-gray-500 mt-2">
-                        {{ __('Comma-separated list of allowed origins (e.g. https://example.com, https://app.example.com). Use * to allow all origins (not recommended for production).') }}
-                    </p>
-                    @error('cors_allowed_origins')
-                        <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                    @enderror
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label" for="cors_allowed_origins">{{ __('Allowed Origins') }}</label>
+                        <textarea name="cors_allowed_origins" id="cors_allowed_origins"
+                                  rows="3"
+                                  class="form-input w-full"
+                                  placeholder="https://erp.yourcompany.com">{{ old('cors_allowed_origins', $settings['cors_allowed_origins'] ?? '') }}</textarea>
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ __('Comma-separated list of allowed origins. Only HTTPS URLs recommended. Leave empty to block all cross-origin requests.') }}
+                        </p>
+                        @error('cors_allowed_origins')
+                            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="cors_allowed_methods">{{ __('Allowed Methods') }}</label>
+                        <input type="text" name="cors_allowed_methods" id="cors_allowed_methods"
+                               class="form-input w-full"
+                               value="{{ old('cors_allowed_methods', $settings['cors_allowed_methods'] ?? 'GET, POST') }}"
+                               placeholder="GET, POST">
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ __('HTTP methods allowed for cross-origin requests. Default: GET, POST (minimal).') }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="cors_max_age">{{ __('Preflight Cache (seconds)') }}</label>
+                        <input type="number" name="cors_max_age" id="cors_max_age"
+                               class="form-input w-32"
+                               value="{{ old('cors_max_age', $settings['cors_max_age'] ?? '0') }}"
+                               min="0" max="86400" placeholder="0">
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ __('How long browsers cache preflight responses. 0 = no caching (strictest).') }}
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -413,6 +527,36 @@
                     </button>
                 </div>
             </form>
+        </div>
+
+        <div class="mt-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Export Settings') }}</h2>
+            <p class="text-sm text-gray-500 mb-4">
+                {{ __('Download complete system configuration as a JSON file. Includes lines, workstations, product types, templates, materials, shifts, and all settings. No production data or user accounts are exported.') }}
+            </p>
+            <a href="{{ route('settings.export') }}" class="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200 inline-flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                {{ __('Export Settings (JSON)') }}
+            </a>
+        </div>
+
+        <div class="mt-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">{{ __('Import Settings') }}</h2>
+            <p class="text-sm text-gray-500 mb-4">
+                {{ __('Upload a previously exported configuration file. This will overwrite current configuration including lines, products, templates, materials, and settings. Production data (work orders, batches, issues) is never affected. Database credentials are never imported.') }}
+            </p>
+            <form method="POST" action="{{ route('settings.import') }}" enctype="multipart/form-data" class="flex items-center gap-3">
+                @csrf
+                <input type="file" name="settings_file" accept=".json,.txt" required
+                       class="text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
+                <button type="submit" class="btn-touch bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    {{ __('Import Settings') }}
+                </button>
+            </form>
+            @error('settings_file')
+                <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
+            @enderror
         </div>
     </div>
 </div>

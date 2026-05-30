@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -93,6 +94,7 @@ class SettingsController extends Controller
             'production_period' => json_decode($rows['production_period']->value ?? '"none"', true) ?? 'none',
             'allow_overproduction' => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']->value ?? 'true', true) ?? true,
+            'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']->value ?? 'false', true) ?? false,
             'workflow_mode' => json_decode($rows['workflow_mode']->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']->value ?? 'false', true) ?? false,
             'language' => json_decode($rows['language']->value ?? '"en"', true) ?? 'en',
@@ -104,6 +106,9 @@ class SettingsController extends Controller
             'realtime_mode' => json_decode($rows['realtime_mode']->value ?? '"polling"', true) ?? 'polling',
             'production_tracking_mode' => json_decode($rows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation',
             'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']->value ?? '"*"', true) ?? '*',
+            'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none',
+            'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1,
+            'scanner_mode' => json_decode($rows['scanner_mode']->value ?? '"hid"', true) ?? 'hid',
         ];
 
         return view('settings.system', compact('settings'));
@@ -243,9 +248,10 @@ class SettingsController extends Controller
             'production_period' => 'required|in:none,weekly,monthly',
             'allow_overproduction' => 'nullable|boolean',
             'force_sequential_steps' => 'nullable|boolean',
+            'workstation_routing_enabled' => 'nullable|boolean',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
-            'language' => 'nullable|in:en,pl',
+            'language' => 'nullable|in:en,pl,tr',
             'schedule_view_mode' => 'required|in:weekly,daily,monthly',
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
@@ -253,6 +259,11 @@ class SettingsController extends Controller
             'realtime_mode' => 'required|in:polling,websocket',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
             'cors_allowed_origins' => 'nullable|string|max:1000',
+            'cors_allowed_methods' => 'nullable|string|max:200',
+            'cors_max_age' => 'nullable|integer|min:0|max:86400',
+            'production_qty_edit_policy' => 'required|in:none,timed,full',
+            'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
+            'scanner_mode' => 'required|in:hid,manual',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -262,6 +273,7 @@ class SettingsController extends Controller
             'production_period' => $validated['production_period'],
             'allow_overproduction' => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
+            'workstation_routing_enabled' => (bool) ($validated['workstation_routing_enabled'] ?? false),
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
             'language' => $validated['language'] ?? 'en',
@@ -272,7 +284,12 @@ class SettingsController extends Controller
             'schedule_slot_duration_hours' => $slotDuration,
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
-            'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '*') ?: '*',
+            'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: '',
+            'cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST',
+            'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
+            'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
+            'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
+            'scanner_mode' => $validated['scanner_mode'],
         ];
 
         foreach ($map as $key => $value) {
@@ -286,5 +303,175 @@ class SettingsController extends Controller
 
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');
+    }
+
+    /**
+     * Export full system configuration as JSON file
+     */
+    public function exportSettings()
+    {
+        $export = [
+            'exported_at' => now()->toISOString(),
+            'version' => config('version.current'),
+            'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
+        ];
+
+        $tables = [
+            'lines', 'workstations', 'product_types', 'process_templates',
+            'template_steps', 'material_types', 'materials', 'bom_items',
+            'issue_types', 'shifts', 'line_statuses', 'dashboard_widgets',
+            'maintenance_schedules', 'sites', 'areas', 'skills',
+            'personnel_classes', 'process_segments',
+        ];
+
+        foreach ($tables as $table) {
+            try {
+                $export[$table] = DB::table($table)->get()->map(fn($r) => (array) $r)->toArray();
+            } catch (\Exception $e) {
+                // table may not exist yet
+            }
+        }
+
+        // Add optional tables only if they exist
+        $optionalTables = ['inspection_plans', 'view_templates', 'label_templates'];
+        foreach ($optionalTables as $table) {
+            try {
+                if (Schema::hasTable($table)) {
+                    $export[$table] = DB::table($table)->get()->map(fn($r) => (array) $r)->toArray();
+                }
+            } catch (\Exception $e) {
+                // table may not exist yet
+            }
+        }
+
+        return response()->json($export, 200, [
+            'Content-Disposition' => 'attachment; filename="openmes-config-' . date('Y-m-d') . '.json"',
+        ]);
+    }
+
+    /**
+     * Import system configuration from JSON file
+     */
+    public function importSettings(Request $request)
+    {
+        $request->validate([
+            'settings_file' => 'required|file|mimes:json,txt|max:10240',
+        ]);
+
+        try {
+            $content = file_get_contents($request->file('settings_file')->getRealPath());
+            $data = json_decode($content, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return back()->with('error', __('Invalid JSON file.'));
+            }
+
+            // Backward compat: old format with just 'settings' key
+            if (isset($data['settings']) && !isset($data['system_settings'])) {
+                $data['system_settings'] = $data['settings'];
+            }
+
+            $allowedTables = [
+                'system_settings', 'lines', 'workstations', 'product_types',
+                'process_templates', 'template_steps', 'material_types', 'materials',
+                'bom_items', 'issue_types', 'shifts', 'line_statuses',
+                'dashboard_widgets', 'maintenance_schedules',
+                'sites', 'areas', 'skills', 'personnel_classes', 'process_segments',
+                'inspection_plans', 'view_templates', 'label_templates',
+            ];
+
+            $skipColumns = ['id', 'created_at', 'updated_at', 'tenant_id'];
+
+            // Forbidden system_settings keys
+            $forbiddenSettings = [
+                'app_key', 'app_debug', 'app_env',
+                'db_host', 'db_port', 'db_database', 'db_username', 'db_password', 'db_connection',
+                'mail_host', 'mail_port', 'mail_username', 'mail_password',
+                'cors_allowed_origins', 'cors_allowed_methods',
+                'reverb_app_id', 'reverb_app_key', 'reverb_app_secret',
+                'modules_enabled',
+            ];
+
+            $imported = 0;
+
+            DB::beginTransaction();
+
+            foreach ($data as $tableName => $rows) {
+                if (!in_array($tableName, $allowedTables, true)) continue;
+                if (!is_array($rows)) continue;
+                if (!Schema::hasTable($tableName)) continue;
+
+                if ($tableName === 'system_settings') {
+                    // Special handling: key-value update, not replace
+                    $existingKeys = DB::table('system_settings')->pluck('key')->toArray();
+
+                    foreach ($rows as $key => $value) {
+                        if (in_array(strtolower($key), $forbiddenSettings, true)) continue;
+                        if (!is_string($value) && !is_numeric($value)) continue;
+                        if (strlen((string) $value) > 1000) continue;
+                        if (!in_array($key, $existingKeys, true)) continue;
+
+                        DB::table('system_settings')->where('key', $key)->update(['value' => (string) $value]);
+                        $imported++;
+                    }
+                    continue;
+                }
+
+                // For all other tables: upsert by unique key (code or name)
+                if (empty($rows)) continue;
+
+                // Determine unique key for upsert
+                $uniqueKey = match ($tableName) {
+                    'lines', 'workstations', 'product_types', 'material_types',
+                    'materials', 'issue_types', 'shifts', 'skills',
+                    'personnel_classes', 'process_segments', 'sites', 'areas' => 'code',
+                    'line_statuses', 'process_templates', 'maintenance_schedules',
+                    'inspection_plans', 'label_templates' => 'name',
+                    'dashboard_widgets' => 'widget_id',
+                    default => null,
+                };
+
+                foreach ($rows as $row) {
+                    if (!is_array($row)) continue;
+
+                    $originalId = $row['id'] ?? null;
+
+                    // Remove auto-generated columns
+                    foreach ($skipColumns as $col) {
+                        unset($row[$col]);
+                    }
+                    // Remove null values for columns that might not accept null
+                    $row = array_filter($row, fn($v) => $v !== null);
+
+                    if (empty($row)) continue;
+
+                    try {
+                        DB::statement('SAVEPOINT row_insert');
+                        if ($uniqueKey && isset($row[$uniqueKey])) {
+                            DB::table($tableName)->updateOrInsert(
+                                [$uniqueKey => $row[$uniqueKey]],
+                                $row
+                            );
+                        } else {
+                            DB::table($tableName)->insert($row);
+                        }
+                        DB::statement('RELEASE SAVEPOINT row_insert');
+                        $imported++;
+                    } catch (\Exception $e) {
+                        DB::statement('ROLLBACK TO SAVEPOINT row_insert');
+                        continue;
+                    }
+                }
+            }
+
+            DB::commit();
+            Cache::flush();
+
+            return back()->with('success', __(':count configuration items imported successfully.', ['count' => $imported]));
+        } catch (\Exception $e) {
+            DB::rollBack();
+            report($e);
+            return back()->with('error', __('Failed to import settings. Please check the file and try again.'));
+        }
     }
 }

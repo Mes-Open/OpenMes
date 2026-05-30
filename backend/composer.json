@@ -7,6 +7,7 @@
     "license": "AGPL-3.0-only",
     "require": {
         "php": "^8.2",
+        "aldas/modbus-tcp-client": "^3.6",
         "barryvdh/laravel-dompdf": "^3.1",
         "dedoc/scramble": "^0.12",
         "endroid/qr-code": "^5.0",
@@ -18,6 +19,7 @@
         "maatwebsite/excel": "^3.1",
         "php-mqtt/client": "^2.0",
         "picqer/php-barcode-generator": "^3.2",
+        "pragmarx/google2fa-laravel": "^3.0",
         "spatie/laravel-permission": "^7.1"
     },
     "require-dev": {

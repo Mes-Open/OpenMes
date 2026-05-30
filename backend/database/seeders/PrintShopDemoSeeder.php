@@ -798,7 +798,8 @@ class PrintShopDemoSeeder extends Seeder
                 'line_id'      => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
                 'schedule_id'  => $schedules['dtg_cleaning']->id,
-                'scheduled_at' => now()->subWeeks(2)->setTime(6, 0),
+                'scheduled_at'     => now()->subWeeks(2)->setTime(6, 0),
+                'scheduled_end_at' => now()->subWeeks(2)->setTime(7, 0),
                 'description'  => 'Routine printhead cleaning completed without issues.',
             ],
             [
@@ -808,7 +809,8 @@ class PrintShopDemoSeeder extends Seeder
                 'line_id'      => $lines['HAFT']->id,
                 'workstation_id' => $workstations['HAFT-1']->id,
                 'schedule_id'  => $schedules['embroidery_calibration']->id,
-                'scheduled_at' => now()->subMonth()->setTime(7, 0),
+                'scheduled_at'     => now()->subMonth()->setTime(7, 0),
+                'scheduled_end_at' => now()->subMonth()->setTime(9, 0),
                 'description'  => 'Monthly calibration done. Tension adjusted on head 3.',
             ],
             [
@@ -818,8 +820,9 @@ class PrintShopDemoSeeder extends Seeder
                 'line_id'      => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,
                 'schedule_id'  => $schedules['screen_press']->id,
-                'scheduled_at' => now()->addWeeks(2)->setTime(6, 30),
-                'description'  => 'Upcoming bi-weekly screen press inspection.',
+                'scheduled_at'     => now()->addDays(1)->setTime(6, 30),
+                'scheduled_end_at' => now()->addDays(1)->setTime(8, 30),
+                'description'  => 'Bi-weekly screen press inspection.',
             ],
             [
                 'title'        => 'DTG Printhead Cleaning (overdue)',
@@ -828,8 +831,9 @@ class PrintShopDemoSeeder extends Seeder
                 'line_id'      => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
                 'schedule_id'  => $schedules['dtg_cleaning']->id,
-                'scheduled_at' => now()->subWeek()->setTime(6, 0),
-                'description'  => 'Missed weekly printhead cleaning — needs immediate attention.',
+                'scheduled_at'     => now()->setTime(14, 0),
+                'scheduled_end_at' => now()->setTime(15, 0),
+                'description'  => 'Weekly printhead cleaning — due today.',
             ],
         ];
 

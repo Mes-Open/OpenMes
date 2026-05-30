@@ -23,6 +23,9 @@ class BatchService
     public function startStep(BatchStep $step, User $user): BatchStep
     {
         return DB::transaction(function () use ($step, $user) {
+            // Enforce workstation routing (if enabled)
+            $this->guardWorkstationRouting($step, $user);
+
             // Validate step can be started
             if (! $step->canStart()) {
                 $this->throwValidationError($step);
@@ -65,6 +68,9 @@ class BatchService
     public function completeStep(BatchStep $step, User $user, array $data = []): BatchStep
     {
         return DB::transaction(function () use ($step, $user, $data) {
+            // Enforce workstation routing (if enabled)
+            $this->guardWorkstationRouting($step, $user);
+
             // Validate step can be completed
             if (! $step->canComplete()) {
                 throw new \Exception('Step cannot be completed. Current status: '.$step->status);
@@ -163,6 +169,46 @@ class BatchService
         $workOrder->update([
             'produced_qty' => $totalProduced,
         ]);
+    }
+
+    /**
+     * Enforce workstation routing: when enabled, a workstation-bound operator
+     * may only start/complete steps assigned to their own workstation.
+     *
+     * Bypassed for Admins/Supervisors and for line-level operators (users with
+     * no workstation assigned). Steps without an assigned workstation are open
+     * to anyone. This is the single server-side chokepoint covering both the
+     * Livewire UI and the REST API, since both route through BatchService.
+     *
+     * @throws \Exception
+     */
+    protected function guardWorkstationRouting(BatchStep $step, User $user): void
+    {
+        $enabled = json_decode(
+            DB::table('system_settings')->where('key', 'workstation_routing_enabled')->value('value') ?? 'false',
+            true
+        ) ?? false;
+
+        if (! $enabled || ! $step->workstation_id) {
+            return;
+        }
+
+        // Admins and Supervisors can operate any workstation.
+        if ($user->hasRole('Admin') || $user->hasRole('Supervisor')) {
+            return;
+        }
+
+        // Line-level operators (no workstation assigned) are not restricted.
+        if (! $user->workstation_id) {
+            return;
+        }
+
+        if ((int) $step->workstation_id !== (int) $user->workstation_id) {
+            $stationName = $step->workstation?->name ?? __('another workstation');
+            throw new \Exception(
+                __('This step is assigned to :station and will appear in that workstation\'s queue.', ['station' => $stationName])
+            );
+        }
     }
 
     /**
