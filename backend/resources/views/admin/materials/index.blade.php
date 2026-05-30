@@ -11,13 +11,16 @@
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-800">{{ __('Materials') }}</h1>
-        <div class="flex gap-2">
+        <div class="flex items-center gap-2">
             <a href="{{ route('admin.materials.import') }}" class="btn-touch btn-secondary">
                 <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
                 {{ __('Import') }}
             </a>
+            <a href="{{ route('admin.import-example', ['type' => 'materials']) }}"
+               class="w-6 h-6 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold hover:bg-blue-100 hover:text-blue-600 transition"
+               title="{{ __('Download example CSV file for materials import') }}">?</a>
             <a href="{{ route('admin.materials.create') }}" class="btn-touch btn-primary">
                 <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>

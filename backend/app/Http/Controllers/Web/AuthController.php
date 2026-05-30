@@ -45,14 +45,24 @@ class AuthController extends Controller
             ]);
         }
 
+        $user = auth()->user();
+
+        // If 2FA is enabled, redirect to challenge page
+        if ($user->two_factor_enabled) {
+            Auth::logout();
+            $request->session()->put('2fa_user_id', $user->id);
+            $request->session()->put('2fa_remember', $request->filled('remember'));
+            return redirect()->route('two-factor.challenge');
+        }
+
         // Regenerate session to prevent session fixation
         $request->session()->regenerate();
 
         // Update last login
-        auth()->user()->update(['last_login_at' => now()]);
+        $user->update(['last_login_at' => now()]);
 
         // Check if user needs to change password
-        if (auth()->user()->force_password_change) {
+        if ($user->force_password_change) {
             return redirect()->route('change-password')
                 ->with('error', 'You must change your password before continuing.');
         }

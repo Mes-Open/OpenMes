@@ -73,7 +73,8 @@
             </div>
 
             @foreach($data['lines'] as $lineRow)
-                <div class="h-[114px] border-b border-gray-100 dark:border-gray-700/60 px-3 py-2 flex flex-col justify-center"
+                <div class="border-b border-gray-100 dark:border-gray-700/60 px-3 py-2 flex flex-col justify-center"
+                     style="height: {{ $lineRow['row_height'] }}px;"
                      data-line-id="{{ $lineRow['line']->id }}">
                     <div class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate" title="{{ $lineRow['line']->name }}">
                         {{ $lineRow['line']->code ?? $lineRow['line']->name }}
@@ -118,7 +119,7 @@
                 {{-- Lane rows --}}
                 @foreach($data['lines'] as $lineRow)
                     <div class="lane relative border-b border-gray-100 dark:border-gray-700/60"
-                         style="height: 114px;"
+                         style="height: {{ $lineRow['row_height'] }}px;"
                          data-line-id="{{ $lineRow['line']->id }}"
                          @drop.prevent="onLaneDrop($event, {{ $lineRow['line']->id }})"
                          @dragover.prevent
@@ -169,8 +170,8 @@
                             <div class="wo-card group absolute rounded border-2 shadow-sm px-1.5 py-1 overflow-visible cursor-grab active:cursor-grabbing select-none {{ $cardBase }}"
                                  style="left: {{ $order['start_minute'] * $pxPerMinute }}px;
                                         width: {{ max(20, $order['duration_minutes'] * $pxPerMinute) }}px;
-                                        top: 6px;
-                                        height: 90px;"
+                                        top: {{ $order['lane_top'] }}px;
+                                        height: {{ $order['lane_height'] }}px;"
                                  data-wo-id="{{ $wo->id }}"
                                  data-line-id="{{ $lineRow['line']->id }}"
                                  data-start-minute="{{ $order['start_minute'] }}"
@@ -229,7 +230,29 @@
                             </div>
                         @endforeach
 
-                        @if($lineRow['orders']->isEmpty())
+                        {{-- Maintenance events on this line today --}}
+                        @php
+                            $lineMaint = ($maintenanceEvents ?? collect())->filter(fn($m) =>
+                                $m->line_id == $lineRow['line']->id &&
+                                $m->scheduled_at->format('Y-m-d') === $startDate->format('Y-m-d')
+                            );
+                        @endphp
+                        @foreach($lineMaint as $maint)
+                            @php
+                                $maintMinute = (int) $startDate->copy()->startOfDay()->diffInMinutes($maint->scheduled_at, false);
+                                $maintDuration = $maint->scheduled_end_at
+                                    ? $maint->scheduled_at->diffInMinutes($maint->scheduled_end_at)
+                                    : 60;
+                                $maintDuration = max(30, $maintDuration);
+                            @endphp
+                            <div class="absolute rounded-lg border-2 border-purple-500 bg-purple-200 px-2 py-1.5 text-[11px] font-bold text-purple-900 truncate z-10 shadow-md"
+                                 style="left: {{ $maintMinute * $pxPerMinute }}px; width: {{ max(80, $maintDuration * $pxPerMinute) }}px; top: 6px; height: 40px; display: flex; align-items: center; gap: 4px;"
+                                 title="{{ $maint->title }} — {{ $maint->scheduled_at->format('H:i') }}{{ $maint->scheduled_end_at ? ' - ' . $maint->scheduled_end_at->format('H:i') : '' }}">
+                                <span>🔧</span> <span class="truncate">{{ $maint->title }}</span>
+                            </div>
+                        @endforeach
+
+                        @if($lineRow['orders']->isEmpty() && $lineMaint->isEmpty())
                             <div class="absolute inset-0 flex items-center justify-center text-[11px] text-gray-300 italic pointer-events-none">
                                 {{ __('No scheduled orders') }}
                             </div>

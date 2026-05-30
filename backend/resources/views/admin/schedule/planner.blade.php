@@ -202,7 +202,23 @@
 
             async assignOrder(orderId) {
                 const data = { line_id: this.assignLineId };
-                if (this.assignDate) data.due_date = this.assignDate;
+                if (this.assignDate) {
+                    data.due_date = this.assignDate;
+                    // Derive planned_start_at/planned_end_at from the shift slot so the
+                    // WO lands at the right time in minute-level views. The day is split
+                    // into `shiftsPerDay` equal slots, matching the planner grid columns.
+                    const shiftsPerDay = {{ (int) $shiftsPerDay }};
+                    const slotMinutes = Math.round(24 * 60 / shiftsPerDay);
+                    const shiftIndex = this.assignShift ? parseInt(this.assignShift) - 1 : 0;
+                    const toIso = (offsetMinutes) => {
+                        const d = new Date(this.assignDate + 'T00:00:00');
+                        d.setMinutes(d.getMinutes() + offsetMinutes);
+                        const p = (n) => String(n).padStart(2, '0');
+                        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+                    };
+                    data.planned_start_at = toIso(shiftIndex * slotMinutes);
+                    data.planned_end_at = toIso((shiftIndex + 1) * slotMinutes);
+                }
                 if (this.assignWeekNumber) data.week_number = this.assignWeekNumber;
                 if (this.assignShift) data.shift_number = this.assignShift;
 
@@ -814,7 +830,20 @@
                                                         </button>
                                                     </div>
                                                 @endforeach
-                                                @if($dayOrders->isEmpty())
+                                                @php
+                                                    $dayMaint = ($maintenanceEvents ?? collect())->filter(fn($m) =>
+                                                        $m->line_id == $line->id &&
+                                                        $m->scheduled_at->format('Y-m-d') === $day['date']->format('Y-m-d')
+                                                    );
+                                                @endphp
+                                                @foreach($dayMaint as $maint)
+                                                    <div class="block px-2 py-2 rounded text-[10px] font-medium truncate border-2 border-purple-400 bg-purple-100 text-purple-800"
+                                                         title="{{ $maint->title }} — {{ $maint->scheduled_at->format('H:i') }}">
+                                                        <svg class="w-3 h-3 inline -mt-0.5 mr-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17l-5.384-3.19A1 1 0 005 12.874V17a2 2 0 002 2h10a2 2 0 002-2v-4.126a1 1 0 00-1.036-.894l-5.384 3.19a1 1 0 01-1.16 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M10 2a1 1 0 011 0l6 3.5a1 1 0 01.5.866V11"/></svg>
+                                                        {{ $maint->title }}
+                                                    </div>
+                                                @endforeach
+                                                @if($dayOrders->isEmpty() && $dayMaint->isEmpty())
                                                     <div class="h-8"></div>
                                                 @endif
                                             </div>
@@ -836,6 +865,7 @@
                     'woTextColors' => $woTextColors,
                     'statusLabels' => $statusLabels,
                     'shiftsPerDay' => $shiftsPerDay,
+                    'maintenanceEvents' => $maintenanceEvents,
                 ])
 
             {{-- ===== MONTHLY VIEW ===== --}}

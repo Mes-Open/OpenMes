@@ -67,26 +67,26 @@ class SchedulePlannerController extends Controller
             ->whereIn('line_id', $lineIds)
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
                 $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
-                  ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
-                      // Minute-planned orders that overlap the visible range
-                      $q2->whereNotNull('planned_start_at')
-                          ->whereNotNull('planned_end_at')
-                          ->where('planned_start_at', '<', $rangeEnd)
-                          ->where('planned_end_at', '>', $rangeStart);
-                  })
-                  ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
-                      $q2->whereNull('due_date')
-                          ->where(function ($q3) use ($rangeStart, $rangeEnd) {
-                              // Match by week_number if due_date is null
-                              $weekNumbers = [];
-                              $cursor = $rangeStart->copy();
-                              while ($cursor->lte($rangeEnd)) {
-                                  $weekNumbers[] = $cursor->isoWeek();
-                                  $cursor->addWeek();
-                              }
-                              $q3->whereIn('week_number', array_unique($weekNumbers));
-                          });
-                  });
+                    ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
+                        // Minute-planned orders that overlap the visible range
+                        $q2->whereNotNull('planned_start_at')
+                            ->whereNotNull('planned_end_at')
+                            ->where('planned_start_at', '<', $rangeEnd)
+                            ->where('planned_end_at', '>', $rangeStart);
+                    })
+                    ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
+                        $q2->whereNull('due_date')
+                            ->where(function ($q3) use ($rangeStart, $rangeEnd) {
+                                // Match by week_number if due_date is null
+                                $weekNumbers = [];
+                                $cursor = $rangeStart->copy();
+                                while ($cursor->lte($rangeEnd)) {
+                                    $weekNumbers[] = $cursor->isoWeek();
+                                    $cursor->addWeek();
+                                }
+                                $q3->whereIn('week_number', array_unique($weekNumbers));
+                            });
+                    });
             })
             ->orderBy('priority', 'desc')
             ->orderBy('due_date')
@@ -112,6 +112,78 @@ class SchedulePlannerController extends Controller
             default => $startDate->copy()->addWeek(),
         };
 
+        // Maintenance events in range (pending/in_progress, with scheduled_at)
+        $maintenanceEvents = \App\Models\MaintenanceEvent::with(['line', 'workstation'])
+            ->whereIn('status', ['pending', 'in_progress'])
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>=', $rangeStart)
+            ->where('scheduled_at', '<=', $rangeEnd)
+            ->orderBy('scheduled_at')
+            ->get();
+
+        // Generate virtual maintenance events from recurring schedules
+        // for the entire visible range (not just next_due_at)
+        $activeSchedules = \App\Models\MaintenanceSchedule::with(['line', 'workstation'])
+            ->where('is_active', true)
+            ->whereNotNull('next_due_at')
+            ->get();
+
+        foreach ($activeSchedules as $schedule) {
+            // Calculate interval in days
+            $intervalDays = match ($schedule->frequency) {
+                'daily' => 1,
+                'weekly' => 7,
+                'monthly' => 30,
+                'quarterly' => 91,
+                'annually' => 365,
+                default => 7,
+            };
+
+            // Generate occurrences within visible range
+            $cursor = $schedule->next_due_at->copy();
+
+            // If next_due is after range, walk backwards to find first occurrence in range
+            while ($cursor->gt($rangeEnd)) {
+                $cursor->subDays($intervalDays);
+            }
+            // Walk backwards to find the earliest occurrence in range
+            while ($cursor->copy()->subDays($intervalDays)->gte($rangeStart)) {
+                $cursor->subDays($intervalDays);
+            }
+
+            // Now walk forward generating events
+            while ($cursor->lte($rangeEnd)) {
+                if ($cursor->gte($rangeStart)) {
+                    // Check if a real event already exists on this date
+                    $dateStr = $cursor->format('Y-m-d');
+                    $hasEvent = $maintenanceEvents->contains(function ($e) use ($schedule, $dateStr) {
+                        return $e->schedule_id === $schedule->id
+                            && $e->scheduled_at->format('Y-m-d') === $dateStr;
+                    });
+
+                    if (! $hasEvent) {
+                        $time = $schedule->preferred_time ?? '06:00';
+                        $scheduledAt = $cursor->copy()->setTimeFromTimeString($time);
+                        $virtual = new \App\Models\MaintenanceEvent([
+                            'title' => $schedule->name,
+                            'event_type' => $schedule->event_type,
+                            'status' => 'pending',
+                            'line_id' => $schedule->line_id,
+                            'workstation_id' => $schedule->workstation_id,
+                            'schedule_id' => $schedule->id,
+                            'scheduled_at' => $scheduledAt,
+                            'scheduled_end_at' => $scheduledAt->copy()->addHour(),
+                            'description' => $schedule->description,
+                        ]);
+                        $virtual->setRelation('line', $schedule->line);
+                        $virtual->setRelation('workstation', $schedule->workstation);
+                        $maintenanceEvents->push($virtual);
+                    }
+                }
+                $cursor->addDays($intervalDays);
+            }
+        }
+
         // All lines for filter dropdown (unfiltered)
         $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
@@ -120,9 +192,9 @@ class SchedulePlannerController extends Controller
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->where(function ($q) {
                 $q->whereNull('line_id')
-                  ->orWhere(function ($q2) {
-                      $q2->whereNull('due_date')->whereNull('week_number');
-                  });
+                    ->orWhere(function ($q2) {
+                        $q2->whereNull('due_date')->whereNull('week_number');
+                    });
             })
             ->orderBy('priority', 'desc')
             ->orderBy('due_date')
@@ -146,6 +218,7 @@ class SchedulePlannerController extends Controller
             'navPrev',
             'navNext',
             'backlogOrders',
+            'maintenanceEvents',
             'realtimeMode',
         );
 
@@ -238,17 +311,17 @@ class SchedulePlannerController extends Controller
         }
 
         // Auto-create first batch if none exist and WO has line + snapshot
-        if ($workOrder->line_id && !empty($workOrder->process_snapshot) && $workOrder->batches()->count() === 0) {
+        if ($workOrder->line_id && ! empty($workOrder->process_snapshot) && $workOrder->batches()->count() === 0) {
             app(\App\Services\WorkOrder\WorkOrderService::class)
                 ->createBatch($workOrder, $workOrder->planned_qty);
         }
 
         // Warn about cross-line workstations
         $warnings = [];
-        if ($workOrder->line_id && !empty($workOrder->process_snapshot)) {
+        if ($workOrder->line_id && ! empty($workOrder->process_snapshot)) {
             $lineWorkstationIds = \App\Models\Workstation::where('line_id', $workOrder->line_id)->pluck('id')->toArray();
             foreach ($workOrder->process_snapshot['steps'] ?? [] as $step) {
-                if (!empty($step['workstation_id']) && !in_array($step['workstation_id'], $lineWorkstationIds)) {
+                if (! empty($step['workstation_id']) && ! in_array($step['workstation_id'], $lineWorkstationIds)) {
                     $warnings[] = __('Step ":step" uses workstation ":ws" from another line.', [
                         'step' => $step['name'],
                         'ws' => $step['workstation_name'] ?? $step['workstation_id'],
@@ -257,11 +330,11 @@ class SchedulePlannerController extends Controller
             }
         }
 
-        event(new \App\Events\ScheduleUpdated());
+        event(new \App\Events\ScheduleUpdated);
 
         $message = __('Work order updated successfully.');
-        if (!empty($warnings)) {
-            $message .= ' ' . __('Warnings:') . ' ' . implode('; ', $warnings);
+        if (! empty($warnings)) {
+            $message .= ' '.__('Warnings:').' '.implode('; ', $warnings);
         }
 
         if ($request->wantsJson() || $request->ajax()) {
@@ -318,7 +391,7 @@ class SchedulePlannerController extends Controller
                 'planned_end_at' => $validated['planned_end_at'],
             ]);
 
-            event(new \App\Events\ScheduleUpdated());
+            event(new \App\Events\ScheduleUpdated);
 
             return response()->json([
                 'success' => true,
@@ -337,7 +410,7 @@ class SchedulePlannerController extends Controller
             $workOrder->update(['end_date' => null, 'end_shift_number' => null]);
         } else {
             $request->validate([
-                'end_date' => 'required|date|after_or_equal:' . ($workOrder->due_date?->format('Y-m-d') ?? 'today'),
+                'end_date' => 'required|date|after_or_equal:'.($workOrder->due_date?->format('Y-m-d') ?? 'today'),
                 'end_shift_number' => 'required|integer|min:1|max:10',
             ]);
             $workOrder->update([
@@ -346,7 +419,7 @@ class SchedulePlannerController extends Controller
             ]);
         }
 
-        event(new \App\Events\ScheduleUpdated());
+        event(new \App\Events\ScheduleUpdated);
 
         return response()->json([
             'success' => true,
@@ -491,7 +564,7 @@ class SchedulePlannerController extends Controller
                 for ($d = 0; $d < $daysInWeek; $d++) {
                     $dateKey = $dayCursor->format('Y-m-d');
                     for ($s = 1; $s <= $shiftsPerDay; $s++) {
-                        $grid[$dateKey . '-' . $s] = null;
+                        $grid[$dateKey.'-'.$s] = null;
                     }
                     $dayCursor->addDay();
                 }
@@ -501,7 +574,7 @@ class SchedulePlannerController extends Controller
                 // First pass: orders with explicit shift_number go to exact slot
                 foreach ($dated as $wo) {
                     if ($wo->shift_number) {
-                        $key = $wo->due_date->format('Y-m-d') . '-' . $wo->shift_number;
+                        $key = $wo->due_date->format('Y-m-d').'-'.$wo->shift_number;
                         if (array_key_exists($key, $grid) && $grid[$key] === null) {
                             $grid[$key] = $wo;
                         }
@@ -514,7 +587,7 @@ class SchedulePlannerController extends Controller
                     }
                     $dk = $wo->due_date->format('Y-m-d');
                     for ($s = 1; $s <= $shiftsPerDay; $s++) {
-                        $key = $dk . '-' . $s;
+                        $key = $dk.'-'.$s;
                         if (array_key_exists($key, $grid) && $grid[$key] === null) {
                             $grid[$key] = $wo;
                             break;
@@ -542,6 +615,7 @@ class SchedulePlannerController extends Controller
                     }
                     if (! $wo->end_date || ! $wo->end_shift_number) {
                         $spans[$key] = ['order' => $wo, 'type' => 'single', 'rowspan' => 1];
+
                         continue;
                     }
 
@@ -557,10 +631,14 @@ class SchedulePlannerController extends Controller
                     $maxIter = $shiftsPerDay * $daysInWeek * 2; // safety limit
                     $iter = 0;
                     while ($iter++ < $maxIter) {
-                        $curKey = $curDate . '-' . $curShift;
-                        if (! array_key_exists($curKey, $grid)) break;
+                        $curKey = $curDate.'-'.$curShift;
+                        if (! array_key_exists($curKey, $grid)) {
+                            break;
+                        }
                         $spannedKeys[] = $curKey;
-                        if ($curDate === $endDate && $curShift === $endShift) break;
+                        if ($curDate === $endDate && $curShift === $endShift) {
+                            break;
+                        }
                         // Advance: next shift, or wrap to next day
                         $curShift++;
                         if ($curShift > $shiftsPerDay) {
@@ -571,6 +649,7 @@ class SchedulePlannerController extends Controller
 
                     if (count($spannedKeys) <= 1) {
                         $spans[$key] = ['order' => $wo, 'type' => 'single', 'rowspan' => 1];
+
                         continue;
                     }
 
@@ -626,8 +705,8 @@ class SchedulePlannerController extends Controller
                 'number' => $weekNumber,
                 'start' => $weekStart,
                 'end' => $weekEnd,
-                'label' => __('Week') . ' ' . $weekNumber,
-                'date_range' => $weekStart->format('d.m') . ' - ' . $weekEnd->format('d.m'),
+                'label' => __('Week').' '.$weekNumber,
+                'date_range' => $weekStart->format('d.m').' - '.$weekEnd->format('d.m'),
                 'lines' => $weekLines,
                 'total_orders' => $totalOrders,
                 'total_load_percent' => $totalLoad,
@@ -774,8 +853,40 @@ class SchedulePlannerController extends Controller
                 }
             }
 
-            $layouts = $layouts->map(function ($l) use ($conflicts) {
+            // Assign lanes to overlapping orders so they stack vertically
+            $sortedLayouts = $layouts->sortBy('start_minute')->values();
+            $laneEnds = []; // laneEnds[lane] = end_minute of last WO in that lane
+            $laneMap = [];
+            foreach ($sortedLayouts as $l) {
+                $woId = $l['wo']->id;
+                $placed = false;
+                foreach ($laneEnds as $lane => $end) {
+                    if ($l['start_minute'] >= $end) {
+                        $laneMap[$woId] = $lane;
+                        $laneEnds[$lane] = $l['end_minute'];
+                        $placed = true;
+                        break;
+                    }
+                }
+                if (! $placed) {
+                    $lane = count($laneEnds);
+                    $laneMap[$woId] = $lane;
+                    $laneEnds[$lane] = $l['end_minute'];
+                }
+            }
+            $totalLanes = max(1, count($laneEnds));
+
+            // Stacked-lane geometry (px) computed here so the view stays
+            // logic-free: lanes share a 90px band, the row grows to fit them.
+            $laneHeight = $totalLanes > 1 ? max(30, (int) (90 / $totalLanes)) : 90;
+
+            $layouts = $layouts->map(function ($l) use ($conflicts, $laneMap, $totalLanes, $laneHeight) {
+                $lane = $laneMap[$l['wo']->id] ?? 0;
                 $l['has_conflict'] = isset($conflicts[$l['wo']->id]);
+                $l['lane'] = $lane;
+                $l['total_lanes'] = $totalLanes;
+                $l['lane_height'] = $laneHeight;
+                $l['lane_top'] = 6 + ($lane * ($laneHeight + 2));
 
                 return $l;
             });
@@ -788,6 +899,7 @@ class SchedulePlannerController extends Controller
             $lineRows[] = [
                 'line' => $line,
                 'orders' => $layouts,
+                'row_height' => max(114, 6 + $totalLanes * 34),
                 'used_minutes' => $usedMinutes,
                 'capacity_minutes' => $minutesPerDay,
                 'load_percent' => $loadPercent,

@@ -241,20 +241,43 @@
                         @endphp
                         <td class="px-2 py-1 text-center" @click.stop>
                             @if(!$isDone)
-                            <form action="{{ route('operator.workstation.shift-entry', $wo) }}" method="POST"
-                                  class="inline" onsubmit="return parseInt(this.quantity.value) > 0">
-                                @csrf
-                                <input type="hidden" name="shift_id" value="{{ $shift->id }}">
-                                <input type="number" name="quantity"
-                                       value="{{ $entryQty > 0 ? (int) $entryQty : '' }}"
-                                       class="w-16 text-center text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded px-1 py-1.5 bg-white dark:bg-gray-800 tabular-nums
-                                              {{ $entryQty > 0 ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-800 dark:text-gray-200' }}
-                                              focus:ring-2 focus:ring-blue-400"
-                                       placeholder="—" min="1" step="1" inputmode="numeric"
-                                       onfocus="this.select()"
-                                       onkeydown="if(event.key==='Enter'){event.preventDefault();if(parseInt(this.value)>0)this.form.submit()}"
-                                       onblur="if(parseInt(this.value)>0 && this.value != this.defaultValue)this.form.submit()">
-                            </form>
+                            <div class="flex items-center justify-center gap-1">
+                                <form action="{{ route('operator.workstation.shift-entry', $wo) }}" method="POST"
+                                      class="inline" onsubmit="return parseInt(this.quantity.value) > 0">
+                                    @csrf
+                                    <input type="hidden" name="shift_id" value="{{ $shift->id }}">
+                                    <input type="number" name="quantity"
+                                           value="{{ $entryQty > 0 ? (int) $entryQty : '' }}"
+                                           class="w-16 text-center text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded px-1 py-1.5 bg-white dark:bg-gray-800 tabular-nums
+                                                  {{ $entryQty > 0 ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-800 dark:text-gray-200' }}
+                                                  focus:ring-2 focus:ring-blue-400"
+                                           placeholder="—" min="1" step="1" inputmode="numeric"
+                                           onfocus="this.select()"
+                                           onkeydown="if(event.key==='Enter'){event.preventDefault();if(parseInt(this.value)>0)this.form.submit()}"
+                                           onblur="if(parseInt(this.value)>0 && this.value != this.defaultValue)this.form.submit()">
+                                </form>
+                                @if($entryQty > 0 && isset($shiftEntries[$entryKey]) && $qtyEditPolicy !== 'none')
+                                    @php
+                                        $entryModel = $shiftEntries[$entryKey]->first();
+                                        $canCorrect = $qtyEditPolicy === 'full'
+                                            || ($qtyEditPolicy === 'timed' && $entryModel->updated_at->addMinutes($qtyEditWindowMinutes)->isFuture());
+                                    @endphp
+                                    @if($canCorrect)
+                                    <a href="{{ route('operator.shift-entry.correct', $entryModel) }}"
+                                       class="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                       title="{{ __('Correct quantity') }}"
+                                       @if($qtyEditPolicy === 'timed')
+                                       x-data="{ show: true, deadline: {{ $entryModel->updated_at->addMinutes($qtyEditWindowMinutes)->timestamp * 1000 }} }"
+                                       x-init="setInterval(() => { if (Date.now() > deadline) show = false }, 5000)"
+                                       x-show="show"
+                                       @endif>
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                        </svg>
+                                    </a>
+                                    @endif
+                                @endif
+                            </div>
                             @else
                                 <span class="text-gray-400">{{ $entryQty > 0 ? (int) $entryQty : 0 }}</span>
                             @endif
@@ -508,6 +531,30 @@
 </div>
 
 <script>
+// ── Auto-refresh polling ──
+(function() {
+    let lastHash = '';
+    const POLL_INTERVAL = 5000;
+    const checkUrl = '{{ route("operator.workstation.check") }}' + ({{ $weekFilter ? "'" . $weekFilter . "'" : 'null' }} ? '?week={{ $weekFilter }}' : '');
+    // Initial hash fetch
+    fetch(checkUrl, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json()).then(d => lastHash = d.hash).catch(() => {});
+    setInterval(async () => {
+        try {
+            const res = await fetch(checkUrl, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (lastHash && data.hash !== lastHash) {
+                lastHash = data.hash;
+                window.location.reload();
+            }
+            lastHash = data.hash;
+        } catch(e) {}
+    }, POLL_INTERVAL);
+})();
+
 function workstationView(allColumns, defaultVisible, lineId) {
     return {
         allColumns: allColumns,

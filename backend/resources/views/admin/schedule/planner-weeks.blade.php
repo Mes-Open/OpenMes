@@ -246,6 +246,18 @@
                                                       x-text="dragOrderNo"
                                                       class="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-blue-700"></span>
                                             </div>
+                                            @php
+                                                $cellMaint = ($maintenanceEvents ?? collect())->filter(fn($m) =>
+                                                    $m->line_id == $line->id &&
+                                                    $m->scheduled_at->format('Y-m-d') === $cellDate
+                                                );
+                                            @endphp
+                                            @foreach($cellMaint as $maint)
+                                                <div class="mt-0.5 px-1.5 py-1 rounded text-[9px] font-medium truncate border border-purple-400 bg-purple-100 text-purple-800"
+                                                     title="{{ $maint->title }} — {{ $maint->scheduled_at->format('H:i') }}">
+                                                    🔧 {{ $maint->title }}
+                                                </div>
+                                            @endforeach
                                         @endif
                                     </td>
                                     @endif
