@@ -1,21 +1,21 @@
 @extends('layouts.app')
 
-@section('title', __('EAN Codes - Management'))
+@section('title', __('EAN Code Management'))
 
 @section('content')
 <div class="max-w-7xl mx-auto">
     <x-breadcrumbs :items="[
-        ['label' => __('Dashboard'), 'url' => route('admin.dashboard')],
+        ['label' => 'Dashboard', 'url' => route('admin.dashboard')],
         ['label' => __('Packaging'), 'url' => route('packaging.overview')],
         ['label' => __('EAN Codes'), 'url' => null],
     ]" />
 
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ __('EAN Codes - Management') }}</h1>
-            <p class="text-sm text-gray-500 mt-1">{{ __('Assign barcodes to work orders') }}</p>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ __('EAN Codes — Management') }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ __('Assign barcodes to production work orders') }}</p>
         </div>
-        <a href="{{ route('packaging.overview') }}" class="btn-touch btn-secondary">← {{ __('Packaging overview') }}</a>
+        <a href="{{ route('packaging.overview') }}" class="btn-touch btn-secondary">{{ __('← Packaging overview') }}</a>
     </div>
 
     @if(session('success'))
@@ -30,9 +30,9 @@
         <form method="POST" action="{{ route('packaging.eans.store') }}" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             @csrf
             <div>
-                <label class="form-label">{{ __('Work order') }}</label>
+                <label class="form-label">{{ __('Production work order') }}</label>
                 <select name="work_order_id" class="form-input w-full" required>
-                    <option value="">- {{ __('select work order') }} -</option>
+                    <option value="">{{ __('— select work order —') }}</option>
                     @foreach($workOrders as $wo)
                         <option value="{{ $wo->id }}" @selected(old('work_order_id') == $wo->id)>
                             {{ $wo->order_no }}{{ $wo->productType ? ' — ' . $wo->productType->name : '' }}
@@ -46,7 +46,7 @@
             <div>
                 <label class="form-label">{{ __('EAN code') }}</label>
                 <input type="text" name="ean" value="{{ old('ean') }}" class="form-input w-full font-mono"
-                       :placeholder="@json(__('e.g. 5901234123457'))" required maxlength="100">
+                       placeholder="{{ __('e.g. 5901234123457') }}" required maxlength="100">
                 @error('ean')
                     <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                 @enderror
@@ -61,7 +61,7 @@
     <form method="GET" action="{{ route('packaging.eans.index') }}" class="card mb-4 py-3">
         <div class="flex gap-3">
             <input type="text" name="search" value="{{ request('search') }}"
-                   class="form-input flex-1" :placeholder="@json(__('Search by order number…'))">
+                   class="form-input flex-1" placeholder="{{ __('Search by order number…') }}">
             <button type="submit" class="btn-touch btn-secondary text-sm">{{ __('Search') }}</button>
             @if(request('search'))
                 <a href="{{ route('packaging.eans.index') }}" class="btn-touch btn-secondary text-sm">{{ __('Clear') }}</a>
@@ -75,10 +75,10 @@
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead class="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Order') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Work Order') }}</th>
                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Product') }}</th>
                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Status') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('EAN codes') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('EAN Codes') }}</th>
                         <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">{{ __('Packed / Plan') }}</th>
                     </tr>
                 </thead>
@@ -102,7 +102,7 @@
                                 @forelse($wo->eans as $ean)
                                     <div class="flex items-center gap-2 mb-1">
                                         <span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">{{ $ean->ean }}</span>
-                                        <form method="POST" action="{{ route('packaging.eans.destroy', $ean) }}" onsubmit="return confirm('{{ __('Delete EAN code') }} {{ $ean->ean }}?')">
+                                        <form method="POST" action="{{ route('packaging.eans.destroy', $ean) }}" onsubmit="return confirm('{{ __('Delete EAN code :ean?', ['ean' => $ean->ean]) }}')">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="text-xs text-red-500 hover:text-red-700 transition-colors">{{ __('Delete') }}</button>
                                         </form>

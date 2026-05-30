@@ -88,8 +88,8 @@
                 @endauth
             </h1>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {{ __('Shift') }}: <span class="font-semibold" x-text="shiftLabel"></span>
-                &nbsp;·&nbsp; {{ __('Logged in') }}: <span class="font-semibold">{{ auth()->user()->name }}</span>
+                {{ __('Shift:') }}: <span class="font-semibold" x-text="shiftLabel"></span>
+                &nbsp;·&nbsp; {{ __('Logged in:') }}: <span class="font-semibold">{{ auth()->user()->name }}</span>
             </p>
         </div>
         <div class="flex items-center gap-2">
@@ -264,7 +264,7 @@
             <h2 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">{{ __('Last scan') }}</h2>
 
             <div x-show="!lastScan" class="py-8 text-center text-gray-400 dark:text-gray-600 text-sm">
-                {{ __('Hold an EAN code up to the scanner…') }}
+                {{ __('Scan EAN code…') }}
             </div>
 
             <div x-show="lastScan" x-cloak>
@@ -278,7 +278,7 @@
                     </div>
                     <span class="shrink-0 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold"
                           :class="lastScan?.success ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'"
-                          x-text="lastScan?.success ? @json(__('OK')) : @json(__('Error'))"></span>
+                          x-text="lastScan?.success ? 'OK' : '{{ __('Error') }}'"></span>
                 </div>
 
                 <div x-show="lastScan?.success" class="mt-3 flex items-center gap-3">
@@ -309,7 +309,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                           d="M12 4v1m6.364 1.636l-.707.707M20 12h-1M17.657 17.657l-.707-.707M12 20v-1M6.343 17.657l-.707.707M4 12H3M6.343 6.343l.707.707"/>
                 </svg>
-                {{ __('Waiting for a scan…') }}
+                {{ __('Waiting for scan…') }}
             </div>
             <div x-show="flash === 'success'" x-cloak class="text-center">
                 <svg class="mx-auto w-14 h-14 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,7 +321,7 @@
                 <svg class="mx-auto w-14 h-14 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
-                <p class="text-red-700 dark:text-red-300 font-bold mt-2">{{ __('Scanning error') }}</p>
+                <p class="text-red-700 dark:text-red-300 font-bold mt-2">{{ __('Scan error') }}</p>
             </div>
         </div>
     </div>
@@ -332,15 +332,15 @@
             <h2 class="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
                 {{ __('Work orders to pack') }}
             </h2>
-            <span class="text-xs text-gray-400" x-text="items.length + ' ' + @json(__('items'))"></span>
+            <span class="text-xs text-gray-400" x-text="items.length + ' {{ __('items') }}'"></span>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead class="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Order') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Work Order') }}</th>
                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Product') }}</th>
-                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('EAN') }}</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EAN</th>
                         <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Packed') }}</th>
                         <th class="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Plan') }}</th>
                         <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">{{ __('Progress') }}</th>
@@ -391,7 +391,7 @@
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Time') }}</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('Product') }}</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{{ __('EAN') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">EAN</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
@@ -543,7 +543,7 @@ function packagingStation(scannerMode) {
                     this.flash = 'error';
                 }
             } catch {
-                this.lastScan = { success: false, ean, error: @json(__('Connection error')), scanned_at: new Date().toLocaleTimeString() };
+                this.lastScan = { success: false, ean, error: '{{ __('Connection error') }}', scanned_at: new Date().toLocaleTimeString() };
                 this.flash = 'error';
             }
 
