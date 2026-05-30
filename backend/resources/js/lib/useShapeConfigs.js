@@ -11,6 +11,21 @@ import { useEffect, useState } from 'react';
  * on same-origin requests. The streaming requests that follow carry the HMAC
  * signature instead.
  */
+/**
+ * Fetch one shape's signed config from the gatekeeper (standalone, for use
+ * outside React — e.g. re-minting an expired signature inside a ShapeStream's
+ * onError). Same auth + url-absolutize logic as the hook below.
+ */
+export async function fetchShapeConfig(name) {
+    const res = await fetch(`/api/shapes/${name}`, {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+    });
+    if (!res.ok) throw new Error(`shape ${name}: HTTP ${res.status}`);
+    const cfg = await res.json();
+    return { ...cfg, url: window.location.origin + cfg.url };
+}
+
 export function useShapeConfigs(names) {
     const [configs, setConfigs] = useState(null);
     const [error, setError] = useState(null);

@@ -57,7 +57,7 @@ export default function Admin() {
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex items-center gap-1 text-sm text-gray-500 mb-4">
-                    <a href="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-300">Dashboard</a>
+                    <Link href="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-300">Dashboard</Link>
                     <span className="mx-1">/</span>
                     <span className="text-gray-700 dark:text-gray-300">Pakowanie</span>
                 </nav>
@@ -69,8 +69,8 @@ export default function Admin() {
                         <p className="text-sm text-gray-500 mt-1">Bieżąca zmiana: {shiftLabel}</p>
                     </div>
                     <div className="flex gap-2">
-                        <a href="/packaging/station" className="btn-touch btn-primary">Otwórz stanowisko</a>
-                        <a href="/packaging/eans" className="btn-touch btn-secondary">Zarządzaj EAN</a>
+                        <Link href="/packaging/station" className="btn-touch btn-primary">Otwórz stanowisko</Link>
+                        <Link href="/packaging/eans" className="btn-touch btn-secondary">Zarządzaj EAN</Link>
                     </div>
                 </div>
 

@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function SiteShow() {
@@ -13,9 +13,9 @@ export default function SiteShow() {
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex flex-wrap gap-1 items-center text-sm text-gray-500 mb-4">
-                    <a href="/admin/dashboard" className="hover:text-blue-600">Dashboard</a>
+                    <Link href="/admin/dashboard" className="hover:text-blue-600">Dashboard</Link>
                     <span>/</span>
-                    <a href="/admin/sites" className="hover:text-blue-600">Sites</a>
+                    <Link href="/admin/sites" className="hover:text-blue-600">Sites</Link>
                     <span>/</span>
                     <span className="text-gray-700">{site.name}</span>
                 </nav>
@@ -32,18 +32,18 @@ export default function SiteShow() {
                         )}
                     </div>
                     <div className="flex gap-2">
-                        <a
+                        <Link
                             href={`/admin/sites/${site.id}/areas/create`}
                             className="btn-touch btn-secondary"
                         >
                             Add Area
-                        </a>
-                        <a
+                        </Link>
+                        <Link
                             href={`/admin/sites/${site.id}/edit`}
                             className="btn-touch btn-primary"
                         >
                             Edit Site
-                        </a>
+                        </Link>
                     </div>
                 </div>
 
@@ -91,12 +91,12 @@ export default function SiteShow() {
                         <h2 className="font-semibold text-gray-800">
                             Areas <span className="text-gray-500">({areas.length})</span>
                         </h2>
-                        <a
+                        <Link
                             href={`/admin/sites/${site.id}/areas/create`}
                             className="text-sm text-blue-600 hover:text-blue-800"
                         >
                             + Add Area
-                        </a>
+                        </Link>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -121,12 +121,12 @@ export default function SiteShow() {
                                         <tr key={area.id} className="hover:bg-gray-50">
                                             <td className="py-2 px-4 font-mono text-gray-600">{area.code}</td>
                                             <td className="py-2 px-4">
-                                                <a
+                                                <Link
                                                     href={`/admin/areas/${area.id}`}
                                                     className="text-blue-600 hover:text-blue-800"
                                                 >
                                                     {area.name}
-                                                </a>
+                                                </Link>
                                             </td>
                                             <td className="py-2 px-4 text-gray-600">{area.lines_count}</td>
                                             <td className="py-2 px-4">
@@ -141,12 +141,12 @@ export default function SiteShow() {
                                                 )}
                                             </td>
                                             <td className="py-2 px-4 text-right">
-                                                <a
+                                                <Link
                                                     href={`/admin/areas/${area.id}/edit`}
                                                     className="text-sm text-blue-600 hover:text-blue-800"
                                                 >
                                                     Edit
-                                                </a>
+                                                </Link>
                                             </td>
                                         </tr>
                                     ))
@@ -184,12 +184,12 @@ export default function SiteShow() {
                                         <tr key={line.id} className="hover:bg-gray-50">
                                             <td className="py-2 px-4 font-mono text-gray-600">{line.code}</td>
                                             <td className="py-2 px-4">
-                                                <a
+                                                <Link
                                                     href={`/admin/lines/${line.id}`}
                                                     className="text-blue-600 hover:text-blue-800"
                                                 >
                                                     {line.name}
-                                                </a>
+                                                </Link>
                                             </td>
                                             <td className="py-2 px-4">
                                                 {line.is_active ? (

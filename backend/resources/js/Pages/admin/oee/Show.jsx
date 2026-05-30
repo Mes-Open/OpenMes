@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 const KIND_BG = { blue: 'bg-blue-400', amber: 'bg-amber-400', red: 'bg-red-400' };
@@ -51,7 +51,7 @@ export default function OeeShow() {
                             </svg>
                             Download PDF
                         </a>
-                        <a href="/admin/oee" className="btn-touch btn-secondary text-sm">Back to OEE</a>
+                        <Link href="/admin/oee" className="btn-touch btn-secondary text-sm">Back to OEE</Link>
                     </div>
                 </div>
 

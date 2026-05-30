@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 const STATUS_COLORS = {
@@ -136,9 +136,9 @@ export default function ScheduleIndex() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
                         <p className="text-gray-500">No work orders scheduled for this week.</p>
-                        <a href="/admin/work-orders/create" className="mt-4 btn-touch btn-primary px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <Link href="/admin/work-orders/create" className="mt-4 btn-touch btn-primary px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                             Create Work Order
-                        </a>
+                        </Link>
                     </div>
                 ) : (
                     <div className="space-y-6">

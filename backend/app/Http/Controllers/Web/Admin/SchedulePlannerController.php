@@ -425,8 +425,6 @@ class SchedulePlannerController extends Controller
             }
         }
 
-        event(new \App\Events\ScheduleUpdated());
-
         $message = __('Work order updated successfully.');
         if (!empty($warnings)) {
             $message .= ' ' . __('Warnings:') . ' ' . implode('; ', $warnings);
@@ -486,8 +484,6 @@ class SchedulePlannerController extends Controller
                 'planned_end_at' => $validated['planned_end_at'],
             ]);
 
-            event(new \App\Events\ScheduleUpdated());
-
             return response()->json([
                 'success' => true,
                 'message' => __('Work order span updated.'),
@@ -513,8 +509,6 @@ class SchedulePlannerController extends Controller
                 'end_shift_number' => $request->input('end_shift_number'),
             ]);
         }
-
-        event(new \App\Events\ScheduleUpdated());
 
         return response()->json([
             'success' => true,

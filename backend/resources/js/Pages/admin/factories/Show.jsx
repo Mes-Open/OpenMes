@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function FactoryShow() {
@@ -11,9 +11,9 @@ export default function FactoryShow() {
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex flex-wrap gap-1 items-center text-sm text-gray-500 mb-4">
-                    <a href="/admin/dashboard" className="hover:text-blue-600">Dashboard</a>
+                    <Link href="/admin/dashboard" className="hover:text-blue-600">Dashboard</Link>
                     <span>/</span>
-                    <a href="/admin/factories" className="hover:text-blue-600">Factories</a>
+                    <Link href="/admin/factories" className="hover:text-blue-600">Factories</Link>
                     <span>/</span>
                     <span className="text-gray-700">{factory.name}</span>
                 </nav>
@@ -24,12 +24,12 @@ export default function FactoryShow() {
                         <h1 className="text-3xl font-bold text-gray-800">{factory.name}</h1>
                         <p className="text-gray-500 mt-1 font-mono text-sm">{factory.code}</p>
                     </div>
-                    <a
+                    <Link
                         href={`/admin/factories/${factory.id}/edit`}
                         className="btn-touch btn-primary"
                     >
                         Edit Factory
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Info cards */}
@@ -95,12 +95,12 @@ export default function FactoryShow() {
                                                 )}
                                             </td>
                                             <td className="py-2 px-4 text-right">
-                                                <a
+                                                <Link
                                                     href={`/admin/divisions/${division.id}/edit`}
                                                     className="text-sm text-blue-600 hover:text-blue-800"
                                                 >
                                                     Edit
-                                                </a>
+                                                </Link>
                                             </td>
                                         </tr>
                                     ))

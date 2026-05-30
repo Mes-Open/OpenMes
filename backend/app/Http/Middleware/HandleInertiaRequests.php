@@ -33,6 +33,7 @@ class HandleInertiaRequests extends Middleware
                 'alertCount' => fn () => $this->alertCount($user),
             ],
             'csrf_token' => fn () => csrf_token(),
+            'appVersion' => fn () => config('version.current'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

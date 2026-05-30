@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 function Icon({ d, className = 'w-5 h-5' }) {
@@ -22,9 +22,9 @@ export default function MaterialsImport() {
 
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-                <a href="/admin/dashboard" className="hover:text-gray-700">Dashboard</a>
+                <Link href="/admin/dashboard" className="hover:text-gray-700">Dashboard</Link>
                 <span>/</span>
-                <a href="/admin/materials" className="hover:text-gray-700">Materials</a>
+                <Link href="/admin/materials" className="hover:text-gray-700">Materials</Link>
                 <span>/</span>
                 <span className="text-gray-800 font-medium">Import</span>
             </nav>
@@ -36,9 +36,9 @@ export default function MaterialsImport() {
                         Import materials from CSV, XLS or XLSX file (e.g. Subiekt GT export)
                     </p>
                 </div>
-                <a href="/admin/materials" className="btn-touch btn-secondary">
+                <Link href="/admin/materials" className="btn-touch btn-secondary">
                     Back to Materials
-                </a>
+                </Link>
             </div>
 
             {/* Import result banner */}

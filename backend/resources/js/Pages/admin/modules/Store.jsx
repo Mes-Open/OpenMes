@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function ModulesStore() {
@@ -34,9 +34,9 @@ export default function ModulesStore() {
                         <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
                             In the meantime, you can install modules manually:
                         </p>
-                        <a href="/admin/modules/install" className="btn-touch btn-secondary text-sm">
+                        <Link href="/admin/modules/install" className="btn-touch btn-secondary text-sm">
                             Install from ZIP file
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </div>

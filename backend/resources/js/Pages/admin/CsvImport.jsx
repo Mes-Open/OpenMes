@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
 
 function Icon({ d, className = 'w-5 h-5' }) {
@@ -49,7 +49,7 @@ export default function CsvImport() {
 
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-                <a href="/admin/dashboard" className="hover:text-gray-700">Dashboard</a>
+                <Link href="/admin/dashboard" className="hover:text-gray-700">Dashboard</Link>
                 <span>/</span>
                 <span className="text-gray-800 font-medium">CSV Import</span>
             </nav>

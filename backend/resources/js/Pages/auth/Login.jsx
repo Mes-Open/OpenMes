@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import AuthLayout from '../../layouts/AuthLayout';
 
 /**
@@ -244,9 +244,9 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
             {regEnabled && (
                 <p className="mt-6 text-center text-sm text-gray-600">
                     Nie masz konta?{' '}
-                    <a href="/register" className="text-blue-600 hover:underline font-medium">
+                    <Link href="/register" className="text-blue-600 hover:underline font-medium">
                         Utwórz konto
-                    </a>
+                    </Link>
                 </p>
             )}
         </div>

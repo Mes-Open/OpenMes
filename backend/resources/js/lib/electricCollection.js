@@ -1,5 +1,7 @@
 import { createCollection } from '@tanstack/react-db';
 import { electricCollectionOptions } from '@tanstack/electric-db-collection';
+import { FetchError } from '@electric-sql/client';
+import { fetchShapeConfig } from './useShapeConfigs';
 
 /**
  * Build a read-only TanStack DB collection from a signed gatekeeper config.
@@ -24,6 +26,21 @@ export function electricCollection(id, config, getKey = (row) => row.id) {
             shapeOptions: {
                 url: config.url,
                 params: config.params,
+                // The gatekeeper signs configs with a ~1h TTL. When the signature
+                // expires the stream gets a 403; transparently re-mint a fresh
+                // signed config (same-origin session auth) and resume — otherwise
+                // the page would silently stop live-syncing after an hour.
+                onError: async (err) => {
+                    if (err instanceof FetchError && err.status === 403) {
+                        try {
+                            const fresh = await fetchShapeConfig(id);
+                            return { params: fresh.params };
+                        } catch {
+                            return; // give up; surfaces as a stopped stream
+                        }
+                    }
+                    return; // other errors: let Electric's default backoff handle it
+                },
             },
             getKey,
         }),

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from '@inertiajs/react';
 
 /**
  * Label-print dropdown — React replacement for the old <x-label-print-dropdown>
@@ -41,11 +42,11 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
     // No template configured for this type → point at the templates admin page.
     if (applicable.length === 0) {
         return (
-            <a href="/packaging/label-templates"
+            <Link href="/packaging/label-templates"
                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
                title="Configure label templates first">
                 {printIcon} Set up labels…
-            </a>
+            </Link>
         );
     }
 

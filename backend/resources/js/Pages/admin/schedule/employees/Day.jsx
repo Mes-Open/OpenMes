@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -100,16 +100,16 @@ export function EmployeeTabs({ view, date, selectedWorkerId, selectedWorker, wor
                     ))}
                 </div>
 
-                <a href="/admin/schedule" className="px-3 py-2 text-xs font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+                <Link href="/admin/schedule" className="px-3 py-2 text-xs font-medium text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
                     &larr; Production schedule
-                </a>
+                </Link>
 
                 {selectedWorkerId && (
-                    <a href={`/admin/schedule/employees/add?worker_id=${selectedWorkerId}&date=${date}`}
+                    <Link href={`/admin/schedule/employees/add?worker_id=${selectedWorkerId}&date=${date}`}
                        className="inline-flex items-center gap-2 px-3 h-9 rounded-lg bg-amber-500 hover:bg-amber-400 text-amber-950 font-mono text-xs font-bold tracking-wider uppercase">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
                         Add activity
-                    </a>
+                    </Link>
                 )}
             </div>
         </div>
@@ -319,11 +319,11 @@ export default function EmployeeDay() {
                     </div>
 
                     {selectedWorkerId && (
-                        <a href={`/admin/schedule/employees/add?worker_id=${selectedWorkerId}&date=${date}`}
+                        <Link href={`/admin/schedule/employees/add?worker_id=${selectedWorkerId}&date=${date}`}
                            className="h-11 rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 text-amber-600 dark:text-amber-400 font-mono text-[11.5px] font-bold tracking-wider uppercase flex items-center justify-center gap-2 hover:bg-amber-50 dark:hover:bg-amber-500/5">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
                             Add activity
-                        </a>
+                        </Link>
                     )}
                 </section>
 
