@@ -8,6 +8,7 @@ use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PackagingController extends Controller
@@ -16,7 +17,14 @@ class PackagingController extends Controller
 
     public function station()
     {
-        return Inertia::render('packaging/Station');
+        // scannerMode (HID vs serial) merged from develop — passed as a prop so
+        // the React Station page can read it.
+        $scannerMode = json_decode(
+            DB::table('system_settings')->where('key', 'scanner_mode')->value('value') ?? '"hid"',
+            true
+        ) ?? 'hid';
+
+        return Inertia::render('packaging/Station', compact('scannerMode'));
     }
 
     public function adminOverview()

@@ -59,14 +59,23 @@ class AuthController extends Controller
             ]);
         }
 
+        $user = auth()->user();
+
+        // NOTE: TOTP 2FA (merged from develop) is dormant on the React branch —
+        // its challenge/enable Blade screens were dropped pending Inertia pages,
+        // and no user can enable it without that UI, so the login interception
+        // was removed. The DB columns + User model helpers remain for the future
+        // React 2FA flow. Re-add the `two-factor.challenge` redirect here once the
+        // React challenge page and its route exist.
+
         // Regenerate session to prevent session fixation
         $request->session()->regenerate();
 
         // Update last login
-        auth()->user()->update(['last_login_at' => now()]);
+        $user->update(['last_login_at' => now()]);
 
         // Check if user needs to change password
-        if (auth()->user()->force_password_change) {
+        if ($user->force_password_change) {
             return redirect()->route('change-password')
                 ->with('error', 'You must change your password before continuing.');
         }

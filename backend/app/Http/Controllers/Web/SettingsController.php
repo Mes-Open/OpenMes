@@ -101,6 +101,7 @@ class SettingsController extends Controller
             'production_period' => json_decode($rows['production_period']->value ?? '"none"', true) ?? 'none',
             'allow_overproduction' => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']->value ?? 'true', true) ?? true,
+            'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']->value ?? 'false', true) ?? false,
             'workflow_mode' => json_decode($rows['workflow_mode']->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']->value ?? 'false', true) ?? false,
             'language' => json_decode($rows['language']->value ?? '"en"', true) ?? 'en',
@@ -114,6 +115,7 @@ class SettingsController extends Controller
             'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']->value ?? '"*"', true) ?? '*',
             'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none',
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1,
+            'scanner_mode' => json_decode($rows['scanner_mode']->value ?? '"hid"', true) ?? 'hid',
         ];
 
         $availableLocales = ['en' => 'English', 'pl' => 'Polski'];
@@ -280,9 +282,10 @@ class SettingsController extends Controller
             'production_period' => 'required|in:none,weekly,monthly',
             'allow_overproduction' => 'nullable|boolean',
             'force_sequential_steps' => 'nullable|boolean',
+            'workstation_routing_enabled' => 'nullable|boolean',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
-            'language' => 'nullable|in:en,pl',
+            'language' => 'nullable|in:en,pl,tr',
             'schedule_view_mode' => 'required|in:weekly,daily,monthly',
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
@@ -294,6 +297,7 @@ class SettingsController extends Controller
             'cors_max_age' => 'nullable|integer|min:0|max:86400',
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
+            'scanner_mode' => 'required|in:hid,manual',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -303,6 +307,7 @@ class SettingsController extends Controller
             'production_period' => $validated['production_period'],
             'allow_overproduction' => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
+            'workstation_routing_enabled' => (bool) ($validated['workstation_routing_enabled'] ?? false),
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
             'language' => $validated['language'] ?? 'en',
@@ -318,6 +323,7 @@ class SettingsController extends Controller
             'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
+            'scanner_mode' => $validated['scanner_mode'],
         ];
 
         foreach ($map as $key => $value) {
