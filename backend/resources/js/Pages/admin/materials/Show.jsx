@@ -31,9 +31,9 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
 
             {/* Breadcrumbs */}
             <nav className="text-sm text-gray-500 mb-4 flex items-center gap-1">
-                <a href="/admin/dashboard" className="hover:underline">Dashboard</a>
+                <Link href="/admin/dashboard" className="hover:underline">Dashboard</Link>
                 <span>/</span>
-                <a href="/admin/materials" className="hover:underline">Materials</a>
+                <Link href="/admin/materials" className="hover:underline">Materials</Link>
                 <span>/</span>
                 <span className="text-gray-800">{material.name}</span>
             </nav>

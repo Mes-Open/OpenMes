@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function ModulesInstall() {
@@ -75,7 +75,7 @@ export default function ModulesInstall() {
                         Place the module folder directly in{' '}
                         <code className="bg-white dark:bg-gray-700 border rounded px-1 text-xs">modules/</code>,
                         {' '}then go to{' '}
-                        <a href="/admin/modules" className="text-blue-600 hover:underline">Installed Modules</a>
+                        <Link href="/admin/modules" className="text-blue-600 hover:underline">Installed Modules</Link>
                         {' '}and enable it.
                     </p>
                     <div className="text-xs font-mono bg-white dark:bg-gray-900 border dark:border-gray-700 rounded p-3 text-gray-700 dark:text-gray-300 space-y-0.5 mb-4">

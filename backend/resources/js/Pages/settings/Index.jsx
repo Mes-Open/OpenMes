@@ -1,9 +1,9 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
 
 function NavCard({ href, borderColor, bgColor, iconColor, iconPath, title, description }) {
     return (
-        <a
+        <Link
             href={href}
             className={`card hover:shadow-lg transition-shadow cursor-pointer flex items-start gap-4 border-l-4 ${borderColor}`}
         >
@@ -19,7 +19,7 @@ function NavCard({ href, borderColor, bgColor, iconColor, iconPath, title, descr
             <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
             </svg>
-        </a>
+        </Link>
     );
 }
 
@@ -74,7 +74,7 @@ export default function Index() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <a href="/settings/profile" className="card hover:shadow-lg transition-shadow cursor-pointer">
+                <Link href="/settings/profile" className="card hover:shadow-lg transition-shadow cursor-pointer">
                     <div className="flex items-start gap-4">
                         <div className="bg-blue-100 rounded-full p-3">
                             <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,9 +89,9 @@ export default function Index() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                         </svg>
                     </div>
-                </a>
+                </Link>
 
-                <a href="/settings/change-password" className="card hover:shadow-lg transition-shadow cursor-pointer">
+                <Link href="/settings/change-password" className="card hover:shadow-lg transition-shadow cursor-pointer">
                     <div className="flex items-start gap-4">
                         <div className="bg-green-100 rounded-full p-3">
                             <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,10 +106,10 @@ export default function Index() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                         </svg>
                     </div>
-                </a>
+                </Link>
 
                 {pinLoginEnabled && (
-                    <a href="/settings/pin" className="card hover:shadow-lg transition-shadow cursor-pointer">
+                    <Link href="/settings/pin" className="card hover:shadow-lg transition-shadow cursor-pointer">
                         <div className="flex items-start gap-4">
                             <div className="bg-amber-100 rounded-full p-3">
                                 <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,7 +126,7 @@ export default function Index() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                             </svg>
                         </div>
-                    </a>
+                    </Link>
                 )}
             </div>
         </div>

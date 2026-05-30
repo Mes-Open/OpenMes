@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Events\ScheduleUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\WorkOrder;
 use Illuminate\Http\JsonResponse;
@@ -67,7 +66,6 @@ class ScheduleController extends Controller
         }
 
         $workOrder->update($data);
-        event(new ScheduleUpdated());
 
         return response()->json([
             'success' => true,
@@ -106,7 +104,6 @@ class ScheduleController extends Controller
             'planned_start_at' => $validated['planned_start_at'],
             'planned_end_at'   => $validated['planned_end_at'],
         ]);
-        event(new ScheduleUpdated());
 
         return response()->json([
             'success' => true,

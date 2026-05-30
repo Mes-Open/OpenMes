@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
 
 function SelectCard({ value, current, onChange, label, desc, disabled }) {
@@ -69,11 +69,11 @@ export default function System() {
             <Head title="System Settings" />
 
             <div className="flex items-center gap-3 mb-6">
-                <a href="/settings" className="text-gray-500 hover:text-gray-700">
+                <Link href="/settings" className="text-gray-500 hover:text-gray-700">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                     </svg>
-                </a>
+                </Link>
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">System Settings</h1>
                     <p className="text-gray-500 text-sm mt-0.5">Global application configuration</p>
@@ -326,12 +326,12 @@ export default function System() {
                                 ))}
                             </div>
                             {errors.schedule_shifts_per_day && <p className="text-red-600 text-sm mt-1">{errors.schedule_shifts_per_day}</p>}
-                            <a href="/admin/shifts" className="inline-flex items-center gap-1.5 mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            <Link href="/admin/shifts" className="inline-flex items-center gap-1.5 mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 Manage Shifts &rarr;
-                            </a>
+                            </Link>
                         </div>
 
                         {/* Planning horizon */}

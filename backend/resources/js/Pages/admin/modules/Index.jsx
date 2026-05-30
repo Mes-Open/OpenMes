@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function ModulesIndex() {
@@ -23,9 +23,9 @@ export default function ModulesIndex() {
                         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Installed Modules</h1>
                         <p className="text-gray-600 dark:text-gray-400 mt-1">Enable and disable installed OpenMES extensions</p>
                     </div>
-                    <a href="/admin/modules/install" className="btn-touch btn-primary text-sm">
+                    <Link href="/admin/modules/install" className="btn-touch btn-primary text-sm">
                         + Install Module
-                    </a>
+                    </Link>
                 </div>
 
                 {modules.length === 0 ? (
@@ -36,9 +36,9 @@ export default function ModulesIndex() {
                         </svg>
                         <p className="text-gray-500 text-lg font-medium">No modules installed</p>
                         <p className="text-gray-400 text-sm mt-1">
-                            <a href="/admin/modules/install" className="text-blue-600 hover:underline">
+                            <Link href="/admin/modules/install" className="text-blue-600 hover:underline">
                                 Install a module from a ZIP file
-                            </a>
+                            </Link>
                             {' '}or place the module folder in{' '}
                             <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">modules/</code>
                         </p>

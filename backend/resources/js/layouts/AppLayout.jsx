@@ -1,22 +1,28 @@
 import { useEffect, useState } from 'react';
-import { usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
 
 /**
- * App chrome (sidebar + header) for authenticated React pages — the React port
- * of layouts/app.blade.php + layouts/components/sidebar.blade.php (Admin role).
+ * App chrome (sidebar + header) for authenticated React pages.
  *
- * Persists collapse state (`sb`) and dark mode (`theme`) in localStorage using
- * the same keys as the Blade layout, so the two stay in sync as pages migrate.
+ * This is a PERSISTENT Inertia layout (pages opt in via
+ * `Page.layout = (page) => <AppLayout>{page}</AppLayout>`), so it stays mounted
+ * across client-side navigations — the sidebar, its collapse/dark-mode state,
+ * and the live alert badge's Electric subscription survive page changes.
  *
- * Nav links point at server-rendered Blade routes (full page loads), so active
- * state is computed from window.location.pathname at mount. Once a navigated-to
- * page is itself an Inertia page, swap its <a> for Inertia's <Link>.
+ * Nav uses Inertia <Link> (XHR, swaps only the page component — no full reload).
+ * Active state is derived from the REACTIVE `usePage().url` (not
+ * window.location, which wouldn't update while the layout stays mounted).
+ *
+ * Persists collapse (`sb`) + dark mode (`theme`) in localStorage.
  */
 export default function AppLayout({ children }) {
-    const { auth, nav, csrf_token } = usePage().props;
-    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    const page = usePage();
+    const { auth, nav, csrf_token, appVersion } = page.props;
+    // usePage().url is reactive across SPA navigation; strip the query string
+    // so prefix matching for active-state works (e.g. /admin/work-orders?status=).
+    const path = (page.url || '').split('?')[0];
 
     const [collapsed, setCollapsed] = useState(
         () => typeof window !== 'undefined' && localStorage.getItem('sb') === '1',
@@ -53,6 +59,7 @@ export default function AppLayout({ children }) {
                         auth={auth}
                         alertCount={alertCount}
                         csrfToken={csrf_token}
+                        appVersion={appVersion}
                         path={path}
                         collapsed={collapsed}
                         mobileOpen={mobileOpen}
@@ -114,9 +121,10 @@ function FlashMessages() {
 }
 
 function Sidebar({
-    auth, alertCount, csrfToken, path, collapsed, mobileOpen, showLabels,
+    auth, alertCount, csrfToken, appVersion, path, collapsed, mobileOpen, showLabels,
     dark, onToggleCollapsed, onToggleDark, onCloseMobile,
 }) {
+    const isAdmin = auth?.user?.roles?.includes('Admin');
     const widthClass = collapsed ? 'lg:w-16' : 'lg:w-64';
     const translate = mobileOpen ? 'translate-x-0' : '-translate-x-full';
 
@@ -128,17 +136,30 @@ function Sidebar({
         >
             {/* Logo / header */}
             <div className="flex items-center h-16 px-3 shrink-0 border-b border-slate-700/60">
-                <a href="/admin/dashboard" className="flex items-center gap-2.5 min-w-0 overflow-hidden">
+                <Link href="/admin/dashboard" className="flex items-center gap-2.5 min-w-0 overflow-hidden">
                     <img src="/logo_open_mes.png" alt="OpenMES" className="h-8 w-8 shrink-0 object-contain" />
                     {showLabels && (
-                        <span className="min-w-0 overflow-hidden">
+                        <span className="min-w-0 overflow-hidden leading-tight">
                             <span className="block text-white font-bold text-sm tracking-tight truncate">OpenMES</span>
+                            {appVersion && <span className="block text-[10px] text-slate-400 truncate">{appVersion}</span>}
                         </span>
                     )}
-                </a>
+                </Link>
+
+                {/* Setup wizard (Admin only) — the "?" the demo shows in the header */}
+                {showLabels && isAdmin && (
+                    <Link
+                        href="/onboarding/step/1"
+                        prefetch
+                        title="Setup wizard"
+                        className="ml-auto p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 shrink-0"
+                    >
+                        <Icon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5" />
+                    </Link>
+                )}
                 <button
                     onClick={onCloseMobile}
-                    className="lg:hidden ml-auto p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 shrink-0"
+                    className={`lg:hidden ${showLabels && isAdmin ? '' : 'ml-auto'} p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 shrink-0`}
                 >
                     <Icon d="M6 18L18 6M6 6l12 12" className="w-5 h-5" />
                 </button>
@@ -190,8 +211,9 @@ function Sidebar({
 
                 {/* Settings */}
                 <div className="px-2 pt-2">
-                    <a
+                    <Link
                         href="/settings"
+                        prefetch
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                                     ${isActive(path, ['/settings'])
                                         ? 'bg-blue-600 text-white'
@@ -200,7 +222,7 @@ function Sidebar({
                     >
                         <Icon d={ICONS.settings} className="w-5 h-5 shrink-0" />
                         {showLabels && <span>Settings</span>}
-                    </a>
+                    </Link>
                 </div>
 
                 {/* User + logout */}
@@ -252,8 +274,9 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
     const activeClass = link.alert && active ? 'bg-red-600 text-white' : active ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white';
     return (
         <div className="relative group px-2">
-            <a
+            <Link
                 href={link.href}
+                prefetch
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                             ${activeClass} ${collapsed && !showLabels ? 'justify-center !px-0' : ''}`}
             >
@@ -275,7 +298,7 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
                         )}
                     </span>
                 )}
-            </a>
+            </Link>
             {collapsed && !showLabels && <Tooltip>{link.label}</Tooltip>}
         </div>
     );
@@ -284,6 +307,13 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
 function NavGroup({ group, path, collapsed, showLabels }) {
     const groupActive = isActive(path, group.match);
     const [open, setOpen] = useState(groupActive);
+
+    // The layout persists across SPA navigation, so auto-expand a group when you
+    // navigate into one of its pages (without forcing it closed when you leave —
+    // the user's manual expand/collapse is preserved).
+    useEffect(() => {
+        if (groupActive) setOpen(true);
+    }, [groupActive]);
 
     // Collapsed sidebar can't show expanded children; clicking a collapsed
     // group expands the sidebar first (parity with Blade expandGroup()).
@@ -327,8 +357,11 @@ function NavGroup({ group, path, collapsed, showLabels }) {
 }
 
 function SubGroup({ group, path }) {
-    const [open, setOpen] = useState(isActive(path, group.match));
     const active = isActive(path, group.match);
+    const [open, setOpen] = useState(active);
+    useEffect(() => {
+        if (active) setOpen(true);
+    }, [active]);
     return (
         <div>
             <button
@@ -358,14 +391,15 @@ function ChildLink({ child, path, dot }) {
     const active = isActive(path, child.match, child.exact);
     const dotClass = dot === 'sm' ? 'w-1 h-1 opacity-50' : 'w-1.5 h-1.5 opacity-60';
     return (
-        <a
+        <Link
             href={child.href}
+            prefetch
             className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
                         ${active ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
         >
             <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
             {child.label}
-        </a>
+        </Link>
     );
 }
 

@@ -165,18 +165,14 @@ class WorkOrderService
     }
 
     /**
-     * Fire ScheduleUpdated (broad channel + per-line) AND WorkOrderUpdated
-     * (per-WO channel) when the status actually changed. Both events gate on
-     * system_settings.realtime_mode='websocket', so this is a no-op while
-     * admins are still on polling.
+     * No-op since Reverb/WebSocket broadcasting was removed — live updates now
+     * flow through Electric SQL shapes (clients watch the work_orders shape),
+     * so there's nothing to broadcast on a status change. Kept (empty) so the
+     * existing call sites don't need to change.
      */
     protected function maybeBroadcastScheduleUpdate(WorkOrder $workOrder, ?string $previous): void
     {
-        if ($previous === $workOrder->status) {
-            return;
-        }
-        \App\Events\ScheduleUpdated::dispatch('status', $workOrder->line_id);
-        \App\Events\WorkOrderUpdated::dispatch($workOrder->id, 'status');
+        // intentionally empty — see Electric live-sync (no server push)
     }
 
     /**

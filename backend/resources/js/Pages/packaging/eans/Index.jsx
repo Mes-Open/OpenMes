@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 const STATUS_STYLES = {
@@ -59,9 +59,9 @@ export default function EansIndex() {
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex items-center gap-1 text-sm text-gray-500 mb-4">
-                    <a href="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-300">Dashboard</a>
+                    <Link href="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-300">Dashboard</Link>
                     <span className="mx-1">/</span>
-                    <a href="/packaging" className="hover:text-gray-700 dark:hover:text-gray-300">Pakowanie</a>
+                    <Link href="/packaging" className="hover:text-gray-700 dark:hover:text-gray-300">Pakowanie</Link>
                     <span className="mx-1">/</span>
                     <span className="text-gray-700 dark:text-gray-300">Kody EAN</span>
                 </nav>
@@ -72,7 +72,7 @@ export default function EansIndex() {
                         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Kody EAN &mdash; Zarządzanie</h1>
                         <p className="text-sm text-gray-500 mt-1">Przypisuj kody kreskowe do zleceń produkcyjnych</p>
                     </div>
-                    <a href="/packaging" className="btn-touch btn-secondary">&larr; Przegląd pakowania</a>
+                    <Link href="/packaging" className="btn-touch btn-secondary">&larr; Przegląd pakowania</Link>
                 </div>
 
                 {/* Add EAN form */}

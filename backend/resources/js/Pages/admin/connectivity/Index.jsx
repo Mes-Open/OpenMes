@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 const STATUS_DOT = {
@@ -43,7 +43,7 @@ export default function ConnectivityIndex() {
                             Overview of all machine communication channels.
                         </p>
                     </div>
-                    <a
+                    <Link
                         href="/admin/connectivity/mqtt/create"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                     >
@@ -51,23 +51,23 @@ export default function ConnectivityIndex() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                         </svg>
                         New Connection
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Protocol tabs */}
                 <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
-                    <a
+                    <Link
                         href="/admin/connectivity"
                         className="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600 dark:text-blue-400"
                     >
                         All ({connections.length})
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                         href="/admin/connectivity/mqtt"
                         className="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                     >
                         MQTT
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Connection cards */}
@@ -77,9 +77,9 @@ export default function ConnectivityIndex() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                         </svg>
                         <p className="text-sm">No connections defined yet.</p>
-                        <a href="/admin/connectivity/mqtt/create" className="mt-2 inline-block text-blue-500 hover:underline text-sm">
+                        <Link href="/admin/connectivity/mqtt/create" className="mt-2 inline-block text-blue-500 hover:underline text-sm">
                             Create your first MQTT connection →
-                        </a>
+                        </Link>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -122,18 +122,18 @@ export default function ConnectivityIndex() {
                                 <div className="flex gap-2 pt-1 border-t border-gray-100 dark:border-gray-700 mt-auto">
                                     {conn.protocol === 'mqtt' && (
                                         <>
-                                            <a
+                                            <Link
                                                 href={`/admin/connectivity/mqtt/${conn.id}`}
                                                 className="flex-1 text-center text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-100 transition-colors font-medium"
                                             >
                                                 View
-                                            </a>
-                                            <a
+                                            </Link>
+                                            <Link
                                                 href={`/admin/connectivity/mqtt/${conn.id}/edit`}
                                                 className="flex-1 text-center text-xs px-3 py-1.5 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 transition-colors font-medium"
                                             >
                                                 Edit
-                                            </a>
+                                            </Link>
                                         </>
                                     )}
                                     <button

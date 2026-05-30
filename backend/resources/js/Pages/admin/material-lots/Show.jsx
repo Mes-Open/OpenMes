@@ -47,9 +47,9 @@ export default function MaterialLotShow({ lot }) {
 
             {/* Breadcrumbs */}
             <nav className="text-sm text-gray-500 mb-4 flex items-center gap-1">
-                <a href="/admin/dashboard" className="hover:underline">Dashboard</a>
+                <Link href="/admin/dashboard" className="hover:underline">Dashboard</Link>
                 <span>/</span>
-                <a href="/admin/material-lots" className="hover:underline">Material Lots</a>
+                <Link href="/admin/material-lots" className="hover:underline">Material Lots</Link>
                 <span>/</span>
                 <span className="text-gray-800">{lot.lot_number}</span>
             </nav>
@@ -109,12 +109,12 @@ export default function MaterialLotShow({ lot }) {
                         <InfoCell label="Supplier reference">{lot.supplier_reference ?? '—'}</InfoCell>
                         <InfoCell label="Inspection">
                             {lot.inspection ? (
-                                <a
+                                <Link
                                     href={`/inspections/${lot.inspection.id}`}
                                     className="text-blue-700 hover:underline"
                                 >
                                     #{lot.inspection.id} ({lot.inspection.status})
-                                </a>
+                                </Link>
                             ) : (
                                 <span className="text-gray-400">Not linked</span>
                             )}
@@ -227,12 +227,12 @@ export default function MaterialLotShow({ lot }) {
                                 <dt className="text-xs text-gray-500">Inspection</dt>
                                 <dd className="mt-1">
                                     {lot.inspection ? (
-                                        <a
+                                        <Link
                                             href={`/inspections/${lot.inspection.id}`}
                                             className="text-blue-700 hover:underline"
                                         >
                                             #{lot.inspection.id} — {ucFirst(lot.inspection.status)}
-                                        </a>
+                                        </Link>
                                     ) : (
                                         <span className="text-gray-400">No inbound inspection</span>
                                     )}

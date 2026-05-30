@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import LiveRefresh from '../../../components/LiveRefresh';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -115,9 +116,7 @@ export default function Planner() {
     const [trackingData, setTrackingData] = useState(null);
     const trackingTimer = useRef(null);
 
-    // Polling
-    const pollingTimer = useRef(null);
-    const lastUpdate = useRef(null);
+    // Live-sync indicator state (driven by <LiveRefresh/>)
     const [pollingActive, setPollingActive] = useState(false);
 
     // Tooltip
@@ -291,28 +290,35 @@ export default function Planner() {
         } catch { /* silent */ }
     };
 
-    // ── Polling ───────────────────────────────────────────────────────────────
+    // ── Live sync (Electric) ────────────────────────────────────────────────
+    // Cross-window sync is now push-based: <ShapeChangeWatcher> (rendered below)
+    // calls onWorkOrdersChanged the instant any work order changes (move, resize,
+    // remove, status, create/delete). The 10s check-updates poll was replaced —
+    // Electric pushes immediately. We still defer a refresh while the user is
+    // mid-drag or saving, then flush it once they finish, so their interaction
+    // isn't interrupted.
+    const pendingRefresh = useRef(false);
+
+    const onWorkOrdersChanged = useCallback(() => {
+        if (saving || dragOrderId.current) {
+            pendingRefresh.current = true;
+            return;
+        }
+        refreshContent();
+    }, [saving, refreshContent]);
+
+    // Flush a deferred refresh once a save completes (drag-end is usually
+    // followed by a save, which re-renders and triggers this).
     useEffect(() => {
-        if (realtimeMode !== 'polling') return;
-        setPollingActive(true);
-        pollingTimer.current = setInterval(async () => {
-            if (saving || dragOrderId.current) return;
-            try {
-                const r = await fetch('/admin/schedule/check-updates', {
-                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                });
-                if (!r.ok) return;
-                const d = await r.json();
-                if (!d.last_updated) return;
-                if (lastUpdate.current === null) { lastUpdate.current = d.last_updated; return; }
-                if (d.last_updated !== lastUpdate.current) {
-                    lastUpdate.current = d.last_updated;
-                    refreshContent();
-                }
-            } catch { /* silent */ }
-        }, 10000);
-        return () => { clearInterval(pollingTimer.current); setPollingActive(false); };
-    }, [realtimeMode, saving, refreshContent]);
+        if (!saving && pendingRefresh.current) {
+            pendingRefresh.current = false;
+            refreshContent();
+        }
+    }, [saving, refreshContent]);
+
+    useEffect(() => {
+        setPollingActive(realtimeMode !== 'off');
+    }, [realtimeMode]);
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -345,6 +351,12 @@ export default function Planner() {
     return (
         <>
             <Head title="Production Planner" />
+            <LiveRefresh
+                pollUrl="/admin/schedule/check-updates"
+                shape="work_orders_all"
+                enabled={realtimeMode !== 'off'}
+                onRefresh={onWorkOrdersChanged}
+            />
             <div>
                 {/* ─── TOOLBAR ─── */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-2.5 mb-4 flex flex-wrap items-center gap-3">
@@ -369,11 +381,11 @@ export default function Planner() {
                                 {l}
                             </button>
                         ))}
-                        <a href={`/admin/schedule/employees?date=${startDate}`}
+                        <Link href={`/admin/schedule/employees?date=${startDate}`}
                            className="px-3 py-1 text-xs font-medium rounded-md transition text-amber-600 hover:text-amber-700 dark:text-amber-400"
                            title="Employee day planner — tachograph view">
                             Employees
-                        </a>
+                        </Link>
                     </div>
 
                     <div className="h-6 border-l border-gray-300 dark:border-gray-600 mx-1" />
@@ -537,7 +549,7 @@ export default function Planner() {
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm font-bold text-gray-800 dark:text-gray-100">{selected.order_no}</span>
-                                    <a href={selected.url} className="text-[10px] text-blue-600 hover:underline">View details &rarr;</a>
+                                    <Link href={selected.url} className="text-[10px] text-blue-600 hover:underline">View details &rarr;</Link>
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <button onClick={() => trackingId === selected.id ? stopTracking() : startTracking(selected.id)}
@@ -889,14 +901,14 @@ function WeekLineRows({ lineData, dayHeaders, shiftsPerDay, weekNumber, maintena
                                             const isOverdue = slotOrder.due_date && new Date(slotOrder.due_date) < new Date() && !['DONE','REJECTED','CANCELLED'].includes(slotOrder.status);
                                             const colorClass = isOverdue ? 'bg-red-500 text-white animate-pulse ring-2 ring-red-400' : (WO_COLORS[slotOrder.status] ?? 'bg-gray-200 border-gray-300 text-gray-700');
                                             return (
-                                                <a href={`/admin/work-orders/${slotOrder.id}`}
+                                                <Link href={`/admin/work-orders/${slotOrder.id}`}
                                                    className={`block px-2 py-4 rounded text-[11px] font-medium truncate cursor-pointer hover:opacity-80 transition h-full flex items-center border-2 ${colorClass}`}
                                                    onClick={(e) => { e.preventDefault(); onSelectOrder(slotOrder, dh.date, s); }}
                                                    onMouseEnter={(e) => onShowTip(e, { order_no: slotOrder.order_no, product: slotOrder.product_name ?? '-', qty: slotOrder.planned_qty, status: STATUS_LABELS[slotOrder.status] ?? slotOrder.status })}
                                                    onMouseLeave={onHideTip}
                                                 >
                                                     {slotOrder.order_no}
-                                                </a>
+                                                </Link>
                                             );
                                         })()}
                                         <button onClick={(e) => { e.preventDefault(); onUnassign(slotOrder.id); }}
@@ -987,11 +999,11 @@ function DailyView({ data, lines, maintenanceEvents, onUnassign }) {
                                                 const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && !['DONE','REJECTED','CANCELLED'].includes(wo.status);
                                                 return (
                                                     <div key={wo.id} className="relative group/cell">
-                                                        <a href={`/admin/work-orders/${wo.id}`}
+                                                        <Link href={`/admin/work-orders/${wo.id}`}
                                                            className={`block px-2 py-4 rounded text-[11px] font-medium truncate border ${isOverdue ? 'bg-red-500 border-red-600 text-white animate-pulse ring-2 ring-red-400' : `${WO_COLORS[wo.status] ?? 'bg-gray-200 border-gray-300 text-gray-800'}`}`}
                                                            title={wo.order_no}>
                                                             {wo.order_no}
-                                                        </a>
+                                                        </Link>
                                                         <button onClick={() => onUnassign(wo.id)}
                                                                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[8px] font-bold leading-none flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity shadow-sm hover:bg-red-600 z-10"
                                                                 title="Remove from schedule">✕</button>
@@ -1255,9 +1267,9 @@ function HourlyView({ data, slotMinutes, startDate, shiftsPerDay, maintenanceEve
                                                 {order.end_minute >= data.minutes_per_day && wo.planned_end_at && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[12px] leading-none text-gray-600">&raquo;</span>}
                                                 <div className="flex flex-col h-full pointer-events-none">
                                                     <div className="flex items-center gap-1">
-                                                        <a href={`/admin/work-orders/${wo.id}`} className="text-[11px] font-bold truncate pointer-events-auto hover:underline" onClick={(e) => e.stopPropagation()}>
+                                                        <Link href={`/admin/work-orders/${wo.id}`} className="text-[11px] font-bold truncate pointer-events-auto hover:underline" onClick={(e) => e.stopPropagation()}>
                                                             {wo.order_no}
-                                                        </a>
+                                                        </Link>
                                                         {order.has_conflict && <span className="text-[9px] font-bold uppercase text-red-700">Conflict</span>}
                                                         {order.is_legacy && <span className="text-[9px] font-bold uppercase text-gray-600">Legacy</span>}
                                                     </div>
@@ -1366,10 +1378,10 @@ function MonthlyView({ data, onUnassign }) {
                                     {lineData.orders.map((wo) => {
                                         const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && !['DONE','REJECTED','CANCELLED'].includes(wo.status);
                                         return (
-                                            <a key={wo.id} href={`/admin/work-orders/${wo.id}`}
+                                            <Link key={wo.id} href={`/admin/work-orders/${wo.id}`}
                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-medium ${isOverdue ? 'bg-red-500 border-red-600 text-white animate-pulse ring-2 ring-red-400' : `${WO_COLORS[wo.status] ?? 'bg-gray-200 border-gray-300 text-gray-800'}`}`}>
                                                 {wo.order_no} <span className="opacity-50">&middot;</span> {wo.planned_qty}pcs
-                                            </a>
+                                            </Link>
                                         );
                                     })}
                                     {lineData.orders.length === 0 && <span className="text-xs text-gray-400 italic">No orders</span>}
@@ -1475,9 +1487,9 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                                     >
                                         <div className="flex items-start justify-between mb-1.5">
                                             <div>
-                                                <a href={`/admin/work-orders/${item.id}`} className="font-bold text-gray-800 dark:text-gray-100 hover:underline">
+                                                <Link href={`/admin/work-orders/${item.id}`} className="font-bold text-gray-800 dark:text-gray-100 hover:underline">
                                                     {item.order_no}
-                                                </a>
+                                                </Link>
                                                 <div className="text-[10px] text-gray-500 mt-0.5">{item.product}</div>
                                             </div>
                                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium border ${WO_COLORS[backlogOrders.find(o => o.id === item.id)?.status] ?? 'bg-gray-200 border-gray-300 text-gray-700'}`}>
@@ -1520,12 +1532,12 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                     </div>
                 </div>
                 <div className="flex gap-1.5">
-                    <a href="/admin/work-orders/create" className="flex-1 text-center py-1.5 rounded-lg text-[10px] font-medium bg-blue-600 text-white hover:bg-blue-700 transition">
+                    <Link href="/admin/work-orders/create" className="flex-1 text-center py-1.5 rounded-lg text-[10px] font-medium bg-blue-600 text-white hover:bg-blue-700 transition">
                         + Add
-                    </a>
-                    <a href="/admin/csv-import" className="flex-1 text-center py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition border border-gray-300 dark:border-gray-600">
+                    </Link>
+                    <Link href="/admin/csv-import" className="flex-1 text-center py-1.5 rounded-lg text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 transition border border-gray-300 dark:border-gray-600">
                         Import CSV
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>

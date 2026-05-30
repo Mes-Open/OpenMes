@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 const AUTO_MAP_RULES = {
@@ -107,11 +107,11 @@ export default function MaterialsImportMapping() {
 
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-                <a href="/admin/dashboard" className="hover:text-gray-700">Dashboard</a>
+                <Link href="/admin/dashboard" className="hover:text-gray-700">Dashboard</Link>
                 <span>/</span>
-                <a href="/admin/materials" className="hover:text-gray-700">Materials</a>
+                <Link href="/admin/materials" className="hover:text-gray-700">Materials</Link>
                 <span>/</span>
-                <a href="/admin/materials/import" className="hover:text-gray-700">Import</a>
+                <Link href="/admin/materials/import" className="hover:text-gray-700">Import</Link>
                 <span>/</span>
                 <span className="text-gray-800 font-medium">Map Columns</span>
             </nav>
@@ -127,7 +127,7 @@ export default function MaterialsImportMapping() {
                         )}
                     </p>
                 </div>
-                <a href="/admin/materials/import" className="btn-touch btn-secondary text-sm">Back</a>
+                <Link href="/admin/materials/import" className="btn-touch btn-secondary text-sm">Back</Link>
             </div>
 
             <form method="POST" action="/admin/materials/import/process">

@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function AreaShow() {
@@ -11,13 +11,13 @@ export default function AreaShow() {
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex flex-wrap gap-1 items-center text-sm text-gray-500 mb-4">
-                    <a href="/admin/dashboard" className="hover:text-blue-600">Dashboard</a>
+                    <Link href="/admin/dashboard" className="hover:text-blue-600">Dashboard</Link>
                     <span>/</span>
-                    <a href="/admin/sites" className="hover:text-blue-600">Sites</a>
+                    <Link href="/admin/sites" className="hover:text-blue-600">Sites</Link>
                     {site && (
                         <>
                             <span>/</span>
-                            <a href={`/admin/sites/${site.id}`} className="hover:text-blue-600">{site.name}</a>
+                            <Link href={`/admin/sites/${site.id}`} className="hover:text-blue-600">{site.name}</Link>
                         </>
                     )}
                     <span>/</span>
@@ -32,18 +32,18 @@ export default function AreaShow() {
                         {site && (
                             <p className="text-gray-600 mt-1">
                                 Site:{' '}
-                                <a href={`/admin/sites/${site.id}`} className="text-blue-600 hover:text-blue-800">
+                                <Link href={`/admin/sites/${site.id}`} className="text-blue-600 hover:text-blue-800">
                                     {site.name}
-                                </a>
+                                </Link>
                             </p>
                         )}
                     </div>
-                    <a
+                    <Link
                         href={`/admin/areas/${area.id}/edit`}
                         className="btn-touch btn-primary"
                     >
                         Edit Area
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Info cards */}
@@ -95,12 +95,12 @@ export default function AreaShow() {
                                         <tr key={line.id} className="hover:bg-gray-50">
                                             <td className="py-2 px-4 font-mono text-gray-600">{line.code}</td>
                                             <td className="py-2 px-4">
-                                                <a
+                                                <Link
                                                     href={`/admin/lines/${line.id}`}
                                                     className="text-blue-600 hover:text-blue-800"
                                                 >
                                                     {line.name}
-                                                </a>
+                                                </Link>
                                             </td>
                                             <td className="py-2 px-4 text-gray-600">{line.workstations_count}</td>
                                             <td className="py-2 px-4">

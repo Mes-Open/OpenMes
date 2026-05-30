@@ -53,18 +53,18 @@ function LineStatusesCard({ line, lineStatuses }) {
                         Kanban statuses available for work orders on this line. Global statuses are shown in gray.
                     </p>
                 </div>
-                <a href="/admin/line-statuses" className="text-sm text-blue-600 hover:underline">
+                <Link href="/admin/line-statuses" className="text-sm text-blue-600 hover:underline">
                     Manage global statuses →
-                </a>
+                </Link>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
                 {lineStatuses.length === 0 ? (
                     <p className="text-sm text-gray-500">
                         No statuses yet. Add one below or{' '}
-                        <a href="/admin/line-statuses" className="text-blue-600 hover:underline">
+                        <Link href="/admin/line-statuses" className="text-blue-600 hover:underline">
                             manage global statuses
-                        </a>
+                        </Link>
                         .
                     </p>
                 ) : (
@@ -548,9 +548,9 @@ function ViewTemplateCard({ line, allViewTemplates }) {
             {allViewTemplates.length === 0 && (
                 <p className="text-xs text-gray-400 mt-3">
                     No templates created yet.{' '}
-                    <a href="/admin/view-templates/create" className="text-blue-600 hover:underline">
+                    <Link href="/admin/view-templates/create" className="text-blue-600 hover:underline">
                         Create one
-                    </a>
+                    </Link>
                     .
                 </p>
             )}

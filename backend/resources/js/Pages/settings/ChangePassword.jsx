@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
 
 function EyeIcon({ visible }) {
@@ -78,12 +78,12 @@ export default function ChangePassword() {
             <Head title="Change Password" />
 
             <div className="mb-6">
-                <a href="/settings" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">
+                <Link href="/settings" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                     </svg>
                     Back
-                </a>
+                </Link>
                 <h1 className="text-3xl font-bold text-gray-800">Change Password</h1>
             </div>
 
@@ -130,7 +130,7 @@ export default function ChangePassword() {
                     </div>
 
                     <div className="flex justify-end gap-3">
-                        <a href="/settings" className="btn-touch btn-secondary">Cancel</a>
+                        <Link href="/settings" className="btn-touch btn-secondary">Cancel</Link>
                         <button
                             type="submit"
                             disabled={!canSubmit || processing}

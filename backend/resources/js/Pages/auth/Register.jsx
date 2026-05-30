@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import AuthLayout from '../../layouts/AuthLayout';
 
 /**
@@ -202,9 +202,9 @@ export default function Register() {
 
             <p className="mt-6 text-center text-sm text-gray-600">
                 Masz już konto?{' '}
-                <a href="/login" className="text-blue-600 hover:underline font-medium">
+                <Link href="/login" className="text-blue-600 hover:underline font-medium">
                     Zaloguj się
-                </a>
+                </Link>
             </p>
         </div>
     );
