@@ -411,7 +411,7 @@ See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details.
 
 ## 📄 License
 
-OpenMES is open-source software licensed under the **MIT License**.
+OpenMES is open-source software licensed under the **AGPL-3.0 License**.
 
 This means you can:
 - ✅ Use it commercially
