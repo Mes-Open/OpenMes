@@ -70,13 +70,6 @@ Route::get('/health', function () {
     ]);
 });
 
-// Broadcast auth for private channels (Reverb). Mobile + web both authorize
-// with their Sanctum bearer token via POST /api/broadcasting/auth. (Laravel
-// already prefixes routes/api.php with 'api', so no prefix here.)
-\Illuminate\Support\Facades\Broadcast::routes([
-    'middleware' => ['auth:sanctum'],
-]);
-
 // Electric SQL gatekeeper. PHP authorizes a shape once and hands back a signed
 // capability; the browser then streams from Electric through Caddy (see the
 // /electric/* route in the Caddyfile), so PHP never holds the long-poll.

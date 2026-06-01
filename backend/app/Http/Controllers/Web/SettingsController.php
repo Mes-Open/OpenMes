@@ -120,8 +120,6 @@ class SettingsController extends Controller
         ];
 
         $availableLocales = ['en' => 'English', 'pl' => 'Polski'];
-        $reverbAvailable = config('broadcasting.default') === 'reverb'
-            || class_exists(\Laravel\Reverb\ServerManager::class);
 
         // Append CORS fields not in the standard settings map (they may exist in DB)
         $corsRow = DB::table('system_settings')->where('key', 'cors_allowed_methods')->first();
@@ -132,7 +130,6 @@ class SettingsController extends Controller
         return Inertia::render('settings/System', [
             'settings' => $settings,
             'availableLocales' => $availableLocales,
-            'reverbAvailable' => $reverbAvailable,
             'appUrl' => config('app.url'),
         ]);
     }
@@ -291,7 +288,7 @@ class SettingsController extends Controller
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
             'schedule_show_weekends' => 'nullable|boolean',
-            'realtime_mode' => 'required|in:polling,websocket',
+            'realtime_mode' => 'required|in:polling,off',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
             'cors_allowed_origins' => 'nullable|string|max:1000',
             'cors_allowed_methods' => 'nullable|string|max:200',
@@ -423,7 +420,6 @@ class SettingsController extends Controller
                 'db_host', 'db_port', 'db_database', 'db_username', 'db_password', 'db_connection',
                 'mail_host', 'mail_port', 'mail_username', 'mail_password',
                 'cors_allowed_origins', 'cors_allowed_methods',
-                'reverb_app_id', 'reverb_app_key', 'reverb_app_secret',
                 'modules_enabled',
             ];
 

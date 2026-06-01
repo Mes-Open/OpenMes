@@ -123,12 +123,9 @@ class WorkOrderService
      */
     public function updateWorkOrderStatus(WorkOrder $workOrder): void
     {
-        $previous = $workOrder->status;
-
         // Check if blocked by issues
         if ($workOrder->isBlocked()) {
             $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
-            $this->maybeBroadcastScheduleUpdate($workOrder, $previous);
 
             return;
         }
@@ -139,7 +136,6 @@ class WorkOrderService
                 'status' => WorkOrder::STATUS_DONE,
                 'completed_at' => now(),
             ]);
-            $this->maybeBroadcastScheduleUpdate($workOrder, $previous);
 
             return;
         }
@@ -151,7 +147,6 @@ class WorkOrderService
 
         if ($hasInProgressBatch) {
             $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
-            $this->maybeBroadcastScheduleUpdate($workOrder, $previous);
 
             return;
         }
@@ -160,19 +155,7 @@ class WorkOrderService
         if ($workOrder->status !== WorkOrder::STATUS_PENDING &&
             $workOrder->status !== WorkOrder::STATUS_DONE) {
             $workOrder->update(['status' => WorkOrder::STATUS_PENDING]);
-            $this->maybeBroadcastScheduleUpdate($workOrder, $previous);
         }
-    }
-
-    /**
-     * No-op since Reverb/WebSocket broadcasting was removed — live updates now
-     * flow through Electric SQL shapes (clients watch the work_orders shape),
-     * so there's nothing to broadcast on a status change. Kept (empty) so the
-     * existing call sites don't need to change.
-     */
-    protected function maybeBroadcastScheduleUpdate(WorkOrder $workOrder, ?string $previous): void
-    {
-        // intentionally empty — see Electric live-sync (no server push)
     }
 
     /**
