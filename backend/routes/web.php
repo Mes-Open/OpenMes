@@ -107,6 +107,16 @@ Route::get('/offline', function () {
     return view('offline');
 })->name('offline');
 
+// Language switcher — persists the choice in the session; SetLocale applies it
+// on subsequent requests. Public so the login screen can switch too.
+Route::get('/locale/{locale}', function (string $locale) {
+    if (array_key_exists($locale, config('app.available_locales', []))) {
+        session(['locale' => $locale]);
+    }
+
+    return back();
+})->name('locale.switch');
+
 // React/Inertia proof-of-concept (see resources/js/Pages/Demo.jsx).
 Route::get('/react', function () {
     return \Inertia\Inertia::render('Demo', [

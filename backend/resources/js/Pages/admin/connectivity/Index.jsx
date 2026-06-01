@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { StatusDot } from './ui';
+import { __ } from '../../../lib/i18n';
 
 const PROTOCOL_LABELS = {
     mqtt:   'MQTT',
@@ -25,15 +26,15 @@ export default function ConnectivityIndex() {
 
     return (
         <>
-            <Head title="Machine Connectivity" />
+            <Head title={__('Machine Connectivity')} />
 
             <div className="p-6 space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Machine Connectivity</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{__('Machine Connectivity')}</h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Overview of all machine communication channels.
+                            {__('Overview of all machine communication channels.')}
                         </p>
                     </div>
                 </div>
@@ -41,7 +42,7 @@ export default function ConnectivityIndex() {
                 {/* Protocol tabs */}
                 <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
                     <span className="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600 dark:text-blue-400">
-                        All ({connections.length})
+                        {__('All')} ({connections.length})
                     </span>
                     <Link href="/admin/connectivity/mqtt" className="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                         MQTT ({counts.mqtt ?? 0})
@@ -60,8 +61,8 @@ export default function ConnectivityIndex() {
                         <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
                         </svg>
-                        <p className="text-sm">No connections defined yet.</p>
-                        <p className="mt-1 text-sm">Pick a protocol tab above to add one.</p>
+                        <p className="text-sm">{__('No connections defined yet.')}</p>
+                        <p className="mt-1 text-sm">{__('Pick a protocol tab above to add one.')}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -69,8 +70,8 @@ export default function ConnectivityIndex() {
                             const base = `/admin/connectivity/${conn.protocol}`;
                             const count = conn.protocol === 'mqtt' ? conn.topics_count : conn.tags_count;
                             const countLabel = conn.protocol === 'mqtt'
-                                ? (count === 1 ? 'topic' : 'topics')
-                                : (count === 1 ? 'tag' : 'tags');
+                                ? (count === 1 ? __('topic') : __('topics'))
+                                : (count === 1 ? __('tag') : __('tags'));
                             return (
                                 <div
                                     key={conn.id}
@@ -98,12 +99,12 @@ export default function ConnectivityIndex() {
 
                                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                         <span>{count ?? 0} {countLabel}</span>
-                                        {conn.protocol === 'mqtt' && <span>{Number(conn.messages_received).toLocaleString()} msg</span>}
+                                        {conn.protocol === 'mqtt' && <span>{Number(conn.messages_received).toLocaleString()} {__('msg')}</span>}
                                     </div>
 
                                     {conn.last_connected_at && (
                                         <p className="text-xs text-gray-400 dark:text-gray-500">
-                                            Last connected: {conn.last_connected_at}
+                                            {__('Last connected:')} {conn.last_connected_at}
                                         </p>
                                     )}
 
@@ -112,13 +113,13 @@ export default function ConnectivityIndex() {
                                             href={`${base}/${conn.id}`}
                                             className="flex-1 text-center text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-100 transition-colors font-medium"
                                         >
-                                            View
+                                            {__('View')}
                                         </Link>
                                         <Link
                                             href={`${base}/${conn.id}/edit`}
                                             className="flex-1 text-center text-xs px-3 py-1.5 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 transition-colors font-medium"
                                         >
-                                            Edit
+                                            {__('Edit')}
                                         </Link>
                                         {conn.protocol === 'mqtt' && (
                                             <button
@@ -130,7 +131,7 @@ export default function ConnectivityIndex() {
                                                         : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100'
                                                 }`}
                                             >
-                                                {conn.is_active ? 'Disable' : 'Enable'}
+                                                {conn.is_active ? __('Disable') : __('Enable')}
                                             </button>
                                         )}
                                     </div>

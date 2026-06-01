@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Live machine monitor — a tile grid of workstation states, polled from the
@@ -73,32 +74,32 @@ export default function MachineMonitorIndex() {
 
     return (
         <>
-            <Head title="Machine Monitor" />
+            <Head title={__('Machine Monitor')} />
 
             <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Machine Monitor</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{__('Machine Monitor')}</h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Live workstation states from connected machines.
+                            {__('Live workstation states from connected machines.')}
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={() => setLive((l) => !l)}
                         className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                        title={live ? 'Pause live updates' : 'Resume live updates'}
+                        title={live ? __('Pause live updates') : __('Resume live updates')}
                     >
                         <span className={`w-2 h-2 rounded-full ${live ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
-                        {live ? 'Live' : 'Paused'}
+                        {live ? __('Live') : __('Paused')}
                     </button>
                 </div>
 
                 {tiles.length === 0 ? (
                     <div className="text-center py-16 text-gray-400 dark:text-gray-500">
-                        <p className="text-sm">No workstations are wired to a machine connection yet.</p>
+                        <p className="text-sm">{__('No workstations are wired to a machine connection yet.')}</p>
                         <Link href="/admin/connectivity/modbus" className="mt-2 inline-block text-blue-500 hover:underline text-sm">
-                            Configure a Modbus connection →
+                            {__('Configure a Modbus connection →')}
                         </Link>
                     </div>
                 ) : (
@@ -134,17 +135,17 @@ function Tile({ t, now }) {
             </div>
 
             {elapsed && (
-                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">in state for {elapsed}</p>
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{__('in state for')} {elapsed}</p>
             )}
 
             <div className="grid grid-cols-3 gap-2 text-center mt-4">
-                <Metric label="Availability" value={t.availability != null ? `${t.availability}%` : '—'} />
-                <Metric label="Good" value={Number(t.good ?? 0).toLocaleString()} tone="text-green-600 dark:text-green-400" />
-                <Metric label="Reject" value={Number(t.reject ?? 0).toLocaleString()} tone="text-red-500 dark:text-red-400" />
+                <Metric label={__('Availability')} value={t.availability != null ? `${t.availability}%` : '—'} />
+                <Metric label={__('Good')} value={Number(t.good ?? 0).toLocaleString()} tone="text-green-600 dark:text-green-400" />
+                <Metric label={__('Reject')} value={Number(t.reject ?? 0).toLocaleString()} tone="text-red-500 dark:text-red-400" />
             </div>
 
             {t.quality != null && (
-                <p className="mt-3 text-xs text-gray-400 dark:text-gray-500 text-center">Quality {t.quality}%</p>
+                <p className="mt-3 text-xs text-gray-400 dark:text-gray-500 text-center">{__('Quality')} {t.quality}%</p>
             )}
 
             {metadata.length > 0 && (

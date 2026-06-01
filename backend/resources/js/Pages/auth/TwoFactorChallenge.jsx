@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import AuthLayout from '../../layouts/AuthLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Mid-login 2FA challenge — Inertia render name: auth/TwoFactorChallenge.
@@ -21,16 +22,16 @@ export default function TwoFactorChallenge() {
 
     return (
         <>
-            <Head title="Two-Factor Authentication" />
+            <Head title={__('Two-Factor Authentication')} />
 
             <div className="w-full">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 text-center">
-                    Two-Factor Authentication
+                    {__('Two-Factor Authentication')}
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 text-sm text-center mb-6">
                     {mode === 'code'
-                        ? 'Enter the 6-digit code from your authenticator app.'
-                        : 'Enter one of your recovery codes.'}
+                        ? __('Enter the 6-digit code from your authenticator app.')
+                        : __('Enter one of your recovery codes.')}
                 </p>
 
                 <form onSubmit={submit} className="space-y-4">
@@ -54,7 +55,7 @@ export default function TwoFactorChallenge() {
                                 type="text"
                                 value={form.data.recovery_code}
                                 onChange={(e) => form.setData('recovery_code', e.target.value)}
-                                placeholder="Recovery code"
+                                placeholder={__('Recovery code')}
                                 autoFocus
                                 className="form-input w-full text-center text-lg font-mono py-3"
                             />
@@ -67,7 +68,7 @@ export default function TwoFactorChallenge() {
                         disabled={form.processing || (mode === 'code' ? form.data.code.length !== 6 : !form.data.recovery_code)}
                         className="w-full px-5 py-3 bg-blue-600 text-white text-base font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                     >
-                        {form.processing ? 'Verifying…' : 'Verify'}
+                        {form.processing ? __('Verifying…') : __('Verify')}
                     </button>
 
                     <button
@@ -78,7 +79,7 @@ export default function TwoFactorChallenge() {
                         }}
                         className="w-full text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                     >
-                        {mode === 'code' ? 'Use a recovery code instead' : 'Use an authenticator code instead'}
+                        {mode === 'code' ? __('Use a recovery code instead') : __('Use an authenticator code instead')}
                     </button>
                 </form>
             </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Shared tag → signal manager for Modbus / OPC UA connections.
@@ -17,12 +18,12 @@ import { router, useForm } from '@inertiajs/react';
  */
 
 const SIGNAL_TYPES = [
-    { value: 'state',          label: 'State' },
-    { value: 'good_count',     label: 'Good count' },
-    { value: 'reject_count',   label: 'Reject count' },
-    { value: 'cycle_complete', label: 'Cycle complete' },
-    { value: 'telemetry',      label: 'Telemetry' },
-    { value: 'alarm',          label: 'Alarm' },
+    { value: 'state',          label: __('State') },
+    { value: 'good_count',     label: __('Good count') },
+    { value: 'reject_count',   label: __('Reject count') },
+    { value: 'cycle_complete', label: __('Cycle complete') },
+    { value: 'telemetry',      label: __('Telemetry') },
+    { value: 'alarm',          label: __('Alarm') },
 ];
 
 const SIGNAL_LABELS = Object.fromEntries(SIGNAL_TYPES.map((s) => [s.value, s.label]));
@@ -33,10 +34,10 @@ const DATA_TYPES = ['bool', 'int16', 'uint16', 'int32', 'uint32', 'float32', 'fl
 // 'coil' → ReadCoils, 'discrete' → ReadInputDiscretes, 'input' → ReadInputRegisters,
 // default → ReadHoldingRegisters.
 const REGISTER_TYPES = [
-    { value: 'coil',     label: 'Coil (0x)' },
-    { value: 'discrete', label: 'Discrete input (1x)' },
-    { value: 'input',    label: 'Input register (3x)' },
-    { value: 'holding',  label: 'Holding register (4x)' },
+    { value: 'coil',     label: __('Coil (0x)') },
+    { value: 'discrete', label: __('Discrete input (1x)') },
+    { value: 'input',    label: __('Input register (3x)') },
+    { value: 'holding',  label: __('Holding register (4x)') },
 ];
 
 export default function TagManager({
@@ -45,22 +46,22 @@ export default function TagManager({
     workstations = [],
     basePath,
     showRegisterType = false,
-    addressLabel = 'Address',
+    addressLabel = __('Address'),
     addressPlaceholder = '',
 }) {
     return (
         <div>
             <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Tags &amp; Signals</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{__('Tags & Signals')}</h2>
                 <span className="text-xs text-gray-400 dark:text-gray-500">
-                    {tags.length} {tags.length === 1 ? 'tag' : 'tags'}
+                    {tags.length} {tags.length === 1 ? __('tag') : __('tags')}
                 </span>
             </div>
 
             <div className="space-y-3">
                 {tags.length === 0 ? (
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-8 text-center text-gray-400 dark:text-gray-500">
-                        <p className="text-sm">No tags defined yet — the poller has nothing to read.</p>
+                        <p className="text-sm">{__('No tags defined yet — the poller has nothing to read.')}</p>
                     </div>
                 ) : (
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
@@ -85,7 +86,7 @@ export default function TagManager({
 
 function TagRow({ tag, connectionId, basePath }) {
     const handleDelete = () => {
-        if (confirm(`Delete tag "${tag.name}"?`)) {
+        if (confirm(__('Delete tag ":name"?', { name: tag.name }))) {
             router.delete(`${basePath}/${connectionId}/tags/${tag.id}`, { preserveScroll: true });
         }
     };
@@ -122,7 +123,7 @@ function TagRow({ tag, connectionId, basePath }) {
                 type="button"
                 onClick={handleDelete}
                 className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"
-                title="Delete tag"
+                title={__('Delete tag')}
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -164,56 +165,56 @@ function AddTagForm({ connectionId, workstations, basePath, showRegisterType, ad
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                 </svg>
-                Add tag
+                {__('Add tag')}
             </button>
 
             {open && (
                 <form onSubmit={submit} className="mt-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                        <MiniField label="Name *" error={errors.name}>
-                            <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} required className="form-input w-full text-sm" placeholder="e.g. Line 1 state" />
+                        <MiniField label={__('Name *')} error={errors.name}>
+                            <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} required className="form-input w-full text-sm" placeholder={__('e.g. Line 1 state')} />
                         </MiniField>
                         <MiniField label={`${addressLabel} *`} error={errors.address}>
                             <input type="text" value={data.address} onChange={(e) => setData('address', e.target.value)} required className="form-input w-full text-sm font-mono" placeholder={addressPlaceholder} />
                         </MiniField>
-                        <MiniField label="Signal type *" error={errors.signal_type}>
+                        <MiniField label={__('Signal type *')} error={errors.signal_type}>
                             <select value={data.signal_type} onChange={(e) => setData('signal_type', e.target.value)} className="form-input w-full text-sm">
                                 {SIGNAL_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </select>
                         </MiniField>
-                        <MiniField label="Data type *" error={errors.data_type}>
+                        <MiniField label={__('Data type *')} error={errors.data_type}>
                             <select value={data.data_type} onChange={(e) => setData('data_type', e.target.value)} className="form-input w-full text-sm">
                                 {DATA_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
                             </select>
                         </MiniField>
                         {showRegisterType && (
-                            <MiniField label="Register type *" error={errors.register_type}>
+                            <MiniField label={__('Register type *')} error={errors.register_type}>
                                 <select value={data.register_type} onChange={(e) => setData('register_type', e.target.value)} className="form-input w-full text-sm">
                                     {REGISTER_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                                 </select>
                             </MiniField>
                         )}
-                        <MiniField label="Workstation" error={errors.workstation_id}>
+                        <MiniField label={__('Workstation')} error={errors.workstation_id}>
                             <select value={data.workstation_id} onChange={(e) => setData('workstation_id', e.target.value)} className="form-input w-full text-sm">
-                                <option value="">— none —</option>
+                                <option value="">{__('— none —')}</option>
                                 {workstations.map((w) => (
                                     <option key={w.id} value={w.id}>{w.line ? `${w.line} / ${w.name}` : w.name}</option>
                                 ))}
                             </select>
                         </MiniField>
-                        <MiniField label="Value map — e.g. 1=RUNNING,2=IDLE,3=FAULT" error={errors.value_map}>
+                        <MiniField label={__('Value map — e.g. 1=RUNNING,2=IDLE,3=FAULT')} error={errors.value_map}>
                             <input type="text" value={data.value_map} onChange={(e) => setData('value_map', e.target.value)} className="form-input w-full text-sm font-mono" placeholder="1=RUNNING,2=IDLE" />
                         </MiniField>
-                        <MiniField label="Scale — multiply raw reading" error={errors.scale}>
+                        <MiniField label={__('Scale — multiply raw reading')} error={errors.scale}>
                             <input type="number" step="any" value={data.scale} onChange={(e) => setData('scale', e.target.value)} className="form-input w-full text-sm" placeholder="1.0" />
                         </MiniField>
                     </div>
                     <div className="flex gap-2">
                         <button type="submit" disabled={processing} className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
-                            {processing ? 'Adding…' : 'Add Tag'}
+                            {processing ? __('Adding…') : __('Add Tag')}
                         </button>
                         <button type="button" onClick={() => setOpen(false)} className="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 transition-colors">
-                            Cancel
+                            {__('Cancel')}
                         </button>
                     </div>
                 </form>
