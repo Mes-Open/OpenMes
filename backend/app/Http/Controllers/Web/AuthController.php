@@ -61,12 +61,14 @@ class AuthController extends Controller
 
         $user = auth()->user();
 
-        // NOTE: TOTP 2FA (merged from develop) is dormant on the React branch —
-        // its challenge/enable Blade screens were dropped pending Inertia pages,
-        // and no user can enable it without that UI, so the login interception
-        // was removed. The DB columns + User model helpers remain for the future
-        // React 2FA flow. Re-add the `two-factor.challenge` redirect here once the
-        // React challenge page and its route exist.
+        // If 2FA is enabled, log back out and hand off to the challenge page
+        // (the React auth/TwoFactorChallenge flow completes the login).
+        if ($user->two_factor_enabled) {
+            Auth::logout();
+            $request->session()->put('2fa_user_id', $user->id);
+            $request->session()->put('2fa_remember', $request->filled('remember'));
+            return redirect()->route('two-factor.challenge');
+        }
 
         // Regenerate session to prevent session fixation
         $request->session()->regenerate();
@@ -106,6 +108,14 @@ class AuthController extends Controller
             throw ValidationException::withMessages([
                 'username' => ['Invalid username or PIN.'],
             ]);
+        }
+
+        // If 2FA is enabled, hand off to the challenge before establishing the
+        // session (mirrors login()). PIN login has no "remember me".
+        if ($user->two_factor_enabled) {
+            $request->session()->put('2fa_user_id', $user->id);
+            $request->session()->put('2fa_remember', false);
+            return redirect()->route('two-factor.challenge');
         }
 
         Auth::login($user, false);
