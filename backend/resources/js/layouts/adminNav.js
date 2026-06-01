@@ -60,7 +60,7 @@ export const ADMIN_GROUPS = [
         icon: 'beaker',
         match: [
             '/admin/product-types', '/admin/materials', '/admin/material-lots',
-            '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
+            '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
             '/admin/issues', '/admin/companies', '/admin/anomaly-reasons',
         ],
@@ -68,6 +68,7 @@ export const ADMIN_GROUPS = [
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'] },
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'] },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'] },
+            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'] },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'] },
             { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'] },
             {
@@ -147,6 +148,9 @@ export const ADMIN_GROUPS = [
         children: [
             { label: 'Overview', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true },
             { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'] },
+            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'] },
+            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'] },
+            { label: 'Machine Monitor', href: '/admin/machine-monitor', match: ['/admin/machine-monitor'] },
         ],
     },
     {

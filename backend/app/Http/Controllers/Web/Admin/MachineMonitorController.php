@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\Machine\MachineMonitorService;
 use Illuminate\Http\JsonResponse;
+use Inertia\Inertia;
 
 /**
  * Live machine monitor — real-time fleet status driven by workstation_states
@@ -16,8 +17,9 @@ class MachineMonitorController extends Controller
 
     public function index()
     {
-        return view('admin.machine-monitor.index', [
-            'tiles' => $this->tiles(),
+        return Inertia::render('admin/machine-monitor/Index', [
+            'tiles'    => $this->tiles(),
+            'checkUrl' => route('admin.machine-monitor.check'),
         ]);
     }
 

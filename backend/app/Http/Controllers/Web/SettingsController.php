@@ -26,6 +26,7 @@ class SettingsController extends Controller
         return Inertia::render('settings/Index', [
             'pinLoginEnabled' => $pinLoginEnabled,
             'hasPin' => ! empty(auth()->user()->pin),
+            'twoFactorEnabled' => (bool) auth()->user()->two_factor_enabled,
         ]);
     }
 

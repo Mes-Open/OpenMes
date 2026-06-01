@@ -130,6 +130,10 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:5,1');
 });
 
+// 2FA challenge routes (no auth middleware — user is mid-login)
+Route::get('/2fa/challenge', [\App\Http\Controllers\Web\TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
+Route::post('/2fa/challenge', [\App\Http\Controllers\Web\TwoFactorChallengeController::class, 'verify'])->name('two-factor.verify')->middleware('throttle:5,1');
+
 // Authenticated routes
 Route::middleware('auth')->group(function () {
     // Logout
@@ -160,6 +164,11 @@ Route::middleware('auth')->group(function () {
         // Admin-only settings export/import
         Route::get('/export', [\App\Http\Controllers\Web\SettingsController::class, 'exportSettings'])->name('export')->middleware('role:Admin');
         Route::post('/import', [\App\Http\Controllers\Web\SettingsController::class, 'importSettings'])->name('import')->middleware('role:Admin');
+        // Two-Factor Authentication management
+        Route::get('/two-factor/enable', [\App\Http\Controllers\Web\TwoFactorController::class, 'enable'])->name('two-factor.enable');
+        Route::post('/two-factor/confirm', [\App\Http\Controllers\Web\TwoFactorController::class, 'confirm'])->name('two-factor.confirm');
+        Route::post('/two-factor/disable', [\App\Http\Controllers\Web\TwoFactorController::class, 'disable'])->name('two-factor.disable');
+        Route::post('/two-factor/recovery-codes', [\App\Http\Controllers\Web\TwoFactorController::class, 'regenerateRecoveryCodes'])->name('two-factor.recovery-codes');
         // PIN management
         Route::get('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'showPinForm'])->name('pin');
         Route::post('/pin', [\App\Http\Controllers\Web\SettingsController::class, 'updatePin'])->name('update-pin');
@@ -400,6 +409,9 @@ Route::middleware('auth')->group(function () {
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
 
+        // ── Material Traceability / Genealogy (React/Inertia — ported from develop Blade) ──
+        Route::get('/traceability', [\App\Http\Controllers\Web\Admin\TraceabilityController::class, 'index'])->name('traceability.index');
+
         // Dashboard Widgets Setup
         Route::get('/dashboard-widgets', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'index'])->name('dashboard-widgets.index');
         Route::post('/dashboard-widgets/{widget}/toggle', [\App\Http\Controllers\Web\Admin\DashboardWidgetController::class, 'toggle'])->name('dashboard-widgets.toggle');
@@ -547,11 +559,23 @@ Route::middleware('auth')->group(function () {
         Route::put('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'update'])->name('connectivity.mqtt.topics.mappings.update');
         Route::delete('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'destroy'])->name('connectivity.mqtt.topics.mappings.destroy');
 
-        // NOTE: Modbus / OPC UA connectivity and the live machine-monitor were
-        // merged from `develop` as backend-only (models, services, commands, API
-        // gateway, opcua-gateway sidecar). Their admin web routes + Blade views
-        // were dropped pending React/Inertia pages. See routes/api.php for the
-        // machine-gateway ingest endpoint.
+        // Modbus connections (React/Inertia — ported from the original develop Blade UI)
+        Route::resource('connectivity/modbus', \App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class)
+            ->parameters(['modbus' => 'machineConnection'])
+            ->names('connectivity.modbus');
+        Route::post('/connectivity/modbus/{machineConnection}/tags', [\App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class, 'storeTag'])->name('connectivity.modbus.tags.store');
+        Route::delete('/connectivity/modbus/{machineConnection}/tags/{tag}', [\App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class, 'destroyTag'])->name('connectivity.modbus.tags.destroy');
+
+        // OPC UA connections (served by an external gateway sidecar)
+        Route::resource('connectivity/opcua', \App\Http\Controllers\Web\Admin\Connectivity\OpcuaConnectionController::class)
+            ->parameters(['opcua' => 'machineConnection'])
+            ->names('connectivity.opcua');
+        Route::post('/connectivity/opcua/{machineConnection}/tags', [\App\Http\Controllers\Web\Admin\Connectivity\OpcuaConnectionController::class, 'storeTag'])->name('connectivity.opcua.tags.store');
+        Route::delete('/connectivity/opcua/{machineConnection}/tags/{tag}', [\App\Http\Controllers\Web\Admin\Connectivity\OpcuaConnectionController::class, 'destroyTag'])->name('connectivity.opcua.tags.destroy');
+
+        // Live machine monitor (React/Inertia — ported from the original develop Blade UI)
+        Route::get('/machine-monitor', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'index'])->name('machine-monitor.index');
+        Route::get('/machine-monitor/check', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'check'])->name('machine-monitor.check');
 
         // ── Gate 7: Maintenance ───────────────────────────────────────────────
         // Tools

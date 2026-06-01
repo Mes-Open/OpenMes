@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\SerialUnit;
 use App\Services\Traceability\SerialTraceService;
 use App\Services\Traceability\TraceabilityService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 /**
  * Material traceability / genealogy console.
@@ -32,13 +34,14 @@ class TraceabilityController extends Controller
             if ($resolved && $resolved['type'] === 'batch') {
                 $result = [
                     'type' => 'batch',
-                    'data' => $this->tracer->batchGenealogy($resolved['model']),
+                    'data' => $this->mapBatch($this->tracer->batchGenealogy($resolved['model'])),
                 ];
             } elseif ($resolved && $resolved['type'] === 'material_lot') {
                 $lot = $resolved['model'];
                 $result = [
                     'type' => 'material_lot',
-                    'forward' => $this->tracer->forwardTrace($lot),
+                    'forward' => $this->mapForward($this->tracer->forwardTrace($lot)),
+                    // backwardTraceLot() already returns clean nested arrays.
                     'backward' => $this->tracer->backwardTraceLot($lot),
                 ];
             } else {
@@ -47,15 +50,91 @@ class TraceabilityController extends Controller
                 if ($unit) {
                     $result = [
                         'type' => 'serial',
-                        'data' => $this->serials->getHistory($unit),
+                        'data' => $this->mapSerial($this->serials->getHistory($unit)),
                     ];
                 }
             }
         }
 
-        return view('admin.traceability.index', [
-            'term' => $term,
+        return Inertia::render('admin/traceability/Index', [
+            'term'   => $term,
             'result' => $result,
         ]);
+    }
+
+    /** Flatten batchGenealogy() into the shape the React page consumes. */
+    private function mapBatch(array $g): array
+    {
+        $b = $g['batch'];
+        $byStep = $g['consumptions_by_step'];
+
+        return [
+            'batch' => [
+                'id'           => $b->id,
+                'batch_number' => $b->batch_number,
+                'lot_number'   => $b->lot_number,
+                'work_order'   => $b->workOrder ? [
+                    'order_no' => $b->workOrder->order_no,
+                    'product'  => $b->workOrder->productType?->name,
+                ] : null,
+                'steps' => $b->steps->map(fn ($s) => [
+                    'id'           => $s->id,
+                    'step_number'  => $s->step_number,
+                    'name'         => $s->name,
+                    'status'       => $s->status,
+                    'workstation'  => $s->workstation?->name,
+                    'completed_by' => $s->completedBy?->name,
+                    'completed_at' => $s->completed_at ? Carbon::parse($s->completed_at)->format('Y-m-d H:i') : null,
+                    'consumptions' => ($byStep[$s->id] ?? collect())->map(fn ($c) => [
+                        'lot_number' => $c->materialLot?->lot_number,
+                        'material'   => $c->materialLot?->material?->name,
+                        'quantity'   => (float) $c->quantity_consumed,
+                    ])->values(),
+                ])->values(),
+                'output_lots' => $b->outputLots->map(fn ($o) => [
+                    'lot_number' => $o->lot_number,
+                ])->values(),
+            ],
+            'distinct_input_lots' => $g['distinct_input_lots']->map(fn ($lot) => [
+                'material'        => $lot->material?->name,
+                'material_code'   => $lot->material?->code,
+                'lot_number'      => $lot->lot_number,
+                'supplier_lot_no' => $lot->supplier_lot_no,
+                'status'          => $lot->status,
+            ])->values(),
+        ];
+    }
+
+    /** Flatten forwardTrace() into a clean shape. */
+    private function mapForward(array $f): array
+    {
+        return [
+            'lot'         => $f['lot'],
+            'work_orders' => $f['work_orders']->map(fn ($wo) => [
+                'order_no' => $wo->order_no,
+                'product'  => $wo->productType?->name,
+                'status'   => $wo->status,
+            ])->values(),
+            'total_consumed' => $f['total_consumed'],
+        ];
+    }
+
+    /** Flatten a serial unit + its process history. */
+    private function mapSerial(SerialUnit $u): array
+    {
+        return [
+            'serial_no'  => $u->serial_no,
+            'status'     => $u->status,
+            'product'    => $u->workOrder?->productType?->name ?? $u->material?->name,
+            'work_order' => $u->workOrder?->order_no,
+            'history'    => $u->history->map(fn ($h) => [
+                'workstation'  => $h->workstation?->name,
+                'step'         => $h->batchStep?->name,
+                'operator'     => $h->operator?->name,
+                'processed_at' => $h->processed_at ? Carbon::parse($h->processed_at)->format('Y-m-d H:i:s') : null,
+                'result'       => $h->result,
+                'parameters'   => $h->parameters,
+            ])->values(),
+        ];
     }
 }

@@ -30,14 +30,15 @@ class TraceabilityService
      */
     public function forwardTrace(MaterialLot $lot): array
     {
+        // Only the work-order chain is needed downstream (work_orders + total).
+        // Heavier relations (workstation, batch numbers, recordedBy) were trimmed
+        // because the caller discards them.
         $consumptions = $lot->consumptions()
             ->with([
-                'batchStep:id,batch_id,name,step_number,status,workstation_id',
-                'batchStep.workstation:id,name,code',
-                'batchStep.batch:id,work_order_id,batch_number,lot_number',
+                'batchStep:id,batch_id',
+                'batchStep.batch:id,work_order_id',
                 'batchStep.batch.workOrder:id,order_no,product_type_id,status',
                 'batchStep.batch.workOrder.productType:id,name,code',
-                'recordedBy:id,name',
             ])
             ->orderByDesc('consumed_at')
             ->get();
