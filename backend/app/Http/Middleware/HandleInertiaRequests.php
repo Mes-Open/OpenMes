@@ -34,6 +34,10 @@ class HandleInertiaRequests extends Middleware
             ],
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),
+            // i18n: the active locale + the switcher's options. The frontend
+            // loads the matching lang/<locale>.json chunk itself (see lib/i18n).
+            'locale' => fn () => app()->getLocale(),
+            'locales' => fn () => config('app.available_locales'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

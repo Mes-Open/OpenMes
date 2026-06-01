@@ -33,6 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Append request logging at the end of the web stack so $request->user()
         // is populated by SubstituteBindings/StartSession/Authenticate before us.
         $middleware->web(append: [
+            // SetLocale first so app()->getLocale() is correct by the time
+            // HandleInertiaRequests::share() reads it.
+            \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\LogRequest::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);

@@ -1,13 +1,14 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import { StatusDot } from '../ui';
+import { __ } from '../../../../lib/i18n';
 
 export default function OpcuaIndex() {
     const { connections = [] } = usePage().props;
 
     return (
         <>
-            <Head title="OPC UA Connections" />
+            <Head title={__('OPC UA Connections')} />
 
             <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
@@ -19,11 +20,11 @@ export default function OpcuaIndex() {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                             </svg>
-                            All connectivity
+                            {__('All connectivity')}
                         </Link>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">OPC UA</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{__('OPC UA')}</h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Subscribe to OPC UA nodes via the gateway sidecar and map them to machine signals.
+                            {__('Subscribe to OPC UA nodes via the gateway sidecar and map them to machine signals.')}
                         </p>
                     </div>
                     <Link
@@ -33,15 +34,15 @@ export default function OpcuaIndex() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                         </svg>
-                        New Connection
+                        {__('New Connection')}
                     </Link>
                 </div>
 
                 {connections.length === 0 ? (
                     <div className="text-center py-16 text-gray-400 dark:text-gray-500">
-                        <p className="text-sm">No OPC UA connections defined yet.</p>
+                        <p className="text-sm">{__('No OPC UA connections defined yet.')}</p>
                         <Link href="/admin/connectivity/opcua/create" className="mt-2 inline-block text-blue-500 hover:underline text-sm">
-                            Create your first OPC UA connection →
+                            {__('Create your first OPC UA connection →')}
                         </Link>
                     </div>
                 ) : (
@@ -58,7 +59,7 @@ export default function OpcuaIndex() {
                                     </div>
                                     {!conn.is_active && (
                                         <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                                            Inactive
+                                            {__('Inactive')}
                                         </span>
                                     )}
                                 </div>
@@ -74,7 +75,7 @@ export default function OpcuaIndex() {
                                 )}
 
                                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                    <span>{conn.tags_count} {conn.tags_count === 1 ? 'tag' : 'tags'}</span>
+                                    <span>{conn.tags_count} {conn.tags_count === 1 ? __('tag') : __('tags')}</span>
                                     {conn.security_policy && <span>{conn.security_policy}</span>}
                                 </div>
 
@@ -83,13 +84,13 @@ export default function OpcuaIndex() {
                                         href={`/admin/connectivity/opcua/${conn.id}`}
                                         className="flex-1 text-center text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-100 transition-colors font-medium"
                                     >
-                                        View
+                                        {__('View')}
                                     </Link>
                                     <Link
                                         href={`/admin/connectivity/opcua/${conn.id}/edit`}
                                         className="flex-1 text-center text-xs px-3 py-1.5 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 transition-colors font-medium"
                                     >
-                                        Edit
+                                        {__('Edit')}
                                     </Link>
                                 </div>
                             </div>

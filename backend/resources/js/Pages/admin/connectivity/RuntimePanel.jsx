@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Shows the runtime (poller / gateway) status for a connection and the command
@@ -11,10 +12,10 @@ export default function RuntimePanel({ runtime }) {
     const { required, alive, seconds_ago, label, command, docker } = runtime;
 
     const state = !required
-        ? { dot: 'bg-slate-400', text: 'Not required (connection inactive)', tone: 'text-gray-500 dark:text-gray-400' }
+        ? { dot: 'bg-slate-400', text: __('Not required (connection inactive)'), tone: 'text-gray-500 dark:text-gray-400' }
         : alive
-            ? { dot: 'bg-green-500 animate-pulse', text: `Running — last heartbeat ${seconds_ago ?? '?'}s ago`, tone: 'text-green-700 dark:text-green-400' }
-            : { dot: 'bg-red-500', text: 'Not running — start the runtime below', tone: 'text-red-600 dark:text-red-400' };
+            ? { dot: 'bg-green-500 animate-pulse', text: __('Running — last heartbeat :seconds ago', { seconds: `${seconds_ago ?? '?'}s` }), tone: 'text-green-700 dark:text-green-400' }
+            : { dot: 'bg-red-500', text: __('Not running — start the runtime below'), tone: 'text-red-600 dark:text-red-400' };
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
@@ -26,8 +27,8 @@ export default function RuntimePanel({ runtime }) {
                 </div>
             </div>
 
-            {command && <CommandBlock title="Artisan (foreground)" value={command} />}
-            {docker && <CommandBlock title="Docker (background)" value={docker} />}
+            {command && <CommandBlock title={__('Artisan (foreground)')} value={command} />}
+            {docker && <CommandBlock title={__('Docker (background)')} value={docker} />}
         </div>
     );
 }
@@ -51,7 +52,7 @@ function CommandBlock({ title, value }) {
                     onClick={copy}
                     className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700"
                 >
-                    {copied ? 'Copied!' : 'Copy'}
+                    {copied ? __('Copied!') : __('Copy')}
                 </button>
             </div>
             <pre className="bg-gray-900 dark:bg-gray-950 text-gray-100 text-xs font-mono rounded-lg p-3 overflow-x-auto">{value}</pre>

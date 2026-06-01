@@ -11,7 +11,7 @@ import { usePage } from '@inertiajs/react';
  *   PageName.layout = (page) => <AuthLayout>{page}</AuthLayout>;
  */
 export default function AuthLayout({ children }) {
-    const { flash } = usePage().props;
+    const { flash, locale, locales } = usePage().props;
 
     return (
         <div className="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
@@ -41,7 +41,19 @@ export default function AuthLayout({ children }) {
                 </div>
 
                 {/* Footer */}
-                <div className="text-center mt-6 text-sm text-gray-600">
+                <div className="text-center mt-6 text-sm text-gray-600 space-y-3">
+                    {locales && Object.keys(locales).length > 1 && (
+                        <select
+                            value={locale}
+                            onChange={(e) => { window.location.href = `/locale/${e.target.value}`; }}
+                            aria-label="Language"
+                            className="mx-auto block bg-white text-gray-700 text-xs rounded-md border border-gray-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            {Object.entries(locales).map(([code, label]) => (
+                                <option key={code} value={code}>{label}</option>
+                            ))}
+                        </select>
+                    )}
                     <p>&copy; {new Date().getFullYear()} All rights reserved.</p>
                 </div>
             </div>

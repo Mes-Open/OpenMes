@@ -1,13 +1,14 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import { StatusDot } from '../ui';
+import { __ } from '../../../../lib/i18n';
 
 export default function ModbusIndex() {
     const { connections = [] } = usePage().props;
 
     return (
         <>
-            <Head title="Modbus Connections" />
+            <Head title={__('Modbus Connections')} />
 
             <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
@@ -19,11 +20,11 @@ export default function ModbusIndex() {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                             </svg>
-                            All connectivity
+                            {__('All connectivity')}
                         </Link>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Modbus TCP</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{__('Modbus TCP')}</h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Poll registers from Modbus TCP devices and map them to machine signals.
+                            {__('Poll registers from Modbus TCP devices and map them to machine signals.')}
                         </p>
                     </div>
                     <Link
@@ -33,15 +34,15 @@ export default function ModbusIndex() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                         </svg>
-                        New Connection
+                        {__('New Connection')}
                     </Link>
                 </div>
 
                 {connections.length === 0 ? (
                     <div className="text-center py-16 text-gray-400 dark:text-gray-500">
-                        <p className="text-sm">No Modbus connections defined yet.</p>
+                        <p className="text-sm">{__('No Modbus connections defined yet.')}</p>
                         <Link href="/admin/connectivity/modbus/create" className="mt-2 inline-block text-blue-500 hover:underline text-sm">
-                            Create your first Modbus connection →
+                            {__('Create your first Modbus connection →')}
                         </Link>
                     </div>
                 ) : (
@@ -58,7 +59,7 @@ export default function ModbusIndex() {
                                     </div>
                                     {!conn.is_active && (
                                         <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                                            Inactive
+                                            {__('Inactive')}
                                         </span>
                                     )}
                                 </div>
@@ -69,12 +70,12 @@ export default function ModbusIndex() {
 
                                 {conn.host && (
                                     <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">
-                                        {conn.host}:{conn.port} · unit {conn.unit_id}
+                                        {conn.host}:{conn.port} · {__('unit')} {conn.unit_id}
                                     </p>
                                 )}
 
                                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                    <span>{conn.tags_count} {conn.tags_count === 1 ? 'tag' : 'tags'}</span>
+                                    <span>{conn.tags_count} {conn.tags_count === 1 ? __('tag') : __('tags')}</span>
                                     {conn.last_connected_at && <span>{conn.last_connected_at}</span>}
                                 </div>
 
@@ -83,13 +84,13 @@ export default function ModbusIndex() {
                                         href={`/admin/connectivity/modbus/${conn.id}`}
                                         className="flex-1 text-center text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-100 transition-colors font-medium"
                                     >
-                                        View
+                                        {__('View')}
                                     </Link>
                                     <Link
                                         href={`/admin/connectivity/modbus/${conn.id}/edit`}
                                         className="flex-1 text-center text-xs px-3 py-1.5 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 transition-colors font-medium"
                                     >
-                                        Edit
+                                        {__('Edit')}
                                     </Link>
                                 </div>
                             </div>
