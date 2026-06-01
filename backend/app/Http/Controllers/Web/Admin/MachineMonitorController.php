@@ -9,7 +9,7 @@ use Inertia\Inertia;
 
 /**
  * Live machine monitor — real-time fleet status driven by workstation_states
- * and machine_events. Uses HTTP polling (Reverb push is an optional upgrade).
+ * and machine_events. Uses HTTP polling for refresh.
  */
 class MachineMonitorController extends Controller
 {

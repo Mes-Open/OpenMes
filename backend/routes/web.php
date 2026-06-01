@@ -117,20 +117,6 @@ Route::get('/locale/{locale}', function (string $locale) {
     return back();
 })->name('locale.switch');
 
-// React/Inertia proof-of-concept (see resources/js/Pages/Demo.jsx).
-Route::get('/react', function () {
-    return \Inertia\Inertia::render('Demo', [
-        'message' => 'Hello from Laravel — rendered by React via Inertia.',
-        'serverTime' => now()->toIso8601String(),
-    ]);
-})->name('react.demo');
-
-// Electric live-sync vertical-slice smoke test. Auth is via the session cookie
-// (Sanctum SPA stateful mode) — the gatekeeper config calls authenticate with it.
-Route::get('/electric-test', function () {
-    return \Inertia\Inertia::render('ElectricTest');
-})->middleware('auth')->name('electric.test');
-
 // Guest routes (unauthenticated)
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');

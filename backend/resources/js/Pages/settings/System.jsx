@@ -33,7 +33,7 @@ function TabButton({ label, active, onClick }) {
 }
 
 export default function System() {
-    const { settings, availableLocales, reverbAvailable, appUrl } = usePage().props;
+    const { settings, availableLocales, appUrl } = usePage().props;
 
     const [tab, setTab] = useState('general');
     const [sampleConfirm, setSampleConfirm] = useState(false);
@@ -383,18 +383,13 @@ export default function System() {
                                     label="Polling"
                                     desc="Checks for changes every few seconds (default)"
                                 />
-                                <div
-                                    onClick={() => reverbAvailable && setData('realtime_mode', 'websocket')}
-                                    className={`flex flex-col gap-1 border rounded-lg p-3 transition-colors
-                                        ${reverbAvailable ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}
-                                        ${data.realtime_mode === 'websocket' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
-                                >
-                                    <span className="font-medium text-sm text-gray-800">WebSocket</span>
-                                    <span className="text-xs text-gray-500">Instant updates via Laravel Reverb (requires Reverb server)</span>
-                                    {!reverbAvailable && (
-                                        <span className="text-xs text-red-500 font-medium mt-1">Reverb is not installed or configured</span>
-                                    )}
-                                </div>
+                                <SelectCard
+                                    value="off"
+                                    current={data.realtime_mode}
+                                    onChange={(v) => setData('realtime_mode', v)}
+                                    label="Off"
+                                    desc="No automatic refresh — reload the page to see changes"
+                                />
                             </div>
                             {errors.realtime_mode && <p className="text-red-600 text-sm mt-1">{errors.realtime_mode}</p>}
                         </div>
