@@ -5,7 +5,42 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [Unreleased] (develop)
+## [0.13.0] - 2026-05-31
+
+### Added
+- Two-Factor Authentication (2FA): TOTP with QR setup, 8 one-time recovery codes (encrypted/bcrypt), login challenge, rate limiting, enable/disable with password (#41)
+- Workstation routing: optional mode restricting each operator to steps assigned to their own workstation, enforced by a single server-side guard in `BatchService` (covers both the Livewire UI and the REST API)
+- Machine connectivity — protocol-agnostic signal pipeline: machine tags, workstation state machine, automatic downtime from machine state, per-workstation OEE, Live Machine Monitor
+- Modbus TCP connector: poller daemon (`modbus:poll`), in-PHP simulator (`modbus:simulate`), tag editor and CRUD (#24)
+- OPC UA connector: gateway sidecar (`opcua-gateway/`, Node.js node-opcua) bridging to a protocol-agnostic ingest API, node editor and CRUD (#23)
+- Runtime health awareness: connection pages show whether the required daemon/container is running, with copy-paste start commands (bare metal + Docker)
+- Material traceability / genealogy: formal batch-output -> input-lot link (`material_lots.source_batch_id`), traceability console (forward/backward trace by finished LOT / material lot / supplier LOT / serial number), per-unit serial tracking (`serial_units`, `unit_step_history`) with parameter snapshots and API
+- Turkish (Turkce) as a third UI language (1253 strings, English-first preserved) (#44)
+- Real-time polling for operator queue and workstation views (work flows between stations automatically)
+- Alerts: show all open issues (not just blocking), with real-time polling and alert sound
+- Maintenance reminder popup with sound for supervisors and operators
+- Maintenance events on the schedule planner (weekly + hourly Gantt), recurring blocks across the full visible range, `scheduled_end_at` (start + end time)
+- Production quantity correction with a configurable edit policy (none / timed / full)
+- Full configuration export/import (JSON): lines, products, templates, materials, shifts, ISA-95 and more, upsert-based to preserve FK relations, with a forbidden-keys whitelist
+- Import buttons and example CSV downloads on Materials, Product Types and Lines
+- Opt-in `docker-compose` services: `modbus-poller`, `opcua-gateway` (connectivity profile), `queue-worker` (workers profile)
+- `docs/machine-connectivity.md`: signal pipeline, protocols, how to add a new protocol, and intentionally-deferred items (Reverb, write-back, real-server OPC UA test) with rationale
+
+### Fixed
+- Schedule planner: overlapping work orders stacked in lanes on the hourly Gantt; drag-and-drop no longer drops a work order when moved to another line; maintenance block position corrected (diffInMinutes argument order)
+- Config import: upsert instead of truncate to preserve FK relations with production data; PostgreSQL savepoints for per-row error recovery
+- Carbon 3 signed-`diffInSeconds` fixes in machine state durations and availability calculations
+- Restore Polish packaging/label translations dropped in an earlier merge conflict (#47)
+
+### Security
+- CORS defaults are now fail-closed: empty allowed-origins blocks all, GET/POST only, no preflight cache
+- Ownership check on production quantity corrections; hardened settings import
+
+### Changed
+- Packaging module views: hardcoded Polish strings replaced with `__()` translations (#43)
+- License switched from MIT to AGPL-3.0
+
+## [0.12.0] - 2026-05-24
 
 ### Added
 - ISA-95 / IEC 62264 foundations (equipment hierarchy, material lots, process segments, personnel classes, quality disposition)
