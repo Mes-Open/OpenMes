@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ModuleManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Inertia\Inertia;
 
 class ModulesController extends Controller
 {
@@ -17,17 +18,19 @@ class ModulesController extends Controller
     {
         $modules = $this->manager->discover();
 
-        return view('admin.modules.index', compact('modules'));
+        return Inertia::render('admin/modules/Index', [
+            'modules' => $modules->values(),
+        ]);
     }
 
     public function install()
     {
-        return view('admin.modules.install');
+        return Inertia::render('admin/modules/Install');
     }
 
     public function store()
     {
-        return view('admin.modules.store');
+        return Inertia::render('admin/modules/Store');
     }
 
     public function enable(Request $request, string $name)

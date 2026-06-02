@@ -12,6 +12,7 @@ RUN apk add --no-cache \
     git \
     curl \
     oniguruma-dev \
+    linux-headers \
     nodejs \
     npm
 
@@ -25,7 +26,9 @@ RUN docker-php-ext-install \
     zip \
     mbstring \
     opcache \
-    gd
+    gd \
+    pcntl \
+    sockets
 
 # PHP upload / memory limits
 COPY backend/docker-php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
@@ -42,6 +45,11 @@ COPY modules/ ./modules/
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# Fetch the RoadRunner binary for Laravel Octane (concurrent app server).
+# Placed in the project root — where Octane's RoadRunner server discovers it.
+RUN ./vendor/bin/rr get-binary --location /var/www/html \
+    && chmod +x /var/www/html/rr
 
 # Install Node dependencies and build assets
 RUN npm ci && npm run build
@@ -62,5 +70,14 @@ EXPOSE 8000
 # Set entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-# Start Laravel development server
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Serve with Laravel Octane on RoadRunner — a concurrent, in-memory app server
+# (keeps the framework booted between requests; handles many simultaneous
+# requests via a worker pool). Replaces the single-threaded `artisan serve`,
+# which serialized requests and froze under any held connection.
+#
+# `--workers=auto` scales to CPU count; tune with --workers / --max-requests.
+# Caveat: Octane keeps the app in memory across requests, so app/package state
+# that assumes a fresh boot per request can leak. Validate the full app under
+# Octane before production; to fall back, override CMD to:
+#   php artisan serve --host=0.0.0.0 --port=8000   (dev only, single-threaded)
+CMD ["php", "artisan", "octane:start", "--server=roadrunner", "--host=0.0.0.0", "--port=8000", "--workers=auto", "--max-requests=500"]

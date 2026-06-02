@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Inertia\Inertia;
 
 class BatchReportController extends Controller
 {
@@ -12,7 +13,7 @@ class BatchReportController extends Controller
     {
         $data = $this->gatherReportData($batch);
 
-        return view('admin.reports.batch-report', $data);
+        return Inertia::render('admin/reports/BatchReport', $data);
     }
 
     public function pdf(Batch $batch)

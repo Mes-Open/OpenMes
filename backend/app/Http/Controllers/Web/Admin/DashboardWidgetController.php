@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DashboardWidget;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class DashboardWidgetController extends Controller
 {
@@ -12,7 +13,17 @@ class DashboardWidgetController extends Controller
     {
         $widgets = DashboardWidget::orderBy('sort_order')->get();
 
-        return view('admin.dashboard-widgets.index', compact('widgets'));
+        return Inertia::render('admin/dashboard-widgets/Index', [
+            'widgets' => $widgets->map(fn ($w) => [
+                'id'          => $w->id,
+                'name'        => $w->name,
+                'zone'        => $w->zone,
+                'description' => $w->description ?? '',
+                'source'      => $w->source,
+                'module_name' => $w->module_name,
+                'enabled'     => (bool) $w->enabled,
+            ]),
+        ]);
     }
 
     public function toggle(DashboardWidget $widget)

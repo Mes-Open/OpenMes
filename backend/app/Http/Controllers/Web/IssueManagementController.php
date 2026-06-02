@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Issue;
+use App\Models\IssueType;
 use App\Models\Line;
+use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 /**
  * Shared issues management — accessible by both Admin and Supervisor.
@@ -15,29 +18,12 @@ class IssueManagementController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Issue::with(['workOrder.line', 'material', 'issueType', 'reportedBy', 'assignedTo'])
-            ->orderByRaw("CASE status
-                WHEN 'OPEN'         THEN 1
-                WHEN 'ACKNOWLEDGED' THEN 2
-                WHEN 'RESOLVED'     THEN 3
-                ELSE 4 END")
-            ->orderBy('created_at', 'desc');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('line_id')) {
-            $query->whereHas('workOrder', fn($q) => $q->where('line_id', $request->line_id));
-        }
-        if ($request->filled('blocking')) {
-            $query->whereHas('issueType', fn($q) => $q->where('is_blocking', true))
-                  ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED]);
-        }
-
-        $issues = $query->paginate(25)->withQueryString();
-        $lines  = Line::orderBy('name')->get();
-
-        return view('shared.issues.index', compact('issues', 'lines'));
+        return Inertia::render('shared/issues/Index', [
+            'issueTypeNames' => IssueType::pluck('name', 'id'),
+            'lineNames'      => Line::pluck('name', 'id'),
+            'reporterNames'  => User::pluck('name', 'id'),
+            'workOrderNos'   => WorkOrder::pluck('order_no', 'id'),
+        ]);
     }
 
     public function acknowledge(Request $request, Issue $issue)

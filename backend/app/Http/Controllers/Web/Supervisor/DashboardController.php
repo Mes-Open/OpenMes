@@ -10,6 +10,7 @@ use App\Models\WorkOrder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
@@ -17,44 +18,29 @@ class DashboardController extends Controller
     {
         $lineId = $request->query('line_id');
 
-        // Get all active lines for dropdown
-        $lines = Line::where('is_active', true)->get();
-
-        // If line_id not specified, use first line
+        $lines = Line::where('is_active', true)->orderBy('name')->get(['id', 'name']);
         if (! $lineId && $lines->isNotEmpty()) {
             $lineId = $lines->first()->id;
         }
 
-        $selectedLine = $lineId ? Line::find($lineId) : null;
+        $recentIssues = $this->getRecentIssues($lineId)->map(fn ($i) => [
+            'id' => $i->id,
+            'title' => $i->title,
+            'status' => $i->status,
+            'type' => $i->issueType?->name,
+            'work_order' => $i->workOrder?->order_no,
+            'reported_by' => $i->reportedBy?->name,
+            'reported_at' => $i->reported_at?->format('Y-m-d H:i'),
+        ]);
 
-        // Get overview statistics
-        $stats = $this->getOverviewStats($lineId);
-
-        // Get throughput data (last 30 days)
-        $throughputData = $this->getThroughputData($lineId);
-
-        // Get cycle time data
-        $cycleTimeData = $this->getCycleTimeData($lineId);
-
-        // Get issue statistics
-        $issueStats = $this->getIssueStats($lineId);
-
-        // Get recent issues
-        $recentIssues = $this->getRecentIssues($lineId);
-
-        // Production controls overview
-        $productionControls = $this->getProductionControlsOverview($lineId);
-
-        return view('supervisor.dashboard', compact(
-            'lines',
-            'selectedLine',
-            'stats',
-            'throughputData',
-            'cycleTimeData',
-            'issueStats',
-            'recentIssues',
-            'productionControls'
-        ));
+        return Inertia::render('supervisor/Dashboard', [
+            'lines' => $lines,
+            'selectedLineId' => $lineId ? (int) $lineId : null,
+            'stats' => $this->getOverviewStats($lineId),
+            'throughput' => $this->getThroughputData($lineId),
+            'issueStats' => $this->getIssueStats($lineId),
+            'recentIssues' => $recentIssues,
+        ]);
     }
 
     protected function getOverviewStats($lineId)

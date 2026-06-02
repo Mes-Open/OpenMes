@@ -5,19 +5,21 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ViewTemplate;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ViewTemplateController extends Controller
 {
     public function index()
     {
-        $templates = ViewTemplate::withCount('lines')->orderBy('name')->get();
+        $counts = ViewTemplate::withCount('lines')->get(['id'])
+            ->mapWithKeys(fn ($t) => [$t->id => $t->lines_count]);
 
-        return view('admin.view-templates.index', compact('templates'));
+        return Inertia::render('admin/view-templates/Index', ['counts' => $counts]);
     }
 
     public function create()
     {
-        return view('admin.view-templates.create');
+        return Inertia::render('admin/view-templates/Create');
     }
 
     public function store(Request $request)
@@ -39,7 +41,9 @@ class ViewTemplateController extends Controller
 
     public function edit(ViewTemplate $viewTemplate)
     {
-        return view('admin.view-templates.edit', compact('viewTemplate'));
+        return Inertia::render('admin/view-templates/Edit', [
+            'viewTemplate' => $viewTemplate->only('id', 'name', 'description', 'columns'),
+        ]);
     }
 
     public function update(Request $request, ViewTemplate $viewTemplate)

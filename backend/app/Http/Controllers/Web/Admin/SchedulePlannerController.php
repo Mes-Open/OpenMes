@@ -9,6 +9,7 @@ use App\Models\WorkOrder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class SchedulePlannerController extends Controller
 {
@@ -222,12 +223,106 @@ class SchedulePlannerController extends Controller
             'realtimeMode',
         );
 
-        // Partial response for infinite scroll — return only week cards HTML
+        // Partial response for infinite scroll — still JSON for the React client
+        // (React Planner fetches the full page and extracts data; the _partial flag
+        //  is no longer used in the Inertia version, but kept for backwards compat
+        //  with any existing JS that may still call it).
         if ($request->filled('_partial')) {
-            return view('admin.schedule.planner-weeks', $viewData);
+            return response()->json(['data' => $viewData['data'] ?? []]);
         }
 
-        return view('admin.schedule.planner', $viewData);
+        // Serialize Carbon instances to strings so Inertia can JSON-encode them
+        $serialize = function ($value) {
+            if ($value instanceof Carbon) {
+                return $value->toIso8601String();
+            }
+            return $value;
+        };
+
+        // Flatten maintenance events for the React component
+        $maintFlat = $maintenanceEvents->map(fn ($m) => [
+            'id'                  => $m->id,
+            'title'               => $m->title,
+            'event_type'          => $m->event_type,
+            'status'              => $m->status,
+            'line_id'             => $m->line_id,
+            'workstation_id'      => $m->workstation_id,
+            'schedule_id'         => $m->schedule_id,
+            'scheduled_at_date'   => $m->scheduled_at?->format('Y-m-d'),
+            'scheduled_at_time'   => $m->scheduled_at?->format('H:i'),
+            'scheduled_at_minute' => $m->scheduled_at
+                ? ($m->scheduled_at->hour * 60 + $m->scheduled_at->minute)
+                : null,
+            'duration_minutes'    => $m->scheduled_end_at
+                ? (int) $m->scheduled_at->diffInMinutes($m->scheduled_end_at)
+                : 60,
+            'description'         => $m->description,
+        ])->values()->all();
+
+        // Serialize data array — recursively convert Carbon objects
+        $serializeData = function ($item) use (&$serializeData, $serialize) {
+            if (is_array($item)) {
+                return array_map($serializeData, $item);
+            }
+            if ($item instanceof \Illuminate\Database\Eloquent\Collection) {
+                return $item->map($serializeData)->values()->all();
+            }
+            if ($item instanceof \Illuminate\Support\Collection) {
+                return $item->map($serializeData)->values()->all();
+            }
+            if ($item instanceof Carbon) {
+                return $item->toIso8601String();
+            }
+            if (is_object($item) && method_exists($item, 'toArray')) {
+                $arr = $item->toArray();
+                // Append computed fields for work orders
+                if (isset($arr['product_type'])) {
+                    $arr['product_name'] = $item->productType?->name;
+                }
+                return array_map($serializeData, $arr);
+            }
+            return $item;
+        };
+
+        // Flatten the data structure (weeks/days/months/hourly) for serialization
+        $flatData = $serializeData($data);
+
+        // Flatten backlog orders
+        $backlogFlat = $backlogOrders->map(fn ($wo) => [
+            'id'          => $wo->id,
+            'order_no'    => $wo->order_no,
+            'product_name'=> $wo->productType?->name,
+            'line_id'     => $wo->line_id,
+            'due_date'    => $wo->due_date?->format('Y-m-d'),
+            'planned_qty' => $wo->planned_qty,
+            'status'      => $wo->status,
+            'priority'    => $wo->priority,
+        ])->values()->all();
+
+        // Flatten lines for props
+        $linesFlat  = $lines->map(fn ($l)  => ['id' => $l->id, 'name' => $l->name, 'code' => $l->code])->values()->all();
+        $allLinesFlat = $allLines->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'code' => $l->code])->values()->all();
+        $shiftsFlat = $shifts->map(fn ($s)  => ['id' => $s->id, 'name' => $s->name, 'sort_order' => $s->sort_order])->values()->all();
+
+        return Inertia::render('admin/schedule/Planner', [
+            'data'             => $flatData,
+            'lines'            => $linesFlat,
+            'allLines'         => $allLinesFlat,
+            'shifts'           => $shiftsFlat,
+            'viewMode'         => $viewMode,
+            'shiftsPerDay'     => $shiftsPerDay,
+            'slotMinutes'      => $slotMinutes,
+            'horizonWeeks'     => $horizonWeeks,
+            'showWeekends'     => $showWeekends,
+            'startDate'        => $startDate->format('Y-m-d'),
+            'rangeStart'       => $rangeStart->format('Y-m-d'),
+            'rangeEnd'         => $rangeEnd->format('Y-m-d'),
+            'navPrev'          => $navPrev->format('Y-m-d'),
+            'navNext'          => $navNext->format('Y-m-d'),
+            'backlogOrders'    => $backlogFlat,
+            'maintenanceEvents'=> $maintFlat,
+            'realtimeMode'     => $realtimeMode,
+        ]);
     }
 
     public function updateOrder(Request $request, WorkOrder $workOrder)
@@ -330,8 +425,6 @@ class SchedulePlannerController extends Controller
             }
         }
 
-        event(new \App\Events\ScheduleUpdated);
-
         $message = __('Work order updated successfully.');
         if (! empty($warnings)) {
             $message .= ' '.__('Warnings:').' '.implode('; ', $warnings);
@@ -391,8 +484,6 @@ class SchedulePlannerController extends Controller
                 'planned_end_at' => $validated['planned_end_at'],
             ]);
 
-            event(new \App\Events\ScheduleUpdated);
-
             return response()->json([
                 'success' => true,
                 'message' => __('Work order span updated.'),
@@ -418,8 +509,6 @@ class SchedulePlannerController extends Controller
                 'end_shift_number' => $request->input('end_shift_number'),
             ]);
         }
-
-        event(new \App\Events\ScheduleUpdated);
 
         return response()->json([
             'success' => true,

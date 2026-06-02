@@ -2,6 +2,18 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: openmmes-postgres
+    # Logical replication is required by the Electric sync service (see
+    # `electric` below). Existing data is unaffected; the flags only change
+    # how WAL is written. If you remove Electric, also drop the replication
+    # slot it creates: SELECT pg_drop_replication_slot('electric_slot_<...>');
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_replication_slots=10"
+      - "-c"
+      - "max_wal_senders=10"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-openmmes}
       POSTGRES_USER: ${POSTGRES_USER:-openmmes_user}
@@ -17,6 +29,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    # Every other service has this — without it postgres stays down after
+    # a host reboot / docker restart while the app containers come back,
+    # which surfaces as 502s from Caddy ("could not translate host name
+    # 'postgres' to address").
+    restart: unless-stopped
     networks:
       - openmmes-network
 
@@ -40,6 +57,11 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@openmmes.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+      LOG_CHANNEL: ${LOG_CHANNEL:-stack}
+      LOG_STACK: ${LOG_STACK:-single}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      # Broadcasting/Reverb removed — live sync is Electric-only now.
+      BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-null}
     expose:
       - "8000"
     depends_on:
@@ -48,6 +70,29 @@ services:
     volumes:
       - backend_storage:/var/www/html/storage
       - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+
+  # ── Electric sync engine (read-path sync from Postgres) ───────────────────
+  # https://electric-sql.com — streams Postgres rows to clients via HTTP
+  # long-poll. Sits next to the database; Laravel proxies authenticated
+  # shape requests to it (see App\Http\Controllers\Api\ShapeProxyController).
+  # NOT exposed publicly — only the backend container reaches it on the
+  # internal docker network.
+  electric:
+    image: electricsql/electric:1.6.9
+    container_name: openmmes-electric
+    environment:
+      # Electric needs a superuser-grade connection to manage its replication
+      # slot. Reuses the same Postgres credentials as Laravel.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-openmmes_user}:${POSTGRES_PASSWORD:-openmmes_secret}@postgres:5432/${POSTGRES_DB:-openmmes}
+      ELECTRIC_INSECURE: "true"   # No public exposure; auth is enforced by the Laravel proxy
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - openmmes-network

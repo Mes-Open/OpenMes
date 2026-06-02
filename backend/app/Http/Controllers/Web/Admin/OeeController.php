@@ -11,6 +11,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Inertia\Inertia;
 
 class OeeController extends Controller
 {
@@ -93,10 +94,21 @@ class OeeController extends Controller
             })
             ->values();
 
-        return view('admin.oee.index', compact(
-            'lines', 'lineId', 'dateFrom', 'dateTo',
-            'records', 'summary', 'trend', 'trendByLine', 'granularity'
-        ));
+        return Inertia::render('admin/oee/Index', [
+            'lines' => $lines,
+            'lineId' => $lineId,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'records' => $records->map(fn ($r) => array_merge($r->toArray(), [
+                'record_date' => $r->record_date->toDateString(),
+                'line' => $r->line ? ['id' => $r->line->id, 'name' => $r->line->name] : null,
+                'shift' => $r->shift ? ['id' => $r->shift->id, 'name' => $r->shift->name] : null,
+            ]))->values(),
+            'summary' => $summary,
+            'trend' => $trend,
+            'trendByLine' => $trendByLine,
+            'granularity' => $granularity,
+        ]);
     }
 
     public function show(Line $line, Request $request)
@@ -118,7 +130,16 @@ class OeeController extends Controller
             Carbon::parse($dateTo)
         );
 
-        return view('admin.oee.show', compact('line', 'records', 'downtimeByReason', 'dateFrom', 'dateTo'));
+        return Inertia::render('admin/oee/Show', [
+            'line' => $line,
+            'records' => $records->map(fn ($r) => array_merge($r->toArray(), [
+                'record_date' => $r->record_date->toDateString(),
+                'shift' => $r->shift ? ['id' => $r->shift->id, 'name' => $r->shift->name] : null,
+            ]))->values(),
+            'downtimeByReason' => $downtimeByReason,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+        ]);
     }
 
     public function print(Request $request)

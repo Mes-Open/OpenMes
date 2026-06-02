@@ -5,27 +5,23 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Skill;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class SkillController extends Controller
 {
     /**
-     * Display a listing of skills.
+     * Display a listing of skills. Rows live-sync via the `skills` shape; only
+     * the worker counts (cross-table) come as a prop.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = Skill::withCount('workers')
-            ->orderBy('name');
+        $counts = Skill::withCount('workers')
+            ->get(['id'])
+            ->mapWithKeys(fn ($s) => [$s->id => $s->workers_count]);
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        $skills = $query->paginate(25)->withQueryString();
-
-        return view('admin.skills.index', compact('skills'));
+        return Inertia::render('admin/skills/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     /**
@@ -33,7 +29,7 @@ class SkillController extends Controller
      */
     public function create()
     {
-        return view('admin.skills.create');
+        return Inertia::render('admin/skills/Create');
     }
 
     /**
@@ -58,7 +54,9 @@ class SkillController extends Controller
      */
     public function edit(Skill $skill)
     {
-        return view('admin.skills.edit', compact('skill'));
+        return Inertia::render('admin/skills/Edit', [
+            'skill' => $skill->only('id', 'code', 'name', 'description'),
+        ]);
     }
 
     /**

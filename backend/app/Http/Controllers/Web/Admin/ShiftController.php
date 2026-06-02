@@ -3,20 +3,25 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Line;
 use App\Models\Shift;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ShiftController extends Controller
 {
     public function index()
     {
-        $shifts = Shift::orderBy('sort_order')->orderBy('start_time')->get();
-        return view('admin.shifts.index', compact('shifts'));
+        return Inertia::render('admin/shifts/Index', [
+            'lineNames' => Line::pluck('name', 'id'),
+        ]);
     }
 
     public function create()
     {
-        return view('admin.shifts.create');
+        return Inertia::render('admin/shifts/Create', [
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function store(Request $request)
@@ -27,14 +32,16 @@ class ShiftController extends Controller
             'start_time' => 'required|date_format:H:i',
             'end_time'   => 'required|date_format:H:i',
             'sort_order' => 'nullable|integer|min:0',
+            'line_id'    => 'nullable|exists:lines,id',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['sort_order'] = $validated['sort_order'] ?? Shift::max('sort_order') + 1;
 
-        // Check for overlapping shifts
-        if ($this->hasOverlap($validated['start_time'], $validated['end_time'])) {
-            return back()->withInput()->with('error', __('This shift overlaps with an existing shift. Adjust the times and try again.'));
+        // Overlap is scoped to the same line (or both global) — same-time shifts
+        // on different lines are fine.
+        if ($this->hasOverlap($validated['start_time'], $validated['end_time'], $validated['line_id'] ?? null)) {
+            return back()->withInput()->with('error', __('This shift overlaps with an existing shift on this line. Adjust the times and try again.'));
         }
 
         Shift::create($validated);
@@ -44,7 +51,10 @@ class ShiftController extends Controller
 
     public function edit(Shift $shift)
     {
-        return view('admin.shifts.edit', compact('shift'));
+        return Inertia::render('admin/shifts/Edit', [
+            'shift' => $shift->only('id', 'code', 'name', 'start_time', 'end_time', 'sort_order', 'line_id', 'is_active'),
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function update(Request $request, Shift $shift)
@@ -55,13 +65,13 @@ class ShiftController extends Controller
             'start_time' => 'required|date_format:H:i',
             'end_time'   => 'required|date_format:H:i',
             'sort_order' => 'nullable|integer|min:0',
+            'line_id'    => 'nullable|exists:lines,id',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
-        // Check for overlapping shifts (exclude current)
-        if ($this->hasOverlap($validated['start_time'], $validated['end_time'], $shift->id)) {
-            return back()->withInput()->with('error', __('This shift overlaps with an existing shift. Adjust the times and try again.'));
+        if ($this->hasOverlap($validated['start_time'], $validated['end_time'], $validated['line_id'] ?? null, $shift->id)) {
+            return back()->withInput()->with('error', __('This shift overlaps with an existing shift on this line. Adjust the times and try again.'));
         }
 
         $shift->update($validated);
@@ -81,11 +91,18 @@ class ShiftController extends Controller
     }
 
     /**
-     * Check if a time range overlaps with any existing active shift.
+     * Check if a time range overlaps with an existing active shift on the same
+     * line (global shifts, line_id = null, only conflict with other globals).
      */
-    private function hasOverlap(string $start, string $end, ?int $excludeId = null): bool
+    private function hasOverlap(string $start, string $end, ?int $lineId = null, ?int $excludeId = null): bool
     {
         $query = Shift::where('is_active', true);
+
+        if ($lineId === null) {
+            $query->whereNull('line_id');
+        } else {
+            $query->where('line_id', $lineId);
+        }
 
         if ($excludeId) {
             $query->where('id', '!=', $excludeId);

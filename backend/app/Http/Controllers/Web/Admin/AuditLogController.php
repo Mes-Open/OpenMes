@@ -51,7 +51,18 @@ class AuditLogController extends Controller
         // Get all users for filter
         $users = User::select('id', 'name', 'username')->orderBy('name')->get();
 
-        return view('admin.audit-logs', compact('auditLogs', 'entityTypes', 'users'));
+        return \Inertia\Inertia::render('admin/AuditLogs', [
+            'auditLogs'   => $auditLogs,
+            'entityTypes' => $entityTypes,
+            'users'       => $users,
+            'filters'     => [
+                'entity_type' => $request->input('entity_type', ''),
+                'user_id'     => $request->input('user_id', ''),
+                'action'      => $request->input('action', ''),
+                'start_date'  => $request->input('start_date', ''),
+                'end_date'    => $request->input('end_date', ''),
+            ],
+        ]);
     }
 
     public function export(Request $request)

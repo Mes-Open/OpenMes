@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Line;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class ReportController extends Controller
 {
@@ -20,7 +21,7 @@ class ReportController extends Controller
         // Validate year range to prevent abuse
         $year = max(2000, min((int) date('Y') + 1, $year));
 
-        $lines = Line::orderBy('name')->get();
+        $lines = Line::orderBy('name')->get(['id', 'name']);
 
         // --- Base query builder helper ---
         // Supports both explicit production_year/month_number/week_number fields
@@ -145,7 +146,7 @@ class ReportController extends Controller
         $currentYear = (int) date('Y');
         $availableYears = range($currentYear - 4, $currentYear + 1);
 
-        return view('admin.reports.index', compact(
+        return Inertia::render('admin/reports/Index', compact(
             'period',
             'year',
             'month',

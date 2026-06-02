@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Inertia\Inertia;
 
 class RegisterController extends Controller
 {
@@ -19,7 +20,7 @@ class RegisterController extends Controller
             abort(404);
         }
 
-        return view('auth.register');
+        return Inertia::render('auth/Register');
     }
 
     public function store(RegisterRequest $request)
