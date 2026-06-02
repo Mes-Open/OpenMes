@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto"
-     x-data="{ createBatchOpen: false, reportIssueOpen: false }">
+     x-data="{ createBatchOpen: false, reportIssueOpen: false, reportScrapOpen: false }">
 
     {{-- Header --}}
     <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -422,6 +422,59 @@
                 @endif
             </div>
 
+            {{-- Scrap --}}
+            @php
+                $totalScrap = $workOrder->totalScrapQty();
+                $qualityPct = $workOrder->qualityPct();
+            @endphp
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">{{ __('Scrap') }}</h3>
+                    @if(!in_array($workOrder->status, ['DONE','CANCELLED']) && $scrapReasons->isNotEmpty())
+                        <button @click="reportScrapOpen = true"
+                                class="text-sm text-amber-600 hover:text-amber-800 font-medium border border-amber-200 hover:border-amber-400 px-3 py-1 rounded-lg transition-colors">
+                            + {{ __('Report') }}
+                        </button>
+                    @endif
+                </div>
+
+                <div class="flex justify-between text-sm mb-3">
+                    <span class="text-gray-500">{{ __('Total scrap') }}:</span>
+                    <span class="font-medium">{{ number_format($totalScrap, 2) }}</span>
+                </div>
+                @if($qualityPct !== null)
+                    <div class="flex justify-between text-sm mb-3">
+                        <span class="text-gray-500">{{ __('Quality') }}:</span>
+                        <span class="font-medium {{ $qualityPct < 100 ? 'text-amber-600' : 'text-green-600' }}">{{ number_format($qualityPct, 1) }}%</span>
+                    </div>
+                @endif
+
+                @if($workOrder->scrapEntries->isEmpty())
+                    <p class="text-sm text-gray-400 text-center py-4">{{ __('No scrap reported.') }}</p>
+                @else
+                    <div class="space-y-2">
+                        @foreach($workOrder->scrapEntries->take(5) as $entry)
+                            <div class="p-3 rounded-lg bg-gray-50">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-semibold text-gray-800">{{ $entry->scrapReason?->name ?? __('Unknown') }}</span>
+                                    <span class="text-sm font-medium text-gray-700">{{ number_format($entry->quantity, 2) }}</span>
+                                </div>
+                                @if($entry->notes)
+                                    <p class="text-xs text-gray-500">{{ Str::limit($entry->notes, 80) }}</p>
+                                @endif
+                                <p class="text-xs text-gray-400 mt-1">
+                                    {{ $entry->reported_at->diffForHumans() }}
+                                    @if($entry->reportedBy) {{ __('by') }} {{ $entry->reportedBy->name }} @endif
+                                </p>
+                            </div>
+                        @endforeach
+                        @if($workOrder->scrapEntries->count() > 5)
+                            <p class="text-xs text-gray-400 text-center">+{{ $workOrder->scrapEntries->count() - 5 }} {{ __('more') }}</p>
+                        @endif
+                    </div>
+                @endif
+            </div>
+
         </div>
     </div>
 
@@ -429,7 +482,7 @@
     <div x-show="createBatchOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto"
          x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100">
-        <div class="fixed inset-0 bg-black bg-opacity-50" @click="createBatchOpen = false"></div>
+        <div class="fixed inset-0 bg-black/50" @click="createBatchOpen = false"></div>
         <div class="flex min-h-full items-center justify-center p-4">
             <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6" @click.stop
                  x-transition:enter="transition ease-out duration-200"
@@ -486,7 +539,7 @@
     <div x-show="reportIssueOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto"
          x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100">
-        <div class="fixed inset-0 bg-black bg-opacity-50" @click="reportIssueOpen = false"></div>
+        <div class="fixed inset-0 bg-black/50" @click="reportIssueOpen = false"></div>
         <div class="flex min-h-full items-center justify-center p-4">
             <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6" @click.stop
                  x-transition:enter="transition ease-out duration-200"
@@ -527,6 +580,54 @@
                     <div class="flex gap-3 justify-end mt-6">
                         <button type="button" @click="reportIssueOpen = false" class="btn-touch btn-secondary">Cancel</button>
                         <button type="submit" class="btn-touch btn-primary bg-red-600 hover:bg-red-700">Report Issue</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Report Scrap Modal --}}
+    <div x-show="reportScrapOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto"
+         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100">
+        <div class="fixed inset-0 bg-black/50" @click="reportScrapOpen = false"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6" @click.stop
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 translate-y-4"
+                 x-transition:enter-end="opacity-100 translate-y-0">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">{{ __('Report Scrap') }}</h3>
+                <form action="{{ route('operator.scrap.store') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="work_order_id" value="{{ $workOrder->id }}">
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="form-label">{{ __('Reason') }} <span class="text-red-500">*</span></label>
+                            <select name="scrap_reason_id" class="form-input w-full" required>
+                                <option value="">{{ __('— Select reason —') }}</option>
+                                @foreach($scrapReasons as $reason)
+                                    <option value="{{ $reason->id }}">{{ $reason->code }} — {{ $reason->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">{{ __('Quantity') }} <span class="text-red-500">*</span></label>
+                            <input type="number" name="quantity" step="0.01" min="0.01" class="form-input w-full"
+                                   placeholder="0" required>
+                        </div>
+
+                        <div>
+                            <label class="form-label">{{ __('Notes') }}</label>
+                            <textarea name="notes" rows="3" class="form-input w-full"
+                                      placeholder="{{ __('Additional details…') }}" maxlength="2000"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 justify-end mt-6">
+                        <button type="button" @click="reportScrapOpen = false" class="btn-touch btn-secondary">{{ __('Cancel') }}</button>
+                        <button type="submit" class="btn-touch btn-primary bg-amber-600 hover:bg-amber-700">{{ __('Report Scrap') }}</button>
                     </div>
                 </form>
             </div>

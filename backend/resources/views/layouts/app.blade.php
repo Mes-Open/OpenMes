@@ -43,7 +43,7 @@
          hr: {{ request()->routeIs('admin.workers.*', 'admin.crews.*', 'admin.skills.*', 'admin.wage-groups.*') ? 'true' : 'false' }},
          maintenance: {{ request()->routeIs('admin.maintenance-events.*', 'admin.tools.*', 'admin.workstations.*') ? 'true' : 'false' }},
          connectivity: {{ request()->routeIs('admin.connectivity.*') ? 'true' : 'false' }},
-         adminGroup: {{ request()->routeIs('admin.users.*', 'admin.audit-logs*', 'admin.settings*') ? 'true' : 'false' }},
+         adminGroup: {{ request()->routeIs('admin.users.*', 'admin.audit-logs*', 'admin.settings*', 'admin.scrap-reports.*') ? 'true' : 'false' }},
          modulesGroup: {{ request()->routeIs('admin.modules.*') ? 'true' : 'false' }},
          toggle() {
              const sb = this.$refs.sidebar;
@@ -95,7 +95,7 @@
              @if(request()->routeIs('admin.connectivity.*'))
                  connectivity = true;
              @endif
-             @if(request()->routeIs('admin.users.*', 'admin.reports', 'admin.audit-logs', 'admin.modules.*'))
+             @if(request()->routeIs('admin.users.*', 'admin.reports', 'admin.scrap-reports.*', 'admin.audit-logs', 'admin.modules.*'))
                  adminGroup = true;
              @endif
              @if(request()->routeIs('admin.modules.*'))
