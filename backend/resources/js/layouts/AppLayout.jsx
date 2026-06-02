@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
+import { LiveShapesProvider } from '../components/LiveShapesProvider';
 
 /**
  * App chrome (sidebar + header) for authenticated React pages.
@@ -52,6 +53,7 @@ export default function AppLayout({ children }) {
     const showLabels = !collapsed || mobileOpen;
 
     return (
+        <LiveShapesProvider>
         <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
@@ -98,6 +100,7 @@ export default function AppLayout({ children }) {
                 </main>
             </div>
         </div>
+        </LiveShapesProvider>
     );
 }
 

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from '@tanstack/react-db';
-import { useShapeConfigs } from '../lib/useShapeConfigs';
-import { electricCollection } from '../lib/electricCollection';
+import { useHotShapes } from './LiveShapesProvider';
 
 /**
  * Live alert count for the sidebar badge — the Electric-backed replacement for
@@ -9,32 +8,26 @@ import { electricCollection } from '../lib/electricCollection';
  * navigation). Mirrors AlertController::totalCount:
  *   open issues (OPEN/ACKNOWLEDGED) + overdue work orders + blocked work orders.
  *
- * Render-prop so the hook rules hold: while the shapes are still connecting it
- * yields the server `fallback`, then swaps to the live count.
+ * Reads the SHARED `work_orders_active` / `issues_open` collections from
+ * LiveShapesProvider — the same streams the dashboard and other pages use — so
+ * the badge never opens its own duplicate connections. Render-prop so the hook
+ * rules hold: while the shapes are still connecting it yields the server
+ * `fallback`, then swaps to the live count.
  *
  *   <LiveAlertCount fallback={nav.alertCount}>{(n) => <Badge n={n} />}</LiveAlertCount>
- *
- * Shapes: reuses the SAME shapes the admin dashboard subscribes to
- * (`issues_open` = OPEN+ACKNOWLEDGED, `work_orders_active` = non-terminal), so
- * on the dashboard no extra streams are opened just for the badge. Both fully
- * cover AlertController::totalCount (open issues + overdue + blocked).
  */
-const SHAPES = ['issues_open', 'work_orders_active'];
 const OPEN_STATUSES = ['OPEN', 'ACKNOWLEDGED'];
 const TERMINAL_STATUSES = ['DONE', 'REJECTED', 'CANCELLED'];
 
 export default function LiveAlertCount({ fallback = 0, children }) {
-    const { configs } = useShapeConfigs(SHAPES);
-    if (!configs) return children(fallback);
-    return <Live configs={configs} fallback={fallback}>{children}</Live>;
+    const hot = useHotShapes();
+    if (!hot) return children(fallback);
+    return <Live hot={hot} fallback={fallback}>{children}</Live>;
 }
 
-function Live({ configs, fallback, children }) {
-    const issuesC = useMemo(() => electricCollection('issues_open', configs.issues_open, (r) => r.id), [configs]);
-    const ordersC = useMemo(() => electricCollection('work_orders_active', configs.work_orders_active, (r) => r.id), [configs]);
-
-    const { data: issues = [], isLoading: il } = useLiveQuery((q) => q.from({ r: issuesC }));
-    const { data: orders = [], isLoading: ol } = useLiveQuery((q) => q.from({ r: ordersC }));
+function Live({ hot, fallback, children }) {
+    const { data: issues = [], isLoading: il } = useLiveQuery((q) => q.from({ r: hot.issuesOpen }));
+    const { data: orders = [], isLoading: ol } = useLiveQuery((q) => q.from({ r: hot.workOrdersActive }));
 
     const count = useMemo(() => {
         const todayStr = new Date().toISOString().slice(0, 10);

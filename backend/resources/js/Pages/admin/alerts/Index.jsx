@@ -3,13 +3,18 @@ import { Head, Link } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { useShapeConfigs } from '../../../lib/useShapeConfigs';
+import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { electricCollection } from '../../../lib/electricCollection';
+import { useLiveShapeBudget } from '../../../lib/liveShapeBudget';
 
 /**
- * Admin Alerts — fully live via Electric. Subscribes to issues, issue_types,
- * work_orders, lines and users shapes and derives the four alert lists
- * client-side, so blocking/overdue/blocked state changes appear WITHOUT a
- * refresh (the old Blade page only polled a badge and required a reload).
+ * Admin Alerts — the one screen that exceeded the connection budget (it joins
+ * five tables). The alert lists derive from issues + work_orders, which stay
+ * LIVE so blocking/overdue/blocked changes appear instantly. The lookup tables
+ * they join against (issue types, lines, users) are ADAPTIVE (useSyncedShape):
+ * live on HTTP/2, polled every 5s on HTTP/1.1 where a held connection would
+ * count against the ~6-per-origin limit. So on plain-HTTP LAN this screen holds
+ * 2 live shapes instead of 5. See CLAUDE.md → "Electric connection budget".
  */
 const SHAPES = ['issues_all', 'issue_types_all', 'work_orders_all', 'lines_all', 'users'];
 const OPEN_STATUSES = ['OPEN', 'ACKNOWLEDGED'];
@@ -46,17 +51,19 @@ export default function AlertsIndex() {
 AlertsIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 
 function AlertsLive({ configs }) {
-    const issuesC = useMemo(() => electricCollection('issues_all', configs.issues_all, (r) => r.id), [configs]);
-    const typesC = useMemo(() => electricCollection('issue_types_all', configs.issue_types_all, (r) => r.id), [configs]);
-    const ordersC = useMemo(() => electricCollection('work_orders_all', configs.work_orders_all, (r) => r.id), [configs]);
-    const linesC = useMemo(() => electricCollection('lines_all', configs.lines_all, (r) => r.id), [configs]);
-    const usersC = useMemo(() => electricCollection('users', configs.users, (r) => r.id), [configs]);
+    useLiveShapeBudget(['issues_all', 'work_orders_all']);
 
+    // Live: the transactional data the alerts derive from.
+    const issuesC = useMemo(() => electricCollection('issues_all', configs.issues_all, (r) => r.id), [configs]);
+    const ordersC = useMemo(() => electricCollection('work_orders_all', configs.work_orders_all, (r) => r.id), [configs]);
     const { data: issues = [] } = useLiveQuery((q) => q.from({ r: issuesC }));
-    const { data: types = [] } = useLiveQuery((q) => q.from({ r: typesC }));
     const { data: orders = [] } = useLiveQuery((q) => q.from({ r: ordersC }));
-    const { data: lines = [] } = useLiveQuery((q) => q.from({ r: linesC }));
-    const { data: users = [] } = useLiveQuery((q) => q.from({ r: usersC }));
+
+    // Adaptive lookup tables (names + is_blocking): live on HTTP/2, polled every
+    // 5s on HTTP/1.1 — no held connection there. Mutable; reflects edits.
+    const { data: types } = useSyncedShape('issue_types_all', configs.issue_types_all);
+    const { data: lines } = useSyncedShape('lines_all', configs.lines_all);
+    const { data: users } = useSyncedShape('users', configs.users);
 
     const derived = useMemo(() => {
         const typeById = new Map(types.map((t) => [String(t.id), t]));
