@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import { useDashboardShapes, DASHBOARD_SHAPES } from '../../lib/useDashboardShapes';
 import { useShapeConfigs } from '../../lib/useShapeConfigs';
+import { useHotShapes } from '../../components/LiveShapesProvider';
 import AppLayout from '../../layouts/AppLayout';
 
 const WO_TERMINAL = ['DONE', 'CANCELLED', 'REJECTED'];
@@ -13,6 +14,7 @@ const WO_TERMINAL = ['DONE', 'CANCELLED', 'REJECTED'];
  */
 export default function AdminDashboard(props) {
     const { configs, error } = useShapeConfigs(DASHBOARD_SHAPES);
+    const hot = useHotShapes(); // shared work_orders_active / issues_open collections
 
     return (
         <>
@@ -21,13 +23,13 @@ export default function AdminDashboard(props) {
                 <div className="max-w-7xl mx-auto">
                     <pre className="bg-red-50 text-red-800 p-3 rounded text-xs">{String(error)}</pre>
                 </div>
-            ) : !configs ? (
+            ) : !configs || !hot ? (
                 <div className="max-w-7xl mx-auto">
                     <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
                     <p className="text-gray-500 text-sm mt-2">Connecting to live sync…</p>
                 </div>
             ) : (
-                <DashboardBody configs={configs} {...props} />
+                <DashboardBody configs={configs} hot={hot} {...props} />
             )}
         </>
     );
@@ -39,13 +41,14 @@ AdminDashboard.layout = (page) => <AppLayout>{page}</AppLayout>;
 
 function DashboardBody({
     configs,
+    hot,
     enabledWidgets = [],
     widgetOrder = [],
     inboundQcStats,
     materialsStats,
 }) {
     const { workOrders, lines, issues, issueTypes, oeeRecords, isLoading, error } =
-        useDashboardShapes(configs);
+        useDashboardShapes(configs, hot);
 
     const [selectedLineId, setSelectedLineId] = useState('');
 

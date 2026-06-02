@@ -1,17 +1,6 @@
 import { useEffect, useRef } from 'react';
 import ShapeChangeWatcher from './ShapeChangeWatcher';
-
-/** True when the page was served over HTTP/2 (or h3) — i.e. Electric long-polls
- *  multiplex freely. On HTTP/1.1 the ~6-connection-per-origin limit makes held
- *  long-polls risky, so we fall back to short polling there. */
-function isMultiplexed() {
-    try {
-        const nav = performance.getEntriesByType('navigation')[0];
-        return nav?.nextHopProtocol === 'h2' || nav?.nextHopProtocol === 'h3';
-    } catch {
-        return false;
-    }
-}
+import { detectMultiplexed } from '../lib/transport';
 
 /**
  * Cross-window live refresh for SERVER-PROP pages that works on BOTH http and
@@ -44,7 +33,7 @@ export default function LiveRefresh({
     const cbRef = useRef(onRefresh);
     cbRef.current = onRefresh;
     const lastUpdate = useRef(null);
-    const h2 = isMultiplexed();
+    const h2 = detectMultiplexed();
 
     useEffect(() => {
         if (!enabled || !pollUrl) return undefined;
