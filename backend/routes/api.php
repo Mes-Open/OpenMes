@@ -37,6 +37,8 @@ use App\Http\Controllers\Api\V1\ProductionAnomalyController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\QualityCheckController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ScrapEntryController;
+use App\Http\Controllers\Api\V1\ScrapReasonController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\SkillController;
 use App\Http\Controllers\Api\V1\SubassemblyController;
@@ -136,6 +138,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/cost-sources/{cost_source}', [CostSourceController::class, 'show']);
     Route::get('/anomaly-reasons', [AnomalyReasonController::class, 'index']);
     Route::get('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'show']);
+    Route::get('/scrap-reasons', [ScrapReasonController::class, 'index']);
+    Route::get('/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'show']);
     Route::get('/subassemblies', [SubassemblyController::class, 'index']);
     Route::get('/subassemblies/{subassembly}', [SubassemblyController::class, 'show']);
     Route::get('/shifts', [ShiftController::class, 'index']);
@@ -210,6 +214,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::patch('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'update']);
     Route::delete('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'destroy']);
     Route::post('/production-anomalies/{productionAnomaly}/process', [ProductionAnomalyController::class, 'process']);
+
+    // Scrap entries (operators can record against a work order; admins/supers manage)
+    Route::get('/scrap-entries', [ScrapEntryController::class, 'index']);
+    Route::get('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'show']);
+    Route::get('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'forWorkOrder']);
+    Route::post('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'store']);
+    Route::patch('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'update']);
+    Route::delete('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'destroy']);
 
     // Additional Costs (admin/supervisor only — policy enforced)
     Route::get('/work-orders/{workOrder}/additional-costs', [AdditionalCostController::class, 'index']);
@@ -364,6 +376,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::post('/anomaly-reasons', [AnomalyReasonController::class, 'store']);
         Route::patch('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'update']);
         Route::delete('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'destroy']);
+
+        // Scrap reasons
+        Route::post('/scrap-reasons', [ScrapReasonController::class, 'store']);
+        Route::match(['put', 'patch'], '/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'update']);
+        Route::delete('/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'destroy']);
 
         // Subassemblies
         Route::post('/subassemblies', [SubassemblyController::class, 'store']);
@@ -530,6 +547,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/reports/production-summary', [ReportController::class, 'productionSummary']);
         Route::get('/reports/batch-completion', [ReportController::class, 'batchCompletion']);
         Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
+        Route::get('/reports/scrap-pareto', [ReportController::class, 'scrapPareto']);
+        Route::get('/reports/scrap-rate', [ReportController::class, 'scrapRate']);
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
     });
 

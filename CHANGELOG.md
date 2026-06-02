@@ -5,6 +5,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- Scrap reason codes - categorized defect tracking per work order: `scrap_reasons` with a 5M Ishikawa category (material/machine/method/man/environment), admin CRUD + activate/deactivate, and 5 seeded default reasons (#13)
+- Operator scrap reporting on the work order detail page (reason, quantity, notes); `scrap_entries` link to the work order and optionally to a batch step and shift, with a per-work-order total scrap quantity and a derived quality % metric (#13)
+- Scrap reports: Pareto by reason, scrap rate per line, and scrap trend over time (Chart.js), plus REST API endpoints `reports/scrap-pareto`, `reports/scrap-rate`, scrap-reason read/CRUD and scrap-entry report/list (#13)
+
 ## [0.13.0] - 2026-05-31
 
 ### Added

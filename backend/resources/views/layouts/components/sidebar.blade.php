@@ -426,6 +426,9 @@
                     <a href="{{ route('admin.anomaly-reasons.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.anomaly-reasons.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Anomaly Reasons') }}
                     </a>
+                    <a href="{{ route('admin.scrap-reasons.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.scrap-reasons.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Scrap Reasons') }}
+                    </a>
                     @foreach($menuRegistry->getItems('production') as $item)
                         <a href="{{ $item['url'] }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
                             <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ $item['label'] }}
@@ -705,6 +708,9 @@
                     </a>
                     <a href="{{ route('admin.reports') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.reports') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Reports') }}
+                    </a>
+                    <a href="{{ route('admin.scrap-reports.index') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.scrap-reports.*') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Scrap Reports') }}
                     </a>
                     <a href="{{ route('admin.logs.activity') }}" class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors {{ request()->routeIs('admin.logs.activity') ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700' }}">
                         <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60"></span>{{ __('Activity Logs') }}
