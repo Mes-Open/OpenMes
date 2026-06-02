@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Operator;
 use App\Http\Controllers\Controller;
 use App\Models\Line;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class LineController extends Controller
 {
@@ -30,9 +31,19 @@ class LineController extends Controller
         }
 
         // Operators see only assigned lines
-        $lines = $user->lines()->where('is_active', true)->with('workstations')->get();
+        $lines = $user->lines()->where('is_active', true)->with('workstations')->get()
+            ->map(fn ($line) => [
+                'id' => $line->id,
+                'name' => $line->name,
+                'description' => $line->description,
+                'workstations' => $line->workstations
+                    ->where('is_active', true)
+                    ->sortBy('name')
+                    ->map(fn ($ws) => ['id' => $ws->id, 'name' => $ws->name, 'code' => $ws->code])
+                    ->values(),
+            ])->values();
 
-        return view('operator.select-line', compact('lines'));
+        return Inertia::render('operator/SelectLine', compact('lines'));
     }
 
     /**

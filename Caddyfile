@@ -1,3 +1,73 @@
-http://{$DOMAIN} {
-    reverse_proxy backend:8000
+# OpenMES reverse proxy.
+#
+# Electric SQL live-sync holds one long-lived ("long-poll") HTTP connection per
+# active shape. Browsers cap concurrent connections per origin at ~6 on
+# HTTP/1.1, so a handful of live shapes exhaust the pool and every other request
+# (navigation, API, more shapes) stalls in "pending". The fix is HTTP/2, which
+# multiplexes unlimited concurrent streams over ONE connection — but HTTP/2 is
+# only negotiated over TLS. So we serve HTTPS (with HTTP/2 on by default) in
+# addition to plain :80.
+#
+# In production replace `localhost` with your real hostname so Caddy provisions
+# a public TLS cert automatically (and serves WSS + HTTP/2 over the same
+# origin); set REVERB_HOST/REVERB_SCHEME in .env to match. For local dev,
+# `localhost` uses Caddy's internal CA — the browser shows a one-time
+# "not secure" warning you can click through (or run `caddy trust`).
+
+{
+	# Keep the plain-HTTP :80 site below serving directly instead of being
+	# auto-redirected to HTTPS, so existing http://localhost links still work.
+	auto_https disable_redirects
+}
+
+# Shared routing for every site address.
+(openmes) {
+	# (Reverb WebSocket routes /app/* + /apps/* were removed — broadcasting is
+	# gone; live sync is Electric-only via /electric/* below.)
+
+	# Electric SQL live-sync stream. The browser streams shapes from Electric
+	# through here — NOT through PHP — so the ~20s long-polls are held by Caddy
+	# and Electric (built for many idle connections), never by a PHP worker.
+	# Over HTTPS these all share a single multiplexed HTTP/2 connection.
+	#
+	# Each poll is gated by forward_auth to Laravel's /api/electric/authorize,
+	# which re-validates the HMAC signature the gatekeeper issued. That check is
+	# fast and returns immediately, so it never pins a worker. The signed
+	# `sig`/`exp` params are stripped before forwarding so Electric only sees
+	# its own protocol params.
+	#
+	# `route` forces directive order: authorize first (must see the original
+	# URI incl. sig), then strip prefix + signature params, then proxy.
+	handle /electric/* {
+		route {
+			# Electric streaming is authorized by the HMAC signature, not the
+			# session. Strip the (large) Laravel cookies so neither the
+			# forward_auth subrequest nor Electric receives them — without this
+			# the signed URL + cookies overflow header limits (HTTP 431).
+			request_header -Cookie
+			forward_auth backend:8000 {
+				uri /api/electric/authorize
+			}
+			uri strip_prefix /electric
+			uri query -sig
+			uri query -exp
+			reverse_proxy electric:3000
+		}
+	}
+
+	handle {
+		reverse_proxy backend:8000
+	}
+}
+
+# HTTPS + HTTP/2 (internal CA for localhost). Use https://localhost for the
+# multiplexed, non-stalling experience.
+localhost {
+	import openmes
+}
+
+# Plain HTTP kept for backward compatibility (HTTP/1.1 — subject to the
+# 6-connection limit, so live sync may stall here under many shapes).
+:80 {
+	import openmes
 }

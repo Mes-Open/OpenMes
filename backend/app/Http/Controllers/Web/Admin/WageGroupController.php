@@ -5,28 +5,23 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\WageGroup;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class WageGroupController extends Controller
 {
     /**
-     * Display a listing of wage groups.
+     * Display a listing of wage groups. Rows live-sync via the
+     * `wage_groups` shape; worker counts come as a prop.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = WageGroup::withCount('workers')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = WageGroup::withCount('workers')
+            ->get(['id'])
+            ->mapWithKeys(fn ($r) => [$r->id => $r->workers_count]);
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        $wageGroups = $query->paginate(25)->withQueryString();
-
-        return view('admin.wage-groups.index', compact('wageGroups'));
+        return Inertia::render('admin/wage-groups/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     /**
@@ -34,7 +29,7 @@ class WageGroupController extends Controller
      */
     public function create()
     {
-        return view('admin.wage-groups.create');
+        return Inertia::render('admin/wage-groups/Create');
     }
 
     /**
@@ -64,7 +59,9 @@ class WageGroupController extends Controller
      */
     public function edit(WageGroup $wageGroup)
     {
-        return view('admin.wage-groups.edit', compact('wageGroup'));
+        return Inertia::render('admin/wage-groups/Edit', [
+            'wageGroup' => $wageGroup->only('id', 'code', 'name', 'description', 'base_hourly_rate', 'currency', 'is_active'),
+        ]);
     }
 
     /**

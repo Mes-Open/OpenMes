@@ -3,31 +3,47 @@
 namespace App\Http\Controllers\Web\Admin\Connectivity;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Web\Admin\Connectivity\Concerns\ManagesMachineTags;
 use App\Models\MachineConnection;
-use App\Models\MachineTag;
 use App\Models\OpcuaConnection;
-use App\Models\Workstation;
 use App\Services\Machine\RuntimeMonitor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class OpcuaConnectionController extends Controller
 {
+    use ManagesMachineTags;
+
     public function index()
     {
         $connections = MachineConnection::where('protocol', MachineConnection::PROTOCOL_OPCUA)
-            ->with(['opcuaConnection', 'tags'])
+            ->with('opcuaConnection')
+            ->withCount('tags')
             ->orderBy('name')
             ->get();
 
-        return view('admin.connectivity.opcua.index', compact('connections'));
+        return Inertia::render('admin/connectivity/opcua/Index', [
+            'connections' => $connections->map(fn ($c) => [
+                'id'                => $c->id,
+                'name'              => $c->name,
+                'description'       => $c->description,
+                'is_active'         => $c->is_active,
+                'status'            => $c->status,
+                'status_color'      => $c->statusColor(),
+                'tags_count'        => $c->tags_count,
+                'endpoint_url'      => $c->opcuaConnection?->endpoint_url,
+                'security_policy'   => $c->opcuaConnection?->security_policy,
+                'last_connected_at' => $c->last_connected_at?->diffForHumans(),
+            ]),
+        ]);
     }
 
     public function create()
     {
-        return view('admin.connectivity.opcua.create', [
-            'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(),
+        return Inertia::render('admin/connectivity/opcua/Create', [
+            'workstations' => $this->workstationOptions(),
         ]);
     }
 
@@ -64,11 +80,29 @@ class OpcuaConnectionController extends Controller
     {
         abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_OPCUA, 404);
         $machineConnection->load(['opcuaConnection', 'tags.workstation']);
+        $opcua = $machineConnection->opcuaConnection;
 
-        return view('admin.connectivity.opcua.show', [
-            'connection' => $machineConnection,
-            'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(),
-            'runtime' => app(RuntimeMonitor::class)->connectionRuntime($machineConnection),
+        return Inertia::render('admin/connectivity/opcua/Show', [
+            'connection' => [
+                'id'           => $machineConnection->id,
+                'name'         => $machineConnection->name,
+                'description'  => $machineConnection->description,
+                'is_active'    => $machineConnection->is_active,
+                'status'         => $machineConnection->status,
+                'status_color'   => $machineConnection->statusColor(),
+                'status_message' => $machineConnection->status_message,
+                'opcua'        => $opcua ? [
+                    'endpoint_url'           => $opcua->endpoint_url,
+                    'security_policy'        => $opcua->security_policy,
+                    'security_mode'          => $opcua->security_mode,
+                    'auth_mode'              => $opcua->auth_mode,
+                    'username'               => $opcua->username,
+                    'publishing_interval_ms' => $opcua->publishing_interval_ms,
+                ] : null,
+                'tags' => $machineConnection->tags->map(fn ($t) => $this->mapTag($t))->values(),
+            ],
+            'workstations' => $this->workstationOptions(),
+            'runtime'      => app(RuntimeMonitor::class)->connectionRuntime($machineConnection),
         ]);
     }
 
@@ -76,8 +110,25 @@ class OpcuaConnectionController extends Controller
     {
         abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_OPCUA, 404);
         $machineConnection->load('opcuaConnection');
+        $opcua = $machineConnection->opcuaConnection;
 
-        return view('admin.connectivity.opcua.edit', ['connection' => $machineConnection]);
+        return Inertia::render('admin/connectivity/opcua/Edit', [
+            'connection' => [
+                'id'          => $machineConnection->id,
+                'name'        => $machineConnection->name,
+                'description' => $machineConnection->description,
+                'is_active'   => $machineConnection->is_active,
+                'opcua'       => $opcua ? [
+                    'endpoint_url'           => $opcua->endpoint_url,
+                    'security_policy'        => $opcua->security_policy,
+                    'security_mode'          => $opcua->security_mode,
+                    'auth_mode'              => $opcua->auth_mode,
+                    'username'               => $opcua->username,
+                    'publishing_interval_ms' => $opcua->publishing_interval_ms,
+                    'has_password'           => ! empty($opcua->password_encrypted),
+                ] : null,
+            ],
+        ]);
     }
 
     public function update(Request $request, MachineConnection $machineConnection)
@@ -132,43 +183,10 @@ class OpcuaConnectionController extends Controller
             'scale' => ['nullable', 'numeric'],
         ]);
 
-        $transform = [];
-        if (! empty($data['value_map'])) {
-            $map = [];
-            foreach (explode(',', $data['value_map']) as $pair) {
-                [$k, $v] = array_pad(explode('=', trim($pair), 2), 2, null);
-                if ($k !== null && $v !== null) {
-                    $map[trim($k)] = trim($v);
-                }
-            }
-            if ($map) {
-                $transform['value_map'] = $map;
-            }
-        }
-        if (isset($data['scale'])) {
-            $transform['scale'] = (float) $data['scale'];
-        }
-
-        MachineTag::create([
-            'machine_connection_id' => $machineConnection->id,
-            'workstation_id' => $data['workstation_id'] ?? null,
-            'name' => $data['name'],
-            'address' => $data['address'],
-            'signal_type' => $data['signal_type'],
-            'data_type' => $data['data_type'],
-            'register_type' => null,
-            'transform' => $transform ?: null,
-        ]);
+        // OPC UA addresses by node id, so there is no Modbus register_type.
+        $this->createTag($machineConnection, $data, null);
 
         return back()->with('success', __('Tag added.'));
-    }
-
-    public function destroyTag(MachineConnection $machineConnection, MachineTag $tag)
-    {
-        abort_unless($tag->machine_connection_id === $machineConnection->id, 404);
-        $tag->delete();
-
-        return back()->with('success', __('Tag removed.'));
     }
 
     private function validateData(Request $request): array

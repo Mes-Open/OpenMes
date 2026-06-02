@@ -6,34 +6,33 @@ use App\Http\Controllers\Controller;
 use App\Models\LabelTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class LabelTemplateController extends Controller
 {
     public function index()
     {
-        $templates = LabelTemplate::query()
-            ->orderBy('type')
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
+        return Inertia::render('packaging/label-templates/Index', [
+            'typeLabels' => LabelTemplate::TYPES,
+        ]);
+    }
 
-        return view('packaging.label-templates.index', compact('templates'));
+    /** Option maps shared by the create/edit forms. */
+    private function formData(): array
+    {
+        return [
+            'types' => LabelTemplate::TYPES,
+            'sizes' => LabelTemplate::SIZES,
+            'barcodeFormats' => LabelTemplate::BARCODE_FORMATS,
+            'availableFields' => LabelTemplate::AVAILABLE_FIELDS,
+        ];
     }
 
     public function create()
     {
-        $template = new LabelTemplate([
-            'type' => LabelTemplate::TYPE_WORK_ORDER,
-            'size' => '100x50',
-            'barcode_format' => 'code128',
-            'fields_config' => LabelTemplate::defaultFieldsFor(LabelTemplate::TYPE_WORK_ORDER),
-            'is_active' => true,
-        ]);
-
-        return view('packaging.label-templates.create', [
-            'template' => $template,
-            ...$this->formData($template),
-        ]);
+        return Inertia::render('packaging/label-templates/Create', array_merge($this->formData(), [
+            'defaultFields' => LabelTemplate::defaultFieldsFor(LabelTemplate::TYPE_WORK_ORDER),
+        ]));
     }
 
     public function store(Request $request)
@@ -52,10 +51,9 @@ class LabelTemplateController extends Controller
 
     public function edit(LabelTemplate $labelTemplate)
     {
-        return view('packaging.label-templates.edit', [
-            'template' => $labelTemplate,
-            ...$this->formData($labelTemplate),
-        ]);
+        return Inertia::render('packaging/label-templates/Edit', array_merge($this->formData(), [
+            'template' => $labelTemplate->only('id', 'name', 'type', 'size', 'barcode_format', 'fields_config', 'is_default', 'is_active'),
+        ]));
     }
 
     public function update(Request $request, LabelTemplate $labelTemplate)
@@ -87,44 +85,6 @@ class LabelTemplateController extends Controller
 
         return redirect()->route('packaging.label-templates.index')
             ->with('success', __('Default template updated.'));
-    }
-
-    /**
-     * Build the view data the create/edit form needs: the resolved field
-     * toggles (honoring old() input), the derived code type, the non-code
-     * fields, and the initial state for the live Alpine preview.
-     */
-    private function formData(LabelTemplate $template): array
-    {
-        $fields = $template->fields_config
-            ?? LabelTemplate::defaultFieldsFor($template->type ?? LabelTemplate::TYPE_WORK_ORDER);
-
-        $initialFields = [];
-        foreach (array_keys(LabelTemplate::AVAILABLE_FIELDS) as $key) {
-            $initialFields[$key] = (bool) old("fields.$key", $fields[$key] ?? false);
-        }
-
-        // Code type derived from individual fields. barcode wins over qr if both set.
-        $codeType = 'none';
-        if (! empty($initialFields['barcode'])) {
-            $codeType = 'barcode';
-        } elseif (! empty($initialFields['qr'])) {
-            $codeType = 'qr';
-        }
-
-        return [
-            'otherFields' => collect(LabelTemplate::AVAILABLE_FIELDS)
-                ->except(['barcode', 'qr'])
-                ->toArray(),
-            'previewInitial' => [
-                'name' => old('name', $template->name ?? ''),
-                'type' => old('type', $template->type ?? LabelTemplate::TYPE_WORK_ORDER),
-                'size' => old('size', $template->size ?? '100x50'),
-                'barcode_format' => old('barcode_format', $template->barcode_format ?? 'code128'),
-                'fields' => $initialFields,
-                'code_type' => $codeType,
-            ],
-        ];
     }
 
     private function validateRequest(Request $request): array

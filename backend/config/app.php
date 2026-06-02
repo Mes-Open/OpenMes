@@ -82,6 +82,15 @@ return [
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
+    // UI locales offered by the language switcher (code => display name). Must
+    // have a matching lang/<code>.json. Used by SetLocale middleware (validation)
+    // and shared to the React frontend via HandleInertiaRequests.
+    'available_locales' => [
+        'en' => 'English',
+        'pl' => 'Polski',
+        'tr' => 'Türkçe',
+    ],
+
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 
     /*

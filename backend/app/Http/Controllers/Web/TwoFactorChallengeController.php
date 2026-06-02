@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Inertia\Inertia;
 use PragmaRX\Google2FA\Google2FA;
 
 class TwoFactorChallengeController extends Controller
@@ -22,7 +23,7 @@ class TwoFactorChallengeController extends Controller
             return redirect()->route('login');
         }
 
-        return view('auth.two-factor-challenge');
+        return Inertia::render('auth/TwoFactorChallenge');
     }
 
     /**

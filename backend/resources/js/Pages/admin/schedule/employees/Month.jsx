@@ -1,0 +1,220 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import AppLayout from '../../../../layouts/AppLayout';
+import { Tacho, EmployeeTabs } from './Day';
+
+function toMin(t) {
+    if (!t) return 0;
+    const [h, m] = (t || '00:00').split(':').map(Number);
+    return h * 60 + m;
+}
+function fmtMins(m) {
+    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+function buildStrip(dayStr, monthByWorker) {
+    const rows = monthByWorker[dayStr] ?? [];
+    const segments = [];
+    let cursor = 0; // minutes since start of day
+    const endOfDay = 24 * 60;
+    rows.forEach((r) => {
+        const startMin = toMin(r.starts_at_time);
+        const endMin = toMin(r.ends_at_time);
+        if (startMin > cursor) {
+            segments.push({ type: 'off', from: fmtMins(cursor), to: fmtMins(startMin) });
+        }
+        segments.push({ type: r.type, from: r.starts_at_time, to: r.ends_at_time });
+        cursor = endMin;
+    });
+    if (cursor < endOfDay) {
+        segments.push({ type: 'off', from: fmtMins(cursor), to: '24:00' });
+    }
+    return segments;
+}
+
+export default function EmployeeMonth() {
+    const {
+        view, date, workers = [], selectedWorker, selectedWorkerId,
+        monthStart, monthEnd, monthByWorker = {},
+        selectedDayActivities = [], typeMeta = {},
+    } = usePage().props;
+
+    const navTo = (params) => router.get('/admin/schedule/employees', params, { preserveState: false });
+
+    // Build calendar cells from monthStart to monthEnd
+    const cells = [];
+    if (monthStart && monthEnd) {
+        const cur = new Date(monthStart);
+        const end = new Date(monthEnd);
+        while (cur <= end) {
+            cells.push(cur.toISOString().slice(0, 10));
+            cur.setDate(cur.getDate() + 1);
+        }
+    }
+
+    const isToday = date === new Date().toISOString().slice(0, 10);
+
+    // Selected day stats
+    const selSums = {};
+    selectedDayActivities.forEach((a) => { selSums[a.type] = (selSums[a.type] ?? 0) + (a.duration ?? 0); });
+    const selTotalWork = (selSums.work ?? 0) + (selSums.setup ?? 0) + (selSums.qc ?? 0);
+    const selOnDuty = selTotalWork + (selSums.maint ?? 0) + (selSums.meeting ?? 0) + (selSums.training ?? 0);
+    const selBreaks = (selSums.break ?? 0) + (selSums.rest ?? 0);
+    const nowMin = isToday ? (new Date().getHours() * 60 + new Date().getMinutes()) : null;
+
+    const dateMonth = date ? new Date(date).getMonth() : -1;
+
+    return (
+        <>
+            <Head title="Employee Month Overview" />
+            <EmployeeTabs view={view} date={date} selectedWorkerId={selectedWorkerId} selectedWorker={selectedWorker} workers={workers} />
+
+            {/* Worker switcher + month nav */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="font-mono text-[10.5px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">Worker:</span>
+                <select value={selectedWorkerId ?? ''}
+                        onChange={(e) => navTo({ view: 'month', date, worker_id: e.target.value })}
+                        className="form-input text-sm py-1.5 min-h-0 bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700">
+                    {workers.map((w) => (
+                        <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
+                    ))}
+                </select>
+
+                <div className="flex items-center gap-1 ml-auto">
+                    <button onClick={() => {
+                        const d = new Date(date);
+                        d.setMonth(d.getMonth() - 1);
+                        navTo({ view: 'month', date: d.toISOString().slice(0, 10), worker_id: selectedWorkerId });
+                    }} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                        &larr;
+                    </button>
+                    <button onClick={() => {
+                        const d = new Date(date);
+                        d.setMonth(d.getMonth() + 1);
+                        navTo({ view: 'month', date: d.toISOString().slice(0, 10), worker_id: selectedWorkerId });
+                    }} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                        &rarr;
+                    </button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
+                {/* Calendar */}
+                <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl p-3 md:p-4">
+                    {/* Weekday headers */}
+                    <div className="grid grid-cols-7 gap-1.5 mb-2">
+                        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((wd) => (
+                            <div key={wd} className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-gray-400 uppercase text-center">{wd}</div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1.5">
+                        {cells.map((cellDate) => {
+                            const cellObj = new Date(cellDate);
+                            const inMonth = cellObj.getMonth() === dateMonth;
+                            const isSelected = cellDate === date;
+                            const isTodayCell = cellDate === new Date().toISOString().slice(0, 10);
+                            const strip = buildStrip(cellDate, monthByWorker);
+                            const hasActivity = strip.some(s => s.type !== 'off');
+                            const nowFrac = isTodayCell ? ((new Date().getHours() * 60 + new Date().getMinutes()) / 1440) * 100 : null;
+
+                            return (
+                                <button key={cellDate}
+                                        onClick={() => navTo({ view: 'month', date: cellDate, worker_id: selectedWorkerId })}
+                                        className={`min-h-[88px] flex flex-col p-1.5 rounded-lg border transition-colors text-left ${isSelected ? 'border-amber-500 ring-2 ring-amber-300 dark:ring-amber-600/40' : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600'} ${!inMonth ? 'opacity-40' : ''} ${isTodayCell && !isSelected ? 'bg-amber-50/50 dark:bg-amber-500/5' : 'bg-white dark:bg-zinc-900'}`}>
+                                    <div className="flex items-start justify-between">
+                                        <span className={`font-mono text-xs font-bold ${isSelected ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-100'}`}>
+                                            {cellObj.getDate()}
+                                        </span>
+                                        {hasActivity && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                                    </div>
+                                    <div className="flex-1" />
+                                    {strip.length > 0 && (
+                                        <>
+                                            <div className="relative h-3 rounded-sm overflow-hidden bg-gray-100 dark:bg-zinc-800">
+                                                {strip.map((seg, si) => {
+                                                    const left = (toMin(seg.from) / 1440) * 100;
+                                                    const endMin = seg.to === '24:00' ? 1440 : toMin(seg.to);
+                                                    const width = seg.to === '24:00' ? (100 - left) : ((endMin - toMin(seg.from)) / 1440) * 100;
+                                                    const color = typeMeta[seg.type]?.color ?? '#94a3b8';
+                                                    return <div key={si} className="absolute top-0 bottom-0" style={{ left: `${left}%`, width: `${width}%`, background: color }} />;
+                                                })}
+                                                {nowFrac !== null && (
+                                                    <div className="absolute top-0 bottom-0 w-px bg-white" style={{ left: `${nowFrac}%` }} />
+                                                )}
+                                            </div>
+                                            <div className="flex justify-between mt-0.5 font-mono text-[7.5px] tracking-wider text-gray-400 dark:text-gray-500">
+                                                <span>00</span><span>12</span><span>24</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex flex-wrap gap-3 mt-3 px-1 font-mono text-[9.5px] tracking-wider text-gray-600 dark:text-gray-300 uppercase">
+                        {['work','break','rest','maint','meeting','off'].map((k) => {
+                            const def = typeMeta[k];
+                            if (!def) return null;
+                            return (
+                                <span key={k} className="flex items-center gap-1.5">
+                                    <span className="w-3 h-2 rounded-sm" style={{ background: def.color }} />
+                                    {def.label}
+                                </span>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Selected-day detail */}
+                <aside className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl p-4 flex flex-col gap-3">
+                    <div>
+                        <div className="font-mono text-[10.5px] tracking-wider font-bold uppercase text-amber-600 dark:text-amber-400">
+                            Selected · {date ? new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-1">{selectedDayActivities.length} activities</h2>
+                        {selectedWorker && (
+                            <div className="font-mono text-[10.5px] text-gray-500 dark:text-gray-400 mt-1">{selectedWorker.name} · {selectedWorker.code}</div>
+                        )}
+                    </div>
+
+                    {/* 24h strip */}
+                    <div className="rounded-xl bg-gray-50 dark:bg-zinc-800 p-3">
+                        <div className="font-mono text-[9.5px] tracking-wider text-gray-500 dark:text-gray-400 uppercase mb-2">24h activity</div>
+                        <Tacho activities={selectedDayActivities} typeMeta={typeMeta} height={40} isToday={isToday} nowMinutes={nowMin} />
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800">
+                            <div className="font-mono text-[9px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">On duty</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-emerald-600 dark:text-emerald-400">{fmtMins(selOnDuty)}</div>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800">
+                            <div className="font-mono text-[9px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">Productive</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-gray-800 dark:text-gray-100">{fmtMins(selTotalWork)}</div>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800">
+                            <div className="font-mono text-[9px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">Breaks</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-amber-600 dark:text-amber-400">{fmtMins(selBreaks)}</div>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800">
+                            <div className="font-mono text-[9px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">Maint</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-rose-600 dark:text-rose-400">{fmtMins(selSums.maint ?? 0)}</div>
+                        </div>
+                    </div>
+
+                    <div className="flex-1" />
+
+                    <button onClick={() => navTo({ view: 'day', date, worker_id: selectedWorkerId })}
+                            className="h-11 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-mono text-xs font-bold tracking-wider uppercase flex items-center justify-center">
+                        Open day plan
+                    </button>
+                </aside>
+            </div>
+        </>
+    );
+}
+
+EmployeeMonth.layout = (page) => <AppLayout>{page}</AppLayout>;

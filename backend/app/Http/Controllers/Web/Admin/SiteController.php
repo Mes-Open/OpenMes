@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Site;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class SiteController extends Controller
 {
@@ -14,37 +15,16 @@ class SiteController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Site::with('company')
-            ->withCount(['areas', 'lines'])
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = \App\Models\Site::withCount(['areas', 'lines'])->get(['id'])->mapWithKeys(fn ($s) => [$s->id => ['areas' => $s->areas_count, 'lines' => $s->lines_count]]);
+        $companyNames = \App\Models\Company::pluck('name', 'id');
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('city', 'like', "%{$search}%");
-            });
-        }
-
-        if ($companyId = $request->input('company_id')) {
-            $query->where('company_id', $companyId);
-        }
-
-        if ($request->filled('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
-        }
-
-        $sites     = $query->paginate(25)->withQueryString();
-        $companies = Company::active()->orderBy('name')->get();
-
-        return view('admin.sites.index', compact('sites', 'companies'));
+        return Inertia::render('admin/sites/Index', ['counts' => $counts, 'companyNames' => $companyNames]);
     }
 
     public function create()
     {
-        $companies = Company::active()->orderBy('name')->get();
-        return view('admin.sites.create', compact('companies'));
+        $companies = \App\Models\Company::active()->orderBy('name')->get(['id', 'name']);
+        return Inertia::render('admin/sites/Create', ['companies' => $companies]);
     }
 
     public function store(Request $request)
@@ -71,13 +51,25 @@ class SiteController extends Controller
             },
         ]);
 
-        return view('admin.sites.show', compact('site'));
+        return Inertia::render('admin/sites/Show', [
+            'site' => array_merge(
+                $site->only('id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active'),
+                [
+                    'company' => $site->company ? $site->company->only('id', 'name') : null,
+                    'areas' => $site->areas->map(fn ($a) => array_merge(
+                        $a->only('id', 'code', 'name', 'is_active'),
+                        ['lines_count' => $a->lines_count],
+                    )),
+                    'lines' => $site->lines->map(fn ($l) => $l->only('id', 'code', 'name', 'is_active')),
+                ],
+            ),
+        ]);
     }
 
     public function edit(Site $site)
     {
-        $companies = Company::active()->orderBy('name')->get();
-        return view('admin.sites.edit', compact('site', 'companies'));
+        $companies = \App\Models\Company::active()->orderBy('name')->get(['id', 'name']);
+        return Inertia::render('admin/sites/Edit', ['site' => $site->only('id', 'company_id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active'), 'companies' => $companies]);
     }
 
     public function update(Request $request, Site $site)

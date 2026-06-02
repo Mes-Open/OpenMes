@@ -6,26 +6,28 @@ use App\Http\Controllers\Controller;
 use App\Models\LotSequence;
 use App\Models\ProductType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class LotSequenceController extends Controller
 {
     public function index()
     {
-        $sequences = LotSequence::with('productType')
-            ->orderBy('name')
-            ->get();
+        $productTypeNames = ProductType::pluck('name', 'id');
 
-        return view('admin.lot-sequences.index', compact('sequences'));
+        return Inertia::render('admin/lot-sequences/Index', [
+            'productTypeNames' => $productTypeNames,
+        ]);
     }
 
     public function create()
     {
-        $productTypes = ProductType::active()
-            ->whereDoesntHave('lotSequence')
+        $productTypes = ProductType::where('is_active', true)
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name']);
 
-        return view('admin.lot-sequences.create', compact('productTypes'));
+        return Inertia::render('admin/lot-sequences/Create', [
+            'productTypes' => $productTypes,
+        ]);
     }
 
     public function store(Request $request)
@@ -50,15 +52,14 @@ class LotSequenceController extends Controller
 
     public function edit(LotSequence $lotSequence)
     {
-        $productTypes = ProductType::active()
-            ->where(function ($q) use ($lotSequence) {
-                $q->whereDoesntHave('lotSequence')
-                    ->orWhere('id', $lotSequence->product_type_id);
-            })
+        $productTypes = ProductType::where('is_active', true)
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name']);
 
-        return view('admin.lot-sequences.edit', compact('lotSequence', 'productTypes'));
+        return Inertia::render('admin/lot-sequences/Edit', [
+            'lotSequence' => $lotSequence->only('id', 'name', 'product_type_id', 'prefix', 'suffix', 'pad_size', 'year_prefix'),
+            'productTypes' => $productTypes,
+        ]);
     }
 
     public function update(Request $request, LotSequence $lotSequence)

@@ -1,0 +1,31 @@
+import { Head, usePage } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import ResourceForm from '../../../components/ResourceForm';
+import { subassemblyFields } from './fields';
+
+export default function SubassemblyEdit() {
+    const { subassembly, productTypes = [] } = usePage().props;
+
+    return (
+        <div className="max-w-7xl mx-auto">
+            <Head title={`Edit ${subassembly.name}`} />
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Subassembly</h1>
+            <ResourceForm
+                action={`/admin/subassemblies/${subassembly.id}`}
+                method="put"
+                fields={subassemblyFields(productTypes)}
+                initial={{
+                    product_type_id: subassembly.product_type_id != null ? String(subassembly.product_type_id) : '',
+                    code: subassembly.code ?? '',
+                    name: subassembly.name ?? '',
+                    description: subassembly.description ?? '',
+                    is_active: !!subassembly.is_active,
+                }}
+                submitLabel="Save Changes"
+                cancelHref="/admin/subassemblies"
+            />
+        </div>
+    );
+}
+
+SubassemblyEdit.layout = (page) => <AppLayout>{page}</AppLayout>;
