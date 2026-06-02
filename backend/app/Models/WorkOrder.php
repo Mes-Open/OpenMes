@@ -222,10 +222,14 @@ class WorkOrder extends Model
     }
 
     /**
-     * Scope to filter by status.
+     * Scope to filter by status. Accepts a single value or an array — mobile
+     * uses `?status[]=A&status[]=B` to match multiple statuses at once.
      */
-    public function scopeStatus($query, string $status)
+    public function scopeStatus($query, string|array $status)
     {
+        if (is_array($status)) {
+            return $query->whereIn('status', $status);
+        }
         return $query->where('status', $status);
     }
 

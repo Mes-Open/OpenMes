@@ -11,6 +11,7 @@ use App\Models\Workstation;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class WorkOrderController extends Controller
 {
@@ -110,10 +111,19 @@ class WorkOrderController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('operator.queue', compact(
+        // Downtime reporter data (React replacement for the Livewire DowntimeReporter).
+        $downtimeReasons = \App\Models\DowntimeReason::active()->orderBy('name')->get(['id', 'name']);
+        $activeDowntime = \App\Models\ProductionDowntime::with('reason:id,name')
+            ->where('line_id', $lineId)
+            ->whereNull('ended_at')
+            ->latest('started_at')
+            ->first();
+
+        return Inertia::render('operator/Queue', compact(
             'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
             'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds',
-            'trackingMode', 'workstationQueue', 'lineWorkstations'
+            'trackingMode', 'workstationQueue', 'lineWorkstations',
+            'downtimeReasons', 'activeDowntime'
         ));
     }
 
@@ -240,6 +250,14 @@ class WorkOrderController extends Controller
         // Auto-select workstation if operator is a workstation account
         $defaultWorkstationId = auth()->user()->workstation_id;
 
-        return view('operator.work-order-detail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId'));
+        $line = $workOrder->line;
+
+        // Active label templates (by type) for the React label-print menu —
+        // replaces the old <x-label-print-dropdown> Blade component.
+        $labelTemplates = \App\Models\LabelTemplate::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'type', 'size', 'barcode_format', 'is_default']);
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates'));
     }
 }

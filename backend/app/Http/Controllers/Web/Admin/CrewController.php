@@ -7,6 +7,7 @@ use App\Models\Crew;
 use App\Models\Division;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class CrewController extends Controller
 {
@@ -15,26 +16,15 @@ class CrewController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Crew::with(['division', 'leader'])
-            ->withCount('workers')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = Crew::withCount('workers')->get(['id'])->mapWithKeys(fn ($c) => [$c->id => $c->workers_count]);
+        $divisionNames = Division::pluck('name', 'id');
+        $leaderNames = User::pluck('name', 'id');
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        if ($divisionId = $request->input('division_id')) {
-            $query->where('division_id', $divisionId);
-        }
-
-        $crews     = $query->paginate(25)->withQueryString();
-        $divisions = Division::orderBy('name')->get();
-
-        return view('admin.crews.index', compact('crews', 'divisions'));
+        return Inertia::render('admin/crews/Index', [
+            'counts' => $counts,
+            'divisionNames' => $divisionNames,
+            'leaderNames' => $leaderNames,
+        ]);
     }
 
     /**
@@ -42,10 +32,13 @@ class CrewController extends Controller
      */
     public function create()
     {
-        $divisions = Division::active()->orderBy('name')->get();
-        $users     = User::orderBy('name')->get();
+        $divisions = Division::active()->orderBy('name')->get(['id', 'name']);
+        $users     = User::orderBy('name')->get(['id', 'name']);
 
-        return view('admin.crews.create', compact('divisions', 'users'));
+        return Inertia::render('admin/crews/Create', [
+            'divisions' => $divisions,
+            'users' => $users,
+        ]);
     }
 
     /**
@@ -75,10 +68,14 @@ class CrewController extends Controller
      */
     public function edit(Crew $crew)
     {
-        $divisions = Division::active()->orderBy('name')->get();
-        $users     = User::orderBy('name')->get();
+        $divisions = Division::active()->orderBy('name')->get(['id', 'name']);
+        $users     = User::orderBy('name')->get(['id', 'name']);
 
-        return view('admin.crews.edit', compact('crew', 'divisions', 'users'));
+        return Inertia::render('admin/crews/Edit', [
+            'crew' => $crew->only('id', 'code', 'name', 'leader_id', 'division_id', 'description', 'is_active'),
+            'divisions' => $divisions,
+            'users' => $users,
+        ]);
     }
 
     /**

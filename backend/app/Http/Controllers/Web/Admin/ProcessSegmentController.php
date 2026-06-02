@@ -8,6 +8,7 @@ use App\Models\Skill;
 use App\Models\WorkstationType;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class ProcessSegmentController extends Controller
 {
@@ -16,35 +17,11 @@ class ProcessSegmentController extends Controller
      */
     public function index(Request $request)
     {
-        $query = ProcessSegment::query()
-            ->with(['workstationType'])
-            ->withCount('templateSteps')
-            ->orderBy('segment_type')
-            ->orderBy('code');
+        $workstationTypeNames = WorkstationType::pluck('name', 'id');
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%{$search}%")
-                    ->orWhere('name', 'like', "%{$search}%");
-            });
-        }
-
-        if ($type = $request->input('segment_type')) {
-            $query->where('segment_type', $type);
-        }
-
-        if ($wsTypeId = $request->input('workstation_type_id')) {
-            $query->where('workstation_type_id', $wsTypeId);
-        }
-
-        if ($request->filled('is_active')) {
-            $query->where('is_active', $request->input('is_active') === '1');
-        }
-
-        $segments         = $query->paginate(25)->withQueryString();
-        $workstationTypes = WorkstationType::query()->active()->orderBy('name')->get();
-
-        return view('admin.process-segments.index', compact('segments', 'workstationTypes'));
+        return Inertia::render('admin/process-segments/Index', [
+            'workstationTypeNames' => $workstationTypeNames,
+        ]);
     }
 
     /**
@@ -61,10 +38,39 @@ class ProcessSegmentController extends Controller
 
         $requiredSkills = $processSegment->requiredSkills();
 
-        return view('admin.process-segments.show', [
-            'segment'        => $processSegment,
-            'usingSteps'     => $usingSteps,
-            'requiredSkills' => $requiredSkills,
+        return Inertia::render('admin/process-segments/Show', [
+            'segment' => [
+                'id'                          => $processSegment->id,
+                'code'                        => $processSegment->code,
+                'name'                        => $processSegment->name,
+                'description'                 => $processSegment->description,
+                'segment_type'                => $processSegment->segment_type,
+                'is_active'                   => $processSegment->is_active,
+                'estimated_duration_minutes'  => $processSegment->estimated_duration_minutes,
+                'required_operators'          => $processSegment->required_operators,
+                'standard_instruction'        => $processSegment->standard_instruction,
+                'parameters'                  => $processSegment->parameters,
+                'workstation_type_name'       => $processSegment->workstationType?->name,
+                'created_at'                  => $processSegment->created_at?->format('d M Y'),
+                'updated_at'                  => $processSegment->updated_at?->diffForHumans(),
+                'created_by_name'             => $processSegment->createdBy?->name,
+            ],
+            'usingSteps' => $usingSteps->map(fn ($step) => [
+                'id'               => $step->id,
+                'step_number'      => $step->step_number,
+                'name'             => $step->name,
+                'workstation_name' => $step->workstation?->name,
+                'template_name'    => $step->processTemplate?->name,
+                'product_type_name'=> $step->processTemplate?->productType?->name,
+                'template_url'     => ($step->processTemplate && $step->processTemplate->productType)
+                    ? "/admin/product-types/{$step->processTemplate->productType->id}/process-templates/{$step->processTemplate->id}"
+                    : null,
+            ]),
+            'requiredSkills' => $requiredSkills->map(fn ($s) => [
+                'id'   => $s->id,
+                'code' => $s->code,
+                'name' => $s->name,
+            ]),
         ]);
     }
 
@@ -73,7 +79,11 @@ class ProcessSegmentController extends Controller
      */
     public function create()
     {
-        return view('admin.process-segments.create', $this->formData());
+        return Inertia::render('admin/process-segments/Create', [
+            'workstationTypes' => WorkstationType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'skills'           => Skill::orderBy('name')->get(['id', 'name']),
+            'segmentTypes'     => ProcessSegment::TYPES,
+        ]);
     }
 
     /**
@@ -96,10 +106,16 @@ class ProcessSegmentController extends Controller
      */
     public function edit(ProcessSegment $processSegment)
     {
-        return view('admin.process-segments.edit', array_merge(
-            $this->formData(),
-            ['segment' => $processSegment]
-        ));
+        return Inertia::render('admin/process-segments/Edit', [
+            'segment' => $processSegment->only(
+                'id', 'code', 'name', 'description', 'segment_type', 'workstation_type_id',
+                'estimated_duration_minutes', 'required_operators', 'standard_instruction', 'required_skill_ids'
+            ),
+            'parameters_raw'   => $processSegment->parameters ? json_encode($processSegment->parameters, JSON_PRETTY_PRINT) : '',
+            'workstationTypes' => WorkstationType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'skills'           => Skill::orderBy('name')->get(['id', 'name']),
+            'segmentTypes'     => ProcessSegment::TYPES,
+        ]);
     }
 
     /**
@@ -138,15 +154,6 @@ class ProcessSegmentController extends Controller
     }
 
     // ── Shared validation + form data ─────────────────────────────────────
-
-    private function formData(): array
-    {
-        return [
-            'workstationTypes' => WorkstationType::query()->active()->orderBy('name')->get(),
-            'skills'           => Skill::query()->orderBy('name')->get(),
-            'segmentTypes'     => ProcessSegment::TYPES,
-        ];
-    }
 
     private function validatePayload(Request $request, ?ProcessSegment $segment = null): array
     {

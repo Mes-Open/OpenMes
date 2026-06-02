@@ -5,28 +5,23 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Factory;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class FactoryController extends Controller
 {
     /**
-     * Display a listing of factories.
+     * Display a listing of factories. Rows live-sync via the `factories`
+     * shape; division counts come as a prop.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = Factory::withCount('divisions')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = Factory::withCount('divisions')
+            ->get(['id'])
+            ->mapWithKeys(fn ($r) => [$r->id => $r->divisions_count]);
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        $factories = $query->paginate(25)->withQueryString();
-
-        return view('admin.factories.index', compact('factories'));
+        return Inertia::render('admin/factories/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     /**
@@ -34,7 +29,7 @@ class FactoryController extends Controller
      */
     public function create()
     {
-        return view('admin.factories.create');
+        return Inertia::render('admin/factories/Create');
     }
 
     /**
@@ -66,7 +61,17 @@ class FactoryController extends Controller
             $q->withCount('crews')->orderBy('name');
         }]);
 
-        return view('admin.factories.show', compact('factory'));
+        return Inertia::render('admin/factories/Show', [
+            'factory' => array_merge(
+                $factory->only('id', 'code', 'name', 'description', 'is_active'),
+                [
+                    'divisions' => $factory->divisions->map(fn ($d) => array_merge(
+                        $d->only('id', 'code', 'name', 'is_active'),
+                        ['crews_count' => $d->crews_count],
+                    )),
+                ],
+            ),
+        ]);
     }
 
     /**
@@ -74,7 +79,9 @@ class FactoryController extends Controller
      */
     public function edit(Factory $factory)
     {
-        return view('admin.factories.edit', compact('factory'));
+        return Inertia::render('admin/factories/Edit', [
+            'factory' => $factory->only('id', 'code', 'name', 'description', 'is_active'),
+        ]);
     }
 
     /**

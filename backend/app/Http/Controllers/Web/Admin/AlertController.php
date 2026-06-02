@@ -5,47 +5,17 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Issue;
 use App\Models\WorkOrder;
+use Inertia\Inertia;
 
 class AlertController extends Controller
 {
     public function index()
     {
-        // ALL open issues — blocking first, then non-blocking
-        $blockingIssues = Issue::with(['workOrder', 'issueType', 'reportedBy'])
-            ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->whereHas('issueType', fn($q) => $q->where('is_blocking', true))
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $nonBlockingIssues = Issue::with(['workOrder', 'issueType', 'reportedBy'])
-            ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
-            ->where(function ($q) {
-                $q->whereHas('issueType', fn($q2) => $q2->where('is_blocking', false))
-                  ->orWhereDoesntHave('issueType');
-            })
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Overdue work orders — past due_date, not terminal
-        $overdueOrders = WorkOrder::with('line')
-            ->whereNotNull('due_date')
-            ->whereDate('due_date', '<', today())
-            ->whereNotIn('status', WorkOrder::TERMINAL_STATUSES)
-            ->orderBy('due_date')
-            ->get();
-
-        // Blocked work orders
-        $blockedOrders = WorkOrder::with('line')
-            ->where('status', WorkOrder::STATUS_BLOCKED)
-            ->orderBy('updated_at', 'desc')
-            ->get();
-
-        return view('admin.alerts.index', compact(
-            'blockingIssues',
-            'nonBlockingIssues',
-            'overdueOrders',
-            'blockedOrders',
-        ));
+        // The page live-syncs entirely from Electric shapes (issues_all,
+        // issue_types, work_orders_all, lines_all, users) and derives the
+        // blocking / non-blocking / overdue / blocked lists client-side, so
+        // state changes appear without a refresh. No server props needed.
+        return Inertia::render('admin/alerts/Index');
     }
 
     /**

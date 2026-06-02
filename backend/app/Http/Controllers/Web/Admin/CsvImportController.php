@@ -11,6 +11,7 @@ use App\Models\WorkOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class CsvImportController extends Controller
@@ -35,7 +36,17 @@ class CsvImportController extends Controller
         $lines             = Line::where('is_active', true)->orderBy('name')->get();
         $productionPeriod  = $this->getProductionPeriod();
 
-        return view('admin.csv-import', compact('recentImports', 'savedMappings', 'systemFields', 'lines', 'productionPeriod'));
+        return Inertia::render('admin/CsvImport', [
+            'recentImports'   => $recentImports->map(fn ($imp) => array_merge(
+                $imp->only('id', 'filename', 'status', 'successful_rows', 'failed_rows', 'total_rows', 'error_log'),
+                ['created_at_human' => $imp->created_at?->diffForHumans()]
+            )),
+            'savedMappings'   => $savedMappings,
+            'systemFields'    => $systemFields,
+            'lines'           => $lines->map->only('id', 'name'),
+            'productionPeriod' => $productionPeriod,
+            'import_result'   => session('import_result'),
+        ]);
     }
 
     /**
@@ -80,12 +91,21 @@ class CsvImportController extends Controller
         $productionYear   = $request->input('production_year', now()->year);
         $productionPeriod = $this->getProductionPeriod();
 
-        return view('admin.csv-import-mapping', compact(
-            'headers', 'previewRows', 'totalRows',
-            'path', 'savedMappings', 'systemFields',
-            'existingMapping', 'importStrategy',
-            'targetLineId', 'importWeek', 'importMonth', 'productionYear', 'productionPeriod'
-        ));
+        return Inertia::render('admin/CsvImportMapping', [
+            'headers'         => $headers,
+            'previewRows'     => $previewRows,
+            'totalRows'       => $totalRows,
+            'path'            => $path,
+            'savedMappings'   => $savedMappings,
+            'systemFields'    => $systemFields,
+            'existingMapping' => $existingMapping,
+            'importStrategy'  => $importStrategy,
+            'targetLineId'    => $targetLineId,
+            'importWeek'      => $importWeek,
+            'importMonth'     => $importMonth,
+            'productionYear'  => $productionYear,
+            'productionPeriod' => $productionPeriod,
+        ]);
     }
 
     /**
@@ -134,13 +154,23 @@ class CsvImportController extends Controller
 
                 $path = $filePath; // view expects $path (the stored file path)
 
-                return view('admin.csv-import-mapping', compact(
-                    'headers', 'previewRows', 'totalRows',
-                    'path', 'savedMappings', 'systemFields',
-                    'existingMapping', 'importStrategy',
-                    'targetLineId', 'importWeek', 'importMonth', 'productionYear', 'productionPeriod'
-                ))->with('mapping_error', 'Required fields not mapped: ' . implode(', ', $missingRequired) . '. Please assign these columns before importing.')
-                  ->with('prev_mapping', $mapping);
+                return Inertia::render('admin/CsvImportMapping', [
+                    'headers'         => $headers,
+                    'previewRows'     => $previewRows,
+                    'totalRows'       => $totalRows,
+                    'path'            => $path,
+                    'savedMappings'   => $savedMappings,
+                    'systemFields'    => $systemFields,
+                    'existingMapping' => $existingMapping,
+                    'importStrategy'  => $importStrategy,
+                    'targetLineId'    => $targetLineId,
+                    'importWeek'      => $importWeek,
+                    'importMonth'     => $importMonth,
+                    'productionYear'  => $productionYear,
+                    'productionPeriod' => $productionPeriod,
+                    'mappingError'    => 'Required fields not mapped: ' . implode(', ', $missingRequired) . '. Please assign these columns before importing.',
+                    'prevMapping'     => $mapping,
+                ]);
             }
 
             return redirect()->route('admin.csv-import')

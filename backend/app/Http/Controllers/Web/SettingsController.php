@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class SettingsController extends Controller
@@ -19,7 +20,14 @@ class SettingsController extends Controller
      */
     public function index()
     {
-        return view('settings.index');
+        $pinSetting = DB::table('system_settings')->where('key', 'pin_login_enabled')->first();
+        $pinLoginEnabled = json_decode($pinSetting->value ?? 'false', true) === true;
+
+        return Inertia::render('settings/Index', [
+            'pinLoginEnabled' => $pinLoginEnabled,
+            'hasPin' => ! empty(auth()->user()->pin),
+            'twoFactorEnabled' => (bool) auth()->user()->two_factor_enabled,
+        ]);
     }
 
     /**
@@ -27,7 +35,7 @@ class SettingsController extends Controller
      */
     public function showChangePasswordForm()
     {
-        return view('settings.change-password');
+        return Inertia::render('settings/ChangePassword');
     }
 
     /**
@@ -62,7 +70,7 @@ class SettingsController extends Controller
      */
     public function showProfileForm()
     {
-        return view('settings.profile');
+        return Inertia::render('settings/Profile');
     }
 
     /**
@@ -111,7 +119,19 @@ class SettingsController extends Controller
             'scanner_mode' => json_decode($rows['scanner_mode']->value ?? '"hid"', true) ?? 'hid',
         ];
 
-        return view('settings.system', compact('settings'));
+        $availableLocales = ['en' => 'English', 'pl' => 'Polski'];
+
+        // Append CORS fields not in the standard settings map (they may exist in DB)
+        $corsRow = DB::table('system_settings')->where('key', 'cors_allowed_methods')->first();
+        $settings['cors_allowed_methods'] = json_decode($corsRow->value ?? '"GET, POST"', true) ?? 'GET, POST';
+        $corsMaxRow = DB::table('system_settings')->where('key', 'cors_max_age')->first();
+        $settings['cors_max_age'] = json_decode($corsMaxRow->value ?? '0', true) ?? 0;
+
+        return Inertia::render('settings/System', [
+            'settings' => $settings,
+            'availableLocales' => $availableLocales,
+            'appUrl' => config('app.url'),
+        ]);
     }
 
     /**
@@ -131,7 +151,7 @@ class SettingsController extends Controller
 
         $hasPin = ! empty(auth()->user()->pin);
 
-        return view('settings.pin', compact('hasPin'));
+        return Inertia::render('settings/Pin', compact('hasPin'));
     }
 
     /**
@@ -190,9 +210,21 @@ class SettingsController extends Controller
         $tokens = PersonalAccessToken::where('tokenable_type', 'App\Models\User')
             ->with('tokenable')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'tokenable_name' => $t->tokenable?->name ?? 'Unknown',
+                'created_at_formatted' => $t->created_at->translatedFormat('d M Y, H:i'),
+                'last_used_at_human' => $t->last_used_at?->diffForHumans(),
+            ]);
 
-        return view('settings.api-tokens', compact('tokens'));
+        return Inertia::render('settings/ApiTokens', [
+            'tokens' => $tokens,
+            'newToken' => session('new_token'),
+            'newTokenName' => session('new_token_name'),
+            'appUrl' => config('app.url'),
+        ]);
     }
 
     /**
@@ -256,7 +288,7 @@ class SettingsController extends Controller
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
             'schedule_show_weekends' => 'nullable|boolean',
-            'realtime_mode' => 'required|in:polling,websocket',
+            'realtime_mode' => 'required|in:polling,off',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
             'cors_allowed_origins' => 'nullable|string|max:1000',
             'cors_allowed_methods' => 'nullable|string|max:200',
@@ -388,7 +420,6 @@ class SettingsController extends Controller
                 'db_host', 'db_port', 'db_database', 'db_username', 'db_password', 'db_connection',
                 'mail_host', 'mail_port', 'mail_username', 'mail_password',
                 'cors_allowed_origins', 'cors_allowed_methods',
-                'reverb_app_id', 'reverb_app_key', 'reverb_app_secret',
                 'modules_enabled',
             ];
 

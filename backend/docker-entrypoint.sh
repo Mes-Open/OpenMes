@@ -11,7 +11,7 @@ fi
 # Docker Compose passes the real values via environment variables, but
 # config:cache reads from the .env file.  Sync important vars so the
 # cached config uses the correct credentials.
-for VAR in APP_ENV APP_DEBUG APP_URL DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD; do
+for VAR in APP_ENV APP_DEBUG APP_URL DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD BROADCAST_CONNECTION REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET REVERB_HOST REVERB_PORT REVERB_SCHEME REVERB_SERVER_HOST REVERB_SERVER_PORT; do
     eval VAL=\$$VAR
     if [ -n "$VAL" ]; then
         if grep -q "^${VAR}=" .env; then

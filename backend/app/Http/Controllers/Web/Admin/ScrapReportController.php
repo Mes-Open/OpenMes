@@ -7,6 +7,7 @@ use App\Models\Line;
 use App\Services\Scrap\ScrapReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ScrapReportController extends Controller
 {
@@ -30,20 +31,13 @@ class ScrapReportController extends Controller
             ? Carbon::parse($validated['date_to'])->endOfDay()
             : today()->endOfDay();
 
-        $pareto = $this->scrapReports->pareto($from, $to, $lineId);
-        $byCategory = $this->scrapReports->byCategory($from, $to, $lineId);
-        $ratePerLine = $this->scrapReports->ratePerLine($from, $to);
-        $trend = $this->scrapReports->trend($from, $to, $lineId);
-
-        return view('admin.scrap-reports.index', [
+        return Inertia::render('admin/scrap-reports/Index', [
             'lines' => Line::orderBy('name')->get(),
             'lineId' => $lineId,
             'dateFrom' => $from->toDateString(),
             'dateTo' => $to->toDateString(),
-            'pareto' => $pareto,
-            'byCategory' => $byCategory,
-            'ratePerLine' => $ratePerLine,
-            'trend' => $trend,
+            'pareto' => $this->scrapReports->pareto($from, $to, $lineId),
+            'ratePerLine' => $this->scrapReports->ratePerLine($from, $to),
         ]);
     }
 }

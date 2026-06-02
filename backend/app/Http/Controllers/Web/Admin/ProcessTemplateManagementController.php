@@ -9,6 +9,7 @@ use App\Models\TemplateStep;
 use App\Models\Workstation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class ProcessTemplateManagementController extends Controller
 {
@@ -22,7 +23,17 @@ class ProcessTemplateManagementController extends Controller
             ->orderBy('version', 'desc')
             ->get();
 
-        return view('admin.process-templates.index', compact('productType', 'templates'));
+        return Inertia::render('admin/process-templates/Index', [
+            'productType' => $productType->only('id', 'name'),
+            'templates'   => $templates->map(fn($t) => [
+                'id'          => $t->id,
+                'name'        => $t->name,
+                'version'     => $t->version,
+                'is_active'   => (bool) $t->is_active,
+                'steps_count' => $t->steps_count,
+                'created_at'  => $t->created_at->format('Y-m-d H:i'),
+            ]),
+        ]);
     }
 
     /**
@@ -30,7 +41,9 @@ class ProcessTemplateManagementController extends Controller
      */
     public function create(ProductType $productType)
     {
-        return view('admin.process-templates.create', compact('productType'));
+        return Inertia::render('admin/process-templates/Create', [
+            'productType' => $productType->only('id', 'name'),
+        ]);
     }
 
     /**
@@ -67,17 +80,56 @@ class ProcessTemplateManagementController extends Controller
 
         $processTemplate->load([
             'steps' => fn($q) => $q->orderBy('step_number', 'asc'),
-            'steps.workstation',
+            'steps.workstation.line',
             'steps.processSegment',
         ]);
-        $workstations    = Workstation::active()->orderBy('name')->get();
+        $workstations    = Workstation::active()->with('line')->orderBy('name')->get();
         $processSegments = \App\Models\ProcessSegment::query()
             ->active()
             ->orderBy('segment_type')
             ->orderBy('code')
             ->get();
 
-        return view('admin.process-templates.show', compact('productType', 'processTemplate', 'workstations', 'processSegments'));
+        return Inertia::render('admin/process-templates/Show', [
+            'productType'     => $processTemplate->productType->only('id', 'name'),
+            'processTemplate' => [
+                'id'         => $processTemplate->id,
+                'name'       => $processTemplate->name,
+                'version'    => $processTemplate->version,
+                'is_active'  => (bool) $processTemplate->is_active,
+                'steps'      => $processTemplate->steps->map(fn($s) => [
+                    'id'                          => $s->id,
+                    'step_number'                 => $s->step_number,
+                    'name'                        => $s->name,
+                    'instruction'                 => $s->instruction,
+                    'estimated_duration_minutes'  => $s->estimated_duration_minutes,
+                    'workstation_id'              => $s->workstation_id,
+                    'process_segment_id'          => $s->process_segment_id,
+                    'workstation'                 => $s->workstation ? [
+                        'id'        => $s->workstation->id,
+                        'name'      => $s->workstation->name,
+                        'line_name' => $s->workstation->line?->name,
+                    ] : null,
+                    'process_segment'             => $s->processSegment ? [
+                        'id'   => $s->processSegment->id,
+                        'code' => $s->processSegment->code,
+                    ] : null,
+                ]),
+            ],
+            'workstations'    => $workstations->map(fn($w) => [
+                'id'        => $w->id,
+                'name'      => $w->name,
+                'line_name' => $w->line?->name,
+            ]),
+            'processSegments' => $processSegments->map(fn($s) => [
+                'id'           => $s->id,
+                'code'         => $s->code,
+                'name'         => $s->name,
+                'segment_type' => $s->segment_type,
+                'instruction'  => $s->standard_instruction,
+                'duration'     => $s->estimated_duration_minutes,
+            ]),
+        ]);
     }
 
     /**
@@ -90,7 +142,15 @@ class ProcessTemplateManagementController extends Controller
             abort(404);
         }
 
-        return view('admin.process-templates.edit', compact('productType', 'processTemplate'));
+        return Inertia::render('admin/process-templates/Edit', [
+            'productType'     => $productType->only('id', 'name'),
+            'processTemplate' => [
+                'id'        => $processTemplate->id,
+                'name'      => $processTemplate->name,
+                'version'   => $processTemplate->version,
+                'is_active' => (bool) $processTemplate->is_active,
+            ],
+        ]);
     }
 
     /**

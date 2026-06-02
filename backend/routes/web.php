@@ -30,6 +30,7 @@ use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Web\Admin\ScheduleController;
 use App\Http\Controllers\Web\Admin\SchedulePlannerController;
 use App\Http\Controllers\Web\Admin\ScrapReasonController;
 use App\Http\Controllers\Web\Admin\ScrapReportController;
@@ -82,31 +83,42 @@ Route::get('/', function () {
         return redirect()->route('install.index');
     }
 
-    if (! auth()->check()) {
-        return redirect()->route('login');
-    }
+    // Authenticated users go to their role dashboard. Redirecting them to the
+    // guest-only `login` route instead would bounce off its `guest` middleware
+    // (which sends authenticated users back to `/`) and loop forever
+    // (ERR_TOO_MANY_REDIRECTS). Only guests get the login page.
+    if (auth()->check()) {
+        $user = auth()->user();
 
-    $user = auth()->user();
-
-    if ($user->hasRole('Admin')) {
-        return redirect()->route('admin.dashboard');
-    }
-    if ($user->hasRole('Supervisor')) {
-        return redirect()->route('supervisor.dashboard');
-    }
-    if ($user->account_type === 'workstation' && $user->workstation_id) {
-        $lineId = $user->workstation?->line_id;
-        if ($lineId) {
-            return redirect()->route('operator.queue', ['line' => $lineId]);
+        if ($user->hasRole('Admin')) {
+            return redirect()->route('admin.dashboard');
         }
+        if ($user->hasRole('Supervisor')) {
+            return redirect()->route('supervisor.dashboard');
+        }
+        if ($user->account_type === 'workstation' && $user->workstation?->line_id) {
+            return redirect()->route('operator.queue', ['line' => $user->workstation->line_id]);
+        }
+
+        return redirect()->route('operator.select-line');
     }
 
-    return redirect()->route('operator.select-line');
+    return redirect()->route('login');
 });
 
 Route::get('/offline', function () {
     return view('offline');
 })->name('offline');
+
+// Language switcher — persists the choice in the session; SetLocale applies it
+// on subsequent requests. Public so the login screen can switch too.
+Route::get('/locale/{locale}', function (string $locale) {
+    if (array_key_exists($locale, config('app.available_locales', []))) {
+        session(['locale' => $locale]);
+    }
+
+    return back();
+})->name('locale.switch');
 
 // Guest routes (unauthenticated)
 Route::middleware('guest')->group(function () {
@@ -199,8 +211,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch/{batch}/quality-check', [OperatorBatchController::class, 'qualityCheck'])->name('batch.quality-check');
         Route::post('/batch/{batch}/packaging-checklist', [OperatorBatchController::class, 'packagingChecklist'])->name('batch.packaging-checklist');
         Route::post('/batch/{batch}/release', [OperatorBatchController::class, 'release'])->name('batch.release');
+
+        // Batch step progression (replaces the old Livewire BatchStepList — see
+        // OperatorBatchController::startStep/completeStep delegating to BatchService).
+        Route::post('/batch-step/{batchStep}/start', [OperatorBatchController::class, 'startStep'])->name('batch-step.start');
+        Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
+
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
         Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');
+
+        // Production downtime (replaces the old Livewire DowntimeReporter).
+        Route::post('/downtime/start', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'start'])->name('downtime.start');
+        Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop');
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
@@ -274,11 +296,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/update/status', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'status'])->name('update.status');
         Route::get('/update/history', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'history'])->name('update.history');
 
-        // Schedule (planner is the main view)
+        // Schedule (planner is the main view; list is a secondary overview)
+        Route::get('/schedule/list', [ScheduleController::class, 'index'])->name('schedule.list');
         Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
         Route::get('/schedule/check-updates', [SchedulePlannerController::class, 'checkUpdates'])->name('schedule.check-updates');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
+
+        // Schedule · Employees (tachograph-style day/team/month planner)
+        Route::get('/schedule/employees', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'index'])->name('schedule.employees');
+        Route::get('/schedule/employees/add', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'create'])->name('schedule.employees.create');
+        Route::post('/schedule/employees', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'store'])->name('schedule.employees.store');
+        Route::delete('/schedule/employees/{activity}', [\App\Http\Controllers\Web\Admin\EmployeeScheduleController::class, 'destroy'])->name('schedule.employees.destroy');
 
         // Shifts
         Route::get('/shifts', [\App\Http\Controllers\Web\Admin\ShiftController::class, 'index'])->name('shifts.index');
@@ -380,7 +409,7 @@ Route::middleware('auth')->group(function () {
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
 
-        // ── Material Traceability / Genealogy ───────────────────────────────
+        // ── Material Traceability / Genealogy (React/Inertia — ported from develop Blade) ──
         Route::get('/traceability', [\App\Http\Controllers\Web\Admin\TraceabilityController::class, 'index'])->name('traceability.index');
 
         // Dashboard Widgets Setup
@@ -437,7 +466,7 @@ Route::middleware('auth')->group(function () {
 
         // ── Gate 2: Company Structure ────────────────────────────────────────
         // Factories
-        Route::resource('factories', FactoryController::class)->except(['show']);
+        Route::resource('factories', FactoryController::class);
         Route::post('/factories/{factory}/toggle-active', [FactoryController::class, 'toggleActive'])->name('factories.toggle-active');
 
         // Divisions
@@ -537,7 +566,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'update'])->name('connectivity.mqtt.topics.mappings.update');
         Route::delete('/connectivity/mqtt/{mqttConnection}/topics/{topic}/mappings/{mapping}', [TopicMappingController::class, 'destroy'])->name('connectivity.mqtt.topics.mappings.destroy');
 
-        // Modbus connections
+        // Modbus connections (React/Inertia — ported from the original develop Blade UI)
         Route::resource('connectivity/modbus', \App\Http\Controllers\Web\Admin\Connectivity\ModbusConnectionController::class)
             ->parameters(['modbus' => 'machineConnection'])
             ->names('connectivity.modbus');
@@ -551,7 +580,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/connectivity/opcua/{machineConnection}/tags', [\App\Http\Controllers\Web\Admin\Connectivity\OpcuaConnectionController::class, 'storeTag'])->name('connectivity.opcua.tags.store');
         Route::delete('/connectivity/opcua/{machineConnection}/tags/{tag}', [\App\Http\Controllers\Web\Admin\Connectivity\OpcuaConnectionController::class, 'destroyTag'])->name('connectivity.opcua.tags.destroy');
 
-        // Live machine monitor
+        // Live machine monitor (React/Inertia — ported from the original develop Blade UI)
         Route::get('/machine-monitor', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'index'])->name('machine-monitor.index');
         Route::get('/machine-monitor/check', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'check'])->name('machine-monitor.check');
 
@@ -560,7 +589,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('tools', ToolController::class)->except(['show']);
 
         // Maintenance Events
-        Route::resource('maintenance-events', MaintenanceEventController::class)->except(['destroy']);
+        Route::resource('maintenance-events', MaintenanceEventController::class);
         Route::post('/maintenance-events/{maintenanceEvent}/start', [MaintenanceEventController::class, 'start'])->name('maintenance-events.start');
         Route::post('/maintenance-events/{maintenanceEvent}/complete', [MaintenanceEventController::class, 'complete'])->name('maintenance-events.complete');
         Route::post('/maintenance-events/{maintenanceEvent}/cancel', [MaintenanceEventController::class, 'cancel'])->name('maintenance-events.cancel');
