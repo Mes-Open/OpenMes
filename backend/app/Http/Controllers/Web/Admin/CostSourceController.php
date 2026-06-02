@@ -5,28 +5,23 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CostSource;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class CostSourceController extends Controller
 {
     /**
-     * Display a listing of cost sources.
+     * Display a listing of cost sources. Rows live-sync via the
+     * `cost_sources` shape; usage counts come as a prop.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = CostSource::withCount(['additionalCosts', 'maintenanceEvents'])
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = CostSource::withCount(['additionalCosts', 'maintenanceEvents'])
+            ->get(['id'])
+            ->mapWithKeys(fn ($r) => [$r->id => $r->additional_costs_count + $r->maintenance_events_count]);
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        $costSources = $query->paginate(25)->withQueryString();
-
-        return view('admin.cost-sources.index', compact('costSources'));
+        return Inertia::render('admin/cost-sources/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     /**
@@ -34,7 +29,7 @@ class CostSourceController extends Controller
      */
     public function create()
     {
-        return view('admin.cost-sources.create');
+        return Inertia::render('admin/cost-sources/Create');
     }
 
     /**
@@ -65,7 +60,9 @@ class CostSourceController extends Controller
      */
     public function edit(CostSource $costSource)
     {
-        return view('admin.cost-sources.edit', compact('costSource'));
+        return Inertia::render('admin/cost-sources/Edit', [
+            'costSource' => $costSource->only('id', 'code', 'name', 'description', 'unit_cost', 'unit', 'currency', 'is_active'),
+        ]);
     }
 
     /**

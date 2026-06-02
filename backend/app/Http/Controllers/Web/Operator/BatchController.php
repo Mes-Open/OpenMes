@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
+use App\Models\BatchStep;
 use App\Models\WorkOrder;
 use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
 use App\Services\Production\PackagingChecklistService;
 use App\Services\Production\ProcessConfirmationService;
 use App\Services\Production\QualityCheckService;
+use App\Services\WorkOrder\BatchService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 
@@ -22,7 +24,54 @@ class BatchController extends Controller
         protected ProcessConfirmationService $confirmationService,
         protected QualityCheckService $qcService,
         protected PackagingChecklistService $checklistService,
+        protected BatchService $batchService,
     ) {}
+
+    /**
+     * Start a batch step (React replacement for the old Livewire BatchStepList).
+     * Delegates to BatchService::startStep, which also allocates BOM materials.
+     */
+    public function startStep(Request $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', 'This step does not belong to the selected line.');
+        }
+
+        try {
+            $this->batchService->startStep($batchStep, $request->user());
+
+            return back()->with('success', 'Step started. Materials have been allocated.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Complete a batch step.
+     */
+    public function completeStep(Request $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', 'This step does not belong to the selected line.');
+        }
+
+        try {
+            $this->batchService->completeStep($batchStep, $request->user());
+
+            return back()->with('success', 'Step completed.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /** Guard: the step's work order must be on the operator's selected line. */
+    private function stepBelongsToSelectedLine(Request $request, BatchStep $batchStep): bool
+    {
+        $lineId = $request->session()->get('selected_line_id');
+        $batchStep->loadMissing('batch.workOrder');
+
+        return $lineId && $batchStep->batch?->workOrder?->line_id == $lineId;
+    }
 
     public function store(Request $request)
     {

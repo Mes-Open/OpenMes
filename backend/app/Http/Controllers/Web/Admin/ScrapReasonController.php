@@ -6,37 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\ScrapReason;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class ScrapReasonController extends Controller
 {
     /**
-     * Display a listing of scrap reasons.
+     * Display a listing of scrap reasons. Rows live-sync via the
+     * `scrap_reasons` shape; usage counts come as a prop.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = ScrapReason::withCount('scrapEntries')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('sort_order')
-            ->orderBy('name');
+        $counts = ScrapReason::withCount('scrapEntries')
+            ->get(['id'])
+            ->mapWithKeys(fn ($r) => [$r->id => $r->scrap_entries_count]);
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        if ($category = $request->input('category')) {
-            $query->where('category', $category);
-        }
-
-        $scrapReasons = $query->paginate(25)->withQueryString();
-
-        return view('admin.scrap-reasons.index', [
-            'scrapReasons' => $scrapReasons,
-            'categories' => ScrapReason::CATEGORIES,
-            'category' => $category,
-            'search' => $search,
+        return Inertia::render('admin/scrap-reasons/Index', [
+            'counts' => $counts,
         ]);
     }
 
@@ -45,9 +30,7 @@ class ScrapReasonController extends Controller
      */
     public function create()
     {
-        return view('admin.scrap-reasons.create', [
-            'categories' => ScrapReason::CATEGORIES,
-        ]);
+        return Inertia::render('admin/scrap-reasons/Create');
     }
 
     /**
@@ -78,9 +61,8 @@ class ScrapReasonController extends Controller
      */
     public function edit(ScrapReason $scrapReason)
     {
-        return view('admin.scrap-reasons.edit', [
-            'scrapReason' => $scrapReason,
-            'categories' => ScrapReason::CATEGORIES,
+        return Inertia::render('admin/scrap-reasons/Edit', [
+            'scrapReason' => $scrapReason->only('id', 'code', 'name', 'category', 'description', 'sort_order', 'is_active'),
         ]);
     }
 

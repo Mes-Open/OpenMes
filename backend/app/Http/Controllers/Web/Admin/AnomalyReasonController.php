@@ -5,32 +5,23 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AnomalyReason;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class AnomalyReasonController extends Controller
 {
     /**
-     * Display a listing of anomaly reasons.
+     * Display a listing of anomaly reasons. Rows live-sync via the
+     * `anomaly_reasons` shape; usage counts come as a prop.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = AnomalyReason::withCount('anomalies')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = AnomalyReason::withCount('anomalies')
+            ->get(['id'])
+            ->mapWithKeys(fn ($r) => [$r->id => $r->anomalies_count]);
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        if ($category = $request->input('category')) {
-            $query->where('category', $category);
-        }
-
-        $anomalyReasons = $query->paginate(25)->withQueryString();
-
-        return view('admin.anomaly-reasons.index', compact('anomalyReasons'));
+        return Inertia::render('admin/anomaly-reasons/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     /**
@@ -38,7 +29,7 @@ class AnomalyReasonController extends Controller
      */
     public function create()
     {
-        return view('admin.anomaly-reasons.create');
+        return Inertia::render('admin/anomaly-reasons/Create');
     }
 
     /**
@@ -67,7 +58,9 @@ class AnomalyReasonController extends Controller
      */
     public function edit(AnomalyReason $anomalyReason)
     {
-        return view('admin.anomaly-reasons.edit', compact('anomalyReason'));
+        return Inertia::render('admin/anomaly-reasons/Edit', [
+            'anomalyReason' => $anomalyReason->only('id', 'code', 'name', 'category', 'description', 'is_active'),
+        ]);
     }
 
     /**

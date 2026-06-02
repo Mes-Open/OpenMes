@@ -9,49 +9,35 @@ use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class WorkOrderManagementController extends Controller
 {
     public function __construct(protected WorkOrderService $workOrderService) {}
 
-    public function index(Request $request)
+    /**
+     * Work order list. Rows live-sync via the `work_orders_all` shape; line and
+     * product-type name maps + batch counts come as props.
+     */
+    public function index()
     {
-        $allowedSorts = ['order_no', 'status', 'planned_qty', 'produced_qty', 'priority', 'due_date', 'created_at'];
-        $sort = in_array($request->input('sort'), $allowedSorts) ? $request->input('sort') : 'created_at';
-        $direction = $request->input('direction') === 'asc' ? 'asc' : 'desc';
+        $counts = WorkOrder::withCount('batches')
+            ->get(['id'])
+            ->mapWithKeys(fn ($w) => [$w->id => $w->batches_count]);
 
-        $query = WorkOrder::with(['line', 'productType'])->withCount('batches')
-            ->orderBy($sort, $direction);
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('line_id')) {
-            $query->where('line_id', $request->line_id);
-        }
-        if ($request->filled('search')) {
-            $query->where('order_no', 'ilike', '%'.$request->search.'%');
-        }
-
-        $workOrders = $query->paginate(25)->withQueryString();
-        $lines = Line::orderBy('name')->get();
-
-        $woLabelTemplates = LabelTemplate::query()
-            ->where('type', LabelTemplate::TYPE_WORK_ORDER)
-            ->where('is_active', true)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        return view('admin.work-orders.index', compact('workOrders', 'lines', 'sort', 'direction', 'woLabelTemplates'));
+        return Inertia::render('admin/work-orders/Index', [
+            'counts' => $counts,
+            'lineNames' => Line::pluck('name', 'id'),
+            'productTypeNames' => ProductType::pluck('name', 'id'),
+        ]);
     }
 
     public function create()
     {
-        $lines = Line::where('is_active', true)->orderBy('name')->get();
-        $productTypes = ProductType::where('is_active', true)->orderBy('name')->get();
-
-        return view('admin.work-orders.create', compact('lines', 'productTypes'));
+        return Inertia::render('admin/work-orders/Create', [
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function store(Request $request)
@@ -83,15 +69,66 @@ class WorkOrderManagementController extends Controller
     {
         $workOrder->load(['line', 'productType', 'batches.steps', 'issues.issueType', 'issues.reportedBy']);
 
-        return view('admin.work-orders.show', compact('workOrder'));
+        $batches = $workOrder->batches->map(function ($batch) {
+            return [
+                'id'           => $batch->id,
+                'batch_number' => $batch->batch_number,
+                'status'       => $batch->status,
+                'produced_qty' => $batch->produced_qty,
+                'target_qty'   => $batch->target_qty,
+                'started_at'   => $batch->started_at?->toISOString(),
+                'completed_at' => $batch->completed_at?->toISOString(),
+                'released_at'  => $batch->released_at?->toISOString(),
+                'steps'        => $batch->steps->map(fn ($s) => [
+                    'id'                          => $s->id,
+                    'step_number'                 => $s->step_number,
+                    'name'                        => $s->name,
+                    'status'                      => $s->status,
+                    'duration_minutes'            => $s->duration_minutes,
+                    'estimated_duration_minutes'  => $s->estimated_duration_minutes ?? null,
+                ])->values(),
+            ];
+        })->values();
+
+        $issues = $workOrder->issues->map(fn ($i) => [
+            'id'              => $i->id,
+            'title'           => $i->title,
+            'status'          => $i->status,
+            'issue_type_name' => $i->issueType?->name,
+            'is_blocking'     => (bool) ($i->issueType?->is_blocking ?? false),
+        ])->values();
+
+        return Inertia::render('admin/work-orders/Show', [
+            'workOrder' => [
+                'id'               => $workOrder->id,
+                'order_no'         => $workOrder->order_no,
+                'status'           => $workOrder->status,
+                'planned_qty'      => $workOrder->planned_qty,
+                'produced_qty'     => $workOrder->produced_qty,
+                'priority'         => $workOrder->priority,
+                'due_date'         => $workOrder->due_date?->toDateString(),
+                'description'      => $workOrder->description,
+                'extra_data'       => $workOrder->extra_data,
+                'process_snapshot' => $workOrder->process_snapshot,
+                'created_at'       => $workOrder->created_at->toISOString(),
+                'line_name'        => $workOrder->line?->name,
+                'product_type_name' => $workOrder->productType?->name,
+                'batches'          => $batches,
+                'issues'           => $issues,
+            ],
+        ]);
     }
 
     public function edit(WorkOrder $workOrder)
     {
-        $lines = Line::where('is_active', true)->orderBy('name')->get();
-        $productTypes = ProductType::where('is_active', true)->orderBy('name')->get();
-
-        return view('admin.work-orders.edit', compact('workOrder', 'lines', 'productTypes'));
+        return Inertia::render('admin/work-orders/Edit', [
+            'workOrder' => [
+                ...$workOrder->only('id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status'),
+                'due_date' => $workOrder->due_date?->format('Y-m-d'),
+            ],
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function update(Request $request, WorkOrder $workOrder)

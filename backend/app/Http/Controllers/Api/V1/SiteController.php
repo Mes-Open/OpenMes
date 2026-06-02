@@ -39,4 +39,47 @@ class SiteController extends Controller
 
         return response()->json(['data' => $site]);
     }
+
+    public function store(Request $request): JsonResponse
+    {
+        $this->authorize('create', Site::class);
+        $validated = $this->validatePayload($request);
+        $site = Site::create($validated);
+        $site->load('company');
+        return response()->json(['data' => $site], 201);
+    }
+
+    public function update(Request $request, Site $site): JsonResponse
+    {
+        $this->authorize('update', $site);
+        $validated = $this->validatePayload($request, $site->id);
+        $site->update($validated);
+        $site->load('company');
+        return response()->json(['data' => $site]);
+    }
+
+    public function destroy(Site $site): JsonResponse
+    {
+        $this->authorize('delete', $site);
+        $site->delete();
+        return response()->json(['message' => 'Site deleted']);
+    }
+
+    private function validatePayload(Request $request, ?int $ignoreId = null): array
+    {
+        return $request->validate([
+            'name'        => ['required', 'string', 'max:255'],
+            'code'        => [
+                'required', 'string', 'max:50',
+                \Illuminate\Validation\Rule::unique('sites', 'code')->ignore($ignoreId),
+            ],
+            'company_id'  => ['nullable', 'integer', 'exists:companies,id'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'address'     => ['nullable', 'string', 'max:500'],
+            'city'        => ['nullable', 'string', 'max:120'],
+            'country'     => ['nullable', 'string', 'max:80'],
+            'timezone'    => ['nullable', 'string', 'max:64'],
+            'is_active'   => ['boolean'],
+        ]);
+    }
 }

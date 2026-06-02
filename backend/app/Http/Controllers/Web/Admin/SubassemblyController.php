@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProductType;
 use App\Models\Subassembly;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class SubassemblyController extends Controller
 {
@@ -14,25 +15,11 @@ class SubassemblyController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Subassembly::with('productType')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $productTypeNames = ProductType::pluck('name', 'id');
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        if ($productTypeId = $request->input('product_type_id')) {
-            $query->where('product_type_id', $productTypeId);
-        }
-
-        $subassemblies = $query->paginate(25)->withQueryString();
-        $productTypes  = ProductType::orderBy('name')->get();
-
-        return view('admin.subassemblies.index', compact('subassemblies', 'productTypes'));
+        return Inertia::render('admin/subassemblies/Index', [
+            'productTypeNames' => $productTypeNames,
+        ]);
     }
 
     /**
@@ -40,9 +27,11 @@ class SubassemblyController extends Controller
      */
     public function create()
     {
-        $productTypes = ProductType::active()->orderBy('name')->get();
+        $productTypes = ProductType::active()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.subassemblies.create', compact('productTypes'));
+        return Inertia::render('admin/subassemblies/Create', [
+            'productTypes' => $productTypes,
+        ]);
     }
 
     /**
@@ -71,9 +60,12 @@ class SubassemblyController extends Controller
      */
     public function edit(Subassembly $subassembly)
     {
-        $productTypes = ProductType::active()->orderBy('name')->get();
+        $productTypes = ProductType::active()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.subassemblies.edit', compact('subassembly', 'productTypes'));
+        return Inertia::render('admin/subassemblies/Edit', [
+            'subassembly' => $subassembly->only('id', 'code', 'name', 'description', 'product_type_id', 'is_active'),
+            'productTypes' => $productTypes,
+        ]);
     }
 
     /**

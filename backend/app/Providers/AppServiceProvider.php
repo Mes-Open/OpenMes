@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Console\Commands\ResetPackagingShiftCommand;
-use App\Http\Controllers\Web\Admin\AlertController;
 use App\Listeners\LogAuthEvent;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
@@ -60,50 +59,18 @@ class AppServiceProvider extends ServiceProvider
         View::share('availableLocales', $this->availableLocales());
         View::share('currentLocale', App::getLocale());
 
-        // Demo account expiry — passed to layout so the countdown banner can render
-        View::composer('layouts.app', function ($view) {
-            $expiresAt = null;
-            try {
-                if (Auth::hasUser()) {
-                    $tenant = Auth::user()->tenant;
-                    $expiresAt = $tenant?->expires_at;
-                }
-            } catch (\Throwable) {
-            }
-            $view->with('demoExpiresAt', $expiresAt);
-        });
-
-        // Alert badge count — only computed when user is authenticated Admin/Supervisor
-        View::composer('layouts.components.sidebar', function ($view) {
-            $alertCount = 0;
-            try {
-                if (Auth::check() && Auth::user()->hasAnyRole(['Admin', 'Supervisor'])) {
-                    $alertCount = AlertController::totalCount();
-                }
-            } catch (\Throwable) {
-            }
-            $view->with('alertCount', $alertCount);
-        });
+        // NOTE: the old Blade-layout View::composers (demoExpiresAt for
+        // layouts.app, alertCount for layouts.components.sidebar) were removed
+        // when those layouts were deleted in the React/Inertia migration. The
+        // alert badge is now computed live client-side (LiveAlertCount.jsx) and
+        // the server fallback comes from HandleInertiaRequests->nav.alertCount.
 
         // Share current language name
         View::share('currentLocaleName', $this->availableLocales()[App::getLocale()] ?? 'English');
 
-        // Packaging menu items — registered via View::composer so auth() check
-        // works (boot runs before auth middleware, so direct auth()->check() always false).
-        $menu = $this->app->make(MenuRegistry::class);
-        $menu->addGroup('packaging', __('Packaging'), order: 40);
-        $menu->addGroupItem('packaging', __('Scanning Station'), '/packaging/station', order: 10);
-
-        View::composer('layouts.components.sidebar', function () use ($menu) {
-            if (Auth::check() && Auth::user()->hasAnyRole(['Admin', 'Supervisor'])) {
-                $menu->addGroupItem('packaging', __('Packaging Overview'), '/packaging', order: 20);
-                $menu->addGroupItem('packaging', __('EAN Management'), '/packaging/eans', order: 30);
-            }
-
-            if (Auth::check() && Auth::user()->hasRole('Admin')) {
-                $menu->addGroupItem('packaging', __('Label Templates'), '/packaging/label-templates', order: 40);
-            }
-        });
+        // (Packaging menu items were registered into MenuRegistry to feed the
+        // deleted Blade sidebar; the React sidebar nav is defined in
+        // resources/js/layouts/adminNav.js, so that registration was removed.)
 
         // Register Packaging console commands
         if ($this->app->runningInConsole()) {

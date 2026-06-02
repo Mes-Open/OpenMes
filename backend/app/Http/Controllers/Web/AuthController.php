@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class AuthController extends Controller
 {
@@ -22,7 +23,20 @@ class AuthController extends Controller
      */
     public function showLoginForm()
     {
-        return view('auth.login');
+        $pinEnabled = json_decode(
+            DB::table('system_settings')->where('key', 'pin_login_enabled')->value('value') ?? 'false',
+            true
+        ) === true;
+
+        $regEnabled = json_decode(
+            DB::table('system_settings')->where('key', 'allow_registration')->value('value') ?? 'false',
+            true
+        ) === true;
+
+        return Inertia::render('auth/Login', [
+            'pinEnabled' => $pinEnabled,
+            'regEnabled' => $regEnabled,
+        ]);
     }
 
     /**
@@ -47,7 +61,8 @@ class AuthController extends Controller
 
         $user = auth()->user();
 
-        // If 2FA is enabled, redirect to challenge page
+        // If 2FA is enabled, log back out and hand off to the challenge page
+        // (the React auth/TwoFactorChallenge flow completes the login).
         if ($user->two_factor_enabled) {
             Auth::logout();
             $request->session()->put('2fa_user_id', $user->id);
@@ -95,6 +110,14 @@ class AuthController extends Controller
             ]);
         }
 
+        // If 2FA is enabled, hand off to the challenge before establishing the
+        // session (mirrors login()). PIN login has no "remember me".
+        if ($user->two_factor_enabled) {
+            $request->session()->put('2fa_user_id', $user->id);
+            $request->session()->put('2fa_remember', false);
+            return redirect()->route('two-factor.challenge');
+        }
+
         Auth::login($user, false);
 
         $request->session()->regenerate();
@@ -110,11 +133,13 @@ class AuthController extends Controller
     }
 
     /**
-     * Show the change password form.
+     * Show the change password form (forced password change flow).
      */
     public function showChangePasswordForm()
     {
-        return view('auth.change-password');
+        return Inertia::render('auth/ChangePassword', [
+            'forceChange' => (bool) auth()->user()?->force_password_change,
+        ]);
     }
 
     /**

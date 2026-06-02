@@ -7,6 +7,7 @@ use App\Models\Inspection;
 use App\Models\InspectionPlan;
 use App\Models\InspectionResult;
 use App\Models\Material;
+use App\Services\Quality\DispositionService;
 use App\Services\Quality\InboundInspectionService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -114,6 +115,45 @@ class InspectionController extends Controller
         $completed = $this->service->complete($inspection, $validated['notes'] ?? null);
 
         return response()->json(['message' => 'Inspection completed', 'data' => $completed]);
+    }
+
+    /**
+     * Apply a quality disposition to a (typically completed) inspection. Mirrors
+     * the web `Web/InspectionController::disposition` route so mobile + tablet
+     * can release / scrap / quarantine without leaving the app.
+     */
+    public function disposition(
+        Request $request,
+        Inspection $inspection,
+        DispositionService $disposition,
+    ): JsonResponse {
+        if (! $request->user()?->hasAnyRole(['Admin', 'Supervisor'])) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $validated = $request->validate([
+            'disposition' => ['required', 'string', \Illuminate\Validation\Rule::in(array_filter(
+                Inspection::DISPOSITIONS,
+                fn ($d) => $d !== Inspection::DISPOSITION_PENDING,
+            ))],
+            'notes' => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $updated = $disposition->apply(
+                $inspection,
+                $validated['disposition'],
+                $validated['notes'] ?? null,
+                $request->user(),
+            );
+        } catch (\DomainException | \InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json([
+            'message' => 'Disposition applied',
+            'data' => $updated->fresh(['results', 'material', 'plan', 'inspector', 'issue']),
+        ]);
     }
 
     public function stats(Request $request): JsonResponse

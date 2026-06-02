@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AnomalyReason;
+use App\Models\Batch;
 use App\Models\ProductionAnomaly;
 use App\Models\WorkOrder;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ProductionAnomalyController extends Controller
 {
@@ -41,7 +43,58 @@ class ProductionAnomalyController extends Controller
 
         $workOrders = WorkOrder::orderBy('order_no')->get();
 
-        return view('admin.production-anomalies.index', compact('anomalies', 'anomalyReasons', 'workOrder', 'workOrders'));
+        return Inertia::render('admin/production-anomalies/Index', [
+            'anomalies'     => $anomalies->through(fn ($a) => [
+                'id'           => $a->id,
+                'status'       => $a->status,
+                'product_name' => $a->product_name,
+                'planned_qty'  => $a->planned_qty,
+                'actual_qty'   => $a->actual_qty,
+                'comment'      => $a->comment,
+                'work_order'   => $a->workOrder ? [
+                    'id'       => $a->workOrder->id,
+                    'order_no' => $a->workOrder->order_no,
+                ] : null,
+                'anomaly_reason' => $a->anomalyReason ? [
+                    'id'   => $a->anomalyReason->id,
+                    'name' => $a->anomalyReason->name,
+                ] : null,
+            ]),
+            'filters'        => $request->only(['work_order_id', 'status']),
+            'workOrders'     => $workOrders->map(fn ($wo) => ['id' => $wo->id, 'order_no' => $wo->order_no]),
+            'anomalyReasons' => $anomalyReasons->map(fn ($r) => ['id' => $r->id, 'name' => $r->name]),
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new production anomaly.
+     */
+    public function create()
+    {
+        $workOrders    = WorkOrder::orderBy('order_no')->get();
+        $anomalyReasons = AnomalyReason::active()->orderBy('name')->get();
+        $batches       = Batch::select(['id', 'work_order_id', 'batch_number', 'lot_number'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn ($b) => [
+                'id'            => $b->id,
+                'work_order_id' => $b->work_order_id,
+                'label'         => $b->batch_number . ($b->lot_number ? ' / ' . $b->lot_number : ''),
+            ]);
+
+        return Inertia::render('admin/production-anomalies/Create', [
+            'workOrders'     => $workOrders->map(fn ($wo) => [
+                'id'           => $wo->id,
+                'order_no'     => $wo->order_no,
+                'product_name' => $wo->product_name ?? '',
+            ]),
+            'anomalyReasons' => $anomalyReasons->map(fn ($r) => [
+                'id'       => $r->id,
+                'name'     => $r->name,
+                'category' => $r->category ?? null,
+            ]),
+            'batches' => $batches,
+        ]);
     }
 
     /**
