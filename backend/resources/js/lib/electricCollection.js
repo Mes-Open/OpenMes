@@ -15,13 +15,22 @@ import { fetchShapeConfig } from './useShapeConfigs';
  * (write-through, then the committed row syncs back here) — never optimistic,
  * because MES data must reflect only confirmed state.
  *
+ * gcTime is short on purpose: a collection stops its Electric stream ~1s after
+ * its last subscriber unmounts. TanStack DB's default is 5 MINUTES, which means
+ * every admin page you navigate away from would keep holding its long-poll for
+ * 5 min — click through a handful of pages and you blow past the browser's ~6
+ * concurrent connections (HTTP/1.1), freezing the whole origin. Releasing on
+ * unmount keeps the held-connection count bounded to what's actually on screen.
+ * (gcTime <= 0 would mean "never GC", so we use a small positive value.)
+ *
  * @param {string} id      stable collection id (the shape name)
  * @param {{url: string, params: object}} config  gatekeeper output (url absolutized)
  * @param {(row: any) => string|number} [getKey]  defaults to row.id
  */
 export function electricCollection(id, config, getKey = (row) => row.id) {
-    return createCollection(
-        electricCollectionOptions({
+    return createCollection({
+        gcTime: 1000, // release the Electric stream ~1s after the last subscriber unmounts
+        ...electricCollectionOptions({
             id,
             shapeOptions: {
                 url: config.url,
@@ -44,5 +53,5 @@ export function electricCollection(id, config, getKey = (row) => row.id) {
             },
             getKey,
         }),
-    );
+    });
 }

@@ -9,9 +9,8 @@
 # addition to plain :80.
 #
 # In production replace `localhost` with your real hostname so Caddy provisions
-# a public TLS cert automatically (and serves WSS + HTTP/2 over the same
-# origin); set REVERB_HOST/REVERB_SCHEME in .env to match. For local dev,
-# `localhost` uses Caddy's internal CA — the browser shows a one-time
+# a public TLS cert automatically (and serves HTTP/2 over the same origin). For
+# local dev, `localhost` uses Caddy's internal CA — the browser shows a one-time
 # "not secure" warning you can click through (or run `caddy trust`).
 
 {
@@ -22,8 +21,7 @@
 
 # Shared routing for every site address.
 (openmes) {
-	# (Reverb WebSocket routes /app/* + /apps/* were removed — broadcasting is
-	# gone; live sync is Electric-only via /electric/* below.)
+	# Live sync is Electric-only via /electric/* below — no WebSocket/broadcast push.
 
 	# Electric SQL live-sync stream. The browser streams shapes from Electric
 	# through here — NOT through PHP — so the ~20s long-polls are held by Caddy
