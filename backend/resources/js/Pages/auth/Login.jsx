@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import AuthLayout from '../../layouts/AuthLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Login page — Inertia render name: auth/Login
@@ -11,11 +12,6 @@ import AuthLayout from '../../layouts/AuthLayout';
  *
  * POST /login   → AuthController::login  (password auth)
  * POST /login/pin → AuthController::loginWithPin  (PIN auth)
- *
- * Validation errors are surfaced from form.errors (Inertia re-renders the page
- * with errors populated from the server's withErrors() / ValidationException).
- * The controller throws ValidationException with key 'username' on bad creds,
- * so form.errors.username carries the auth-failure message.
  */
 export default function Login({ pinEnabled = false, regEnabled = false }) {
     const [tab, setTab] = useState('password');
@@ -43,14 +39,13 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
 
     const switchTab = (t) => {
         setTab(t);
-        // Clear errors when switching tabs
         passwordForm.clearErrors();
         pinForm.clearErrors();
     };
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Zaloguj się</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">{__('Sign in')}</h2>
 
             {/* Tab switcher — only when PIN login is enabled */}
             {pinEnabled && (
@@ -64,7 +59,7 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                                 : 'text-gray-500 hover:text-gray-700'
                         }`}
                     >
-                        Hasło
+                        {__('Password')}
                     </button>
                     <button
                         type="button"
@@ -75,7 +70,7 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                                 : 'text-gray-500 hover:text-gray-700'
                         }`}
                     >
-                        Szybki PIN
+                        {__('Quick PIN')}
                     </button>
                 </div>
             )}
@@ -83,10 +78,9 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
             {/* Password login form */}
             {tab === 'password' && (
                 <form onSubmit={submitPassword}>
-                    {/* Username */}
                     <div className="mb-4">
                         <label htmlFor="username" className="form-label">
-                            Nazwa użytkownika
+                            {__('Username')}
                         </label>
                         <input
                             type="text"
@@ -104,10 +98,9 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         )}
                     </div>
 
-                    {/* Password */}
                     <div className="mb-4">
                         <label htmlFor="password" className="form-label">
-                            Hasło
+                            {__('Password')}
                         </label>
                         <input
                             type="password"
@@ -124,7 +117,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         )}
                     </div>
 
-                    {/* Remember me */}
                     <div className="mb-6 flex items-center">
                         <input
                             type="checkbox"
@@ -134,11 +126,10 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                             className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         />
                         <label htmlFor="remember" className="ml-2 text-sm text-gray-700">
-                            Zapamiętaj mnie
+                            {__('Remember me')}
                         </label>
                     </div>
 
-                    {/* Submit */}
                     <button
                         type="submit"
                         disabled={passwordForm.processing || !passwordForm.data.username || !passwordForm.data.password}
@@ -154,10 +145,10 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
-                                Logowanie...
+                                {__('Logging in...')}
                             </span>
                         ) : (
-                            'Zaloguj się'
+                            __('Sign in')
                         )}
                     </button>
                 </form>
@@ -166,10 +157,9 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
             {/* PIN login form */}
             {pinEnabled && tab === 'pin' && (
                 <form onSubmit={submitPin}>
-                    {/* Username */}
                     <div className="mb-4">
                         <label htmlFor="pin_username" className="form-label">
-                            Nazwa użytkownika
+                            {__('Username')}
                         </label>
                         <input
                             type="text"
@@ -186,7 +176,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         )}
                     </div>
 
-                    {/* PIN */}
                     <div className="mb-6">
                         <label htmlFor="pin_input" className="form-label">
                             PIN
@@ -208,10 +197,9 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         {pinForm.errors.pin && (
                             <p className="mt-1 text-sm text-red-600">{pinForm.errors.pin}</p>
                         )}
-                        <p className="mt-1 text-xs text-gray-500">Wprowadź swój 4–6 cyfrowy PIN</p>
+                        <p className="mt-1 text-xs text-gray-500">{__('Enter your 4–6 digit PIN')}</p>
                     </div>
 
-                    {/* Submit */}
                     <button
                         type="submit"
                         disabled={pinForm.processing || !pinForm.data.username || pinForm.data.pin.length < 4}
@@ -227,15 +215,15 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
-                                Logowanie...
+                                {__('Logging in...')}
                             </span>
                         ) : (
-                            'Zaloguj się z PIN'
+                            __('Quick PIN Login')
                         )}
                     </button>
 
                     <p className="mt-4 text-center text-xs text-gray-500">
-                        Nie masz jeszcze PINu? Zaloguj się hasłem, a następnie ustaw PIN w Ustawieniach.
+                        {__('No PIN yet? Log in with password first, then set your PIN in Settings.')}
                     </p>
                 </form>
             )}
@@ -243,9 +231,9 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
             {/* Register link */}
             {regEnabled && (
                 <p className="mt-6 text-center text-sm text-gray-600">
-                    Nie masz konta?{' '}
+                    {__("Don't have an account?")}{' '}
                     <Link href="/register" className="text-blue-600 hover:underline font-medium">
-                        Utwórz konto
+                        {__('Create account')}
                     </Link>
                 </p>
             )}
