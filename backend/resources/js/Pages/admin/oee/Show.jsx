@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { formatNumber } from '../../../lib/i18n';
 
 const KIND_BG = { blue: 'bg-blue-400', amber: 'bg-amber-400', red: 'bg-red-400' };
 const KIND_TEXT = { blue: 'text-blue-700', amber: 'text-amber-700', red: 'text-red-700' };
@@ -137,8 +138,8 @@ export default function OeeShow() {
                                                 <td className={`px-3 py-2 text-right font-bold ${oeeClass}`}>
                                                     {r.oee_pct != null ? Number(r.oee_pct).toFixed(1) + '%' : '—'}
                                                 </td>
-                                                <td className="px-3 py-2 text-right font-mono">{Number(r.total_produced).toLocaleString()}</td>
-                                                <td className="px-3 py-2 text-right font-mono">{r.scrap_qty > 0 ? Number(r.scrap_qty).toLocaleString() : '—'}</td>
+                                                <td className="px-3 py-2 text-right font-mono">{formatNumber(Number(r.total_produced))}</td>
+                                                <td className="px-3 py-2 text-right font-mono">{r.scrap_qty > 0 ? formatNumber(Number(r.scrap_qty)) : '—'}</td>
                                             </tr>
                                         );
                                     })}

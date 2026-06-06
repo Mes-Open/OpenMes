@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { formatNumber } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
     pending:   'bg-yellow-100 text-yellow-800',
@@ -16,7 +17,7 @@ function deviation(planned, actual) {
 }
 
 function fmt(n, decimals = 2) {
-    return Number(n).toLocaleString(undefined, {
+    return formatNumber(Number(n), {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,
     });
