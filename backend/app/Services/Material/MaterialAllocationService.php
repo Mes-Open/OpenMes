@@ -261,6 +261,7 @@ class MaterialAllocationService
             } else {
                 $material->decrement('reserved_quantity', abs($deltaQty));
             }
+            \App\Sync\CollectionBroadcaster::flush($material); // increment/decrement bypass model events
 
             $allocation->update([
                 'allocated_qty' => (float) $allocation->allocated_qty + $deltaQty,
@@ -325,6 +326,7 @@ class MaterialAllocationService
                     reason: 'Allocated to batch #'.$batch->id.($stepId ? ' (step '.$stepId.')' : ''),
                 );
                 $material->increment('reserved_quantity', $requiredQty);
+                \App\Sync\CollectionBroadcaster::flush($material); // increment bypasses model events
 
                 $newAllocation = MaterialAllocation::create([
                     'batch_id' => $batch->id,
@@ -357,6 +359,7 @@ class MaterialAllocationService
             return;
         }
         $material->decrement('reserved_quantity', $qty);
+        \App\Sync\CollectionBroadcaster::flush($material); // decrement bypasses model events
     }
 
     private function isStartItem(array $bomItem): bool

@@ -49,6 +49,18 @@ services:
       - ./backend/routes:/var/www/html/routes
       - ./backend/tests:/var/www/html/tests
 
+  # Reverb sees live PHP (broadcast auth + CollectionBroadcaster); restart it
+  # after editing those (it doesn't hot-reload like Octane).
+  reverb:
+    environment:
+      E2E_CONTROL_ENABLED: "true"
+    volumes:
+      - ./backend/app:/var/www/html/app
+      - ./backend/bootstrap/app.php:/var/www/html/bootstrap/app.php
+      - ./backend/config:/var/www/html/config
+      - ./backend/database:/var/www/html/database
+      - ./backend/routes:/var/www/html/routes
+
   frontend:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     build:
