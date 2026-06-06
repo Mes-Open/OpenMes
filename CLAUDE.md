@@ -1,0 +1,68 @@
+# OpenMES — AI Assistant Guidelines
+
+Project conventions for AI coding assistants (Claude Code, Copilot, Cursor, …).
+Human-oriented docs live in [`docs/`](docs/index.md); contributor workflow in [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+
+## Stack
+
+- **Backend:** Laravel 12 (`backend/`), PostgreSQL 17, served by Octane/RoadRunner in Docker
+- **Frontend:** React 19 + Inertia.js (`backend/resources/js/`), Tailwind, built by Vite
+- **Live sync:** [Electric SQL](https://electric-sql.com) — read-path sync from Postgres WAL to the browser (see "Electric shapes" below); writes always go through Laravel controllers
+- **Infra:** `docker-compose.yml` (postgres, backend, electric, caddy + optional connectivity daemons)
+
+## Commands
+
+```bash
+# Backend (run inside backend/)
+composer install            # sync vendor after pulling
+php artisan test            # full test suite — must pass before PR
+./vendor/bin/pint <files>   # code style (PSR), run on changed PHP files
+composer audit              # security advisories
+
+# Frontend (run inside backend/ — package.json lives there)
+npm ci && npm run build     # production build (Vite manifest needed by Inertia feature tests)
+npm run watch               # rebuild on save during development
+
+# Full stack
+docker compose up -d                                          # production-like
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d   # dev overlay: vite watch + bind mounts
+```
+
+## Hard rules
+
+1. **English-first** — all code, Blade/JSX text, validation messages, seeders, comments are English. Other languages exist only as translations in `backend/lang/*.json`.
+2. **i18n parity** — `lang/en.json` and `lang/pl.json` must contain the same key set. Adding a UI string means adding the key to **both** files (English value = key itself in `en.json`).
+3. **Form Requests for validation** — never validate inline in controllers. Frontend validation is UX only; the backend rule set is authoritative.
+4. **Never rename migration filenames after merge** — the filename is the migration's identity; renaming breaks every existing database on upgrade (duplicate-table crash in the entrypoint migrate).
+5. **Tests are mandatory** for new endpoints/business logic: happy path, validation 422, authorization (guest + wrong role), domain edge cases. Use factories, `RefreshDatabase`, and follow `tests/Feature` / `tests/Unit` conventions.
+6. **No raw SQL with user input** — Eloquent/Query Builder only.
+7. **No new dependencies without justification** — prefer built-in Laravel/React capabilities. Any new package: latest stable, maintained, not deprecated/archived.
+8. **License is AGPL-3.0** — keep headers/notices consistent with it.
+
+## Electric shapes (live data)
+
+- Shapes are declared server-side in `backend/app/Sync/ShapeRegistry.php` (table + column allowlist + optional WHERE). The browser never queries Postgres directly.
+- Flow: client asks `GET /api/shapes/{name}` (Laravel authorizes, returns an HMAC-signed capability) → streams via Caddy `/electric/*` (`forward_auth` re-checks the signature) → Electric → Postgres WAL.
+- **Adding a column to a synced table?** Add it to the shape's `columns` list too, or the UI will never see it.
+- Frontend hooks: `useLiveShape` (always live), `useSyncedShape` (live on HTTP/2, polls on HTTP/1.1), `usePolledShape` (one-shot snapshot). Hot app-wide shapes are shared via `LiveShapesProvider` — don't subscribe to them again per page.
+- New pages should use Sanctum SPA cookie auth (session), not tokens.
+
+## Frontend conventions
+
+- New pages are React/Inertia (`backend/resources/js/Pages/...`); legacy Blade+Livewire pages still exist and are being ported — don't add new Blade pages.
+- Config-driven CRUD: `ResourceTable` (list, fed by an Electric shape) + `ResourceForm` (create/edit via Inertia `useForm`). Custom forms only when those don't fit.
+- React escaping is the XSS defense — `dangerouslySetInnerHTML` is effectively banned.
+
+## Workflow
+
+- Branch from `develop`; PRs target `develop`. `main` is release-only (merged from develop, tagged `vX.Y.Z`).
+- Update `CHANGELOG.md` under the unreleased/current version heading for user-visible changes.
+- Versioning: PATCH = fixes/UI, MINOR = new feature, MAJOR = breaking change.
+- Commits: imperative, conventional-style prefixes (`feat:`, `fix:`, `i18n:`, `chore:`).
+
+## Gotchas
+
+- `php artisan test` needs a Vite manifest for Inertia feature tests — run `npm run build` first if you see `ViteException`.
+- A number of legacy `assertSee` tests fail by design after the React migration (data arrives via Electric, not server-rendered HTML) — compare against the develop baseline before assuming you broke something.
+- `TrustProxies(at: '*')` in `bootstrap/app.php` is required for HTTPS behind Caddy — don't remove it.
+- Modules under `modules/` are deprecated in favor of core (`.gitignore` documents this) — don't add new module code there.

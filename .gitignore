@@ -30,8 +30,8 @@ backend/yarn-error.log
 # Frontend directory (removed — Blade templates used instead)
 /frontend/
 
-# AI assistant context files (local only — never commit)
-CLAUDE.md
+# AI assistant context files (CLAUDE.md is tracked — shared project
+# conventions for AI assistants; everything else stays local)
 **/.openmus_conversation*.txt
 .cursorrules
 .cursorignore
