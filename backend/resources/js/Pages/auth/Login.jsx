@@ -12,15 +12,6 @@ import { __ } from '../../lib/i18n';
  *
  * POST /login   → AuthController::login  (password auth)
  * POST /login/pin → AuthController::loginWithPin  (PIN auth)
- *
- * Validation errors are surfaced from form.errors (Inertia re-renders the page
- * with errors populated from the server's withErrors() / ValidationException).
- * The controller throws ValidationException with key 'username' on bad creds,
- * so form.errors.username carries the auth-failure message.
- *
- * All user-facing strings go through __() (source-string keyed, mirrors the
- * original auth/login.blade.php) so the page follows the active locale instead
- * of being pinned to one language.
  */
 export default function Login({ pinEnabled = false, regEnabled = false }) {
     const [tab, setTab] = useState('password');
@@ -48,14 +39,13 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
 
     const switchTab = (t) => {
         setTab(t);
-        // Clear errors when switching tabs
         passwordForm.clearErrors();
         pinForm.clearErrors();
     };
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">{__('Sign In')}</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">{__('Sign in')}</h2>
 
             {/* Tab switcher — only when PIN login is enabled */}
             {pinEnabled && (
@@ -88,7 +78,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
             {/* Password login form */}
             {tab === 'password' && (
                 <form onSubmit={submitPassword}>
-                    {/* Username */}
                     <div className="mb-4">
                         <label htmlFor="username" className="form-label">
                             {__('Username')}
@@ -109,7 +98,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         )}
                     </div>
 
-                    {/* Password */}
                     <div className="mb-4">
                         <label htmlFor="password" className="form-label">
                             {__('Password')}
@@ -129,7 +117,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         )}
                     </div>
 
-                    {/* Remember me */}
                     <div className="mb-6 flex items-center">
                         <input
                             type="checkbox"
@@ -143,7 +130,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         </label>
                     </div>
 
-                    {/* Submit */}
                     <button
                         type="submit"
                         disabled={passwordForm.processing || !passwordForm.data.username || !passwordForm.data.password}
@@ -159,10 +145,10 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
-                                {__('Signing in...')}
+                                {__('Logging in...')}
                             </span>
                         ) : (
-                            __('Sign In')
+                            __('Sign in')
                         )}
                     </button>
                 </form>
@@ -171,7 +157,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
             {/* PIN login form */}
             {pinEnabled && tab === 'pin' && (
                 <form onSubmit={submitPin}>
-                    {/* Username */}
                     <div className="mb-4">
                         <label htmlFor="pin_username" className="form-label">
                             {__('Username')}
@@ -191,7 +176,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         )}
                     </div>
 
-                    {/* PIN */}
                     <div className="mb-6">
                         <label htmlFor="pin_input" className="form-label">
                             {__('PIN')}
@@ -216,7 +200,6 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                         <p className="mt-1 text-xs text-gray-500">{__('Enter your 4–6 digit PIN')}</p>
                     </div>
 
-                    {/* Submit */}
                     <button
                         type="submit"
                         disabled={pinForm.processing || !pinForm.data.username || pinForm.data.pin.length < 4}
@@ -232,10 +215,10 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                 </svg>
-                                {__('Signing in...')}
+                                {__('Logging in...')}
                             </span>
                         ) : (
-                            `${__('Sign In')} ${__('with PIN')}`
+                            __('Quick PIN Login')
                         )}
                     </button>
 

@@ -615,6 +615,9 @@ export default function ProcessTemplatesShow() {
                     </div>
                 )}
 
+                {/* Reference photos (work instructions) */}
+                <PhotosSection productType={productType} processTemplate={processTemplate} />
+
                 {/* Drag-sort save status toast */}
                 {saveStatus && (
                     <div
@@ -633,6 +636,154 @@ export default function ProcessTemplatesShow() {
                 )}
             </div>
         </>
+    );
+}
+
+/**
+ * Reference photos for the template. Upload accepts JPEG/PNG/WebP only;
+ * the server re-encodes every image (strips EXIF and any embedded payloads)
+ * and serves files through an authenticated endpoint — never a public URL.
+ */
+function PhotosSection({ productType, processTemplate }) {
+    const photos = processTemplate.photos ?? [];
+    const baseUrl = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/photos`;
+
+    const form = useForm({ photo: null, caption: '' });
+    const fileInputRef = useRef(null);
+    const [lightbox, setLightbox] = useState(null); // photo object or null
+
+    const submit = (e) => {
+        e.preventDefault();
+        if (!form.data.photo) return;
+        form.post(baseUrl, {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                form.reset();
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            },
+        });
+    };
+
+    const handleDelete = (photo) => {
+        if (!confirm('Delete this photo?')) return;
+        router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
+    };
+
+    return (
+        <div className="mt-10">
+            <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-xl font-bold text-gray-800">Reference Photos</h2>
+                <span className="text-sm text-gray-500">({photos.length}/20)</span>
+            </div>
+
+            {/* Upload form */}
+            <form onSubmit={submit} className="card mb-4 flex flex-wrap items-end gap-3">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Photo <span className="text-xs text-gray-400">(JPEG/PNG/WebP, max 10 MB)</span>
+                    </label>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) => form.setData('photo', e.target.files[0] ?? null)}
+                        className="block text-sm text-gray-600 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:text-sm file:font-medium hover:file:bg-blue-100"
+                    />
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Caption</label>
+                    <input
+                        type="text"
+                        value={form.data.caption}
+                        onChange={(e) => form.setData('caption', e.target.value)}
+                        maxLength={255}
+                        placeholder="Optional description"
+                        className="form-input w-full"
+                    />
+                </div>
+                <button
+                    type="submit"
+                    disabled={form.processing || !form.data.photo}
+                    className="btn-touch btn-primary disabled:opacity-50"
+                >
+                    {form.processing ? 'Uploading…' : 'Upload'}
+                </button>
+                {form.errors.photo && <p className="w-full text-sm text-red-600">{form.errors.photo}</p>}
+                {form.errors.caption && <p className="w-full text-sm text-red-600">{form.errors.caption}</p>}
+            </form>
+
+            {/* Photo grid */}
+            {photos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {photos.map((photo) => (
+                        <div key={photo.id} className="card p-2 group relative">
+                            <button
+                                type="button"
+                                onClick={() => setLightbox(photo)}
+                                className="block w-full"
+                                title={photo.original_name}
+                            >
+                                <img
+                                    src={photo.url}
+                                    alt={photo.caption || photo.original_name}
+                                    loading="lazy"
+                                    className="w-full h-32 object-cover rounded-lg bg-gray-100"
+                                />
+                            </button>
+                            <div className="mt-2 text-xs text-gray-600 truncate" title={photo.caption || ''}>
+                                {photo.caption || <span className="text-gray-400">No caption</span>}
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                                {photo.width}×{photo.height} • {photo.file_size}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleDelete(photo)}
+                                className="absolute top-3 right-3 bg-white/90 text-red-600 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                                title="Delete photo"
+                            >
+                                <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="card text-center py-8 text-sm text-gray-500">
+                    No reference photos yet. Upload assembly/work-instruction images for operators.
+                </div>
+            )}
+
+            {/* Lightbox */}
+            {lightbox && (
+                <div
+                    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6"
+                    onClick={() => setLightbox(null)}
+                >
+                    <figure className="max-w-4xl max-h-full" onClick={(e) => e.stopPropagation()}>
+                        <img
+                            src={lightbox.url}
+                            alt={lightbox.caption || lightbox.original_name}
+                            className="max-w-full max-h-[80vh] rounded-lg shadow-2xl"
+                        />
+                        <figcaption className="text-white/90 text-sm mt-3 text-center">
+                            {lightbox.caption || lightbox.original_name}
+                            {lightbox.uploaded_by && (
+                                <span className="text-white/50"> — {lightbox.uploaded_by}, {lightbox.created_at}</span>
+                            )}
+                        </figcaption>
+                    </figure>
+                    <button
+                        type="button"
+                        onClick={() => setLightbox(null)}
+                        className="absolute top-5 right-5 text-white/80 hover:text-white"
+                        title="Close"
+                    >
+                        <Icon d="M6 18L18 6M6 6l12 12" className="w-8 h-8" />
+                    </button>
+                </div>
+            )}
+        </div>
     );
 }
 

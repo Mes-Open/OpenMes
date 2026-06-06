@@ -1,7 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { StatusDot } from './ui';
-import { __ } from '../../../lib/i18n';
+import { __, formatNumber } from '../../../lib/i18n';
 
 const PROTOCOL_LABELS = {
     mqtt:   'MQTT',
@@ -99,7 +99,7 @@ export default function ConnectivityIndex() {
 
                                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                                         <span>{count ?? 0} {countLabel}</span>
-                                        {conn.protocol === 'mqtt' && <span>{Number(conn.messages_received).toLocaleString()} {__('msg')}</span>}
+                                        {conn.protocol === 'mqtt' && <span>{formatNumber(Number(conn.messages_received))} {__('msg')}</span>}
                                     </div>
 
                                     {conn.last_connected_at && (

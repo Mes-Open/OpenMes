@@ -4,6 +4,7 @@ import { useDashboardShapes } from '../../lib/useDashboardShapes';
 import { useHotShapes } from '../../components/LiveShapesProvider';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+import { formatDateTime } from '../../lib/i18n';
 
 const WO_TERMINAL = ['DONE', 'CANCELLED', 'REJECTED'];
 
@@ -147,7 +148,7 @@ function Header({ selectedLineId, onLineChange, lines }) {
             <div>
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Admin Dashboard')}</h1>
                 <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-                    {dateStr}{' '}
+                    {formatDateTime(new Date())}{' '}
                     {selectedLine ? (
                         <>— <span className="font-medium text-blue-600 dark:text-blue-300">{selectedLine.name}</span></>
                     ) : (

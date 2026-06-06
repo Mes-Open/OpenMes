@@ -4,6 +4,7 @@ import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
+import { formatDate } from '../../../lib/i18n';
 
 /**
  * Admin Alerts — joins five collections (issues, work orders, and the issue
@@ -274,7 +275,7 @@ function EmptyCard({ text }) {
 function fmtDate(d) {
     if (!d) return '';
     const dt = new Date(d);
-    return Number.isNaN(dt.getTime()) ? '' : dt.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    return Number.isNaN(dt.getTime()) ? '' : formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function timeAgo(d) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import LiveRefresh from '../../../components/LiveRefresh';
+import { formatDate, formatNumber } from '../../../lib/i18n';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -345,8 +346,8 @@ export default function Planner() {
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    const rangeStartFmt = rangeStart ? new Date(rangeStart).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : '';
-    const rangeEndFmt = rangeEnd ? new Date(rangeEnd).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const rangeStartFmt = rangeStart ? formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit' }) : '';
+    const rangeEndFmt = rangeEnd ? formatDate(new Date(rangeEnd), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
 
     return (
         <>
@@ -742,8 +743,8 @@ function WeeklyView({ data, shiftsPerDay, showWeekends, maintenanceEvents, dragO
                     cur.setDate(ws.getDate() + d);
                     dayHeaders.push({
                         date: cur.toISOString().slice(0, 10),
-                        dayLabel: cur.toLocaleDateString('en-GB', { weekday: 'short' }),
-                        dayNum: cur.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }),
+                        dayLabel: formatDate(cur, { weekday: 'short' }),
+                        dayNum: formatDate(cur, { day: '2-digit', month: '2-digit' }),
                         isToday: cur.toISOString().slice(0, 10) === today,
                         isWeekend: cur.getDay() === 0 || cur.getDay() === 6,
                     });
@@ -764,7 +765,7 @@ function WeeklyView({ data, shiftsPerDay, showWeekends, maintenanceEvents, dragO
                                 <div className="flex items-center gap-3">
                                     <span className="text-lg font-black text-gray-800 dark:text-gray-100">wk. {period.number}</span>
                                     <span className="text-sm text-gray-500">
-                                        {new Date(period.start).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}&ndash;{new Date(period.end).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
+                                        {formatDate(new Date(period.start), { day: '2-digit', month: '2-digit' })}&ndash;{formatDate(new Date(period.end), { day: '2-digit', month: '2-digit' })}
                                     </span>
                                     <div className="flex gap-0.5">
                                         {Array.from({ length: shiftsPerDay }, (_, i) => i + 1).map((s) => (
@@ -974,8 +975,8 @@ function DailyView({ data, lines, maintenanceEvents, onUnassign }) {
                             const isWeekend = (() => { const d = new Date(day.date); return d.getDay() === 0 || d.getDay() === 6; })();
                             return (
                                 <th key={day.date} className={`p-1.5 text-center border-r border-gray-100 dark:border-gray-700 ${isToday ? 'bg-blue-100 dark:bg-blue-900/40' : ''} ${isWeekend ? 'bg-gray-50 dark:bg-gray-800/60' : ''}`}>
-                                    <div className="text-[10px] text-gray-400 uppercase">{new Date(day.date).toLocaleDateString('en-GB', { weekday: 'short' })}</div>
-                                    <div className={`text-xs font-bold ${isToday ? 'text-blue-700' : 'text-gray-700 dark:text-gray-200'}`}>{new Date(day.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}</div>
+                                    <div className="text-[10px] text-gray-400 uppercase">{formatDate(new Date(day.date), { weekday: 'short' })}</div>
+                                    <div className={`text-xs font-bold ${isToday ? 'text-blue-700' : 'text-gray-700 dark:text-gray-200'}`}>{formatDate(new Date(day.date), { day: '2-digit', month: '2-digit' })}</div>
                                     {isToday && <div className="h-0.5 bg-blue-500 rounded-full mt-0.5 mx-auto w-8" />}
                                 </th>
                             );
@@ -1498,7 +1499,7 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                                             </span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-gray-600 dark:text-gray-400">
-                                            <div>Qty: <strong className="text-gray-800 dark:text-gray-200">{Number(item.qty).toLocaleString()}</strong></div>
+                                            <div>Qty: <strong className="text-gray-800 dark:text-gray-200">{formatNumber(Number(item.qty))}</strong></div>
                                             <div>Due: <strong className={item.due_date !== '-' && new Date(item.due_date) < new Date() ? 'text-red-600' : 'text-gray-800 dark:text-gray-200'}>{item.due_date}</strong></div>
                                             <div>Line: <strong className="text-gray-800 dark:text-gray-200">{item.line_id ? allLines.find(l => l.id == item.line_id)?.name ?? 'unassigned' : 'unassigned'}</strong></div>
                                             <div>Priority: <strong className={pl.color}>{item.priority ?? '-'}</strong></div>
@@ -1521,7 +1522,7 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                 <div className="grid grid-cols-3 gap-2 text-center mb-2.5">
                     <div>
                         <div className="text-[10px] text-gray-400">total pcs</div>
-                        <div className="text-sm font-bold text-gray-800 dark:text-gray-100">{totalPcs.toLocaleString()}</div>
+                        <div className="text-sm font-bold text-gray-800 dark:text-gray-100">{formatNumber(totalPcs)}</div>
                     </div>
                     <div>
                         <div className="text-[10px] text-gray-400">orders</div>
