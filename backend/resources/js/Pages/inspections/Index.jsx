@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { formatNumber } from '../../lib/i18n';
 
 const DISPOSITION_LABELS = {
     pending: 'Pending',
@@ -49,7 +50,7 @@ function dispositionBadge(disposition) {
 
 function fmtNum(n) {
     if (n == null) return '—';
-    return Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatNumber(Number(n), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function InspectionsIndex() {

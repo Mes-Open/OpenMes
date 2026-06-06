@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
+import { formatNumber, formatTime } from '../../../../lib/i18n';
 
 const STATUS_DOT = {
     green:  'bg-green-500',
@@ -96,7 +97,7 @@ export default function MqttShow() {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-4">
                     <StatCard value={connection.topics.length} label="Topics" />
-                    <StatCard value={Number(connection.messages_received).toLocaleString()} label="Messages received" />
+                    <StatCard value={formatNumber(Number(connection.messages_received))} label="Messages received" />
                     <StatCard value={connection.status} label={connection.last_connected_at ?? 'Never'} capitalize />
                 </div>
 
@@ -614,7 +615,7 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
 
     const formatTime = (iso) => {
         if (!iso) return '';
-        try { return new Date(iso).toLocaleTimeString('pl-PL', { hour12: false }); } catch { return iso; }
+        try { return formatTime(new Date(iso), { hour12: false }); } catch { return iso; }
     };
 
     const statusDot = (status) => {

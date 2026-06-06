@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
+import { formatNumber } from '../../../lib/i18n';
 
 const LINE_PALETTE = ['#2563eb', '#db2777', '#0891b2', '#16a34a', '#ea580c', '#7c3aed'];
 
@@ -117,8 +118,8 @@ export default function OeeIndex() {
                                         <MetricMini label="Quality" value={fmt1(s.avg_quality)} />
                                     </div>
                                     <div className="w-full mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-around text-xs text-gray-500">
-                                        <span>Produced: {Number(s.total_produced).toLocaleString()}</span>
-                                        <span>Scrap: {Number(s.total_scrap).toLocaleString()}</span>
+                                        <span>Produced: {formatNumber(Number(s.total_produced))}</span>
+                                        <span>Scrap: {formatNumber(Number(s.total_scrap))}</span>
                                         <span>Downtime: {s.total_downtime}min</span>
                                     </div>
                                 </a>
@@ -245,8 +246,8 @@ export default function OeeIndex() {
                                                 <td className="px-3 py-2 text-right">{r.performance_pct != null ? Number(r.performance_pct).toFixed(1) + '%' : '—'}</td>
                                                 <td className="px-3 py-2 text-right">{r.quality_pct != null ? Number(r.quality_pct).toFixed(1) + '%' : '—'}</td>
                                                 <td className={`px-3 py-2 text-right font-bold ${band.text}`}>{r.oee_pct != null ? Number(r.oee_pct).toFixed(1) + '%' : '—'}</td>
-                                                <td className="px-3 py-2 text-right font-mono">{Number(r.total_produced).toLocaleString()}</td>
-                                                <td className="px-3 py-2 text-right font-mono text-red-600">{r.scrap_qty > 0 ? Number(r.scrap_qty).toLocaleString() : '—'}</td>
+                                                <td className="px-3 py-2 text-right font-mono">{formatNumber(Number(r.total_produced))}</td>
+                                                <td className="px-3 py-2 text-right font-mono text-red-600">{r.scrap_qty > 0 ? formatNumber(Number(r.scrap_qty)) : '—'}</td>
                                                 <td className="px-3 py-2 text-right font-mono">{r.downtime_minutes}min</td>
                                             </tr>
                                         );

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
-import { __ } from '../../../lib/i18n';
+import { __, formatNumber } from '../../../lib/i18n';
 
 /**
  * Live machine monitor — a tile grid of workstation states, polled from the
@@ -140,8 +140,8 @@ function Tile({ t, now }) {
 
             <div className="grid grid-cols-3 gap-2 text-center mt-4">
                 <Metric label={__('Availability')} value={t.availability != null ? `${t.availability}%` : '—'} />
-                <Metric label={__('Good')} value={Number(t.good ?? 0).toLocaleString()} tone="text-green-600 dark:text-green-400" />
-                <Metric label={__('Reject')} value={Number(t.reject ?? 0).toLocaleString()} tone="text-red-500 dark:text-red-400" />
+                <Metric label={__('Good')} value={formatNumber(Number(t.good ?? 0))} tone="text-green-600 dark:text-green-400" />
+                <Metric label={__('Reject')} value={formatNumber(Number(t.reject ?? 0))} tone="text-red-500 dark:text-red-400" />
             </div>
 
             {t.quality != null && (

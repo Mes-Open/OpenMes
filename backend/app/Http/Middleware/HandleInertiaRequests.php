@@ -38,6 +38,9 @@ class HandleInertiaRequests extends Middleware
             // loads the matching lang/<locale>.json chunk itself (see lib/i18n).
             'locale' => fn () => app()->getLocale(),
             'locales' => fn () => config('app.available_locales'),
+            // Plant timezone — the frontend formats all dates/times in this zone
+            // (config/app.php → APP_TIMEZONE) instead of the viewer's browser zone.
+            'timezone' => fn () => config('app.timezone'),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

@@ -3,6 +3,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
+import { formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -10,7 +11,7 @@ import LabelPrintMenu from '../../components/LabelPrintMenu';
 
 function fmtQty(n, decimals = 2) {
     if (n == null) return '—';
-    return Number(n).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return formatNumber(Number(n), { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 function statusBadge(status) {
@@ -386,7 +387,7 @@ function ConfirmParametersRow({ batch }) {
             </button>
             {lastConfirm && (
                 <span className="text-xs text-green-600">
-                    Last: {new Date(lastConfirm.confirmed_at).toLocaleString(undefined, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    Last: {formatDateTime(new Date(lastConfirm.confirmed_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
             )}
         </div>
@@ -1028,7 +1029,7 @@ export default function WorkOrderDetail() {
                                     <div>
                                         <p className="text-sm text-gray-500">Due Date</p>
                                         <p className={`font-medium ${dueDatePast ? 'text-red-600' : 'text-gray-800 dark:text-gray-100'}`}>
-                                            {new Date(dueDateStr).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            {formatDate(new Date(dueDateStr), { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </p>
                                     </div>
                                 )}
@@ -1154,7 +1155,7 @@ export default function WorkOrderDetail() {
                                             )}
                                             <p className="text-xs text-gray-400 mt-1">
                                                 {issue.reported_at
-                                                    ? new Date(issue.reported_at).toLocaleString()
+                                                    ? formatDateTime(new Date(issue.reported_at))
                                                     : ''}
                                                 {issue.reported_by ? ` by ${issue.reported_by.name}` : ''}
                                             </p>

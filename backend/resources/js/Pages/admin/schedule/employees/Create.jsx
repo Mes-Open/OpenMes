@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
+import { formatDate } from '../../../../lib/i18n';
 
 function toMin(t) {
     if (!t) return 0;
@@ -45,7 +46,7 @@ export default function EmployeeCreate() {
             <div className="max-w-2xl mx-auto">
                 <div className="mb-4">
                     <div className="font-mono text-[11px] tracking-wider font-bold uppercase text-amber-600 dark:text-amber-400">
-                        {worker?.name} · {dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                        {worker?.name} · {formatDate(dateObj, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
                     </div>
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100 mt-0.5">Add activity</h1>
                 </div>
