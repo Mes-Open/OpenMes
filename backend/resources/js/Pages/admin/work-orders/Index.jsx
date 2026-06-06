@@ -2,11 +2,36 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { WO_STATUS_STYLES } from './fields';
+import { __ } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
 export default function WorkOrdersIndex() {
     const { counts = {}, lineNames = {}, productTypeNames = {} } = usePage().props;
+
+    // Honor dashboard KPI deep-links (e.g. ?status=IN_PROGRESS&line_id=3) so a
+    // click lands on the matching filtered list instead of the full table.
+    const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    const statusFilter = params.get('status');
+    const lineFilter = params.get('line_id');
+    const filterFn = (statusFilter || lineFilter)
+        ? (r) => (!statusFilter || r.status === statusFilter) && (!lineFilter || String(r.line_id) === String(lineFilter))
+        : undefined;
+    const subtitle = filterFn ? (
+        <div className="flex items-center gap-2 text-sm">
+            {statusFilter && (
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${WO_STATUS_STYLES[statusFilter] ?? 'bg-gray-100 text-gray-700'}`}>
+                    {statusFilter}
+                </span>
+            )}
+            {lineFilter && (
+                <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+                    {lineNames[lineFilter] ?? `Line ${lineFilter}`}
+                </span>
+            )}
+            <a href="/admin/work-orders" className="text-blue-600 hover:underline">{__('Clear')}</a>
+        </div>
+    ) : undefined;
 
     const post = (id, verb, data = {}) => router.post(`/admin/work-orders/${id}/${verb}`, data, { preserveScroll: true });
 
@@ -72,6 +97,8 @@ export default function WorkOrdersIndex() {
                 orderBy="order_no"
                 actions={actions}
                 emptyText="No work orders yet."
+                filterFn={filterFn}
+                subtitle={subtitle}
             />
         </>
     );

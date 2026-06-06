@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import AuthLayout from '../../layouts/AuthLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Forced password change page — Inertia render name: auth/ChangePassword
@@ -48,14 +49,14 @@ export default function ChangePassword({ forceChange = false }) {
     return (
         <div>
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-800 text-center">Zmień hasło</h1>
-                <p className="text-gray-600 mt-2 text-center text-sm">
-                    Zaktualizuj hasło, aby zabezpieczyć swoje konto.
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 text-center">{__('Change Password')}</h1>
+                <p className="text-gray-600 dark:text-gray-300 mt-2 text-center text-sm">
+                    {__('Update your password to keep your account secure.')}
                 </p>
 
                 {forceChange && (
                     <div className="mt-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg text-sm">
-                        <strong>Wymagana akcja:</strong> Musisz zmienić hasło przed kontynuowaniem.
+                        <strong>{__('Action required:')}</strong> {__('You must change your password before continuing.')}
                     </div>
                 )}
             </div>
@@ -64,7 +65,7 @@ export default function ChangePassword({ forceChange = false }) {
                 {/* Current Password */}
                 <div className="mb-4">
                     <label htmlFor="current_password" className="form-label">
-                        Aktualne hasło
+                        {__('Current Password')}
                     </label>
                     <div className="relative">
                         <input
@@ -80,21 +81,21 @@ export default function ChangePassword({ forceChange = false }) {
                         <button
                             type="button"
                             onClick={() => setShowCurrent((v) => !v)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700"
                             tabIndex={-1}
                         >
                             <EyeIcon open={showCurrent} />
                         </button>
                     </div>
                     {form.errors.current_password && (
-                        <p className="mt-1 text-sm text-red-600">{form.errors.current_password}</p>
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.current_password}</p>
                     )}
                 </div>
 
                 {/* New Password */}
                 <div className="mb-4">
                     <label htmlFor="new_password" className="form-label">
-                        Nowe hasło
+                        {__('New Password')}
                     </label>
                     <div className="relative">
                         <input
@@ -111,22 +112,22 @@ export default function ChangePassword({ forceChange = false }) {
                         <button
                             type="button"
                             onClick={() => setShowNew((v) => !v)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700"
                             tabIndex={-1}
                         >
                             <EyeIcon open={showNew} />
                         </button>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">Minimum 8 znaków</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{__('Minimum 8 characters')}</p>
                     {form.errors.password && (
-                        <p className="mt-1 text-sm text-red-600">{form.errors.password}</p>
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.password}</p>
                     )}
                 </div>
 
                 {/* Confirm New Password */}
                 <div className="mb-6">
                     <label htmlFor="new_password_confirmation" className="form-label">
-                        Potwierdź nowe hasło
+                        {__('Confirm New Password')}
                     </label>
                     <div className="relative">
                         <input
@@ -143,18 +144,18 @@ export default function ChangePassword({ forceChange = false }) {
                         <button
                             type="button"
                             onClick={() => setShowConfirm((v) => !v)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700"
                             tabIndex={-1}
                         >
                             <EyeIcon open={showConfirm} />
                         </button>
                     </div>
-                    <p className={`mt-1 text-sm ${passwordsMatch ? 'text-green-600' : 'text-gray-500'}`}>
-                        {!form.data.password_confirmation && 'Wpisz ponownie nowe hasło'}
+                    <p className={`mt-1 text-sm ${passwordsMatch ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                        {!form.data.password_confirmation && __('Re-enter your new password')}
                         {form.data.password_confirmation && !passwordsMatch && (
-                            <span className="text-red-600">Hasła nie są zgodne</span>
+                            <span className="text-red-600 dark:text-red-400">{__('Passwords do not match')}</span>
                         )}
-                        {passwordsMatch && '✓ Hasła są zgodne'}
+                        {passwordsMatch && __('✓ Passwords match')}
                     </p>
                 </div>
 
@@ -165,7 +166,7 @@ export default function ChangePassword({ forceChange = false }) {
                         disabled={isDisabled}
                         className={`btn-touch btn-primary flex-1${isDisabled ? ' opacity-50 cursor-not-allowed' : ''}`}
                     >
-                        {form.processing ? 'Zmienianie...' : 'Zmień hasło'}
+                        {form.processing ? __('Changing...') : __('Change Password')}
                     </button>
 
                     {!forceChange && (
@@ -173,7 +174,7 @@ export default function ChangePassword({ forceChange = false }) {
                             href="/operator/select-line"
                             className="btn-touch btn-secondary flex-1 text-center"
                         >
-                            Anuluj
+                            {__('Cancel')}
                         </a>
                     )}
                 </div>

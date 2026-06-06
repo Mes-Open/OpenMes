@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 export default function DashboardWidgetsIndex() {
     const { widgets: initialWidgets = [] } = usePage().props;
@@ -59,17 +60,17 @@ export default function DashboardWidgetsIndex() {
 
     return (
         <>
-            <Head title="Dashboard Setup" />
+            <Head title={__('Dashboard Setup')} />
             <div className="max-w-3xl mx-auto">
                 <div className="flex items-center gap-3 mb-6">
-                    <Link href="/settings" className="text-gray-500 hover:text-gray-700">
+                    <Link href="/settings" className="text-gray-500 dark:text-gray-400 hover:text-gray-700">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                         </svg>
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Dashboard Setup</h1>
-                        <p className="text-gray-500 text-sm mt-0.5">Enable, disable, and reorder dashboard widgets</p>
+                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Dashboard Setup')}</h1>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">{__('Enable, disable, and reorder dashboard widgets')}</p>
                     </div>
                 </div>
 
@@ -81,7 +82,7 @@ export default function DashboardWidgetsIndex() {
                                 <button
                                     onClick={() => moveUp(index)}
                                     disabled={index === 0}
-                                    className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed"
+                                    className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
@@ -90,7 +91,7 @@ export default function DashboardWidgetsIndex() {
                                 <button
                                     onClick={() => moveDown(index)}
                                     disabled={index === widgets.length - 1}
-                                    className="p-1 text-gray-400 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed"
+                                    className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -99,7 +100,7 @@ export default function DashboardWidgetsIndex() {
                             </div>
 
                             {/* Position number */}
-                            <span className="text-sm font-mono text-gray-400 w-6 text-center shrink-0">
+                            <span className="text-sm font-mono text-gray-400 dark:text-gray-500 w-6 text-center shrink-0">
                                 {index + 1}
                             </span>
 
@@ -112,14 +113,14 @@ export default function DashboardWidgetsIndex() {
                                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                                             : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'}`}
                                     >
-                                        {widget.source === 'builtin' ? 'Built-in' : widget.module_name}
+                                        {widget.source === 'builtin' ? __('Built-in') : widget.module_name}
                                     </span>
                                     <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                                         {widget.zone}
                                     </span>
                                 </div>
                                 {widget.description && (
-                                    <p className="text-xs text-gray-500 mt-0.5">{widget.description}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{widget.description}</p>
                                 )}
                             </div>
 
@@ -130,23 +131,23 @@ export default function DashboardWidgetsIndex() {
                                     ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300'
                                     : 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900 dark:text-red-300'}`}
                             >
-                                {widget.enabled ? 'Enabled' : 'Disabled'}
+                                {widget.enabled ? __('Enabled') : __('Disabled')}
                             </button>
                         </div>
                     ))}
 
                     <div className="flex justify-between items-center mt-6">
                         <div>
-                            <p className="text-xs text-gray-400">Use arrows to reorder. Modules can register additional widgets.</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">{__('Use arrows to reorder. Modules can register additional widgets.')}</p>
                             {dirty && (
-                                <p className="text-xs text-orange-600 font-medium mt-1">You have unsaved changes!</p>
+                                <p className="text-xs text-orange-600 font-medium mt-1">{__('You have unsaved changes!')}</p>
                             )}
                         </div>
                         <button
                             onClick={saveAll}
                             className={`btn-touch btn-primary${dirty ? ' animate-pulse ring-2 ring-blue-400' : ''}`}
                         >
-                            Save
+                            {__('Save')}
                         </button>
                     </div>
                 </div>
@@ -157,7 +158,7 @@ export default function DashboardWidgetsIndex() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        <span>Saved! Redirecting...</span>
+                        <span>{__('Saved! Redirecting...')}</span>
                     </div>
                 )}
             </div>

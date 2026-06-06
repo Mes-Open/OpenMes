@@ -28,21 +28,17 @@ export function LiveShapesProvider({ children }) {
     const { configs } = useShapeConfigs(HOT_SHAPES);
     useLiveShapeBudget(HOT_SHAPES);
 
-    if (!configs) {
-        return <LiveShapesContext.Provider value={null}>{children}</LiveShapesContext.Provider>;
-    }
-    return <ReadyProvider configs={configs}>{children}</ReadyProvider>;
-}
-
-function ReadyProvider({ configs, children }) {
-    // Created once per config set → one collection (one Electric stream) each,
-    // shared by every consumer below.
-    const value = useMemo(
-        () => ({
+    // IMPORTANT: render ONE stable tree and only flip the context VALUE from null
+    // → collections. A structural branch here (loading wrapper vs ready wrapper)
+    // would reparent `children`, remounting the whole page when configs arrive —
+    // which double-fires every page's fetches/streams and cancels the first set.
+    const value = useMemo(() => {
+        if (!configs) return null;
+        return {
             workOrdersActive: electricCollection('work_orders_active', configs.work_orders_active, (r) => r.id),
             issuesOpen: electricCollection('issues_open', configs.issues_open, (r) => r.id),
-        }),
-        [configs],
-    );
+        };
+    }, [configs]);
+
     return <LiveShapesContext.Provider value={value}>{children}</LiveShapesContext.Provider>;
 }

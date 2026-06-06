@@ -354,6 +354,7 @@ export default function Planner() {
             <LiveRefresh
                 pollUrl="/admin/schedule/check-updates"
                 shape="work_orders_all"
+                instant
                 enabled={realtimeMode !== 'off'}
                 onRefresh={onWorkOrdersChanged}
             />
