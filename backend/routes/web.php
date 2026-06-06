@@ -400,6 +400,7 @@ Route::middleware('auth')->group(function () {
         });
 
         // LOT Sequences
+        Route::post('lot-sequences/preview', [AdminLotSequenceController::class, 'preview'])->name('lot-sequences.preview');
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
 
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
