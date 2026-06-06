@@ -47,6 +47,8 @@ function ResourceTableLive({
     getKey = (row) => row.id,
     actions,
     emptyText = 'Nothing here yet.',
+    filterFn,
+    subtitle,
 }) {
     const collection = useMemo(
         () => electricCollection(shape, configs[shape], getKey),
@@ -57,10 +59,17 @@ function ResourceTableLive({
         q.from({ r: collection }).orderBy(({ r }) => r[orderBy], orderDir),
     );
 
+    // Optional client-side filter (e.g. a dashboard KPI deep-link like
+    // ?status=IN_PROGRESS) — applied over the live rows so it stays reactive.
+    const visibleRows = filterFn ? (rows ?? []).filter(filterFn) : rows;
+
     return (
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">{title}</h1>
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">{title}</h1>
+                    {subtitle && <div className="mt-1">{subtitle}</div>}
+                </div>
                 {createHref && (
                     <Link
                         href={createHref}
@@ -84,14 +93,14 @@ function ResourceTableLive({
                         </tr>
                     </thead>
                     <tbody>
-                        {rows.length === 0 && (
+                        {visibleRows.length === 0 && (
                             <tr>
                                 <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">
                                     {emptyText}
                                 </td>
                             </tr>
                         )}
-                        {rows.map((row) => (
+                        {visibleRows.map((row) => (
                             <tr key={getKey(row)} className="border-b last:border-0 hover:bg-gray-50">
                                 {columns.map((c) => (
                                     <td

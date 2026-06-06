@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 function EyeIcon({ visible }) {
     if (visible) {
@@ -37,13 +38,13 @@ function PasswordField({ id, label, value, onChange, error, hint, autoComplete, 
                 <button
                     type="button"
                     onClick={() => setShow((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700"
                 >
                     <EyeIcon visible={show} />
                 </button>
             </div>
-            {hint && <p className="text-sm text-gray-500 mt-1">{hint}</p>}
-            {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
+            {hint && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{hint}</p>}
+            {error && <p className="text-red-600 dark:text-red-300 text-sm mt-1">{error}</p>}
         </div>
     );
 }
@@ -66,7 +67,7 @@ export default function ChangePassword() {
         post('/settings/change-password');
     }
 
-    let confirmHint = 'Re-enter your password';
+    let confirmHint = __('Re-enter your password');
     if (data.password_confirmation && data.password !== data.password_confirmation) {
         confirmHint = null; // shown as error-style below
     } else if (data.password && data.password_confirmation && data.password === data.password_confirmation) {
@@ -75,23 +76,23 @@ export default function ChangePassword() {
 
     return (
         <div className="max-w-2xl mx-auto">
-            <Head title="Change Password" />
+            <Head title={__('Change Password')} />
 
             <div className="mb-6">
-                <Link href="/settings" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">
+                <Link href="/settings" className="text-blue-600 dark:text-blue-300 hover:text-blue-800 flex items-center gap-2 mb-4">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                     </svg>
-                    Back
+                    {__('Back')}
                 </Link>
-                <h1 className="text-3xl font-bold text-gray-800">Change Password</h1>
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Change Password')}</h1>
             </div>
 
             <div className="card">
                 <form onSubmit={handleSubmit}>
                     <PasswordField
                         id="current_password"
-                        label="Current Password"
+                        label={__('Current Password')}
                         value={data.current_password}
                         onChange={(e) => setData('current_password', e.target.value)}
                         error={errors.current_password}
@@ -100,17 +101,17 @@ export default function ChangePassword() {
 
                     <PasswordField
                         id="password"
-                        label="New Password"
+                        label={__('New Password')}
                         value={data.password}
                         onChange={(e) => setData('password', e.target.value)}
                         error={errors.password}
-                        hint="Minimum 8 characters"
+                        hint={__('Minimum 8 characters')}
                         autoComplete="new-password"
                         minLength={8}
                     />
 
                     <div className="mb-6">
-                        <label htmlFor="password_confirmation" className="form-label">Confirm New Password</label>
+                        <label htmlFor="password_confirmation" className="form-label">{__('Confirm New Password')}</label>
                         <div className="relative">
                             {/* PasswordField not reused here so we can place the dynamic hint outside */}
                             <ConfirmField
@@ -119,24 +120,24 @@ export default function ChangePassword() {
                             />
                         </div>
                         {!data.password_confirmation && (
-                            <p className="text-sm text-gray-500 mt-1">Re-enter your password</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{__('Re-enter your password')}</p>
                         )}
                         {data.password_confirmation && data.password !== data.password_confirmation && (
-                            <p className="text-sm text-red-600 mt-1">Passwords do not match</p>
+                            <p className="text-sm text-red-600 dark:text-red-400 mt-1">{__('Passwords do not match')}</p>
                         )}
                         {data.password && data.password_confirmation && data.password === data.password_confirmation && (
-                            <p className="text-sm text-green-600 mt-1">Passwords match</p>
+                            <p className="text-sm text-green-600 dark:text-green-400 mt-1">{__('Passwords match')}</p>
                         )}
                     </div>
 
                     <div className="flex justify-end gap-3">
-                        <Link href="/settings" className="btn-touch btn-secondary">Cancel</Link>
+                        <Link href="/settings" className="btn-touch btn-secondary">{__('Cancel')}</Link>
                         <button
                             type="submit"
                             disabled={!canSubmit || processing}
                             className={`btn-touch btn-primary${(!canSubmit || processing) ? ' opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            Change Password
+                            {__('Change Password')}
                         </button>
                     </div>
                 </form>

@@ -9,18 +9,22 @@ import { detectMultiplexed } from '../lib/transport';
  *  - Always SHORT-POLLS `pollUrl` (an endpoint returning `{ last_updated }`)
  *    every `intervalMs` and calls `onRefresh` when the value changes. A short
  *    fetch is NOT a held connection, so it never trips HTTP/1.1's ~6-connection
- *    limit — reliable on plain http://localhost.
- *  - On HTTP/2 it ALSO mounts an Electric `ShapeChangeWatcher` for INSTANT push
- *    (skipped on HTTP/1.1 so it doesn't hold a long-poll connection there).
+ *    limit — reliable on plain http://localhost. This is the FALLBACK.
+ *  - Mounts an Electric `ShapeChangeWatcher` for INSTANT push: always on HTTP/2,
+ *    and on HTTP/1.1 too when `instant` is set. The watcher holds ONE long-poll
+ *    connection, so only opt into `instant` on low-shape screens (e.g. the
+ *    planner sits well under the connection budget). Without `instant`, HTTP/1.1
+ *    relies solely on the poll, so sync lags by up to `intervalMs`.
  *
  * `onRefresh` should be idempotent and guarded by the caller (e.g. skip while
  * the user is mid-drag/save, then flush).
  *
  * Props:
  *   pollUrl   — JSON endpoint returning { last_updated } (required for the poll)
- *   shape     — Electric shape to watch on HTTP/2 (default work_orders_all)
- *   intervalMs— poll cadence (default 10000)
+ *   shape     — Electric shape to watch (default work_orders_all)
+ *   intervalMs— poll cadence (default 10000) — the fallback when push is off
  *   enabled   — gate the whole thing
+ *   instant   — also push via Electric on HTTP/1.1 (holds 1 connection)
  *   onRefresh — called when a change is detected
  */
 export default function LiveRefresh({
@@ -28,6 +32,7 @@ export default function LiveRefresh({
     shape = 'work_orders_all',
     intervalMs = 10000,
     enabled = true,
+    instant = false,
     onRefresh,
 }) {
     const cbRef = useRef(onRefresh);
@@ -57,7 +62,8 @@ export default function LiveRefresh({
         return () => clearInterval(t);
     }, [enabled, pollUrl, intervalMs]);
 
-    // Instant push on HTTP/2 only (avoids a held long-poll on HTTP/1.1).
-    if (!enabled || !h2) return null;
+    // Instant Electric push: always on HTTP/2 (free with multiplexing); on
+    // HTTP/1.1 only when the caller opts in via `instant` (it holds one long-poll).
+    if (!enabled || !(h2 || instant)) return null;
     return <ShapeChangeWatcher shape={shape} onChange={() => cbRef.current?.()} />;
 }
