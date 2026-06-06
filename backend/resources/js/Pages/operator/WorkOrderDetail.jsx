@@ -148,6 +148,86 @@ function BomSection({ workOrder }) {
 }
 
 // ---------------------------------------------------------------------------
+// Process reference photos (work instructions) — read-only for operators.
+// Images stream from an authenticated endpoint; tap to enlarge.
+// ---------------------------------------------------------------------------
+
+function ProcessPhotosSection({ photos = [] }) {
+    const [open, setOpen] = useState(true);
+    const [lightbox, setLightbox] = useState(null);
+    if (!photos || photos.length === 0) return null;
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+            <button
+                type="button"
+                className="flex justify-between items-center w-full text-left"
+                onClick={() => setOpen((v) => !v)}
+            >
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Work Instructions</h2>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">{photos.length} photos</span>
+                    <ChevronIcon open={open} />
+                </div>
+            </button>
+
+            {open && (
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {photos.map((photo) => (
+                        <figure key={photo.id} className="m-0">
+                            <button
+                                type="button"
+                                onClick={() => setLightbox(photo)}
+                                className="block w-full"
+                                title={photo.caption || ''}
+                            >
+                                <img
+                                    src={photo.url}
+                                    alt={photo.caption || 'Work instruction'}
+                                    loading="lazy"
+                                    className="w-full h-32 object-cover rounded-lg bg-gray-100 dark:bg-slate-700"
+                                />
+                            </button>
+                            {photo.caption && (
+                                <figcaption className="mt-1 text-xs text-gray-600 dark:text-gray-300 truncate">
+                                    {photo.caption}
+                                </figcaption>
+                            )}
+                        </figure>
+                    ))}
+                </div>
+            )}
+
+            {lightbox && (
+                <div
+                    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6"
+                    onClick={() => setLightbox(null)}
+                >
+                    <figure className="max-w-4xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
+                        <img
+                            src={lightbox.url}
+                            alt={lightbox.caption || 'Work instruction'}
+                            className="max-w-full max-h-[80vh] rounded-lg shadow-2xl"
+                        />
+                        {lightbox.caption && (
+                            <figcaption className="text-white/90 text-sm mt-3 text-center">{lightbox.caption}</figcaption>
+                        )}
+                    </figure>
+                    <button
+                        type="button"
+                        onClick={() => setLightbox(null)}
+                        className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none"
+                        title="Close"
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Quality Check form (3 fixed samples per Blade)
 // ---------------------------------------------------------------------------
 
@@ -925,7 +1005,7 @@ function ReportIssueModal({ workOrder, issueTypes, onClose }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], workstations = [], defaultWorkstationId, line, labelTemplates = [] } = usePage().props;
+    const { workOrder, issueTypes = [], workstations = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [] } = usePage().props;
 
     const [createBatchOpen, setCreateBatchOpen] = useState(false);
     const [reportIssueOpen, setReportIssueOpen] = useState(false);
@@ -1045,6 +1125,9 @@ export default function WorkOrderDetail() {
 
                         {/* Recipe / BOM */}
                         <BomSection workOrder={workOrder} />
+
+                        {/* Process reference photos (work instructions) */}
+                        <ProcessPhotosSection photos={processPhotos} />
 
                         {/* Batches */}
                         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
