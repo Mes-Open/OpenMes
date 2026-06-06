@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
+import { formatDate, formatNumber, formatTime } from '../../lib/i18n';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function fmtQty(v, decimals = 0) {
     const n = parseFloat(v);
     if (isNaN(n)) return '0';
-    return n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return formatNumber(n, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 function fmtDate(dateStr, format = 'short') {
@@ -16,10 +17,10 @@ function fmtDate(dateStr, format = 'short') {
     const d = new Date(dateStr);
     if (isNaN(d)) return '—';
     if (format === 'short') {
-        return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+        return formatDate(d, { day: '2-digit', month: 'short' });
     }
-    return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
-        + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return formatDate(d, { day: '2-digit', month: 'short', year: 'numeric' })
+        + ', ' + formatTime(d, { hour: '2-digit', minute: '2-digit' });
 }
 
 function hexToRgba(hex, alpha) {

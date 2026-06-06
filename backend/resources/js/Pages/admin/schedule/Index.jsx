@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { formatDate, formatNumber } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
     BLOCKED:     'bg-red-100 text-red-700',
@@ -54,8 +55,8 @@ export default function ScheduleIndex() {
 
     const navigate = (params) => router.get('/admin/schedule/list', params, { preserveState: false });
 
-    const weekStartFmt = weekStart ? new Date(weekStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-    const weekEndFmt = weekEnd ? new Date(weekEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    const weekStartFmt = weekStart ? formatDate(new Date(weekStart), { day: 'numeric', month: 'short' }) : '';
+    const weekEndFmt = weekEnd ? formatDate(new Date(weekEnd), { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
     // Group workOrders by line for the by-line view
     const ordersByLine = {};
@@ -212,13 +213,13 @@ function OrderTable({ orders }) {
                                 <td className="px-4 py-3 text-sm hidden sm:table-cell">
                                     {wo.due_date ? (
                                         <span className={isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}>
-                                            {new Date(wo.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                            {formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}
                                             {isOverdue && ' ⚠'}
                                         </span>
                                     ) : <span className="text-gray-400">—</span>}
                                 </td>
                                 <td className="px-4 py-3 text-sm text-gray-600 hidden md:table-cell">
-                                    {wo.planned_qty != null ? Number(wo.planned_qty).toLocaleString() : '—'}
+                                    {wo.planned_qty != null ? formatNumber(Number(wo.planned_qty)) : '—'}
                                 </td>
                                 <td className="px-4 py-3">
                                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[wo.status] ?? 'bg-gray-100 text-gray-600'}`}>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { WO_STATUS_STYLES } from '../../admin/work-orders/fields';
+import { formatDate, formatNumber } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
@@ -23,21 +24,21 @@ const ISSUE_STATUS_STYLES = {
 };
 
 function fmtQty(n) {
-    return Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatNumber(Number(n ?? 0), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtDate(d) {
     if (!d) return null;
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return d;
-    return dt.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    return formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function fmtDateTime(d) {
     if (!d) return null;
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return d;
-    return dt.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function timeAgo(d) {

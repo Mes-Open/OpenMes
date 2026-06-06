@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
-import { __ } from '../../../lib/i18n';
+import { __, formatNumber } from '../../../lib/i18n';
 
 /**
  * Traceability / genealogy console. Resolves a finished LOT, material lot,
@@ -161,7 +161,7 @@ function BatchResult({ data }) {
                                             <span className="w-1 h-1 rounded-full bg-gray-400" />
                                             <span className="font-mono">{c.lot_number}</span>
                                             <span className="text-gray-400 dark:text-gray-500">{c.material}</span>
-                                            <span className="text-gray-500 dark:text-gray-400">— {c.quantity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            <span className="text-gray-500 dark:text-gray-400">— {formatNumber(c.quantity, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -220,7 +220,7 @@ function MaterialLotResult({ forward, backward }) {
                             ))}
                         </ul>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
-                            {__('Total consumed')}: {Number(forward.total_consumed).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {__('Total consumed')}: {formatNumber(Number(forward.total_consumed), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                     </>
                 )}

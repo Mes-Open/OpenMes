@@ -1,6 +1,6 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
-import { loadLocale } from './lib/i18n';
+import { loadLocale, setTimezone } from './lib/i18n';
 
 createInertiaApp({
     resolve: (name) => {
@@ -15,6 +15,8 @@ createInertiaApp({
         // Load the active locale's translation chunk before the first render so
         // __() is ready and there's no flash of untranslated/wrong-language text.
         await loadLocale(props.initialPage.props.locale ?? 'en');
+        // Plant timezone for the date/time format helpers (lib/i18n).
+        setTimezone(props.initialPage.props.timezone);
         createRoot(el).render(<App {...props} />);
     },
     progress: { color: '#1e40af' },
