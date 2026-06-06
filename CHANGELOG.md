@@ -65,6 +65,44 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - CSV formula injection neutralization in all exports
 - PR review fixes: __() translations, raw SQL replaced with Query Builder, hardcoded URL moved to config
 
+
+## [v0.13.0] - 2026-05-30
+
+### Added
+- OPC UA gateway + runtime health awareness
+- Modbus TCP + protocol-agnostic machine signal pipeline
+- material genealogy — lot-link, console, serial units
+- add Turkish (Türkçe) as a third UI language
+- workstation routing — restrict operators to their own station
+- Two-Factor Authentication with TOTP and recovery codes (#41)
+- add real-time polling for workstation queue and production view
+- maintenance reminder popup with sound for all users (supervisors, operators, admins)
+- generate recurring maintenance blocks for entire visible range (weekly shows every week, not just next_due)
+- show upcoming recurring maintenance on planner from schedules (not just existing events)
+- add scheduled_end_at — maintenance events have start and end time on planner
+- show maintenance events on planner (weekly, hourly views)
+- show ALL open issues (not just blocking), add real-time polling with alert sound
+- full config export/import — lines, products, templates, materials, shifts, ISA-95, and more
+- add settings import (JSON upload) with security whitelist
+- add Import button + example CSV download on Materials, Product Types, Lines; add Settings export
+- stack overlapping WOs in lanes on hourly Gantt view instead of overlapping
+- production quantity correction — configurable edit policy (none/timed/full)
+
+### Fixed
+- restore Polish packaging/label translations dropped in merge conflict
+- replace hardcoded Polish strings with __() translations
+- security review
+- correct maintenance block position — diffInMinutes argument order was reversed
+- maintenance blocks top-aligned and more visible on hourly Gantt (bg-purple-200, shadow, top instead of bottom)
+- pass maintenanceEvents to hourly partial (was missing from include)
+- increase maintenance event block size on hourly Gantt (24px→36px, bolder text)
+- reported issue with packing
+- config import — use savepoints for PostgreSQL error recovery, add unique keys for more tables
+- config import uses upsert instead of truncate to preserve FK relations with production data
+- restrict CORS defaults — empty origins (block all), GET/POST only, no preflight cache
+- ownership check on production corrections, harden settings import
+- update planned_start_at/planned_end_at on drag & drop to prevent WO disappearing on line change
+
 ## [0.11.1] - 2026-05-19
 
 ### Fixed
@@ -159,7 +197,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.11.1...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...develop
 [0.11.1]: https://github.com/Mes-Open/OpenMes/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/Mes-Open/OpenMes/compare/v0.9.0...v0.11.0
 [0.9.0]: https://github.com/Mes-Open/OpenMes/compare/v0.8.0...v0.9.0
