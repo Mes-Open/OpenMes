@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { formatNumber } from '../../lib/i18n';
 
 function ProgressBar({ pct, done }) {
     const color = done ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-indigo-500';
@@ -78,19 +79,19 @@ export default function Admin() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                     <div className="card text-center">
                         <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
-                            {(stats.today_packed ?? 0).toLocaleString()}
+                            {formatNumber((stats.today_packed ?? 0))}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">Spakowano (zmiana)</p>
                     </div>
                     <div className="card text-center">
                         <p className="text-3xl font-extrabold text-gray-700 dark:text-gray-200">
-                            {plan.toLocaleString()}
+                            {formatNumber(plan)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">Plan łącznie</p>
                     </div>
                     <div className="card text-center">
                         <p className={`text-3xl font-extrabold ${(stats.backlog ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                            {(stats.backlog ?? 0).toLocaleString()}
+                            {formatNumber((stats.backlog ?? 0))}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">Backlog</p>
                     </div>

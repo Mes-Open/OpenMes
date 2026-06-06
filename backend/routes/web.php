@@ -145,6 +145,11 @@ Route::middleware('auth')->group(function () {
         return response()->json(['count' => $count]);
     })->name('maintenance.upcoming-count');
 
+    // Process template reference photos — streamed to any authenticated user
+    // (operators see work instructions); files are NEVER publicly reachable.
+    Route::get('/process-templates/{process_template}/photos/{photo}', [\App\Http\Controllers\Web\Admin\ProcessTemplatePhotoController::class, 'show'])
+        ->name('process-templates.photos.show');
+
     // Settings
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Web\SettingsController::class, 'index'])->name('index');
@@ -392,6 +397,11 @@ Route::middleware('auth')->group(function () {
             Route::post('/{process_template}/steps/{step}/move-up', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'moveStepUp'])->name('move-step-up');
             Route::post('/{process_template}/steps/{step}/move-down', [\App\Http\Controllers\Web\Admin\ProcessTemplateManagementController::class, 'moveStepDown'])->name('move-step-down');
 
+            // Reference photos (work instructions) — uploads throttled (DoS guard)
+            Route::post('/{process_template}/photos', [\App\Http\Controllers\Web\Admin\ProcessTemplatePhotoController::class, 'store'])
+                ->middleware('throttle:30,1')->name('photos.store');
+            Route::delete('/{process_template}/photos/{photo}', [\App\Http\Controllers\Web\Admin\ProcessTemplatePhotoController::class, 'destroy'])->name('photos.destroy');
+
             // BOM Management (nested under process templates)
             Route::get('/{process_template}/bom', [BomManagementController::class, 'index'])->name('bom');
             Route::post('/{process_template}/bom', [BomManagementController::class, 'store'])->name('bom.store');
@@ -400,6 +410,7 @@ Route::middleware('auth')->group(function () {
         });
 
         // LOT Sequences
+        Route::post('lot-sequences/preview', [AdminLotSequenceController::class, 'preview'])->name('lot-sequences.preview');
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
 
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────

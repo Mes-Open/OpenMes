@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { formatTime } from '../../lib/i18n';
 
 function ProgressBar({ pct, done }) {
     const color = done ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-indigo-500';
@@ -112,20 +113,20 @@ export default function Station() {
                     packed_qty: packedQty,
                     planned_qty: plannedQty,
                     progress: pct,
-                    scanned_at: new Date().toLocaleTimeString('pl-PL'),
+                    scanned_at: formatTime(new Date()),
                 });
                 setFlash('success');
                 await Promise.all([fetchItems(), fetchStats()]);
                 setHistory((prev) => [
-                    { id: Date.now(), ean, product_name: wo.product, scanned_at: new Date().toLocaleTimeString('pl-PL') },
+                    { id: Date.now(), ean, product_name: wo.product, scanned_at: formatTime(new Date()) },
                     ...prev,
                 ].slice(0, 100));
             } else {
-                setLastScan({ success: false, ean, error: data.message, scanned_at: new Date().toLocaleTimeString('pl-PL') });
+                setLastScan({ success: false, ean, error: data.message, scanned_at: formatTime(new Date()) });
                 setFlash('error');
             }
         } catch {
-            setLastScan({ success: false, ean, error: 'Błąd połączenia', scanned_at: new Date().toLocaleTimeString('pl-PL') });
+            setLastScan({ success: false, ean, error: 'Błąd połączenia', scanned_at: formatTime(new Date()) });
             setFlash('error');
         }
 

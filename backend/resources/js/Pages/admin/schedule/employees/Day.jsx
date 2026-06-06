@@ -1,5 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
+import { formatDate } from '../../../../lib/i18n';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -81,10 +82,10 @@ export function EmployeeTabs({ view, date, selectedWorkerId, selectedWorker, wor
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100 mt-0.5">
                     {view === 'team'
-                        ? `Team day · ${new Date(date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
+                        ? `Team day · ${formatDate(new Date(date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
                         : view === 'month'
-                            ? `Month overview · ${new Date(date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`
-                            : <>{selectedWorker?.name ?? 'Day plan'} <span className="text-gray-400 dark:text-gray-500 font-normal text-lg">· {new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></>
+                            ? `Month overview · ${formatDate(new Date(date), { month: 'long', year: 'numeric' })}`
+                            : <>{selectedWorker?.name ?? 'Day plan'} <span className="text-gray-400 dark:text-gray-500 font-normal text-lg">· {formatDate(new Date(date), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></>
                     }
                 </h1>
             </div>
@@ -221,7 +222,7 @@ export default function EmployeeDay() {
                             return (
                                 <button key={d} onClick={() => navTo({ view: 'day', date: d, worker_id: selectedWorkerId })}
                                         className={`flex-shrink-0 px-3 py-2 rounded-lg font-mono text-[11px] font-bold tracking-wider uppercase border ${on ? 'bg-amber-500 border-amber-500 text-amber-950' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100 dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-300'}`}>
-                                    {new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })}
+                                    {formatDate(new Date(d), { weekday: 'short', day: 'numeric' })}
                                 </button>
                             );
                         })}
@@ -232,7 +233,7 @@ export default function EmployeeDay() {
                         <div className="flex flex-wrap justify-between items-start gap-3">
                             <div>
                                 <div className="font-mono text-[10px] tracking-wider font-bold uppercase text-amber-600 dark:text-amber-400">
-                                    {dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · A-shift
+                                    {formatDate(dateObj, { weekday: 'short', day: 'numeric', month: 'short' })} · A-shift
                                 </div>
                                 <div className="text-lg md:text-xl font-bold text-gray-800 dark:text-gray-100 mt-1">
                                     {fmtMins(totalWork + totalBreaks + (sums.maint ?? 0) + (sums.meeting ?? 0) + (sums.training ?? 0) + (sums.travel ?? 0))} planned

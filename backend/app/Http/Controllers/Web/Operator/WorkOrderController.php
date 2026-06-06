@@ -100,6 +100,7 @@ class WorkOrderController extends Controller
                         return true;
                     }
                 }
+
                 return false;
             })->values();
         }
@@ -172,7 +173,7 @@ class WorkOrderController extends Controller
     public function check(Request $request)
     {
         $lineId = $request->session()->get('selected_line_id');
-        if (!$lineId) {
+        if (! $lineId) {
             return response()->json(['active' => 0, 'workstation' => 0]);
         }
 
@@ -197,6 +198,7 @@ class WorkOrderController extends Controller
                             return true;
                         }
                     }
+
                     return false;
                 })->count();
         }
@@ -253,6 +255,27 @@ class WorkOrderController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'size', 'barcode_format', 'is_default']);
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates'));
+        // Reference photos (work instructions) for the process this order was
+        // built from. Loaded live by the snapshot's template id so updated
+        // instructions reach in-flight orders; the snapshot itself stays frozen.
+        // Served via the authenticated stream route, so any logged-in operator
+        // may view them.
+        $processPhotos = collect();
+        $templateId = $workOrder->process_snapshot['template_id'] ?? null;
+        if ($templateId) {
+            $processPhotos = \App\Models\ProcessTemplatePhoto::where('process_template_id', $templateId)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->map(fn ($p) => [
+                    'id' => $p->id,
+                    'url' => route('process-templates.photos.show', [$templateId, $p->id]),
+                    'caption' => $p->caption,
+                    'width' => $p->width,
+                    'height' => $p->height,
+                ]);
+        }
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos'));
     }
 }

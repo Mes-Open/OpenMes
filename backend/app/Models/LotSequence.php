@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Services\Lot\LotPatternFormatter;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,14 +13,19 @@ class LotSequence extends Model
 {
     use HasFactory, HasTenant;
 
+    public const RESET_PERIODS = ['none', 'yearly', 'monthly', 'daily', 'hourly'];
+
     protected $fillable = [
         'name',
         'product_type_id',
         'prefix',
         'suffix',
+        'pattern',
         'next_number',
         'pad_size',
         'year_prefix',
+        'reset_period',
+        'last_reset_key',
         'tenant_id',
     ];
 
@@ -39,7 +45,8 @@ class LotSequence extends Model
 
     /**
      * Atomically generate the next LOT number.
-     * Uses SELECT FOR UPDATE to prevent race conditions.
+     * Uses SELECT FOR UPDATE to prevent race conditions; when a reset period
+     * is configured the counter restarts at 1 on period boundaries.
      */
     public function generateNext(): string
     {
@@ -49,11 +56,18 @@ class LotSequence extends Model
                 ->lockForUpdate()
                 ->first();
 
-            $number = $seq->next_number;
+            $resetKey = $this->currentResetKey();
+            $number = ($resetKey !== null && $seq->last_reset_key !== $resetKey)
+                ? 1
+                : $seq->next_number;
 
             DB::table('lot_sequences')
                 ->where('id', $this->id)
-                ->update(['next_number' => $number + 1, 'updated_at' => now()]);
+                ->update([
+                    'next_number' => $number + 1,
+                    'last_reset_key' => $resetKey,
+                    'updated_at' => now(),
+                ]);
 
             return $this->formatLot($number);
         });
@@ -64,7 +78,27 @@ class LotSequence extends Model
      */
     public function previewNext(): string
     {
-        return $this->formatLot($this->next_number);
+        $resetKey = $this->currentResetKey();
+        $number = ($resetKey !== null && $this->last_reset_key !== $resetKey)
+            ? 1
+            : $this->next_number;
+
+        return $this->formatLot($number);
+    }
+
+    /**
+     * Period key for the configured reset_period, or null when reset is off.
+     * E.g. daily → "2026-06-06", hourly → "2026-06-06-14".
+     */
+    public function currentResetKey(): ?string
+    {
+        return match ($this->reset_period) {
+            'yearly' => now()->format('Y'),
+            'monthly' => now()->format('Y-m'),
+            'daily' => now()->format('Y-m-d'),
+            'hourly' => now()->format('Y-m-d-H'),
+            default => null,
+        };
     }
 
     /**
@@ -72,6 +106,18 @@ class LotSequence extends Model
      */
     private function formatLot(int $number): string
     {
+        // Pattern mode: token-based template (e.g. "test-[date]-[seq]-[hour]")
+        if ($this->pattern) {
+            return (new LotPatternFormatter)->format(
+                $this->pattern,
+                $number,
+                $this->pad_size,
+                $this->productType?->code,
+                now(),
+            );
+        }
+
+        // Legacy mode: prefix [- year] - number [- suffix]
         $padded = str_pad($number, $this->pad_size, '0', STR_PAD_LEFT);
 
         $parts = [$this->prefix];

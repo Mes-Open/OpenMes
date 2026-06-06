@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { formatDateTime, formatNumber } from '../../lib/i18n';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,7 +42,7 @@ function dispositionColorClass(disposition) {
 
 function fmtDateTime(str) {
     if (!str) return '—';
-    return new Date(str).toLocaleString(undefined, {
+    return formatDateTime(new Date(str), {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit',
     });
@@ -49,7 +50,7 @@ function fmtDateTime(str) {
 
 function fmtNum(n, decimals = 2) {
     if (n == null) return '—';
-    return Number(n).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return formatNumber(Number(n), { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 // ---------------------------------------------------------------------------
