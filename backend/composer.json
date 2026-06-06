@@ -14,6 +14,7 @@
         "inertiajs/inertia-laravel": "^3.1",
         "laravel/framework": "^12.0",
         "laravel/octane": "^2.17",
+        "laravel/reverb": "^1.10",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "league/csv": "^9.28",
@@ -21,6 +22,7 @@
         "php-mqtt/client": "^2.0",
         "picqer/php-barcode-generator": "^3.2",
         "pragmarx/google2fa-laravel": "^3.0",
+        "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-permission": "^7.1",
         "spiral/roadrunner-cli": "^2.6.0",
         "spiral/roadrunner-http": "^3.3.0"

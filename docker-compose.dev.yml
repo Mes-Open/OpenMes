@@ -16,12 +16,16 @@
 
 services:
   backend:
-    # In dev, serve with `artisan serve` instead of Octane: it boots a fresh
-    # PHP process per request, so bind-mounted PHP edits apply instantly with no
-    # worker reload. The gatekeeper keeps Electric long-polls off this process,
-    # so the single-thread limit doesn't matter for local dev. Prod uses Octane
-    # (the image CMD); this override only applies with the dev overlay.
-    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+    # Run the SAME production server as base — RoadRunner Octane (image CMD) —
+    # so the dev/live-edit stack is concurrent and robust (no single-threaded
+    # `artisan serve` serialization hang, no buggy `php -S` multi-worker 502s).
+    # Live .jsx editing still works: the `frontend` watcher rebuilds public/build
+    # (bind-mounted below) and the FlushViteManifest Octane listener (enabled by
+    # OCTANE_LIVE_RELOAD) re-reads the manifest each request so rebuilds show on
+    # refresh. PHP/Blade edits need `php artisan octane:reload` (Octane keeps the
+    # app booted in memory). See CLAUDE.md → "Dev / live editing".
+    environment:
+      OCTANE_LIVE_RELOAD: "true"
     volumes:
       # Composer manifest — bind-mounted (read-write) so `composer require/remove`
       # run INSIDE the container write straight through to the host repo (and host
@@ -44,6 +48,18 @@ services:
       - ./backend/resources:/var/www/html/resources
       - ./backend/routes:/var/www/html/routes
       - ./backend/tests:/var/www/html/tests
+
+  # Reverb sees live PHP (broadcast auth + CollectionBroadcaster); restart it
+  # after editing those (it doesn't hot-reload like Octane).
+  reverb:
+    environment:
+      E2E_CONTROL_ENABLED: "true"
+    volumes:
+      - ./backend/app:/var/www/html/app
+      - ./backend/bootstrap/app.php:/var/www/html/bootstrap/app.php
+      - ./backend/config:/var/www/html/config
+      - ./backend/database:/var/www/html/database
+      - ./backend/routes:/var/www/html/routes
 
   frontend:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}

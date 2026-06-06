@@ -38,6 +38,7 @@ class StockMovementService
             } else {
                 $locked->decrement('stock_quantity', abs($signedQuantity));
             }
+            \App\Sync\CollectionBroadcaster::flush($locked); // increment/decrement bypass model events
 
             $locked->refresh();
 

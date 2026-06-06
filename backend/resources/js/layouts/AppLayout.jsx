@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
+import { __ } from '../lib/i18n';
 
 /**
  * App chrome (sidebar + header) for authenticated React pages.
@@ -94,6 +95,9 @@ export default function AppLayout({ children }) {
                     <img src="/logo_open_mes.png" alt="OpenMES" className="h-7" />
                 </header>
 
+                {/* Desktop clock (top-right) — ported from app.blade.php's Europe/Warsaw clock */}
+                <DesktopClock />
+
                 <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
                     <FlashMessages />
                     {children}
@@ -119,6 +123,39 @@ function FlashMessages() {
                     {flash.error}
                 </div>
             )}
+        </div>
+    );
+}
+
+/**
+ * Desktop-only live clock shown top-right on every page (parity with the
+ * Europe/Warsaw clock the Blade app.blade.php rendered above <main>). Isolated
+ * so its per-second tick only re-renders this component, not the whole layout.
+ * Formatted in the active locale; timezone pinned to Europe/Warsaw like the original.
+ */
+function DesktopClock() {
+    const { locale } = usePage().props;
+    const fmt = () => {
+        const now = new Date();
+        const tz = { timeZone: 'Europe/Warsaw' };
+        return {
+            date: now.toLocaleDateString(locale || 'en', { ...tz, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+            time: now.toLocaleTimeString(locale || 'en', { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        };
+    };
+    const [t, setT] = useState(fmt);
+    useEffect(() => {
+        const id = setInterval(() => setT(fmt()), 1000);
+        return () => clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [locale]);
+    return (
+        <div className="hidden lg:flex items-center justify-end px-4 py-1.5 shrink-0">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <Icon className="w-4 h-4" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <span>{t.date}</span>
+                <span className="font-mono font-semibold text-gray-700 dark:text-gray-200">{t.time}</span>
+            </div>
         </div>
     );
 }
@@ -154,7 +191,7 @@ function Sidebar({
                     <Link
                         href="/onboarding/step/1"
                         prefetch
-                        title="Setup wizard"
+                        title={__('Setup Wizard')}
                         className="ml-auto p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 shrink-0"
                     >
                         <Icon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5" />
@@ -180,6 +217,9 @@ function Sidebar({
                         alertCount={link.alert ? alertCount : 0}
                     />
                 ))}
+
+                {/* Separator under the top links (parity with the Blade sidebar) */}
+                {showLabels && <div className="mx-4 my-2 border-t border-slate-700/60" />}
 
                 {ADMIN_GROUPS.map((group) => (
                     <NavGroup
@@ -208,7 +248,7 @@ function Sidebar({
                                 ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z'
                                 : 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'}
                         />
-                        {showLabels && <span>{dark ? 'Light Mode' : 'Dark Mode'}</span>}
+                        {showLabels && <span>{dark ? __('Light Mode') : __('Dark Mode')}</span>}
                     </button>
                 </div>
 
@@ -224,27 +264,36 @@ function Sidebar({
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
                         <Icon d={ICONS.settings} className="w-5 h-5 shrink-0" />
-                        {showLabels && <span>Settings</span>}
+                        {showLabels && <span>{__('Settings')}</span>}
                     </Link>
                 </div>
 
                 {/* User + logout */}
                 <div className="px-2 py-2">
                     <div className={`flex items-center gap-3 px-3 py-2 rounded-lg ${collapsed && !mobileOpen ? 'justify-center' : ''}`}>
-                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white text-sm font-bold">
-                            {auth?.user?.initial ?? '?'}
-                        </div>
-                        {showLabels && (
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{auth?.user?.name}</p>
-                                <p className="text-xs text-slate-400 truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                        {/* Avatar + name link to the user's own profile/settings */}
+                        <Link
+                            href="/settings/profile"
+                            prefetch
+                            title={__('Profile')}
+                            className={`flex items-center gap-3 min-w-0 rounded-md hover:bg-slate-700 transition-colors
+                                        ${collapsed && !mobileOpen ? '' : 'flex-1 -ml-1 pl-1 pr-2 py-0.5'}`}
+                        >
+                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white text-sm font-bold">
+                                {auth?.user?.initial ?? '?'}
                             </div>
-                        )}
+                            {showLabels && (
+                                <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-sm font-medium text-white truncate">{auth?.user?.name}</p>
+                                    <p className="text-xs text-slate-400 truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                                </div>
+                            )}
+                        </Link>
                         <form action="/logout" method="POST" className="shrink-0">
                             <input type="hidden" name="_token" value={csrfToken} />
                             <button
                                 type="submit"
-                                title="Logout"
+                                title={__('Logout')}
                                 className="p-1.5 rounded-md text-slate-400 hover:text-red-400 hover:bg-slate-700 transition-colors"
                             >
                                 <Icon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" className="w-4 h-4" />
@@ -259,13 +308,13 @@ function Sidebar({
                     <button
                         onClick={onToggleCollapsed}
                         className="flex items-center justify-center w-full py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-                        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        title={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
                     >
                         <Icon
                             className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`}
                             d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
                         />
-                        {!collapsed && <span className="ml-2 text-sm">Collapse</span>}
+                        {!collapsed && <span className="ml-2 text-sm">{__('Collapse')}</span>}
                     </button>
                 </div>
             </div>
@@ -317,7 +366,7 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
                 </span>
                 {showLabels && (
                     <span className="flex items-center gap-2">
-                        {link.label}
+                        {__(link.label)}
                         {link.alert && alertCount > 0 && (
                             <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
                                 {alertCount}
@@ -326,7 +375,7 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
                     </span>
                 )}
             </Link>
-            {collapsed && !showLabels && <Tooltip>{link.label}</Tooltip>}
+            {collapsed && !showLabels && <Tooltip>{__(link.label)}</Tooltip>}
         </div>
     );
 }
@@ -357,7 +406,7 @@ function NavGroup({ group, path, collapsed, showLabels }) {
                                 ${groupActive && showLabels ? 'bg-slate-700/50 text-white' : ''}`}
                 >
                     <Icon d={ICONS[group.icon]} className="w-5 h-5 shrink-0" />
-                    {showLabels && <span className="flex-1 text-left">{group.label}</span>}
+                    {showLabels && <span className="flex-1 text-left">{__(group.label)}</span>}
                     {showLabels && (
                         <Icon
                             d="M19 9l-7 7-7-7"
@@ -365,7 +414,7 @@ function NavGroup({ group, path, collapsed, showLabels }) {
                         />
                     )}
                 </button>
-                {collapsed && !showLabels && <Tooltip>{group.label}</Tooltip>}
+                {collapsed && !showLabels && <Tooltip>{__(group.label)}</Tooltip>}
             </div>
 
             {open && showLabels && (
@@ -397,7 +446,7 @@ function SubGroup({ group, path }) {
                             ${active ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
             >
                 <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60" />
-                {group.label}
+                {__(group.label)}
                 <Icon
                     d="M19 9l-7 7-7-7"
                     className={`w-3 h-3 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -417,6 +466,26 @@ function SubGroup({ group, path }) {
 function ChildLink({ child, path, dot }) {
     const active = isActive(path, child.match, child.exact);
     const dotClass = dot === 'sm' ? 'w-1 h-1 opacity-50' : 'w-1.5 h-1.5 opacity-60';
+
+    // Disabled "coming soon" entry (e.g. Modules → Store) — non-clickable span
+    // with a badge, matching the Blade sidebar's disabled item styling.
+    if (child.disabled) {
+        return (
+            <span
+                title={child.title ? __(child.title) : undefined}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none"
+            >
+                <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
+                {__(child.label)}
+                {child.badge && (
+                    <span className="ml-auto text-[10px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">
+                        {__(child.badge)}
+                    </span>
+                )}
+            </span>
+        );
+    }
+
     return (
         <Link
             href={child.href}
@@ -425,7 +494,7 @@ function ChildLink({ child, path, dot }) {
                         ${active ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
         >
             <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
-            {child.label}
+            {__(child.label)}
         </Link>
     );
 }

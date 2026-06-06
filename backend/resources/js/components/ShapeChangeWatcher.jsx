@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useLiveQuery } from '@tanstack/react-db';
-import { useShapeConfigs } from '../lib/useShapeConfigs';
-import { electricCollection } from '../lib/electricCollection';
+import { realtimeCollection } from '../lib/realtimeCollection';
 
 /**
- * Invisible Electric watcher: subscribes to a shape and calls `onChange` the
+ * Invisible live watcher: subscribes to a collection and calls `onChange` the
  * instant any watched field of any row changes (a row added/removed/edited).
  * Use it to drive a live refresh of a server-rendered page (e.g. the schedule
  * planner) without polling — push instead of a 10s interval.
@@ -13,7 +12,7 @@ import { electricCollection } from '../lib/electricCollection';
  * re-subscribes or re-fires; the effect fires only on the data signature.
  *
  * Props:
- *   shape     — registered Electric shape name (default work_orders_all)
+ *   shape     — registered collection name (default work_orders_all)
  *   fields    — row fields whose change should trigger onChange (default covers
  *               schedule-relevant work-order fields incl. updated_at, so any
  *               edit/add/remove is detected)
@@ -24,16 +23,7 @@ export default function ShapeChangeWatcher({
     fields = ['id', 'status', 'line_id', 'planned_start_at', 'planned_end_at', 'due_date', 'updated_at'],
     onChange,
 }) {
-    const { configs } = useShapeConfigs([shape]);
-    if (!configs) return null;
-    return <Watch configs={configs} shape={shape} fields={fields} onChange={onChange} />;
-}
-
-function Watch({ configs, shape, fields, onChange }) {
-    const collection = useMemo(
-        () => electricCollection(shape, configs[shape], (r) => r.id),
-        [configs, shape],
-    );
+    const collection = useMemo(() => realtimeCollection(shape, (r) => r.id), [shape]);
     const { data: rows = [] } = useLiveQuery((q) => q.from({ r: collection }));
 
     const signature = useMemo(
