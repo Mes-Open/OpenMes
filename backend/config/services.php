@@ -35,8 +35,4 @@ return [
         ],
     ],
 
-    'electric' => [
-        'url' => env('ELECTRIC_URL', 'http://electric:3000'),
-    ],
-
 ];

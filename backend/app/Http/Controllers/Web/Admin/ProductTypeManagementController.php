@@ -92,8 +92,10 @@ class ProductTypeManagementController extends Controller
             ],
             'recentWorkOrders' => $recentWorkOrders->map(fn ($wo) => [
                 'id'                => $wo->id,
-                'work_order_number' => $wo->work_order_number,
-                'product_name'      => $wo->product_name,
+                // work_orders has `order_no`, not work_order_number; these orders
+                // all belong to this product type, so product_name is its name.
+                'work_order_number' => $wo->order_no,
+                'product_name'      => $productType->name,
                 'planned_qty'       => $wo->planned_qty,
                 'status'            => $wo->status,
                 'created_at'        => $wo->created_at?->toIso8601String(),

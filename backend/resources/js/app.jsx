@@ -1,6 +1,7 @@
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { loadLocale, setTimezone } from './lib/i18n';
+import './lib/echo'; // opens the single Reverb WebSocket
 
 createInertiaApp({
     resolve: (name) => {
@@ -17,6 +18,8 @@ createInertiaApp({
         await loadLocale(props.initialPage.props.locale ?? 'en');
         // Plant timezone for the date/time format helpers (lib/i18n).
         setTimezone(props.initialPage.props.timezone);
+        // Tenant key for Reverb channel names (null-safe → 'g'), mirrors TenantScope.
+        window.__TENANT__ = props.initialPage.props.auth?.user?.tenant_id ?? 'g';
         createRoot(el).render(<App {...props} />);
     },
     progress: { color: '#1e40af' },

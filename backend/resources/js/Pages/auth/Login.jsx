@@ -178,7 +178,7 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
 
                     <div className="mb-6">
                         <label htmlFor="pin_input" className="form-label">
-                            PIN
+                            {__('PIN')}
                         </label>
                         <input
                             type="password"
