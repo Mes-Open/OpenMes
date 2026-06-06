@@ -60,6 +60,14 @@ class ProcessTemplate extends Model
     }
 
     /**
+     * Reference photos (work instructions) for this template.
+     */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(ProcessTemplatePhoto::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
      * Generate a JSON snapshot of this template for work order storage.
      * This ensures work orders are immune to template changes.
      */
