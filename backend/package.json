@@ -17,14 +17,13 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
-        "@electric-sql/client": "^1.5.19",
-        "@electric-sql/react": "^1.0.48",
         "@inertiajs/react": "^3.3.0",
         "@tanstack/db": "^0.6.7",
-        "@tanstack/electric-db-collection": "^0.3.5",
         "@tanstack/react-db": "^0.1.85",
         "alpinejs": "^3.15.8",
         "chart.js": "^4.5.1",
+        "laravel-echo": "^2.3.7",
+        "pusher-js": "^8.5.0",
         "react": "^19.2.6",
         "react-dom": "^19.2.6"
     },

@@ -1,18 +1,18 @@
 import { useMemo } from 'react';
 import { Link } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
-import { useShapeConfigs } from '../lib/useShapeConfigs';
-import { electricCollection } from '../lib/electricCollection';
+import { realtimeCollection } from '../lib/realtimeCollection';
 
 /**
- * Generic admin list backed by an Electric shape + TanStack DB live query.
+ * Generic admin list backed by a Reverb-synced collection + TanStack DB live
+ * query.
  *
  * Extracted from the Product Types pilot — the shared shape of every admin CRUD
  * list. Rows live-sync (create/edit/delete reflect without refresh); the page
  * just declares columns and per-row actions.
  *
  * Props:
- *   shape       — gatekeeper shape name (must be in ShapeRegistry)
+ *   shape       — collection name (must be in ShapeRegistry)
  *   title       — heading
  *   createHref / createLabel — optional "new" button
  *   columns     — [{ key, label, render?(row), className?, align? }]
@@ -22,22 +22,8 @@ import { electricCollection } from '../lib/electricCollection';
  *   actions     — row → [{ label, href?, onClick?, className? }]
  *   emptyText   — shown when no rows
  */
-export default function ResourceTable(props) {
-    const { shape } = props;
-    const { configs, error } = useShapeConfigs([shape]);
-
-    if (error) {
-        return <pre className="bg-red-50 text-red-800 p-3 rounded text-xs">{String(error)}</pre>;
-    }
-    if (!configs) {
-        return <p className="text-gray-500 text-sm">Connecting to live sync…</p>;
-    }
-    return <ResourceTableLive {...props} configs={configs} />;
-}
-
-function ResourceTableLive({
+export default function ResourceTable({
     shape,
-    configs,
     title,
     createHref,
     createLabel = '+ New',
@@ -50,10 +36,7 @@ function ResourceTableLive({
     filterFn,
     subtitle,
 }) {
-    const collection = useMemo(
-        () => electricCollection(shape, configs[shape], getKey),
-        [configs, shape],
-    );
+    const collection = useMemo(() => realtimeCollection(shape, getKey), [shape]);
 
     const { data: rows } = useLiveQuery((q) =>
         q.from({ r: collection }).orderBy(({ r }) => r[orderBy], orderDir),

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Head, usePage } from '@inertiajs/react';
-import { useDashboardShapes, DASHBOARD_SHAPES } from '../../lib/useDashboardShapes';
-import { useShapeConfigs } from '../../lib/useShapeConfigs';
+import { useDashboardShapes } from '../../lib/useDashboardShapes';
 import { useHotShapes } from '../../components/LiveShapesProvider';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
@@ -9,29 +8,16 @@ import { __ } from '../../lib/i18n';
 const WO_TERMINAL = ['DONE', 'CANCELLED', 'REJECTED'];
 
 /**
- * Top-level page. Fetches signed shape configs from the gatekeeper first, then
- * mounts the live dashboard once they're ready — so the shape hooks inside
- * DashboardBody always run with valid signed params (rules of hooks).
+ * Top-level admin dashboard. Reads the shared live collections (work orders /
+ * issues) plus the dashboard lookups — all over the single Reverb WebSocket.
  */
 export default function AdminDashboard(props) {
-    const { configs, error } = useShapeConfigs(DASHBOARD_SHAPES);
     const hot = useHotShapes(); // shared work_orders_active / issues_open collections
 
     return (
         <>
             <Head title={__('Admin Dashboard')} />
-            {error ? (
-                <div className="max-w-7xl mx-auto">
-                    <pre className="bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-3 rounded text-xs">{String(error)}</pre>
-                </div>
-            ) : !configs || !hot ? (
-                <div className="max-w-7xl mx-auto">
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Admin Dashboard')}</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">{__('Connecting to live sync…')}</p>
-                </div>
-            ) : (
-                <DashboardBody configs={configs} hot={hot} {...props} />
-            )}
+            <DashboardBody hot={hot} {...props} />
         </>
     );
 }
@@ -41,7 +27,6 @@ export default function AdminDashboard(props) {
 AdminDashboard.layout = (page) => <AppLayout>{page}</AppLayout>;
 
 function DashboardBody({
-    configs,
     hot,
     enabledWidgets = [],
     widgetOrder = [],
@@ -49,7 +34,7 @@ function DashboardBody({
     materialsStats,
 }) {
     const { workOrders, lines, issues, issueTypes, oeeRecords, isLoading, error } =
-        useDashboardShapes(configs, hot);
+        useDashboardShapes(hot);
 
     const [selectedLineId, setSelectedLineId] = useState('');
 
