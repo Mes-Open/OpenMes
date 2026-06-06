@@ -3,11 +3,12 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
+import { formatDate, formatNumber } from '../../lib/i18n';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function fmt(n) {
-    return Number(n ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    return formatNumber(Number(n ?? 0), { maximumFractionDigits: 0 });
 }
 
 function weekLabel(wk) {
@@ -34,7 +35,7 @@ function getCellValue(wo, col) {
     if (col.key === 'due_date') {
         if (!wo.due_date) return '—';
         const d = new Date(wo.due_date);
-        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        return formatDate(d, { day: '2-digit', month: 'short' });
     }
     if (col.key === 'week_number') {
         return wo.week_number ? weekLabel(wo.week_number) : '—';
