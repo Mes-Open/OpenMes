@@ -225,4 +225,29 @@ class WorkOrderHistoryTest extends TestCase
 
         $this->actingAs($this->operator)->get("/admin/reports/{$wo->id}")->assertForbidden();
     }
+
+    public function test_detail_aggregates_operators_who_produced_the_order(): void
+    {
+        $alice = User::factory()->create(['name' => 'Alice']);
+        $bob = User::factory()->create(['name' => 'Bob']);
+
+        $wo = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_DONE, 'completed_at' => now()]);
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id, 'status' => Batch::STATUS_DONE]);
+
+        // Alice completes two steps, Bob one.
+        BatchStep::factory()->create(['batch_id' => $batch->id, 'step_number' => 1, 'completed_by_id' => $alice->id, 'started_by_id' => $alice->id]);
+        BatchStep::factory()->create(['batch_id' => $batch->id, 'step_number' => 2, 'completed_by_id' => $alice->id, 'started_by_id' => $bob->id]);
+        BatchStep::factory()->create(['batch_id' => $batch->id, 'step_number' => 3, 'completed_by_id' => $bob->id, 'started_by_id' => $bob->id]);
+
+        $response = $this->actingAs($this->admin)->get("/admin/reports/{$wo->id}");
+
+        $operators = $this->props($response)['workOrder']['operators'];
+        $names = array_column($operators, 'name');
+        $this->assertContains('Alice', $names);
+        $this->assertContains('Bob', $names);
+
+        // Sorted by steps completed desc → Alice (2) first.
+        $this->assertSame('Alice', $operators[0]['name']);
+        $this->assertSame(2, $operators[0]['steps_completed']);
+    }
 }

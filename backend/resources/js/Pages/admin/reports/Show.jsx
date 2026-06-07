@@ -73,6 +73,31 @@ export default function ReportShow() {
                     </Card>
                 </div>
 
+                {/* Operators — who produced this order */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">{__('Operators')}</h3>
+                    {wo.operators && wo.operators.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {wo.operators.map((op, i) => (
+                                <div
+                                    key={i}
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-slate-700/50 border border-gray-200 dark:border-slate-600"
+                                >
+                                    <span className="font-medium text-gray-800 dark:text-gray-200">{op.name}</span>
+                                    {op.steps_completed > 0 && (
+                                        <span className="text-xs text-gray-500">
+                                            {op.steps_completed} {__('steps')}
+                                        </span>
+                                    )}
+                                    <span className="text-[10px] text-gray-400 uppercase">{op.roles.map((r) => __(r)).join(' · ')}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-400 italic">{__('No operator was recorded for this order.')}</p>
+                    )}
+                </div>
+
                 {/* Batches */}
                 <div className="space-y-4">
                     <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{__('Batches')}</h2>

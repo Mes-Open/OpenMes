@@ -68,6 +68,7 @@ class ReportController extends Controller
             'batches.steps.lotConsumptions.materialLot.material:id,code,name',
             'batches.qualityChecks.samples',
             'batches.qualityChecks.checkedBy:id,name,username',
+            'batches.processConfirmations.confirmedBy:id,name,username',
             'batches.outputLots:id,lot_number,source_batch_id,material_id',
             'issues.issueType:id,name',
             'issues.reportedBy:id,name,username',
@@ -269,6 +270,50 @@ class ReportController extends Controller
         ];
     }
 
+    /**
+     * Distinct people who actually produced the order — gathered from step
+     * execution (started/completed), batch release, and process confirmations.
+     * Each entry carries how many steps the operator completed so the main
+     * contributor is obvious.
+     */
+    private function operators(WorkOrder $wo): array
+    {
+        $tally = []; // name => ['name' => ?, 'steps_completed' => int, 'roles' => set]
+
+        $touch = function (?object $user, string $role) use (&$tally) {
+            if (! $user) {
+                return;
+            }
+            $key = $user->id;
+            $tally[$key] ??= ['name' => $user->name, 'steps_completed' => 0, 'roles' => []];
+            $tally[$key]['roles'][$role] = true;
+        };
+
+        foreach ($wo->batches as $batch) {
+            foreach ($batch->steps as $step) {
+                $touch($step->startedBy, 'started');
+                $touch($step->completedBy, 'completed');
+                if ($step->completedBy) {
+                    $tally[$step->completedBy->id]['steps_completed']++;
+                }
+            }
+            $touch($batch->releasedBy, 'released');
+            foreach ($batch->processConfirmations as $conf) {
+                $touch($conf->confirmedBy, 'confirmed');
+            }
+        }
+
+        return collect($tally)
+            ->map(fn ($o) => [
+                'name' => $o['name'],
+                'steps_completed' => $o['steps_completed'],
+                'roles' => array_keys($o['roles']),
+            ])
+            ->sortByDesc('steps_completed')
+            ->values()
+            ->all();
+    }
+
     private function detail(WorkOrder $wo): array
     {
         $snapshot = $wo->process_snapshot ?? [];
@@ -282,6 +327,7 @@ class ReportController extends Controller
         return [
             'id' => $wo->id,
             'order_no' => $wo->order_no,
+            'operators' => $this->operators($wo),
             'status' => $wo->status,
             'description' => $wo->description,
             'line_name' => $wo->line?->name,
