@@ -36,7 +36,8 @@ export const ADMIN_LINKS = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
     { label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
     { label: 'Schedule', href: '/admin/schedule', icon: 'calendar', match: ['/admin/schedule'], exact: true },
-    { label: 'Employees', href: '/admin/schedule/employees', icon: 'users', match: ['/admin/schedule/employees'] },
+    // Hidden for now — re-enable to restore the Employees tab in the sidebar.
+    // { label: 'Employees', href: '/admin/schedule/employees', icon: 'users', match: ['/admin/schedule/employees'] },
 ];
 
 /**
