@@ -208,7 +208,7 @@ class ReportController extends Controller
     private function listRow(WorkOrder $wo): array
     {
         $execMinutes = ($wo->completed_at && $wo->first_started_at)
-            ? max(0, Carbon::parse($wo->first_started_at)->diffInMinutes($wo->completed_at))
+            ? (int) round(max(0, Carbon::parse($wo->first_started_at)->diffInMinutes($wo->completed_at)))
             : null;
 
         return [
@@ -299,7 +299,7 @@ class ReportController extends Controller
                 'completed_at' => $wo->completed_at?->toIso8601String(),
             ],
             'execution_minutes' => ($wo->completed_at && $firstStart)
-                ? max(0, Carbon::parse($firstStart)->diffInMinutes($wo->completed_at))
+                ? (int) round(max(0, Carbon::parse($firstStart)->diffInMinutes($wo->completed_at)))
                 : null,
             'on_time' => ($wo->due_date && $wo->completed_at) ? $wo->completed_at <= $wo->due_date : null,
             'template' => [

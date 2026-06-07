@@ -22,8 +22,9 @@ const PRESET_LABELS = {
 
 function fmtDuration(min) {
     if (min == null) return '—';
-    const h = Math.floor(min / 60);
-    const m = min % 60;
+    const total = Math.round(min);
+    const h = Math.floor(total / 60);
+    const m = total % 60;
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
