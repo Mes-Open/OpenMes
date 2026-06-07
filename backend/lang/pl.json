@@ -3011,5 +3011,6 @@
     "Work Order History": "Historia zleceń",
     "Yield": "Uzysk",
     "samples": "próbek",
-    "scrap": "odpad"
+    "scrap": "odpad",
+    "No production steps were recorded for this batch.": "Dla tej partii nie zarejestrowano żadnych kroków produkcji."
 }

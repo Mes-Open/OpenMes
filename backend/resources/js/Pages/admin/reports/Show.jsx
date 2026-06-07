@@ -146,6 +146,9 @@ function BatchCard({ batch: b }) {
             </div>
 
             {/* Steps */}
+            {b.steps.length === 0 && (
+                <p className="text-sm text-gray-400 italic">{__('No production steps were recorded for this batch.')}</p>
+            )}
             {b.steps.length > 0 && (
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">

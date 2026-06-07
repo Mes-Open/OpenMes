@@ -3011,5 +3011,6 @@
     "Yield": "Yield",
     "samples": "samples",
     "scrap": "scrap",
-    "Logging in...": "Logging in..."
+    "Logging in...": "Logging in...",
+    "No production steps were recorded for this batch.": "No production steps were recorded for this batch."
 }
