@@ -206,7 +206,7 @@ function Sidebar({
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5">
+            <nav className="sidebar-scroll flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5">
                 {ADMIN_LINKS.map((link) => (
                     <NavLink
                         key={link.href}
