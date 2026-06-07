@@ -195,7 +195,7 @@ export default function ReportsIndex() {
                     <button type="button" onClick={() => apply()} className="btn-touch btn-primary">
                         {__('Apply')}
                     </button>
-                    <button type="button" onClick={clear} className="text-gray-500 hover:text-gray-800 text-sm">
+                    <button type="button" onClick={clear} className="btn-touch btn-secondary">
                         {__('Clear')}
                     </button>
                 </div>
