@@ -3012,5 +3012,9 @@
     "Yield": "Uzysk",
     "samples": "próbek",
     "scrap": "odpad",
-    "No production steps were recorded for this batch.": "Dla tej partii nie zarejestrowano żadnych kroków produkcji."
+    "No production steps were recorded for this batch.": "Dla tej partii nie zarejestrowano żadnych kroków produkcji.",
+    "No operator was recorded for this order.": "Dla tego zlecenia nie zarejestrowano operatora.",
+    "started": "rozpoczął",
+    "released": "wydał",
+    "confirmed": "potwierdził"
 }

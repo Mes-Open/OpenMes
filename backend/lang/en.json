@@ -3012,5 +3012,9 @@
     "samples": "samples",
     "scrap": "scrap",
     "Logging in...": "Logging in...",
-    "No production steps were recorded for this batch.": "No production steps were recorded for this batch."
+    "No production steps were recorded for this batch.": "No production steps were recorded for this batch.",
+    "No operator was recorded for this order.": "No operator was recorded for this order.",
+    "started": "started",
+    "released": "released",
+    "confirmed": "confirmed"
 }
