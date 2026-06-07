@@ -261,62 +261,128 @@ function KpiCard({ href, label, value, accent, hint }) {
 }
 
 function OeeOverview({ records, lines }) {
-    const lineById = useMemo(() => new Map(lines.map((l) => [String(l.id), l])), [lines]);
+    // Today's OEE per line. Mirrors the old Blade widget: one gauge card per
+    // line, N/A where there's no record for today.
     const todayStr = new Date().toISOString().slice(0, 10);
-    const today = records.filter((r) => r.record_date === todayStr);
-    const yesterday = records.filter((r) => r.record_date !== todayStr);
-    const byLineToday = new Map(today.map((r) => [String(r.line_id), r]));
-    const byLineYesterday = new Map(yesterday.map((r) => [String(r.line_id), r]));
-    const lineIds = Array.from(
-        new Set([...byLineToday.keys(), ...byLineYesterday.keys()]),
-    ).sort();
+    const byLineToday = useMemo(
+        () => new Map(records.filter((r) => r.record_date === todayStr).map((r) => [String(r.line_id), r])),
+        [records, todayStr],
+    );
+    const sortedLines = useMemo(
+        () => [...lines].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''))),
+        [lines],
+    );
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5">
-            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">{__('OEE Overview')}</h2>
-            <table className="w-full text-sm">
-                <thead>
-                    <tr className="text-left text-gray-500 dark:text-gray-400 border-b">
-                        <th className="py-2">{__('Line')}</th>
-                        <th className="py-2">{__('Today OEE')}</th>
-                        <th className="py-2">{__('Today A × P × Q')}</th>
-                        <th className="py-2">{__('Yesterday OEE')}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {lineIds.map((id) => {
-                        const t = byLineToday.get(id);
-                        const y = byLineYesterday.get(id);
-                        const line = lineById.get(id);
-                        return (
-                            <tr key={id} className="border-b last:border-0">
-                                <td className="py-2 font-medium">
-                                    {line?.name ?? __('Line :id', { id })}
-                                </td>
-                                <td className="py-2">
-                                    <OeeBadge value={t?.oee_pct} />
-                                </td>
-                                <td className="py-2 text-gray-600 dark:text-gray-300">
-                                    {t ? `${pct(t.availability_pct)} · ${pct(t.performance_pct)} · ${pct(t.quality_pct)}` : '—'}
-                                </td>
-                                <td className="py-2">
-                                    <OeeBadge value={y?.oee_pct} muted />
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">{__('OEE Overview')}</h2>
+                <a href="/admin/oee" className="text-sm text-blue-600 dark:text-blue-300 hover:underline">
+                    {__('Full report')} →
+                </a>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {sortedLines.map((line) => {
+                    const r = byLineToday.get(String(line.id));
+                    const value = r?.oee_pct != null ? Number(r.oee_pct) : null;
+                    return (
+                        <div
+                            key={line.id}
+                            className={`p-3 rounded-lg border flex flex-col items-center ${oeeCardClass(value)}`}
+                        >
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 text-center mb-2 truncate w-full">
+                                {line.name ?? __('Line :id', { id: line.id })}
+                            </p>
+                            <OeeGauge value={value} />
+                            {r ? (
+                                <div className="flex gap-2 text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    <span>A: {pct(r.availability_pct)}</span>
+                                    <span>P: {r.performance_pct != null ? pct(r.performance_pct) : '-'}</span>
+                                    <span>Q: {pct(r.quality_pct)}</span>
+                                </div>
+                            ) : (
+                                <div className="text-xs text-gray-400 dark:text-gray-500 mt-2">&nbsp;</div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }
 
-function OeeBadge({ value, muted }) {
-    if (value == null) return <span className="text-gray-400 dark:text-gray-500">—</span>;
-    const n = Number(value);
-    const color =
-        n >= 85 ? 'text-green-600 dark:text-green-300' : n >= 60 ? 'text-yellow-600' : 'text-red-600 dark:text-red-300';
-    return <span className={`font-bold ${muted ? 'text-gray-500 dark:text-gray-400' : color}`}>{n.toFixed(1)}%</span>;
+// OEE banding — mirrors backend/app/Support/OeeBand.php (red < 65 ≤ yellow < 85 ≤ green).
+const OEE_RED_BELOW = 65;
+const OEE_GREEN_AT_LEAST = 85;
+
+function oeeColor(value) {
+    if (value == null) return 'gray';
+    if (value >= OEE_GREEN_AT_LEAST) return 'green';
+    if (value >= OEE_RED_BELOW) return 'yellow';
+    return 'red';
+}
+
+function oeeCardClass(value) {
+    return {
+        green: 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800',
+        yellow: 'border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800',
+        red: 'border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800',
+        gray: 'border-gray-200 bg-gray-50 dark:bg-slate-700 dark:border-slate-600',
+    }[oeeColor(value)];
+}
+
+function oeeTextClass(value) {
+    return {
+        green: 'text-green-600 dark:text-green-400',
+        yellow: 'text-yellow-600 dark:text-yellow-400',
+        red: 'text-red-600 dark:text-red-400',
+        gray: 'text-gray-500 dark:text-gray-400',
+    }[oeeColor(value)];
+}
+
+/**
+ * Semicircle OEE gauge with red/yellow/green zones and a needle — React port of
+ * the `<x-oee-gauge>` Blade component. Points lie on a unit semicircle centered
+ * at (50,50), r=40: p=0 → (10,50), p=50 → (50,10), p=100 → (90,50).
+ */
+function OeeGauge({ value, size = 104 }) {
+    const hasValue = value != null;
+    const p = hasValue ? Math.max(0, Math.min(100, Number(value))) : 0;
+    const pointAt = (q, r = 40) => {
+        const a = (q / 100) * Math.PI;
+        return [50 - r * Math.cos(a), 50 - r * Math.sin(a)];
+    };
+    const [rEndX, rEndY] = pointAt(OEE_RED_BELOW);
+    const [yEndX, yEndY] = pointAt(OEE_GREEN_AT_LEAST);
+    const [gEndX, gEndY] = pointAt(100);
+    const [needleX, needleY] = pointAt(p, 35);
+
+    return (
+        <div className="inline-flex flex-col items-center" style={{ width: size }}>
+            <svg viewBox="0 0 100 60" className="w-full h-auto" aria-hidden="true">
+                <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="currentColor" strokeWidth="10" className="text-gray-200 dark:text-slate-600" />
+                <path d={`M 10 50 A 40 40 0 0 1 ${rEndX} ${rEndY}`} fill="none" stroke="#ef4444" strokeWidth="10" />
+                <path d={`M ${rEndX} ${rEndY} A 40 40 0 0 1 ${yEndX} ${yEndY}`} fill="none" stroke="#eab308" strokeWidth="10" />
+                <path d={`M ${yEndX} ${yEndY} A 40 40 0 0 1 ${gEndX} ${gEndY}`} fill="none" stroke="#22c55e" strokeWidth="10" />
+                {hasValue ? (
+                    <>
+                        <line x1="50" y1="50" x2={needleX} y2={needleY} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" className="text-gray-800 dark:text-gray-100" />
+                        <circle cx="50" cy="50" r="2.2" fill="currentColor" className="text-gray-800 dark:text-gray-100" />
+                    </>
+                ) : (
+                    <circle cx="50" cy="50" r="2.2" fill="currentColor" className="text-gray-400" />
+                )}
+            </svg>
+            <div className="-mt-2 text-center leading-tight">
+                <div className={`font-bold ${oeeTextClass(hasValue ? p : null)}`} style={{ fontSize: size * 0.18 }}>
+                    {hasValue ? `${p.toFixed(1)}%` : 'N/A'}
+                </div>
+                <div className="text-gray-500 dark:text-gray-400 uppercase tracking-wide" style={{ fontSize: size * 0.085 }}>
+                    OEE
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function InboundQcOverview({ stats }) {
