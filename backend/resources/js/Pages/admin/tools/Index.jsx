@@ -35,10 +35,11 @@ export default function ToolsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/tools/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/tools/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete tool "${r.name}"?`)) {
                     router.delete(`/admin/tools/${r.id}`, { preserveScroll: true });

@@ -15,14 +15,16 @@ export default function CostSourcesIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/cost-sources/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/cost-sources/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/cost-sources/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete cost source "${r.name}"?`)) {
                     router.delete(`/admin/cost-sources/${r.id}`, { preserveScroll: true });
