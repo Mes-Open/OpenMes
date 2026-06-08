@@ -14,17 +14,27 @@ class Inspection extends Model
     use HasTenant;
 
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_PASS = 'pass';
+
     public const STATUS_FAIL = 'fail';
+
     public const STATUS_CONDITIONAL = 'conditional_pass';
 
     public const DISPOSITION_PENDING = 'pending';
+
     public const DISPOSITION_ACCEPT = 'accept';
+
     public const DISPOSITION_ACCEPT_WITH_DEVIATION = 'accept_with_deviation';
+
     public const DISPOSITION_REWORK = 'rework';
+
     public const DISPOSITION_SCRAP = 'scrap';
+
     public const DISPOSITION_RETURN_TO_SUPPLIER = 'return_to_supplier';
+
     public const DISPOSITION_QUARANTINE = 'quarantine';
+
     public const DISPOSITION_REJECT = 'reject';
 
     public const DISPOSITIONS = [
@@ -40,6 +50,7 @@ class Inspection extends Model
 
     protected $fillable = [
         'inspection_plan_id',
+        'plan_version',
         'material_id',
         'lot_number',
         'supplier_lot_ref',

@@ -449,6 +449,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         // Inspection plans — admin mutations
         Route::post('/inspection-plans', [InspectionPlanController::class, 'store']);
         Route::patch('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'update']);
+        Route::post('/inspection-plans/{inspectionPlan}/publish', [InspectionPlanController::class, 'publish']);
         Route::delete('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'destroy']);
 
         // BOM Items — admin mutations
