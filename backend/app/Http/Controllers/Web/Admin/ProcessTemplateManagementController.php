@@ -118,6 +118,7 @@ class ProcessTemplateManagementController extends Controller
                 ]),
                 'photos'     => $processTemplate->photos->map(fn($p) => [
                     'id'            => $p->id,
+                    'template_step_id' => $p->template_step_id,
                     'url'           => route('process-templates.photos.show', [$processTemplate, $p]),
                     'original_name' => $p->original_name,
                     'caption'       => $p->caption,

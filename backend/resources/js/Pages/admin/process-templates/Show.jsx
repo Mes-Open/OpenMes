@@ -255,8 +255,83 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
 /* ------------------------------------------------------------------ */
 /* Single step row (view + edit toggle)                                  */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/* Per-step photo (one image per step) — upload / replace / delete       */
+/* ------------------------------------------------------------------ */
+function StepPhoto({ step, photo, baseUrl }) {
+    const form = useForm({ photo: null, template_step_id: step.id });
+    const inputRef = useRef(null);
+    const [zoom, setZoom] = useState(false);
+
+    const pick = () => inputRef.current?.click();
+
+    const onFile = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        // upload immediately (replace-on-upload, one per step)
+        form.transform(() => ({ photo: file, template_step_id: step.id }));
+        form.post(baseUrl, {
+            preserveScroll: true,
+            forceFormData: true,
+            onFinish: () => {
+                form.transform((d) => d);
+                if (inputRef.current) inputRef.current.value = '';
+            },
+        });
+    };
+
+    const remove = () => {
+        if (confirm('Delete this step photo?')) {
+            router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
+        }
+    };
+
+    return (
+        <div className="mt-3 flex items-center gap-3">
+            {photo ? (
+                <>
+                    <button type="button" onClick={() => setZoom(true)} title={photo.caption || photo.original_name}>
+                        <img
+                            src={photo.url}
+                            alt={photo.caption || 'Step photo'}
+                            className="w-20 h-20 object-cover rounded-lg border border-gray-200 bg-gray-100"
+                        />
+                    </button>
+                    <div className="flex flex-col gap-1">
+                        <button type="button" onClick={pick} disabled={form.processing} className="text-xs text-blue-600 hover:underline text-left">
+                            {form.processing ? 'Uploading…' : 'Replace photo'}
+                        </button>
+                        <button type="button" onClick={remove} className="text-xs text-red-600 hover:underline text-left">
+                            Remove
+                        </button>
+                    </div>
+                </>
+            ) : (
+                <button
+                    type="button"
+                    onClick={pick}
+                    disabled={form.processing}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-gray-300 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 disabled:opacity-50"
+                >
+                    <Icon d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z" className="w-4 h-4" />
+                    {form.processing ? 'Uploading…' : 'Add step photo'}
+                </button>
+            )}
+            {form.errors.photo && <span className="text-xs text-red-600">{form.errors.photo}</span>}
+
+            <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onFile} />
+
+            {zoom && photo && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onClick={() => setZoom(false)}>
+                    <img src={photo.url} alt={photo.caption || ''} className="max-w-full max-h-[85vh] rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                </div>
+            )}
+        </div>
+    );
+}
+
 function StepCard({
-    step, isFirst, isLast, editingId, onEditStart, onEditCancel,
+    step, photo, photosBaseUrl, isFirst, isLast, editingId, onEditStart, onEditCancel,
     productType, processTemplate, processSegments, workstations,
     onMoveUp, onMoveDown, onDelete,
     dragHandleProps,
@@ -378,6 +453,8 @@ function StepCard({
                                     <p className="text-sm text-gray-700 whitespace-pre-wrap">{step.instruction}</p>
                                 </div>
                             )}
+
+                            <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
                         </div>
                     </div>
                 </div>
@@ -402,6 +479,12 @@ export default function ProcessTemplatesShow() {
     const { productType, processTemplate, workstations = [], processSegments = [] } = usePage().props;
 
     const steps = processTemplate.steps ?? [];
+    const allPhotos = processTemplate.photos ?? [];
+    const photoByStep = {};
+    allPhotos.forEach((p) => {
+        if (p.template_step_id) photoByStep[p.template_step_id] = p;
+    });
+    const photosBaseUrl = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/photos`;
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
@@ -579,6 +662,8 @@ export default function ProcessTemplatesShow() {
                             <div key={step.id} data-step-id={step.id}>
                                 <StepCard
                                     step={step}
+                                    photo={photoByStep[step.id] ?? null}
+                                    photosBaseUrl={photosBaseUrl}
                                     isFirst={idx === 0}
                                     isLast={idx === steps.length - 1}
                                     editingId={editingId}
@@ -645,7 +730,8 @@ export default function ProcessTemplatesShow() {
  * and serves files through an authenticated endpoint — never a public URL.
  */
 function PhotosSection({ productType, processTemplate }) {
-    const photos = processTemplate.photos ?? [];
+    // Only general (non-step) photos here; per-step photos live on each StepCard.
+    const photos = (processTemplate.photos ?? []).filter((p) => !p.template_step_id);
     const baseUrl = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/photos`;
 
     const form = useForm({ photo: null, caption: '' });
@@ -673,7 +759,7 @@ function PhotosSection({ productType, processTemplate }) {
     return (
         <div className="mt-10">
             <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Reference Photos</h2>
+                <h2 className="text-xl font-bold text-gray-800">General Reference Photos</h2>
                 <span className="text-sm text-gray-500">({photos.length}/20)</span>
             </div>
 

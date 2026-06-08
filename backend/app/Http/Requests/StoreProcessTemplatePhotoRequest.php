@@ -27,6 +27,9 @@ class StoreProcessTemplatePhotoRequest extends FormRequest
                     ->max(10 * 1024), // 10 MB
             ],
             'caption' => ['nullable', 'string', 'max:255'],
+            // Optional: tie the photo to one production step. The controller
+            // additionally verifies the step belongs to this template (IDOR).
+            'template_step_id' => ['nullable', 'integer', 'exists:template_steps,id'],
         ];
     }
 }
