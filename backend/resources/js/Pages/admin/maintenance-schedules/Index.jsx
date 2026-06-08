@@ -25,10 +25,11 @@ export default function MaintenanceSchedulesIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/maintenance-schedules/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/maintenance-schedules/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete maintenance schedule "${r.name}"?`)) {
                     router.delete(`/admin/maintenance-schedules/${r.id}`, { preserveScroll: true });

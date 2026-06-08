@@ -14,14 +14,16 @@ export default function WageGroupsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/wage-groups/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/wage-groups/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/wage-groups/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete wage group "${r.name}"?`)) {
                     router.delete(`/admin/wage-groups/${r.id}`, { preserveScroll: true });

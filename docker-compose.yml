@@ -2,10 +2,6 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: openmmes-postgres
-    # Logical replication is required by the Electric sync service (see
-    # `electric` below). Existing data is unaffected; the flags only change
-    # how WAL is written. If you remove Electric, also drop the replication
-    # slot it creates: SELECT pg_drop_replication_slot('electric_slot_<...>');
     command:
       - "postgres"
       - "-c"

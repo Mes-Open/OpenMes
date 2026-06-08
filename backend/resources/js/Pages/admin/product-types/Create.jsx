@@ -7,8 +7,14 @@ export default function ProductTypeCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Product Type" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New Product Type</h1>
             <ResourceForm
+                title="New Product Type"
+                breadcrumbs={[
+                    { label: 'Dashboard', href: '/admin/dashboard' },
+                    { label: 'Product Types', href: '/admin/product-types' },
+                    { label: 'New' },
+                ]}
+                backHref="/admin/product-types"
                 action="/admin/product-types"
                 method="post"
                 fields={PRODUCT_TYPE_FIELDS}

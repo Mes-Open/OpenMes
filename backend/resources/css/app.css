@@ -73,6 +73,27 @@
     }
 }
 
+/* ── Sidebar nav scrollbar ──────────────────────────────────────────────── */
+/* Slim, theme-matched scrollbar for the dark slate sidebar — overlays the    */
+/* track so it doesn't reserve a chunky gutter, and only shows the thumb.      */
+.sidebar-scroll {
+    scrollbar-width: thin;                       /* Firefox */
+    scrollbar-color: rgb(71 85 105) transparent; /* thumb / track (slate-600) */
+}
+.sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(71 85 105);            /* slate-600 */
+    border-radius: 9999px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+    background-color: rgb(100 116 139);          /* slate-500 on hover */
+}
+
 /* ── Global dark mode overrides for inline Tailwind classes ─────────────── */
 /* Cover hardcoded classes in blade templates without modifying each file    */
 

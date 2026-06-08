@@ -1,7 +1,32 @@
 export const PRODUCT_TYPE_FIELDS = [
-    { name: 'code', label: 'Code', required: true },
-    { name: 'name', label: 'Name', required: true },
-    { name: 'description', label: 'Description', type: 'textarea' },
-    { name: 'unit_of_measure', label: 'Unit of Measure', placeholder: 'pcs' },
-    { name: 'is_active', label: 'Active', type: 'checkbox' },
+    {
+        name: 'code',
+        label: 'Product Code',
+        required: true,
+        placeholder: 'e.g., WIDGET-A, PROD-001',
+        help: 'Unique identifier',
+    },
+    {
+        name: 'name',
+        label: 'Product Name',
+        required: true,
+        placeholder: 'e.g., Widget Type A, Standard Component',
+    },
+    {
+        name: 'description',
+        label: 'Description',
+        type: 'textarea',
+        placeholder: 'Optional description',
+    },
+    {
+        name: 'unit_of_measure',
+        label: 'Unit of Measure',
+        placeholder: 'e.g., pcs, kg, m (optional)',
+        help: 'How this product is counted or measured',
+    },
+    {
+        name: 'is_active',
+        label: 'Active (ready for production)',
+        type: 'checkbox',
+    },
 ];

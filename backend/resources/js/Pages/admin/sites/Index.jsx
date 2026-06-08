@@ -15,14 +15,16 @@ export default function SitesIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/sites/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/sites/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/sites/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete site "${r.name}"?`)) {
                     router.delete(`/admin/sites/${r.id}`, { preserveScroll: true });
