@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import PersonnelClassForm from './Form';
+import { __ } from '../../../lib/i18n';
 
 export default function PersonnelClassEdit() {
     const { personnelClass, skills = [], levels = [] } = usePage().props;
@@ -20,9 +21,9 @@ export default function PersonnelClassEdit() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${personnelClass.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Personnel Class</h1>
-            <PersonnelClassForm form={form} skills={skills} levels={levels} submitLabel="Save Changes" onSubmit={submit} />
+            <Head title={__('Edit :name', { name: personnelClass.name })} />
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('Edit Personnel Class')}</h1>
+            <PersonnelClassForm form={form} skills={skills} levels={levels} submitLabel={__('Save Changes')} onSubmit={submit} />
         </div>
     );
 }
