@@ -32,4 +32,52 @@ return [
     |
     */
     'default_token_ttl_minutes' => env('DEFAULT_TOKEN_TTL_MINUTES', 15),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Standard Weekly Hours
+    |--------------------------------------------------------------------------
+    |
+    | Used to convert a weekly-paid worker's salary into an effective hourly
+    | rate when attributing labor cost to a work order:
+    | effective_hourly = weekly_salary / standard_weekly_hours.
+    |
+    */
+    'standard_weekly_hours' => env('STANDARD_WEEKLY_HOURS', 40),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Currency
+    |--------------------------------------------------------------------------
+    |
+    | System-wide currency. Editable in Settings → System (General). Used as the
+    | reporting currency for cost aggregation; there is no FX conversion yet, so
+    | per-record currencies are summed numerically and a mixed-currency flag is
+    | raised when they differ.
+    |
+    */
+    'default_currency' => env('DEFAULT_CURRENCY', 'PLN'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Pay Type
+    |--------------------------------------------------------------------------
+    |
+    | Fallback compensation mode (hourly | weekly | piece_rate) used when a
+    | worker has no per-worker pay type set. Editable in Settings → System.
+    |
+    */
+    'default_pay_type' => env('DEFAULT_PAY_TYPE', 'hourly'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Pay Rate
+    |--------------------------------------------------------------------------
+    |
+    | Fallback labor rate used when a worker has no per-worker pay rate (and no
+    | wage group). Interpreted according to the effective pay type. Null = no
+    | fallback (such workers contribute 0 to labor cost).
+    |
+    */
+    'default_pay_rate' => env('DEFAULT_PAY_RATE'),
 ];

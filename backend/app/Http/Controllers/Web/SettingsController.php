@@ -118,6 +118,10 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none',
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1,
             'scanner_mode' => json_decode($rows['scanner_mode']->value ?? '"hid"', true) ?? 'hid',
+            'standard_weekly_hours' => json_decode($rows['standard_weekly_hours']->value ?? '40', true) ?? 40,
+            'default_currency' => json_decode($rows['default_currency']->value ?? '"PLN"', true) ?? 'PLN',
+            'default_pay_type' => json_decode($rows['default_pay_type']->value ?? '"hourly"', true) ?? 'hourly',
+            'default_pay_rate' => json_decode($rows['default_pay_rate']->value ?? 'null', true),
         ];
 
         // Same source as the validation rule and the language switcher.
@@ -299,6 +303,10 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
             'scanner_mode' => 'required|in:hid,manual',
+            'standard_weekly_hours' => 'nullable|numeric|min:1|max:168',
+            'default_currency' => 'nullable|string|size:3',
+            'default_pay_type' => 'nullable|in:hourly,weekly,piece_rate',
+            'default_pay_rate' => 'nullable|numeric|min:0',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -325,6 +333,12 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
             'scanner_mode' => $validated['scanner_mode'],
+            'standard_weekly_hours' => (float) ($validated['standard_weekly_hours'] ?? 40),
+            'default_currency' => strtoupper($validated['default_currency'] ?? 'PLN'),
+            'default_pay_type' => $validated['default_pay_type'] ?? 'hourly',
+            'default_pay_rate' => isset($validated['default_pay_rate']) && $validated['default_pay_rate'] !== null
+                ? (float) $validated['default_pay_rate']
+                : null,
         ];
 
         foreach ($map as $key => $value) {
