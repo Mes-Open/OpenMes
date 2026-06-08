@@ -78,4 +78,35 @@ class SystemSettingsLanguageTest extends TestCase
         $locales = $response->getOriginalContent()->getData()['page']['props']['availableLocales'] ?? null;
         $this->assertSame(config('app.available_locales'), $locales);
     }
+
+    public function test_changing_language_in_settings_updates_session_locale(): void
+    {
+        // The session override is what SetLocale reads first, so saving the
+        // language must align it for the change to take effect on reload.
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->payload(['language' => 'pl']))
+            ->assertSessionHas('locale', 'pl');
+
+        $this->assertDatabaseHas('system_settings', ['key' => 'language', 'value' => json_encode('pl')]);
+    }
+
+    public function test_labor_costing_settings_are_persisted(): void
+    {
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->payload([
+                'standard_weekly_hours' => 38,
+                'default_currency' => 'eur',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('system_settings', ['key' => 'standard_weekly_hours', 'value' => json_encode(38.0)]);
+        $this->assertDatabaseHas('system_settings', ['key' => 'default_currency', 'value' => json_encode('EUR')]);
+    }
+
+    public function test_invalid_currency_length_is_rejected(): void
+    {
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->payload(['default_currency' => 'EURO']))
+            ->assertSessionHasErrors('default_currency');
+    }
 }

@@ -1,17 +1,18 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 export default function PersonnelClassShow() {
     const { personnelClass, workers = [], requiredSkills = [] } = usePage().props;
 
     const handleDelete = () => {
-        if (!confirm('Delete this personnel class?')) return;
+        if (!confirm(__('Delete this personnel class?'))) return;
         router.delete(`/admin/personnel-classes/${personnelClass.id}`, { preserveScroll: false });
     };
 
     return (
         <>
-            <Head title={`Personnel Class — ${personnelClass.name}`} />
+            <Head title={__('Personnel Class — :name', { name: personnelClass.name })} />
 
             <div className="max-w-5xl mx-auto">
                 {/* Header */}
@@ -20,9 +21,9 @@ export default function PersonnelClassShow() {
                         <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono text-sm text-gray-500">{personnelClass.code}</span>
                             {personnelClass.is_active ? (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">Active</span>
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">{__('Active')}</span>
                             ) : (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">Inactive</span>
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{__('Inactive')}</span>
                             )}
                         </div>
                         <h1 className="text-3xl font-bold text-gray-800 mt-1">{personnelClass.name}</h1>
@@ -32,14 +33,14 @@ export default function PersonnelClassShow() {
                     </div>
                     <div className="flex gap-2">
                         <a href={`/admin/personnel-classes/${personnelClass.id}/edit`} className="btn-touch btn-secondary">
-                            Edit
+                            {__('Edit')}
                         </a>
                         <button
                             type="button"
                             onClick={handleDelete}
                             className="btn-touch bg-red-50 text-red-700 hover:bg-red-100"
                         >
-                            Delete
+                            {__('Delete')}
                         </button>
                     </div>
                 </div>
@@ -48,16 +49,16 @@ export default function PersonnelClassShow() {
                     <div className="lg:col-span-2 space-y-4">
                         {/* Required skills */}
                         <section className="card">
-                            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Required skills</h2>
+                            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{__('Required skills')}</h2>
                             {requiredSkills.length === 0 ? (
-                                <p className="text-sm text-gray-400">No required skills configured.</p>
+                                <p className="text-sm text-gray-400">{__('No required skills configured.')}</p>
                             ) : (
                                 <table className="min-w-full text-sm">
                                     <thead>
                                         <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
-                                            <th className="py-2 pr-3">Skill</th>
-                                            <th className="py-2 pr-3">Code</th>
-                                            <th className="py-2 pr-3">Minimum cert level</th>
+                                            <th className="py-2 pr-3">{__('Skill')}</th>
+                                            <th className="py-2 pr-3">{__('Code')}</th>
+                                            <th className="py-2 pr-3">{__('Minimum cert level')}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
@@ -79,16 +80,16 @@ export default function PersonnelClassShow() {
 
                         {/* Workers in this class */}
                         <section className="card">
-                            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Workers in this class</h2>
+                            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{__('Workers in this class')}</h2>
                             {workers.length === 0 ? (
-                                <p className="text-sm text-gray-400 italic">No workers assigned yet.</p>
+                                <p className="text-sm text-gray-400 italic">{__('No workers assigned yet.')}</p>
                             ) : (
                                 <table className="min-w-full text-sm">
                                     <thead>
                                         <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
-                                            <th className="py-2 pr-3">Code</th>
-                                            <th className="py-2 pr-3">Name</th>
-                                            <th className="py-2 pr-3">Qualified</th>
+                                            <th className="py-2 pr-3">{__('Code')}</th>
+                                            <th className="py-2 pr-3">{__('Name')}</th>
+                                            <th className="py-2 pr-3">{__('Qualified')}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
@@ -102,9 +103,9 @@ export default function PersonnelClassShow() {
                                                 </td>
                                                 <td className="py-2 pr-3">
                                                     {worker.qualified ? (
-                                                        <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">Yes</span>
+                                                        <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">{__('Yes')}</span>
                                                     ) : (
-                                                        <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">Gap</span>
+                                                        <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">{__('Gap')}</span>
                                                     )}
                                                 </td>
                                             </tr>
@@ -118,22 +119,22 @@ export default function PersonnelClassShow() {
                     {/* Metadata sidebar */}
                     <div className="space-y-4">
                         <section className="card">
-                            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Metadata</h2>
+                            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{__('Metadata')}</h2>
                             <ul className="space-y-2 text-sm">
                                 <li className="flex justify-between gap-2">
-                                    <span className="text-gray-500">Workers</span>
+                                    <span className="text-gray-500">{__('Workers')}</span>
                                     <span className="font-medium text-gray-800">{workers.length}</span>
                                 </li>
                                 <li className="flex justify-between gap-2">
-                                    <span className="text-gray-500">Required skills</span>
+                                    <span className="text-gray-500">{__('Required skills')}</span>
                                     <span className="font-medium text-gray-800">{requiredSkills.length}</span>
                                 </li>
                                 <li className="flex justify-between gap-2">
-                                    <span className="text-gray-500">Created</span>
+                                    <span className="text-gray-500">{__('Created')}</span>
                                     <span className="text-gray-700">{personnelClass.created_at}</span>
                                 </li>
                                 <li className="flex justify-between gap-2">
-                                    <span className="text-gray-500">Updated</span>
+                                    <span className="text-gray-500">{__('Updated')}</span>
                                     <span className="text-gray-700">{personnelClass.updated_at}</span>
                                 </li>
                             </ul>
