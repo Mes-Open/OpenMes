@@ -300,7 +300,6 @@ function Sidebar({
                             </button>
                         </form>
                     </div>
-                    {showLabels && <LocaleSwitcher />}
                 </div>
 
                 {/* Collapse toggle (desktop) */}
@@ -319,29 +318,6 @@ function Sidebar({
                 </div>
             </div>
         </aside>
-    );
-}
-
-/**
- * Language switcher. Navigates to /locale/{code} with a FULL reload (not Inertia
- * <Link>) on purpose, so app.jsx re-bootstraps and loads the new locale's
- * translation chunk. Hidden when only one locale is available.
- */
-function LocaleSwitcher() {
-    const { locale, locales } = usePage().props;
-    if (!locales || Object.keys(locales).length <= 1) return null;
-
-    return (
-        <select
-            value={locale}
-            onChange={(e) => { window.location.href = `/locale/${e.target.value}`; }}
-            aria-label="Language"
-            className="w-full mt-1 bg-slate-800 text-slate-300 text-xs rounded-md border border-slate-700 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-            {Object.entries(locales).map(([code, label]) => (
-                <option key={code} value={code}>{label}</option>
-            ))}
-        </select>
     );
 }
 
