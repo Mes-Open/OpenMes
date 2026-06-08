@@ -3029,7 +3029,7 @@
     "Save as new version": "Save as new version",
     "This is a draft — editable in place and not yet used for inspections.": "This is a draft — editable in place and not yet used for inspections.",
     "This version is published and immutable. Saving creates a new draft version — the published version stays unchanged so past inspections remain reproducible.": "This version is published and immutable. Saving creates a new draft version — the published version stays unchanged so past inspections remain reproducible.",
-    "Version history": "Version history"
+    "Version history": "Version history",
     "CLOSED": "CLOSED",
     "+ New Account": "+ New Account",
     "+ New Area": "+ New Area",
