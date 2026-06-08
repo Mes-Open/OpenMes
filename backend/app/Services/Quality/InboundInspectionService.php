@@ -31,6 +31,9 @@ class InboundInspectionService
         return DB::transaction(function () use ($material, $lotNumber, $quantity, $plan, $inspector, $supplierLotRef) {
             $inspection = Inspection::create([
                 'inspection_plan_id' => $plan?->id,
+                // Pin the exact plan version used so the inspection stays
+                // reproducible even after the plan is revised.
+                'plan_version' => $plan?->version,
                 'material_id' => $material->id,
                 'lot_number' => $lotNumber,
                 'supplier_lot_ref' => $supplierLotRef,
@@ -85,7 +88,7 @@ class InboundInspectionService
     public function complete(Inspection $inspection, ?string $notes = null): Inspection
     {
         if (! $inspection->isPending()) {
-            throw new RuntimeException('Inspection #' . $inspection->id . ' is already completed (status: ' . $inspection->status . ').');
+            throw new RuntimeException('Inspection #'.$inspection->id.' is already completed (status: '.$inspection->status.').');
         }
 
         $inspection->loadMissing('results', 'material', 'inspector');
@@ -205,7 +208,7 @@ class InboundInspectionService
 
         $failed = $inspection->results->filter(fn ($r) => $r->is_passed === false);
         $description = "Inbound inspection failed for material '{$inspection->material->name}' lot '{$inspection->lot_number}'.\n\nFailed criteria:\n"
-            . $failed->map(function ($r) {
+            .$failed->map(function ($r) {
                 $value = $r->value_numeric ?? ($r->value_boolean !== null ? ($r->value_boolean ? 'pass' : 'fail') : ($r->value_text ?? '—'));
                 $spec = $r->spec_min !== null && $r->spec_max !== null
                     ? " (spec: {$r->spec_min}–{$r->spec_max} {$r->unit})"
