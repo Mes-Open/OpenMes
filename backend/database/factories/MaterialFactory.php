@@ -17,6 +17,8 @@ class MaterialFactory extends Factory
             'unit_of_measure' => fake()->randomElement(['pcs', 'kg', 'm', 'l']),
             'tracking_type' => 'none',
             'default_scrap_percentage' => 0,
+            'unit_price' => fake()->randomFloat(4, 0.5, 50),
+            'price_currency' => 'PLN',
             'is_active' => true,
         ];
     }
