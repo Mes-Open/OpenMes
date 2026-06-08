@@ -13,6 +13,8 @@ export default function WorkerEdit() {
         crew_id: worker.crew_id != null ? String(worker.crew_id) : '',
         wage_group_id: worker.wage_group_id != null ? String(worker.wage_group_id) : '',
         personnel_class_id: worker.personnel_class_id != null ? String(worker.personnel_class_id) : '',
+        pay_type: worker.pay_type ?? '',
+        pay_rate: worker.pay_rate != null ? String(worker.pay_rate) : '',
         is_active: !!worker.is_active,
         skills: worker.skills ?? [],
     });
