@@ -50,7 +50,7 @@ export default function WorkOrdersIndex() {
     ];
 
     const actions = (r) => {
-        const a = [{ label: 'Edit', href: `/admin/work-orders/${r.id}/edit` }];
+        const a = [{ label: 'Edit', icon: 'edit', href: `/admin/work-orders/${r.id}/edit` }];
         const s = r.status;
 
         if (s === 'PENDING') {
@@ -74,12 +74,13 @@ export default function WorkOrdersIndex() {
         if (TERMINAL.includes(s)) {
             a.push({ label: 'Reopen', onClick: () => post(r.id, 'reopen') });
         } else {
-            a.push({ label: 'Cancel', className: 'text-amber-600 hover:underline', onClick: () => { if (confirm(`Cancel work order ${r.order_no}?`)) post(r.id, 'cancel'); } });
+            a.push({ label: 'Cancel', variant: 'warning', onClick: () => { if (confirm(`Cancel work order ${r.order_no}?`)) post(r.id, 'cancel'); } });
         }
 
         a.push({
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => { if (confirm(`Delete work order ${r.order_no}? (only allowed if it has no batches)`)) router.delete(`/admin/work-orders/${r.id}`, { preserveScroll: true }); },
         });
         return a;

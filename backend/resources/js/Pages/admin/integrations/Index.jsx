@@ -13,10 +13,11 @@ export default function IntegrationsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/integrations/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/integrations/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete integration "${r.system_name}"?`)) {
                     router.delete(`/admin/integrations/${r.id}`, { preserveScroll: true });

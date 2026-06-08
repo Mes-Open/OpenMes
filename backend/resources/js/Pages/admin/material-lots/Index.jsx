@@ -24,10 +24,11 @@ export default function MaterialLotsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/material-lots/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/material-lots/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete material lot "${r.lot_number}"?`)) {
                     router.delete(`/admin/material-lots/${r.id}`, { preserveScroll: true });

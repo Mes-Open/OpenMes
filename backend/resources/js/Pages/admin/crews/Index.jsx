@@ -15,14 +15,16 @@ export default function CrewsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/crews/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/crews/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/crews/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete crew "${r.name}"?`)) {
                     router.delete(`/admin/crews/${r.id}`, { preserveScroll: true });

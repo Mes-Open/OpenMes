@@ -7,8 +7,15 @@ export default function ProductTypeEdit({ productType }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${productType.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Product Type</h1>
             <ResourceForm
+                title="Edit Product Type"
+                breadcrumbs={[
+                    { label: 'Dashboard', href: '/admin/dashboard' },
+                    { label: 'Product Types', href: '/admin/product-types' },
+                    { label: productType.name, href: `/admin/product-types/${productType.id}` },
+                    { label: 'Edit' },
+                ]}
+                backHref="/admin/product-types"
                 action={`/admin/product-types/${productType.id}`}
                 method="put"
                 fields={PRODUCT_TYPE_FIELDS}

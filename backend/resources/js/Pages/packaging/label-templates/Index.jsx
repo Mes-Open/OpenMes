@@ -15,11 +15,12 @@ export default function LabelTemplatesIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/packaging/label-templates/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/packaging/label-templates/${r.id}/edit` },
         ...(r.is_default ? [] : [{ label: 'Make default', onClick: () => router.post(`/packaging/label-templates/${r.id}/set-default`, {}, { preserveScroll: true }) }]),
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => { if (confirm(`Delete label template "${r.name}"?`)) router.delete(`/packaging/label-templates/${r.id}`, { preserveScroll: true }); },
         },
     ];

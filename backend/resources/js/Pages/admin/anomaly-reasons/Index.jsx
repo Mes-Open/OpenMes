@@ -14,14 +14,16 @@ export default function AnomalyReasonsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/anomaly-reasons/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/anomaly-reasons/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/anomaly-reasons/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete anomaly reason "${r.name}"?`)) {
                     router.delete(`/admin/anomaly-reasons/${r.id}`, { preserveScroll: true });

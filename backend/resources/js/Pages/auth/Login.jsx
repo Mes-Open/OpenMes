@@ -52,6 +52,7 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                 <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
                     <button
                         type="button"
+                        data-testid="tab-password"
                         onClick={() => switchTab('password')}
                         className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
                             tab === 'password'
@@ -63,6 +64,7 @@ export default function Login({ pinEnabled = false, regEnabled = false }) {
                     </button>
                     <button
                         type="button"
+                        data-testid="tab-pin"
                         onClick={() => switchTab('pin')}
                         className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
                             tab === 'pin'
