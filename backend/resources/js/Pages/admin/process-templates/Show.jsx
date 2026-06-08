@@ -268,12 +268,13 @@ function StepPhoto({ step, photo, baseUrl }) {
     const onFile = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        form.setData('photo', file);
         // upload immediately (replace-on-upload, one per step)
-        form.transform((d) => ({ photo: file, template_step_id: step.id })).post(baseUrl, {
+        form.transform(() => ({ photo: file, template_step_id: step.id }));
+        form.post(baseUrl, {
             preserveScroll: true,
             forceFormData: true,
             onFinish: () => {
+                form.transform((d) => d);
                 if (inputRef.current) inputRef.current.value = '';
             },
         });
