@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import { realtimeCollection } from '../lib/realtimeCollection';
+import { __ } from '../lib/i18n';
 
 /**
  * Generic admin list backed by a Reverb-synced collection + TanStack DB live
@@ -83,7 +84,7 @@ export default function ResourceTable({
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">{title}</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">{__(title)}</h1>
                     {subtitle && <div className="mt-1">{subtitle}</div>}
                 </div>
                 {createHref && (
@@ -91,7 +92,7 @@ export default function ResourceTable({
                         href={createHref}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
                     >
-                        {createLabel}
+                        {__(createLabel)}
                     </Link>
                 )}
             </div>
@@ -102,17 +103,17 @@ export default function ResourceTable({
                         <tr className="text-left text-gray-500 border-b bg-gray-50">
                             {columns.map((c) => (
                                 <th key={c.key} className={`px-4 py-3 ${c.align === 'right' ? 'text-right' : ''}`}>
-                                    {c.label}
+                                    {__(c.label)}
                                 </th>
                             ))}
-                            {actions && <th className="px-4 py-3 text-right">Actions</th>}
+                            {actions && <th className="px-4 py-3 text-right">{__('Actions')}</th>}
                         </tr>
                     </thead>
                     <tbody>
                         {visibleRows.length === 0 && (
                             <tr>
                                 <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">
-                                    {emptyText}
+                                    {__(emptyText)}
                                 </td>
                             </tr>
                         )}
@@ -139,11 +140,11 @@ export default function ResourceTable({
                                                         </svg>
                                                     );
                                                     return a.href ? (
-                                                        <Link key={i} href={a.href} className={cls} title={a.label} aria-label={a.label}>
+                                                        <Link key={i} href={a.href} className={cls} title={__(a.label)} aria-label={__(a.label)}>
                                                             {glyph}
                                                         </Link>
                                                     ) : (
-                                                        <button key={i} onClick={a.onClick} className={cls} title={a.label} aria-label={a.label}>
+                                                        <button key={i} onClick={a.onClick} className={cls} title={__(a.label)} aria-label={__(a.label)}>
                                                             {glyph}
                                                         </button>
                                                     );
@@ -151,11 +152,11 @@ export default function ResourceTable({
                                                 // Labeled button (domain actions without an icon).
                                                 return a.href ? (
                                                     <Link key={i} href={a.href} className={actionClass(a)}>
-                                                        {a.label}
+                                                        {__(a.label)}
                                                     </Link>
                                                 ) : (
                                                     <button key={i} onClick={a.onClick} className={actionClass(a)}>
-                                                        {a.label}
+                                                        {__(a.label)}
                                                     </button>
                                                 );
                                             })}
@@ -179,7 +180,7 @@ export function ActiveBadge({ active }) {
                 active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'
             }`}
         >
-            {active ? 'Active' : 'Inactive'}
+            {__(active ? 'Active' : 'Inactive')}
         </span>
     );
 }
