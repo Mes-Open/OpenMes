@@ -341,6 +341,11 @@ class SettingsController extends Controller
                 : null,
         ];
 
+        $previousLanguage = json_decode(
+            DB::table('system_settings')->where('key', 'language')->value('value') ?? 'null',
+            true
+        );
+
         foreach ($map as $key => $value) {
             DB::table('system_settings')->updateOrInsert(
                 ['key' => $key],
@@ -350,9 +355,12 @@ class SettingsController extends Controller
 
         Cache::forget('cors_allowed_origins');
 
-        // Align the session locale with the new global default so the change
-        // takes effect immediately (SetLocale reads the session override first).
-        $request->session()->put('locale', $map['language']);
+        // Only realign the session locale when the language actually changed,
+        // so saving an unrelated setting does not clobber a per-session
+        // language the user picked via the switcher.
+        if ($map['language'] !== $previousLanguage) {
+            $request->session()->put('locale', $map['language']);
+        }
 
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');

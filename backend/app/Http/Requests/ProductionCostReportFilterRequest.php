@@ -12,6 +12,17 @@ class ProductionCostReportFilterRequest extends FormRequest
         return true;
     }
 
+    /**
+     * The from/to range only applies to the 'custom' preset; drop stale values
+     * for any other preset so a leftover to<from pair can't trigger a false 422.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('preset') !== 'custom') {
+            $this->merge(['from' => null, 'to' => null]);
+        }
+    }
+
     public function rules(): array
     {
         return [

@@ -40,21 +40,6 @@ class Worker extends Model
     }
 
     /**
-     * Pay rate used for costing, falling back to the wage-group hourly rate
-     * when no per-worker rate is set. Null when neither is available.
-     */
-    public function effectivePayRate(): ?float
-    {
-        if ($this->pay_rate !== null) {
-            return (float) $this->pay_rate;
-        }
-
-        $groupRate = $this->wageGroup?->base_hourly_rate;
-
-        return $groupRate !== null ? (float) $groupRate : null;
-    }
-
-    /**
      * Get the workstation this worker is assigned to.
      */
     public function workstation(): BelongsTo

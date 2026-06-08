@@ -92,6 +92,42 @@ class ProductionCostServiceTest extends TestCase
         $this->assertSame('bom', $materials['items'][0]['source']);
     }
 
+    public function test_material_partial_consumption_fills_remainder_from_bom(): void
+    {
+        $m1 = Material::factory()->create(['unit_price' => 2]);
+        $m2 = Material::factory()->create(['unit_price' => 5]);
+        $wo = WorkOrder::factory()->create([
+            'produced_qty' => 10,
+            'process_snapshot' => ['bom' => [
+                ['material_id' => $m1->id, 'quantity_per_unit' => 1, 'scrap_percentage' => 0],
+                ['material_id' => $m2->id, 'quantity_per_unit' => 1, 'scrap_percentage' => 0],
+            ]],
+        ]);
+        // Only m1 consumed; m2 should still be costed from the BOM.
+        MaterialAllocation::factory()->consumed(3, snapshotPrice: 2)->create([
+            'work_order_id' => $wo->id, 'material_id' => $m1->id,
+        ]);
+
+        $materials = $this->svc->materialCost($wo);
+
+        // m1 actual: 3 * 2 = 6 ; m2 BOM: 10 * 5 = 50
+        $this->assertSame(56.0, $materials['total']);
+        $sources = collect($materials['items'])->pluck('source')->sort()->values()->all();
+        $this->assertSame(['actual', 'bom'], $sources);
+    }
+
+    public function test_wage_group_rate_not_applied_to_non_hourly_mode(): void
+    {
+        $wo = $this->workOrder(100);
+        $group = WageGroup::create(['code' => 'WG2', 'name' => 'Std', 'base_hourly_rate' => 30, 'currency' => 'PLN']);
+        // Piece-rate worker with no per-worker rate: the hourly wage-group rate
+        // must NOT be used as a piece rate, and no default is configured.
+        $worker = Worker::factory()->create(['pay_type' => 'piece_rate', 'wage_group_id' => $group->id]);
+        $this->workActivity($wo, $worker, 2);
+
+        $this->assertSame(0.0, $this->svc->laborCost($wo)['total']);
+    }
+
     public function test_labor_cost_hourly(): void
     {
         $wo = $this->workOrder();

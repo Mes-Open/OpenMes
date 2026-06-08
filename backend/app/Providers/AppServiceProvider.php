@@ -8,7 +8,6 @@ use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -60,11 +59,16 @@ class AppServiceProvider extends ServiceProvider
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
         View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
 
-        // Set application locale from system_settings
+        // Set application locale from system_settings. Also override
+        // config('app.locale') so that under Octane, where FlushLocaleState
+        // resets the locale to the config default on every request, the
+        // system-wide language still applies (SetLocale then layers any
+        // per-session override on top).
         try {
             $row = DB::table('system_settings')->where('key', 'language')->first();
             $locale = $row ? json_decode($row->value, true) : null;
             if ($locale && in_array($locale, array_keys($this->availableLocales()))) {
+                config(['app.locale' => $locale]);
                 App::setLocale($locale);
             }
         } catch (\Throwable) {
