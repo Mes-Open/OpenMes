@@ -25,10 +25,11 @@ export default function LotSequencesIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/lot-sequences/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/lot-sequences/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete LOT sequence "${r.name}"?`)) {
                     router.delete(`/admin/lot-sequences/${r.id}`, { preserveScroll: true });

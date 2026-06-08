@@ -25,7 +25,7 @@ export default function SupervisorWorkOrdersIndex() {
     ];
 
     const actions = (r) => {
-        const a = [{ label: 'Edit', href: `/supervisor/work-orders/${r.id}/edit` }];
+        const a = [{ label: 'Edit', icon: 'edit', href: `/supervisor/work-orders/${r.id}/edit` }];
         const s = r.status;
 
         if (s === 'PENDING') {
@@ -49,7 +49,7 @@ export default function SupervisorWorkOrdersIndex() {
         if (TERMINAL.includes(s)) {
             a.push({ label: 'Reopen', onClick: () => post(r.id, 'reopen') });
         } else {
-            a.push({ label: 'Cancel', className: 'text-amber-600 hover:underline', onClick: () => { if (confirm(`Cancel work order ${r.order_no}?`)) post(r.id, 'cancel'); } });
+            a.push({ label: 'Cancel', variant: 'warning', onClick: () => { if (confirm(`Cancel work order ${r.order_no}?`)) post(r.id, 'cancel'); } });
         }
 
         return a;

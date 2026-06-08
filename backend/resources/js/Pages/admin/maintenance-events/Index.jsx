@@ -52,10 +52,11 @@ export default function MaintenanceEventsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/maintenance-events/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/maintenance-events/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete maintenance event "${r.title}"?`)) {
                     router.delete(`/admin/maintenance-events/${r.id}`, { preserveScroll: true });

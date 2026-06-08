@@ -20,14 +20,16 @@ export default function ProductTypesIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/product-types/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/product-types/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/product-types/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete product type "${r.name}"? This cannot be undone.`)) {
                     router.delete(`/admin/product-types/${r.id}`, { preserveScroll: true });
