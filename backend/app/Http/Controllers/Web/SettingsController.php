@@ -350,6 +350,10 @@ class SettingsController extends Controller
 
         Cache::forget('cors_allowed_origins');
 
+        // Align the session locale with the new global default so the change
+        // takes effect immediately (SetLocale reads the session override first).
+        $request->session()->put('locale', $map['language']);
+
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');
     }
