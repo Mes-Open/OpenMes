@@ -1,32 +1,32 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { SCRAP_CATEGORIES } from './fields';
-
-const CATEGORY_LABELS = Object.fromEntries(SCRAP_CATEGORIES.map((c) => [c.value, c.label]));
+import { scrapCategoryOptions } from './fields';
+import { __ } from '../../../lib/i18n';
 
 export default function ScrapReasonsIndex() {
     const { counts = {} } = usePage().props;
+    const categoryLabels = Object.fromEntries(scrapCategoryOptions().map((c) => [c.value, c.label]));
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'category', label: 'Category', className: 'text-gray-600', render: (r) => CATEGORY_LABELS[r.category] ?? r.category },
-        { key: 'scrap_entries', label: 'Used', align: 'right', render: (r) => counts[r.id] ?? 0 },
-        { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
+        { key: 'category', label: __('Category'), className: 'text-gray-600', render: (r) => categoryLabels[r.category] ?? r.category },
+        { key: 'scrap_entries', label: __('Used'), align: 'right', render: (r) => counts[r.id] ?? 0 },
+        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/scrap-reasons/${r.id}/edit` },
+        { label: __('Edit'), href: `/admin/scrap-reasons/${r.id}/edit` },
         {
-            label: r.is_active ? 'Deactivate' : 'Activate',
+            label: r.is_active ? __('Deactivate') : __('Activate'),
             onClick: () => router.post(`/admin/scrap-reasons/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
-            label: 'Delete',
+            label: __('Delete'),
             className: 'text-red-600 hover:underline',
             onClick: () => {
-                if (confirm(`Delete scrap reason "${r.name}"?`)) {
+                if (confirm(__('Delete scrap reason ":name"?', { name: r.name }))) {
                     router.delete(`/admin/scrap-reasons/${r.id}`, { preserveScroll: true });
                 }
             },
@@ -35,16 +35,16 @@ export default function ScrapReasonsIndex() {
 
     return (
         <>
-            <Head title="Scrap Reasons" />
+            <Head title={__('Scrap Reasons')} />
             <ResourceTable
                 shape="scrap_reasons"
-                title="Scrap Reasons"
+                title={__('Scrap Reasons')}
                 createHref="/admin/scrap-reasons/create"
-                createLabel="+ New Reason"
+                createLabel={__('+ New Reason')}
                 columns={columns}
                 orderBy="sort_order"
                 actions={actions}
-                emptyText="No scrap reasons yet."
+                emptyText={__('No scrap reasons yet.')}
             />
         </>
     );
