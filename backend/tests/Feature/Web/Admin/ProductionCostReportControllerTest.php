@@ -110,6 +110,17 @@ class ProductionCostReportControllerTest extends TestCase
         $response->assertSessionHasErrors('to');
     }
 
+    public function test_non_custom_preset_ignores_stale_date_range(): void
+    {
+        // to < from would be invalid for a custom range, but for any other
+        // preset the dates are unused and must not trigger a 422.
+        $this->actingAs($this->admin)->get(route('admin.cost-reports.index', [
+            'preset' => 'last7',
+            'from' => '2026-06-10',
+            'to' => '2026-06-01',
+        ]))->assertOk()->assertSessionHasNoErrors();
+    }
+
     public function test_guest_is_redirected_to_login(): void
     {
         $this->get(route('admin.cost-reports.index'))->assertRedirect(route('login'));
