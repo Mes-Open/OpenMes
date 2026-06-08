@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber } from '../../../lib/i18n';
+import CostMethodology from './CostMethodology';
 
 const PRESET_LABELS = {
     today: 'Today',
@@ -95,6 +96,8 @@ export default function CostReportsIndex() {
                         value={summary.avg_cost_per_unit == null ? '—' : money(summary.avg_cost_per_unit, currency)}
                     />
                 </div>
+
+                <CostMethodology />
 
                 {/* Date presets */}
                 <div className="flex flex-wrap gap-1.5">
