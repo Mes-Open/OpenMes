@@ -114,6 +114,9 @@ class ProductionCostReportController extends Controller
         return [
             'line:id,name',
             'productType:id,name,code',
+            // BOM fallback reads the product's template BOM — eager load it so
+            // costing a work order without recorded consumption stays N+1-free.
+            'productType.processTemplates.bomItems.material',
             'materialAllocations.material:id,code,name,unit_price,price_currency',
             'employeeActivities.worker.wageGroup',
             'additionalCosts',
@@ -214,16 +217,19 @@ class ProductionCostReportController extends Controller
      */
     private function summary(array $filters): array
     {
+        $cap = 10000;
+        $totalOrders = $this->baseQuery($filters)->count();
+
         $orders = $this->baseQuery($filters)
             ->with($this->costRelations())
-            ->limit(10000)
+            ->limit($cap)
             ->get();
 
         $material = 0.0;
         $labor = 0.0;
         $additional = 0.0;
         $total = 0.0;
-        $unitCosts = [];
+        $totalQty = 0.0;
         $mixed = false;
 
         foreach ($orders as $wo) {
@@ -232,21 +238,23 @@ class ProductionCostReportController extends Controller
             $labor += $row['labor_cost'];
             $additional += $row['additional_cost'];
             $total += $row['total_cost'];
-            if ($row['cost_per_unit'] !== null) {
-                $unitCosts[] = $row['cost_per_unit'];
-            }
+            $totalQty += $row['produced_qty'];
             $mixed = $mixed || $row['mixed_currency'];
         }
 
         return [
-            'orders' => $orders->count(),
+            'orders' => $totalOrders,
             'material_cost' => round($material, 2),
             'labor_cost' => round($labor, 2),
             'additional_cost' => round($additional, 2),
             'total_cost' => round($total, 2),
-            'avg_cost_per_unit' => count($unitCosts) > 0 ? round(array_sum($unitCosts) / count($unitCosts), 4) : null,
+            // Blended cost per unit = total cost / total produced, not an
+            // unweighted mean of per-order unit costs.
+            'avg_cost_per_unit' => $totalQty > 0 ? round($total / $totalQty, 4) : null,
             'currency' => $this->costs->defaultCurrency(),
             'mixed_currency' => $mixed,
+            // Totals cover at most $cap orders; flag when the set is larger.
+            'limited' => $totalOrders > $cap,
         ];
     }
 }

@@ -98,28 +98,31 @@ class ProductionCostService
         $consumed = $workOrder->materialAllocations
             ->filter(fn ($a) => (float) $a->consumed_qty > 0);
 
-        if ($consumed->isNotEmpty()) {
-            return $this->buildBucket($consumed->map(function ($allocation) {
-                $unitPrice = $allocation->unit_price_snapshot !== null
-                    ? (float) $allocation->unit_price_snapshot
-                    : (float) ($allocation->material?->unit_price ?? 0);
-                $currency = $allocation->price_currency_snapshot
-                    ?: ($allocation->material?->price_currency ?: $this->defaultCurrency);
-                $qty = (float) $allocation->consumed_qty;
+        $actual = $consumed->map(function ($allocation) {
+            $unitPrice = $allocation->unit_price_snapshot !== null
+                ? (float) $allocation->unit_price_snapshot
+                : (float) ($allocation->material?->unit_price ?? 0);
+            $currency = $allocation->price_currency_snapshot
+                ?: ($allocation->material?->price_currency ?: $this->defaultCurrency);
+            $qty = (float) $allocation->consumed_qty;
 
-                return [
-                    'material_code' => $allocation->material?->code,
-                    'material_name' => $allocation->material?->name,
-                    'source' => 'actual',
-                    'qty' => round($qty, 4),
-                    'unit_price' => round($unitPrice, 4),
-                    'currency' => $currency,
-                    'line_total' => round($qty * $unitPrice, 2),
-                ];
-            })->all());
-        }
+            return [
+                'material_code' => $allocation->material?->code,
+                'material_name' => $allocation->material?->name,
+                'source' => 'actual',
+                'qty' => round($qty, 4),
+                'unit_price' => round($unitPrice, 4),
+                'currency' => $currency,
+                'line_total' => round($qty * $unitPrice, 2),
+            ];
+        })->values()->all();
 
-        return $this->buildBucket($this->bomFallbackItems($workOrder));
+        // Fill in BOM estimates for materials with no recorded consumption, so a
+        // partially-recorded WO is not silently undercounted.
+        $consumedIds = $consumed->pluck('material_id')->filter()->map(fn ($id) => (int) $id)->all();
+        $bom = $this->bomFallbackItems($workOrder, $consumedIds);
+
+        return $this->buildBucket(array_merge($actual, $bom));
     }
 
     /**
@@ -150,10 +153,10 @@ class ProductionCostService
         foreach ($byWorker as $workerId => $activities) {
             $worker = $activities->first()->worker;
             $hours = $this->hoursOf($activities);
-            $rate = $worker->effectivePayRate() ?? $this->defaultPayRate ?? 0.0;
+            $payType = $this->payTypeOf($worker);
+            $rate = $this->payRateOf($worker, $payType);
             // Currency is system-wide (Settings → System), not per worker.
             $currency = $this->defaultCurrency;
-            $payType = $this->payTypeOf($worker);
 
             if ($payType === 'piece_rate') {
                 $pieces = $totalPieceHours > 0
@@ -203,61 +206,71 @@ class ProductionCostService
 
     /**
      * Planned BOM items priced at the material's current unit price, scaled by
-     * produced quantity (including scrap allowance). Prefers the immutable
-     * process snapshot stored on the work order, then the product's template.
+     * produced quantity (including scrap allowance). Materials in $excludeIds
+     * (already costed from actual consumption) are skipped.
+     *
+     * Uses the product's process template when it carries a BOM — that relation
+     * is eager-loaded by the controller, so this avoids per-work-order queries.
+     * Falls back to the work order's immutable process snapshot otherwise.
+     *
+     * @param  array<int>  $excludeIds  material ids already costed as actual
      */
-    private function bomFallbackItems(WorkOrder $workOrder): array
+    private function bomFallbackItems(WorkOrder $workOrder, array $excludeIds = []): array
     {
         $producedQty = (float) $workOrder->produced_qty;
         if ($producedQty <= 0) {
             return [];
         }
 
-        $bom = $workOrder->process_snapshot['bom'] ?? null;
+        $exclude = array_flip($excludeIds);
 
-        if (! empty($bom)) {
-            $materialIds = collect($bom)->pluck('material_id')->filter()->unique();
-            $materials = Material::whereIn('id', $materialIds)->get()->keyBy('id');
+        $template = $workOrder->productType?->processTemplates->first();
 
-            return collect($bom)->map(function ($line) use ($producedQty, $materials) {
-                $material = $materials->get($line['material_id'] ?? null);
-                $qtyPerUnit = (float) ($line['quantity_per_unit'] ?? 0);
-                $scrapPct = (float) ($line['scrap_percentage'] ?? 0);
-                $qty = $qtyPerUnit * $producedQty * (1 + $scrapPct / 100);
-                $unitPrice = (float) ($material?->unit_price ?? 0);
+        if ($template && $template->bomItems->isNotEmpty()) {
+            return $template->bomItems
+                ->reject(fn ($item) => isset($exclude[(int) $item->material_id]))
+                ->map(function ($item) use ($producedQty) {
+                    $qty = $item->calculateRequiredQuantity($producedQty);
+                    $unitPrice = (float) ($item->material?->unit_price ?? 0);
 
-                return [
-                    'material_code' => $line['material_code'] ?? $material?->code,
-                    'material_name' => $line['material_name'] ?? $material?->name,
-                    'source' => 'bom',
-                    'qty' => round($qty, 4),
-                    'unit_price' => round($unitPrice, 4),
-                    'currency' => $material?->price_currency ?: $this->defaultCurrency,
-                    'line_total' => round($qty * $unitPrice, 2),
-                ];
-            })->all();
+                    return [
+                        'material_code' => $item->material?->code,
+                        'material_name' => $item->material?->name,
+                        'source' => 'bom',
+                        'qty' => round($qty, 4),
+                        'unit_price' => round($unitPrice, 4),
+                        'currency' => $item->material?->price_currency ?: $this->defaultCurrency,
+                        'line_total' => round($qty * $unitPrice, 2),
+                    ];
+                })->values()->all();
         }
 
-        // No snapshot — fall back to the product's live process template BOM.
-        $template = $workOrder->productType?->processTemplates()->with('bomItems.material')->first();
-        if (! $template) {
+        // Fall back to the immutable process snapshot stored on the work order.
+        $bom = collect($workOrder->process_snapshot['bom'] ?? [])
+            ->reject(fn ($line) => isset($exclude[(int) ($line['material_id'] ?? 0)]));
+        if ($bom->isEmpty()) {
             return [];
         }
 
-        return $template->bomItems->map(function ($item) use ($producedQty) {
-            $qty = $item->calculateRequiredQuantity($producedQty);
-            $unitPrice = (float) ($item->material?->unit_price ?? 0);
+        $materials = Material::whereIn('id', $bom->pluck('material_id')->filter()->unique())->get()->keyBy('id');
+
+        return $bom->map(function ($line) use ($producedQty, $materials) {
+            $material = $materials->get($line['material_id'] ?? null);
+            $qtyPerUnit = (float) ($line['quantity_per_unit'] ?? 0);
+            $scrapPct = (float) ($line['scrap_percentage'] ?? 0);
+            $qty = $qtyPerUnit * $producedQty * (1 + $scrapPct / 100);
+            $unitPrice = (float) ($material?->unit_price ?? 0);
 
             return [
-                'material_code' => $item->material?->code,
-                'material_name' => $item->material?->name,
+                'material_code' => $line['material_code'] ?? $material?->code,
+                'material_name' => $line['material_name'] ?? $material?->name,
                 'source' => 'bom',
                 'qty' => round($qty, 4),
                 'unit_price' => round($unitPrice, 4),
-                'currency' => $item->material?->price_currency ?: $this->defaultCurrency,
+                'currency' => $material?->price_currency ?: $this->defaultCurrency,
                 'line_total' => round($qty * $unitPrice, 2),
             ];
-        })->all();
+        })->values()->all();
     }
 
     /**
@@ -267,6 +280,25 @@ class ProductionCostService
     private function payTypeOf($worker): string
     {
         return $worker->pay_type ?: $this->defaultPayType;
+    }
+
+    /**
+     * Pay rate for a worker under the given mode: their own rate first, then the
+     * wage group's base rate (only meaningful as an hourly rate, so not applied
+     * to weekly/piece modes), then the global default.
+     */
+    private function payRateOf($worker, string $payType): float
+    {
+        if ($worker->pay_rate !== null) {
+            return (float) $worker->pay_rate;
+        }
+
+        $groupRate = $worker->wageGroup?->base_hourly_rate;
+        if ($payType === 'hourly' && $groupRate !== null) {
+            return (float) $groupRate;
+        }
+
+        return $this->defaultPayRate ?? 0.0;
     }
 
     /**
