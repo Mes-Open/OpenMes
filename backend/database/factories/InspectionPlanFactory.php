@@ -13,7 +13,7 @@ class InspectionPlanFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->words(3, true) . ' Inspection',
+            'name' => fake()->words(3, true).' Inspection',
             'description' => fake()->sentence(),
             'material_id' => Material::factory(),
             'material_type_id' => null,
@@ -22,6 +22,18 @@ class InspectionPlanFactory extends Factory
                 ['name' => 'Diameter', 'type' => 'measurement', 'unit' => 'mm', 'spec_min' => 9.8, 'spec_max' => 10.2, 'required' => true],
             ],
             'is_active' => true,
+            'version' => 1,
+            'published_at' => now(),
+            'root_id' => null,
         ];
+    }
+
+    /** A draft version (editable in place, not selectable for inspections). */
+    public function draft(): static
+    {
+        return $this->state(fn () => [
+            'is_active' => false,
+            'published_at' => null,
+        ]);
     }
 }
