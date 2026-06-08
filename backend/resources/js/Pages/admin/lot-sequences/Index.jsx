@@ -8,9 +8,20 @@ export default function LotSequencesIndex() {
     const columns = [
         { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
         { key: 'product_type', label: 'Product Type', className: 'text-gray-600', render: (r) => productTypeNames[r.product_type_id] ?? 'Global' },
-        { key: 'prefix', label: 'Prefix', className: 'font-mono text-gray-700' },
+        {
+            key: 'format',
+            label: 'Format',
+            className: 'font-mono text-gray-700',
+            render: (r) => r.pattern || r.prefix,
+        },
         { key: 'next_number', label: 'Next #', className: 'text-gray-600' },
         { key: 'pad_size', label: 'Pad', className: 'text-gray-600' },
+        {
+            key: 'reset_period',
+            label: 'Reset',
+            className: 'text-gray-600',
+            render: (r) => (r.reset_period && r.reset_period !== 'none' ? r.reset_period : '—'),
+        },
     ];
 
     const actions = (r) => [

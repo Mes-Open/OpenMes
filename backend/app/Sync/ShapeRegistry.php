@@ -115,7 +115,7 @@ class ShapeRegistry
         ],
         'lot_sequences' => [
             'table' => 'lot_sequences',
-            'columns' => ['id', 'name', 'product_type_id', 'prefix', 'suffix', 'next_number', 'pad_size', 'year_prefix', 'created_at', 'updated_at'],
+            'columns' => ['id', 'name', 'product_type_id', 'prefix', 'suffix', 'pattern', 'next_number', 'pad_size', 'year_prefix', 'reset_period', 'created_at', 'updated_at'],
         ],
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [

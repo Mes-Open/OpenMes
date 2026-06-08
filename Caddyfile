@@ -9,9 +9,8 @@
 # addition to plain :80.
 #
 # In production replace `localhost` with your real hostname so Caddy provisions
-# a public TLS cert automatically (and serves WSS + HTTP/2 over the same
-# origin); set REVERB_HOST/REVERB_SCHEME in .env to match. For local dev,
-# `localhost` uses Caddy's internal CA — the browser shows a one-time
+# a public TLS cert automatically (and serves HTTP/2 over the same origin). For
+# local dev, `localhost` uses Caddy's internal CA — the browser shows a one-time
 # "not secure" warning you can click through (or run `caddy trust`).
 
 {
@@ -22,37 +21,12 @@
 
 # Shared routing for every site address.
 (openmes) {
-	# (Reverb WebSocket routes /app/* + /apps/* were removed — broadcasting is
-	# gone; live sync is Electric-only via /electric/* below.)
-
-	# Electric SQL live-sync stream. The browser streams shapes from Electric
-	# through here — NOT through PHP — so the ~20s long-polls are held by Caddy
-	# and Electric (built for many idle connections), never by a PHP worker.
-	# Over HTTPS these all share a single multiplexed HTTP/2 connection.
-	#
-	# Each poll is gated by forward_auth to Laravel's /api/electric/authorize,
-	# which re-validates the HMAC signature the gatekeeper issued. That check is
-	# fast and returns immediately, so it never pins a worker. The signed
-	# `sig`/`exp` params are stripped before forwarding so Electric only sees
-	# its own protocol params.
-	#
-	# `route` forces directive order: authorize first (must see the original
-	# URI incl. sig), then strip prefix + signature params, then proxy.
-	handle /electric/* {
-		route {
-			# Electric streaming is authorized by the HMAC signature, not the
-			# session. Strip the (large) Laravel cookies so neither the
-			# forward_auth subrequest nor Electric receives them — without this
-			# the signed URL + cookies overflow header limits (HTTP 431).
-			request_header -Cookie
-			forward_auth backend:8000 {
-				uri /api/electric/authorize
-			}
-			uri strip_prefix /electric
-			uri query -sig
-			uri query -exp
-			reverse_proxy electric:3000
-		}
+	# Reverb WebSocket (Pusher protocol) — one multiplexed socket per client,
+	# carrying all collection channels. reverse_proxy auto-upgrades the WS. The
+	# server publishes to Reverb directly (127.0.0.1:8080), so only the client
+	# /app/* path needs proxying here.
+	handle /app/* {
+		reverse_proxy reverb:8080
 	}
 
 	handle {

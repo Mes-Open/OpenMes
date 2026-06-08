@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\LotSequenceRequest;
 use App\Models\LotSequence;
 use App\Models\ProductType;
+use App\Rules\ValidLotPattern;
+use App\Services\Lot\LotPatternFormatter;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -21,30 +24,15 @@ class LotSequenceController extends Controller
 
     public function create()
     {
-        $productTypes = ProductType::where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
         return Inertia::render('admin/lot-sequences/Create', [
-            'productTypes' => $productTypes,
+            'productTypes' => $this->activeProductTypes(),
+            'patternTokens' => LotPatternFormatter::TOKENS,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(LotSequenceRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:50',
-            'product_type_id' => 'nullable|exists:product_types,id|unique:lot_sequences,product_type_id',
-            'prefix' => 'required|string|max:20',
-            'suffix' => 'nullable|string|max:20',
-            'pad_size' => 'nullable|integer|min:1|max:10',
-            'year_prefix' => 'boolean',
-        ]);
-
-        $validated['year_prefix'] = $request->boolean('year_prefix', true);
-        $validated['pad_size'] = $validated['pad_size'] ?? 4;
-
-        LotSequence::create($validated);
+        LotSequence::create($request->payload());
 
         return redirect()->route('admin.lot-sequences.index')
             ->with('success', 'LOT sequence created successfully.');
@@ -52,30 +40,19 @@ class LotSequenceController extends Controller
 
     public function edit(LotSequence $lotSequence)
     {
-        $productTypes = ProductType::where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
         return Inertia::render('admin/lot-sequences/Edit', [
-            'lotSequence' => $lotSequence->only('id', 'name', 'product_type_id', 'prefix', 'suffix', 'pad_size', 'year_prefix'),
-            'productTypes' => $productTypes,
+            'lotSequence' => $lotSequence->only(
+                'id', 'name', 'product_type_id', 'prefix', 'suffix',
+                'pattern', 'pad_size', 'year_prefix', 'reset_period',
+            ),
+            'productTypes' => $this->activeProductTypes(),
+            'patternTokens' => LotPatternFormatter::TOKENS,
         ]);
     }
 
-    public function update(Request $request, LotSequence $lotSequence)
+    public function update(LotSequenceRequest $request, LotSequence $lotSequence)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:50',
-            'product_type_id' => 'nullable|exists:product_types,id|unique:lot_sequences,product_type_id,'.$lotSequence->id,
-            'prefix' => 'required|string|max:20',
-            'suffix' => 'nullable|string|max:20',
-            'pad_size' => 'required|integer|min:1|max:10',
-            'year_prefix' => 'boolean',
-        ]);
-
-        $validated['year_prefix'] = $request->boolean('year_prefix');
-
-        $lotSequence->update($validated);
+        $lotSequence->update($request->payload());
 
         return redirect()->route('admin.lot-sequences.index')
             ->with('success', 'LOT sequence updated successfully.');
@@ -87,5 +64,38 @@ class LotSequenceController extends Controller
 
         return redirect()->route('admin.lot-sequences.index')
             ->with('success', 'LOT sequence deleted successfully.');
+    }
+
+    /**
+     * Live preview of a pattern from the form (nothing is persisted).
+     */
+    public function preview(Request $request)
+    {
+        $validated = $request->validate([
+            'pattern' => ['required', 'string', 'max:100', new ValidLotPattern],
+            'pad_size' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'product_type_id' => ['nullable', 'exists:product_types,id'],
+        ]);
+
+        $productCode = isset($validated['product_type_id'])
+            ? ProductType::find($validated['product_type_id'])?->code
+            : null;
+
+        $lot = (new LotPatternFormatter)->format(
+            $validated['pattern'],
+            1,
+            $validated['pad_size'] ?? 4,
+            $productCode,
+            now(),
+        );
+
+        return response()->json(['preview' => $lot]);
+    }
+
+    private function activeProductTypes()
+    {
+        return ProductType::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
     }
 }

@@ -2,21 +2,15 @@ import { useMemo } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
-import { useShapeConfigs } from '../../../lib/useShapeConfigs';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
-import { electricCollection } from '../../../lib/electricCollection';
-import { useLiveShapeBudget } from '../../../lib/liveShapeBudget';
+import { realtimeCollection } from '../../../lib/realtimeCollection';
+import { formatDate } from '../../../lib/i18n';
 
 /**
- * Admin Alerts — the one screen that exceeded the connection budget (it joins
- * five tables). The alert lists derive from issues + work_orders, which stay
- * LIVE so blocking/overdue/blocked changes appear instantly. The lookup tables
- * they join against (issue types, lines, users) are ADAPTIVE (useSyncedShape):
- * live on HTTP/2, polled every 5s on HTTP/1.1 where a held connection would
- * count against the ~6-per-origin limit. So on plain-HTTP LAN this screen holds
- * 2 live shapes instead of 5. See CLAUDE.md → "Electric connection budget".
+ * Admin Alerts — joins five collections (issues, work orders, and the issue
+ * type / line / user lookups). Everything rides the single Reverb WebSocket, so
+ * the alert lists update live as blocking/overdue/blocked state changes.
  */
-const SHAPES = ['issues_all', 'issue_types_all', 'work_orders_all', 'lines_all', 'users'];
 const OPEN_STATUSES = ['OPEN', 'ACKNOWLEDGED'];
 const TERMINAL_STATUSES = ['DONE', 'REJECTED', 'CANCELLED'];
 
@@ -32,38 +26,16 @@ const WO_STATUS_LABELS = {
 };
 
 export default function AlertsIndex() {
-    const { configs, error } = useShapeConfigs(SHAPES);
-
-    return (
-        <>
-            <Head title="Alerts" />
-            {error ? (
-                <pre className="bg-red-50 text-red-800 p-3 rounded text-xs">{String(error)}</pre>
-            ) : !configs ? (
-                <p className="text-gray-500 text-sm">Connecting to live sync…</p>
-            ) : (
-                <AlertsLive configs={configs} />
-            )}
-        </>
-    );
-}
-
-AlertsIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
-
-function AlertsLive({ configs }) {
-    useLiveShapeBudget(['issues_all', 'work_orders_all']);
-
     // Live: the transactional data the alerts derive from.
-    const issuesC = useMemo(() => electricCollection('issues_all', configs.issues_all, (r) => r.id), [configs]);
-    const ordersC = useMemo(() => electricCollection('work_orders_all', configs.work_orders_all, (r) => r.id), [configs]);
+    const issuesC = useMemo(() => realtimeCollection('issues_all', (r) => r.id), []);
+    const ordersC = useMemo(() => realtimeCollection('work_orders_all', (r) => r.id), []);
     const { data: issues = [] } = useLiveQuery((q) => q.from({ r: issuesC }));
     const { data: orders = [] } = useLiveQuery((q) => q.from({ r: ordersC }));
 
-    // Adaptive lookup tables (names + is_blocking): live on HTTP/2, polled every
-    // 5s on HTTP/1.1 — no held connection there. Mutable; reflects edits.
-    const { data: types } = useSyncedShape('issue_types_all', configs.issue_types_all);
-    const { data: lines } = useSyncedShape('lines_all', configs.lines_all);
-    const { data: users } = useSyncedShape('users', configs.users);
+    // Lookup tables (names + is_blocking) — all live over the one Reverb socket.
+    const { data: types } = useSyncedShape('issue_types_all');
+    const { data: lines } = useSyncedShape('lines_all');
+    const { data: users } = useSyncedShape('users');
 
     const derived = useMemo(() => {
         const typeById = new Map(types.map((t) => [String(t.id), t]));
@@ -212,6 +184,8 @@ function AlertsLive({ configs }) {
     );
 }
 
+AlertsIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
+
 function BlockingCard({ issue }) {
     return (
         <div className="bg-red-50 rounded-lg shadow-sm border-l-4 border-red-500 p-5">
@@ -301,7 +275,7 @@ function EmptyCard({ text }) {
 function fmtDate(d) {
     if (!d) return '';
     const dt = new Date(d);
-    return Number.isNaN(dt.getTime()) ? '' : dt.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    return Number.isNaN(dt.getTime()) ? '' : formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function timeAgo(d) {

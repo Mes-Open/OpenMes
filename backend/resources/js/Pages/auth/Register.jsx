@@ -1,5 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import AuthLayout from '../../layouts/AuthLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Registration page — Inertia render name: auth/Register
@@ -36,10 +37,10 @@ export default function Register() {
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">Utwórz konto</h2>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">{__('Create account')}</h2>
 
             {/* Demo notice */}
-            <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="mt-0.5 h-4 w-4 shrink-0"
@@ -55,7 +56,7 @@ export default function Register() {
                     />
                 </svg>
                 <span>
-                    To jest <strong>konto demo</strong> — zostanie automatycznie usunięte po <strong>3 godzinach</strong>.
+                    {__('This is a')} <strong>{__('demo account')}</strong> — {__('it will be automatically deleted after')} <strong>{__('3 hours')}</strong>.
                 </span>
             </div>
 
@@ -63,7 +64,7 @@ export default function Register() {
                 {/* Full Name */}
                 <div className="mb-4">
                     <label htmlFor="name" className="form-label">
-                        Imię i nazwisko
+                        {__('Full name')}
                     </label>
                     <input
                         type="text"
@@ -77,14 +78,14 @@ export default function Register() {
                         required
                     />
                     {form.errors.name && (
-                        <p className="mt-1 text-sm text-red-600">{form.errors.name}</p>
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.name}</p>
                     )}
                 </div>
 
                 {/* Username */}
                 <div className="mb-4">
                     <label htmlFor="username" className="form-label">
-                        Nazwa użytkownika
+                        {__('Username')}
                     </label>
                     <input
                         type="text"
@@ -97,14 +98,14 @@ export default function Register() {
                         required
                     />
                     {form.errors.username && (
-                        <p className="mt-1 text-sm text-red-600">{form.errors.username}</p>
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.username}</p>
                     )}
                 </div>
 
                 {/* Email */}
                 <div className="mb-4">
                     <label htmlFor="email" className="form-label">
-                        Email
+                        {__('Email')}
                     </label>
                     <input
                         type="email"
@@ -117,14 +118,14 @@ export default function Register() {
                         required
                     />
                     {form.errors.email && (
-                        <p className="mt-1 text-sm text-red-600">{form.errors.email}</p>
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.email}</p>
                     )}
                 </div>
 
                 {/* Password */}
                 <div className="mb-4">
                     <label htmlFor="password" className="form-label">
-                        Hasło
+                        {__('Password')}
                     </label>
                     <input
                         type="password"
@@ -137,14 +138,14 @@ export default function Register() {
                         required
                     />
                     {form.errors.password && (
-                        <p className="mt-1 text-sm text-red-600">{form.errors.password}</p>
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.password}</p>
                     )}
                 </div>
 
                 {/* Confirm Password */}
                 <div className="mb-4">
                     <label htmlFor="password_confirmation" className="form-label">
-                        Potwierdź hasło
+                        {__('Confirm password')}
                     </label>
                     <input
                         type="password"
@@ -157,7 +158,7 @@ export default function Register() {
                         required
                     />
                     {form.errors.password_confirmation && (
-                        <p className="mt-1 text-sm text-red-600">{form.errors.password_confirmation}</p>
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.password_confirmation}</p>
                     )}
                 </div>
 
@@ -169,12 +170,12 @@ export default function Register() {
                             name="marketing_consent"
                             checked={form.data.marketing_consent}
                             onChange={(e) => form.setData('marketing_consent', e.target.checked)}
-                            className="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            className="mt-1 h-4 w-4 text-blue-600 dark:text-blue-300 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
                         />
-                        <span className="text-xs text-gray-600 leading-relaxed">
-                            Wyrażam zgodę na otrzymywanie aktualizacji produktu i komunikacji marketingowej drogą mailową.{' '}
-                            <span className="text-gray-400">
-                                / I agree to receive product updates and marketing communications via email.
+                        <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                            {__('I agree to receive product updates and marketing communications via email.')}{' '}
+                            <span className="text-gray-400 dark:text-gray-500">
+                                / {__('I agree to receive product updates and marketing communications via email.')}
                             </span>
                         </span>
                     </label>
@@ -192,18 +193,18 @@ export default function Register() {
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                             </svg>
-                            Tworzenie konta...
+                            {__('Creating account...')}
                         </span>
                     ) : (
-                        'Utwórz konto'
+                        __('Create account')
                     )}
                 </button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-gray-600">
-                Masz już konto?{' '}
-                <Link href="/login" className="text-blue-600 hover:underline font-medium">
-                    Zaloguj się
+            <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-300">
+                {__('Already have an account?')}{' '}
+                <Link href="/login" className="text-blue-600 dark:text-blue-300 hover:underline font-medium">
+                    {__('Sign in')}
                 </Link>
             </p>
         </div>

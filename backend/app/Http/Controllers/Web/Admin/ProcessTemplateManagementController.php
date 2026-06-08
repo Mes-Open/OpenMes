@@ -82,6 +82,7 @@ class ProcessTemplateManagementController extends Controller
             'steps' => fn($q) => $q->orderBy('step_number', 'asc'),
             'steps.workstation.line',
             'steps.processSegment',
+            'photos.uploadedBy',
         ]);
         $workstations    = Workstation::active()->with('line')->orderBy('name')->get();
         $processSegments = \App\Models\ProcessSegment::query()
@@ -114,6 +115,17 @@ class ProcessTemplateManagementController extends Controller
                         'id'   => $s->processSegment->id,
                         'code' => $s->processSegment->code,
                     ] : null,
+                ]),
+                'photos'     => $processTemplate->photos->map(fn($p) => [
+                    'id'            => $p->id,
+                    'url'           => route('process-templates.photos.show', [$processTemplate, $p]),
+                    'original_name' => $p->original_name,
+                    'caption'       => $p->caption,
+                    'width'         => $p->width,
+                    'height'        => $p->height,
+                    'file_size'     => $p->file_size_human ?? null,
+                    'uploaded_by'   => $p->uploadedBy?->name,
+                    'created_at'    => $p->created_at->format('Y-m-d H:i'),
                 ]),
             ],
             'workstations'    => $workstations->map(fn($w) => [

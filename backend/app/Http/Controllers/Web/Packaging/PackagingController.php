@@ -72,6 +72,7 @@ class PackagingController extends Controller
         }
 
         $workOrder->increment('packed_qty');
+        \App\Sync\CollectionBroadcaster::flush($workOrder); // increment() bypasses model events
         $workOrder->refresh();
 
         PackagingScanLog::create([

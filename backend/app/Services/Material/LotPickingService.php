@@ -64,6 +64,7 @@ class LotPickingService
 
                 $lot->decrement('quantity_available', $take);
                 $lot->refresh()->markConsumedIfEmpty();
+                \App\Sync\CollectionBroadcaster::flush($lot); // decrement bypasses model events
 
                 $remaining -= $take;
             }
@@ -89,6 +90,7 @@ class LotPickingService
                 if ($pick->lot->status === MaterialLot::STATUS_CONSUMED && (float) $pick->lot->fresh()->quantity_available > 0) {
                     $pick->lot->update(['status' => MaterialLot::STATUS_RELEASED]);
                 }
+                \App\Sync\CollectionBroadcaster::flush($pick->lot); // increment bypasses model events
             }
 
             $allocation->lotPicks()->delete();

@@ -77,10 +77,13 @@ class LineManagementController extends Controller
         $line->load(['workstations', 'users', 'productTypes', 'viewColumns', 'viewTemplate']);
         $line->loadCount(['workOrders', 'workstations', 'users']);
 
+        // work_orders has `order_no` (not work_order_number) and no product_name
+        // column — the product name comes from the productType relation.
         $workOrders = $line->workOrders()
+            ->with('productType:id,name')
             ->orderBy('created_at', 'desc')
             ->limit(10)
-            ->get(['id', 'work_order_number', 'product_name', 'planned_qty', 'status', 'created_at']);
+            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'status', 'created_at']);
 
         $availableOperators = \App\Models\User::role('Operator')
             ->whereNotIn('id', $line->users->pluck('id'))
@@ -110,7 +113,14 @@ class LineManagementController extends Controller
                     'product_types'      => $line->productTypes->map(fn ($p) => $p->only('id', 'code', 'name'))->values(),
                 ]
             ),
-            'workOrders'          => $workOrders->map(fn ($wo) => $wo->only('id', 'work_order_number', 'product_name', 'planned_qty', 'status', 'created_at'))->values(),
+            'workOrders'          => $workOrders->map(fn ($wo) => [
+                'id'                => $wo->id,
+                'work_order_number' => $wo->order_no,
+                'product_name'      => $wo->productType?->name,
+                'planned_qty'       => $wo->planned_qty,
+                'status'            => $wo->status,
+                'created_at'        => $wo->created_at,
+            ])->values(),
             'availableOperators'  => $availableOperators->map(fn ($u) => $u->only('id', 'name', 'username'))->values(),
             'lineStatuses'        => $lineStatuses->map(fn ($s) => [
                 'id'         => $s->id,

@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\DynamicCors::class);
         $middleware->validateCsrfTokens(except: [
             'install/*',
+            'broadcasting/auth',
         ]);
 
         // Append request logging at the end of the web stack so $request->user()

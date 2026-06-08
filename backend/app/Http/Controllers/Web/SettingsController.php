@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -119,7 +120,8 @@ class SettingsController extends Controller
             'scanner_mode' => json_decode($rows['scanner_mode']->value ?? '"hid"', true) ?? 'hid',
         ];
 
-        $availableLocales = ['en' => 'English', 'pl' => 'Polski'];
+        // Same source as the validation rule and the language switcher.
+        $availableLocales = config('app.available_locales', ['en' => 'English']);
 
         // Append CORS fields not in the standard settings map (they may exist in DB)
         $corsRow = DB::table('system_settings')->where('key', 'cors_allowed_methods')->first();
@@ -283,7 +285,8 @@ class SettingsController extends Controller
             'workstation_routing_enabled' => 'nullable|boolean',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
-            'language' => 'nullable|in:en,pl,tr',
+            // Single source of truth — the language switcher's configured locales.
+            'language' => ['nullable', Rule::in(array_keys(config('app.available_locales', [])))],
             'schedule_view_mode' => 'required|in:weekly,daily,monthly',
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
@@ -358,7 +361,7 @@ class SettingsController extends Controller
 
         foreach ($tables as $table) {
             try {
-                $export[$table] = DB::table($table)->get()->map(fn($r) => (array) $r)->toArray();
+                $export[$table] = DB::table($table)->get()->map(fn ($r) => (array) $r)->toArray();
             } catch (\Exception $e) {
                 // table may not exist yet
             }
@@ -369,7 +372,7 @@ class SettingsController extends Controller
         foreach ($optionalTables as $table) {
             try {
                 if (Schema::hasTable($table)) {
-                    $export[$table] = DB::table($table)->get()->map(fn($r) => (array) $r)->toArray();
+                    $export[$table] = DB::table($table)->get()->map(fn ($r) => (array) $r)->toArray();
                 }
             } catch (\Exception $e) {
                 // table may not exist yet
@@ -377,7 +380,7 @@ class SettingsController extends Controller
         }
 
         return response()->json($export, 200, [
-            'Content-Disposition' => 'attachment; filename="openmes-config-' . date('Y-m-d') . '.json"',
+            'Content-Disposition' => 'attachment; filename="openmes-config-'.date('Y-m-d').'.json"',
         ]);
     }
 
@@ -399,7 +402,7 @@ class SettingsController extends Controller
             }
 
             // Backward compat: old format with just 'settings' key
-            if (isset($data['settings']) && !isset($data['system_settings'])) {
+            if (isset($data['settings']) && ! isset($data['system_settings'])) {
                 $data['system_settings'] = $data['settings'];
             }
 
@@ -428,28 +431,45 @@ class SettingsController extends Controller
             DB::beginTransaction();
 
             foreach ($data as $tableName => $rows) {
-                if (!in_array($tableName, $allowedTables, true)) continue;
-                if (!is_array($rows)) continue;
-                if (!Schema::hasTable($tableName)) continue;
+                if (! in_array($tableName, $allowedTables, true)) {
+                    continue;
+                }
+                if (! is_array($rows)) {
+                    continue;
+                }
+                if (! Schema::hasTable($tableName)) {
+                    continue;
+                }
 
                 if ($tableName === 'system_settings') {
                     // Special handling: key-value update, not replace
                     $existingKeys = DB::table('system_settings')->pluck('key')->toArray();
 
                     foreach ($rows as $key => $value) {
-                        if (in_array(strtolower($key), $forbiddenSettings, true)) continue;
-                        if (!is_string($value) && !is_numeric($value)) continue;
-                        if (strlen((string) $value) > 1000) continue;
-                        if (!in_array($key, $existingKeys, true)) continue;
+                        if (in_array(strtolower($key), $forbiddenSettings, true)) {
+                            continue;
+                        }
+                        if (! is_string($value) && ! is_numeric($value)) {
+                            continue;
+                        }
+                        if (strlen((string) $value) > 1000) {
+                            continue;
+                        }
+                        if (! in_array($key, $existingKeys, true)) {
+                            continue;
+                        }
 
                         DB::table('system_settings')->where('key', $key)->update(['value' => (string) $value]);
                         $imported++;
                     }
+
                     continue;
                 }
 
                 // For all other tables: upsert by unique key (code or name)
-                if (empty($rows)) continue;
+                if (empty($rows)) {
+                    continue;
+                }
 
                 // Determine unique key for upsert
                 $uniqueKey = match ($tableName) {
@@ -463,7 +483,9 @@ class SettingsController extends Controller
                 };
 
                 foreach ($rows as $row) {
-                    if (!is_array($row)) continue;
+                    if (! is_array($row)) {
+                        continue;
+                    }
 
                     $originalId = $row['id'] ?? null;
 
@@ -472,9 +494,11 @@ class SettingsController extends Controller
                         unset($row[$col]);
                     }
                     // Remove null values for columns that might not accept null
-                    $row = array_filter($row, fn($v) => $v !== null);
+                    $row = array_filter($row, fn ($v) => $v !== null);
 
-                    if (empty($row)) continue;
+                    if (empty($row)) {
+                        continue;
+                    }
 
                     try {
                         DB::statement('SAVEPOINT row_insert');
@@ -490,6 +514,7 @@ class SettingsController extends Controller
                         $imported++;
                     } catch (\Exception $e) {
                         DB::statement('ROLLBACK TO SAVEPOINT row_insert');
+
                         continue;
                     }
                 }
@@ -502,6 +527,7 @@ class SettingsController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
+
             return back()->with('error', __('Failed to import settings. Please check the file and try again.'));
         }
     }

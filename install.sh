@@ -79,6 +79,11 @@ ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 read -rp "  Admin email [admin@example.com]: " ADMIN_EMAIL
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 
+# Always bring up the dev overlay: it adds the vite build --watch frontend
+# container and bind-mounts source, so .jsx edits on the server are rebuilt
+# automatically with no image rebuild.
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+
 echo ""
 info "Generating secure passwords..."
 
@@ -131,7 +136,7 @@ ok ".env created"
 info "Building and starting containers (first build may take a few minutes)..."
 echo ""
 
-docker compose up -d --build
+docker compose $COMPOSE_FILES up -d --build
 
 echo ""
 ok "Containers started"

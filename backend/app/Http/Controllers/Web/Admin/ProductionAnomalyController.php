@@ -86,7 +86,7 @@ class ProductionAnomalyController extends Controller
             'workOrders'     => $workOrders->map(fn ($wo) => [
                 'id'           => $wo->id,
                 'order_no'     => $wo->order_no,
-                'product_name' => $wo->product_name ?? '',
+                'product_name' => $wo->productType?->name ?? '',
             ]),
             'anomalyReasons' => $anomalyReasons->map(fn ($r) => [
                 'id'       => $r->id,

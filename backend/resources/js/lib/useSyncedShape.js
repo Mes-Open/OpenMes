@@ -1,41 +1,27 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from '@tanstack/react-db';
-import { electricCollection } from './electricCollection';
-import { usePolledShape } from './usePolledShape';
-import { MULTIPLEXED } from './transport';
-import { useLiveShapeBudget } from './liveShapeBudget';
+import { realtimeCollection } from './realtimeCollection';
 
 /**
- * Shape-consumption hooks that respect the connection budget (see CLAUDE.md →
- * "Electric connection budget"). Both are built on electricCollection, so they
- * re-mint expired signatures automatically.
+ * Collection-consumption hooks. Backed by the single Reverb WebSocket, so
+ * everything is live — there's no connection budget and no HTTP/2-vs-1.1
+ * adaptivity.
  *
- *   useLiveShape(name, config)   — ALWAYS live. For instant-critical data.
- *   useSyncedShape(name, config) — ADAPTIVE: live on HTTP/2 (no limit), polls on
- *                                  HTTP/1.1 (no held connection). For data that
- *                                  should be fresh but isn't instant-critical.
+ *   useLiveShape(name)   — live collection.
+ *   useSyncedShape(name) — same; kept as a separate name for call-site intent.
  *
- * Both return { data, isLoading } — drop-in for each other and for useShape.
+ * Both return { data, isLoading }, drop-in for each other.
  */
-
-function useLiveCollection(name, config) {
-    const collection = useMemo(() => electricCollection(name, config), [name, config]);
+function useLiveCollection(name) {
+    const collection = useMemo(() => realtimeCollection(name), [name]);
     const { data = [], isLoading } = useLiveQuery((q) => q.from({ r: collection }));
     return { data, isLoading };
 }
 
-/** Always-live Electric shape. Counts toward the HTTP/1.1 connection budget. */
-export function useLiveShape(name, config) {
-    useLiveShapeBudget([name]);
-    return useLiveCollection(name, config);
+export function useLiveShape(name) {
+    return useLiveCollection(name);
 }
 
-/**
- * Adaptive: live when the transport multiplexes (HTTP/2+), polled otherwise.
- * MULTIPLEXED is a frozen per-session constant, so a given component takes the
- * same branch for its whole lifetime — hook order stays stable across renders.
- */
-export function useSyncedShape(name, config, intervalMs = 5000) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return MULTIPLEXED ? useLiveCollection(name, config) : usePolledShape(name, config, intervalMs);
+export function useSyncedShape(name) {
+    return useLiveCollection(name);
 }
