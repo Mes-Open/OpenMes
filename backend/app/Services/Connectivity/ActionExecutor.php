@@ -142,6 +142,7 @@ class ActionExecutor
 
         if ($increment) {
             $workOrder->increment('produced_qty', (float) $qty);
+            \App\Sync\CollectionBroadcaster::flush($workOrder); // increment() bypasses model events
         } else {
             $workOrder->update(['produced_qty' => (float) $qty]);
         }

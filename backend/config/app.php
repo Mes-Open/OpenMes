@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Default UTC keeps stored timestamps unambiguous; override per deployment
+    // (e.g. APP_TIMEZONE=Europe/Warsaw) so server-side date/time reflects the
+    // local plant. The frontend formats in this zone too — shared via Inertia.
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

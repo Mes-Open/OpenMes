@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 export default function Pin() {
     const { hasPin, csrf_token } = usePage().props;
@@ -36,7 +37,7 @@ export default function Pin() {
 
     return (
         <div className="max-w-lg mx-auto">
-            <Head title="PIN Setup" />
+            <Head title={__('PIN Setup')} />
 
             <div className="flex items-center gap-3 mb-6">
                 <Link href="/settings" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
@@ -45,8 +46,8 @@ export default function Pin() {
                     </svg>
                 </Link>
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Quick PIN Login</h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">Set a 4–6 digit PIN for fast sign-in</p>
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{__('Quick PIN Login')}</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">{__('Set a 4–6 digit PIN for fast sign-in')}</p>
                 </div>
             </div>
 
@@ -60,8 +61,8 @@ export default function Pin() {
                             </svg>
                         </div>
                         <div>
-                            <p className="font-medium text-gray-800 dark:text-gray-100">PIN is active</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">You can log in using your username and PIN.</p>
+                            <p className="font-medium text-gray-800 dark:text-gray-100">{__('PIN is active')}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{__('You can log in using your username and PIN.')}</p>
                         </div>
                     </div>
                 </div>
@@ -75,12 +76,12 @@ export default function Pin() {
                         onClick={() => setShowRemove((v) => !v)}
                         className="text-sm text-red-600 dark:text-red-400 hover:underline font-medium"
                     >
-                        Remove PIN
+                        {__('Remove PIN')}
                     </button>
                     {showRemove && (
                         <form onSubmit={handleRemovePin} className="mt-4 space-y-4">
                             <div>
-                                <label htmlFor="rm_password" className="form-label">Confirm your password</label>
+                                <label htmlFor="rm_password" className="form-label">{__('Confirm your password')}</label>
                                 <input
                                     type="password"
                                     id="rm_password"
@@ -90,7 +91,7 @@ export default function Pin() {
                                     required
                                 />
                                 {removeErrors.current_password && (
-                                    <p className="mt-1 text-sm text-red-600">{removeErrors.current_password}</p>
+                                    <p className="mt-1 text-sm text-red-600 dark:text-red-300">{removeErrors.current_password}</p>
                                 )}
                             </div>
                             <button
@@ -108,15 +109,15 @@ export default function Pin() {
             {/* Set / Change PIN form */}
             <div className="card">
                 <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                    {hasPin ? 'Change PIN' : 'Set PIN'}
+                    {hasPin ? __('Change PIN') : __('Set PIN')}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Enter your current account password and choose a 4–6 digit numeric PIN.
+                    {__('Enter your current account password and choose a 4–6 digit numeric PIN.')}
                 </p>
 
                 <form onSubmit={handleSetPin} className="space-y-4">
                     <div>
-                        <label htmlFor="current_password" className="form-label">Current Password</label>
+                        <label htmlFor="current_password" className="form-label">{__('Current Password')}</label>
                         <input
                             type="password"
                             id="current_password"
@@ -127,12 +128,12 @@ export default function Pin() {
                             autoComplete="current-password"
                         />
                         {errors.current_password && (
-                            <p className="mt-1 text-sm text-red-600">{errors.current_password}</p>
+                            <p className="mt-1 text-sm text-red-600 dark:text-red-300">{errors.current_password}</p>
                         )}
                     </div>
 
                     <div>
-                        <label htmlFor="pin" className="form-label">PIN (4–6 digits)</label>
+                        <label htmlFor="pin" className="form-label">{__('PIN (4–6 digits)')}</label>
                         <input
                             type="password"
                             id="pin"
@@ -145,11 +146,11 @@ export default function Pin() {
                             required
                             placeholder="----"
                         />
-                        {errors.pin && <p className="mt-1 text-sm text-red-600">{errors.pin}</p>}
+                        {errors.pin && <p className="mt-1 text-sm text-red-600 dark:text-red-300">{errors.pin}</p>}
                     </div>
 
                     <div>
-                        <label htmlFor="pin_confirmation" className="form-label">Confirm PIN</label>
+                        <label htmlFor="pin_confirmation" className="form-label">{__('Confirm PIN')}</label>
                         <input
                             type="password"
                             id="pin_confirmation"
@@ -170,7 +171,7 @@ export default function Pin() {
                             disabled={!pinValid || processing}
                             className={`w-full btn-touch btn-primary${(!pinValid || processing) ? ' opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            {hasPin ? 'Change PIN' : 'Set PIN'}
+                            {hasPin ? __('Change PIN') : __('Set PIN')}
                         </button>
                     </div>
                 </form>

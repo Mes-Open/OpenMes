@@ -2,18 +2,15 @@ import { useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
-import { useShapeConfigs } from '../../../lib/useShapeConfigs';
-import { electricCollection } from '../../../lib/electricCollection';
+import { realtimeCollection } from '../../../lib/realtimeCollection';
 
 /**
  * Global line statuses — inline-managed (no separate create/edit pages; the
  * controller exposes index/store/update/destroy). Rows live-sync via the
- * `line_statuses_global` shape; each row edits in place and writes through to
- * Laravel (non-optimistic — the committed change re-renders via the shape).
+ * `line_statuses_global` collection; each row edits in place and writes through
+ * to Laravel (non-optimistic — the committed change re-renders via the sync).
  */
 export default function LineStatusesIndex() {
-    const { configs, error } = useShapeConfigs(['line_statuses_global']);
-
     return (
         <>
             <Head title="Line Statuses" />
@@ -22,13 +19,7 @@ export default function LineStatusesIndex() {
                 <p className="text-gray-500 text-sm mb-6">
                     Global kanban statuses available to every production line.
                 </p>
-                {error ? (
-                    <pre className="bg-red-50 text-red-800 p-3 rounded text-xs">{String(error)}</pre>
-                ) : !configs ? (
-                    <p className="text-gray-500 text-sm">Connecting to live sync…</p>
-                ) : (
-                    <Editor configs={configs} />
-                )}
+                <Editor />
             </div>
         </>
     );
@@ -36,11 +27,8 @@ export default function LineStatusesIndex() {
 
 LineStatusesIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 
-function Editor({ configs }) {
-    const collection = useMemo(
-        () => electricCollection('line_statuses_global', configs.line_statuses_global),
-        [configs],
-    );
+function Editor() {
+    const collection = useMemo(() => realtimeCollection('line_statuses_global'), []);
     const { data: rows } = useLiveQuery((q) =>
         q.from({ s: collection }).orderBy(({ s }) => s.sort_order, 'asc'),
     );

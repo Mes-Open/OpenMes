@@ -1,6 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import { Tacho, EmployeeTabs } from './Day';
+import { formatDate } from '../../../../lib/i18n';
 
 function toMin(t) {
     if (!t) return 0;
@@ -171,7 +172,7 @@ export default function EmployeeMonth() {
                 <aside className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl p-4 flex flex-col gap-3">
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider font-bold uppercase text-amber-600 dark:text-amber-400">
-                            Selected · {date ? new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
+                            Selected · {date ? formatDate(new Date(date), { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
                         </div>
                         <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-1">{selectedDayActivities.length} activities</h2>
                         {selectedWorker && (

@@ -1,5 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
+import { formatNumber } from '../../../../lib/i18n';
 
 const STATUS_DOT = {
     green:  'bg-green-500',
@@ -94,7 +95,7 @@ export default function MqttIndex() {
                                             </td>
                                             <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{conn.topics_count}</td>
                                             <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
-                                                {Number(conn.messages_received).toLocaleString()}
+                                                {formatNumber(Number(conn.messages_received))}
                                             </td>
                                             <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
                                                 {conn.last_connected_at ?? '—'}

@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'default' => env('BROADCAST_CONNECTION', 'null'),
+    'default' => env('BROADCAST_CONNECTION', 'reverb'),
 
     /*
     |--------------------------------------------------------------------------
@@ -29,6 +29,24 @@ return [
     */
 
     'connections' => [
+
+        'reverb' => [
+            'driver' => 'reverb',
+            // Defaults keep `composer install`/package:discover working at image
+            // build time (no env yet); override in production via REVERB_APP_*.
+            'key' => env('REVERB_APP_KEY', 'openmeskey'),
+            'secret' => env('REVERB_APP_SECRET', 'openmessecret'),
+            'app_id' => env('REVERB_APP_ID', 'openmes'),
+            'options' => [
+                'host' => env('REVERB_HOST'),
+                'port' => env('REVERB_PORT', 443),
+                'scheme' => env('REVERB_SCHEME', 'https'),
+                'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
+            ],
+            'client_options' => [
+                // Guzzle client options (server → Reverb publish calls).
+            ],
+        ],
 
         'pusher' => [
             'driver' => 'pusher',

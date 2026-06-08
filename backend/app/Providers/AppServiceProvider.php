@@ -32,12 +32,28 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Reverb sync: register model → collection broadcast listeners.
+        \App\Sync\CollectionBroadcaster::boot();
+
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
 
         // Register the authentication event subscriber so login / logout /
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
+
+        // Live-edit (dev/staging only): under Octane the Vite manifest is cached
+        // in a static property in worker memory, so a `vite build --watch` rebuild
+        // wouldn't appear until workers recycle. When OCTANE_LIVE_RELOAD is set
+        // (the dev overlay), clear that static cache before each Octane request so
+        // rebuilt .jsx assets show on a plain refresh. No effect in production.
+        if (env('OCTANE_LIVE_RELOAD') && class_exists(\Laravel\Octane\Events\RequestReceived::class)) {
+            Event::listen(\Laravel\Octane\Events\RequestReceived::class, function () {
+                $manifests = new \ReflectionProperty(\Illuminate\Foundation\Vite::class, 'manifests');
+                $manifests->setAccessible(true);
+                $manifests->setValue(null, []);
+            });
+        }
 
         // Share registries with every view so layouts and dashboards can render
         // items registered by modules without additional controller work.

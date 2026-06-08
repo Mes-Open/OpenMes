@@ -72,20 +72,11 @@ Route::get('/health', function () {
     ]);
 });
 
-// Electric SQL gatekeeper. PHP authorizes a shape once and hands back a signed
-// capability; the browser then streams from Electric through Caddy (see the
-// /electric/* route in the Caddyfile), so PHP never holds the long-poll.
-//
-//  - config:    authenticated (web session OR mobile Sanctum token). Issues the
-//               signed { table, columns, where, exp, sig } for a named shape.
-//  - authorize: Caddy forward_auth target. No auth middleware — the HMAC
-//               signature is the capability; it re-validates every poll.
-Route::get('/shapes/{name}', [\App\Http\Controllers\Api\ShapeGatekeeperController::class, 'config'])
+// Reverb sync: initial snapshot for a collection (live deltas arrive via the
+// CollectionChanged broadcast on the channel).
+Route::get('/collections/{name}', [\App\Http\Controllers\Api\CollectionController::class, 'index'])
     ->middleware('auth:web,sanctum')
-    ->name('api.shapes.config');
-
-Route::match(['get', 'head'], '/electric/authorize', [\App\Http\Controllers\Api\ShapeGatekeeperController::class, 'verify'])
-    ->name('api.electric.authorize');
+    ->name('api.collections.index');
 
 // Authentication routes (no auth required)
 Route::prefix('auth')->group(function () {

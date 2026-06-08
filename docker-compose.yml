@@ -60,8 +60,18 @@ services:
       LOG_CHANNEL: ${LOG_CHANNEL:-stack}
       LOG_STACK: ${LOG_STACK:-single}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
-      # Broadcasting/Reverb removed — live sync is Electric-only now.
-      BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-null}
+      # Server-side sessions — NOT the "cookie" driver (which spawns a cookie per
+      # session id and bloats request headers). See .env.example.
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      # Reverb (WebSocket broadcasting) — live sync. REVERB_HOST points at the
+      # reverb service for server-side publishing; clients connect via Caddy.
+      BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-reverb}
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_HOST: ${REVERB_HOST:-reverb}
+      REVERB_PORT: ${REVERB_PORT:-8080}
+      REVERB_SCHEME: ${REVERB_SCHEME:-http}
     expose:
       - "8000"
     depends_on:
@@ -74,22 +84,34 @@ services:
     networks:
       - openmmes-network
 
-  # ── Electric sync engine (read-path sync from Postgres) ───────────────────
-  # https://electric-sql.com — streams Postgres rows to clients via HTTP
-  # long-poll. Sits next to the database; Laravel proxies authenticated
-  # shape requests to it (see App\Http\Controllers\Api\ShapeProxyController).
-  # NOT exposed publicly — only the backend container reaches it on the
-  # internal docker network.
-  electric:
-    image: electricsql/electric:1.6.9
-    container_name: openmmes-electric
+  # ── Reverb WebSocket server (live sync; replaces Electric) ────────────────
+  # Single multiplexed WebSocket (Pusher protocol). Laravel publishes deltas to
+  # it; clients connect through Caddy (/app/*). NOT exposed publicly.
+  reverb:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: openmmes-reverb
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
     environment:
-      # Electric needs a superuser-grade connection to manage its replication
-      # slot. Reuses the same Postgres credentials as Laravel.
-      DATABASE_URL: postgresql://${POSTGRES_USER:-openmmes_user}:${POSTGRES_PASSWORD:-openmmes_secret}@postgres:5432/${POSTGRES_DB:-openmmes}
-      ELECTRIC_INSECURE: "true"   # No public exposure; auth is enforced by the Laravel proxy
+      APP_NAME: ${APP_NAME:-OpenMES}
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
     expose:
-      - "3000"
+      - "8080"
     depends_on:
       postgres:
         condition: service_healthy
