@@ -8,6 +8,7 @@ use App\Models\ProcessTemplate;
 use App\Models\ProcessTemplatePhoto;
 use App\Models\ProductType;
 use App\Services\Media\ImageSanitizer;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -35,7 +36,16 @@ class ProcessTemplatePhotoController extends Controller
     ) {
         $this->ensureBelongs($productType, $processTemplate);
 
-        if ($processTemplate->photos()->count() >= StoreProcessTemplatePhotoRequest::MAX_PHOTOS_PER_TEMPLATE) {
+        // A photo may target one specific step. Verify the step belongs to this
+        // template (anti-IDOR) before persisting the link.
+        $stepId = $request->validated('template_step_id');
+        if ($stepId) {
+            abort_unless(
+                $processTemplate->steps()->whereKey($stepId)->exists(),
+                404,
+            );
+        } elseif ($processTemplate->photos()->whereNull('template_step_id')->count() >= StoreProcessTemplatePhotoRequest::MAX_PHOTOS_PER_TEMPLATE) {
+            // The per-template cap applies only to general (non-step) photos.
             return back()->withErrors([
                 'photo' => 'Photo limit reached ('.StoreProcessTemplatePhotoRequest::MAX_PHOTOS_PER_TEMPLATE.' per template).',
             ]);
@@ -52,17 +62,27 @@ class ProcessTemplatePhotoController extends Controller
         $path = 'process-template-photos/'.$processTemplate->id.'/'.Str::random(40).'.'.$clean['extension'];
         Storage::put($path, $clean['bytes']);
 
-        $processTemplate->photos()->create([
-            'original_name' => Str::limit($request->file('photo')->getClientOriginalName(), 255, ''),
-            'storage_path' => $path,
-            'mime_type' => $clean['mime'],
-            'file_size' => strlen($clean['bytes']),
-            'width' => $clean['width'],
-            'height' => $clean['height'],
-            'caption' => $request->validated('caption'),
-            'sort_order' => ($processTemplate->photos()->max('sort_order') ?? 0) + 1,
-            'uploaded_by_id' => $request->user()->id,
-        ]);
+        DB::transaction(function () use ($processTemplate, $stepId, $path, $clean, $request) {
+            // One photo per step: a new step photo replaces the existing one
+            // (its disk file is removed by the model's deleted event).
+            if ($stepId) {
+                $processTemplate->photos()->where('template_step_id', $stepId)->get()
+                    ->each(fn (ProcessTemplatePhoto $p) => $p->delete());
+            }
+
+            $processTemplate->photos()->create([
+                'template_step_id' => $stepId,
+                'original_name' => Str::limit($request->file('photo')->getClientOriginalName(), 255, ''),
+                'storage_path' => $path,
+                'mime_type' => $clean['mime'],
+                'file_size' => strlen($clean['bytes']),
+                'width' => $clean['width'],
+                'height' => $clean['height'],
+                'caption' => $request->validated('caption'),
+                'sort_order' => ($processTemplate->photos()->max('sort_order') ?? 0) + 1,
+                'uploaded_by_id' => $request->user()->id,
+            ]);
+        });
 
         return back()->with('success', 'Photo uploaded.');
     }

@@ -570,7 +570,7 @@ function ProductionControls({ batch }) {
 // Single Batch card
 // ---------------------------------------------------------------------------
 
-function BatchCard({ batch, defaultOpen, labelTemplates = [] }) {
+function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {} }) {
     const [expanded, setExpanded] = useState(defaultOpen);
     const showControls = batch.status === 'IN_PROGRESS' || batch.status === 'DONE';
 
@@ -642,7 +642,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [] }) {
                     </div>
 
                     {/* Steps */}
-                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} />
+                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} />
 
                     {/* Production controls */}
                     {showControls && <ProductionControls batch={batch} />}
@@ -656,8 +656,9 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [] }) {
 // Batch Steps list (replaces the Livewire component)
 // ---------------------------------------------------------------------------
 
-function BatchStepList({ steps, labelTemplates = [] }) {
+function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
     const [inflightStepId, setInflightStepId] = useState(null);
+    const [photoZoom, setPhotoZoom] = useState(null);
 
     if (!steps || steps.length === 0) return null;
 
@@ -679,11 +680,27 @@ function BatchStepList({ steps, labelTemplates = [] }) {
             <div className="space-y-2">
                 {steps.map((step) => {
                     const isInflight = inflightStepId === step.id;
+                    const photo = stepPhotos[step.step_number];
                     return (
                         <div key={step.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                             <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                                 {step.step_number}
                             </span>
+                            {photo && (
+                                <button
+                                    type="button"
+                                    onClick={() => setPhotoZoom(photo)}
+                                    className="flex-shrink-0"
+                                    title={photo.caption || 'Step photo'}
+                                >
+                                    <img
+                                        src={photo.url}
+                                        alt={photo.caption || 'Step photo'}
+                                        loading="lazy"
+                                        className="w-12 h-12 object-cover rounded-md border border-gray-200 dark:border-gray-700 bg-gray-100"
+                                    />
+                                </button>
+                            )}
                             <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                                 {step.name}
                             </span>
@@ -747,6 +764,17 @@ function BatchStepList({ steps, labelTemplates = [] }) {
                     );
                 })}
             </div>
+
+            {photoZoom && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onClick={() => setPhotoZoom(null)}>
+                    <figure className="max-w-3xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
+                        <img src={photoZoom.url} alt={photoZoom.caption || 'Step photo'} className="max-w-full max-h-[80vh] rounded-lg shadow-2xl" />
+                        {photoZoom.caption && (
+                            <figcaption className="text-white/90 text-sm mt-3 text-center">{photoZoom.caption}</figcaption>
+                        )}
+                    </figure>
+                </div>
+            )}
         </div>
     );
 }
@@ -1112,7 +1140,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [] } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {} } = usePage().props;
 
     const [createBatchOpen, setCreateBatchOpen] = useState(false);
     const [reportIssueOpen, setReportIssueOpen] = useState(false);
@@ -1269,6 +1297,7 @@ export default function WorkOrderDetail() {
                                             batch={batch}
                                             defaultOpen={idx === 0}
                                             labelTemplates={labelTemplates}
+                                            stepPhotos={stepPhotos}
                                         />
                                     ))}
                                 </div>
