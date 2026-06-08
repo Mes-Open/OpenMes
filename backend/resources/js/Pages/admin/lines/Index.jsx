@@ -17,14 +17,16 @@ export default function LinesIndex() {
 
     const actions = (r) => [
         { label: 'Configure', href: `/admin/lines/${r.id}` },
-        { label: 'Edit', href: `/admin/lines/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/lines/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/lines/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => { if (confirm(`Delete line "${r.name}"? (only if it has no work orders)`)) router.delete(`/admin/lines/${r.id}`, { preserveScroll: true }); },
         },
     ];

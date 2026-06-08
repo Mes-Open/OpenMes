@@ -13,10 +13,11 @@ export default function SkillsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/skills/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/skills/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete skill "${r.name}"?`)) {
                     router.delete(`/admin/skills/${r.id}`, { preserveScroll: true });

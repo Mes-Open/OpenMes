@@ -56,11 +56,11 @@ export default function InspectionPlansIndex() {
     ];
 
     const actions = (r) => {
-        const items = [{ label: __('Edit'), href: `/admin/inspection-plans/${r.id}/edit` }];
+        const items = [{ label: __('Edit'), icon: 'edit', href: `/admin/inspection-plans/${r.id}/edit` }];
         if (!r.published_at) {
             items.push({
                 label: __('Publish'),
-                className: 'text-green-700 hover:underline',
+                className: 'btn-touch text-sm bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50',
                 onClick: () => {
                     if (confirm(__('Publish this version? It becomes the live plan used for new inspections.'))) {
                         router.post(`/admin/inspection-plans/${r.id}/publish`, {}, { preserveScroll: true });
@@ -70,7 +70,7 @@ export default function InspectionPlansIndex() {
         }
         items.push({
             label: __('Delete'),
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
             onClick: () => {
                 if (confirm(__('Delete inspection plan ":name"?', { name: r.name }))) {
                     router.delete(`/admin/inspection-plans/${r.id}`, { preserveScroll: true });

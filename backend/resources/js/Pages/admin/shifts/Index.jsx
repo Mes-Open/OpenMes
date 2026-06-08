@@ -16,10 +16,11 @@ export default function ShiftsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/shifts/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/shifts/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete shift "${r.name}"?`)) {
                     router.delete(`/admin/shifts/${r.id}`, { preserveScroll: true });

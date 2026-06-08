@@ -15,14 +15,16 @@ export default function WorkersIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/workers/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/workers/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/workers/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete worker "${r.name}"?`)) {
                     router.delete(`/admin/workers/${r.id}`, { preserveScroll: true });
