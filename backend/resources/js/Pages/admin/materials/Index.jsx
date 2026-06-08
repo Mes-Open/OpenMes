@@ -18,14 +18,16 @@ export default function MaterialsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/materials/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/materials/${r.id}/edit` },
         {
             label: r.is_active ? 'Deactivate' : 'Activate',
+            icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/materials/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => {
                 if (confirm(`Delete material "${r.name}"?`)) {
                     router.delete(`/admin/materials/${r.id}`, { preserveScroll: true });

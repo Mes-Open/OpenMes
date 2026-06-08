@@ -30,11 +30,12 @@ export default function UsersIndex() {
     ];
 
     const actions = (r) => {
-        const acts = [{ label: 'Edit', href: `/admin/users/${r.id}/edit` }];
+        const acts = [{ label: 'Edit', icon: 'edit', href: `/admin/users/${r.id}/edit` }];
         if (String(r.id) !== String(currentUserId)) {
             acts.push({
                 label: 'Delete',
-                className: 'text-red-600 hover:underline',
+                icon: 'delete',
+                variant: 'danger',
                 onClick: () => {
                     if (confirm(`Delete account "${r.name}"?`)) {
                         router.delete(`/admin/users/${r.id}`, { preserveScroll: true });

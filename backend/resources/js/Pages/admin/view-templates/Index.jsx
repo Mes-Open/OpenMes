@@ -12,10 +12,11 @@ export default function ViewTemplatesIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', href: `/admin/view-templates/${r.id}/edit` },
+        { label: 'Edit', icon: 'edit', href: `/admin/view-templates/${r.id}/edit` },
         {
             label: 'Delete',
-            className: 'text-red-600 hover:underline',
+            icon: 'delete',
+            variant: 'danger',
             onClick: () => { if (confirm(`Delete view template "${r.name}"?`)) router.delete(`/admin/view-templates/${r.id}`, { preserveScroll: true }); },
         },
     ];
