@@ -3030,6 +3030,7 @@
     "This is a draft — editable in place and not yet used for inspections.": "To szkic — edytowalny w miejscu i jeszcze nieużywany do inspekcji.",
     "This version is published and immutable. Saving creates a new draft version — the published version stays unchanged so past inspections remain reproducible.": "Ta wersja jest opublikowana i niezmienna. Zapis utworzy nową wersję-szkic — opublikowana wersja pozostaje bez zmian, aby przeszłe inspekcje były odtwarzalne.",
     "Version history": "Historia wersji",
+    "CLOSED": "ZAMKNIĘTE",
     "+ New Account": "+ Nowe konto",
     "+ New Area": "+ Nowy obszar",
     "+ New Class": "+ Nowa klasa",
