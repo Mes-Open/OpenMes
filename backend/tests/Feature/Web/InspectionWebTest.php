@@ -125,12 +125,12 @@ class InspectionWebTest extends TestCase
 
     public function test_create_plan_with_invalid_scope_rejected(): void
     {
-        // scope=material but no material_id
+        // scope=material but no material_id → form-request validation error
         $response = $this->actingAs($this->admin)->post(route('admin.inspection-plans.store'), [
             'name' => 'Bad plan',
             'scope' => 'material',
             'criteria' => [['name' => 'A', 'type' => 'pass_fail']],
         ]);
-        $response->assertStatus(422);
+        $response->assertSessionHasErrors('material_id');
     }
 }

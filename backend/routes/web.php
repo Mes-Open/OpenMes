@@ -547,7 +547,8 @@ Route::middleware('auth')->group(function () {
         // Scrap reporting (Pareto, scrap rate per line, trend)
         Route::get('/scrap-reports', [ScrapReportController::class, 'index'])->name('scrap-reports.index');
 
-        // Inspection Plans (admin CRUD)
+        // Inspection Plans (admin CRUD + version publish)
+        Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
         Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);
 
         // ── Gate 6: Costing ───────────────────────────────────────────────────
