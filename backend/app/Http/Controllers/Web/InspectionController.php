@@ -58,7 +58,7 @@ class InspectionController extends Controller
     {
         return Inertia::render('inspections/Create', [
             'materials' => Material::orderBy('name')->get(['id', 'code', 'name']),
-            'plans' => InspectionPlan::active()->orderBy('name')->with(['material:id,name', 'materialType:id,name'])->get(),
+            'plans' => InspectionPlan::active()->published()->orderBy('name')->with(['material:id,name', 'materialType:id,name'])->get(),
         ]);
     }
 

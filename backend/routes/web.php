@@ -284,8 +284,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/oee/print/pdf', [AdminOeeController::class, 'printPdf'])->name('oee.print.pdf');
         Route::get('/oee/{line}', [AdminOeeController::class, 'show'])->name('oee.show');
 
-        // Reports
+        // Reports — Work Order History (read-only historical analysis)
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
+        Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
+        Route::get('/reports/{workOrder}', [AdminReportController::class, 'show'])->name('reports.show');
 
         // Alerts
         Route::get('/alerts', [\App\Http\Controllers\Web\Admin\AlertController::class, 'index'])->name('alerts');
@@ -534,7 +536,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/production-anomalies/{productionAnomaly}/process', [ProductionAnomalyController::class, 'process'])->name('production-anomalies.process');
         Route::delete('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'destroy'])->name('production-anomalies.destroy');
 
-        // Inspection Plans (admin CRUD)
+        // Inspection Plans (admin CRUD + version publish)
+        Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
         Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);
 
         // ── Gate 6: Costing ───────────────────────────────────────────────────
