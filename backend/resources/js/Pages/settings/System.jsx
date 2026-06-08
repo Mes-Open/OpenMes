@@ -64,7 +64,15 @@ export default function System() {
 
     function handleSubmit(e) {
         e.preventDefault();
-        post('/settings/system');
+        // Language is loaded once at bootstrap (see lib/i18n), so a change only
+        // takes effect after a full reload — an Inertia (SPA) redirect won't
+        // swap the locale chunk. Reload when the language actually changed.
+        const languageChanged = data.language !== settings.language;
+        post('/settings/system', {
+            onSuccess: () => {
+                if (languageChanged) window.location.reload();
+            },
+        });
     }
 
     return (
