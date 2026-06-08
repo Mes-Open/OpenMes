@@ -2,6 +2,14 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: openmmes-postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_replication_slots=10"
+      - "-c"
+      - "max_wal_senders=10"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-openmmes}
       POSTGRES_USER: ${POSTGRES_USER:-openmmes_user}
@@ -17,6 +25,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    # Every other service has this — without it postgres stays down after
+    # a host reboot / docker restart while the app containers come back,
+    # which surfaces as 502s from Caddy ("could not translate host name
+    # 'postgres' to address").
+    restart: unless-stopped
     networks:
       - openmmes-network
 
@@ -40,6 +53,21 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@openmmes.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+      LOG_CHANNEL: ${LOG_CHANNEL:-stack}
+      LOG_STACK: ${LOG_STACK:-single}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      # Server-side sessions — NOT the "cookie" driver (which spawns a cookie per
+      # session id and bloats request headers). See .env.example.
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      # Reverb (WebSocket broadcasting) — live sync. REVERB_HOST points at the
+      # reverb service for server-side publishing; clients connect via Caddy.
+      BROADCAST_CONNECTION: ${BROADCAST_CONNECTION:-reverb}
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_HOST: ${REVERB_HOST:-reverb}
+      REVERB_PORT: ${REVERB_PORT:-8080}
+      REVERB_SCHEME: ${REVERB_SCHEME:-http}
     expose:
       - "8000"
     depends_on:
@@ -48,6 +76,41 @@ services:
     volumes:
       - backend_storage:/var/www/html/storage
       - backend_cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+    networks:
+      - openmmes-network
+
+  # ── Reverb WebSocket server (live sync; replaces Electric) ────────────────
+  # Single multiplexed WebSocket (Pusher protocol). Laravel publishes deltas to
+  # it; clients connect through Caddy (/app/*). NOT exposed publicly.
+  reverb:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: openmmes-reverb
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    environment:
+      APP_NAME: ${APP_NAME:-OpenMES}
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-openmmes}
+      DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-openmes}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-openmeskey}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-openmessecret}
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - openmmes-network

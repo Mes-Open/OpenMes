@@ -3,13 +3,11 @@
 namespace App\Providers;
 
 use App\Console\Commands\ResetPackagingShiftCommand;
-use App\Http\Controllers\Web\Admin\AlertController;
 use App\Listeners\LogAuthEvent;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -33,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Reverb sync: register model → collection broadcast listeners.
+        \App\Sync\CollectionBroadcaster::boot();
+
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
 
@@ -40,16 +41,34 @@ class AppServiceProvider extends ServiceProvider
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
 
+        // Live-edit (dev/staging only): under Octane the Vite manifest is cached
+        // in a static property in worker memory, so a `vite build --watch` rebuild
+        // wouldn't appear until workers recycle. When OCTANE_LIVE_RELOAD is set
+        // (the dev overlay), clear that static cache before each Octane request so
+        // rebuilt .jsx assets show on a plain refresh. No effect in production.
+        if (env('OCTANE_LIVE_RELOAD') && class_exists(\Laravel\Octane\Events\RequestReceived::class)) {
+            Event::listen(\Laravel\Octane\Events\RequestReceived::class, function () {
+                $manifests = new \ReflectionProperty(\Illuminate\Foundation\Vite::class, 'manifests');
+                $manifests->setAccessible(true);
+                $manifests->setValue(null, []);
+            });
+        }
+
         // Share registries with every view so layouts and dashboards can render
         // items registered by modules without additional controller work.
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
         View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
 
-        // Set application locale from system_settings
+        // Set application locale from system_settings. Also override
+        // config('app.locale') so that under Octane, where FlushLocaleState
+        // resets the locale to the config default on every request, the
+        // system-wide language still applies (SetLocale then layers any
+        // per-session override on top).
         try {
             $row = DB::table('system_settings')->where('key', 'language')->first();
             $locale = $row ? json_decode($row->value, true) : null;
             if ($locale && in_array($locale, array_keys($this->availableLocales()))) {
+                config(['app.locale' => $locale]);
                 App::setLocale($locale);
             }
         } catch (\Throwable) {
@@ -60,50 +79,18 @@ class AppServiceProvider extends ServiceProvider
         View::share('availableLocales', $this->availableLocales());
         View::share('currentLocale', App::getLocale());
 
-        // Demo account expiry — passed to layout so the countdown banner can render
-        View::composer('layouts.app', function ($view) {
-            $expiresAt = null;
-            try {
-                if (Auth::hasUser()) {
-                    $tenant = Auth::user()->tenant;
-                    $expiresAt = $tenant?->expires_at;
-                }
-            } catch (\Throwable) {
-            }
-            $view->with('demoExpiresAt', $expiresAt);
-        });
-
-        // Alert badge count — only computed when user is authenticated Admin/Supervisor
-        View::composer('layouts.components.sidebar', function ($view) {
-            $alertCount = 0;
-            try {
-                if (Auth::check() && Auth::user()->hasAnyRole(['Admin', 'Supervisor'])) {
-                    $alertCount = AlertController::totalCount();
-                }
-            } catch (\Throwable) {
-            }
-            $view->with('alertCount', $alertCount);
-        });
+        // NOTE: the old Blade-layout View::composers (demoExpiresAt for
+        // layouts.app, alertCount for layouts.components.sidebar) were removed
+        // when those layouts were deleted in the React/Inertia migration. The
+        // alert badge is now computed live client-side (LiveAlertCount.jsx) and
+        // the server fallback comes from HandleInertiaRequests->nav.alertCount.
 
         // Share current language name
         View::share('currentLocaleName', $this->availableLocales()[App::getLocale()] ?? 'English');
 
-        // Packaging menu items — registered via View::composer so auth() check
-        // works (boot runs before auth middleware, so direct auth()->check() always false).
-        $menu = $this->app->make(MenuRegistry::class);
-        $menu->addGroup('packaging', __('Packaging'), order: 40);
-        $menu->addGroupItem('packaging', __('Scanning Station'), '/packaging/station', order: 10);
-
-        View::composer('layouts.components.sidebar', function () use ($menu) {
-            if (Auth::check() && Auth::user()->hasAnyRole(['Admin', 'Supervisor'])) {
-                $menu->addGroupItem('packaging', __('Packaging Overview'), '/packaging', order: 20);
-                $menu->addGroupItem('packaging', __('EAN Management'), '/packaging/eans', order: 30);
-            }
-
-            if (Auth::check() && Auth::user()->hasRole('Admin')) {
-                $menu->addGroupItem('packaging', __('Label Templates'), '/packaging/label-templates', order: 40);
-            }
-        });
+        // (Packaging menu items were registered into MenuRegistry to feed the
+        // deleted Blade sidebar; the React sidebar nav is defined in
+        // resources/js/layouts/adminNav.js, so that registration was removed.)
 
         // Register Packaging console commands
         if ($this->app->runningInConsole()) {

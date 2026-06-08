@@ -5,20 +5,29 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ProductType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ProductTypeManagementController extends Controller
 {
     /**
-     * Display a listing of product types
+     * Display a listing of product types.
+     *
+     * The rows themselves live-sync via the `product_types` Electric shape
+     * (see Pages/admin/product-types/Index.jsx). Only the cross-table counts —
+     * which don't map to per-row sync — are passed as a prop, keyed by id.
      */
     public function index()
     {
-        $productTypes = ProductType::withCount(['processTemplates', 'workOrders'])
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name')
-            ->get();
+        $counts = ProductType::withCount(['processTemplates', 'workOrders'])
+            ->get(['id'])
+            ->mapWithKeys(fn ($pt) => [$pt->id => [
+                'process_templates' => $pt->process_templates_count,
+                'work_orders' => $pt->work_orders_count,
+            ]]);
 
-        return view('admin.product-types.index', compact('productTypes'));
+        return Inertia::render('admin/product-types/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     /**
@@ -26,7 +35,7 @@ class ProductTypeManagementController extends Controller
      */
     public function create()
     {
-        return view('admin.product-types.create');
+        return Inertia::render('admin/product-types/Create');
     }
 
     /**
@@ -62,7 +71,36 @@ class ProductTypeManagementController extends Controller
             ->limit(10)
             ->get();
 
-        return view('admin.product-types.show', compact('productType', 'recentWorkOrders'));
+        $totalWorkOrderCount = $productType->workOrders()->count();
+
+        return Inertia::render('admin/product-types/Show', [
+            'productType' => [
+                'id'               => $productType->id,
+                'code'             => $productType->code,
+                'name'             => $productType->name,
+                'description'      => $productType->description,
+                'unit_of_measure'  => $productType->unit_of_measure,
+                'is_active'        => $productType->is_active,
+                'process_templates' => $productType->processTemplates->map(fn ($t) => [
+                    'id'        => $t->id,
+                    'name'      => $t->name,
+                    'version'   => $t->version,
+                    'is_active' => $t->is_active,
+                    'steps'     => $t->steps->map(fn ($s) => ['id' => $s->id])->values(),
+                ])->values(),
+                'total_work_order_count' => $totalWorkOrderCount,
+            ],
+            'recentWorkOrders' => $recentWorkOrders->map(fn ($wo) => [
+                'id'                => $wo->id,
+                // work_orders has `order_no`, not work_order_number; these orders
+                // all belong to this product type, so product_name is its name.
+                'work_order_number' => $wo->order_no,
+                'product_name'      => $productType->name,
+                'planned_qty'       => $wo->planned_qty,
+                'status'            => $wo->status,
+                'created_at'        => $wo->created_at?->toIso8601String(),
+            ])->values(),
+        ]);
     }
 
     /**
@@ -70,7 +108,11 @@ class ProductTypeManagementController extends Controller
      */
     public function edit(ProductType $productType)
     {
-        return view('admin.product-types.edit', compact('productType'));
+        return Inertia::render('admin/product-types/Edit', [
+            'productType' => $productType->only(
+                'id', 'code', 'name', 'description', 'unit_of_measure', 'is_active'
+            ),
+        ]);
     }
 
     /**

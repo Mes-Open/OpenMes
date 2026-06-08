@@ -112,14 +112,20 @@ class ActivityLogController extends Controller
         $actions = AuditLog::query()->distinct()->pluck('action')->filter()->sort()->values();
         $entityTypes = AuditLog::query()->distinct()->pluck('entity_type')->filter()->sort()->values();
 
-        return view('admin.logs.activity', compact(
-            'logs',
-            'users',
-            'actions',
-            'entityTypes',
-            'from',
-            'to'
-        ));
+        return \Inertia\Inertia::render('admin/logs/Activity', [
+            'logs'        => $logs,
+            'users'       => $users,
+            'actions'     => $actions,
+            'entityTypes' => $entityTypes,
+            'filters'     => [
+                'from'        => $from->format('Y-m-d'),
+                'to'          => $to->format('Y-m-d'),
+                'user_id'     => $request->input('user_id', ''),
+                'source'      => $request->input('source', ''),
+                'entity_type' => $request->input('entity_type', ''),
+                'action'      => $request->input('action', ''),
+            ],
+        ]);
     }
 
     /**

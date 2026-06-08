@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\DashboardWidget;
 use App\Models\Issue;
 use App\Models\MachineConnection;
 use App\Models\MaintenanceEvent;
@@ -137,6 +138,7 @@ class SystemController extends Controller
                     ->map(fn($e) => [
                         'type' => 'maintenance',
                         'id' => $e->id,
+                        'line_id' => $e->line_id,
                         'title' => $e->title,
                         'starts_at' => $e->scheduled_at?->toIso8601String(),
                         'ends_at' => $e->completed_at?->toIso8601String(),
@@ -155,9 +157,13 @@ class SystemController extends Controller
                     ->map(fn($wo) => [
                         'type' => 'work_order',
                         'id' => $wo->id,
+                        'line_id' => $wo->line_id,
                         'title' => "{$wo->order_no}",
                         'starts_at' => $wo->due_date?->toIso8601String(),
-                        'ends_at' => null,
+                        // end_date (added by 2026_05_18_100001 migration) is the
+                        // scheduled span end. Fall back to due_date itself when
+                        // missing so consumers always have a usable range.
+                        'ends_at' => ($wo->end_date ?? $wo->due_date)?->toIso8601String(),
                         'status' => $wo->status,
                         'color' => match ($wo->status) {
                             WorkOrder::STATUS_DONE => '#16a34a',
@@ -172,6 +178,35 @@ class SystemController extends Controller
         return response()->json(['data' => $events->sortBy('starts_at')->values()]);
     }
 
+    // ── Dashboard widgets (enable/order config) ─────────────────────────────
+
+    /**
+     * List enabled dashboard widgets in sort order. Lets the mobile dashboard
+     * mirror the layout configured via the web admin's Dashboard Setup page.
+     */
+    public function dashboardWidgets(Request $request): JsonResponse
+    {
+        $widgets = DashboardWidget::query()
+            ->where('enabled', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'widget_id', 'name', 'zone', 'description', 'source', 'module_name', 'enabled', 'sort_order', 'config'])
+            ->map(fn ($w) => [
+                'id' => $w->id,
+                'widget_id' => $w->widget_id,
+                'name' => $w->name,
+                'zone' => $w->zone,
+                'description' => $w->description,
+                'source' => $w->source,
+                'module_name' => $w->module_name,
+                'enabled' => (bool) $w->enabled,
+                'sort_order' => (int) $w->sort_order,
+                'config' => $w->config,
+            ]);
+
+        return response()->json(['data' => $widgets]);
+    }
+
     // ── Alerts dashboard ────────────────────────────────────────────────────
 
     public function alertsCounts(Request $request): JsonResponse
@@ -184,12 +219,26 @@ class SystemController extends Controller
         $machinesOffline = MachineConnection::where('is_active', true)
             ->whereIn('status', ['error', 'disconnected'])->count();
 
+        // Web AlertController categories — keep mobile + web in lockstep.
+        $overdueOrders = WorkOrder::whereNotNull('due_date')
+            ->whereDate('due_date', '<', today())
+            ->whereNotIn('status', WorkOrder::TERMINAL_STATUSES)
+            ->count();
+        $blockedOrders = WorkOrder::where('status', WorkOrder::STATUS_BLOCKED)->count();
+        $blockingIssues = Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
+            ->whereHas('issueType', fn($q) => $q->where('is_blocking', true))
+            ->count();
+
         return response()->json([
             'data' => [
                 'issues' => $issues,
                 'maintenance' => $maintenance,
                 'machines' => $machinesOffline,
-                'total' => $issues + $maintenance + $machinesOffline,
+                'overdue_orders' => $overdueOrders,
+                'blocked_orders' => $blockedOrders,
+                'blocking_issues' => $blockingIssues,
+                'total' => $issues + $maintenance + $machinesOffline
+                    + $overdueOrders + $blockedOrders + $blockingIssues,
             ],
         ]);
     }
@@ -252,6 +301,63 @@ class SystemController extends Controller
                         'status' => $c->status,
                         'created_at' => $c->last_connected_at?->toIso8601String(),
                         'link' => "/connectivity/connections/{$c->id}",
+                    ])
+            );
+        }
+
+        if ($type === 'all' || $type === 'overdue_order') {
+            $alerts = $alerts->concat(
+                WorkOrder::with('line')
+                    ->whereNotNull('due_date')
+                    ->whereDate('due_date', '<', today())
+                    ->whereNotIn('status', WorkOrder::TERMINAL_STATUSES)
+                    ->orderBy('due_date')
+                    ->get()
+                    ->map(fn($w) => [
+                        'type' => 'overdue_order',
+                        'id' => $w->id,
+                        'title' => $w->order_no . ($w->line ? ' · ' . $w->line->name : ''),
+                        'severity' => $w->due_date && $w->due_date->diffInDays(now()) > 2 ? 'CRITICAL' : 'HIGH',
+                        'status' => $w->status,
+                        'created_at' => $w->due_date?->toIso8601String(),
+                        'link' => "/work-orders/{$w->id}",
+                    ])
+            );
+        }
+
+        if ($type === 'all' || $type === 'blocked_order') {
+            $alerts = $alerts->concat(
+                WorkOrder::with('line')
+                    ->where('status', WorkOrder::STATUS_BLOCKED)
+                    ->orderByDesc('updated_at')
+                    ->get()
+                    ->map(fn($w) => [
+                        'type' => 'blocked_order',
+                        'id' => $w->id,
+                        'title' => $w->order_no . ($w->line ? ' · ' . $w->line->name : ''),
+                        'severity' => 'HIGH',
+                        'status' => $w->status,
+                        'created_at' => $w->updated_at?->toIso8601String(),
+                        'link' => "/work-orders/{$w->id}",
+                    ])
+            );
+        }
+
+        if ($type === 'all' || $type === 'blocking_issue') {
+            $alerts = $alerts->concat(
+                Issue::whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
+                    ->whereHas('issueType', fn($q) => $q->where('is_blocking', true))
+                    ->with(['issueType', 'workOrder'])
+                    ->orderByDesc('reported_at')
+                    ->get()
+                    ->map(fn($i) => [
+                        'type' => 'blocking_issue',
+                        'id' => $i->id,
+                        'title' => $i->title ?? $i->issueType?->name ?? 'Blocking issue',
+                        'severity' => 'CRITICAL',
+                        'status' => $i->status,
+                        'created_at' => $i->reported_at?->toIso8601String(),
+                        'link' => "/issues/{$i->id}",
                     ])
             );
         }

@@ -1,0 +1,89 @@
+# Live-edit overlay for contributors who want to edit source files on the
+# server (or locally) without installing Node/PHP/Composer.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# What it adds:
+#   - `frontend` service running `vite build --watch` so .jsx/.css/.blade.php
+#     edits in ./backend/ are rebuilt to ./backend/public/build/ within ~100ms.
+#   - Bind mounts on the backend container so PHP/Blade edits are live too
+#     (no image rebuild needed for application code changes).
+#
+# Not for production: the image's baked-in `composer install` + `npm run build`
+# already produce a self-contained production container. Use this overlay only
+# in development / FTP-edit-on-staging-server workflows.
+
+services:
+  backend:
+    # Run the SAME production server as base — RoadRunner Octane (image CMD) —
+    # so the dev/live-edit stack is concurrent and robust (no single-threaded
+    # `artisan serve` serialization hang, no buggy `php -S` multi-worker 502s).
+    # Live .jsx editing still works: the `frontend` watcher rebuilds public/build
+    # (bind-mounted below) and the FlushViteManifest Octane listener (enabled by
+    # OCTANE_LIVE_RELOAD) re-reads the manifest each request so rebuilds show on
+    # refresh. PHP/Blade edits need `php artisan octane:reload` (Octane keeps the
+    # app booted in memory). See CLAUDE.md → "Dev / live editing".
+    environment:
+      OCTANE_LIVE_RELOAD: "true"
+    volumes:
+      # Composer manifest — bind-mounted (read-write) so `composer require/remove`
+      # run INSIDE the container write straight through to the host repo (and host
+      # edits are seen by the container), instead of drifting in the image layer.
+      # vendor/ is intentionally NOT mounted (stays image-layer for speed), so after
+      # changing these re-run `composer install` in the container — same pattern as
+      # `npm ci` for the frontend.
+      - ./backend/composer.json:/var/www/html/composer.json
+      - ./backend/composer.lock:/var/www/html/composer.lock
+      # Live application code (PHP, Blade, JSX source, routes, config).
+      # Keep storage/ and bootstrap/cache/ as named volumes (defined in the
+      # base compose file) so they survive across rebuilds.
+      - ./backend/app:/var/www/html/app
+      - ./backend/bootstrap/app.php:/var/www/html/bootstrap/app.php
+      - ./backend/config:/var/www/html/config
+      - ./backend/database:/var/www/html/database
+      - ./backend/lang:/var/www/html/lang
+      - ./backend/modules:/var/www/html/modules
+      - ./backend/public:/var/www/html/public
+      - ./backend/resources:/var/www/html/resources
+      - ./backend/routes:/var/www/html/routes
+      - ./backend/tests:/var/www/html/tests
+
+  # Reverb sees live PHP (broadcast auth + CollectionBroadcaster); restart it
+  # after editing those (it doesn't hot-reload like Octane).
+  reverb:
+    environment:
+      E2E_CONTROL_ENABLED: "true"
+    volumes:
+      - ./backend/app:/var/www/html/app
+      - ./backend/bootstrap/app.php:/var/www/html/bootstrap/app.php
+      - ./backend/config:/var/www/html/config
+      - ./backend/database:/var/www/html/database
+      - ./backend/routes:/var/www/html/routes
+
+  frontend:
+    image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: openmmes-frontend
+    working_dir: /var/www/html
+    # Bypass the image ENTRYPOINT (docker-entrypoint.sh runs migrations/seeders
+    # and needs DB creds) — the watcher only builds assets, no DB, no app boot.
+    entrypoint: ["sh", "-c"]
+    # The production image strips node_modules; restore them, then watch.
+    # vite build --watch rebuilds public/build on every .jsx/.css edit (~100ms).
+    # Single-element list so the whole script reaches `sh -c` as one argument.
+    command: ["npm ci && npm run watch"]
+    volumes:
+      # Source the watcher needs to see.
+      - ./backend/resources:/var/www/html/resources
+      - ./backend/vite.config.js:/var/www/html/vite.config.js:ro
+      - ./backend/package.json:/var/www/html/package.json:ro
+      - ./backend/package-lock.json:/var/www/html/package-lock.json:ro
+      # Output the watcher writes — bind-mounted into the backend container too
+      # so the live HTTP server picks up rebuilt bundles immediately.
+      - ./backend/public/build:/var/www/html/public/build
+    restart: unless-stopped
+    networks:
+      - openmmes-network

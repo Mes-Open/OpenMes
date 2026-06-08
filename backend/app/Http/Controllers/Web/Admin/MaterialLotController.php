@@ -8,52 +8,15 @@ use App\Models\MaterialLot;
 use App\Models\MaterialSource;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class MaterialLotController extends Controller
 {
     public function index(Request $request)
     {
-        $query = MaterialLot::query()
-            ->with(['material', 'source', 'inspection'])
-            ->orderByDesc('received_at');
-
-        if ($search = $request->input('search')) {
-            $like = '%' . $search . '%';
-            $query->where(function ($q) use ($like) {
-                $q->where('lot_number', 'like', $like)
-                    ->orWhere('supplier_lot_no', 'like', $like)
-                    ->orWhere('supplier_reference', 'like', $like);
-            });
-        }
-
-        if ($materialId = $request->input('material_id')) {
-            $query->where('material_id', $materialId);
-        }
-
-        if ($status = $request->input('status')) {
-            $query->where('status', $status);
-        }
-
-        if ($expiryFilter = $request->input('expiry')) {
-            if ($expiryFilter === 'expired') {
-                $query->whereNotNull('expiry_date')->where('expiry_date', '<', now()->toDateString());
-            } elseif ($expiryFilter === 'soon') {
-                $query->whereNotNull('expiry_date')
-                    ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays(30)->toDateString()]);
-            }
-        }
-
-        if ($supplier = $request->input('supplier')) {
-            $query->where('supplier_lot_no', 'like', '%' . $supplier . '%');
-        }
-
-        $lots = $query->paginate(25)->withQueryString();
-        $materials = Material::orderBy('name')->get(['id', 'name', 'code', 'unit_of_measure']);
-
-        return view('admin.material-lots.index', [
-            'lots' => $lots,
-            'materials' => $materials,
-            'statuses' => MaterialLot::STATUSES,
+        return Inertia::render('admin/material-lots/Index', [
+            'materialNames' => Material::pluck('name', 'id'),
+            'sourceNames' => MaterialSource::pluck('external_name', 'id'),
         ]);
     }
 
@@ -71,18 +34,78 @@ class MaterialLotController extends Controller
             'consumptions.recordedBy',
         ]);
 
-        return view('admin.material-lots.show', ['lot' => $materialLot]);
+        $consumptions = $materialLot->consumptions->map(function ($c) {
+            $step  = $c->batchStep;
+            $batch = $step?->batch;
+            $wo    = $batch?->workOrder;
+
+            return [
+                'id'               => $c->id,
+                'consumed_at'      => $c->consumed_at?->toIso8601String(),
+                'quantity_consumed' => $c->quantity_consumed,
+                'recorded_by'      => $c->recordedBy ? ['name' => $c->recordedBy->name] : null,
+                'batch_step'       => $step ? [
+                    'name'  => $step->name,
+                    'batch' => $batch ? [
+                        'id'          => $batch->id,
+                        'lot_number'  => $batch->lot_number ?? null,
+                        'work_order'  => $wo ? [
+                            'id'         => $wo->id,
+                            'lot_number' => $wo->lot_number ?? null,
+                        ] : null,
+                    ] : null,
+                ] : null,
+            ];
+        })->values();
+
+        return Inertia::render('admin/material-lots/Show', [
+            'lot' => [
+                'id'                 => $materialLot->id,
+                'lot_number'         => $materialLot->lot_number,
+                'status'             => $materialLot->status,
+                'received_at'        => $materialLot->received_at?->toIso8601String(),
+                'manufacturing_date' => $materialLot->manufacturing_date?->toDateString(),
+                'expiry_date'        => $materialLot->expiry_date?->toDateString(),
+                'quantity_received'  => $materialLot->quantity_received,
+                'quantity_available' => $materialLot->quantity_available,
+                'unit_of_measure'    => $materialLot->unit_of_measure,
+                'supplier_lot_no'    => $materialLot->supplier_lot_no,
+                'supplier_reference' => $materialLot->supplier_reference,
+                'extra_data'         => $materialLot->extra_data,
+                'material'           => $materialLot->material ? [
+                    'id'   => $materialLot->material->id,
+                    'name' => $materialLot->material->name,
+                    'code' => $materialLot->material->code,
+                ] : null,
+                'source'             => $materialLot->source ? [
+                    'id'            => $materialLot->source->id,
+                    'external_name' => $materialLot->source->external_name,
+                ] : null,
+                'inspection'         => $materialLot->inspection ? [
+                    'id'     => $materialLot->inspection->id,
+                    'status' => $materialLot->inspection->status,
+                ] : null,
+                'created_by'         => $materialLot->createdBy ? [
+                    'name' => $materialLot->createdBy->name,
+                ] : null,
+                'sublots'            => $materialLot->sublots->map(fn ($sub) => [
+                    'id'             => $sub->id,
+                    'sublot_number'  => $sub->sublot_number,
+                    'quantity'       => $sub->quantity,
+                    'unit_of_measure' => $sub->unit_of_measure,
+                    'status'         => $sub->status,
+                    'notes'          => $sub->notes,
+                ])->values(),
+                'consumptions'       => $consumptions,
+            ],
+        ]);
     }
 
     public function create()
     {
-        return view('admin.material-lots.create', [
-            'lot' => new MaterialLot([
-                'received_at' => now(),
-                'status' => MaterialLot::STATUS_RECEIVED,
-            ]),
-            'materials' => Material::orderBy('name')->get(),
-            'sources' => MaterialSource::orderBy('external_name')->get(),
+        return Inertia::render('admin/material-lots/Create', [
+            'materials' => Material::orderBy('name')->get(['id', 'name']),
+            'sources' => MaterialSource::orderBy('external_name')->get(['id', 'external_name']),
             'statuses' => MaterialLot::STATUSES,
         ]);
     }
@@ -102,10 +125,24 @@ class MaterialLotController extends Controller
 
     public function edit(MaterialLot $materialLot)
     {
-        return view('admin.material-lots.edit', [
-            'lot' => $materialLot,
-            'materials' => Material::orderBy('name')->get(),
-            'sources' => MaterialSource::orderBy('external_name')->get(),
+        return Inertia::render('admin/material-lots/Edit', [
+            'lot' => [
+                'id' => $materialLot->id,
+                'lot_number' => $materialLot->lot_number,
+                'material_id' => $materialLot->material_id,
+                'source_id' => $materialLot->source_id,
+                'quantity_received' => $materialLot->quantity_received,
+                'quantity_available' => $materialLot->quantity_available,
+                'unit_of_measure' => $materialLot->unit_of_measure,
+                'received_at' => $materialLot->received_at?->format('Y-m-d'),
+                'manufacturing_date' => $materialLot->manufacturing_date?->format('Y-m-d'),
+                'expiry_date' => $materialLot->expiry_date?->format('Y-m-d'),
+                'status' => $materialLot->status,
+                'supplier_lot_no' => $materialLot->supplier_lot_no,
+                'supplier_reference' => $materialLot->supplier_reference,
+            ],
+            'materials' => Material::orderBy('name')->get(['id', 'name']),
+            'sources' => MaterialSource::orderBy('external_name')->get(['id', 'external_name']),
             'statuses' => MaterialLot::STATUSES,
         ]);
     }

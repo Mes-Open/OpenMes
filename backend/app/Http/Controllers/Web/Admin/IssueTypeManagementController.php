@@ -5,19 +5,24 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\IssueType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class IssueTypeManagementController extends Controller
 {
     public function index()
     {
-        $issueTypes = IssueType::withCount('issues')->orderBy('name')->get();
+        $counts = IssueType::withCount('issues')
+            ->get(['id'])
+            ->mapWithKeys(fn ($r) => [$r->id => $r->issues_count]);
 
-        return view('admin.issue-types.index', compact('issueTypes'));
+        return Inertia::render('admin/issue-types/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     public function create()
     {
-        return view('admin.issue-types.create');
+        return Inertia::render('admin/issue-types/Create');
     }
 
     public function store(Request $request)
@@ -40,7 +45,9 @@ class IssueTypeManagementController extends Controller
 
     public function edit(IssueType $issueType)
     {
-        return view('admin.issue-types.edit', compact('issueType'));
+        return Inertia::render('admin/issue-types/Edit', [
+            'issueType' => $issueType->only('id', 'code', 'name', 'severity', 'is_blocking', 'is_active'),
+        ]);
     }
 
     public function update(Request $request, IssueType $issueType)
@@ -50,9 +57,11 @@ class IssueTypeManagementController extends Controller
             'name'        => 'required|string|max:100',
             'severity'    => 'required|in:LOW,MEDIUM,HIGH,CRITICAL',
             'is_blocking' => 'boolean',
+            'is_active'   => 'boolean',
         ]);
 
         $validated['is_blocking'] = $request->boolean('is_blocking');
+        $validated['is_active'] = $request->boolean('is_active');
 
         $issueType->update($validated);
 

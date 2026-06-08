@@ -1,3 +1,47 @@
-http://{$DOMAIN} {
-    reverse_proxy backend:8000
+# OpenMES reverse proxy.
+#
+# Electric SQL live-sync holds one long-lived ("long-poll") HTTP connection per
+# active shape. Browsers cap concurrent connections per origin at ~6 on
+# HTTP/1.1, so a handful of live shapes exhaust the pool and every other request
+# (navigation, API, more shapes) stalls in "pending". The fix is HTTP/2, which
+# multiplexes unlimited concurrent streams over ONE connection — but HTTP/2 is
+# only negotiated over TLS. So we serve HTTPS (with HTTP/2 on by default) in
+# addition to plain :80.
+#
+# In production replace `localhost` with your real hostname so Caddy provisions
+# a public TLS cert automatically (and serves HTTP/2 over the same origin). For
+# local dev, `localhost` uses Caddy's internal CA — the browser shows a one-time
+# "not secure" warning you can click through (or run `caddy trust`).
+
+{
+	# Keep the plain-HTTP :80 site below serving directly instead of being
+	# auto-redirected to HTTPS, so existing http://localhost links still work.
+	auto_https disable_redirects
+}
+
+# Shared routing for every site address.
+(openmes) {
+	# Reverb WebSocket (Pusher protocol) — one multiplexed socket per client,
+	# carrying all collection channels. reverse_proxy auto-upgrades the WS. The
+	# server publishes to Reverb directly (127.0.0.1:8080), so only the client
+	# /app/* path needs proxying here.
+	handle /app/* {
+		reverse_proxy reverb:8080
+	}
+
+	handle {
+		reverse_proxy backend:8000
+	}
+}
+
+# HTTPS + HTTP/2 (internal CA for localhost). Use https://localhost for the
+# multiplexed, non-stalling experience.
+localhost {
+	import openmes
+}
+
+# Plain HTTP kept for backward compatibility (HTTP/1.1 — subject to the
+# 6-connection limit, so live sync may stall here under many shapes).
+:80 {
+	import openmes
 }

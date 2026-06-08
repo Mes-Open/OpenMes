@@ -10,6 +10,7 @@ use App\Models\TemplateStep;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class OnboardingController extends Controller
 {
@@ -24,7 +25,7 @@ class OnboardingController extends Controller
 
     public function step1()
     {
-        return view('onboarding.step1-line');
+        return Inertia::render('onboarding/Step1', ['step' => 1]);
     }
 
     public function storeStep1(Request $request)
@@ -49,7 +50,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return view('onboarding.step2-product-type');
+        return Inertia::render('onboarding/Step2', ['step' => 2]);
     }
 
     public function storeStep2(Request $request)
@@ -81,7 +82,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return view('onboarding.step3-process-template');
+        return Inertia::render('onboarding/Step3', ['step' => 3]);
     }
 
     public function storeStep3(Request $request)
@@ -122,7 +123,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return view('onboarding.step4-work-order');
+        return Inertia::render('onboarding/Step4', ['step' => 4]);
     }
 
     public function storeStep4(Request $request, WorkOrderService $workOrderService)
@@ -149,7 +150,7 @@ class OnboardingController extends Controller
         $this->markCompleted();
         $request->session()->forget('onboarding');
 
-        return view('onboarding.complete');
+        return Inertia::render('onboarding/Complete', ['step' => 5]);
     }
 
     public function skip(Request $request)

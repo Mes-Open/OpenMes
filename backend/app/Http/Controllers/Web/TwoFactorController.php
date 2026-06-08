@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use PragmaRX\Google2FA\Google2FA;
 
 class TwoFactorController extends Controller
@@ -28,9 +29,15 @@ class TwoFactorController extends Controller
     {
         $user = auth()->user();
 
+        // Recovery codes are surfaced once, right after confirm()/regenerate()
+        // redirect here (flashed to the session).
+        $recoveryCodes = $request->session()->get('recoveryCodes');
+
         if ($user->two_factor_enabled) {
-            return redirect()->route('settings.profile')
-                ->with('info', 'Two-factor authentication is already enabled.');
+            return Inertia::render('settings/TwoFactor', [
+                'enabled' => true,
+                'recoveryCodes' => $recoveryCodes,
+            ]);
         }
 
         // Generate secret (or reuse pending one from session)
@@ -57,7 +64,8 @@ class TwoFactorController extends Controller
 
         $qrCodeDataUri = $result->getDataUri();
 
-        return view('auth.two-factor-setup', [
+        return Inertia::render('settings/TwoFactor', [
+            'enabled' => false,
             'secret' => $secret,
             'qrCodeDataUri' => $qrCodeDataUri,
         ]);
@@ -98,9 +106,10 @@ class TwoFactorController extends Controller
 
         $request->session()->forget('2fa_setup_secret');
 
-        return view('auth.two-factor-recovery-codes', [
-            'recoveryCodes' => $recoveryCodes,
-        ]);
+        // Show the recovery codes once on the 2FA page (flashed → read by enable()).
+        return redirect()->route('settings.two-factor.enable')
+            ->with('recoveryCodes', $recoveryCodes->all())
+            ->with('success', 'Two-factor authentication enabled.');
     }
 
     /**
@@ -125,7 +134,7 @@ class TwoFactorController extends Controller
             'two_factor_recovery_codes' => null,
         ]);
 
-        return redirect()->route('settings.profile')
+        return redirect()->route('settings.index')
             ->with('success', 'Two-factor authentication has been disabled.');
     }
 
@@ -155,8 +164,8 @@ class TwoFactorController extends Controller
             'two_factor_recovery_codes' => Crypt::encryptString(json_encode($hashedCodes)),
         ]);
 
-        return view('auth.two-factor-recovery-codes', [
-            'recoveryCodes' => $recoveryCodes,
-        ]);
+        return redirect()->route('settings.two-factor.enable')
+            ->with('recoveryCodes', $recoveryCodes->all())
+            ->with('success', 'Recovery codes regenerated.');
     }
 }

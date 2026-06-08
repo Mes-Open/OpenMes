@@ -25,11 +25,12 @@ use App\Http\Controllers\Api\V1\LineController;
 use App\Http\Controllers\Api\V1\LineStatusController;
 use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
+use App\Http\Controllers\Api\V1\MaintenanceScheduleController;
+use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialLotController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
 use App\Http\Controllers\Api\V1\OeeController as ApiOeeController;
-use App\Http\Controllers\Api\V1\PackagingApiController;
 use App\Http\Controllers\Api\V1\PackagingChecklistController;
 use App\Http\Controllers\Api\V1\ProcessConfirmationController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
@@ -37,10 +38,13 @@ use App\Http\Controllers\Api\V1\ProductionAnomalyController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\QualityCheckController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ScrapEntryController;
+use App\Http\Controllers\Api\V1\ScrapReasonController;
 use App\Http\Controllers\Api\V1\ShiftController;
 use App\Http\Controllers\Api\V1\SkillController;
 use App\Http\Controllers\Api\V1\SubassemblyController;
 use App\Http\Controllers\Api\V1\SystemController;
+use App\Http\Controllers\Api\V1\SystemLogController;
 use App\Http\Controllers\Api\V1\ToolController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WageGroupController;
@@ -67,6 +71,12 @@ Route::get('/health', function () {
         'timestamp' => now()->toIso8601String(),
     ]);
 });
+
+// Reverb sync: initial snapshot for a collection (live deltas arrive via the
+// CollectionChanged broadcast on the channel).
+Route::get('/collections/{name}', [\App\Http\Controllers\Api\CollectionController::class, 'index'])
+    ->middleware('auth:web,sanctum')
+    ->name('api.collections.index');
 
 // Authentication routes (no auth required)
 Route::prefix('auth')->group(function () {
@@ -114,6 +124,20 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/workers', [WorkerController::class, 'index']);
     Route::get('/workers/{worker}', [WorkerController::class, 'show']);
 
+    // Employee activities — tachograph-style day/team/month timelines
+    Route::get('/employee-activities/types', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'types']);
+    Route::get('/employee-activities/team-day', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'teamDay']);
+    Route::get('/workers/{worker}/day-plan', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'dayPlan']);
+    Route::get('/workers/{worker}/month-plan', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'monthPlan']);
+    Route::get('/employee-activities', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'index']);
+    Route::get('/employee-activities/{employeeActivity}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'show']);
+    Route::post('/employee-activities', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'store']);
+    Route::patch('/employee-activities/{employeeActivity}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'update']);
+    Route::delete('/employee-activities/{employeeActivity}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'destroy']);
+    Route::post('/employee-activity-custom-types', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'storeCustomType']);
+    Route::patch('/employee-activity-custom-types/{employeeActivityCustomType}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'updateCustomType']);
+    Route::delete('/employee-activity-custom-types/{employeeActivityCustomType}', [\App\Http\Controllers\Api\V1\EmployeeActivityController::class, 'destroyCustomType']);
+
     // ISA-95 Personnel Classes — read for any authenticated user
     Route::get('/personnel-classes', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'index']);
     Route::get('/personnel-classes/{personnel_class}', [\App\Http\Controllers\Api\V1\PersonnelClassController::class, 'show']);
@@ -125,9 +149,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/divisions/{division}', [DivisionController::class, 'show']);
     Route::get('/lines/{line}/statuses', [LineStatusController::class, 'index']);
 
-    // ISA-95 equipment hierarchy — sites & areas
-    Route::apiResource('sites', \App\Http\Controllers\Api\V1\SiteController::class)->only(['index', 'show']);
-    Route::apiResource('areas', \App\Http\Controllers\Api\V1\AreaController::class)->only(['index', 'show']);
+    // ISA-95 equipment hierarchy — sites & areas. Read for any authenticated
+    // user; mutations gated by Site/Area policies (admin in practice).
+    Route::apiResource('sites', \App\Http\Controllers\Api\V1\SiteController::class)
+        ->only(['index', 'show', 'store', 'update', 'destroy']);
+    Route::apiResource('areas', \App\Http\Controllers\Api\V1\AreaController::class)
+        ->only(['index', 'show', 'store', 'update', 'destroy']);
 
     // Ops support — read for any auth user
     Route::get('/companies', [CompanyController::class, 'index']);
@@ -136,6 +163,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/cost-sources/{cost_source}', [CostSourceController::class, 'show']);
     Route::get('/anomaly-reasons', [AnomalyReasonController::class, 'index']);
     Route::get('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'show']);
+    Route::get('/scrap-reasons', [ScrapReasonController::class, 'index']);
+    Route::get('/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'show']);
     Route::get('/subassemblies', [SubassemblyController::class, 'index']);
     Route::get('/subassemblies/{subassembly}', [SubassemblyController::class, 'show']);
     Route::get('/shifts', [ShiftController::class, 'index']);
@@ -190,6 +219,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/inspections', [InspectionController::class, 'store']);
     Route::patch('/inspections/{inspection}/results/{result}', [InspectionController::class, 'recordResult']);
     Route::post('/inspections/{inspection}/complete', [InspectionController::class, 'complete']);
+    Route::post('/inspections/{inspection}/disposition', [InspectionController::class, 'disposition']);
 
     // Tools — read for any authenticated user
     Route::get('/tools', [ToolController::class, 'index']);
@@ -203,6 +233,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/maintenance-events/{maintenance_event}/complete', [MaintenanceEventController::class, 'complete']);
     Route::post('/maintenance-events/{maintenance_event}/cancel', [MaintenanceEventController::class, 'cancel']);
 
+    // Maintenance Schedules (recurring) — read for any auth user; admin gate
+    // applied below for store/update/destroy/generate-now.
+    Route::get('/maintenance-schedules', [MaintenanceScheduleController::class, 'index']);
+    Route::get('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'show']);
+
     // Production Anomalies (operators can create + edit own draft; admins/supers manage)
     Route::get('/production-anomalies', [ProductionAnomalyController::class, 'index']);
     Route::get('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'show']);
@@ -210,6 +245,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::patch('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'update']);
     Route::delete('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'destroy']);
     Route::post('/production-anomalies/{productionAnomaly}/process', [ProductionAnomalyController::class, 'process']);
+
+    // Scrap entries (operators can record against a work order; admins/supers manage)
+    Route::get('/scrap-entries', [ScrapEntryController::class, 'index']);
+    Route::get('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'show']);
+    Route::get('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'forWorkOrder']);
+    Route::post('/work-orders/{workOrder}/scrap-entries', [ScrapEntryController::class, 'store']);
+    Route::patch('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'update']);
+    Route::delete('/scrap-entries/{scrapEntry}', [ScrapEntryController::class, 'destroy']);
 
     // Additional Costs (admin/supervisor only — policy enforced)
     Route::get('/work-orders/{workOrder}/additional-costs', [AdditionalCostController::class, 'index']);
@@ -226,18 +269,24 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // Connectivity (Admin-only — policy enforced)
     Route::get('/connectivity/connections', [ConnectivityController::class, 'listConnections']);
+    Route::post('/connectivity/connections', [ConnectivityController::class, 'storeConnection']);
     Route::get('/connectivity/connections/{machineConnection}', [ConnectivityController::class, 'showConnection']);
+    Route::patch('/connectivity/connections/{machineConnection}', [ConnectivityController::class, 'updateConnection']);
     Route::get('/connectivity/connections/{machineConnection}/mqtt', [ConnectivityController::class, 'showMqttSettings']);
     Route::delete('/connectivity/connections/{machineConnection}', [ConnectivityController::class, 'deleteConnection']);
     Route::post('/connectivity/connections/{machineConnection}/toggle-active', [ConnectivityController::class, 'toggleConnectionActive']);
 
     Route::get('/connectivity/topics', [ConnectivityController::class, 'listTopics']);
+    Route::post('/connectivity/topics', [ConnectivityController::class, 'storeTopic']);
     Route::get('/connectivity/topics/{machineTopic}', [ConnectivityController::class, 'showTopic']);
+    Route::patch('/connectivity/topics/{machineTopic}', [ConnectivityController::class, 'updateTopic']);
     Route::delete('/connectivity/topics/{machineTopic}', [ConnectivityController::class, 'deleteTopic']);
     Route::post('/connectivity/topics/{machineTopic}/toggle-active', [ConnectivityController::class, 'toggleTopicActive']);
 
     Route::get('/connectivity/mappings', [ConnectivityController::class, 'listMappings']);
+    Route::post('/connectivity/mappings', [ConnectivityController::class, 'storeMapping']);
     Route::get('/connectivity/mappings/{topicMapping}', [ConnectivityController::class, 'showMapping']);
+    Route::patch('/connectivity/mappings/{topicMapping}', [ConnectivityController::class, 'updateMapping']);
     Route::delete('/connectivity/mappings/{topicMapping}', [ConnectivityController::class, 'deleteMapping']);
 
     Route::get('/connectivity/messages', [ConnectivityController::class, 'listMessages']);
@@ -254,6 +303,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/system/modules/{name}/disable', [SystemController::class, 'disableModule']);
 
     Route::get('/system/schedule', [SystemController::class, 'schedule']);
+    Route::get('/system/dashboard-widgets', [SystemController::class, 'dashboardWidgets']);
     Route::get('/system/alerts', [SystemController::class, 'alerts']);
     Route::get('/system/alerts/counts', [SystemController::class, 'alertsCounts']);
     Route::get('/system/update-check', [SystemController::class, 'updateCheck']);
@@ -365,6 +415,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'update']);
         Route::delete('/anomaly-reasons/{anomaly_reason}', [AnomalyReasonController::class, 'destroy']);
 
+        // Scrap reasons
+        Route::post('/scrap-reasons', [ScrapReasonController::class, 'store']);
+        Route::match(['put', 'patch'], '/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'update']);
+        Route::delete('/scrap-reasons/{scrapReason}', [ScrapReasonController::class, 'destroy']);
+
         // Subassemblies
         Route::post('/subassemblies', [SubassemblyController::class, 'store']);
         Route::patch('/subassemblies/{subassembly}', [SubassemblyController::class, 'update']);
@@ -394,6 +449,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         // Inspection plans — admin mutations
         Route::post('/inspection-plans', [InspectionPlanController::class, 'store']);
         Route::patch('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'update']);
+        Route::post('/inspection-plans/{inspectionPlan}/publish', [InspectionPlanController::class, 'publish']);
         Route::delete('/inspection-plans/{inspectionPlan}', [InspectionPlanController::class, 'destroy']);
 
         // BOM Items — admin mutations
@@ -415,6 +471,19 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::post('/maintenance-events', [MaintenanceEventController::class, 'store']);
         Route::patch('/maintenance-events/{maintenance_event}', [MaintenanceEventController::class, 'update']);
         Route::delete('/maintenance-events/{maintenance_event}', [MaintenanceEventController::class, 'destroy']);
+
+        // Recurring maintenance schedules — Admin/Supervisor can create + edit
+        // + force-generate; only Admin can hard-delete (enforced by policy
+        // when one is added, kept here for symmetry with events for now).
+        Route::post('/maintenance-schedules', [MaintenanceScheduleController::class, 'store']);
+        Route::patch('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'update']);
+        Route::delete('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'destroy']);
+        Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [MaintenanceScheduleController::class, 'generateNow']);
+
+        // Schedule planner write — minute-level move / resize for work orders.
+        // Mirrors web Admin\SchedulePlannerController.updateOrder / resizeOrder.
+        Route::put('/schedule/{workOrder}', [ScheduleController::class, 'updateOrder']);
+        Route::put('/schedule/{workOrder}/resize', [ScheduleController::class, 'resizeOrder']);
     });
 
     // Work Orders
@@ -499,6 +568,13 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/event-logs', [EventLogController::class, 'index']);
         Route::get('/event-logs/entity', [EventLogController::class, 'entity']);
 
+        // System logs — app log tail, failed jobs (retry), deployments.
+        // Mirrors web Admin\SystemLogController.
+        Route::get('/system/logs/tail', [SystemLogController::class, 'tail']);
+        Route::get('/system/logs/failed-jobs', [SystemLogController::class, 'failedJobs']);
+        Route::post('/system/logs/failed-jobs/{uuid}/retry', [SystemLogController::class, 'retryFailedJob']);
+        Route::get('/system/logs/deployments', [SystemLogController::class, 'deployments']);
+
         // Users
         Route::get('/users', [UserController::class, 'index']);
         Route::get('/users/{user}', [UserController::class, 'show']);
@@ -530,18 +606,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/reports/production-summary', [ReportController::class, 'productionSummary']);
         Route::get('/reports/batch-completion', [ReportController::class, 'batchCompletion']);
         Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
+        Route::get('/reports/scrap-pareto', [ReportController::class, 'scrapPareto']);
+        Route::get('/reports/scrap-rate', [ReportController::class, 'scrapRate']);
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
     });
 
-    // Packaging
-    Route::prefix('packaging')->group(function () {
-        Route::post('/scan', [PackagingApiController::class, 'scan']);
-        Route::get('/items', [PackagingApiController::class, 'items']);
-        Route::get('/stats', [PackagingApiController::class, 'stats']);
-        Route::get('/scan-logs', [PackagingApiController::class, 'scanLogs']);
-        Route::get('/eans', [PackagingApiController::class, 'listEans']);
-        Route::get('/eans/{workOrderEan}', [PackagingApiController::class, 'showEan']);
-        Route::post('/eans', [PackagingApiController::class, 'storeEan']);
-        Route::delete('/eans/{workOrderEan}', [PackagingApiController::class, 'destroyEan']);
-    });
+    // Packaging routes removed — module retired via
+    // 2026_05_23_234500_remove_packaging_from_modules_enabled migration.
 });

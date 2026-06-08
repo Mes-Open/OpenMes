@@ -7,6 +7,7 @@ use App\Models\MachineConnection;
 use App\Models\MachineMessage;
 use App\Models\MqttConnection;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class MqttConnectionController extends Controller
 {
@@ -18,12 +19,26 @@ class MqttConnectionController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.connectivity.mqtt.index', compact('connections'));
+        return Inertia::render('admin/connectivity/mqtt/Index', [
+            'connections' => $connections->map(fn ($c) => [
+                'id'               => $c->id,
+                'name'             => $c->name,
+                'is_active'        => $c->is_active,
+                'status'           => $c->status,
+                'status_color'     => $c->statusColor(),
+                'topics_count'     => $c->topics_count,
+                'messages_received'=> $c->messages_received,
+                'last_connected_at'=> $c->last_connected_at?->diffForHumans(),
+                'mqtt_host'        => $c->mqttConnection?->broker_host,
+                'mqtt_port'        => $c->mqttConnection?->broker_port,
+                'mqtt_use_tls'     => $c->mqttConnection?->use_tls,
+            ]),
+        ]);
     }
 
     public function create()
     {
-        return view('admin.connectivity.mqtt.create');
+        return Inertia::render('admin/connectivity/mqtt/Create');
     }
 
     public function store(Request $request)
@@ -83,7 +98,7 @@ class MqttConnectionController extends Controller
     {
         $mqttConnection->load([
             'mqttConnection',
-            'topics.activeMappings',
+            'topics.mappings',
         ]);
 
         $recentMessages = MachineMessage::where('machine_connection_id', $mqttConnection->id)
@@ -91,16 +106,78 @@ class MqttConnectionController extends Controller
             ->limit(50)
             ->get();
 
-        return view('admin.connectivity.mqtt.show', [
-            'connection'     => $mqttConnection,
-            'recentMessages' => $recentMessages,
+        return Inertia::render('admin/connectivity/mqtt/Show', [
+            'connection' => [
+                'id'               => $mqttConnection->id,
+                'name'             => $mqttConnection->name,
+                'is_active'        => $mqttConnection->is_active,
+                'status'           => $mqttConnection->status,
+                'status_color'     => $mqttConnection->statusColor(),
+                'messages_received'=> $mqttConnection->messages_received,
+                'last_connected_at'=> $mqttConnection->last_connected_at?->diffForHumans(),
+                'mqtt' => $mqttConnection->mqttConnection ? [
+                    'broker_host' => $mqttConnection->mqttConnection->broker_host,
+                    'broker_port' => $mqttConnection->mqttConnection->broker_port,
+                    'use_tls'     => $mqttConnection->mqttConnection->use_tls,
+                    'qos_default' => $mqttConnection->mqttConnection->qos_default,
+                ] : null,
+                'topics' => $mqttConnection->topics->map(fn ($t) => [
+                    'id'             => $t->id,
+                    'topic_pattern'  => $t->topic_pattern,
+                    'payload_format' => $t->payload_format,
+                    'description'    => $t->description,
+                    'is_active'      => $t->is_active,
+                    'mappings'       => $t->mappings->map(fn ($m) => [
+                        'id'               => $m->id,
+                        'field_path'       => $m->field_path,
+                        'action_type'      => $m->action_type,
+                        'condition_expr'   => $m->condition_expr,
+                        'priority'         => $m->priority,
+                        'action_params'    => $m->action_params,
+                        'description'      => $m->description,
+                        'is_active'        => $m->is_active,
+                        'processing_error' => null,
+                    ])->values(),
+                ])->values(),
+            ],
+            'recentMessages' => $recentMessages->map(fn ($m) => [
+                'id'                => $m->id,
+                'topic'             => $m->topic,
+                'raw_payload'       => $m->raw_payload,
+                'processing_status' => $m->processing_status,
+                'processing_error'  => $m->processing_error,
+                'received_at'       => $m->received_at?->toIso8601String(),
+            ]),
+            'messagesUrl' => route('admin.connectivity.mqtt.messages', $mqttConnection),
         ]);
     }
 
     public function edit(MachineConnection $mqttConnection)
     {
         $mqttConnection->load(['mqttConnection', 'topics.mappings']);
-        return view('admin.connectivity.mqtt.edit', ['connection' => $mqttConnection]);
+
+        return Inertia::render('admin/connectivity/mqtt/Edit', [
+            'connection' => [
+                'id'          => $mqttConnection->id,
+                'name'        => $mqttConnection->name,
+                'description' => $mqttConnection->description,
+                'is_active'   => $mqttConnection->is_active,
+                'mqtt'        => $mqttConnection->mqttConnection ? [
+                    'broker_host'             => $mqttConnection->mqttConnection->broker_host,
+                    'broker_port'             => $mqttConnection->mqttConnection->broker_port,
+                    'client_id'               => $mqttConnection->mqttConnection->client_id,
+                    'username'                => $mqttConnection->mqttConnection->username,
+                    'use_tls'                 => $mqttConnection->mqttConnection->use_tls,
+                    'ca_cert'                 => $mqttConnection->mqttConnection->ca_cert,
+                    'qos_default'             => $mqttConnection->mqttConnection->qos_default,
+                    'keep_alive_seconds'      => $mqttConnection->mqttConnection->keep_alive_seconds,
+                    'connect_timeout'         => $mqttConnection->mqttConnection->connect_timeout,
+                    'reconnect_delay_seconds' => $mqttConnection->mqttConnection->reconnect_delay_seconds,
+                    'clean_session'           => $mqttConnection->mqttConnection->clean_session,
+                    'has_password'            => !empty($mqttConnection->mqttConnection->password_encrypted),
+                ] : null,
+            ],
+        ]);
     }
 
     public function update(Request $request, MachineConnection $mqttConnection)

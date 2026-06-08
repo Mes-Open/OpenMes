@@ -5,32 +5,16 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class CompanyController extends Controller
 {
     /**
      * Display a listing of companies.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = Company::orderBy('is_active', 'desc')
-            ->orderBy('name');
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('tax_id', 'like', "%{$search}%");
-            });
-        }
-
-        if ($type = $request->input('type')) {
-            $query->where('type', $type);
-        }
-
-        $companies = $query->paginate(25)->withQueryString();
-
-        return view('admin.companies.index', compact('companies'));
+        return Inertia::render('admin/companies/Index');
     }
 
     /**
@@ -38,7 +22,7 @@ class CompanyController extends Controller
      */
     public function create()
     {
-        return view('admin.companies.create');
+        return Inertia::render('admin/companies/Create');
     }
 
     /**
@@ -70,7 +54,9 @@ class CompanyController extends Controller
      */
     public function edit(Company $company)
     {
-        return view('admin.companies.edit', compact('company'));
+        return Inertia::render('admin/companies/Edit', [
+            'company' => $company->only('id', 'code', 'name', 'tax_id', 'type', 'email', 'phone', 'address', 'is_active'),
+        ]);
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Division;
 use App\Models\Factory;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class DivisionController extends Controller
 {
@@ -14,26 +15,14 @@ class DivisionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Division::with('factory')
-            ->withCount('crews')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = Division::withCount('crews')->get(['id'])
+            ->mapWithKeys(fn ($d) => [$d->id => $d->crews_count]);
+        $factoryNames = Factory::pluck('name', 'id');
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        if ($factoryId = $request->input('factory_id')) {
-            $query->where('factory_id', $factoryId);
-        }
-
-        $divisions = $query->paginate(25)->withQueryString();
-        $factories = Factory::orderBy('name')->get();
-
-        return view('admin.divisions.index', compact('divisions', 'factories'));
+        return Inertia::render('admin/divisions/Index', [
+            'counts' => $counts,
+            'factoryNames' => $factoryNames,
+        ]);
     }
 
     /**
@@ -41,9 +30,11 @@ class DivisionController extends Controller
      */
     public function create()
     {
-        $factories = Factory::active()->orderBy('name')->get();
+        $factories = Factory::active()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.divisions.create', compact('factories'));
+        return Inertia::render('admin/divisions/Create', [
+            'factories' => $factories,
+        ]);
     }
 
     /**
@@ -72,9 +63,12 @@ class DivisionController extends Controller
      */
     public function edit(Division $division)
     {
-        $factories = Factory::active()->orderBy('name')->get();
+        $factories = Factory::active()->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.divisions.edit', compact('division', 'factories'));
+        return Inertia::render('admin/divisions/Edit', [
+            'division' => $division->only('id', 'factory_id', 'code', 'name', 'description', 'is_active'),
+            'factories' => $factories,
+        ]);
     }
 
     /**

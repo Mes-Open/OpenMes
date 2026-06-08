@@ -3,29 +3,46 @@
 namespace App\Http\Controllers\Web\Admin\Connectivity;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Web\Admin\Connectivity\Concerns\ManagesMachineTags;
 use App\Models\MachineConnection;
-use App\Models\MachineTag;
 use App\Models\ModbusConnection;
-use App\Models\Workstation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class ModbusConnectionController extends Controller
 {
+    use ManagesMachineTags;
+
     public function index()
     {
         $connections = MachineConnection::where('protocol', MachineConnection::PROTOCOL_MODBUS)
-            ->with(['modbusConnection', 'tags'])
+            ->with('modbusConnection')
+            ->withCount('tags')
             ->orderBy('name')
             ->get();
 
-        return view('admin.connectivity.modbus.index', compact('connections'));
+        return Inertia::render('admin/connectivity/modbus/Index', [
+            'connections' => $connections->map(fn ($c) => [
+                'id'                => $c->id,
+                'name'              => $c->name,
+                'description'       => $c->description,
+                'is_active'         => $c->is_active,
+                'status'            => $c->status,
+                'status_color'      => $c->statusColor(),
+                'tags_count'        => $c->tags_count,
+                'host'              => $c->modbusConnection?->host,
+                'port'              => $c->modbusConnection?->port,
+                'unit_id'           => $c->modbusConnection?->unit_id,
+                'last_connected_at' => $c->last_connected_at?->diffForHumans(),
+            ]),
+        ]);
     }
 
     public function create()
     {
-        return view('admin.connectivity.modbus.create', [
-            'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(),
+        return Inertia::render('admin/connectivity/modbus/Create', [
+            'workstations' => $this->workstationOptions(),
         ]);
     }
 
@@ -33,7 +50,7 @@ class ModbusConnectionController extends Controller
     {
         $data = $this->validateData($request);
 
-        DB::transaction(function () use ($data) {
+        DB::transaction(function () use ($data, $request) {
             $connection = MachineConnection::create([
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
@@ -62,11 +79,30 @@ class ModbusConnectionController extends Controller
     {
         abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_MODBUS, 404);
         $machineConnection->load(['modbusConnection', 'tags.workstation']);
+        $modbus = $machineConnection->modbusConnection;
 
-        return view('admin.connectivity.modbus.show', [
-            'connection' => $machineConnection,
-            'workstations' => Workstation::with('line:id,name')->orderBy('name')->get(),
-            'runtime' => app(\App\Services\Machine\RuntimeMonitor::class)->connectionRuntime($machineConnection),
+        return Inertia::render('admin/connectivity/modbus/Show', [
+            'connection' => [
+                'id'           => $machineConnection->id,
+                'name'         => $machineConnection->name,
+                'description'  => $machineConnection->description,
+                'is_active'    => $machineConnection->is_active,
+                'status'         => $machineConnection->status,
+                'status_color'   => $machineConnection->statusColor(),
+                'status_message' => $machineConnection->status_message,
+                'modbus'       => $modbus ? [
+                    'host'             => $modbus->host,
+                    'port'             => $modbus->port,
+                    'unit_id'          => $modbus->unit_id,
+                    'poll_interval_ms' => $modbus->poll_interval_ms,
+                    'timeout_seconds'  => $modbus->timeout_seconds,
+                    'byte_order'       => $modbus->byte_order,
+                    'word_order'       => $modbus->word_order,
+                ] : null,
+                'tags' => $machineConnection->tags->map(fn ($t) => $this->mapTag($t))->values(),
+            ],
+            'workstations' => $this->workstationOptions(),
+            'runtime'      => app(\App\Services\Machine\RuntimeMonitor::class)->connectionRuntime($machineConnection),
         ]);
     }
 
@@ -74,8 +110,25 @@ class ModbusConnectionController extends Controller
     {
         abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_MODBUS, 404);
         $machineConnection->load('modbusConnection');
+        $modbus = $machineConnection->modbusConnection;
 
-        return view('admin.connectivity.modbus.edit', ['connection' => $machineConnection]);
+        return Inertia::render('admin/connectivity/modbus/Edit', [
+            'connection' => [
+                'id'          => $machineConnection->id,
+                'name'        => $machineConnection->name,
+                'description' => $machineConnection->description,
+                'is_active'   => $machineConnection->is_active,
+                'modbus'      => $modbus ? [
+                    'host'             => $modbus->host,
+                    'port'             => $modbus->port,
+                    'unit_id'          => $modbus->unit_id,
+                    'poll_interval_ms' => $modbus->poll_interval_ms,
+                    'timeout_seconds'  => $modbus->timeout_seconds,
+                    'byte_order'       => $modbus->byte_order,
+                    'word_order'       => $modbus->word_order,
+                ] : null,
+            ],
+        ]);
     }
 
     public function update(Request $request, MachineConnection $machineConnection)
@@ -113,7 +166,7 @@ class ModbusConnectionController extends Controller
             ->with('success', __('Modbus connection deleted.'));
     }
 
-    /** Add a tag to a connection. */
+    /** Add a tag to a connection (register_type is required for Modbus). */
     public function storeTag(Request $request, MachineConnection $machineConnection)
     {
         abort_unless($machineConnection->protocol === MachineConnection::PROTOCOL_MODBUS, 404);
@@ -129,44 +182,9 @@ class ModbusConnectionController extends Controller
             'scale' => ['nullable', 'numeric'],
         ]);
 
-        $transform = [];
-        if (! empty($data['value_map'])) {
-            // "1=RUNNING,2=IDLE,3=FAULT" → map
-            $map = [];
-            foreach (explode(',', $data['value_map']) as $pair) {
-                [$k, $v] = array_pad(explode('=', trim($pair), 2), 2, null);
-                if ($k !== null && $v !== null) {
-                    $map[trim($k)] = trim($v);
-                }
-            }
-            if ($map) {
-                $transform['value_map'] = $map;
-            }
-        }
-        if (isset($data['scale'])) {
-            $transform['scale'] = (float) $data['scale'];
-        }
-
-        MachineTag::create([
-            'machine_connection_id' => $machineConnection->id,
-            'workstation_id' => $data['workstation_id'] ?? null,
-            'name' => $data['name'],
-            'address' => $data['address'],
-            'signal_type' => $data['signal_type'],
-            'data_type' => $data['data_type'],
-            'register_type' => $data['register_type'],
-            'transform' => $transform ?: null,
-        ]);
+        $this->createTag($machineConnection, $data, $data['register_type']);
 
         return back()->with('success', __('Tag added.'));
-    }
-
-    public function destroyTag(MachineConnection $machineConnection, MachineTag $tag)
-    {
-        abort_unless($tag->machine_connection_id === $machineConnection->id, 404);
-        $tag->delete();
-
-        return back()->with('success', __('Tag removed.'));
     }
 
     private function validateData(Request $request): array
