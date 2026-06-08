@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreWorkerRequest;
+use App\Http\Requests\UpdateWorkerRequest;
 use App\Models\Crew;
 use App\Models\PersonnelClass;
 use App\Models\Skill;
 use App\Models\WageGroup;
 use App\Models\Worker;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class WorkerController extends Controller
 {
@@ -17,33 +20,11 @@ class WorkerController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Worker::with(['crew', 'wageGroup', 'personnelClass'])
-            ->withCount('skills')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
-
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-
-        if ($crewId = $request->input('crew_id')) {
-            $query->where('crew_id', $crewId);
-        }
-
-        if ($wageGroupId = $request->input('wage_group_id')) {
-            $query->where('wage_group_id', $wageGroupId);
-        }
-
-        $workers          = $query->paginate(25)->withQueryString();
-        $crews            = Crew::orderBy('name')->get();
-        $wageGroups       = WageGroup::orderBy('name')->get();
-        $personnelClasses = PersonnelClass::orderBy('name')->get();
-
-        return view('admin.workers.index', compact('workers', 'crews', 'wageGroups', 'personnelClasses'));
+        return Inertia::render('admin/workers/Index', [
+            'crewNames' => Crew::pluck('name', 'id'),
+            'wageGroupNames' => WageGroup::pluck('name', 'id'),
+            'personnelClassNames' => PersonnelClass::pluck('name', 'id'),
+        ]);
     }
 
     /**
@@ -54,9 +35,45 @@ class WorkerController extends Controller
         $worker->load(['crew', 'wageGroup', 'personnelClass', 'skills']);
         $skills = Skill::orderBy('name')->get();
 
-        return view('admin.workers.show', [
-            'worker' => $worker,
-            'skills' => $skills,
+        $today = now()->startOfDay()->toDateString();
+        $soonCut = now()->copy()->addDays(30)->startOfDay()->toDateString();
+
+        $certifications = $worker->skills->map(function ($skill) use ($today, $soonCut) {
+            $until = $skill->pivot->certified_until;
+            $status = 'valid';
+            if ($until) {
+                if ($until < $today) {
+                    $status = 'expired';
+                } elseif ($until <= $soonCut) {
+                    $status = 'expiring';
+                }
+            }
+
+            return [
+                'skill_id' => $skill->id,
+                'skill_name' => $skill->name,
+                'skill_code' => $skill->code,
+                'cert_level' => $skill->pivot->cert_level ?? 'operator',
+                'certified_from' => $skill->pivot->certified_from,
+                'certified_until' => $skill->pivot->certified_until,
+                'cert_notes' => $skill->pivot->cert_notes,
+                'status' => $status,
+            ];
+        });
+
+        return Inertia::render('admin/workers/Show', [
+            'worker' => [
+                'id' => $worker->id,
+                'code' => $worker->code,
+                'name' => $worker->name,
+                'email' => $worker->email,
+                'is_active' => $worker->is_active,
+                'crew' => $worker->crew ? ['name' => $worker->crew->name] : null,
+                'wageGroup' => $worker->wageGroup ? ['name' => $worker->wageGroup->name] : null,
+                'personnelClass' => $worker->personnelClass ? ['name' => $worker->personnelClass->name] : null,
+            ],
+            'certifications' => $certifications,
+            'skills' => $skills->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'code' => $s->code]),
             'levels' => PersonnelClass::LEVELS,
         ]);
     }
@@ -66,32 +83,20 @@ class WorkerController extends Controller
      */
     public function create()
     {
-        $crews            = Crew::active()->orderBy('name')->get();
-        $wageGroups       = WageGroup::active()->orderBy('name')->get();
-        $skills           = Skill::orderBy('name')->get();
-        $personnelClasses = PersonnelClass::active()->orderBy('name')->get();
-
-        return view('admin.workers.create', compact('crews', 'wageGroups', 'skills', 'personnelClasses'));
+        return Inertia::render('admin/workers/Create', [
+            'crews' => Crew::active()->orderBy('name')->get(['id', 'name']),
+            'wageGroups' => WageGroup::active()->orderBy('name')->get(['id', 'name']),
+            'personnelClasses' => PersonnelClass::active()->orderBy('name')->get(['id', 'name']),
+            'skills' => Skill::orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     /**
      * Store a newly created worker.
      */
-    public function store(Request $request)
+    public function store(StoreWorkerRequest $request)
     {
-        $validated = $request->validate([
-            'code'               => 'required|string|max:50|unique:workers',
-            'name'               => 'required|string|max:255',
-            'email'              => 'nullable|email|max:255',
-            'phone'              => 'nullable|string|max:50',
-            'crew_id'            => 'nullable|exists:crews,id',
-            'wage_group_id'      => 'nullable|exists:wage_groups,id',
-            'personnel_class_id' => 'nullable|exists:personnel_classes,id',
-            'is_active'          => 'boolean',
-            'skills'             => 'nullable|array',
-            'skills.*.id'        => 'required|exists:skills,id',
-            'skills.*.level'     => 'nullable|integer|min:1|max:5',
-        ]);
+        $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
@@ -111,32 +116,39 @@ class WorkerController extends Controller
     public function edit(Worker $worker)
     {
         $worker->load('skills');
-        $crews            = Crew::active()->orderBy('name')->get();
-        $wageGroups       = WageGroup::active()->orderBy('name')->get();
-        $skills           = Skill::orderBy('name')->get();
-        $personnelClasses = PersonnelClass::active()->orderBy('name')->get();
 
-        return view('admin.workers.edit', compact('worker', 'crews', 'wageGroups', 'skills', 'personnelClasses'));
+        return Inertia::render('admin/workers/Edit', [
+            'worker' => [
+                'id' => $worker->id,
+                'code' => $worker->code,
+                'name' => $worker->name,
+                'email' => $worker->email,
+                'phone' => $worker->phone,
+                'crew_id' => $worker->crew_id,
+                'wage_group_id' => $worker->wage_group_id,
+                'personnel_class_id' => $worker->personnel_class_id,
+                'pay_type' => $worker->pay_type,
+                'pay_rate' => $worker->pay_rate,
+                'pay_currency' => $worker->pay_currency,
+                'is_active' => $worker->is_active,
+                'skills' => $worker->skills->map(fn ($s) => [
+                    'id' => $s->id,
+                    'level' => $s->pivot->level ?? 1,
+                ]),
+            ],
+            'crews' => Crew::active()->orderBy('name')->get(['id', 'name']),
+            'wageGroups' => WageGroup::active()->orderBy('name')->get(['id', 'name']),
+            'personnelClasses' => PersonnelClass::active()->orderBy('name')->get(['id', 'name']),
+            'skills' => Skill::orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     /**
      * Update the specified worker.
      */
-    public function update(Request $request, Worker $worker)
+    public function update(UpdateWorkerRequest $request, Worker $worker)
     {
-        $validated = $request->validate([
-            'code'               => 'required|string|max:50|unique:workers,code,' . $worker->id,
-            'name'               => 'required|string|max:255',
-            'email'              => 'nullable|email|max:255',
-            'phone'              => 'nullable|string|max:50',
-            'crew_id'            => 'nullable|exists:crews,id',
-            'wage_group_id'      => 'nullable|exists:wage_groups,id',
-            'personnel_class_id' => 'nullable|exists:personnel_classes,id',
-            'is_active'          => 'boolean',
-            'skills'             => 'nullable|array',
-            'skills.*.id'        => 'required|exists:skills,id',
-            'skills.*.level'     => 'nullable|integer|min:1|max:5',
-        ]);
+        $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active');
 
@@ -186,20 +198,20 @@ class WorkerController extends Controller
     public function attachSkill(Request $request, Worker $worker)
     {
         $validated = $request->validate([
-            'skill_id'        => 'required|exists:skills,id',
-            'cert_level'      => 'required|in:trainee,operator,expert,trainer',
-            'certified_from'  => 'nullable|date',
+            'skill_id' => 'required|exists:skills,id',
+            'cert_level' => 'required|in:trainee,operator,expert,trainer',
+            'certified_from' => 'nullable|date',
             'certified_until' => 'nullable|date|after_or_equal:certified_from',
-            'cert_notes'      => 'nullable|string|max:1000',
+            'cert_notes' => 'nullable|string|max:1000',
         ]);
 
         $worker->skills()->syncWithoutDetaching([
             $validated['skill_id'] => [
-                'cert_level'      => $validated['cert_level'],
-                'certified_from'  => $validated['certified_from'] ?? now()->toDateString(),
+                'cert_level' => $validated['cert_level'],
+                'certified_from' => $validated['certified_from'] ?? now()->toDateString(),
                 'certified_until' => $validated['certified_until'] ?? null,
                 'certified_by_id' => $request->user()?->id,
-                'cert_notes'      => $validated['cert_notes'] ?? null,
+                'cert_notes' => $validated['cert_notes'] ?? null,
             ],
         ]);
 

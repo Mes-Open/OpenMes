@@ -5,28 +5,23 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\WorkstationType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class WorkstationTypeController extends Controller
 {
     /**
-     * Display a listing of workstation types.
+     * Display a listing of workstation types. Rows live-sync via the
+     * `workstation_types` shape; workstation counts come as a prop.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = WorkstationType::withCount(['workstations', 'tools'])
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name');
+        $counts = WorkstationType::withCount('workstations')
+            ->get(['id'])
+            ->mapWithKeys(fn ($w) => [$w->id => $w->workstations_count]);
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
-            });
-        }
-
-        $workstationTypes = $query->paginate(25)->withQueryString();
-
-        return view('admin.workstation-types.index', compact('workstationTypes'));
+        return Inertia::render('admin/workstation-types/Index', [
+            'counts' => $counts,
+        ]);
     }
 
     /**
@@ -34,7 +29,7 @@ class WorkstationTypeController extends Controller
      */
     public function create()
     {
-        return view('admin.workstation-types.create');
+        return Inertia::render('admin/workstation-types/Create');
     }
 
     /**
@@ -62,7 +57,9 @@ class WorkstationTypeController extends Controller
      */
     public function edit(WorkstationType $workstationType)
     {
-        return view('admin.workstation-types.edit', compact('workstationType'));
+        return Inertia::render('admin/workstation-types/Edit', [
+            'workstationType' => $workstationType->only('id', 'code', 'name', 'description', 'is_active'),
+        ]);
     }
 
     /**

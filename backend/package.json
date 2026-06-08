@@ -4,10 +4,12 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "watch": "WATCH_POLL=1 vite build --watch"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
+        "@vitejs/plugin-react": "^4.7.0",
         "axios": "^1.11.0",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^2.0.0",
@@ -15,8 +17,15 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "@inertiajs/react": "^3.3.0",
+        "@tanstack/db": "^0.6.7",
+        "@tanstack/react-db": "^0.1.85",
         "alpinejs": "^3.15.8",
-        "chart.js": "^4.5.1"
+        "chart.js": "^4.5.1",
+        "laravel-echo": "^2.3.7",
+        "pusher-js": "^8.5.0",
+        "react": "^19.2.6",
+        "react-dom": "^19.2.6"
     },
     "overrides": {
         "rollup": "^4.29.1",

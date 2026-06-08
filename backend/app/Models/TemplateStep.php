@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TemplateStep extends Model
 {
@@ -56,6 +57,14 @@ class TemplateStep extends Model
     public function processSegment(): BelongsTo
     {
         return $this->belongsTo(ProcessSegment::class);
+    }
+
+    /**
+     * Reference photo(s) attached to this specific step. Currently one per step.
+     */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(ProcessTemplatePhoto::class);
     }
 
     /**

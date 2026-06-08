@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class SettingsController extends Controller
@@ -19,7 +21,14 @@ class SettingsController extends Controller
      */
     public function index()
     {
-        return view('settings.index');
+        $pinSetting = DB::table('system_settings')->where('key', 'pin_login_enabled')->first();
+        $pinLoginEnabled = json_decode($pinSetting->value ?? 'false', true) === true;
+
+        return Inertia::render('settings/Index', [
+            'pinLoginEnabled' => $pinLoginEnabled,
+            'hasPin' => ! empty(auth()->user()->pin),
+            'twoFactorEnabled' => (bool) auth()->user()->two_factor_enabled,
+        ]);
     }
 
     /**
@@ -27,7 +36,7 @@ class SettingsController extends Controller
      */
     public function showChangePasswordForm()
     {
-        return view('settings.change-password');
+        return Inertia::render('settings/ChangePassword');
     }
 
     /**
@@ -62,7 +71,7 @@ class SettingsController extends Controller
      */
     public function showProfileForm()
     {
-        return view('settings.profile');
+        return Inertia::render('settings/Profile');
     }
 
     /**
@@ -109,9 +118,26 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none',
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1,
             'scanner_mode' => json_decode($rows['scanner_mode']->value ?? '"hid"', true) ?? 'hid',
+            'standard_weekly_hours' => json_decode($rows['standard_weekly_hours']->value ?? '40', true) ?? 40,
+            'default_currency' => json_decode($rows['default_currency']->value ?? '"PLN"', true) ?? 'PLN',
+            'default_pay_type' => json_decode($rows['default_pay_type']->value ?? '"hourly"', true) ?? 'hourly',
+            'default_pay_rate' => json_decode($rows['default_pay_rate']->value ?? 'null', true),
         ];
 
-        return view('settings.system', compact('settings'));
+        // Same source as the validation rule and the language switcher.
+        $availableLocales = config('app.available_locales', ['en' => 'English']);
+
+        // Append CORS fields not in the standard settings map (they may exist in DB)
+        $corsRow = DB::table('system_settings')->where('key', 'cors_allowed_methods')->first();
+        $settings['cors_allowed_methods'] = json_decode($corsRow->value ?? '"GET, POST"', true) ?? 'GET, POST';
+        $corsMaxRow = DB::table('system_settings')->where('key', 'cors_max_age')->first();
+        $settings['cors_max_age'] = json_decode($corsMaxRow->value ?? '0', true) ?? 0;
+
+        return Inertia::render('settings/System', [
+            'settings' => $settings,
+            'availableLocales' => $availableLocales,
+            'appUrl' => config('app.url'),
+        ]);
     }
 
     /**
@@ -131,7 +157,7 @@ class SettingsController extends Controller
 
         $hasPin = ! empty(auth()->user()->pin);
 
-        return view('settings.pin', compact('hasPin'));
+        return Inertia::render('settings/Pin', compact('hasPin'));
     }
 
     /**
@@ -190,9 +216,21 @@ class SettingsController extends Controller
         $tokens = PersonalAccessToken::where('tokenable_type', 'App\Models\User')
             ->with('tokenable')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'tokenable_name' => $t->tokenable?->name ?? 'Unknown',
+                'created_at_formatted' => $t->created_at->translatedFormat('d M Y, H:i'),
+                'last_used_at_human' => $t->last_used_at?->diffForHumans(),
+            ]);
 
-        return view('settings.api-tokens', compact('tokens'));
+        return Inertia::render('settings/ApiTokens', [
+            'tokens' => $tokens,
+            'newToken' => session('new_token'),
+            'newTokenName' => session('new_token_name'),
+            'appUrl' => config('app.url'),
+        ]);
     }
 
     /**
@@ -251,12 +289,13 @@ class SettingsController extends Controller
             'workstation_routing_enabled' => 'nullable|boolean',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
-            'language' => 'nullable|in:en,pl,tr',
+            // Single source of truth — the language switcher's configured locales.
+            'language' => ['nullable', Rule::in(array_keys(config('app.available_locales', [])))],
             'schedule_view_mode' => 'required|in:weekly,daily,monthly',
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
             'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
             'schedule_show_weekends' => 'nullable|boolean',
-            'realtime_mode' => 'required|in:polling,websocket',
+            'realtime_mode' => 'required|in:polling,off',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
             'cors_allowed_origins' => 'nullable|string|max:1000',
             'cors_allowed_methods' => 'nullable|string|max:200',
@@ -264,6 +303,10 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
             'scanner_mode' => 'required|in:hid,manual',
+            'standard_weekly_hours' => 'nullable|numeric|min:1|max:168',
+            'default_currency' => 'nullable|string|size:3',
+            'default_pay_type' => 'nullable|in:hourly,weekly,piece_rate',
+            'default_pay_rate' => 'nullable|numeric|min:0',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -290,7 +333,18 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
             'scanner_mode' => $validated['scanner_mode'],
+            'standard_weekly_hours' => (float) ($validated['standard_weekly_hours'] ?? 40),
+            'default_currency' => strtoupper($validated['default_currency'] ?? 'PLN'),
+            'default_pay_type' => $validated['default_pay_type'] ?? 'hourly',
+            'default_pay_rate' => isset($validated['default_pay_rate']) && $validated['default_pay_rate'] !== null
+                ? (float) $validated['default_pay_rate']
+                : null,
         ];
+
+        $previousLanguage = json_decode(
+            DB::table('system_settings')->where('key', 'language')->value('value') ?? 'null',
+            true
+        );
 
         foreach ($map as $key => $value) {
             DB::table('system_settings')->updateOrInsert(
@@ -300,6 +354,13 @@ class SettingsController extends Controller
         }
 
         Cache::forget('cors_allowed_origins');
+
+        // Only realign the session locale when the language actually changed,
+        // so saving an unrelated setting does not clobber a per-session
+        // language the user picked via the switcher.
+        if ($map['language'] !== $previousLanguage) {
+            $request->session()->put('locale', $map['language']);
+        }
 
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');
@@ -326,7 +387,7 @@ class SettingsController extends Controller
 
         foreach ($tables as $table) {
             try {
-                $export[$table] = DB::table($table)->get()->map(fn($r) => (array) $r)->toArray();
+                $export[$table] = DB::table($table)->get()->map(fn ($r) => (array) $r)->toArray();
             } catch (\Exception $e) {
                 // table may not exist yet
             }
@@ -337,7 +398,7 @@ class SettingsController extends Controller
         foreach ($optionalTables as $table) {
             try {
                 if (Schema::hasTable($table)) {
-                    $export[$table] = DB::table($table)->get()->map(fn($r) => (array) $r)->toArray();
+                    $export[$table] = DB::table($table)->get()->map(fn ($r) => (array) $r)->toArray();
                 }
             } catch (\Exception $e) {
                 // table may not exist yet
@@ -345,7 +406,7 @@ class SettingsController extends Controller
         }
 
         return response()->json($export, 200, [
-            'Content-Disposition' => 'attachment; filename="openmes-config-' . date('Y-m-d') . '.json"',
+            'Content-Disposition' => 'attachment; filename="openmes-config-'.date('Y-m-d').'.json"',
         ]);
     }
 
@@ -367,7 +428,7 @@ class SettingsController extends Controller
             }
 
             // Backward compat: old format with just 'settings' key
-            if (isset($data['settings']) && !isset($data['system_settings'])) {
+            if (isset($data['settings']) && ! isset($data['system_settings'])) {
                 $data['system_settings'] = $data['settings'];
             }
 
@@ -388,7 +449,6 @@ class SettingsController extends Controller
                 'db_host', 'db_port', 'db_database', 'db_username', 'db_password', 'db_connection',
                 'mail_host', 'mail_port', 'mail_username', 'mail_password',
                 'cors_allowed_origins', 'cors_allowed_methods',
-                'reverb_app_id', 'reverb_app_key', 'reverb_app_secret',
                 'modules_enabled',
             ];
 
@@ -397,28 +457,45 @@ class SettingsController extends Controller
             DB::beginTransaction();
 
             foreach ($data as $tableName => $rows) {
-                if (!in_array($tableName, $allowedTables, true)) continue;
-                if (!is_array($rows)) continue;
-                if (!Schema::hasTable($tableName)) continue;
+                if (! in_array($tableName, $allowedTables, true)) {
+                    continue;
+                }
+                if (! is_array($rows)) {
+                    continue;
+                }
+                if (! Schema::hasTable($tableName)) {
+                    continue;
+                }
 
                 if ($tableName === 'system_settings') {
                     // Special handling: key-value update, not replace
                     $existingKeys = DB::table('system_settings')->pluck('key')->toArray();
 
                     foreach ($rows as $key => $value) {
-                        if (in_array(strtolower($key), $forbiddenSettings, true)) continue;
-                        if (!is_string($value) && !is_numeric($value)) continue;
-                        if (strlen((string) $value) > 1000) continue;
-                        if (!in_array($key, $existingKeys, true)) continue;
+                        if (in_array(strtolower($key), $forbiddenSettings, true)) {
+                            continue;
+                        }
+                        if (! is_string($value) && ! is_numeric($value)) {
+                            continue;
+                        }
+                        if (strlen((string) $value) > 1000) {
+                            continue;
+                        }
+                        if (! in_array($key, $existingKeys, true)) {
+                            continue;
+                        }
 
                         DB::table('system_settings')->where('key', $key)->update(['value' => (string) $value]);
                         $imported++;
                     }
+
                     continue;
                 }
 
                 // For all other tables: upsert by unique key (code or name)
-                if (empty($rows)) continue;
+                if (empty($rows)) {
+                    continue;
+                }
 
                 // Determine unique key for upsert
                 $uniqueKey = match ($tableName) {
@@ -432,7 +509,9 @@ class SettingsController extends Controller
                 };
 
                 foreach ($rows as $row) {
-                    if (!is_array($row)) continue;
+                    if (! is_array($row)) {
+                        continue;
+                    }
 
                     $originalId = $row['id'] ?? null;
 
@@ -441,9 +520,11 @@ class SettingsController extends Controller
                         unset($row[$col]);
                     }
                     // Remove null values for columns that might not accept null
-                    $row = array_filter($row, fn($v) => $v !== null);
+                    $row = array_filter($row, fn ($v) => $v !== null);
 
-                    if (empty($row)) continue;
+                    if (empty($row)) {
+                        continue;
+                    }
 
                     try {
                         DB::statement('SAVEPOINT row_insert');
@@ -459,6 +540,7 @@ class SettingsController extends Controller
                         $imported++;
                     } catch (\Exception $e) {
                         DB::statement('ROLLBACK TO SAVEPOINT row_insert');
+
                         continue;
                     }
                 }
@@ -471,6 +553,7 @@ class SettingsController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             report($e);
+
             return back()->with('error', __('Failed to import settings. Please check the file and try again.'));
         }
     }

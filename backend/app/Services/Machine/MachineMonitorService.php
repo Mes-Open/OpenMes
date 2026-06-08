@@ -5,6 +5,7 @@ namespace App\Services\Machine;
 use App\Models\MachineEvent;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
+use Illuminate\Support\Collection;
 
 /**
  * Read model for the live machine monitor. Derives current state, today's
@@ -19,18 +20,37 @@ class MachineMonitorService
      */
     public function liveStatus(Workstation $workstation): array
     {
+        $dayStart = now()->startOfDay();
+
         $current = WorkstationState::where('workstation_id', $workstation->id)
             ->whereNull('ended_at')
             ->latest('started_at')
             ->first();
 
-        $dayStart = now()->startOfDay();
-
-        // Sum durations per state today (closed slices + the open one up to now).
         $slices = WorkstationState::where('workstation_id', $workstation->id)
             ->where('started_at', '>=', $dayStart)
             ->get();
 
+        $counters = MachineEvent::where('workstation_id', $workstation->id)
+            ->where('event_type', MachineEvent::TYPE_COUNTER)
+            ->where('event_timestamp', '>=', $dayStart)
+            ->get();
+
+        return $this->computeStatus($workstation, $current, $slices, $counters);
+    }
+
+    /**
+     * Compute a workstation's live status from already-fetched state slices and
+     * counter events. Shared by liveStatus() (single) and fleetStatus() (batched)
+     * so the aggregation logic lives in one place.
+     */
+    private function computeStatus(
+        Workstation $workstation,
+        ?WorkstationState $current,
+        Collection $slices,
+        Collection $counters,
+    ): array {
+        // Sum durations per state today (closed slices + the open one up to now).
         $runningSec = 0;
         $lossSec = 0;
         $totalSec = 0;
@@ -46,11 +66,6 @@ class MachineMonitorService
         }
 
         $availability = $totalSec > 0 ? round($runningSec / $totalSec * 100, 1) : null;
-
-        $counters = MachineEvent::where('workstation_id', $workstation->id)
-            ->where('event_type', MachineEvent::TYPE_COUNTER)
-            ->where('event_timestamp', '>=', $dayStart)
-            ->get();
 
         $good = 0;
         $reject = 0;
@@ -92,12 +107,48 @@ class MachineMonitorService
             ->distinct()
             ->pluck('workstation_id');
 
-        return Workstation::with('line:id,name')
+        if ($workstationIds->isEmpty()) {
+            return [];
+        }
+
+        $workstations = Workstation::with('line:id,name')
             ->whereIn('id', $workstationIds)
             ->orderBy('name')
+            ->get();
+
+        $dayStart = now()->startOfDay();
+
+        // Three batched queries for the whole fleet (instead of 3 per workstation),
+        // grouped by workstation_id for O(1) lookups in computeStatus().
+        $openStates = WorkstationState::whereIn('workstation_id', $workstationIds)
+            ->whereNull('ended_at')
             ->get()
-            ->map(fn (Workstation $w) => $this->liveStatus($w))
-            ->all();
+            ->groupBy('workstation_id');
+
+        $slices = WorkstationState::whereIn('workstation_id', $workstationIds)
+            ->where('started_at', '>=', $dayStart)
+            ->get()
+            ->groupBy('workstation_id');
+
+        $counters = MachineEvent::whereIn('workstation_id', $workstationIds)
+            ->where('event_type', MachineEvent::TYPE_COUNTER)
+            ->where('event_timestamp', '>=', $dayStart)
+            ->get()
+            ->groupBy('workstation_id');
+
+        return $workstations->map(function (Workstation $w) use ($openStates, $slices, $counters) {
+            // Mirror the single-row query's "latest open state" semantics.
+            $current = ($openStates->get($w->id) ?? collect())
+                ->sortByDesc('started_at')
+                ->first();
+
+            return $this->computeStatus(
+                $w,
+                $current,
+                $slices->get($w->id) ?? collect(),
+                $counters->get($w->id) ?? collect(),
+            );
+        })->all();
     }
 
     public function stateColor(string $state): string

@@ -146,6 +146,38 @@ class WorkOrder extends Model
     }
 
     /**
+     * Get the scrap entries reported against this work order.
+     */
+    public function scrapEntries(): HasMany
+    {
+        return $this->hasMany(ScrapEntry::class);
+    }
+
+    /**
+     * Manually-recorded additional costs booked against this work order.
+     */
+    public function additionalCosts(): HasMany
+    {
+        return $this->hasMany(AdditionalCost::class);
+    }
+
+    /**
+     * Employee time blocks (tachograph activities) attributed to this work order.
+     */
+    public function employeeActivities(): HasMany
+    {
+        return $this->hasMany(EmployeeActivity::class);
+    }
+
+    /**
+     * Material allocations (and their actual consumption) for this work order.
+     */
+    public function materialAllocations(): HasMany
+    {
+        return $this->hasMany(MaterialAllocation::class);
+    }
+
+    /**
      * Get the open blocking issues for this work order.
      */
     public function openBlockingIssues()
@@ -181,10 +213,48 @@ class WorkOrder extends Model
     }
 
     /**
-     * Scope to filter by status.
+     * Total scrap quantity reported against this work order.
+     *
+     * Reads from the loaded relation when available (avoids an extra query
+     * after eager loading) and otherwise aggregates in the database.
      */
-    public function scopeStatus($query, string $status)
+    public function totalScrapQty(): float
     {
+        if ($this->relationLoaded('scrapEntries')) {
+            return (float) $this->scrapEntries->sum('quantity');
+        }
+
+        return (float) $this->scrapEntries()->sum('quantity');
+    }
+
+    /**
+     * Quality metric for this work order: the share of produced units that
+     * were not scrapped, as a percentage. Scrap entries automatically pull
+     * this down. Returns null when nothing has been produced yet.
+     */
+    public function qualityPct(): ?float
+    {
+        $produced = (float) $this->produced_qty;
+
+        if ($produced <= 0) {
+            return null;
+        }
+
+        $good = max(0.0, $produced - $this->totalScrapQty());
+
+        return round(($good / $produced) * 100, 2);
+    }
+
+    /**
+     * Scope to filter by status. Accepts a single value or an array — mobile
+     * uses `?status[]=A&status[]=B` to match multiple statuses at once.
+     */
+    public function scopeStatus($query, string|array $status)
+    {
+        if (is_array($status)) {
+            return $query->whereIn('status', $status);
+        }
+
         return $query->where('status', $status);
     }
 

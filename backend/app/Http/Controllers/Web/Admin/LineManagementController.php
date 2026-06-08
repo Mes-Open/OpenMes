@@ -8,21 +8,27 @@ use App\Models\Line;
 use App\Models\LineStatus;
 use App\Models\ProductType;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class LineManagementController extends Controller
 {
     /**
-     * Display a listing of production lines
+     * Display a listing of production lines. Rows live-sync via the `lines_all`
+     * shape; area names + counts come as props. Advanced per-line config (view
+     * templates, statuses, operators, product types) stays on the show page.
      */
     public function index()
     {
-        $lines = Line::with('area.site')
-            ->withCount(['workstations', 'workOrders', 'users'])
-            ->orderBy('is_active', 'desc')
-            ->orderBy('name')
-            ->get();
+        $lines = Line::withCount(['workstations', 'workOrders', 'users'])->get(['id']);
 
-        return view('admin.lines.index', compact('lines'));
+        return Inertia::render('admin/lines/Index', [
+            'counts' => $lines->mapWithKeys(fn ($l) => [$l->id => [
+                'workstations' => $l->workstations_count,
+                'work_orders' => $l->work_orders_count,
+                'operators' => $l->users_count,
+            ]]),
+            'areaNames' => Area::pluck('name', 'id'),
+        ]);
     }
 
     /**
@@ -30,8 +36,16 @@ class LineManagementController extends Controller
      */
     public function create()
     {
-        $areas = Area::with('site')->active()->orderBy('name')->get();
-        return view('admin.lines.create', compact('areas'));
+        return Inertia::render('admin/lines/Create', [
+            'areas' => $this->areaOptions(),
+        ]);
+    }
+
+    /** Areas as {id, name (with site)} options for the line form. */
+    private function areaOptions(): \Illuminate\Support\Collection
+    {
+        return Area::with('site:id,name')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'site_id'])
+            ->map(fn ($a) => ['id' => $a->id, 'name' => $a->site ? "{$a->name} ({$a->site->name})" : $a->name]);
     }
 
     /**
@@ -56,31 +70,76 @@ class LineManagementController extends Controller
     }
 
     /**
-     * Display the specified line
+     * Display the specified line (configure page)
      */
     public function show(Line $line)
     {
-        $line->load(['workstations', 'users.roles', 'productTypes', 'viewColumns', 'viewTemplate']);
+        $line->load(['workstations', 'users', 'productTypes', 'viewColumns', 'viewTemplate']);
+        $line->loadCount(['workOrders', 'workstations', 'users']);
+
+        // work_orders has `order_no` (not work_order_number) and no product_name
+        // column — the product name comes from the productType relation.
         $workOrders = $line->workOrders()
+            ->with('productType:id,name')
             ->orderBy('created_at', 'desc')
             ->limit(10)
-            ->get();
+            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'status', 'created_at']);
 
         $availableOperators = \App\Models\User::role('Operator')
             ->whereNotIn('id', $line->users->pluck('id'))
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'name', 'username']);
 
         $lineStatuses      = LineStatus::forLine($line->id)->get();
-        $allProductTypes   = ProductType::active()->orderBy('name')->get();
+        $allProductTypes   = ProductType::active()->orderBy('name')->get(['id', 'code', 'name']);
         $assignedTypeIds   = $line->productTypes->pluck('id')->toArray();
         $viewColumns       = $line->viewColumns;
-        $allViewTemplates  = \App\Models\ViewTemplate::orderBy('name')->get();
+        $allViewTemplates  = \App\Models\ViewTemplate::orderBy('name')->get()->map(fn ($t) => [
+            'id'            => $t->id,
+            'name'          => $t->name,
+            'columns_count' => count($t->columns ?? []),
+        ]);
 
-        return view('admin.lines.show', compact(
-            'line', 'workOrders', 'availableOperators',
-            'lineStatuses', 'allProductTypes', 'assignedTypeIds', 'viewColumns', 'allViewTemplates'
-        ));
+        $effectiveWorkstations = $line->effectiveWorkstations();
+
+        return Inertia::render('admin/lines/Show', [
+            'line' => array_merge(
+                $line->only('id', 'code', 'name', 'description', 'is_active', 'default_operator_view', 'view_template_id'),
+                [
+                    'workstations_count' => $line->workstations_count,
+                    'work_orders_count'  => $line->work_orders_count,
+                    'users_count'        => $line->users_count,
+                    'users'              => $line->users->map(fn ($u) => $u->only('id', 'name', 'username'))->values(),
+                    'product_types'      => $line->productTypes->map(fn ($p) => $p->only('id', 'code', 'name'))->values(),
+                ]
+            ),
+            'workOrders'          => $workOrders->map(fn ($wo) => [
+                'id'                => $wo->id,
+                'work_order_number' => $wo->order_no,
+                'product_name'      => $wo->productType?->name,
+                'planned_qty'       => $wo->planned_qty,
+                'status'            => $wo->status,
+                'created_at'        => $wo->created_at,
+            ])->values(),
+            'availableOperators'  => $availableOperators->map(fn ($u) => $u->only('id', 'name', 'username'))->values(),
+            'lineStatuses'        => $lineStatuses->map(fn ($s) => [
+                'id'         => $s->id,
+                'name'       => $s->name,
+                'color'      => $s->color,
+                'is_default' => $s->is_default,
+                'line_id'    => $s->line_id,
+            ])->values(),
+            'allProductTypes'     => $allProductTypes->map(fn ($p) => $p->only('id', 'code', 'name'))->values(),
+            'assignedTypeIds'     => $assignedTypeIds,
+            'viewColumns'         => $viewColumns->map(fn ($c) => $c->only('id', 'label', 'key', 'source', 'sort_order'))->values(),
+            'allViewTemplates'    => $allViewTemplates->values(),
+            'effectiveWorkstations' => collect($effectiveWorkstations)->map(fn ($ws) => [
+                'id'           => $ws->id,
+                'name'         => $ws->name,
+                'code'         => $ws->code,
+                'is_line_itself' => $ws->is_line_itself ?? false,
+            ])->values(),
+        ]);
     }
 
     /**
@@ -88,8 +147,10 @@ class LineManagementController extends Controller
      */
     public function edit(Line $line)
     {
-        $areas = Area::with('site')->active()->orderBy('name')->get();
-        return view('admin.lines.edit', compact('line', 'areas'));
+        return Inertia::render('admin/lines/Edit', [
+            'line' => $line->only('id', 'code', 'name', 'description', 'area_id', 'is_active'),
+            'areas' => $this->areaOptions(),
+        ]);
     }
 
     /**

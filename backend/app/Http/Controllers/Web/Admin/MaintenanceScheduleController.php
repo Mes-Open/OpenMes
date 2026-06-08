@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Workstation;
 use App\Services\Maintenance\GenerateMaintenanceEvents;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class MaintenanceScheduleController extends Controller
 {
@@ -20,26 +21,11 @@ class MaintenanceScheduleController extends Controller
      */
     public function index(Request $request)
     {
-        $query = MaintenanceSchedule::query()
-            ->with(['tool', 'line', 'workstation', 'assignedTo'])
-            ->orderBy('is_active', 'desc')
-            ->orderBy('next_due_at');
-
-        if ($search = $request->input('search')) {
-            $query->where('name', 'like', "%{$search}%");
-        }
-
-        if ($frequency = $request->input('frequency')) {
-            $query->where('frequency', $frequency);
-        }
-
-        if ($request->filled('is_active')) {
-            $query->where('is_active', $request->input('is_active') === '1');
-        }
-
-        $schedules = $query->paginate(25)->withQueryString();
-
-        return view('admin.maintenance-schedules.index', compact('schedules'));
+        return Inertia::render('admin/maintenance-schedules/Index', [
+            'toolNames'        => Tool::pluck('name', 'id'),
+            'lineNames'        => Line::pluck('name', 'id'),
+            'workstationNames' => Workstation::pluck('name', 'id'),
+        ]);
     }
 
     /**
@@ -47,7 +33,14 @@ class MaintenanceScheduleController extends Controller
      */
     public function create()
     {
-        return view('admin.maintenance-schedules.create', $this->formData());
+        return Inertia::render('admin/maintenance-schedules/Create', [
+            'tools'        => Tool::orderBy('name')->get(['id', 'name']),
+            'lines'        => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
+            'costSources'  => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users'        => User::orderBy('name')->get(['id', 'name']),
+            'frequencies'  => MaintenanceSchedule::FREQUENCIES,
+        ]);
     }
 
     /**
@@ -71,10 +64,23 @@ class MaintenanceScheduleController extends Controller
      */
     public function edit(MaintenanceSchedule $maintenanceSchedule)
     {
-        return view('admin.maintenance-schedules.edit', array_merge(
-            $this->formData(),
-            ['schedule' => $maintenanceSchedule]
-        ));
+        return Inertia::render('admin/maintenance-schedules/Edit', [
+            'schedule' => $maintenanceSchedule->only(
+                'id', 'name', 'description', 'tool_id', 'line_id', 'workstation_id',
+                'event_type', 'assigned_to_id', 'cost_source_id', 'frequency',
+                'interval_value', 'lead_time_days', 'is_active',
+            ),
+            'preferred_time' => $maintenanceSchedule->preferred_time
+                ? substr($maintenanceSchedule->preferred_time, 0, 5)
+                : '',
+            'next_due_at'  => $maintenanceSchedule->next_due_at?->format('Y-m-d\TH:i'),
+            'tools'        => Tool::orderBy('name')->get(['id', 'name']),
+            'lines'        => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
+            'costSources'  => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users'        => User::orderBy('name')->get(['id', 'name']),
+            'frequencies'  => MaintenanceSchedule::FREQUENCIES,
+        ]);
     }
 
     /**

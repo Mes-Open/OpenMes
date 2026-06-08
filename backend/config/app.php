@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Default UTC keeps stored timestamps unambiguous; override per deployment
+    // (e.g. APP_TIMEZONE=Europe/Warsaw) so server-side date/time reflects the
+    // local plant. The frontend formats in this zone too — shared via Inertia.
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------
@@ -81,6 +84,15 @@ return [
     'locale' => env('APP_LOCALE', 'en'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+
+    // UI locales offered by the language switcher (code => display name). Must
+    // have a matching lang/<code>.json. Used by SetLocale middleware (validation)
+    // and shared to the React frontend via HandleInertiaRequests.
+    'available_locales' => [
+        'en' => 'English',
+        'pl' => 'Polski',
+        'tr' => 'Türkçe',
+    ],
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 

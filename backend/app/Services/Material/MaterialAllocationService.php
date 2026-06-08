@@ -154,6 +154,9 @@ class MaterialAllocationService
                     'status' => MaterialAllocation::STATUS_CONSUMED,
                     'consumed_qty' => $actualConsumed,
                     'consumed_at' => now(),
+                    // Snapshot the price so historical cost reports stay stable.
+                    'unit_price_snapshot' => $actualConsumed > 0 ? $allocation->material?->unit_price : null,
+                    'price_currency_snapshot' => $actualConsumed > 0 ? $allocation->material?->price_currency : null,
                 ]);
             }
         });
@@ -212,6 +215,9 @@ class MaterialAllocationService
         $allocation->update([
             'consumed_qty' => $actualConsumed,
             'scrap_qty' => $scrap,
+            // Snapshot the price so historical cost reports stay stable.
+            'unit_price_snapshot' => $actualConsumed > 0 ? $allocation->material?->unit_price : null,
+            'price_currency_snapshot' => $actualConsumed > 0 ? $allocation->material?->price_currency : null,
         ]);
 
         return $allocation->fresh();
@@ -261,6 +267,7 @@ class MaterialAllocationService
             } else {
                 $material->decrement('reserved_quantity', abs($deltaQty));
             }
+            \App\Sync\CollectionBroadcaster::flush($material); // increment/decrement bypass model events
 
             $allocation->update([
                 'allocated_qty' => (float) $allocation->allocated_qty + $deltaQty,
@@ -296,6 +303,7 @@ class MaterialAllocationService
                     ->first();
                 if ($existing) {
                     $allocations->push($existing);
+
                     continue;
                 }
 
@@ -325,6 +333,7 @@ class MaterialAllocationService
                     reason: 'Allocated to batch #'.$batch->id.($stepId ? ' (step '.$stepId.')' : ''),
                 );
                 $material->increment('reserved_quantity', $requiredQty);
+                \App\Sync\CollectionBroadcaster::flush($material); // increment bypasses model events
 
                 $newAllocation = MaterialAllocation::create([
                     'batch_id' => $batch->id,
@@ -357,6 +366,7 @@ class MaterialAllocationService
             return;
         }
         $material->decrement('reserved_quantity', $qty);
+        \App\Sync\CollectionBroadcaster::flush($material); // decrement bypasses model events
     }
 
     private function isStartItem(array $bomItem): bool

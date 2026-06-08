@@ -1,0 +1,58 @@
+import { Head, router, usePage } from '@inertiajs/react';
+import AppLayout from '../../../layouts/AppLayout';
+import ResourceTable from '../../../components/ResourceTable';
+
+export default function LotSequencesIndex() {
+    const { productTypeNames = {} } = usePage().props;
+
+    const columns = [
+        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
+        { key: 'product_type', label: 'Product Type', className: 'text-gray-600', render: (r) => productTypeNames[r.product_type_id] ?? 'Global' },
+        {
+            key: 'format',
+            label: 'Format',
+            className: 'font-mono text-gray-700',
+            render: (r) => r.pattern || r.prefix,
+        },
+        { key: 'next_number', label: 'Next #', className: 'text-gray-600' },
+        { key: 'pad_size', label: 'Pad', className: 'text-gray-600' },
+        {
+            key: 'reset_period',
+            label: 'Reset',
+            className: 'text-gray-600',
+            render: (r) => (r.reset_period && r.reset_period !== 'none' ? r.reset_period : '—'),
+        },
+    ];
+
+    const actions = (r) => [
+        { label: 'Edit', icon: 'edit', href: `/admin/lot-sequences/${r.id}/edit` },
+        {
+            label: 'Delete',
+            icon: 'delete',
+            variant: 'danger',
+            onClick: () => {
+                if (confirm(`Delete LOT sequence "${r.name}"?`)) {
+                    router.delete(`/admin/lot-sequences/${r.id}`, { preserveScroll: true });
+                }
+            },
+        },
+    ];
+
+    return (
+        <>
+            <Head title="LOT Sequences" />
+            <ResourceTable
+                shape="lot_sequences"
+                title="LOT Sequences"
+                createHref="/admin/lot-sequences/create"
+                createLabel="+ New Sequence"
+                columns={columns}
+                orderBy="name"
+                actions={actions}
+                emptyText="No LOT sequences yet."
+            />
+        </>
+    );
+}
+
+LotSequencesIndex.layout = (page) => <AppLayout>{page}</AppLayout>;

@@ -8,33 +8,23 @@ use App\Models\Skill;
 use App\Models\Worker;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class PersonnelClassController extends Controller
 {
     /**
      * Display a listing of personnel classes.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $query = PersonnelClass::query()
-            ->withCount('workers')
-            ->orderBy('is_active', 'desc')
-            ->orderBy('code');
+        $counts = PersonnelClass::withCount('workers')
+            ->get(['id'])
+            ->mapWithKeys(fn ($p) => [$p->id => $p->workers_count]);
 
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%{$search}%")
-                    ->orWhere('name', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->filled('is_active')) {
-            $query->where('is_active', $request->input('is_active') === '1');
-        }
-
-        $personnelClasses = $query->paginate(25)->withQueryString();
-
-        return view('admin.personnel-classes.index', compact('personnelClasses'));
+        return Inertia::render('admin/personnel-classes/Index', [
+            'counts' => $counts,
+            'skillNames' => Skill::pluck('name', 'id'),
+        ]);
     }
 
     /**
@@ -46,11 +36,28 @@ class PersonnelClassController extends Controller
         $requiredSkills = $personnelClass->requiredSkills();
         $reqLevels      = $personnelClass->default_required_cert_level ?? [];
 
-        return view('admin.personnel-classes.show', [
-            'personnelClass' => $personnelClass,
-            'workers'        => $workers,
-            'requiredSkills' => $requiredSkills,
-            'reqLevels'      => $reqLevels,
+        return Inertia::render('admin/personnel-classes/Show', [
+            'personnelClass' => [
+                'id'          => $personnelClass->id,
+                'code'        => $personnelClass->code,
+                'name'        => $personnelClass->name,
+                'description' => $personnelClass->description,
+                'is_active'   => $personnelClass->is_active,
+                'created_at'  => $personnelClass->created_at?->format('d M Y'),
+                'updated_at'  => $personnelClass->updated_at?->diffForHumans(),
+            ],
+            'workers' => $workers->map(fn ($w) => [
+                'id'        => $w->id,
+                'code'      => $w->code,
+                'name'      => $w->name,
+                'qualified' => $personnelClass->workerMeetsRequirements($w),
+            ]),
+            'requiredSkills' => $requiredSkills->map(fn ($s) => [
+                'id'        => $s->id,
+                'name'      => $s->name,
+                'code'      => $s->code,
+                'min_level' => $reqLevels[$s->id] ?? 'operator',
+            ]),
         ]);
     }
 
@@ -59,7 +66,10 @@ class PersonnelClassController extends Controller
      */
     public function create()
     {
-        return view('admin.personnel-classes.create', $this->formData());
+        return Inertia::render('admin/personnel-classes/Create', [
+            'skills' => Skill::orderBy('name')->get(['id', 'name']),
+            'levels' => PersonnelClass::LEVELS,
+        ]);
     }
 
     /**
@@ -81,10 +91,13 @@ class PersonnelClassController extends Controller
      */
     public function edit(PersonnelClass $personnelClass)
     {
-        return view('admin.personnel-classes.edit', array_merge(
-            $this->formData(),
-            ['personnelClass' => $personnelClass]
-        ));
+        return Inertia::render('admin/personnel-classes/Edit', [
+            'personnelClass' => $personnelClass->only(
+                'id', 'code', 'name', 'description', 'required_skill_ids', 'default_required_cert_level', 'is_active'
+            ),
+            'skills' => Skill::orderBy('name')->get(['id', 'name']),
+            'levels' => PersonnelClass::LEVELS,
+        ]);
     }
 
     /**
@@ -97,7 +110,7 @@ class PersonnelClassController extends Controller
 
         $personnelClass->update($validated);
 
-        return redirect()->route('admin.personnel-classes.show', $personnelClass)
+        return redirect()->route('admin.personnel-classes.index')
             ->with('success', __('Personnel class updated successfully.'));
     }
 

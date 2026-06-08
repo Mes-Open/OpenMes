@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\InspectionPlan;
+use App\Services\Quality\InspectionPlanVersionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class InspectionPlanController extends Controller
 {
+    public function __construct(private InspectionPlanVersionService $versions) {}
+
     public function index(Request $request): JsonResponse
     {
         $request->validate([
@@ -41,22 +44,51 @@ class InspectionPlanController extends Controller
     {
         $validated = $this->validatedPayload($request);
 
-        $plan = InspectionPlan::create($validated);
+        $plan = InspectionPlan::create([
+            ...$validated,
+            'version' => 1,
+            'published_at' => null,
+            'root_id' => null,
+            'is_active' => false,
+        ]);
 
         return response()->json(['message' => __('Inspection plan created'), 'data' => $plan], 201);
     }
 
+    /**
+     * Draft → update in place. Published → create the next draft version.
+     */
     public function update(Request $request, InspectionPlan $inspectionPlan): JsonResponse
     {
         $validated = $this->validatedPayload($request, $inspectionPlan->id);
 
-        $inspectionPlan->update($validated);
+        if ($inspectionPlan->isDraft()) {
+            $inspectionPlan->update($validated);
 
-        return response()->json(['message' => __('Inspection plan updated'), 'data' => $inspectionPlan->fresh()]);
+            return response()->json(['message' => __('Inspection plan updated'), 'data' => $inspectionPlan->fresh()]);
+        }
+
+        $newVersion = $this->versions->createNewVersion($inspectionPlan, $validated);
+
+        return response()->json([
+            'message' => __('Created version :v as a draft from the published plan.', ['v' => $newVersion->version]),
+            'data' => $newVersion,
+        ], 201);
+    }
+
+    public function publish(InspectionPlan $inspectionPlan): JsonResponse
+    {
+        $this->versions->publish($inspectionPlan);
+
+        return response()->json(['message' => __('Inspection plan published'), 'data' => $inspectionPlan->fresh()]);
     }
 
     public function destroy(InspectionPlan $inspectionPlan): JsonResponse
     {
+        if ($inspectionPlan->isPublished() && $inspectionPlan->inspections()->exists()) {
+            return response()->json(['message' => __('Cannot delete a published version that has recorded inspections.')], 422);
+        }
+
         $inspectionPlan->delete();
 
         return response()->json(['message' => __('Inspection plan deleted')]);
@@ -76,7 +108,6 @@ class InspectionPlanController extends Controller
             'criteria.*.unit' => 'nullable|string|max:30',
             'criteria.*.spec_min' => 'nullable|numeric',
             'criteria.*.spec_max' => 'nullable|numeric',
-            'is_active' => 'nullable|boolean',
         ]);
 
         // Exactly-one rule: either tie to a material, a material_type, or be generic.

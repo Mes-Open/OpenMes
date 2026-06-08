@@ -9,6 +9,7 @@ use App\Models\WorkOrderEan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class PackagingController extends Controller
 {
@@ -16,12 +17,14 @@ class PackagingController extends Controller
 
     public function station()
     {
+        // scannerMode (HID vs serial) merged from develop — passed as a prop so
+        // the React Station page can read it.
         $scannerMode = json_decode(
             DB::table('system_settings')->where('key', 'scanner_mode')->value('value') ?? '"hid"',
             true
         ) ?? 'hid';
 
-        return view('packaging.station', compact('scannerMode'));
+        return Inertia::render('packaging/Station', compact('scannerMode'));
     }
 
     public function adminOverview()
@@ -29,7 +32,7 @@ class PackagingController extends Controller
         $items = $this->buildItemList();
         $stats = $this->buildStats();
 
-        return view('packaging.admin', compact('items', 'stats'));
+        return Inertia::render('packaging/Admin', compact('items', 'stats'));
     }
 
     // ── JSON API (polling) ────────────────────────────────────────────────────
@@ -69,6 +72,7 @@ class PackagingController extends Controller
         }
 
         $workOrder->increment('packed_qty');
+        \App\Sync\CollectionBroadcaster::flush($workOrder); // increment() bypasses model events
         $workOrder->refresh();
 
         PackagingScanLog::create([

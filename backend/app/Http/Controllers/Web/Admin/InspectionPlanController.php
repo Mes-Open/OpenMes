@@ -3,101 +3,127 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\InspectionPlanRequest;
 use App\Models\InspectionPlan;
 use App\Models\Material;
 use App\Models\MaterialType;
-use Illuminate\Http\Request;
+use App\Services\Quality\InspectionPlanVersionService;
+use Inertia\Inertia;
 
 class InspectionPlanController extends Controller
 {
+    public function __construct(private InspectionPlanVersionService $versions) {}
+
     public function index()
     {
-        $plans = InspectionPlan::with(['material', 'materialType'])->orderBy('name')->get();
+        return Inertia::render('admin/inspection-plans/Index', [
+            'materialNames' => Material::pluck('name', 'id'),
+            'materialTypeNames' => MaterialType::pluck('name', 'id'),
+        ]);
+    }
 
-        return view('admin.inspection-plans.index', compact('plans'));
+    private function formData(): array
+    {
+        return [
+            'materials' => Material::orderBy('name')->get(['id', 'name']),
+            'materialTypes' => MaterialType::orderBy('name')->get(['id', 'name']),
+        ];
     }
 
     public function create()
     {
-        return view('admin.inspection-plans.form', [
-            'plan' => new InspectionPlan(['criteria' => []]),
-            'materials' => Material::orderBy('name')->get(),
-            'materialTypes' => MaterialType::orderBy('name')->get(),
-        ]);
+        return Inertia::render('admin/inspection-plans/Create', $this->formData());
     }
 
-    public function store(Request $request)
+    /**
+     * Create a brand-new plan as version 1 — a draft until published.
+     */
+    public function store(InspectionPlanRequest $request)
     {
-        $validated = $this->validated($request);
-        InspectionPlan::create($validated);
+        InspectionPlan::create([
+            ...$request->payload(),
+            'version' => 1,
+            'published_at' => null,
+            'root_id' => null,
+            'is_active' => false,
+        ]);
 
-        return redirect()->route('admin.inspection-plans.index')->with('success', __('Inspection plan created.'));
+        return redirect()->route('admin.inspection-plans.index')
+            ->with('success', __('Inspection plan created as a draft. Publish it to use it for inspections.'));
     }
 
     public function edit(InspectionPlan $inspectionPlan)
     {
-        return view('admin.inspection-plans.form', [
-            'plan' => $inspectionPlan,
-            'materials' => Material::orderBy('name')->get(),
-            'materialTypes' => MaterialType::orderBy('name')->get(),
-        ]);
+        $scope = $inspectionPlan->material_id ? 'material'
+            : ($inspectionPlan->material_type_id ? 'material_type' : 'generic');
+
+        $history = $inspectionPlan->versionGroup()
+            ->get(['id', 'version', 'published_at', 'is_active', 'updated_at'])
+            ->map(fn ($v) => [
+                'id' => $v->id,
+                'version' => $v->version,
+                'is_draft' => $v->published_at === null,
+                'is_active' => (bool) $v->is_active,
+                'published_at' => $v->published_at?->toIso8601String(),
+                'updated_at' => $v->updated_at?->toIso8601String(),
+            ]);
+
+        return Inertia::render('admin/inspection-plans/Edit', array_merge($this->formData(), [
+            'plan' => [
+                ...$inspectionPlan->only('id', 'name', 'description', 'material_id', 'material_type_id', 'criteria', 'is_active', 'version'),
+                'scope' => $scope,
+                'is_draft' => $inspectionPlan->isDraft(),
+                'published_at' => $inspectionPlan->published_at?->toIso8601String(),
+            ],
+            'history' => $history,
+        ]));
     }
 
-    public function update(Request $request, InspectionPlan $inspectionPlan)
+    /**
+     * Draft → edit in place. Published → spawn the next draft version
+     * (the published version stays immutable for reproducibility).
+     */
+    public function update(InspectionPlanRequest $request, InspectionPlan $inspectionPlan)
     {
-        $inspectionPlan->update($this->validated($request));
+        if ($inspectionPlan->isDraft()) {
+            $inspectionPlan->update($request->payload());
 
-        return redirect()->route('admin.inspection-plans.index')->with('success', __('Inspection plan updated.'));
+            return redirect()->route('admin.inspection-plans.index')
+                ->with('success', __('Draft updated.'));
+        }
+
+        $newVersion = $this->versions->createNewVersion($inspectionPlan, $request->payload());
+
+        return redirect()->route('admin.inspection-plans.edit', $newVersion)
+            ->with('success', __('Created version :v as a draft from the published plan.', ['v' => $newVersion->version]));
+    }
+
+    /**
+     * Publish a draft — makes it the live version and retires the previous one.
+     */
+    public function publish(InspectionPlan $inspectionPlan)
+    {
+        if ($inspectionPlan->isPublished()) {
+            return back()->with('error', __('This version is already published.'));
+        }
+
+        $this->versions->publish($inspectionPlan);
+
+        return redirect()->route('admin.inspection-plans.index')
+            ->with('success', __('Inspection plan version :v published.', ['v' => $inspectionPlan->version]));
     }
 
     public function destroy(InspectionPlan $inspectionPlan)
     {
-        $inspectionPlan->delete();
-
-        return redirect()->route('admin.inspection-plans.index')->with('success', __('Inspection plan deleted.'));
-    }
-
-    private function validated(Request $request): array
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:150',
-            'description' => 'nullable|string',
-            'scope' => 'required|string|in:material,material_type,generic',
-            'material_id' => 'nullable|integer|exists:materials,id',
-            'material_type_id' => 'nullable|integer|exists:material_types,id',
-            'criteria' => 'required|array|min:1',
-            'criteria.*.name' => 'required|string|max:150',
-            'criteria.*.type' => 'required|string|in:visual,measurement,functional,pass_fail',
-            'criteria.*.required' => 'nullable|boolean',
-            'criteria.*.unit' => 'nullable|string|max:30',
-            'criteria.*.spec_min' => 'nullable|numeric',
-            'criteria.*.spec_max' => 'nullable|numeric',
-            'is_active' => 'nullable|boolean',
-        ]);
-
-        // Enforce scope coherence based on the radio choice.
-        $scope = $validated['scope'];
-        if ($scope === 'material') {
-            abort_unless($validated['material_id'] ?? null, 422, 'Pick a material when scope = material.');
-            $validated['material_type_id'] = null;
-        } elseif ($scope === 'material_type') {
-            abort_unless($validated['material_type_id'] ?? null, 422, 'Pick a material type when scope = material_type.');
-            $validated['material_id'] = null;
-        } else {
-            $validated['material_id'] = null;
-            $validated['material_type_id'] = null;
+        // Published versions that have been used by inspections must stay for
+        // historical reproducibility.
+        if ($inspectionPlan->isPublished() && $inspectionPlan->inspections()->exists()) {
+            return back()->with('error', __('Cannot delete a published version that has recorded inspections.'));
         }
 
-        unset($validated['scope']);
-        $validated['is_active'] = $validated['is_active'] ?? false;
+        $inspectionPlan->delete();
 
-        // Normalize criteria booleans (HTML form sends nothing when unchecked).
-        $validated['criteria'] = array_map(function ($c) {
-            $c['required'] = isset($c['required']) ? (bool) $c['required'] : false;
-
-            return $c;
-        }, $validated['criteria']);
-
-        return $validated;
+        return redirect()->route('admin.inspection-plans.index')
+            ->with('success', __('Inspection plan deleted.'));
     }
 }

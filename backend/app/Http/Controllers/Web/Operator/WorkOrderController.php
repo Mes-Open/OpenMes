@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Web\Operator;
 use App\Http\Controllers\Controller;
 use App\Models\IssueType;
 use App\Models\LineStatus;
+use App\Models\ScrapReason;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class WorkOrderController extends Controller
 {
@@ -99,6 +101,7 @@ class WorkOrderController extends Controller
                         return true;
                     }
                 }
+
                 return false;
             })->values();
         }
@@ -109,10 +112,19 @@ class WorkOrderController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('operator.queue', compact(
+        // Downtime reporter data (React replacement for the Livewire DowntimeReporter).
+        $downtimeReasons = \App\Models\DowntimeReason::active()->orderBy('name')->get(['id', 'name']);
+        $activeDowntime = \App\Models\ProductionDowntime::with('reason:id,name')
+            ->where('line_id', $lineId)
+            ->whereNull('ended_at')
+            ->latest('started_at')
+            ->first();
+
+        return Inertia::render('operator/Queue', compact(
             'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
             'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds',
-            'trackingMode', 'workstationQueue', 'lineWorkstations'
+            'trackingMode', 'workstationQueue', 'lineWorkstations',
+            'downtimeReasons', 'activeDowntime'
         ));
     }
 
@@ -162,7 +174,7 @@ class WorkOrderController extends Controller
     public function check(Request $request)
     {
         $lineId = $request->session()->get('selected_line_id');
-        if (!$lineId) {
+        if (! $lineId) {
             return response()->json(['active' => 0, 'workstation' => 0]);
         }
 
@@ -187,6 +199,7 @@ class WorkOrderController extends Controller
                             return true;
                         }
                     }
+
                     return false;
                 })->count();
         }
@@ -223,9 +236,13 @@ class WorkOrderController extends Controller
             'batches.packagingChecklist',
             'issues.issueType',
             'issues.reportedBy',
+            'scrapEntries.scrapReason',
+            'scrapEntries.reportedBy',
         ]);
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
+
+        $scrapReasons = ScrapReason::active()->ordered()->get();
 
         // Only show workstations from this line (not all system workstations)
         $workstations = $workOrder->line
@@ -235,6 +252,49 @@ class WorkOrderController extends Controller
         // Auto-select workstation if operator is a workstation account
         $defaultWorkstationId = auth()->user()->workstation_id;
 
-        return view('operator.work-order-detail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId'));
+        $line = $workOrder->line;
+
+        // Active label templates (by type) for the React label-print menu —
+        // replaces the old <x-label-print-dropdown> Blade component.
+        $labelTemplates = \App\Models\LabelTemplate::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'type', 'size', 'barcode_format', 'is_default']);
+
+        // Reference photos (work instructions) for the process this order was
+        // built from. Loaded live by the snapshot's template id so updated
+        // instructions reach in-flight orders; the snapshot itself stays frozen.
+        // Served via the authenticated stream route, so any logged-in operator
+        // may view them.
+        $processPhotos = collect();   // general (non-step) work-instruction gallery
+        $stepPhotos = [];             // step_number => photo, shown inline per step
+        $templateId = $workOrder->process_snapshot['template_id'] ?? null;
+        if ($templateId) {
+            $photos = \App\Models\ProcessTemplatePhoto::where('process_template_id', $templateId)
+                ->with('templateStep:id,step_number')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+
+            $shape = fn ($p) => [
+                'id' => $p->id,
+                'url' => route('process-templates.photos.show', [$templateId, $p->id]),
+                'caption' => $p->caption,
+                'width' => $p->width,
+                'height' => $p->height,
+            ];
+
+            $processPhotos = $photos->whereNull('template_step_id')->map($shape)->values();
+
+            // A batch step links back to its template step only by step_number
+            // (the snapshot doesn't carry template_step_id), so key by that.
+            foreach ($photos->whereNotNull('template_step_id') as $p) {
+                $num = $p->templateStep?->step_number;
+                if ($num !== null) {
+                    $stepPhotos[$num] = $shape($p);
+                }
+            }
+        }
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos'));
     }
 }
