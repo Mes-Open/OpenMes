@@ -85,6 +85,12 @@ export default function CostReportsIndex() {
                     </div>
                 )}
 
+                {summary.limited && (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-2">
+                        {__('Large result set: summary totals cover the first 10000 orders. Narrow the filters for an exact total.')}
+                    </div>
+                )}
+
                 {/* Summary cards */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <SummaryCard label={__('Total cost')} value={money(summary.total_cost ?? 0, currency)} />
