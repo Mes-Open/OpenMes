@@ -3016,5 +3016,18 @@
     "No operator was recorded for this order.": "Dla tego zlecenia nie zarejestrowano operatora.",
     "started": "rozpoczął",
     "released": "wydał",
-    "confirmed": "potwierdził"
+    "confirmed": "potwierdził",
+    "Archived": "Zarchiwizowany",
+    "Delete inspection plan \":name\"?": "Usunąć plan inspekcji „:name\"?",
+    "Draft": "Szkic",
+    "Last edited :t": "Ostatnia edycja :t",
+    "New Plan": "Nowy plan",
+    "Publish": "Opublikuj",
+    "Publish this version? It becomes the live plan used for new inspections.": "Opublikować tę wersję? Stanie się aktywnym planem dla nowych inspekcji.",
+    "Published": "Opublikowany",
+    "Published :t": "Opublikowano :t",
+    "Save as new version": "Zapisz jako nową wersję",
+    "This is a draft — editable in place and not yet used for inspections.": "To szkic — edytowalny w miejscu i jeszcze nieużywany do inspekcji.",
+    "This version is published and immutable. Saving creates a new draft version — the published version stays unchanged so past inspections remain reproducible.": "Ta wersja jest opublikowana i niezmienna. Zapis utworzy nową wersję-szkic — opublikowana wersja pozostaje bez zmian, aby przeszłe inspekcje były odtwarzalne.",
+    "Version history": "Historia wersji"
 }

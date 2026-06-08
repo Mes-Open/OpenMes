@@ -83,11 +83,6 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
                 {errors.criteria && <p className="mt-1 text-xs text-red-600">{errors.criteria}</p>}
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={!!data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
-                Active
-            </label>
-
             <div className="flex items-center gap-3 pt-2">
                 <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                     {processing ? 'Saving…' : submitLabel}
