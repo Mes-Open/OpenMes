@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import WorkerForm from './WorkerForm';
+import { __ } from '../../../lib/i18n';
 
 export default function WorkerEdit() {
     const { worker, crews = [], wageGroups = [], personnelClasses = [], skills = [] } = usePage().props;
@@ -26,8 +27,8 @@ export default function WorkerEdit() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${worker.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Worker</h1>
+            <Head title={__('Edit :name', { name: worker.name })} />
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('Edit Worker')}</h1>
             <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} skills={skills} isEdit onSubmit={submit} />
         </div>
     );
