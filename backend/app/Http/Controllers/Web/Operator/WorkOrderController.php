@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Operator;
 use App\Http\Controllers\Controller;
 use App\Models\IssueType;
 use App\Models\LineStatus;
+use App\Models\ScrapReason;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Services\WorkOrder\WorkOrderService;
@@ -235,9 +236,13 @@ class WorkOrderController extends Controller
             'batches.packagingChecklist',
             'issues.issueType',
             'issues.reportedBy',
+            'scrapEntries.scrapReason',
+            'scrapEntries.reportedBy',
         ]);
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
+
+        $scrapReasons = ScrapReason::active()->ordered()->get();
 
         // Only show workstations from this line (not all system workstations)
         $workstations = $workOrder->line
@@ -276,6 +281,6 @@ class WorkOrderController extends Controller
                 ]);
         }
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos'));
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos'));
     }
 }
