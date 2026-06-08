@@ -29,6 +29,7 @@ use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
+use App\Http\Controllers\Web\Admin\ProductionCostReportController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\ScheduleController;
 use App\Http\Controllers\Web\Admin\SchedulePlannerController;
@@ -292,6 +293,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
         Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
         Route::get('/reports/{workOrder}', [AdminReportController::class, 'show'])->name('reports.show');
+
+        // Reports — Production Cost (materials + labor + additional, per work order)
+        Route::get('/cost-reports', [ProductionCostReportController::class, 'index'])->name('cost-reports.index');
+        Route::get('/cost-reports/export', [ProductionCostReportController::class, 'export'])->name('cost-reports.export');
+        Route::get('/cost-reports/{workOrder}', [ProductionCostReportController::class, 'show'])->name('cost-reports.show');
 
         // Alerts
         Route::get('/alerts', [\App\Http\Controllers\Web\Admin\AlertController::class, 'index'])->name('alerts');

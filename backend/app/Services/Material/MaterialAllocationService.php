@@ -154,6 +154,9 @@ class MaterialAllocationService
                     'status' => MaterialAllocation::STATUS_CONSUMED,
                     'consumed_qty' => $actualConsumed,
                     'consumed_at' => now(),
+                    // Snapshot the price so historical cost reports stay stable.
+                    'unit_price_snapshot' => $actualConsumed > 0 ? $allocation->material?->unit_price : null,
+                    'price_currency_snapshot' => $actualConsumed > 0 ? $allocation->material?->price_currency : null,
                 ]);
             }
         });
@@ -212,6 +215,9 @@ class MaterialAllocationService
         $allocation->update([
             'consumed_qty' => $actualConsumed,
             'scrap_qty' => $scrap,
+            // Snapshot the price so historical cost reports stay stable.
+            'unit_price_snapshot' => $actualConsumed > 0 ? $allocation->material?->unit_price : null,
+            'price_currency_snapshot' => $actualConsumed > 0 ? $allocation->material?->price_currency : null,
         ]);
 
         return $allocation->fresh();
@@ -297,6 +303,7 @@ class MaterialAllocationService
                     ->first();
                 if ($existing) {
                     $allocations->push($existing);
+
                     continue;
                 }
 
