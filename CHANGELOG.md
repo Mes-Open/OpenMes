@@ -7,16 +7,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+---
+
+## [0.14.0] - 2026-06-08
+
 ### Added
 - Scrap reason codes - categorized defect tracking per work order: `scrap_reasons` with a 5M Ishikawa category (material/machine/method/man/environment), admin CRUD + activate/deactivate, and 5 seeded default reasons (#13)
 - Operator scrap reporting on the work order detail page (reason, quantity, notes); `scrap_entries` link to the work order and optionally to a batch step and shift, with a per-work-order total scrap quantity and a derived quality % metric (#13)
 - Scrap reports: Pareto by reason, scrap rate per line, and scrap trend over time (Chart.js), plus REST API endpoints `reports/scrap-pareto`, `reports/scrap-rate`, scrap-reason read/CRUD and scrap-entry report/list (#13)
 - Work Order History: relocated Reports into its own nav group (between Production and Structure) and turned it into a read-only historical analysis view over finished orders (DONE / CANCELLED / REJECTED). Filter by status, line, product type, full-text (order no. / LOT) and date — with day presets (today, yesterday, last 7/30 days, this/last month, custom range, all time). Summary aggregates (orders, produced, planned, avg execution time, on-time %), CSV export, and a deep per-order drill-down: execution timeline, batches with assigned LOTs, steps with start/end times, duration and operator, material genealogy (consumed lots), quality checks and issues raised. All execution data is retained indefinitely.
-
 - Production Cost report: per-work-order costing that sums material + labor + additional costs into a total and a cost-per-unit, with a detailed per-line breakdown (each material qty x unit price, each worker's hours/pieces x rate, each additional cost). Material cost uses actual recorded consumption (price snapshotted at consumption time for stable history) and falls back to the BOM recipe; labor cost is driven by per-worker pay mode. Filterable list (line, product, date presets) with summary cards and CSV export, under the Reports nav group.
 - Per-worker compensation: pay type (hourly / weekly / piece rate) and rate set on the worker edit form. Hourly bills rate x hours on the order; weekly converts the salary to an effective hourly rate via a configurable `standard_weekly_hours`; piece rate bills rate x pieces, splitting a work order's output across piece-rate workers proportionally to their logged hours. The wage group remains a fallback when no per-worker rate is set.
+- LOT number pattern generation: build LOT identifiers from composable tokens (e.g. `prefix-[date]-[numeric]-[hourly]`) — operators define the parameter set once and the system renders consistent, collision-safe LOT numbers per work order (#55)
+- Process template photos: attach reference photos to a process template, with a hardened upload path — every image is fully decoded and re-encoded server-side (`ImageSanitizer`, GD) to strip EXIF/polyglot payloads, accepting only JPEG/PNG/WebP (#56)
+- Per-step process photos: one reference photo per production step (rather than a single photo for the whole template), shown inline on the operator's work order view so each step carries its own visual instruction (#63)
+- Operators on the line can view the full process-build photos for the product they are working on, read-only (#58)
+- Inspection plan versioning: plans carry a version number and `published_at`; editing a published plan creates a new immutable version, and recorded inspection results store the exact plan version used, so historical results stay reproducible (#62)
 
 ### Changed
+- i18n: the UI-language whitelist is now single-sourced from `config('app.available_locales')`; date/time and number formatting is locale-aware (BCP-47 mapping) instead of a hardcoded clock locale, and `APP_TIMEZONE` is honoured across the app (#57)
+- Login screen is fully translated (#54)
 - Reports nav entry moved out of the Admin group into a dedicated Reports group (Scrap Reports moved alongside it); the previous aggregate KPI dashboard was replaced by the Work Order History view.
 - Worker create/update validation moved into dedicated Form Requests (`StoreWorkerRequest` / `UpdateWorkerRequest`).
 
@@ -214,7 +224,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.0...develop
+[0.14.0]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...v0.14.0
 [0.11.1]: https://github.com/Mes-Open/OpenMes/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/Mes-Open/OpenMes/compare/v0.9.0...v0.11.0
 [0.9.0]: https://github.com/Mes-Open/OpenMes/compare/v0.8.0...v0.9.0
