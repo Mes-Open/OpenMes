@@ -79,6 +79,17 @@ class SystemSettingsLanguageTest extends TestCase
         $this->assertSame(config('app.available_locales'), $locales);
     }
 
+    public function test_changing_language_in_settings_updates_session_locale(): void
+    {
+        // The session override is what SetLocale reads first, so saving the
+        // language must align it for the change to take effect on reload.
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->payload(['language' => 'pl']))
+            ->assertSessionHas('locale', 'pl');
+
+        $this->assertDatabaseHas('system_settings', ['key' => 'language', 'value' => json_encode('pl')]);
+    }
+
     public function test_labor_costing_settings_are_persisted(): void
     {
         $this->actingAs($this->admin)
