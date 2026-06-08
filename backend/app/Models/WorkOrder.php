@@ -154,6 +154,30 @@ class WorkOrder extends Model
     }
 
     /**
+     * Manually-recorded additional costs booked against this work order.
+     */
+    public function additionalCosts(): HasMany
+    {
+        return $this->hasMany(AdditionalCost::class);
+    }
+
+    /**
+     * Employee time blocks (tachograph activities) attributed to this work order.
+     */
+    public function employeeActivities(): HasMany
+    {
+        return $this->hasMany(EmployeeActivity::class);
+    }
+
+    /**
+     * Material allocations (and their actual consumption) for this work order.
+     */
+    public function materialAllocations(): HasMany
+    {
+        return $this->hasMany(MaterialAllocation::class);
+    }
+
+    /**
      * Get the open blocking issues for this work order.
      */
     public function openBlockingIssues()
@@ -230,6 +254,7 @@ class WorkOrder extends Model
         if (is_array($status)) {
             return $query->whereIn('status', $status);
         }
+
         return $query->where('status', $status);
     }
 

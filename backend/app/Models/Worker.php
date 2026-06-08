@@ -11,7 +11,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Worker extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
+
+    /** Supported compensation modes for per-worker pay. */
+    public const PAY_TYPES = ['hourly', 'weekly', 'piece_rate'];
 
     protected $fillable = [
         'personnel_class_id',
@@ -21,6 +24,9 @@ class Worker extends Model
         'phone',
         'crew_id',
         'wage_group_id',
+        'pay_type',
+        'pay_rate',
+        'pay_currency',
         'workstation_id',
         'is_active',
     ];
@@ -29,7 +35,23 @@ class Worker extends Model
     {
         return [
             'is_active' => 'boolean',
+            'pay_rate' => 'decimal:4',
         ];
+    }
+
+    /**
+     * Pay rate used for costing, falling back to the wage-group hourly rate
+     * when no per-worker rate is set. Null when neither is available.
+     */
+    public function effectivePayRate(): ?float
+    {
+        if ($this->pay_rate !== null) {
+            return (float) $this->pay_rate;
+        }
+
+        $groupRate = $this->wageGroup?->base_hourly_rate;
+
+        return $groupRate !== null ? (float) $groupRate : null;
     }
 
     /**
@@ -100,7 +122,7 @@ class Worker extends Model
     public function expiringSkills(int $daysAhead = 30): Collection
     {
         $today = now()->toDateString();
-        $cut   = now()->addDays($daysAhead)->toDateString();
+        $cut = now()->addDays($daysAhead)->toDateString();
 
         return $this->skills()
             ->wherePivotNotNull('certified_until')

@@ -3,6 +3,22 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
+// Common reporting currencies (ISO 4217). Names are proper nouns, not translated.
+const CURRENCIES = [
+    ['PLN', 'Polish Złoty'],
+    ['EUR', 'Euro'],
+    ['USD', 'US Dollar'],
+    ['GBP', 'British Pound'],
+    ['CHF', 'Swiss Franc'],
+    ['CZK', 'Czech Koruna'],
+    ['SEK', 'Swedish Krona'],
+    ['NOK', 'Norwegian Krone'],
+    ['DKK', 'Danish Krone'],
+    ['HUF', 'Hungarian Forint'],
+    ['RON', 'Romanian Leu'],
+    ['UAH', 'Ukrainian Hryvnia'],
+];
+
 function SelectCard({ value, current, onChange, label, desc, disabled }) {
     const isSelected = value === current;
     return (
@@ -60,6 +76,10 @@ export default function System() {
         cors_max_age: settings.cors_max_age ?? 0,
         production_qty_edit_policy: settings.production_qty_edit_policy ?? 'none',
         production_qty_edit_window_minutes: settings.production_qty_edit_window_minutes ?? 1,
+        standard_weekly_hours: settings.standard_weekly_hours ?? 40,
+        default_currency: settings.default_currency ?? 'PLN',
+        default_pay_type: settings.default_pay_type ?? 'hourly',
+        default_pay_rate: settings.default_pay_rate ?? null,
     });
 
     function handleSubmit(e) {
@@ -131,6 +151,24 @@ export default function System() {
                                 {__('Want to add a new language? Create a JSON file in')} <code>lang/</code> {__('directory.')}
                                 {' '}{__('See')} <code>lang/en.json</code> {__('as reference.')}
                             </p>
+                        </div>
+
+                        <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-2">
+                            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">{__('Currency')}</h2>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
+                            <select
+                                value={data.default_currency}
+                                onChange={(e) => setData('default_currency', e.target.value)}
+                                className="form-input w-64 max-w-full"
+                            >
+                                {!CURRENCIES.some(([code]) => code === data.default_currency) && data.default_currency && (
+                                    <option value={data.default_currency}>{data.default_currency}</option>
+                                )}
+                                {CURRENCIES.map(([code, name]) => (
+                                    <option key={code} value={code}>{code} - {__(name)}</option>
+                                ))}
+                            </select>
+                            {errors.default_currency && <p className="text-red-600 dark:text-red-300 text-sm mt-1">{errors.default_currency}</p>}
                         </div>
                     </div>
                 )}
@@ -325,6 +363,61 @@ export default function System() {
                                     )}
                                 </div>
                             )}
+                        </div>
+
+                        {/* Labor Costing */}
+                        <div className="card">
+                            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">{__('Labor costing')}</h2>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{__('Defaults used by the Production Cost report when a worker has no compensation of their own.')}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="form-label" htmlFor="default_pay_type">{__('Default pay type')}</label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{__('Fallback mode for workers with no pay type set.')}</p>
+                                    <select
+                                        id="default_pay_type"
+                                        value={data.default_pay_type}
+                                        onChange={(e) => setData('default_pay_type', e.target.value)}
+                                        className="form-input w-full"
+                                    >
+                                        <option value="hourly">{__('Hourly')}</option>
+                                        <option value="weekly">{__('Weekly')}</option>
+                                        <option value="piece_rate">{__('Piece rate')}</option>
+                                    </select>
+                                    {errors.default_pay_type && <p className="text-red-600 dark:text-red-300 text-sm mt-1">{errors.default_pay_type}</p>}
+                                </div>
+                                <div>
+                                    <label className="form-label" htmlFor="standard_weekly_hours">{__('Standard weekly hours')}</label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{__('Converts a weekly salary into an hourly cost (salary / hours).')}</p>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            id="standard_weekly_hours"
+                                            value={data.standard_weekly_hours}
+                                            onChange={(e) => setData('standard_weekly_hours', parseFloat(e.target.value) || 0)}
+                                            className="form-input w-28"
+                                            min={1}
+                                            max={168}
+                                            step="0.5"
+                                        />
+                                        <span className="text-sm text-gray-600 dark:text-gray-300">{__('hours/week')}</span>
+                                    </div>
+                                    {errors.standard_weekly_hours && <p className="text-red-600 dark:text-red-300 text-sm mt-1">{errors.standard_weekly_hours}</p>}
+                                </div>
+                                <div>
+                                    <label className="form-label" htmlFor="default_pay_rate">{__('Default pay rate')}</label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{__('Fallback rate used when a worker has no rate of their own (applied per the worker\'s pay type). Leave blank for none.')}</p>
+                                    <input
+                                        type="number"
+                                        id="default_pay_rate"
+                                        value={data.default_pay_rate ?? ''}
+                                        onChange={(e) => setData('default_pay_rate', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                        className="form-input w-32"
+                                        min={0}
+                                        step="0.0001"
+                                    />
+                                    {errors.default_pay_rate && <p className="text-red-600 dark:text-red-300 text-sm mt-1">{errors.default_pay_rate}</p>}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
