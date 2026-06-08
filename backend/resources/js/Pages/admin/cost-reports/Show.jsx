@@ -1,6 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber, formatDateTime } from '../../../lib/i18n';
+import CostMethodology from './CostMethodology';
 
 const PAY_TYPE_LABELS = {
     hourly: 'Hourly',
@@ -49,6 +50,8 @@ export default function CostReportShow() {
                         value={`${money(b.materials.total, currency)} / ${money(b.labor.total, currency)}`}
                     />
                 </div>
+
+                <CostMethodology />
 
                 {/* Materials */}
                 <Section title={__('Materials')} total={money(b.materials.total, currency)}>
