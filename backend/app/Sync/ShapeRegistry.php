@@ -38,6 +38,10 @@ class ShapeRegistry
             'table' => 'anomaly_reasons',
             'columns' => ['id', 'code', 'name', 'category', 'description', 'is_active', 'created_at', 'updated_at'],
         ],
+        'scrap_reasons' => [
+            'table' => 'scrap_reasons',
+            'columns' => ['id', 'code', 'name', 'category', 'description', 'is_active', 'sort_order', 'created_at', 'updated_at'],
+        ],
         'companies' => [
             'table' => 'companies',
             'columns' => ['id', 'code', 'name', 'tax_id', 'type', 'email', 'phone', 'address', 'is_active', 'created_at', 'updated_at'],

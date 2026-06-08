@@ -65,7 +65,7 @@ export const ADMIN_GROUPS = [
             '/admin/product-types', '/admin/materials', '/admin/material-lots',
             '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
-            '/admin/issues', '/admin/companies', '/admin/anomaly-reasons',
+            '/admin/issues', '/admin/companies', '/admin/anomaly-reasons', '/admin/scrap-reasons',
         ],
         children: [
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'] },
@@ -88,15 +88,17 @@ export const ADMIN_GROUPS = [
             { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'] },
             { label: 'Companies', href: '/admin/companies', match: ['/admin/companies'] },
             { label: 'Anomaly Reasons', href: '/admin/anomaly-reasons', match: ['/admin/anomaly-reasons'] },
+            { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'] },
         ],
     },
     {
         key: 'reports',
         label: 'Reports',
         icon: 'chart',
-        match: ['/admin/reports'],
+        match: ['/admin/reports', '/admin/scrap-reports'],
         children: [
             { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'] },
+            { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'] },
         ],
     },
     {

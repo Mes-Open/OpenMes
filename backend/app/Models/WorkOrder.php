@@ -146,6 +146,14 @@ class WorkOrder extends Model
     }
 
     /**
+     * Get the scrap entries reported against this work order.
+     */
+    public function scrapEntries(): HasMany
+    {
+        return $this->hasMany(ScrapEntry::class);
+    }
+
+    /**
      * Get the open blocking issues for this work order.
      */
     public function openBlockingIssues()
@@ -178,6 +186,39 @@ class WorkOrder extends Model
         }
 
         return (float) $this->produced_qty >= (float) $this->planned_qty;
+    }
+
+    /**
+     * Total scrap quantity reported against this work order.
+     *
+     * Reads from the loaded relation when available (avoids an extra query
+     * after eager loading) and otherwise aggregates in the database.
+     */
+    public function totalScrapQty(): float
+    {
+        if ($this->relationLoaded('scrapEntries')) {
+            return (float) $this->scrapEntries->sum('quantity');
+        }
+
+        return (float) $this->scrapEntries()->sum('quantity');
+    }
+
+    /**
+     * Quality metric for this work order: the share of produced units that
+     * were not scrapped, as a percentage. Scrap entries automatically pull
+     * this down. Returns null when nothing has been produced yet.
+     */
+    public function qualityPct(): ?float
+    {
+        $produced = (float) $this->produced_qty;
+
+        if ($produced <= 0) {
+            return null;
+        }
+
+        $good = max(0.0, $produced - $this->totalScrapQty());
+
+        return round(($good / $produced) * 100, 2);
     }
 
     /**

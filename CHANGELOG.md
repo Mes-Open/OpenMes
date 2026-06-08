@@ -8,10 +8,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Scrap reason codes - categorized defect tracking per work order: `scrap_reasons` with a 5M Ishikawa category (material/machine/method/man/environment), admin CRUD + activate/deactivate, and 5 seeded default reasons (#13)
+- Operator scrap reporting on the work order detail page (reason, quantity, notes); `scrap_entries` link to the work order and optionally to a batch step and shift, with a per-work-order total scrap quantity and a derived quality % metric (#13)
+- Scrap reports: Pareto by reason, scrap rate per line, and scrap trend over time (Chart.js), plus REST API endpoints `reports/scrap-pareto`, `reports/scrap-rate`, scrap-reason read/CRUD and scrap-entry report/list (#13)
 - Work Order History: relocated Reports into its own nav group (between Production and Structure) and turned it into a read-only historical analysis view over finished orders (DONE / CANCELLED / REJECTED). Filter by status, line, product type, full-text (order no. / LOT) and date — with day presets (today, yesterday, last 7/30 days, this/last month, custom range, all time). Summary aggregates (orders, produced, planned, avg execution time, on-time %), CSV export, and a deep per-order drill-down: execution timeline, batches with assigned LOTs, steps with start/end times, duration and operator, material genealogy (consumed lots), quality checks and issues raised. All execution data is retained indefinitely.
 
 ### Changed
-- Reports nav entry moved out of the Admin group into a dedicated Reports group; the previous aggregate KPI dashboard was replaced by the Work Order History view.
+- Reports nav entry moved out of the Admin group into a dedicated Reports group (Scrap Reports moved alongside it); the previous aggregate KPI dashboard was replaced by the Work Order History view.
 
 ---
 
