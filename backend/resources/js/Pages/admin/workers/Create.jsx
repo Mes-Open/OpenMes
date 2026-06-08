@@ -12,6 +12,8 @@ export default function WorkerCreate() {
         crew_id: '',
         wage_group_id: '',
         personnel_class_id: '',
+        pay_type: '',
+        pay_rate: '',
         is_active: true,
         skills: [],
     });

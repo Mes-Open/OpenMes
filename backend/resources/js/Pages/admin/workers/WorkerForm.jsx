@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Bespoke create/edit form for shop-floor workers.
@@ -57,6 +58,24 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
                         {personnelClasses.map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
                     </select>
                 </Field>
+            </div>
+
+            <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">{__('Compensation')}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                    <Field label={__('Pay type')} error={errors.pay_type}>
+                        <select value={data.pay_type ?? ''} onChange={(e) => setData('pay_type', e.target.value)} className="form-input w-full">
+                            <option value="">{__('Use system default')}</option>
+                            <option value="hourly">{__('Hourly')}</option>
+                            <option value="weekly">{__('Weekly')}</option>
+                            <option value="piece_rate">{__('Piece rate')}</option>
+                        </select>
+                    </Field>
+                    <Field label={__('Pay rate')} error={errors.pay_rate}>
+                        <input type="number" step="0.0001" min="0" value={data.pay_rate ?? ''} onChange={(e) => setData('pay_rate', e.target.value)} className="form-input w-full" />
+                    </Field>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">{__('Hourly/weekly: rate per hour/week. Piece rate: amount per produced piece. Currency is set system-wide in Settings.')}</p>
             </div>
 
             <label className="flex items-center gap-2 text-sm text-gray-700">
