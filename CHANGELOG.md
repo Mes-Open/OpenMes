@@ -7,6 +7,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- Live sync no longer breaks writes: a failing Reverb broadcast (e.g. server unreachable) is now caught so the originating create/update/delete still succeeds — fixes work-order actions (Accept etc.) erroring out when the broadcaster is down. Clients fall back to polling.
+- Structure deletions (workstation type, workstation, site, factory, division) surface a friendly "still referenced — deactivate instead" message instead of a 500 when a foreign-key constraint is hit.
+
+### Changed
+- Work order detail: issue cards are now clickable links to the filtered issues list (previously they looked interactive but did nothing).
+- BOM material picker: the unit of measure is shown in the material dropdown and next to "Quantity per Unit", quantity has a helper hint, and an auto-filled default scrap % is now labelled.
+
 ---
 
 ## [0.14.2] - 2026-06-09

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Company;
 use App\Models\Site;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,6 +23,7 @@ class SiteController extends Controller
     public function create()
     {
         $companies = \App\Models\Company::active()->orderBy('name')->get(['id', 'name']);
+
         return Inertia::render('admin/sites/Create', ['companies' => $companies]);
     }
 
@@ -69,6 +69,7 @@ class SiteController extends Controller
     public function edit(Site $site)
     {
         $companies = \App\Models\Company::active()->orderBy('name')->get(['id', 'name']);
+
         return Inertia::render('admin/sites/Edit', ['site' => $site->only('id', 'company_id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active'), 'companies' => $companies]);
     }
 
@@ -91,7 +92,12 @@ class SiteController extends Controller
                 ->with('error', 'Cannot delete site with existing areas. Deactivate it instead.');
         }
 
-        $site->delete();
+        try {
+            $site->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->route('admin.sites.index')
+                ->with('error', 'Cannot delete: this site is still referenced elsewhere. Deactivate it instead.');
+        }
 
         return redirect()->route('admin.sites.index')
             ->with('success', 'Site deleted successfully.');
@@ -111,19 +117,19 @@ class SiteController extends Controller
     {
         $codeRule = 'required|string|max:50|unique:sites,code';
         if ($site) {
-            $codeRule .= ',' . $site->id;
+            $codeRule .= ','.$site->id;
         }
 
         return $request->validate([
-            'name'        => 'required|string|max:255',
-            'code'        => $codeRule,
-            'company_id'  => 'nullable|exists:companies,id',
+            'name' => 'required|string|max:255',
+            'code' => $codeRule,
+            'company_id' => 'nullable|exists:companies,id',
             'description' => 'nullable|string|max:2000',
-            'address'     => 'nullable|string|max:500',
-            'city'        => 'nullable|string|max:100',
-            'country'     => 'nullable|string|size:2',
-            'timezone'    => 'nullable|string|max:50',
-            'is_active'   => 'nullable|boolean',
+            'address' => 'nullable|string|max:500',
+            'city' => 'nullable|string|max:100',
+            'country' => 'nullable|string|size:2',
+            'timezone' => 'nullable|string|max:50',
+            'is_active' => 'nullable|boolean',
         ]);
     }
 }
