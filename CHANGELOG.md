@@ -14,6 +14,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - Work order detail: issue cards are now clickable links to the filtered issues list (previously they looked interactive but did nothing).
 - BOM material picker: the unit of measure is shown in the material dropdown and next to "Quantity per Unit", quantity has a helper hint, and an auto-filled default scrap % is now labelled.
+- Form guidance: the user form's worker-profile section is now a collapsible block (collapsed by default, auto-expanded when editing an account that already has one); the tool and material forms gained helper hints clarifying optional/ERP fields and tracking modes.
 
 ---
 
