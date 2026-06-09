@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { useState } from 'react';
 
 /**
  * Bespoke create/edit form for user accounts. Conditional on `account_type`:
@@ -12,6 +13,11 @@ import { Link } from '@inertiajs/react';
 export default function UserForm({ form, roles, workstations, crews, wageGroups, skills, isEdit, onSubmit }) {
     const { data, setData, errors, processing } = form;
     const isUser = data.account_type === 'user';
+
+    // Worker profile is optional and only relevant for shop-floor staff, so it
+    // starts collapsed to keep the form focused — auto-expanded when editing an
+    // account that already has a worker profile.
+    const [showWorker, setShowWorker] = useState(() => isEdit && !!data.worker_code);
 
     const selectedSkills = new Map((data.skills ?? []).map((s) => [String(s.id), s.level ?? 1]));
 
@@ -82,11 +88,23 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                 </Field>
             )}
 
-            {/* Optional worker profile — personal users only */}
+            {/* Optional worker profile — personal users only, collapsed by default */}
             {isUser && (
-                <fieldset className="border border-gray-200 rounded-lg p-4 space-y-4">
-                    <legend className="text-sm font-medium text-gray-600 px-1">Worker profile (optional)</legend>
-                    <p className="text-xs text-gray-400">Fill in a worker code to link/create a shop-floor worker profile for this account.</p>
+                <div className="border border-gray-200 rounded-lg">
+                    <button
+                        type="button"
+                        onClick={() => setShowWorker((v) => !v)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+                    >
+                        <span>
+                            Worker profile{' '}
+                            <span className="font-normal text-gray-400">— optional, only for shop-floor staff</span>
+                        </span>
+                        <span className="text-gray-400">{showWorker ? '▲' : '▼'}</span>
+                    </button>
+                    {showWorker && (
+                <div className="border-t border-gray-200 p-4 space-y-4">
+                    <p className="text-xs text-gray-400">Fill in a worker code to link/create a shop-floor worker profile for this account. Leave this collapsed for office/admin accounts.</p>
                     <div className="grid grid-cols-2 gap-4">
                         <Field label="Worker Code" error={errors.worker_code}>
                             <input type="text" value={data.worker_code} onChange={(e) => setData('worker_code', e.target.value)} className="form-input w-full" />
@@ -131,7 +149,9 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                             })}
                         </div>
                     </div>
-                </fieldset>
+                </div>
+                    )}
+                </div>
             )}
 
             <div className="flex items-center gap-3 pt-2">

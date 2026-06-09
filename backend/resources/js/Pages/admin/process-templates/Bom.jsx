@@ -24,6 +24,19 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
 
     const { data, setData, errors, processing } = form;
 
+    const selectedMaterial = materials.find((m) => String(m.id) === String(data.material_id));
+    const unit = selectedMaterial?.unit_of_measure;
+
+    // When a material with a default scrap % is picked, pre-fill it (only while
+    // the field still holds the untouched default) and surface that it was auto-set.
+    const onMaterialChange = (id) => {
+        setData('material_id', id);
+        const m = materials.find((x) => String(x.id) === String(id));
+        if (m && m.default_scrap_percentage != null && (data.scrap_percentage === '' || data.scrap_percentage === '0')) {
+            setData('scrap_percentage', String(m.default_scrap_percentage));
+        }
+    };
+
     const submit = (e) => {
         e.preventDefault();
         form.post(
@@ -43,14 +56,14 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                         </label>
                         <select
                             value={data.material_id}
-                            onChange={(e) => setData('material_id', e.target.value)}
+                            onChange={(e) => onMaterialChange(e.target.value)}
                             required
                             className={`form-input w-full${errors.material_id ? ' border-red-500' : ''}`}
                         >
                             <option value="">Select material...</option>
                             {materials.map((m) => (
                                 <option key={m.id} value={m.id}>
-                                    {m.code} - {m.name} ({m.material_type_name})
+                                    {m.code} - {m.name} ({m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}{m.material_type_name})
                                 </option>
                             ))}
                         </select>
@@ -61,7 +74,7 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Quantity per Unit <span className="text-red-500">*</span>
+                            Quantity per Unit{unit ? ` (${unit})` : ''} <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="number"
@@ -72,6 +85,9 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                             onChange={(e) => setData('quantity_per_unit', e.target.value)}
                             className={`form-input w-full${errors.quantity_per_unit ? ' border-red-500' : ''}`}
                         />
+                        <p className="mt-1 text-xs text-gray-400">
+                            How much of this material is needed per one finished product unit.
+                        </p>
                         {errors.quantity_per_unit && (
                             <p className="mt-1 text-sm text-red-600">{errors.quantity_per_unit}</p>
                         )}
@@ -106,6 +122,11 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                             onChange={(e) => setData('scrap_percentage', e.target.value)}
                             className="form-input w-full"
                         />
+                        {selectedMaterial?.default_scrap_percentage != null && (
+                            <p className="mt-1 text-xs text-gray-400">
+                                Pre-filled from the material default ({selectedMaterial.default_scrap_percentage}%); adjust if needed.
+                            </p>
+                        )}
                     </div>
 
                     <div>

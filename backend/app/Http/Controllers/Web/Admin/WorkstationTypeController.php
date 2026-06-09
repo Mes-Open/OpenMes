@@ -38,10 +38,10 @@ class WorkstationTypeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:workstation_types',
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:workstation_types',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -68,10 +68,10 @@ class WorkstationTypeController extends Controller
     public function update(Request $request, WorkstationType $workstationType)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:workstation_types,code,' . $workstationType->id,
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:workstation_types,code,'.$workstationType->id,
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -97,7 +97,12 @@ class WorkstationTypeController extends Controller
                 ->with('error', 'Cannot delete workstation type with associated tools. Deactivate it instead.');
         }
 
-        $workstationType->delete();
+        try {
+            $workstationType->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->route('admin.workstation-types.index')
+                ->with('error', 'Cannot delete: this workstation type is still referenced elsewhere. Deactivate it instead.');
+        }
 
         return redirect()->route('admin.workstation-types.index')
             ->with('success', 'Workstation type deleted successfully.');
