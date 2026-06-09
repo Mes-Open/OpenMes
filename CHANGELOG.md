@@ -9,6 +9,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.14.1] - 2026-06-09
+
+### Fixed
+- Inertia page resolution on case-sensitive filesystems: published `config/inertia.php` pinned to `resources/js/Pages` (the package default points to lowercase `js/pages`, which never resolves on Linux/CI and broke `assertInertia()->component()` page-existence checks).
+
+### Changed
+- Release packaging: the `Release` GitHub Actions workflow no longer attempts to push the version bump to the protected `main` branch (which aborted the run before any artifact was built). It now builds a **self-contained** distributable ZIP — source plus bundled `vendor/` and `backend/public/build/` — so the package installs with no `composer install`/`npm build` step, going straight into the browser-based setup wizard.
+
+---
+
 ## [0.14.0] - 2026-06-08
 
 ### Added
@@ -224,7 +234,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.0...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.1...develop
+[0.14.1]: https://github.com/Mes-Open/OpenMes/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...v0.14.0
 [0.11.1]: https://github.com/Mes-Open/OpenMes/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/Mes-Open/OpenMes/compare/v0.9.0...v0.11.0
