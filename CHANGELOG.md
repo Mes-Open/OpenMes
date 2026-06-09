@@ -7,6 +7,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- System Settings page no longer 500s on a fresh tenant: `showSystemSettings()` read `$rows['key']->value` which threw "Attempt to read property 'value' on null" when a `system_settings` key had not been written yet. All ~24 reads are now null-safe (`?->value`), so the page renders with defaults until settings are saved. Regression test added (renders with an empty settings table).
+
+### Changed
+- Sidebar: nav groups that have their own landing page (e.g. **Modules**) now navigate there on click instead of only expanding — previously clicking the group header did nothing visible.
+- Forms (all config-driven CRUD via `ResourceForm`): a failed submit now scrolls to and focuses the first invalid field and shows an error summary at the top — the main cause of form abandonment (e.g. Material Lot registration). Required Material Lot fields gained clearer placeholders/hints.
+
 ---
 
 ## [0.14.3] - 2026-06-09

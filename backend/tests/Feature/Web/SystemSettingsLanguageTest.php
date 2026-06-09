@@ -4,6 +4,7 @@ namespace Tests\Feature\Web;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -108,5 +109,19 @@ class SystemSettingsLanguageTest extends TestCase
         $this->actingAs($this->admin)
             ->post('/settings/system', $this->payload(['default_currency' => 'EURO']))
             ->assertSessionHasErrors('default_currency');
+    }
+
+    /**
+     * The system settings page must render even when no rows exist in
+     * `system_settings` yet (fresh tenant). Previously a missing key caused
+     * "Attempt to read property 'value' on null" → HTTP 500. Regression guard.
+     */
+    public function test_system_settings_page_renders_with_empty_settings_table(): void
+    {
+        DB::table('system_settings')->truncate();
+
+        $this->actingAs($this->admin)
+            ->get('/settings/system')
+            ->assertStatus(200);
     }
 }
