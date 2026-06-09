@@ -9,6 +9,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.14.2] - 2026-06-09
+
+### Fixed
+- Bare-hosting install wizard could not render (HTTP 500 / blank page): the shipped `.env` defaults to database-backed sessions (correct for the Docker stack, whose entrypoint marks the app installed before serving), so on a plain PHP host every request — including the installer itself — queried a database that does not exist yet. The app now forces file-based session/cache drivers while the `storage/installed` flag is absent, so the wizard boots without a database; once installed, the configured drivers and the migrated `sessions` table take over. No effect on Docker (already installed at boot) or the test suite (`runningUnitTests` guard).
+- A finished bare-hosting install no longer goes live as `APP_ENV=local` / `APP_DEBUG=true`: completing the wizard now writes `APP_ENV=production` and `APP_DEBUG=false` (the environment step is otherwise skipped because `public/index.php` auto-generates `APP_KEY`).
+
+---
+
 ## [0.14.1] - 2026-06-09
 
 ### Fixed
@@ -234,7 +242,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.1...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.2...develop
+[0.14.2]: https://github.com/Mes-Open/OpenMes/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/Mes-Open/OpenMes/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...v0.14.0
 [0.11.1]: https://github.com/Mes-Open/OpenMes/compare/v0.11.0...v0.11.1

@@ -31,6 +31,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Until the installer has run (no storage/installed flag yet) there is
+        // no configured database. The shipped .env defaults to database-backed
+        // sessions (correct for the Docker stack, whose entrypoint sets the
+        // flag before serving), but on a bare PHP host that makes every
+        // request — including the install wizard itself — query a database that
+        // does not exist yet, so the wizard can never render (HTTP 500). Force
+        // file-based session/cache drivers while uninstalled so the wizard
+        // boots without a DB; once installed, the configured drivers and the
+        // migrated `sessions` table take over.
+        if (! $this->app->runningUnitTests() && ! file_exists(storage_path('installed'))) {
+            config([
+                'session.driver' => 'file',
+                'cache.default' => 'file',
+            ]);
+        }
+
         // Reverb sync: register model → collection broadcast listeners.
         \App\Sync\CollectionBroadcaster::boot();
 
