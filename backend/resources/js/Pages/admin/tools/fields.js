@@ -14,13 +14,14 @@ export function toolFields(workstationTypes) {
             name: 'workstation_type_id',
             label: 'Workstation Type',
             type: 'select',
+            help: 'Optional — the type of workstation this tool belongs to.',
             options: [
                 { value: '', label: '— None —' },
                 ...workstationTypes.map((w) => ({ value: String(w.id), label: w.name })),
             ],
         },
         { name: 'status', label: 'Status', type: 'select', options: STATUSES },
-        { name: 'next_service_at', label: 'Next Service', type: 'date' },
+        { name: 'next_service_at', label: 'Next Service', type: 'date', help: 'Optional — leave blank if no service is scheduled.' },
     ];
 }
 

@@ -94,7 +94,22 @@ class CollectionBroadcaster
                 continue;
             }
             $op = ($member !== null && ! $member($fresh)) ? 'delete' : 'upsert';
+            self::safeBroadcast($name, $op, $row, $tenant);
+        }
+    }
+
+    /**
+     * Dispatch a CollectionChanged delta without ever letting a broadcast
+     * failure break the originating write. Live sync is best-effort: if the
+     * broadcaster (e.g. Reverb) is unreachable, the write must still succeed
+     * and clients fall back to polling (useSyncedShape). Failures are logged.
+     */
+    private static function safeBroadcast(string $name, string $op, array $row, $tenant): void
+    {
+        try {
             event(new CollectionChanged($name, $op, $row, $tenant));
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 
@@ -116,7 +131,7 @@ class CollectionBroadcaster
 
                     foreach ($collections as $name => $member) {
                         $op = ($event === 'deleted' || ($member !== null && ! $member($m))) ? 'delete' : 'upsert';
-                        event(new CollectionChanged($name, $op, $row, $tenant));
+                        self::safeBroadcast($name, $op, $row, $tenant);
                     }
                 });
             }

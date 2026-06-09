@@ -24,42 +24,44 @@ class BomManagementController extends Controller
             abort(404);
         }
 
-        $bomItems  = $this->bomService->listForTemplate($processTemplate);
+        $bomItems = $this->bomService->listForTemplate($processTemplate);
         $materials = Material::active()->with('materialType')->orderBy('name')->get();
-        $steps     = $processTemplate->steps()->orderBy('step_number')->get();
+        $steps = $processTemplate->steps()->orderBy('step_number')->get();
 
         return Inertia::render('admin/process-templates/Bom', [
-            'productType'     => $productType->only('id', 'name'),
+            'productType' => $productType->only('id', 'name'),
             'processTemplate' => [
-                'id'      => $processTemplate->id,
-                'name'    => $processTemplate->name,
+                'id' => $processTemplate->id,
+                'name' => $processTemplate->name,
                 'version' => $processTemplate->version,
             ],
-            'bomItems'        => $bomItems->map(fn($item) => [
-                'id'                 => $item->id,
-                'material_name'      => $item->material->name,
-                'material_code'      => $item->material->code,
+            'bomItems' => $bomItems->map(fn ($item) => [
+                'id' => $item->id,
+                'material_name' => $item->material->name,
+                'material_code' => $item->material->code,
                 'material_type_name' => $item->material->materialType->name,
                 'material_type_code' => $item->material->materialType->code,
-                'unit_of_measure'    => $item->material->unit_of_measure,
-                'tracking_type'      => $item->material->tracking_type,
-                'step_number'        => $item->templateStep?->step_number,
-                'step_name'          => $item->templateStep?->name,
-                'quantity_per_unit'  => $item->quantity_per_unit,
-                'scrap_percentage'   => $item->scrap_percentage,
-                'consumed_at'        => $item->consumed_at,
-                'notes'              => $item->notes,
+                'unit_of_measure' => $item->material->unit_of_measure,
+                'tracking_type' => $item->material->tracking_type,
+                'step_number' => $item->templateStep?->step_number,
+                'step_name' => $item->templateStep?->name,
+                'quantity_per_unit' => $item->quantity_per_unit,
+                'scrap_percentage' => $item->scrap_percentage,
+                'consumed_at' => $item->consumed_at,
+                'notes' => $item->notes,
             ]),
-            'materials'       => $materials->map(fn($m) => [
-                'id'                 => $m->id,
-                'code'               => $m->code,
-                'name'               => $m->name,
+            'materials' => $materials->map(fn ($m) => [
+                'id' => $m->id,
+                'code' => $m->code,
+                'name' => $m->name,
                 'material_type_name' => $m->materialType->name,
+                'unit_of_measure' => $m->unit_of_measure,
+                'default_scrap_percentage' => $m->default_scrap_percentage,
             ]),
-            'steps'           => $steps->map(fn($s) => [
-                'id'          => $s->id,
+            'steps' => $steps->map(fn ($s) => [
+                'id' => $s->id,
                 'step_number' => $s->step_number,
-                'name'        => $s->name,
+                'name' => $s->name,
             ]),
         ]);
     }
