@@ -41,7 +41,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
     const submit = (e) => {
         e.preventDefault();
         form.post(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/add-step`,
+            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps`,
             { onSuccess: onCancel },
         );
     };
@@ -161,7 +161,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
     const submit = (e) => {
         e.preventDefault();
         form.put(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/update-step/${step.id}`,
+            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
             { onSuccess: onCancel },
         );
     };
@@ -491,7 +491,7 @@ export default function ProcessTemplatesShow() {
 
     const handleMoveUp = (step) => {
         router.post(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/move-step-up/${step.id}`,
+            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}/move-up`,
             {},
             { preserveScroll: true },
         );
@@ -499,7 +499,7 @@ export default function ProcessTemplatesShow() {
 
     const handleMoveDown = (step) => {
         router.post(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/move-step-down/${step.id}`,
+            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}/move-down`,
             {},
             { preserveScroll: true },
         );
@@ -508,7 +508,7 @@ export default function ProcessTemplatesShow() {
     const handleDelete = (step) => {
         if (!confirm('Delete this step?')) return;
         router.delete(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/delete-step/${step.id}`,
+            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
             { preserveScroll: true },
         );
     };
