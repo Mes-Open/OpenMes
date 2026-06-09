@@ -184,6 +184,7 @@ export const ADMIN_GROUPS = [
         key: 'modulesGroup',
         label: 'Modules',
         icon: 'cube',
+        href: '/admin/modules',
         match: ['/admin/modules'],
         children: [
             { label: 'Installed', href: '/admin/modules', match: ['/admin/modules'], exact: true },
