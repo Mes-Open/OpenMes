@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 
 /**
@@ -39,6 +39,18 @@ export default function ResourceForm({
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
 
+    // After a failed submit, jump to (and focus) the first invalid field so the
+    // user isn't left guessing what to fix — the main cause of form abandonment.
+    useEffect(() => {
+        const keys = Object.keys(errors);
+        if (keys.length === 0) return;
+        const el = document.querySelector(`[name="${keys[0]}"]`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.focus({ preventScroll: true });
+        }
+    }, [errors]);
+
     const submit = (e) => {
         e.preventDefault();
         form.submit(method, action);
@@ -73,6 +85,17 @@ export default function ResourceForm({
             {title && <h1 className="text-3xl font-bold text-gray-800 mb-6">{title}</h1>}
 
             <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6 max-w-2xl space-y-5">
+                {Object.keys(errors).length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-sm font-medium text-red-800">Please fix the following:</p>
+                        <ul className="mt-1 text-sm text-red-700 list-disc list-inside">
+                            {Object.entries(errors).map(([field, msg]) => (
+                                <li key={field}>{(fields.find((f) => f.name === field)?.label ?? field)}: {msg}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
                 {fields.map((f) => (
                     <Field key={f.name} field={f} value={data[f.name]} error={errors[f.name]} setData={setData} />
                 ))}
@@ -104,7 +127,7 @@ function Field({ field, value, error, setData }) {
         return (
             <div>
                 <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={!!value} onChange={(e) => set(e.target.checked)} />
+                    <input type="checkbox" name={name} checked={!!value} onChange={(e) => set(e.target.checked)} />
                     {label}
                 </label>
                 {help && <p className="text-sm text-gray-500 mt-1">{help}</p>}
@@ -120,6 +143,7 @@ function Field({ field, value, error, setData }) {
 
             {type === 'textarea' ? (
                 <textarea
+                    name={name}
                     value={value ?? ''}
                     onChange={(e) => set(e.target.value)}
                     rows={3}
@@ -127,7 +151,7 @@ function Field({ field, value, error, setData }) {
                     className="form-input w-full"
                 />
             ) : type === 'select' ? (
-                <select value={value ?? ''} onChange={(e) => set(e.target.value)} className="form-input w-full">
+                <select name={name} value={value ?? ''} onChange={(e) => set(e.target.value)} className="form-input w-full">
                     {(options ?? []).map((o) => (
                         <option key={o.value} value={o.value}>
                             {o.label}
@@ -137,6 +161,7 @@ function Field({ field, value, error, setData }) {
             ) : type === 'color' ? (
                 <input
                     type="color"
+                    name={name}
                     value={value || '#3b82f6'}
                     onChange={(e) => set(e.target.value)}
                     className="h-9 w-16 rounded border border-gray-300 p-0.5"
@@ -144,6 +169,7 @@ function Field({ field, value, error, setData }) {
             ) : (
                 <input
                     type={{ number: 'number', date: 'date', time: 'time', datetime: 'datetime-local' }[type] ?? 'text'}
+                    name={name}
                     value={value ?? ''}
                     onChange={(e) => set(e.target.value)}
                     placeholder={placeholder}

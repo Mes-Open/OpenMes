@@ -1,13 +1,13 @@
 export function materialLotFields(materials, sources, statuses) {
     return [
-        { name: 'lot_number', label: 'Lot Number', required: true },
+        { name: 'lot_number', label: 'Lot Number', required: true, placeholder: 'e.g. ACME-STEEL-2026-W24-001', help: 'Required. A unique identifier for this lot/batch.' },
         {
             name: 'material_id',
             label: 'Material',
             type: 'select',
             required: true,
             options: [
-                { value: '', label: '— Select material —' },
+                { value: '', label: '— Select material (required) —' },
                 ...materials.map((m) => ({ value: String(m.id), label: m.name })),
             ],
         },
@@ -21,8 +21,8 @@ export function materialLotFields(materials, sources, statuses) {
             ],
         },
         { name: 'quantity_received', label: 'Qty Received', type: 'number', required: true },
-        { name: 'quantity_available', label: 'Qty Available', type: 'number' },
-        { name: 'unit_of_measure', label: 'Unit', required: true },
+        { name: 'quantity_available', label: 'Qty Available', type: 'number', help: 'Defaults to the received quantity if left blank.' },
+        { name: 'unit_of_measure', label: 'Unit', required: true, placeholder: 'e.g. pcs, kg, l', help: 'Required.' },
         { name: 'received_at', label: 'Received', type: 'date', required: true },
         { name: 'manufacturing_date', label: 'Mfg Date', type: 'date' },
         { name: 'expiry_date', label: 'Expiry', type: 'date' },
