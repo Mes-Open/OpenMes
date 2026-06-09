@@ -70,76 +70,36 @@ jobs:
       - name: Build release notes
         id: notes
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           CUSTOM="${{ github.event.inputs.notes }}"
           LOG="${{ steps.changelog.outputs.log }}"
           BODY=""
           if [ -n "$CUSTOM" ]; then
             BODY="${CUSTOM}"$'\n\n'
           fi
-          BODY="${BODY}## Changes"$'\n'"${LOG}"
+          INSTALL="## Installation"$'\n\n'
+          INSTALL="${INSTALL}Download **\`openmmes-${VERSION}.zip\`** below — it is **self-contained** (PHP dependencies in \`vendor/\` and the built frontend in \`backend/public/build/\` are already bundled, so no \`composer install\` or \`npm build\` is required)."$'\n\n'
+          INSTALL="${INSTALL}**Shared hosting (no terminal):** unzip, upload the folder to your web host, point the document root at the package root, then open the URL — the browser-based setup wizard handles environment, database and the admin account."$'\n\n'
+          INSTALL="${INSTALL}**Docker:** unzip and run \`docker compose up -d\` from the package root (or \`bash install.sh\`)."$'\n\n'
+          BODY="${BODY}${INSTALL}## Changes"$'\n'"${LOG}"
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Bump version and update CHANGELOG.md
+      # NOTE: the version bump (backend/config/version.php) and CHANGELOG entry
+      # are committed manually during release prep on develop -> main BEFORE the
+      # tag is pushed, so the tagged tree already carries the correct version.
+      # The workflow intentionally does NOT push to main here: main is a
+      # protected branch and a bot push is rejected (GH013 ruleset violation),
+      # which previously aborted the whole release before the artifact was built.
+      - name: Verify tagged version matches the release
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          DATE=$(date +%Y-%m-%d)
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          git fetch origin main
-          git checkout main
-          git pull origin main
-
-          # Bump version.php
-          sed -i "s/'current' => '.*'/'current' => '${VERSION}'/" backend/config/version.php
-
-          # Update CHANGELOG.md
-          if [ -f CHANGELOG.md ]; then
-            PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1 || echo "")
-            FEATURES=""
-            FIXES=""
-            if [ -n "$PREV_TAG" ]; then
-              FEATURES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"%s" --no-merges | grep -E "^feat" | sed 's/^feat[^:]*: /- /' || true)
-              FIXES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"%s" --no-merges | grep -E "^fix" | sed 's/^fix[^:]*: /- /' || true)
-            fi
-
-            # Build entry file
-            echo "## [${VERSION}] - ${DATE}" > /tmp/changelog_entry.md
-            echo "" >> /tmp/changelog_entry.md
-            if [ -n "$FEATURES" ]; then
-              echo "### Added" >> /tmp/changelog_entry.md
-              echo "$FEATURES" >> /tmp/changelog_entry.md
-              echo "" >> /tmp/changelog_entry.md
-            fi
-            if [ -n "$FIXES" ]; then
-              echo "### Fixed" >> /tmp/changelog_entry.md
-              echo "$FIXES" >> /tmp/changelog_entry.md
-              echo "" >> /tmp/changelog_entry.md
-            fi
-
-            # Insert new version entry after [Unreleased] section
-            FIRST_VERSION_LINE=$(grep -n "^## \[0\." CHANGELOG.md | head -1 | cut -d: -f1)
-            if [ -n "$FIRST_VERSION_LINE" ]; then
-              head -n $((FIRST_VERSION_LINE - 1)) CHANGELOG.md > /tmp/changelog_top.md
-              echo "" >> /tmp/changelog_top.md
-              cat /tmp/changelog_entry.md >> /tmp/changelog_top.md
-              tail -n +${FIRST_VERSION_LINE} CHANGELOG.md >> /tmp/changelog_top.md
-              mv /tmp/changelog_top.md CHANGELOG.md
-            fi
-            sed -i "s|\[Unreleased\]: .*|[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/${VERSION}...develop|" CHANGELOG.md
-
-            git add CHANGELOG.md
-          fi
-
-          git add backend/config/version.php
-          if git diff --cached --quiet; then
-            echo "Version already set to ${VERSION}, no commit needed."
-          else
-            git commit -m "chore: bump version to ${VERSION}, update CHANGELOG"
-            git push origin main
+          FILE_VERSION=$(grep -oE "'current' => '[^']+'" backend/config/version.php | head -1 | sed "s/.*=> '//;s/'//")
+          echo "version.php = ${FILE_VERSION}, tag = ${VERSION}"
+          if [ "${FILE_VERSION}" != "${VERSION}" ]; then
+            echo "::warning::backend/config/version.php (${FILE_VERSION}) does not match the tag (${VERSION}). Building from the tagged tree as-is."
           fi
 
       - name: Install PHP dependencies
@@ -162,6 +122,7 @@ jobs:
           cp index.php "${DIST}/"
           cp docker-compose.yml "${DIST}/"
           cp Caddyfile "${DIST}/"
+          cp install.sh "${DIST}/" 2>/dev/null || true
           cp .env.example "${DIST}/" 2>/dev/null || true
           cp README.md "${DIST}/" 2>/dev/null || true
 
@@ -171,7 +132,9 @@ jobs:
             --exclude='node_modules' \
             --exclude='tests' \
             --exclude='.git' \
-            --exclude='storage/logs/*.log'
+            --exclude='storage/logs/*.log' \
+            --exclude='storage/installed' \
+            --exclude='bootstrap/cache/*.php'
 
           # Ensure storage directories exist
           mkdir -p "${DIST}/backend/storage/logs"
