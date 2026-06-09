@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+---
+
+## [0.14.3] - 2026-06-09
+
 ### Fixed
 - Process template steps: Save / Add / Delete / Move on the step editor hit a 404 (popup) because the React page posted to the route *names* (`/update-step/{id}` etc.) instead of the actual RESTful paths (`/steps/{id}`). Corrected all five step-action URLs; added a web test pinning the literal paths.
 - Live sync no longer breaks writes: a failing Reverb broadcast (e.g. server unreachable) is now caught so the originating create/update/delete still succeeds — fixes work-order actions (Accept etc.) erroring out when the broadcaster is down. Clients fall back to polling.
@@ -252,7 +256,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.2...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.3...develop
+[0.14.3]: https://github.com/Mes-Open/OpenMes/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/Mes-Open/OpenMes/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/Mes-Open/OpenMes/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...v0.14.0
