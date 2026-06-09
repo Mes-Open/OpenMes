@@ -124,4 +124,13 @@ class SystemSettingsLanguageTest extends TestCase
             ->get('/settings/system')
             ->assertStatus(200);
     }
+
+    public function test_settings_index_renders_with_empty_settings_table(): void
+    {
+        DB::table('system_settings')->truncate();
+
+        $this->actingAs($this->admin)
+            ->get('/settings')
+            ->assertStatus(200);
+    }
 }
