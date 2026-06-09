@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
+- Demo tenant pruning (`tenants:prune`) crashed every minute with a 23503 foreign-key violation: deleting a tenant cascades to its users, but `packaging_checklists.checked_by`, `quality_checks.checked_by` and `process_confirmations.confirmed_by` referenced users with `restrictOnDelete`, blocking the cascade. These audit references are now `nullOnDelete` (migration), matching every other user FK. The command also isolates each tenant in its own transaction/try-catch so one bad delete can't abort the whole scheduled run.
 - System Settings page no longer 500s on a fresh tenant: `showSystemSettings()` read `$rows['key']->value` which threw "Attempt to read property 'value' on null" when a `system_settings` key had not been written yet. All ~24 reads are now null-safe (`?->value`), so the page renders with defaults until settings are saved. Regression test added (renders with an empty settings table).
 
 ### Changed
