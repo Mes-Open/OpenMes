@@ -22,7 +22,7 @@ class SettingsController extends Controller
     public function index()
     {
         $pinSetting = DB::table('system_settings')->where('key', 'pin_login_enabled')->first();
-        $pinLoginEnabled = json_decode($pinSetting->value ?? 'false', true) === true;
+        $pinLoginEnabled = json_decode($pinSetting?->value ?? 'false', true) === true;
 
         return Inertia::render('settings/Index', [
             'pinLoginEnabled' => $pinLoginEnabled,
