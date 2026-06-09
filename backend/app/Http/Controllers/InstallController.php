@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\Models\User;
 use Spatie\Permission\Models\Role;
 
 class InstallController extends Controller
 {
     /** Supported database drivers and their display labels. */
     const DB_DRIVERS = [
-        'pgsql'   => 'PostgreSQL',
-        'mysql'   => 'MySQL',
+        'pgsql' => 'PostgreSQL',
+        'mysql' => 'MySQL',
         'mariadb' => 'MariaDB',
-        'sqlite'  => 'SQLite',
+        'sqlite' => 'SQLite',
     ];
 
     /**
@@ -34,12 +34,13 @@ class InstallController extends Controller
     {
         $envPath = base_path('.env');
 
-        if (!file_exists($envPath)) {
+        if (! file_exists($envPath)) {
             return true;
         }
 
         $envContent = file_get_contents($envPath);
-        return !preg_match('/APP_KEY=base64:.+/', $envContent);
+
+        return ! preg_match('/APP_KEY=base64:.+/', $envContent);
     }
 
     /**
@@ -89,18 +90,18 @@ class InstallController extends Controller
 
         $validated = $request->validate([
             'app_name' => 'required|string|max:255',
-            'app_url'  => 'required|url',
+            'app_url' => 'required|url',
         ]);
 
         $envPath = base_path('.env');
-        if (!file_exists($envPath)) {
+        if (! file_exists($envPath)) {
             copy(base_path('.env.example'), $envPath);
         }
 
         $this->updateEnvFile([
-            'APP_NAME'  => $validated['app_name'],
-            'APP_URL'   => $validated['app_url'],
-            'APP_ENV'   => 'production',
+            'APP_NAME' => $validated['app_name'],
+            'APP_URL' => $validated['app_url'],
+            'APP_ENV' => 'production',
             'APP_DEBUG' => 'false',
         ]);
 
@@ -120,16 +121,16 @@ class InstallController extends Controller
         }
 
         $dbConfig = session('install_database_config', [
-            'db_driver'   => 'pgsql',
-            'db_host'     => 'localhost',
-            'db_port'     => '5432',
+            'db_driver' => 'pgsql',
+            'db_host' => 'localhost',
+            'db_port' => '5432',
             'db_database' => 'openmmes',
             'db_username' => 'openmmes_user',
             'db_password' => '',
         ]);
 
         return view('install.database', [
-            'dbConfig'  => $dbConfig,
+            'dbConfig' => $dbConfig,
             'dbDrivers' => self::DB_DRIVERS,
         ]);
     }
@@ -145,7 +146,7 @@ class InstallController extends Controller
 
         $driver = $request->input('db_driver', 'pgsql');
 
-        if (!array_key_exists($driver, self::DB_DRIVERS)) {
+        if (! array_key_exists($driver, self::DB_DRIVERS)) {
             return back()->withErrors(['db_driver' => 'Invalid database driver.'])->withInput();
         }
 
@@ -153,8 +154,8 @@ class InstallController extends Controller
         $rules = ['db_driver' => 'required|in:pgsql,mysql,mariadb,sqlite'];
 
         if ($driver !== 'sqlite') {
-            $rules['db_host']     = 'required|string';
-            $rules['db_port']     = 'required|integer';
+            $rules['db_host'] = 'required|string';
+            $rules['db_port'] = 'required|integer';
             $rules['db_database'] = 'required|string';
             $rules['db_username'] = 'required|string';
             $rules['db_password'] = 'nullable|string';
@@ -169,7 +170,7 @@ class InstallController extends Controller
         if ($driver === 'sqlite') {
             $dbPath = $validated['db_database'];
             // Resolve relative paths to storage/
-            if (!str_starts_with($dbPath, '/')) {
+            if (! str_starts_with($dbPath, '/')) {
                 $dbPath = storage_path($dbPath);
             }
             config([
@@ -178,14 +179,14 @@ class InstallController extends Controller
             config(['database.default' => $driver]);
         } else {
             config([
-                "database.connections.{$driver}.host"     => $validated['db_host'],
-                "database.connections.{$driver}.port"     => $validated['db_port'],
+                "database.connections.{$driver}.host" => $validated['db_host'],
+                "database.connections.{$driver}.port" => $validated['db_port'],
                 "database.connections.{$driver}.database" => $validated['db_database'],
                 "database.connections.{$driver}.username" => $validated['db_username'],
                 "database.connections.{$driver}.password" => $validated['db_password'],
-                "database.connections.{$driver}.options"  => [
-                    \PDO::ATTR_TIMEOUT  => 30,
-                    \PDO::ATTR_ERRMODE  => \PDO::ERRMODE_EXCEPTION,
+                "database.connections.{$driver}.options" => [
+                    \PDO::ATTR_TIMEOUT => 30,
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 ],
             ]);
             config(['database.default' => $driver]);
@@ -203,30 +204,30 @@ class InstallController extends Controller
             } elseif (str_contains($msg, 'password authentication failed') || $e->getCode() === '28P01') {
                 return back()->withErrors(['db_connection' => 'Invalid database username or password.'])->withInput();
             } elseif (str_contains($msg, 'does not exist') || str_contains($msg, 'Unknown database')) {
-                return back()->withErrors(['db_connection' => 'Database "' . $validated['db_database'] . '" does not exist. Create it first.'])->withInput();
+                return back()->withErrors(['db_connection' => 'Database "'.$validated['db_database'].'" does not exist. Create it first.'])->withInput();
             } elseif (str_contains($msg, 'could not translate host name') || str_contains($msg, 'Connection refused')) {
                 return back()->withErrors(['db_connection' => 'Could not connect to the database server. Check the host and port.'])->withInput();
             } else {
-                return back()->withErrors(['db_connection' => 'Database connection error: ' . $msg])->withInput();
+                return back()->withErrors(['db_connection' => 'Database connection error: '.$msg])->withInput();
             }
         } catch (\Exception $e) {
-            return back()->withErrors(['db_connection' => 'Unexpected error: ' . $e->getMessage()])->withInput();
+            return back()->withErrors(['db_connection' => 'Unexpected error: '.$e->getMessage()])->withInput();
         }
 
         // Write DB config to .env NOW so migrate:fresh reads the correct driver
         if ($driver === 'sqlite') {
             $this->updateEnvFile([
                 'DB_CONNECTION' => $driver,
-                'DB_DATABASE'   => $validated['db_database'],
+                'DB_DATABASE' => $validated['db_database'],
             ]);
         } else {
             $this->updateEnvFile([
                 'DB_CONNECTION' => $driver,
-                'DB_HOST'       => $validated['db_host'],
-                'DB_PORT'       => $validated['db_port'],
-                'DB_DATABASE'   => $validated['db_database'],
-                'DB_USERNAME'   => $validated['db_username'],
-                'DB_PASSWORD'   => $validated['db_password'],
+                'DB_HOST' => $validated['db_host'],
+                'DB_PORT' => $validated['db_port'],
+                'DB_DATABASE' => $validated['db_database'],
+                'DB_USERNAME' => $validated['db_username'],
+                'DB_PASSWORD' => $validated['db_password'],
             ]);
         }
         Artisan::call('config:clear');
@@ -235,16 +236,16 @@ class InstallController extends Controller
         try {
             Artisan::call('migrate:fresh', ['--force' => true]);
         } catch (\Exception $e) {
-            return back()->withErrors(['migration' => 'Migration failed: ' . $e->getMessage()]);
+            return back()->withErrors(['migration' => 'Migration failed: '.$e->getMessage()]);
         }
 
         Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
         Artisan::call('db:seed', ['--class' => 'IssueTypesSeeder', '--force' => true]);
 
         session([
-            'install_step_1_completed'    => true,
+            'install_step_1_completed' => true,
             'install_database_configured' => true,
-            'install_database_config'     => array_merge($validated, ['db_driver' => $driver]),
+            'install_database_config' => array_merge($validated, ['db_driver' => $driver]),
         ]);
 
         return redirect()->route('install.admin');
@@ -259,16 +260,16 @@ class InstallController extends Controller
             return redirect('/');
         }
 
-        if (!session('install_step_1_completed')) {
+        if (! session('install_step_1_completed')) {
             return redirect()->route('install.database')
                 ->with('error', 'Please complete database configuration first.');
         }
 
         $adminConfig = session('install_admin_config', [
-            'site_name'      => 'OpenMES',
-            'site_url'       => 'http://localhost',
+            'site_name' => 'OpenMES',
+            'site_url' => 'http://localhost',
             'admin_username' => '',
-            'admin_email'    => '',
+            'admin_email' => '',
         ]);
 
         return view('install.admin', ['adminConfig' => $adminConfig]);
@@ -279,31 +280,31 @@ class InstallController extends Controller
      */
     public function createAdmin(Request $request)
     {
-        if (!session('install_step_1_completed')) {
+        if (! session('install_step_1_completed')) {
             return redirect()->route('install.database')
                 ->with('error', 'Please complete database configuration first.');
         }
 
         $validated = $request->validate([
             'admin_username' => 'required|string|max:255|unique:users,username',
-            'admin_email'    => 'required|email|max:255|unique:users,email',
+            'admin_email' => 'required|email|max:255|unique:users,email',
             'admin_password' => 'required|string|min:8|confirmed',
-            'site_name'      => 'required|string|max:255',
-            'site_url'       => 'required|url',
+            'site_name' => 'required|string|max:255',
+            'site_url' => 'required|url',
         ]);
 
         session([
             'install_admin_config' => [
-                'site_name'      => $validated['site_name'],
-                'site_url'       => $validated['site_url'],
+                'site_name' => $validated['site_name'],
+                'site_url' => $validated['site_url'],
                 'admin_username' => $validated['admin_username'],
-                'admin_email'    => $validated['admin_email'],
-            ]
+                'admin_email' => $validated['admin_email'],
+            ],
         ]);
 
         $dbConfig = session('install_database_config');
 
-        if (!$dbConfig) {
+        if (! $dbConfig) {
             return redirect()->route('install.database')
                 ->with('error', 'Database configuration not found. Please configure database first.');
         }
@@ -313,14 +314,14 @@ class InstallController extends Controller
         // Re-apply runtime DB config so Eloquent uses the correct connection
         if ($driver === 'sqlite') {
             $dbPath = $dbConfig['db_database'];
-            if (!str_starts_with($dbPath, '/')) {
+            if (! str_starts_with($dbPath, '/')) {
                 $dbPath = storage_path($dbPath);
             }
             config(["database.connections.{$driver}.database" => $dbPath]);
         } else {
             config([
-                "database.connections.{$driver}.host"     => $dbConfig['db_host'],
-                "database.connections.{$driver}.port"     => $dbConfig['db_port'],
+                "database.connections.{$driver}.host" => $dbConfig['db_host'],
+                "database.connections.{$driver}.port" => $dbConfig['db_port'],
                 "database.connections.{$driver}.database" => $dbConfig['db_database'],
                 "database.connections.{$driver}.username" => $dbConfig['db_username'],
                 "database.connections.{$driver}.password" => $dbConfig['db_password'],
@@ -329,18 +330,18 @@ class InstallController extends Controller
 
         config([
             'database.default' => $driver,
-            'app.name'         => $validated['site_name'],
-            'app.url'          => $validated['site_url'],
+            'app.name' => $validated['site_name'],
+            'app.url' => $validated['site_url'],
         ]);
 
         DB::purge($driver);
         DB::reconnect($driver);
 
         $admin = User::create([
-            'name'                  => 'Administrator',
-            'username'              => $validated['admin_username'],
-            'email'                 => $validated['admin_email'],
-            'password'              => Hash::make($validated['admin_password']),
+            'name' => 'Administrator',
+            'username' => $validated['admin_username'],
+            'email' => $validated['admin_email'],
+            'password' => Hash::make($validated['admin_password']),
             'force_password_change' => false,
         ]);
 
@@ -364,15 +365,20 @@ class InstallController extends Controller
         defer(function () use ($dbConfig, $validated, $driver) {
             $envData = [
                 'DB_CONNECTION' => $driver,
-                'APP_NAME'      => $validated['site_name'],
-                'APP_URL'       => $validated['site_url'],
+                'APP_NAME' => $validated['site_name'],
+                'APP_URL' => $validated['site_url'],
+                // Harden a finished install: on bare hosting the environment
+                // step is skipped (public/index.php auto-generates APP_KEY), so
+                // without this the site would go live as local/debug=true.
+                'APP_ENV' => 'production',
+                'APP_DEBUG' => 'false',
             ];
 
             if ($driver === 'sqlite') {
                 $envData['DB_DATABASE'] = $dbConfig['db_database'];
             } else {
-                $envData['DB_HOST']     = $dbConfig['db_host'];
-                $envData['DB_PORT']     = $dbConfig['db_port'];
+                $envData['DB_HOST'] = $dbConfig['db_host'];
+                $envData['DB_PORT'] = $dbConfig['db_port'];
                 $envData['DB_DATABASE'] = $dbConfig['db_database'];
                 $envData['DB_USERNAME'] = $dbConfig['db_username'];
                 $envData['DB_PASSWORD'] = $dbConfig['db_password'];
@@ -389,7 +395,7 @@ class InstallController extends Controller
      */
     public function complete()
     {
-        if (!$this->isInstalled()) {
+        if (! $this->isInstalled()) {
             return redirect()->route('install.index');
         }
 
@@ -403,7 +409,7 @@ class InstallController extends Controller
     {
         $envPath = base_path('.env');
 
-        if (!file_exists($envPath)) {
+        if (! file_exists($envPath)) {
             copy(base_path('.env.example'), $envPath);
         }
 
