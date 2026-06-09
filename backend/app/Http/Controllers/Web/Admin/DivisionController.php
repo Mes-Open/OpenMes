@@ -43,11 +43,11 @@ class DivisionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'factory_id'  => 'nullable|exists:factories,id',
-            'code'        => 'required|string|max:50|unique:divisions',
-            'name'        => 'required|string|max:255',
+            'factory_id' => 'nullable|exists:factories,id',
+            'code' => 'required|string|max:50|unique:divisions',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -77,11 +77,11 @@ class DivisionController extends Controller
     public function update(Request $request, Division $division)
     {
         $validated = $request->validate([
-            'factory_id'  => 'nullable|exists:factories,id',
-            'code'        => 'required|string|max:50|unique:divisions,code,' . $division->id,
-            'name'        => 'required|string|max:255',
+            'factory_id' => 'nullable|exists:factories,id',
+            'code' => 'required|string|max:50|unique:divisions,code,'.$division->id,
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -107,7 +107,12 @@ class DivisionController extends Controller
                 ->with('error', 'Cannot delete division with assigned production lines. Deactivate it instead.');
         }
 
-        $division->delete();
+        try {
+            $division->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->route('admin.divisions.index')
+                ->with('error', 'Cannot delete: this division is still referenced elsewhere. Deactivate it instead.');
+        }
 
         return redirect()->route('admin.divisions.index')
             ->with('success', 'Division deleted successfully.');
