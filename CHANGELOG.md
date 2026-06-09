@@ -9,6 +9,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.14.4] - 2026-06-09
+
+### Fixed
+- Demo tenant pruning (`tenants:prune`) crashed every minute with a 23503 foreign-key violation: deleting a tenant cascades to its users, but `packaging_checklists.checked_by`, `quality_checks.checked_by` and `process_confirmations.confirmed_by` referenced users with `restrictOnDelete`, blocking the cascade. These audit references are now `nullOnDelete` (migration), matching every other user FK. The command also isolates each tenant in its own transaction/try-catch so one bad delete can't abort the whole scheduled run.
+- System Settings page no longer 500s on a fresh tenant: `showSystemSettings()` read `$rows['key']->value` which threw "Attempt to read property 'value' on null" when a `system_settings` key had not been written yet. All ~24 reads are now null-safe (`?->value`), so the page renders with defaults until settings are saved. Regression test added (renders with an empty settings table).
+
+### Changed
+- Sidebar: nav groups that have their own landing page (e.g. **Modules**) now navigate there on click instead of only expanding — previously clicking the group header did nothing visible.
+- Forms (all config-driven CRUD via `ResourceForm`): a failed submit now scrolls to and focuses the first invalid field and shows an error summary at the top — the main cause of form abandonment (e.g. Material Lot registration). Required Material Lot fields gained clearer placeholders/hints.
+
+---
+
 ## [0.14.3] - 2026-06-09
 
 ### Fixed
@@ -256,7 +268,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.3...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.4...develop
+[0.14.4]: https://github.com/Mes-Open/OpenMes/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/Mes-Open/OpenMes/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/Mes-Open/OpenMes/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/Mes-Open/OpenMes/compare/v0.14.0...v0.14.1

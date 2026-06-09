@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
@@ -369,7 +369,16 @@ function NavGroup({ group, path, collapsed, showLabels }) {
 
     // Collapsed sidebar can't show expanded children; clicking a collapsed
     // group expands the sidebar first (parity with Blade expandGroup()).
-    const toggle = () => setOpen((o) => !o);
+    // A group with its own landing page (`href`) also navigates there on click
+    // instead of only expanding — otherwise the header looks unresponsive.
+    const toggle = () => {
+        if (group.href) {
+            router.visit(group.href);
+            setOpen(true);
+        } else {
+            setOpen((o) => !o);
+        }
+    };
 
     return (
         <div className="px-2">
