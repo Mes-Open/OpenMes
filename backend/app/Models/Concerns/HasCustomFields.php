@@ -42,11 +42,12 @@ trait HasCustomFields
         return data_get($this->custom_fields, $key, $default);
     }
 
-    /** Set a single custom value without clobbering the rest of the column. */
+    /** Set a single custom value without clobbering the rest of the column.
+     *  Uses data_set so dot-paths nest consistently with the cf() getter. */
     public function setCustomField(string $key, mixed $value): static
     {
         $data = $this->custom_fields ?? [];
-        $data[$key] = $value;
+        data_set($data, $key, $value);
         $this->custom_fields = $data;
 
         return $this;

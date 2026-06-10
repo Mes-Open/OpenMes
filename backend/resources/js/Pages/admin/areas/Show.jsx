@@ -68,7 +68,7 @@ export default function AreaShow() {
                 </div>
 
                 <div className="mb-6">
-                    <CustomFieldsDisplay definitions={customFields} values={area.custom_fields} />
+                    <CustomFieldsDisplay definitions={customFields} values={area.custom_fields ?? {}} />
                 </div>
 
                 {/* Lines table */}

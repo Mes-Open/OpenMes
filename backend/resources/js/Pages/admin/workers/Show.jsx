@@ -65,7 +65,7 @@ export default function WorkerShow() {
                 </div>
 
                 <div className="mb-6">
-                    <CustomFieldsDisplay definitions={customFields} values={worker.custom_fields} />
+                    <CustomFieldsDisplay definitions={customFields} values={worker.custom_fields ?? {}} />
                 </div>
 
                 {/* Certifications card */}

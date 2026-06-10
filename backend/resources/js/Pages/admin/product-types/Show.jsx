@@ -140,7 +140,7 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                 </div>
 
                 <div className="mb-6">
-                    <CustomFieldsDisplay definitions={customFields} values={productType.custom_fields} />
+                    <CustomFieldsDisplay definitions={customFields} values={productType.custom_fields ?? {}} />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
