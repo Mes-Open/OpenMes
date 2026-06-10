@@ -439,9 +439,10 @@ export default function AdminWorkOrderShow() {
                                         const isBlocking = ['OPEN', 'ACKNOWLEDGED'].includes(issue.status) && issue.is_blocking;
                                         const issueStatusStyle = ISSUE_STATUS_STYLES[issue.status] ?? 'bg-gray-100 text-gray-500';
                                         return (
-                                            <div
+                                            <Link
                                                 key={issue.id}
-                                                className={`p-2 rounded-lg text-xs ${isBlocking ? 'bg-red-50' : 'bg-gray-50'}`}
+                                                href={`/admin/issues?search=${encodeURIComponent(workOrder.order_no)}`}
+                                                className={`block p-2 rounded-lg text-xs transition hover:ring-1 hover:ring-blue-300 ${isBlocking ? 'bg-red-50' : 'bg-gray-50'}`}
                                             >
                                                 <div className="flex justify-between">
                                                     <span className="font-medium text-gray-800">{issue.issue_type_name}</span>
@@ -450,7 +451,7 @@ export default function AdminWorkOrderShow() {
                                                     </span>
                                                 </div>
                                                 <p className="text-gray-600 mt-1 truncate">{issue.title}</p>
-                                            </div>
+                                            </Link>
                                         );
                                     })}
                                 </div>

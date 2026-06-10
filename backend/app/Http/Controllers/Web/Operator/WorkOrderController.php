@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Operator;
 use App\Http\Controllers\Controller;
 use App\Models\IssueType;
 use App\Models\LineStatus;
+use App\Models\ScrapReason;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Services\WorkOrder\WorkOrderService;
@@ -235,9 +236,13 @@ class WorkOrderController extends Controller
             'batches.packagingChecklist',
             'issues.issueType',
             'issues.reportedBy',
+            'scrapEntries.scrapReason',
+            'scrapEntries.reportedBy',
         ]);
 
         $issueTypes = IssueType::where('is_active', true)->orderBy('name')->get();
+
+        $scrapReasons = ScrapReason::active()->ordered()->get();
 
         // Only show workstations from this line (not all system workstations)
         $workstations = $workOrder->line
@@ -260,24 +265,37 @@ class WorkOrderController extends Controller
         // instructions reach in-flight orders; the snapshot itself stays frozen.
         // Served via the authenticated stream route, so any logged-in operator
         // may view them.
-        $processPhotos = collect();
+        $processPhotos = collect();   // general (non-step) work-instruction gallery
+        $stepPhotos = [];             // step_number => photo, shown inline per step
         $templateId = $workOrder->process_snapshot['template_id'] ?? null;
         if ($templateId) {
-            $processPhotos = \App\Models\ProcessTemplatePhoto::where('process_template_id', $templateId)
+            $photos = \App\Models\ProcessTemplatePhoto::where('process_template_id', $templateId)
+                ->with('templateStep:id,step_number')
                 ->orderBy('sort_order')
                 ->orderBy('id')
-                ->get()
-                ->map(fn ($p) => [
-                    'id' => $p->id,
-                    'url' => route('process-templates.photos.show', [$templateId, $p->id]),
-                    'caption' => $p->caption,
-                    'width' => $p->width,
-                    'height' => $p->height,
-                ]);
+                ->get();
+
+            $shape = fn ($p) => [
+                'id' => $p->id,
+                'url' => route('process-templates.photos.show', [$templateId, $p->id]),
+                'caption' => $p->caption,
+                'width' => $p->width,
+                'height' => $p->height,
+            ];
+
+            $processPhotos = $photos->whereNull('template_step_id')->map($shape)->values();
+
+            // A batch step links back to its template step only by step_number
+            // (the snapshot doesn't carry template_step_id), so key by that.
+            foreach ($photos->whereNotNull('template_step_id') as $p) {
+                $num = $p->templateStep?->step_number;
+                if ($num !== null) {
+                    $stepPhotos[$num] = $shape($p);
+                }
+            }
         }
 
         $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
-
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'issueCustomFields'));
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'issueCustomFields'));
     }
 }

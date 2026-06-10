@@ -26,6 +26,8 @@
 
 **OpenMES** is a modern, open-source Manufacturing Execution System designed specifically for **small manufacturers** (woodworking, metalworking, assembly shops) who need powerful production tracking without enterprise complexity.
 
+![Admin Dashboard](docs/screenshots/dashboard.png)
+
 ### Why OpenMES?
 
 - 🎯 **Purpose-built for small manufacturers** - No bloat, just what you need
@@ -40,6 +42,21 @@
 
 ## Features
 
+### Production Planner
+
+Drag-and-drop production scheduling with Gantt-style views across multiple production lines.
+
+![Weekly Planner](docs/screenshots/schedule-weekly.png)
+
+- **Weekly / Daily / Hourly / Monthly views** — switch between planning horizons
+- **Drag & drop scheduling** — assign and move work orders across lines and shifts
+- **Hourly Gantt view** — minute-level precision with resize and cross-line moves
+- **Real-time polling** — live updates when changes happen on the shop floor
+- **Backlog panel** — unassigned orders with priority filtering and search
+- **Overdue alerts** — visual flagging of overdue orders on the timeline
+
+![Hourly Gantt View](docs/screenshots/schedule-hourly.png)
+
 ### Production Management
 
 - **Multi-line production** - Manage multiple production lines simultaneously
@@ -50,6 +67,10 @@
 - **Real-time status** - Live production status updates
 
 ### Operator Experience
+
+![Operator Queue](docs/screenshots/operator-queue.png)
+
+![Operator Workstation View](docs/screenshots/operator-workstation.png)
 
 - **Step-by-step guidance** - Clear instructions for every operation
 - **Sequential workflow** - Enforce process order to prevent mistakes

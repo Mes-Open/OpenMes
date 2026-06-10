@@ -28,7 +28,7 @@ class WorkstationManagementController extends Controller
                 $ws->only('id', 'code', 'name', 'workstation_type', 'is_active'),
                 [
                     'template_steps_count' => $ws->template_steps_count,
-                    'workers_count'        => $ws->workers_count,
+                    'workers_count' => $ws->workers_count,
                 ]
             ))->values(),
         ]);
@@ -91,7 +91,7 @@ class WorkstationManagementController extends Controller
                 'code'             => $w->code,
                 'workstation_id'   => $w->workstation_id,
                 'workstation_name' => $w->workstation?->name,
-                'crew_name'        => $w->crew?->name,
+                'crew_name' => $w->crew?->name,
             ])->values(),
         ]);
     }
@@ -130,7 +130,7 @@ class WorkstationManagementController extends Controller
             ->whereNotIn('id', $workerIds)
             ->update(['workstation_id' => null]);
         // Assign selected workers (may move them from another workstation)
-        if (!empty($workerIds)) {
+        if (! empty($workerIds)) {
             Worker::whereIn('id', $workerIds)->update(['workstation_id' => $workstation->id]);
         }
 
@@ -154,7 +154,12 @@ class WorkstationManagementController extends Controller
                 ->with('error', 'Cannot delete workstation with existing template steps. Deactivate it instead.');
         }
 
-        $workstation->delete();
+        try {
+            $workstation->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->route('admin.lines.workstations.index', $line)
+                ->with('error', 'Cannot delete: this workstation is still referenced elsewhere. Deactivate it instead.');
+        }
 
         return redirect()->route('admin.lines.workstations.index', $line)
             ->with('success', 'Workstation deleted successfully.');
@@ -170,7 +175,7 @@ class WorkstationManagementController extends Controller
             abort(404);
         }
 
-        $workstation->update(['is_active' => !$workstation->is_active]);
+        $workstation->update(['is_active' => ! $workstation->is_active]);
 
         $status = $workstation->is_active ? 'activated' : 'deactivated';
 

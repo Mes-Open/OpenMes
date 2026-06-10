@@ -13,6 +13,7 @@ class ProcessTemplatePhoto extends Model
 
     protected $fillable = [
         'process_template_id',
+        'template_step_id',
         'original_name',
         'storage_path',
         'mime_type',
@@ -45,6 +46,11 @@ class ProcessTemplatePhoto extends Model
     public function processTemplate(): BelongsTo
     {
         return $this->belongsTo(ProcessTemplate::class);
+    }
+
+    public function templateStep(): BelongsTo
+    {
+        return $this->belongsTo(TemplateStep::class);
     }
 
     public function uploadedBy(): BelongsTo

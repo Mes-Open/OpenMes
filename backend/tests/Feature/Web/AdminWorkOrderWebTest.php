@@ -15,6 +15,7 @@ class AdminWorkOrderWebTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $operator;
 
     protected function setUp(): void
@@ -92,10 +93,10 @@ class AdminWorkOrderWebTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->admin)->post('/admin/work-orders', [
-            'order_no'        => 'WO-WEB-001',
-            'line_id'         => $line->id,
+            'order_no' => 'WO-WEB-001',
+            'line_id' => $line->id,
             'product_type_id' => $productType->id,
-            'planned_qty'     => 100,
+            'planned_qty' => 100,
         ]);
 
         $response->assertRedirect();
@@ -117,10 +118,10 @@ class AdminWorkOrderWebTest extends TestCase
         $productType = ProductType::factory()->create();
 
         $response = $this->actingAs($this->admin)->post('/admin/work-orders', [
-            'order_no'        => 'WO-EXISTING',
-            'line_id'         => $line->id,
+            'order_no' => 'WO-EXISTING',
+            'line_id' => $line->id,
             'product_type_id' => $productType->id,
-            'planned_qty'     => 50,
+            'planned_qty' => 50,
         ]);
 
         $response->assertSessionHasErrors(['order_no']);
@@ -142,14 +143,14 @@ class AdminWorkOrderWebTest extends TestCase
         $wo = WorkOrder::factory()->create(['planned_qty' => 100]);
 
         $response = $this->actingAs($this->admin)->put("/admin/work-orders/{$wo->id}", [
-            'order_no'    => $wo->order_no,
+            'order_no' => $wo->order_no,
             'planned_qty' => 200,
-            'status'      => WorkOrder::STATUS_PENDING,
+            'status' => WorkOrder::STATUS_PENDING,
         ]);
 
         $response->assertRedirect();
         $this->assertDatabaseHas('work_orders', [
-            'id'          => $wo->id,
+            'id' => $wo->id,
             'planned_qty' => 200,
         ]);
     }
@@ -177,7 +178,7 @@ class AdminWorkOrderWebTest extends TestCase
 
         $response->assertRedirect();
         $this->assertDatabaseHas('work_orders', [
-            'id'     => $wo->id,
+            'id' => $wo->id,
             'status' => WorkOrder::STATUS_CANCELLED,
         ]);
     }
@@ -191,7 +192,34 @@ class AdminWorkOrderWebTest extends TestCase
 
         $response->assertRedirect();
         $this->assertDatabaseHas('work_orders', [
-            'id'     => $wo->id,
+            'id' => $wo->id,
+            'status' => WorkOrder::STATUS_ACCEPTED,
+        ]);
+    }
+
+    /**
+     * A failing live-sync broadcast (e.g. Reverb unreachable) must never break
+     * the originating write — the status change still persists and no 500 is
+     * returned. Guards against the production "accept errors out" report.
+     */
+    public function test_work_order_write_survives_a_broadcast_failure(): void
+    {
+        \Illuminate\Support\Facades\Event::listen(
+            \App\Events\CollectionChanged::class,
+            function () {
+                throw new \RuntimeException('Reverb unreachable');
+            }
+        );
+
+        $wo = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_PENDING]);
+
+        $response = $this->actingAs($this->admin)
+            ->post("/admin/work-orders/{$wo->id}/accept");
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('work_orders', [
+            'id' => $wo->id,
             'status' => WorkOrder::STATUS_ACCEPTED,
         ]);
     }

@@ -572,7 +572,7 @@ function ProductionControls({ batch }) {
 // Single Batch card
 // ---------------------------------------------------------------------------
 
-function BatchCard({ batch, defaultOpen, labelTemplates = [] }) {
+function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {} }) {
     const [expanded, setExpanded] = useState(defaultOpen);
     const showControls = batch.status === 'IN_PROGRESS' || batch.status === 'DONE';
 
@@ -644,7 +644,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [] }) {
                     </div>
 
                     {/* Steps */}
-                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} />
+                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} />
 
                     {/* Production controls */}
                     {showControls && <ProductionControls batch={batch} />}
@@ -658,8 +658,9 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [] }) {
 // Batch Steps list (replaces the Livewire component)
 // ---------------------------------------------------------------------------
 
-function BatchStepList({ steps, labelTemplates = [] }) {
+function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
     const [inflightStepId, setInflightStepId] = useState(null);
+    const [photoZoom, setPhotoZoom] = useState(null);
 
     if (!steps || steps.length === 0) return null;
 
@@ -681,11 +682,27 @@ function BatchStepList({ steps, labelTemplates = [] }) {
             <div className="space-y-2">
                 {steps.map((step) => {
                     const isInflight = inflightStepId === step.id;
+                    const photo = stepPhotos[step.step_number];
                     return (
                         <div key={step.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                             <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                                 {step.step_number}
                             </span>
+                            {photo && (
+                                <button
+                                    type="button"
+                                    onClick={() => setPhotoZoom(photo)}
+                                    className="flex-shrink-0"
+                                    title={photo.caption || 'Step photo'}
+                                >
+                                    <img
+                                        src={photo.url}
+                                        alt={photo.caption || 'Step photo'}
+                                        loading="lazy"
+                                        className="w-12 h-12 object-cover rounded-md border border-gray-200 dark:border-gray-700 bg-gray-100"
+                                    />
+                                </button>
+                            )}
                             <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                                 {step.name}
                             </span>
@@ -749,6 +766,17 @@ function BatchStepList({ steps, labelTemplates = [] }) {
                     );
                 })}
             </div>
+
+            {photoZoom && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onClick={() => setPhotoZoom(null)}>
+                    <figure className="max-w-3xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
+                        <img src={photoZoom.url} alt={photoZoom.caption || 'Step photo'} className="max-w-full max-h-[80vh] rounded-lg shadow-2xl" />
+                        {photoZoom.caption && (
+                            <figcaption className="text-white/90 text-sm mt-3 text-center">{photoZoom.caption}</figcaption>
+                        )}
+                    </figure>
+                </div>
+            )}
         </div>
     );
 }
@@ -1006,14 +1034,122 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
 }
 
 // ---------------------------------------------------------------------------
+// Report Scrap Modal
+// ---------------------------------------------------------------------------
+
+function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
+    const form = useForm({
+        work_order_id: workOrder.id,
+        scrap_reason_id: '',
+        quantity: '',
+        notes: '',
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+        form.post('/operator/scrap', { onSuccess: onClose });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+            <div className="flex min-h-full items-center justify-center p-4">
+                <div
+                    className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Report Scrap</h3>
+
+                    <form onSubmit={submit}>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Reason <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={form.data.scrap_reason_id}
+                                    onChange={(e) => form.setData('scrap_reason_id', e.target.value)}
+                                    className="form-input w-full"
+                                    required
+                                >
+                                    <option value="">— Select reason —</option>
+                                    {scrapReasons.map((reason) => (
+                                        <option key={reason.id} value={reason.id}>
+                                            {reason.code} — {reason.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {form.errors.scrap_reason_id && (
+                                    <p className="text-red-600 text-sm mt-1">{form.errors.scrap_reason_id}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Quantity <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    value={form.data.quantity}
+                                    onChange={(e) => form.setData('quantity', e.target.value)}
+                                    className="form-input w-full"
+                                    placeholder="0"
+                                    required
+                                />
+                                {form.errors.quantity && (
+                                    <p className="text-red-600 text-sm mt-1">{form.errors.quantity}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Notes
+                                </label>
+                                <textarea
+                                    value={form.data.notes}
+                                    onChange={(e) => form.setData('notes', e.target.value)}
+                                    rows={3}
+                                    className="form-input w-full"
+                                    placeholder="Additional details…"
+                                    maxLength={2000}
+                                />
+                                {form.errors.notes && (
+                                    <p className="text-red-600 text-sm mt-1">{form.errors.notes}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 justify-end mt-6">
+                            <button type="button" onClick={onClose} className="btn-touch btn-secondary">
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={form.processing}
+                                className="btn-touch btn-primary bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+                            >
+                                Report Scrap
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], workstations = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], issueCustomFields = [] } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {} } = usePage().props;
 
     const [createBatchOpen, setCreateBatchOpen] = useState(false);
     const [reportIssueOpen, setReportIssueOpen] = useState(false);
+    const [reportScrapOpen, setReportScrapOpen] = useState(false);
 
     const plannedQty = workOrder.planned_qty ?? 0;
     const producedQty = workOrder.produced_qty ?? 0;
@@ -1022,6 +1158,11 @@ export default function WorkOrderDetail() {
 
     const canCreateBatch = !['DONE', 'CANCELLED', 'BLOCKED'].includes(workOrder.status);
     const canReportIssue = !['DONE', 'CANCELLED'].includes(workOrder.status);
+    const canReportScrap = scrapReasons.length > 0 && !['DONE', 'CANCELLED'].includes(workOrder.status);
+
+    const scrapEntries = workOrder.scrap_entries ?? [];
+    const totalScrap = scrapEntries.reduce((sum, e) => sum + Number(e.quantity ?? 0), 0);
+    const qualityPct = producedQty > 0 ? (Math.max(0, producedQty - totalScrap) / producedQty) * 100 : null;
 
     const dueDateStr = workOrder.due_date;
     const dueDatePast = dueDateStr && new Date(dueDateStr) < new Date() && workOrder.status !== 'DONE';
@@ -1161,6 +1302,7 @@ export default function WorkOrderDetail() {
                                             batch={batch}
                                             defaultOpen={idx === 0}
                                             labelTemplates={labelTemplates}
+                                            stepPhotos={stepPhotos}
                                         />
                                     ))}
                                 </div>
@@ -1257,6 +1399,64 @@ export default function WorkOrderDetail() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Scrap */}
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Scrap</h3>
+                                {canReportScrap && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setReportScrapOpen(true)}
+                                        className="text-sm text-amber-600 hover:text-amber-800 font-medium border border-amber-200 hover:border-amber-400 px-3 py-1 rounded-lg transition-colors"
+                                    >
+                                        + Report
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex justify-between text-sm mb-2">
+                                <span className="text-gray-500">Total scrap:</span>
+                                <span className="font-medium">{fmtQty(totalScrap)}</span>
+                            </div>
+                            {qualityPct !== null && (
+                                <div className="flex justify-between text-sm mb-3">
+                                    <span className="text-gray-500">Quality:</span>
+                                    <span className={`font-medium ${qualityPct < 100 ? 'text-amber-600' : 'text-green-600'}`}>
+                                        {qualityPct.toFixed(1)}%
+                                    </span>
+                                </div>
+                            )}
+
+                            {scrapEntries.length === 0 ? (
+                                <p className="text-sm text-gray-400 text-center py-4">No scrap reported.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {scrapEntries.slice(0, 5).map((entry) => (
+                                        <div key={entry.id} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                                                    {entry.scrap_reason?.name ?? 'Unknown'}
+                                                </span>
+                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fmtQty(entry.quantity)}</span>
+                                            </div>
+                                            {entry.notes && (
+                                                <p className="text-xs text-gray-500">
+                                                    {entry.notes.length > 80 ? `${entry.notes.slice(0, 80)}…` : entry.notes}
+                                                </p>
+                                            )}
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                {entry.reported_at ? new Date(entry.reported_at).toLocaleString() : ''}
+                                                {entry.reported_by ? ` by ${entry.reported_by.name}` : ''}
+                                            </p>
+                                        </div>
+                                    ))}
+                                    {scrapEntries.length > 5 && (
+                                        <p className="text-xs text-gray-400 text-center">+{scrapEntries.length - 5} more</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1277,6 +1477,14 @@ export default function WorkOrderDetail() {
                     issueTypes={issueTypes}
                     customFields={issueCustomFields}
                     onClose={() => setReportIssueOpen(false)}
+                />
+            )}
+
+            {reportScrapOpen && (
+                <ReportScrapModal
+                    workOrder={workOrder}
+                    scrapReasons={scrapReasons}
+                    onClose={() => setReportScrapOpen(false)}
                 />
             )}
         </>

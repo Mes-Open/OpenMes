@@ -8,7 +8,6 @@ use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -32,6 +31,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Until the installer has run (no storage/installed flag yet) there is
+        // no configured database. The shipped .env defaults to database-backed
+        // sessions (correct for the Docker stack, whose entrypoint sets the
+        // flag before serving), but on a bare PHP host that makes every
+        // request — including the install wizard itself — query a database that
+        // does not exist yet, so the wizard can never render (HTTP 500). Force
+        // file-based session/cache drivers while uninstalled so the wizard
+        // boots without a DB; once installed, the configured drivers and the
+        // migrated `sessions` table take over.
+        if (! $this->app->runningUnitTests() && ! file_exists(storage_path('installed'))) {
+            config([
+                'session.driver' => 'file',
+                'cache.default' => 'file',
+            ]);
+        }
+
         // Reverb sync: register model → collection broadcast listeners.
         \App\Sync\CollectionBroadcaster::boot();
 
@@ -60,11 +75,16 @@ class AppServiceProvider extends ServiceProvider
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
         View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
 
-        // Set application locale from system_settings
+        // Set application locale from system_settings. Also override
+        // config('app.locale') so that under Octane, where FlushLocaleState
+        // resets the locale to the config default on every request, the
+        // system-wide language still applies (SetLocale then layers any
+        // per-session override on top).
         try {
             $row = DB::table('system_settings')->where('key', 'language')->first();
             $locale = $row ? json_decode($row->value, true) : null;
             if ($locale && in_array($locale, array_keys($this->availableLocales()))) {
+                config(['app.locale' => $locale]);
                 App::setLocale($locale);
             }
         } catch (\Throwable) {

@@ -14,6 +14,9 @@ class Worker extends Model
 {
     use Auditable, HasCustomFields, HasFactory;
 
+    /** Supported compensation modes for per-worker pay. */
+    public const PAY_TYPES = ['hourly', 'weekly', 'piece_rate'];
+
     protected $fillable = [
         'personnel_class_id',
         'code',
@@ -22,6 +25,9 @@ class Worker extends Model
         'phone',
         'crew_id',
         'wage_group_id',
+        'pay_type',
+        'pay_rate',
+        'pay_currency',
         'workstation_id',
         'is_active',
     ];
@@ -30,6 +36,7 @@ class Worker extends Model
     {
         return [
             'is_active' => 'boolean',
+            'pay_rate' => 'decimal:4',
         ];
     }
 
@@ -101,7 +108,7 @@ class Worker extends Model
     public function expiringSkills(int $daysAhead = 30): Collection
     {
         $today = now()->toDateString();
-        $cut   = now()->addDays($daysAhead)->toDateString();
+        $cut = now()->addDays($daysAhead)->toDateString();
 
         return $this->skills()
             ->wherePivotNotNull('certified_until')

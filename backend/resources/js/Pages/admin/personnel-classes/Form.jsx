@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Bespoke create/edit form for personnel classes. Beyond the scalar fields it
@@ -37,20 +38,20 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
 
     return (
         <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-sm p-6 max-w-3xl space-y-5">
-            <Field label="Code" error={errors.code} required>
+            <Field label={__('Code')} error={errors.code} required>
                 <input type="text" value={data.code} onChange={(e) => setData('code', e.target.value)} className="form-input w-full" autoFocus />
             </Field>
-            <Field label="Name" error={errors.name} required>
+            <Field label={__('Name')} error={errors.name} required>
                 <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" />
             </Field>
-            <Field label="Description" error={errors.description}>
+            <Field label={__('Description')} error={errors.description}>
                 <textarea value={data.description ?? ''} onChange={(e) => setData('description', e.target.value)} rows={3} className="form-input w-full" />
             </Field>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Required skills &amp; minimum level</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{__('Required skills & minimum level')}</label>
                 <div className="border border-gray-200 rounded-lg divide-y">
-                    {skills.length === 0 && <p className="px-3 py-3 text-sm text-gray-400">No skills defined.</p>}
+                    {skills.length === 0 && <p className="px-3 py-3 text-sm text-gray-400">{__('No skills defined.')}</p>}
                     {skills.map((skill) => {
                         const id = String(skill.id);
                         const isOn = selected.has(id);
@@ -80,14 +81,14 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
 
             <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" checked={!!data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
-                Active
+                {__('Active')}
             </label>
 
             <div className="flex items-center gap-3 pt-2">
                 <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-                    {processing ? 'Saving…' : submitLabel}
+                    {processing ? __('Saving…') : submitLabel}
                 </button>
-                <Link href="/admin/personnel-classes" className="text-gray-500 hover:text-gray-800 text-sm">Cancel</Link>
+                <Link href="/admin/personnel-classes" className="text-gray-500 hover:text-gray-800 text-sm">{__('Cancel')}</Link>
             </div>
         </form>
     );

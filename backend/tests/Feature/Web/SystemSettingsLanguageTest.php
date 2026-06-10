@@ -4,6 +4,7 @@ namespace Tests\Feature\Web;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -77,5 +78,59 @@ class SystemSettingsLanguageTest extends TestCase
         $response->assertOk();
         $locales = $response->getOriginalContent()->getData()['page']['props']['availableLocales'] ?? null;
         $this->assertSame(config('app.available_locales'), $locales);
+    }
+
+    public function test_changing_language_in_settings_updates_session_locale(): void
+    {
+        // The session override is what SetLocale reads first, so saving the
+        // language must align it for the change to take effect on reload.
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->payload(['language' => 'pl']))
+            ->assertSessionHas('locale', 'pl');
+
+        $this->assertDatabaseHas('system_settings', ['key' => 'language', 'value' => json_encode('pl')]);
+    }
+
+    public function test_labor_costing_settings_are_persisted(): void
+    {
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->payload([
+                'standard_weekly_hours' => 38,
+                'default_currency' => 'eur',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('system_settings', ['key' => 'standard_weekly_hours', 'value' => json_encode(38.0)]);
+        $this->assertDatabaseHas('system_settings', ['key' => 'default_currency', 'value' => json_encode('EUR')]);
+    }
+
+    public function test_invalid_currency_length_is_rejected(): void
+    {
+        $this->actingAs($this->admin)
+            ->post('/settings/system', $this->payload(['default_currency' => 'EURO']))
+            ->assertSessionHasErrors('default_currency');
+    }
+
+    /**
+     * The system settings page must render even when no rows exist in
+     * `system_settings` yet (fresh tenant). Previously a missing key caused
+     * "Attempt to read property 'value' on null" → HTTP 500. Regression guard.
+     */
+    public function test_system_settings_page_renders_with_empty_settings_table(): void
+    {
+        DB::table('system_settings')->truncate();
+
+        $this->actingAs($this->admin)
+            ->get('/settings/system')
+            ->assertStatus(200);
+    }
+
+    public function test_settings_index_renders_with_empty_settings_table(): void
+    {
+        DB::table('system_settings')->truncate();
+
+        $this->actingAs($this->admin)
+            ->get('/settings')
+            ->assertStatus(200);
     }
 }

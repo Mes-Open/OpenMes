@@ -34,8 +34,8 @@ class WorkerTest extends TestCase
     private function createCrew(string $code = 'CRW01', string $name = 'Test Crew'): Crew
     {
         return Crew::create([
-            'code'      => $code,
-            'name'      => $name,
+            'code' => $code,
+            'name' => $name,
             'is_active' => true,
         ]);
     }
@@ -46,24 +46,24 @@ class WorkerTest extends TestCase
     private function createWageGroup(string $code = 'WG01', string $name = 'Standard Wage'): WageGroup
     {
         return WageGroup::create([
-            'code'             => $code,
-            'name'             => $name,
+            'code' => $code,
+            'name' => $name,
             'base_hourly_rate' => 20.00,
-            'currency'         => 'PLN',
-            'is_active'        => true,
+            'currency' => 'PLN',
+            'is_active' => true,
         ]);
     }
 
     public function test_admin_can_list_workers(): void
     {
         Worker::create([
-            'code'      => 'WRK001',
-            'name'      => 'John Doe',
+            'code' => 'WRK001',
+            'name' => 'John Doe',
             'is_active' => true,
         ]);
         Worker::create([
-            'code'      => 'WRK002',
-            'name'      => 'Jane Smith',
+            'code' => 'WRK002',
+            'name' => 'Jane Smith',
             'is_active' => false,
         ]);
 
@@ -77,38 +77,38 @@ class WorkerTest extends TestCase
     public function test_admin_can_create_worker(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
-            'code'      => 'WRK001',
-            'name'      => 'Adam Kowalski',
-            'email'     => 'adam@example.com',
-            'phone'     => '+48600123456',
+            'code' => 'WRK001',
+            'name' => 'Adam Kowalski',
+            'email' => 'adam@example.com',
+            'phone' => '+48600123456',
             'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.workers.index'));
         $this->assertDatabaseHas('workers', [
-            'code'  => 'WRK001',
-            'name'  => 'Adam Kowalski',
+            'code' => 'WRK001',
+            'name' => 'Adam Kowalski',
             'email' => 'adam@example.com',
         ]);
     }
 
     public function test_admin_can_create_worker_with_crew_and_wage_group(): void
     {
-        $crew      = $this->createCrew();
+        $crew = $this->createCrew();
         $wageGroup = $this->createWageGroup();
 
         $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
-            'code'          => 'WRK001',
-            'name'          => 'Marek Nowak',
-            'crew_id'       => $crew->id,
+            'code' => 'WRK001',
+            'name' => 'Marek Nowak',
+            'crew_id' => $crew->id,
             'wage_group_id' => $wageGroup->id,
-            'is_active'     => true,
+            'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.workers.index'));
         $this->assertDatabaseHas('workers', [
-            'code'          => 'WRK001',
-            'crew_id'       => $crew->id,
+            'code' => 'WRK001',
+            'crew_id' => $crew->id,
             'wage_group_id' => $wageGroup->id,
         ]);
     }
@@ -116,22 +116,22 @@ class WorkerTest extends TestCase
     public function test_admin_can_update_worker(): void
     {
         $worker = Worker::create([
-            'code'      => 'WRK001',
-            'name'      => 'Old Name',
+            'code' => 'WRK001',
+            'name' => 'Old Name',
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.workers.update', $worker), [
-            'code'      => 'WRK001',
-            'name'      => 'New Name',
-            'email'     => 'updated@example.com',
+            'code' => 'WRK001',
+            'name' => 'New Name',
+            'email' => 'updated@example.com',
             'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.workers.index'));
         $this->assertDatabaseHas('workers', [
-            'id'    => $worker->id,
-            'name'  => 'New Name',
+            'id' => $worker->id,
+            'name' => 'New Name',
             'email' => 'updated@example.com',
         ]);
     }
@@ -139,8 +139,8 @@ class WorkerTest extends TestCase
     public function test_admin_can_toggle_active(): void
     {
         $worker = Worker::create([
-            'code'      => 'WRK001',
-            'name'      => 'Active Worker',
+            'code' => 'WRK001',
+            'name' => 'Active Worker',
             'is_active' => true,
         ]);
 
@@ -149,7 +149,7 @@ class WorkerTest extends TestCase
 
         $response->assertRedirect(route('admin.workers.index'));
         $this->assertDatabaseHas('workers', [
-            'id'        => $worker->id,
+            'id' => $worker->id,
             'is_active' => false,
         ]);
 
@@ -158,7 +158,7 @@ class WorkerTest extends TestCase
             ->post(route('admin.workers.toggle-active', $worker));
 
         $this->assertDatabaseHas('workers', [
-            'id'        => $worker->id,
+            'id' => $worker->id,
             'is_active' => true,
         ]);
     }
@@ -166,8 +166,8 @@ class WorkerTest extends TestCase
     public function test_admin_can_delete_worker(): void
     {
         $worker = Worker::create([
-            'code'      => 'WRK001',
-            'name'      => 'Deletable Worker',
+            'code' => 'WRK001',
+            'name' => 'Deletable Worker',
             'is_active' => true,
         ]);
 
@@ -181,14 +181,14 @@ class WorkerTest extends TestCase
     public function test_worker_code_must_be_unique(): void
     {
         Worker::create([
-            'code'      => 'WRK001',
-            'name'      => 'Existing Worker',
+            'code' => 'WRK001',
+            'name' => 'Existing Worker',
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
-            'code'      => 'WRK001',
-            'name'      => 'Duplicate Worker',
+            'code' => 'WRK001',
+            'name' => 'Duplicate Worker',
             'is_active' => true,
         ]);
 
@@ -199,7 +199,7 @@ class WorkerTest extends TestCase
     public function test_worker_name_is_required(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
-            'code'      => 'WRK001',
+            'code' => 'WRK001',
             'is_active' => true,
         ]);
 
@@ -209,7 +209,7 @@ class WorkerTest extends TestCase
     public function test_worker_code_is_required(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
-            'name'      => 'No Code Worker',
+            'name' => 'No Code Worker',
             'is_active' => true,
         ]);
 
@@ -219,9 +219,9 @@ class WorkerTest extends TestCase
     public function test_worker_email_must_be_valid_if_provided(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
-            'code'      => 'WRK001',
-            'name'      => 'Bad Email Worker',
-            'email'     => 'not-an-email',
+            'code' => 'WRK001',
+            'name' => 'Bad Email Worker',
+            'email' => 'not-an-email',
             'is_active' => true,
         ]);
 
@@ -231,9 +231,9 @@ class WorkerTest extends TestCase
     public function test_worker_crew_must_exist_if_provided(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
-            'code'      => 'WRK001',
-            'name'      => 'Worker',
-            'crew_id'   => 99999,
+            'code' => 'WRK001',
+            'name' => 'Worker',
+            'crew_id' => 99999,
             'is_active' => true,
         ]);
 
@@ -243,20 +243,65 @@ class WorkerTest extends TestCase
     public function test_update_allows_same_code_for_same_worker(): void
     {
         $worker = Worker::create([
-            'code'      => 'WRK001',
-            'name'      => 'Original Name',
+            'code' => 'WRK001',
+            'name' => 'Original Name',
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.workers.update', $worker), [
-            'code'      => 'WRK001',
-            'name'      => 'Renamed Worker',
+            'code' => 'WRK001',
+            'name' => 'Renamed Worker',
             'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.workers.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('workers', ['id' => $worker->id, 'name' => 'Renamed Worker']);
+    }
+
+    public function test_admin_can_create_worker_with_pay_fields(): void
+    {
+        $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
+            'code' => 'WRK010',
+            'name' => 'Piece Worker',
+            'pay_type' => 'piece_rate',
+            'pay_rate' => 2.5,
+            'pay_currency' => 'PLN',
+            'is_active' => true,
+        ]);
+
+        $response->assertRedirect(route('admin.workers.index'));
+        $this->assertDatabaseHas('workers', [
+            'code' => 'WRK010',
+            'pay_type' => 'piece_rate',
+            'pay_currency' => 'PLN',
+        ]);
+    }
+
+    public function test_invalid_pay_type_is_rejected(): void
+    {
+        $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
+            'code' => 'WRK011',
+            'name' => 'Bad Pay Type',
+            'pay_type' => 'monthly',
+            'is_active' => true,
+        ]);
+
+        $response->assertSessionHasErrors('pay_type');
+        $this->assertDatabaseMissing('workers', ['code' => 'WRK011']);
+    }
+
+    public function test_negative_pay_rate_is_rejected(): void
+    {
+        $response = $this->actingAs($this->admin)->post(route('admin.workers.store'), [
+            'code' => 'WRK012',
+            'name' => 'Negative Rate',
+            'pay_type' => 'hourly',
+            'pay_rate' => -5,
+            'is_active' => true,
+        ]);
+
+        $response->assertSessionHasErrors('pay_rate');
     }
 
     public function test_guest_cannot_access_workers(): void
@@ -268,8 +313,8 @@ class WorkerTest extends TestCase
     public function test_guest_cannot_create_worker(): void
     {
         $response = $this->post(route('admin.workers.store'), [
-            'code'      => 'WRK001',
-            'name'      => 'Ghost Worker',
+            'code' => 'WRK001',
+            'name' => 'Ghost Worker',
             'is_active' => true,
         ]);
 

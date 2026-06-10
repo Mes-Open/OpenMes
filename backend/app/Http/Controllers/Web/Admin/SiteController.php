@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Company;
 use App\Models\Site;
 use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
@@ -101,7 +100,12 @@ class SiteController extends Controller
                 ->with('error', 'Cannot delete site with existing areas. Deactivate it instead.');
         }
 
-        $site->delete();
+        try {
+            $site->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->route('admin.sites.index')
+                ->with('error', 'Cannot delete: this site is still referenced elsewhere. Deactivate it instead.');
+        }
 
         return redirect()->route('admin.sites.index')
             ->with('success', 'Site deleted successfully.');
@@ -121,7 +125,7 @@ class SiteController extends Controller
     {
         $codeRule = 'required|string|max:50|unique:sites,code';
         if ($site) {
-            $codeRule .= ',' . $site->id;
+            $codeRule .= ','.$site->id;
         }
 
         $cf = app(CustomFieldService::class);

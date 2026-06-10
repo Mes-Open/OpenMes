@@ -38,10 +38,10 @@ class FactoryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:factories',
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:factories',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -90,10 +90,10 @@ class FactoryController extends Controller
     public function update(Request $request, Factory $factory)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:factories,code,' . $factory->id,
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:factories,code,'.$factory->id,
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -114,7 +114,12 @@ class FactoryController extends Controller
                 ->with('error', 'Cannot delete factory with existing divisions. Deactivate it instead.');
         }
 
-        $factory->delete();
+        try {
+            $factory->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->route('admin.factories.index')
+                ->with('error', 'Cannot delete: this factory is still referenced elsewhere. Deactivate it instead.');
+        }
 
         return redirect()->route('admin.factories.index')
             ->with('success', 'Factory deleted successfully.');

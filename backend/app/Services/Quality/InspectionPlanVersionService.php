@@ -53,10 +53,15 @@ class InspectionPlanVersionService
         return DB::transaction(function () use ($plan) {
             $rootId = $plan->rootId();
 
+            // Retire the other versions one model at a time (not a mass
+            // query-builder update) so each row fires its model events and the
+            // realtime collection reflects the archival immediately.
             InspectionPlan::query()
                 ->where(fn ($q) => $q->where('id', $rootId)->orWhere('root_id', $rootId))
                 ->where('id', '!=', $plan->id)
-                ->update(['is_active' => false]);
+                ->where('is_active', true)
+                ->get()
+                ->each(fn (InspectionPlan $other) => $other->update(['is_active' => false]));
 
             $plan->update([
                 'published_at' => now(),
