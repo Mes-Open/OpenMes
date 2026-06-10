@@ -5,6 +5,7 @@ namespace App\Services\Packaging;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\LabelTemplate;
+use App\Models\Pallet;
 use App\Models\WorkOrder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Endroid\QrCode\Builder\Builder;
@@ -33,6 +34,20 @@ class LabelGenerator
         $labels = $steps->map(fn (BatchStep $step) => $this->labelDataForBatchStep($step, $template))->all();
 
         return $this->renderPdf('packaging.pdf.labels.workstation-step', $labels, $template);
+    }
+
+    public function pdfForPallets(Collection $pallets, LabelTemplate $template)
+    {
+        $labels = $pallets->map(fn (Pallet $pallet) => $this->labelDataForPallet($pallet, $template))->all();
+
+        return $this->renderPdf('packaging.pdf.labels.pallet', $labels, $template);
+    }
+
+    public function zplForPallets(Collection $pallets, LabelTemplate $template): string
+    {
+        return $pallets
+            ->map(fn (Pallet $pallet) => $this->zplLabel($this->labelDataForPallet($pallet, $template), $template))
+            ->implode("\n");
     }
 
     public function zplForWorkOrders(Collection $workOrders, LabelTemplate $template): string
@@ -65,7 +80,7 @@ class LabelGenerator
         return [
             'fields' => [
                 'wo_number' => $wo->order_no,
-                'product' => $wo->productType?->name ?? '-',
+                'product' => $wo->productType?->name, // null hides the line (no stray "-")
                 'quantity' => $this->formatQty($wo->planned_qty).' '.($wo->productType?->unit ?? 'pcs'),
                 'lot' => null,
                 'prod_date' => $wo->created_at?->format('Y-m-d'),
@@ -87,10 +102,36 @@ class LabelGenerator
         return [
             'fields' => [
                 'wo_number' => $wo->order_no,
-                'product' => $wo->productType?->name ?? '-',
+                'product' => $wo->productType?->name, // null hides the line (no stray "-")
                 'quantity' => $this->formatQty($batch->produced_qty).' '.($wo->productType?->unit ?? 'pcs'),
-                'lot' => $batch->lot_number ?: '-',
+                'lot' => $batch->lot_number ?: null,
                 'prod_date' => ($batch->completed_at ?? $batch->released_at)?->format('Y-m-d'),
+            ],
+            'barcode_value' => $barcodeValue,
+            'qr_value' => $qrValue,
+            'barcode_png' => $template->hasField('barcode') ? $this->barcodePng($barcodeValue, $template->barcode_format) : null,
+            'qr_png' => $template->hasField('qr') ? $this->qrPng($qrValue) : null,
+        ];
+    }
+
+    private function labelDataForPallet(Pallet $pallet, LabelTemplate $template): array
+    {
+        $pallet->loadMissing('workOrder.productType');
+        $wo = $pallet->workOrder;
+        // Both the 1D barcode and the QR encode the pallet number, so scanning the
+        // pallet anywhere resolves straight back to it.
+        $barcodeValue = $pallet->pallet_no;
+        $qrValue = $pallet->pallet_no;
+
+        return [
+            'fields' => [
+                'pallet_no' => $pallet->pallet_no,
+                'wo_number' => $wo?->order_no,
+                'product' => $wo?->productType?->name, // null hides the line (no stray "-")
+                'quantity' => $this->formatQty($pallet->qty).' '.($wo?->productType?->unit ?? 'pcs'),
+                'location' => $pallet->location,
+                'lot' => null,
+                'prod_date' => $pallet->created_at?->format('Y-m-d'),
             ],
             'barcode_value' => $barcodeValue,
             'qr_value' => $qrValue,
@@ -130,7 +171,9 @@ class LabelGenerator
         $labels = array_map(function (array $label) use ($template, $widthMm): array {
             $label['has_qr'] = $template->hasField('qr') && ! empty($label['qr_png']);
             $label['has_barcode'] = $template->hasField('barcode') && ! empty($label['barcode_png']);
-            $label['content_width'] = $label['has_qr'] ? $widthMm - 22 : $widthMm - 6;
+            // Account for the label's 3mm padding on both sides (6mm) plus the
+            // 20mm QR cell + gap, so the QR column never spills past the page edge.
+            $label['content_width'] = $label['has_qr'] ? $widthMm - 28 : $widthMm - 6;
 
             return $label;
         }, $labels);
@@ -194,6 +237,10 @@ class LabelGenerator
         $y = 10;
         $lineHeight = 30;
 
+        if ($template->hasField('pallet_no') && ! empty($fields['pallet_no'])) {
+            $zpl .= "^FO20,{$y}^A0N,32,32^FD".$this->zplEscape($fields['pallet_no'])."^FS\n";
+            $y += $lineHeight + 4;
+        }
         if ($template->hasField('wo_number') && ! empty($fields['wo_number'])) {
             $zpl .= "^FO20,{$y}^A0N,28,28^FD".$this->zplEscape($fields['wo_number'])."^FS\n";
             $y += $lineHeight;
@@ -208,6 +255,10 @@ class LabelGenerator
         }
         if ($template->hasField('lot') && ! empty($fields['lot'])) {
             $zpl .= "^FO20,{$y}^A0N,20,20^FDLOT: ".$this->zplEscape($fields['lot'])."^FS\n";
+            $y += $lineHeight;
+        }
+        if ($template->hasField('location') && ! empty($fields['location'])) {
+            $zpl .= "^FO20,{$y}^A0N,20,20^FDLOC: ".$this->zplEscape($fields['location'])."^FS\n";
             $y += $lineHeight;
         }
         if ($template->hasField('prod_date') && ! empty($fields['prod_date'])) {

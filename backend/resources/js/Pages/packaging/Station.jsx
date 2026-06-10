@@ -2,6 +2,23 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
 import { formatTime } from '../../lib/i18n';
+import LabelPrintMenu from '../../components/LabelPrintMenu';
+
+function csrf() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.content : '';
+}
+
+/** Group open pallets by their work order's line, for the per-line list. */
+function groupByLine(pallets) {
+    const groups = new Map();
+    for (const p of pallets) {
+        const key = p.line_name || 'Bez linii';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(p);
+    }
+    return Array.from(groups.entries());
+}
 
 function ProgressBar({ pct, done }) {
     const color = done ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-indigo-500';
@@ -21,16 +38,22 @@ function ShiftLabel() {
 }
 
 export default function Station() {
-    const { auth } = usePage().props;
+    const { auth, labelTemplates = [], currentShift = null } = usePage().props;
 
     const [items, setItems] = useState([]);
     const [history, setHistory] = useState([]);
     const [stats, setStats] = useState({ today_packed: 0, plan: 0, backlog: 0 });
     const [lastScan, setLastScan] = useState(null);
     const [flash, setFlash] = useState(null); // 'success' | 'error' | null
+    const [activePallet, setActivePallet] = useState(null); // { id, pallet_no, work_order_id, order_no, qty }
+    const [openPallets, setOpenPallets] = useState([]); // all currently open pallets (persist across shifts)
+    const [palletWoId, setPalletWoId] = useState(''); // selected work order for a new pallet
+    const [palletBusy, setPalletBusy] = useState(false);
     const lastHistoryIdRef = useRef(0);
     const bufferRef = useRef('');
     const bufferTimerRef = useRef(null);
+    const activePalletRef = useRef(null);
+    useEffect(() => { activePalletRef.current = activePallet; }, [activePallet]);
 
     const realizacja =
         stats.plan > 0 ? Math.min(100, Math.round((stats.today_packed / stats.plan) * 100)) : 0;
@@ -68,6 +91,24 @@ export default function Station() {
         } catch {}
     }, []);
 
+    const fetchOpenPallets = useCallback(async () => {
+        try {
+            const res = await fetch('/packaging/pallets', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) return;
+            const data = await res.json();
+            const list = data.pallets ?? [];
+            setOpenPallets(list);
+            // Keep the active pallet's qty in sync if another shift/device changed it,
+            // and drop it if it was closed elsewhere.
+            const active = activePalletRef.current;
+            if (active) {
+                const fresh = list.find((p) => p.id === active.id);
+                if (fresh) setActivePallet((p) => ({ ...p, ...fresh }));
+                else setActivePallet(null);
+            }
+        } catch {}
+    }, []);
+
     const poll = useCallback(async () => {
         try {
             const res = await fetch(`/packaging/history/poll?after_id=${lastHistoryIdRef.current}`, {
@@ -89,20 +130,21 @@ export default function Station() {
 
     const handleScan = useCallback(async (ean) => {
         try {
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const palletId = activePalletRef.current?.id ?? null;
             const res = await fetch('/packaging/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfMeta ? csrfMeta.content : '',
+                    'X-CSRF-TOKEN': csrf(),
                     'X-Requested-With': 'XMLHttpRequest',
                 },
-                body: JSON.stringify({ ean }),
+                body: JSON.stringify({ ean, pallet_id: palletId }),
             });
             const data = await res.json();
 
             if (res.ok) {
                 const wo = data.work_order;
+                if (data.pallet) setActivePallet((p) => (p && p.id === data.pallet.id ? { ...p, ...data.pallet } : p));
                 const packedQty = wo.packed_qty;
                 const plannedQty = wo.planned_qty;
                 const pct = plannedQty > 0 ? Math.min(100, Math.round((packedQty / plannedQty) * 100)) : 0;
@@ -116,7 +158,7 @@ export default function Station() {
                     scanned_at: formatTime(new Date()),
                 });
                 setFlash('success');
-                await Promise.all([fetchItems(), fetchStats()]);
+                await Promise.all([fetchItems(), fetchStats(), fetchOpenPallets()]);
                 setHistory((prev) => [
                     { id: Date.now(), ean, product_name: wo.product, scanned_at: formatTime(new Date()) },
                     ...prev,
@@ -131,7 +173,67 @@ export default function Station() {
         }
 
         setTimeout(() => setFlash(null), 2000);
-    }, [fetchItems, fetchStats]);
+    }, [fetchItems, fetchStats, fetchOpenPallets]);
+
+    const createPallet = useCallback(async () => {
+        if (!palletWoId || palletBusy) return;
+        setPalletBusy(true);
+        try {
+            const res = await fetch('/packaging/pallets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ work_order_id: Number(palletWoId) }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setActivePallet(data.pallet);
+                setPalletWoId('');
+                fetchOpenPallets();
+            } else {
+                setLastScan({ success: false, ean: '—', error: data.message, scanned_at: formatTime(new Date()) });
+                setFlash('error');
+                setTimeout(() => setFlash(null), 2000);
+            }
+        } catch {
+            /* ignore — best effort */
+        } finally {
+            setPalletBusy(false);
+        }
+    }, [palletWoId, palletBusy, fetchOpenPallets]);
+
+    // Resume an already-open pallet (e.g. one started on a previous shift) so the
+    // next scans keep filling it instead of creating a new pallet.
+    const resumePallet = useCallback((pallet) => {
+        setActivePallet(pallet);
+    }, []);
+
+    const closePallet = useCallback(async () => {
+        const pallet = activePalletRef.current;
+        if (!pallet || palletBusy) return;
+        setPalletBusy(true);
+        try {
+            const res = await fetch(`/packaging/pallets/${pallet.id}/close`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            if (res.ok) {
+                setActivePallet(null);
+                setPalletWoId('');
+                fetchOpenPallets();
+            }
+        } catch {
+            /* ignore — best effort */
+        } finally {
+            setPalletBusy(false);
+        }
+    }, [palletBusy, fetchOpenPallets]);
 
     const onKey = useCallback((e) => {
         const tag = e.target.tagName;
@@ -149,14 +251,18 @@ export default function Station() {
     }, [handleScan]);
 
     useEffect(() => {
-        Promise.all([fetchItems(), fetchHistory(), fetchStats()]);
+        Promise.all([fetchItems(), fetchHistory(), fetchStats(), fetchOpenPallets()]);
         const interval = setInterval(poll, 3000);
+        // Refresh the open-pallets list on a slower cadence so a pallet opened on
+        // another device/shift shows up here too.
+        const palletInterval = setInterval(fetchOpenPallets, 5000);
         document.addEventListener('keydown', onKey);
         return () => {
             clearInterval(interval);
+            clearInterval(palletInterval);
             document.removeEventListener('keydown', onKey);
         };
-    }, [fetchItems, fetchHistory, fetchStats, poll, onKey]);
+    }, [fetchItems, fetchHistory, fetchStats, fetchOpenPallets, poll, onKey]);
 
     const flashBg =
         flash === 'success'
@@ -180,7 +286,12 @@ export default function Station() {
                             Stanowisko Pakowania
                         </h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Zmiana: <span className="font-semibold"><ShiftLabel /></span>
+                            Zmiana:{' '}
+                            <span className="font-semibold">
+                                {currentShift
+                                    ? `${currentShift.name} (${currentShift.start}–${currentShift.end})`
+                                    : <ShiftLabel />}
+                            </span>
                             &nbsp;&middot;&nbsp; Zalogowany: <span className="font-semibold">{auth?.user?.name}</span>
                         </p>
                     </div>
@@ -214,6 +325,119 @@ export default function Station() {
                         </p>
                         <p className="text-xs text-gray-500 mt-1">Realizacja</p>
                     </div>
+                </div>
+
+                {/* Active pallet */}
+                <div className="card mb-6">
+                    {!activePallet ? (
+                        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                            <div className="flex-1">
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                                    Utwórz paletę dla zlecenia
+                                </label>
+                                <select
+                                    value={palletWoId}
+                                    onChange={(e) => setPalletWoId(e.target.value)}
+                                    className="form-input w-full"
+                                >
+                                    <option value="">— Wybierz zlecenie —</option>
+                                    {items.map((it) => (
+                                        <option key={it.id} value={String(it.id)}>
+                                            {it.order_no} — {it.product}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={createPallet}
+                                disabled={!palletWoId || palletBusy}
+                                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                                + Utwórz paletę
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktywna paleta</p>
+                                <p className="text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                                    {activePallet.pallet_no}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    Zlecenie <span className="font-semibold">{activePallet.order_no}</span>
+                                    &nbsp;&middot;&nbsp; Sztuk na palecie: <span className="font-semibold">{activePallet.qty ?? 0}</span>
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <LabelPrintMenu kind="pallet" id={activePallet.id} templates={labelTemplates} label="Etykieta" />
+                                <button
+                                    type="button"
+                                    onClick={closePallet}
+                                    disabled={palletBusy}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 text-white hover:bg-gray-800 disabled:opacity-50"
+                                >
+                                    Zamknij paletę
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Open pallets (persist across shifts) — grouped by line, resumable */}
+                <div className="card overflow-hidden p-0 mb-6">
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <h2 className="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
+                            Otwarte palety
+                        </h2>
+                        <span className="text-xs text-gray-400">{openPallets.length} otwartych</span>
+                    </div>
+                    {openPallets.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-gray-400 text-sm">
+                            Brak otwartych palet — utwórz nową powyżej
+                        </div>
+                    ) : (
+                        groupByLine(openPallets).map(([lineName, pallets]) => (
+                            <div key={lineName}>
+                                <div className="px-4 py-1.5 bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    {lineName}
+                                </div>
+                                {pallets.map((p) => {
+                                    const isActive = activePallet?.id === p.id;
+                                    return (
+                                        <div
+                                            key={p.id}
+                                            className={`px-4 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700/50 ${isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+                                        >
+                                            <div className="min-w-0">
+                                                <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{p.pallet_no}</span>
+                                                <span className="text-sm text-gray-500">
+                                                    &nbsp;&middot;&nbsp; {p.order_no}
+                                                    &nbsp;&middot;&nbsp; <span className="font-semibold text-gray-700 dark:text-gray-300">{p.qty} szt.</span>
+                                                    {p.location ? <>&nbsp;&middot;&nbsp; {p.location}</> : null}
+                                                </span>
+                                            </div>
+                                            <div className="shrink-0">
+                                                {isActive ? (
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                                        Aktywna
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => resumePallet(p)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+                                                    >
+                                                        Wznów
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
