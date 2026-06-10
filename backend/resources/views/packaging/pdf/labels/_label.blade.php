@@ -3,6 +3,9 @@
     <table class="label-grid">
         <tr>
             <td class="label-content" style="width: {{ $label['content_width'] }}mm;">
+                @if($template->hasField('pallet_no') && !empty($label['fields']['pallet_no']))
+                    <div class="line wo-number">{{ $label['fields']['pallet_no'] }}</div>
+                @endif
                 @if($template->hasField('wo_number') && !empty($label['fields']['wo_number']))
                     <div class="line wo-number">{{ $label['fields']['wo_number'] }}</div>
                 @endif
@@ -14,6 +17,9 @@
                 @endif
                 @if($template->hasField('lot') && !empty($label['fields']['lot']))
                     <div class="line lot">{{ $label['fields']['lot'] }}</div>
+                @endif
+                @if($template->hasField('location') && !empty($label['fields']['location']))
+                    <div class="line muted">{{ $label['fields']['location'] }}</div>
                 @endif
                 @if($template->hasField('prod_date') && !empty($label['fields']['prod_date']))
                     <div class="line muted">{{ $label['fields']['prod_date'] }}</div>

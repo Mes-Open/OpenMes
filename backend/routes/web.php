@@ -13,10 +13,10 @@ use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
 use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
-use App\Http\Controllers\Web\Admin\ImportExampleController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
+use App\Http\Controllers\Web\Admin\ImportExampleController;
 use App\Http\Controllers\Web\Admin\IntegrationConfigController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
@@ -28,6 +28,7 @@ use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotCont
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
+use App\Http\Controllers\Web\Admin\PalletController as AdminPalletController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
 use App\Http\Controllers\Web\Admin\ProductionCostReportController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
@@ -54,9 +55,9 @@ use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController
 // Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
+use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\ScrapController as OperatorScrapController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
-use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
 use App\Http\Controllers\Web\Packaging\LabelPrintController;
 use App\Http\Controllers\Web\Packaging\LabelTemplateController;
@@ -146,6 +147,7 @@ Route::middleware('auth')->group(function () {
             ->where('scheduled_at', '>=', now())
             ->where('scheduled_at', '<=', now()->addHours(2))
             ->count();
+
         return response()->json(['count' => $count]);
     })->name('maintenance.upcoming-count');
 
@@ -256,6 +258,11 @@ Route::middleware('auth')->group(function () {
     // Supervisor routes (Supervisor and Admin)
     Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor|Admin')->group(function () {
         Route::get('/dashboard', [SupervisorDashboardController::class, 'index'])->name('dashboard');
+
+        // Shift handover — produced/packed/WIP/shipped balance + close shift (audit snapshot)
+        Route::get('/shift-handover', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'index'])->name('shift-handover.index');
+        Route::get('/shift-handover/preview', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'preview'])->name('shift-handover.preview');
+        Route::post('/shift-handover', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'store'])->name('shift-handover.store');
 
         // Work Orders (supervisor can manage status)
         Route::get('/work-orders', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'index'])->name('work-orders.index');
@@ -424,6 +431,9 @@ Route::middleware('auth')->group(function () {
         // LOT Sequences
         Route::post('lot-sequences/preview', [AdminLotSequenceController::class, 'preview'])->name('lot-sequences.preview');
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
+
+        // Pallets
+        Route::resource('pallets', AdminPalletController::class)->except(['show']);
 
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
@@ -633,6 +643,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/history', [PackagingController::class, 'history'])->name('history');
             Route::get('/history/poll', [PackagingController::class, 'historyAfter'])->name('history.poll');
             Route::get('/stats', [PackagingController::class, 'stats'])->name('stats');
+            Route::get('/pallets', [PackagingController::class, 'openPallets'])->name('pallets.open');
+            Route::post('/pallets', [PackagingController::class, 'createPallet'])->name('pallets.create');
+            Route::post('/pallets/{pallet}/close', [PackagingController::class, 'closePallet'])->name('pallets.close');
         });
 
         Route::middleware('role:Supervisor|Admin')->group(function () {
@@ -649,6 +662,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/finished-goods/{batch}/zpl', [LabelPrintController::class, 'finishedGoodsZpl'])->name('finished-goods.zpl');
             Route::get('/workstation-step/{batchStep}/pdf', [LabelPrintController::class, 'batchStepPdf'])->name('workstation-step.pdf');
             Route::get('/workstation-step/{batchStep}/zpl', [LabelPrintController::class, 'batchStepZpl'])->name('workstation-step.zpl');
+            Route::get('/pallet/{pallet}/pdf', [LabelPrintController::class, 'palletPdf'])->name('pallet.pdf');
+            Route::get('/pallet/{pallet}/zpl', [LabelPrintController::class, 'palletZpl'])->name('pallet.zpl');
             Route::post('/print-multiple', [LabelPrintController::class, 'printMultiple'])->name('print-multiple');
         });
 
