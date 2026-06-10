@@ -22,7 +22,7 @@ class SettingsController extends Controller
     public function index()
     {
         $pinSetting = DB::table('system_settings')->where('key', 'pin_login_enabled')->first();
-        $pinLoginEnabled = json_decode($pinSetting->value ?? 'false', true) === true;
+        $pinLoginEnabled = json_decode($pinSetting?->value ?? 'false', true) === true;
 
         return Inertia::render('settings/Index', [
             'pinLoginEnabled' => $pinLoginEnabled,
@@ -100,24 +100,28 @@ class SettingsController extends Controller
         $rows = DB::table('system_settings')->get()->keyBy('key');
 
         $settings = [
-            'production_period' => json_decode($rows['production_period']->value ?? '"none"', true) ?? 'none',
-            'allow_overproduction' => json_decode($rows['allow_overproduction']->value ?? 'false', true) ?? false,
-            'force_sequential_steps' => json_decode($rows['force_sequential_steps']->value ?? 'true', true) ?? true,
-            'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']->value ?? 'false', true) ?? false,
-            'workflow_mode' => json_decode($rows['workflow_mode']->value ?? '"status"', true) ?? 'status',
-            'pin_login_enabled' => json_decode($rows['pin_login_enabled']->value ?? 'false', true) ?? false,
-            'language' => json_decode($rows['language']->value ?? '"en"', true) ?? 'en',
-            'schedule_view_mode' => json_decode($rows['schedule_view_mode']->value ?? '"weekly"', true) ?? 'weekly',
-            'schedule_shifts_per_day' => json_decode($rows['schedule_shifts_per_day']->value ?? '1', true) ?? 1,
-            'schedule_horizon_weeks' => json_decode($rows['schedule_horizon_weeks']->value ?? '6', true) ?? 6,
-            'schedule_show_weekends' => json_decode($rows['schedule_show_weekends']->value ?? 'true', true) ?? true,
-            'schedule_slot_duration_hours' => json_decode($rows['schedule_slot_duration_hours']->value ?? '8', true) ?? 8,
-            'realtime_mode' => json_decode($rows['realtime_mode']->value ?? '"polling"', true) ?? 'polling',
-            'production_tracking_mode' => json_decode($rows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation',
-            'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']->value ?? '"*"', true) ?? '*',
-            'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']->value ?? '"none"', true) ?? 'none',
-            'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']->value ?? '1', true) ?? 1,
-            'scanner_mode' => json_decode($rows['scanner_mode']->value ?? '"hid"', true) ?? 'hid',
+            'production_period' => json_decode($rows['production_period']?->value ?? '"none"', true) ?? 'none',
+            'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
+            'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
+            'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']?->value ?? 'false', true) ?? false,
+            'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
+            'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
+            'language' => json_decode($rows['language']?->value ?? '"en"', true) ?? 'en',
+            'schedule_view_mode' => json_decode($rows['schedule_view_mode']?->value ?? '"weekly"', true) ?? 'weekly',
+            'schedule_shifts_per_day' => json_decode($rows['schedule_shifts_per_day']?->value ?? '1', true) ?? 1,
+            'schedule_horizon_weeks' => json_decode($rows['schedule_horizon_weeks']?->value ?? '6', true) ?? 6,
+            'schedule_show_weekends' => json_decode($rows['schedule_show_weekends']?->value ?? 'true', true) ?? true,
+            'schedule_slot_duration_hours' => json_decode($rows['schedule_slot_duration_hours']?->value ?? '8', true) ?? 8,
+            'realtime_mode' => json_decode($rows['realtime_mode']?->value ?? '"polling"', true) ?? 'polling',
+            'production_tracking_mode' => json_decode($rows['production_tracking_mode']?->value ?? '"per_operation"', true) ?? 'per_operation',
+            'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']?->value ?? '"*"', true) ?? '*',
+            'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']?->value ?? '"none"', true) ?? 'none',
+            'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']?->value ?? '1', true) ?? 1,
+            'scanner_mode' => json_decode($rows['scanner_mode']?->value ?? '"hid"', true) ?? 'hid',
+            'standard_weekly_hours' => json_decode($rows['standard_weekly_hours']?->value ?? '40', true) ?? 40,
+            'default_currency' => json_decode($rows['default_currency']?->value ?? '"PLN"', true) ?? 'PLN',
+            'default_pay_type' => json_decode($rows['default_pay_type']?->value ?? '"hourly"', true) ?? 'hourly',
+            'default_pay_rate' => json_decode($rows['default_pay_rate']?->value ?? 'null', true),
         ];
 
         // Same source as the validation rule and the language switcher.
@@ -125,9 +129,9 @@ class SettingsController extends Controller
 
         // Append CORS fields not in the standard settings map (they may exist in DB)
         $corsRow = DB::table('system_settings')->where('key', 'cors_allowed_methods')->first();
-        $settings['cors_allowed_methods'] = json_decode($corsRow->value ?? '"GET, POST"', true) ?? 'GET, POST';
+        $settings['cors_allowed_methods'] = json_decode($corsRow?->value ?? '"GET, POST"', true) ?? 'GET, POST';
         $corsMaxRow = DB::table('system_settings')->where('key', 'cors_max_age')->first();
-        $settings['cors_max_age'] = json_decode($corsMaxRow->value ?? '0', true) ?? 0;
+        $settings['cors_max_age'] = json_decode($corsMaxRow?->value ?? '0', true) ?? 0;
 
         return Inertia::render('settings/System', [
             'settings' => $settings,
@@ -299,6 +303,10 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
             'scanner_mode' => 'required|in:hid,manual',
+            'standard_weekly_hours' => 'nullable|numeric|min:1|max:168',
+            'default_currency' => 'nullable|string|size:3',
+            'default_pay_type' => 'nullable|in:hourly,weekly,piece_rate',
+            'default_pay_rate' => 'nullable|numeric|min:0',
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -325,7 +333,18 @@ class SettingsController extends Controller
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
             'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
             'scanner_mode' => $validated['scanner_mode'],
+            'standard_weekly_hours' => (float) ($validated['standard_weekly_hours'] ?? 40),
+            'default_currency' => strtoupper($validated['default_currency'] ?? 'PLN'),
+            'default_pay_type' => $validated['default_pay_type'] ?? 'hourly',
+            'default_pay_rate' => isset($validated['default_pay_rate']) && $validated['default_pay_rate'] !== null
+                ? (float) $validated['default_pay_rate']
+                : null,
         ];
+
+        $previousLanguage = json_decode(
+            DB::table('system_settings')->where('key', 'language')->value('value') ?? 'null',
+            true
+        );
 
         foreach ($map as $key => $value) {
             DB::table('system_settings')->updateOrInsert(
@@ -335,6 +354,13 @@ class SettingsController extends Controller
         }
 
         Cache::forget('cors_allowed_origins');
+
+        // Only realign the session locale when the language actually changed,
+        // so saving an unrelated setting does not clobber a per-session
+        // language the user picked via the switcher.
+        if ($map['language'] !== $previousLanguage) {
+            $request->session()->put('locale', $map['language']);
+        }
 
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');

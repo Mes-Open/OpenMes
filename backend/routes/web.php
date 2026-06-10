@@ -31,9 +31,12 @@ use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
+use App\Http\Controllers\Web\Admin\ProductionCostReportController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\ScheduleController;
 use App\Http\Controllers\Web\Admin\SchedulePlannerController;
+use App\Http\Controllers\Web\Admin\ScrapReasonController;
+use App\Http\Controllers\Web\Admin\ScrapReportController;
 // Gate 3 — Basics
 use App\Http\Controllers\Web\Admin\SiteController;
 use App\Http\Controllers\Web\Admin\SkillController;
@@ -53,6 +56,7 @@ use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController
 // Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
+use App\Http\Controllers\Web\Operator\ScrapController as OperatorScrapController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
 use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
@@ -222,6 +226,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
+        Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');
 
         // Production downtime (replaces the old Livewire DowntimeReporter).
         Route::post('/downtime/start', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'start'])->name('downtime.start');
@@ -290,6 +295,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
         Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
         Route::get('/reports/{workOrder}', [AdminReportController::class, 'show'])->name('reports.show');
+
+        // Reports — Production Cost (materials + labor + additional, per work order)
+        Route::get('/cost-reports', [ProductionCostReportController::class, 'index'])->name('cost-reports.index');
+        Route::get('/cost-reports/export', [ProductionCostReportController::class, 'export'])->name('cost-reports.export');
+        Route::get('/cost-reports/{workOrder}', [ProductionCostReportController::class, 'show'])->name('cost-reports.show');
 
         // Alerts
         Route::get('/alerts', [\App\Http\Controllers\Web\Admin\AlertController::class, 'index'])->name('alerts');
@@ -514,6 +524,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/custom-fields/{customField}/toggle-active', [CustomFieldDefinitionController::class, 'toggleActive'])->name('custom-fields.toggle-active');
         Route::get('/custom-field-files/{file}', [CustomFieldDefinitionController::class, 'downloadFile'])->name('custom-field-files.show');
 
+        // Scrap Reasons
+        Route::resource('scrap-reasons', ScrapReasonController::class)->except(['show']);
+        Route::post('/scrap-reasons/{scrapReason}/toggle-active', [ScrapReasonController::class, 'toggleActive'])->name('scrap-reasons.toggle-active');
+
         // ── Gate 4: HR ───────────────────────────────────────────────────────
         // Wage Groups
         Route::resource('wage-groups', WageGroupController::class)->except(['show']);
@@ -543,6 +557,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/production-anomalies', [ProductionAnomalyController::class, 'store'])->name('production-anomalies.store');
         Route::post('/production-anomalies/{productionAnomaly}/process', [ProductionAnomalyController::class, 'process'])->name('production-anomalies.process');
         Route::delete('/production-anomalies/{productionAnomaly}', [ProductionAnomalyController::class, 'destroy'])->name('production-anomalies.destroy');
+
+        // Scrap reporting (Pareto, scrap rate per line, trend)
+        Route::get('/scrap-reports', [ScrapReportController::class, 'index'])->name('scrap-reports.index');
 
         // Inspection Plans (admin CRUD + version publish)
         Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');

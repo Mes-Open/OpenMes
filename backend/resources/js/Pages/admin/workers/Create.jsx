@@ -2,6 +2,7 @@ import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import WorkerForm from './WorkerForm';
 import { customFieldInitial, submitForm } from '../../../lib/customFieldForm';
+import { __ } from '../../../lib/i18n';
 
 export default function WorkerCreate() {
     const { crews = [], wageGroups = [], personnelClasses = [], skills = [], customFields = [] } = usePage().props;
@@ -13,6 +14,8 @@ export default function WorkerCreate() {
         crew_id: '',
         wage_group_id: '',
         personnel_class_id: '',
+        pay_type: '',
+        pay_rate: '',
         is_active: true,
         skills: [],
         ...customFieldInitial(),
@@ -25,9 +28,9 @@ export default function WorkerCreate() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="New Worker" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New Worker</h1>
-            <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} skills={skills} customFields={customFields} onSubmit={submit} />
+            <Head title={__('New Worker')} />
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('New Worker')}</h1>
+            <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} customFields={customFields} skills={skills} onSubmit={submit} />
         </div>
     );
 }

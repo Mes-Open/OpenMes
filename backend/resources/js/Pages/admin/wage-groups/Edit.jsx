@@ -1,17 +1,18 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { WAGE_GROUP_FIELDS } from './fields';
+import { wageGroupFields } from './fields';
+import { __ } from '../../../lib/i18n';
 
 export default function WageGroupEdit({ wageGroup }) {
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${wageGroup.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Wage Group</h1>
+            <Head title={__('Edit :name', { name: wageGroup.name })} />
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('Edit Wage Group')}</h1>
             <ResourceForm
                 action={`/admin/wage-groups/${wageGroup.id}`}
                 method="put"
-                fields={WAGE_GROUP_FIELDS}
+                fields={wageGroupFields()}
                 initial={{
                     code: wageGroup.code ?? '',
                     name: wageGroup.name ?? '',
@@ -20,7 +21,7 @@ export default function WageGroupEdit({ wageGroup }) {
                     currency: wageGroup.currency ?? '',
                     is_active: !!wageGroup.is_active,
                 }}
-                submitLabel="Save Changes"
+                submitLabel={__('Save Changes')}
                 cancelHref="/admin/wage-groups"
             />
         </div>

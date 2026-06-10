@@ -7,12 +7,72 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-### Added
-- Custom Fields: admin-defined fields attachable per entity-type, managed under **Settings → Custom Fields**. Types: text, text area, number, whole number, yes/no, date, date & time, dropdown, multi-select, and **File / Image uploads** (e.g. attach a photo/ID to a produced unit). Values persist in a `custom_fields` JSON column (files stored on the private disk, re-encoded for images, served through an authenticated route), validated server-side (required, options, min/max, file type/size), shown on create/edit forms and detail pages, audit-logged, and carried over Reverb live sync. Available on Materials, Work Orders, Product Types, Sites, Areas, Lines, Tools, Shifts, Workers and Workstations, plus operator issue reports; storage + sync enabled on all core entities. UI is fully localised (EN/PL/TR). See `docs/custom-fields-plan.md`.
-- Work Order History: relocated Reports into its own nav group (between Production and Structure) and turned it into a read-only historical analysis view over finished orders (DONE / CANCELLED / REJECTED). Filter by status, line, product type, full-text (order no. / LOT) and date — with day presets (today, yesterday, last 7/30 days, this/last month, custom range, all time). Summary aggregates (orders, produced, planned, avg execution time, on-time %), CSV export, and a deep per-order drill-down: execution timeline, batches with assigned LOTs, steps with start/end times, duration and operator, material genealogy (consumed lots), quality checks and issues raised. All execution data is retained indefinitely.
+---
+
+## [0.14.4] - 2026-06-09
+
+### Fixed
+- Demo tenant pruning (`tenants:prune`) crashed every minute with a 23503 foreign-key violation: deleting a tenant cascades to its users, but `packaging_checklists.checked_by`, `quality_checks.checked_by` and `process_confirmations.confirmed_by` referenced users with `restrictOnDelete`, blocking the cascade. These audit references are now `nullOnDelete` (migration), matching every other user FK. The command also isolates each tenant in its own transaction/try-catch so one bad delete can't abort the whole scheduled run.
+- System Settings page no longer 500s on a fresh tenant: `showSystemSettings()` read `$rows['key']->value` which threw "Attempt to read property 'value' on null" when a `system_settings` key had not been written yet. All ~24 reads are now null-safe (`?->value`), so the page renders with defaults until settings are saved. Regression test added (renders with an empty settings table).
 
 ### Changed
-- Reports nav entry moved out of the Admin group into a dedicated Reports group; the previous aggregate KPI dashboard was replaced by the Work Order History view.
+- Sidebar: nav groups that have their own landing page (e.g. **Modules**) now navigate there on click instead of only expanding — previously clicking the group header did nothing visible.
+- Forms (all config-driven CRUD via `ResourceForm`): a failed submit now scrolls to and focuses the first invalid field and shows an error summary at the top — the main cause of form abandonment (e.g. Material Lot registration). Required Material Lot fields gained clearer placeholders/hints.
+
+---
+
+## [0.14.3] - 2026-06-09
+
+### Fixed
+- Process template steps: Save / Add / Delete / Move on the step editor hit a 404 (popup) because the React page posted to the route *names* (`/update-step/{id}` etc.) instead of the actual RESTful paths (`/steps/{id}`). Corrected all five step-action URLs; added a web test pinning the literal paths.
+- Live sync no longer breaks writes: a failing Reverb broadcast (e.g. server unreachable) is now caught so the originating create/update/delete still succeeds — fixes work-order actions (Accept etc.) erroring out when the broadcaster is down. Clients fall back to polling.
+- Structure deletions (workstation type, workstation, site, factory, division) surface a friendly "still referenced — deactivate instead" message instead of a 500 when a foreign-key constraint is hit.
+
+### Changed
+- Work order detail: issue cards are now clickable links to the filtered issues list (previously they looked interactive but did nothing).
+- BOM material picker: the unit of measure is shown in the material dropdown and next to "Quantity per Unit", quantity has a helper hint, and an auto-filled default scrap % is now labelled.
+- Form guidance: the user form's worker-profile section is now a collapsible block (collapsed by default, auto-expanded when editing an account that already has one); the tool and material forms gained helper hints clarifying optional/ERP fields and tracking modes.
+
+---
+
+## [0.14.2] - 2026-06-09
+
+### Fixed
+- Bare-hosting install wizard could not render (HTTP 500 / blank page): the shipped `.env` defaults to database-backed sessions (correct for the Docker stack, whose entrypoint marks the app installed before serving), so on a plain PHP host every request — including the installer itself — queried a database that does not exist yet. The app now forces file-based session/cache drivers while the `storage/installed` flag is absent, so the wizard boots without a database; once installed, the configured drivers and the migrated `sessions` table take over. No effect on Docker (already installed at boot) or the test suite (`runningUnitTests` guard).
+- A finished bare-hosting install no longer goes live as `APP_ENV=local` / `APP_DEBUG=true`: completing the wizard now writes `APP_ENV=production` and `APP_DEBUG=false` (the environment step is otherwise skipped because `public/index.php` auto-generates `APP_KEY`).
+
+---
+
+## [0.14.1] - 2026-06-09
+
+### Fixed
+- Inertia page resolution on case-sensitive filesystems: published `config/inertia.php` pinned to `resources/js/Pages` (the package default points to lowercase `js/pages`, which never resolves on Linux/CI and broke `assertInertia()->component()` page-existence checks).
+
+### Changed
+- Release packaging: the `Release` GitHub Actions workflow no longer attempts to push the version bump to the protected `main` branch (which aborted the run before any artifact was built). It now builds a **self-contained** distributable ZIP — source plus bundled `vendor/` and `backend/public/build/` — so the package installs with no `composer install`/`npm build` step, going straight into the browser-based setup wizard.
+
+---
+
+## [0.14.0] - 2026-06-08
+
+### Added
+- Scrap reason codes - categorized defect tracking per work order: `scrap_reasons` with a 5M Ishikawa category (material/machine/method/man/environment), admin CRUD + activate/deactivate, and 5 seeded default reasons (#13)
+- Operator scrap reporting on the work order detail page (reason, quantity, notes); `scrap_entries` link to the work order and optionally to a batch step and shift, with a per-work-order total scrap quantity and a derived quality % metric (#13)
+- Scrap reports: Pareto by reason, scrap rate per line, and scrap trend over time (Chart.js), plus REST API endpoints `reports/scrap-pareto`, `reports/scrap-rate`, scrap-reason read/CRUD and scrap-entry report/list (#13)
+- Work Order History: relocated Reports into its own nav group (between Production and Structure) and turned it into a read-only historical analysis view over finished orders (DONE / CANCELLED / REJECTED). Filter by status, line, product type, full-text (order no. / LOT) and date — with day presets (today, yesterday, last 7/30 days, this/last month, custom range, all time). Summary aggregates (orders, produced, planned, avg execution time, on-time %), CSV export, and a deep per-order drill-down: execution timeline, batches with assigned LOTs, steps with start/end times, duration and operator, material genealogy (consumed lots), quality checks and issues raised. All execution data is retained indefinitely.
+- Production Cost report: per-work-order costing that sums material + labor + additional costs into a total and a cost-per-unit, with a detailed per-line breakdown (each material qty x unit price, each worker's hours/pieces x rate, each additional cost). Material cost uses actual recorded consumption (price snapshotted at consumption time for stable history) and falls back to the BOM recipe; labor cost is driven by per-worker pay mode. Filterable list (line, product, date presets) with summary cards and CSV export, under the Reports nav group.
+- Per-worker compensation: pay type (hourly / weekly / piece rate) and rate set on the worker edit form. Hourly bills rate x hours on the order; weekly converts the salary to an effective hourly rate via a configurable `standard_weekly_hours`; piece rate bills rate x pieces, splitting a work order's output across piece-rate workers proportionally to their logged hours. The wage group remains a fallback when no per-worker rate is set.
+- LOT number pattern generation: build LOT identifiers from composable tokens (e.g. `prefix-[date]-[numeric]-[hourly]`) — operators define the parameter set once and the system renders consistent, collision-safe LOT numbers per work order (#55)
+- Process template photos: attach reference photos to a process template, with a hardened upload path — every image is fully decoded and re-encoded server-side (`ImageSanitizer`, GD) to strip EXIF/polyglot payloads, accepting only JPEG/PNG/WebP (#56)
+- Per-step process photos: one reference photo per production step (rather than a single photo for the whole template), shown inline on the operator's work order view so each step carries its own visual instruction (#63)
+- Operators on the line can view the full process-build photos for the product they are working on, read-only (#58)
+- Inspection plan versioning: plans carry a version number and `published_at`; editing a published plan creates a new immutable version, and recorded inspection results store the exact plan version used, so historical results stay reproducible (#62)
+
+### Changed
+- i18n: the UI-language whitelist is now single-sourced from `config('app.available_locales')`; date/time and number formatting is locale-aware (BCP-47 mapping) instead of a hardcoded clock locale, and `APP_TIMEZONE` is honoured across the app (#57)
+- Login screen is fully translated (#54)
+- Reports nav entry moved out of the Admin group into a dedicated Reports group (Scrap Reports moved alongside it); the previous aggregate KPI dashboard was replaced by the Work Order History view.
+- Worker create/update validation moved into dedicated Form Requests (`StoreWorkerRequest` / `UpdateWorkerRequest`).
 
 ---
 
@@ -208,7 +268,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.4...develop
+[0.14.4]: https://github.com/Mes-Open/OpenMes/compare/v0.14.3...v0.14.4
+[0.14.3]: https://github.com/Mes-Open/OpenMes/compare/v0.14.2...v0.14.3
+[0.14.2]: https://github.com/Mes-Open/OpenMes/compare/v0.14.1...v0.14.2
+[0.14.1]: https://github.com/Mes-Open/OpenMes/compare/v0.14.0...v0.14.1
+[0.14.0]: https://github.com/Mes-Open/OpenMes/compare/v0.13.0...v0.14.0
 [0.11.1]: https://github.com/Mes-Open/OpenMes/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/Mes-Open/OpenMes/compare/v0.9.0...v0.11.0
 [0.9.0]: https://github.com/Mes-Open/OpenMes/compare/v0.8.0...v0.9.0

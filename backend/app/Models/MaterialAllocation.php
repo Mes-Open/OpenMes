@@ -35,6 +35,8 @@ class MaterialAllocation extends Model
         'allocated_by',
         'allocated_at',
         'consumed_at',
+        'unit_price_snapshot',
+        'price_currency_snapshot',
         'tenant_id',
     ];
 
@@ -49,6 +51,7 @@ class MaterialAllocation extends Model
             'scrap_qty' => 'decimal:4',
             'allocated_at' => 'datetime',
             'consumed_at' => 'datetime',
+            'unit_price_snapshot' => 'decimal:4',
         ];
     }
 

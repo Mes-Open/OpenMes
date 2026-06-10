@@ -7,7 +7,9 @@ use App\Models\WorkOrder;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
+use App\Services\Scrap\ScrapReportService;
 use App\Support\Csv;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -203,6 +205,62 @@ class ReportController extends Controller
         ];
 
         return response()->json(['data' => $report]);
+    }
+
+    /**
+     * Pareto data by scrap reason (descending scrap quantity, cumulative share).
+     */
+    public function scrapPareto(Request $request, ScrapReportService $service): JsonResponse
+    {
+        [$from, $to, $lineId] = $this->scrapReportRange($request);
+
+        return response()->json(['data' => [
+            'period' => ['start' => $from->toDateString(), 'end' => $to->toDateString()],
+            'line_id' => $lineId,
+            'pareto' => $service->pareto($from, $to, $lineId),
+            'by_category' => $service->byCategory($from, $to, $lineId),
+            'generated_at' => now()->toIso8601String(),
+        ]]);
+    }
+
+    /**
+     * Scrap rate per line over time (scrap qty / total produced) plus daily trend.
+     */
+    public function scrapRate(Request $request, ScrapReportService $service): JsonResponse
+    {
+        [$from, $to, $lineId] = $this->scrapReportRange($request);
+
+        return response()->json(['data' => [
+            'period' => ['start' => $from->toDateString(), 'end' => $to->toDateString()],
+            'per_line' => $service->ratePerLine($from, $to),
+            'trend' => $service->trend($from, $to, $lineId),
+            'generated_at' => now()->toIso8601String(),
+        ]]);
+    }
+
+    /**
+     * Resolve and validate the [from, to, lineId] window for scrap reports.
+     * Defaults to the last 30 days when no dates are supplied.
+     *
+     * @return array{0: Carbon, 1: Carbon, 2: int|null}
+     */
+    private function scrapReportRange(Request $request): array
+    {
+        $validated = $request->validate([
+            'line_id' => ['nullable', 'integer', 'exists:lines,id'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        $from = isset($validated['start_date'])
+            ? Carbon::parse($validated['start_date'])->startOfDay()
+            : today()->subDays(29)->startOfDay();
+        $to = isset($validated['end_date'])
+            ? Carbon::parse($validated['end_date'])->endOfDay()
+            : today()->endOfDay();
+        $lineId = isset($validated['line_id']) ? (int) $validated['line_id'] : null;
+
+        return [$from, $to, $lineId];
     }
 
     /**
