@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Sidebar menu search**: a search box at the top of the sidebar filters all navigation entries (including items nested in groups/subgroups) and shows a flat result list with the group path; matches both English labels and the active locale's translations. Enter opens the first result, Escape clears; on a collapsed sidebar the search icon expands it and focuses the input.
+
 ---
 
 ## [0.14.4] - 2026-06-09
