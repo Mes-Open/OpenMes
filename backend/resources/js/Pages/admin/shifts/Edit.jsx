@@ -21,6 +21,7 @@ export default function ShiftEdit() {
                     end_time: (shift.end_time ?? '').slice(0, 5),
                     sort_order: shift.sort_order ?? 0,
                     is_active: !!shift.is_active,
+                    custom_fields: shift.custom_fields ?? {},
                 }}
                 submitLabel="Save Changes"
                 cancelHref="/admin/shifts"

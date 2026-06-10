@@ -3102,5 +3102,21 @@
     "Stations": "Stanowiska",
     "UoM": "JM",
     "Used": "Użyte",
-    "Users & Accounts": "Użytkownicy i konta"
+    "Users & Accounts": "Użytkownicy i konta",
+    "Logging in...": "Logowanie...",
+    "Text area": "Pole tekstowe",
+    "Number": "Liczba",
+    "Whole number": "Liczba całkowita",
+    "Yes / No": "Tak / Nie",
+    "Date & time": "Data i godzina",
+    "Dropdown": "Lista rozwijana",
+    "Multi-select": "Wybór wielokrotny",
+    "Text": "Tekst",
+    "File": "Plik",
+    "Image": "Obraz",
+    "Custom Fields": "Pola niestandardowe",
+    "Define extra fields on records across the system": "Definiuj dodatkowe pola w rekordach w całym systemie",
+    "Custom fields": "Pola niestandardowe",
+    "Will be removed on save.": "Zostanie usunięty przy zapisie.",
+    "No": "Nie"
 }

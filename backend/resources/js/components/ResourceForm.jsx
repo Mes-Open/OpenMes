@@ -1,5 +1,7 @@
 import { Fragment } from 'react';
-import { Link, useForm } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
+import CustomFields from './CustomFields';
+import { customFieldProps, submitForm } from '../lib/customFieldForm';
 
 /**
  * Config-driven create/edit form — the non-optimistic write-through pattern.
@@ -23,6 +25,8 @@ import { Link, useForm } from '@inertiajs/react';
  *   backHref    — optional "‹ Back" link target rendered above the form
  *   backLabel   — text for the back link (default 'Back')
  *   title       — optional page heading rendered between the back link and form
+ *   customFields — optional admin-defined custom-field definitions (clientConfig);
+ *                  rendered after the static fields, bound to data.custom_fields
  */
 export default function ResourceForm({
     action,
@@ -35,13 +39,20 @@ export default function ResourceForm({
     backHref,
     backLabel = 'Back',
     title,
+    customFields,
 }) {
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
 
+    // Custom-field definitions: explicit prop wins, else fall back to the page's
+    // `customFields` prop so any ResourceForm-based page whose controller passes
+    // it renders custom fields without per-page wiring.
+    const pageCustomFields = usePage().props.customFields;
+    const customFieldDefs = customFields ?? pageCustomFields ?? [];
+
     const submit = (e) => {
         e.preventDefault();
-        form.submit(method, action);
+        submitForm(form, method, action);
     };
 
     return (
@@ -76,6 +87,10 @@ export default function ResourceForm({
                 {fields.map((f) => (
                     <Field key={f.name} field={f} value={data[f.name]} error={errors[f.name]} setData={setData} />
                 ))}
+
+                {customFieldDefs.length > 0 && (
+                    <CustomFields {...customFieldProps(form, customFieldDefs)} />
+                )}
 
                 <div className="flex items-center gap-3 pt-2">
                     <button

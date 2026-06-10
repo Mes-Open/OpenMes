@@ -19,6 +19,7 @@ export default function LineEdit() {
                     area_id: line.area_id != null ? String(line.area_id) : '',
                     description: line.description ?? '',
                     is_active: !!line.is_active,
+                    custom_fields: line.custom_fields ?? {},
                 }}
                 submitLabel="Save Changes"
                 cancelHref="/admin/lines"

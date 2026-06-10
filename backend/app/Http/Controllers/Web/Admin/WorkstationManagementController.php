@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\Worker;
 use App\Models\Workstation;
+use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -36,27 +37,32 @@ class WorkstationManagementController extends Controller
     /**
      * Show the form for creating a new workstation
      */
-    public function create(Line $line)
+    public function create(Line $line, CustomFieldService $cf)
     {
         return Inertia::render('admin/workstations/Create', [
             'line' => $line->only('id', 'name', 'code'),
+            'customFields' => $cf->clientConfig('workstation'),
         ]);
     }
 
     /**
      * Store a newly created workstation
      */
-    public function store(Request $request, Line $line)
+    public function store(Request $request, Line $line, CustomFieldService $cf)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'code' => 'required|string|max:50|unique:workstations,code',
             'name' => 'required|string|max:255',
             'workstation_type' => 'nullable|string|max:100',
             'is_active' => 'boolean',
-        ]);
+        ], $cf->rules('workstation')), [], $cf->attributeNames('workstation'));
 
         $validated['line_id'] = $line->id;
         $validated['is_active'] = $request->boolean('is_active', true);
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'workstation') ?: null;
+        }
 
         Workstation::create($validated);
 
@@ -67,7 +73,7 @@ class WorkstationManagementController extends Controller
     /**
      * Show the form for editing a workstation
      */
-    public function edit(Line $line, Workstation $workstation)
+    public function edit(Line $line, Workstation $workstation, CustomFieldService $cf)
     {
         if ($workstation->line_id !== $line->id) {
             abort(404);
@@ -77,7 +83,8 @@ class WorkstationManagementController extends Controller
 
         return Inertia::render('admin/workstations/Edit', [
             'line'        => $line->only('id', 'name', 'code'),
-            'workstation' => $workstation->only('id', 'code', 'name', 'workstation_type', 'is_active'),
+            'workstation' => $workstation->only('id', 'code', 'name', 'workstation_type', 'is_active', 'custom_fields'),
+            'customFields' => $cf->clientConfig('workstation'),
             'workers'     => $workers->map(fn ($w) => [
                 'id'               => $w->id,
                 'name'             => $w->name,
@@ -92,23 +99,27 @@ class WorkstationManagementController extends Controller
     /**
      * Update the specified workstation
      */
-    public function update(Request $request, Line $line, Workstation $workstation)
+    public function update(Request $request, Line $line, Workstation $workstation, CustomFieldService $cf)
     {
         // Ensure workstation belongs to this line
         if ($workstation->line_id !== $line->id) {
             abort(404);
         }
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'code'             => 'required|string|max:50|unique:workstations,code,' . $workstation->id,
             'name'             => 'required|string|max:255',
             'workstation_type' => 'nullable|string|max:100',
             'is_active'        => 'boolean',
             'worker_ids'       => 'nullable|array',
             'worker_ids.*'     => 'exists:workers,id',
-        ]);
+        ], $cf->rules('workstation')), [], $cf->attributeNames('workstation'));
 
         $validated['is_active'] = $request->boolean('is_active');
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'workstation', $workstation->custom_fields) ?: null;
+        }
 
         $workstation->update($validated);
 

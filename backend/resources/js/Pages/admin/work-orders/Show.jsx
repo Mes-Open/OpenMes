@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import { WO_STATUS_STYLES } from './fields';
 import { formatDate, formatNumber } from '../../../lib/i18n';
 
@@ -168,7 +169,7 @@ function DoneModal({ workOrder, onClose }) {
 }
 
 export default function AdminWorkOrderShow() {
-    const { workOrder } = usePage().props;
+    const { workOrder, customFields = [] } = usePage().props;
     const [showDoneModal, setShowDoneModal] = useState(false);
 
     const post = (verb) => router.post(`/admin/work-orders/${workOrder.id}/${verb}`, {}, { preserveScroll: true });
@@ -363,6 +364,9 @@ export default function AdminWorkOrderShow() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Custom fields */}
+                        <CustomFieldsDisplay definitions={customFields} values={workOrder.custom_fields} />
 
                         {/* Batches */}
                         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
