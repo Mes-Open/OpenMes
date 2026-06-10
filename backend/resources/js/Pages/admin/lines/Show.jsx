@@ -853,7 +853,7 @@ export default function LineShow() {
             </div>
 
             <div className="mb-6">
-                <CustomFieldsDisplay definitions={customFields} values={line.custom_fields} />
+                <CustomFieldsDisplay definitions={customFields} values={line.custom_fields ?? {}} />
             </div>
 
             <LineStatusesCard line={line} lineStatuses={lineStatuses} />

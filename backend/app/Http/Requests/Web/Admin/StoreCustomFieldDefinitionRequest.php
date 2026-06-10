@@ -32,7 +32,7 @@ class StoreCustomFieldDefinitionRequest extends FormRequest
 
             'config' => ['nullable', 'array'],
             // Option-based types need at least one {value,label} pair.
-            'config.options' => [$optioned ? 'required' : 'nullable', 'array'],
+            'config.options' => array_filter([$optioned ? 'required' : 'nullable', 'array', $optioned ? 'min:1' : null]),
             'config.options.*.value' => ['required_with:config.options', 'string', 'max:191'],
             'config.options.*.label' => ['required_with:config.options', 'string', 'max:191'],
             'config.min' => ['nullable', 'numeric'],

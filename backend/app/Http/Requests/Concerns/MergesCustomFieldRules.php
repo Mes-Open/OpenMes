@@ -46,7 +46,10 @@ trait MergesCustomFieldRules
     {
         $attributes = [];
         foreach (app(CustomFieldService::class)->definitionsFor($this->customFieldEntityType()) as $def) {
+            // Both keys: scalar fields land under custom_fields, File/Image
+            // uploads under custom_field_files — label both so errors read nicely.
             $attributes["custom_fields.{$def->key}"] = $def->label;
+            $attributes["custom_field_files.{$def->key}"] = $def->label;
         }
 
         return $attributes;

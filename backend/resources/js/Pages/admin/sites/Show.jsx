@@ -87,7 +87,7 @@ export default function SiteShow() {
                 </div>
 
                 <div className="mb-6">
-                    <CustomFieldsDisplay definitions={customFields} values={site.custom_fields} />
+                    <CustomFieldsDisplay definitions={customFields} values={site.custom_fields ?? {}} />
                 </div>
 
                 {/* Areas table */}

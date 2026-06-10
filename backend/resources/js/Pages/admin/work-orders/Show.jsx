@@ -366,7 +366,7 @@ export default function AdminWorkOrderShow() {
                         </div>
 
                         {/* Custom fields */}
-                        <CustomFieldsDisplay definitions={customFields} values={workOrder.custom_fields} />
+                        <CustomFieldsDisplay definitions={customFields} values={workOrder.custom_fields ?? {}} />
 
                         {/* Batches */}
                         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">

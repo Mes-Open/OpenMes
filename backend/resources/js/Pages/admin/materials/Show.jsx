@@ -132,7 +132,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
 
                 {/* Custom fields */}
                 <div className="mb-6">
-                    <CustomFieldsDisplay definitions={customFields} values={material.custom_fields} />
+                    <CustomFieldsDisplay definitions={customFields} values={material.custom_fields ?? {}} />
                 </div>
 
                 {/* Lots */}
