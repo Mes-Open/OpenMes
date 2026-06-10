@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 
 const WO_STATUS_LABELS = {
     PENDING:     'Pending',
@@ -24,7 +25,7 @@ const WO_STATUS_STYLES = {
     PAUSED:      'bg-orange-100 text-orange-800',
 };
 
-export default function ProductTypeShow({ productType, recentWorkOrders = [] }) {
+export default function ProductTypeShow({ productType, recentWorkOrders = [], customFields = [] }) {
     const templateCount = productType.process_templates?.length ?? 0;
     const workOrderCount = productType.work_order_count ?? recentWorkOrders.length;
     const totalWorkOrders = productType.total_work_order_count ?? workOrderCount;
@@ -136,6 +137,10 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [] }) 
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div className="mb-6">
+                    <CustomFieldsDisplay definitions={customFields} values={productType.custom_fields} />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

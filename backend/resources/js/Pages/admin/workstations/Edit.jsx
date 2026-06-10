@@ -1,8 +1,10 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import CustomFields from '../../../components/CustomFields';
+import { customFieldInitial, customFieldProps, submitForm } from '../../../lib/customFieldForm';
 
 export default function WorkstationEdit() {
-    const { line, workstation, workers = [] } = usePage().props;
+    const { line, workstation, workers = [], customFields = [] } = usePage().props;
 
     const assignedWorkerIds = workers
         .filter((w) => w.workstation_id === workstation.id)
@@ -14,11 +16,12 @@ export default function WorkstationEdit() {
         workstation_type: workstation.workstation_type ?? '',
         is_active: !!workstation.is_active,
         worker_ids: assignedWorkerIds,
+        ...customFieldInitial(workstation.custom_fields),
     });
 
     const submit = (e) => {
         e.preventDefault();
-        form.put(`/admin/lines/${line.id}/workstations/${workstation.id}`);
+        submitForm(form, 'put', `/admin/lines/${line.id}/workstations/${workstation.id}`);
     };
 
     const toggleWorker = (workerId) => {
@@ -146,6 +149,8 @@ export default function WorkstationEdit() {
                     )}
                     {form.errors.worker_ids && <p className="mt-1 text-xs text-red-600">{form.errors.worker_ids}</p>}
                 </div>
+
+                {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
 
                 <div className="flex items-center gap-3 pt-2">
                     <button

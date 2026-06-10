@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Site;
+use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -21,10 +22,10 @@ class SiteController extends Controller
         return Inertia::render('admin/sites/Index', ['counts' => $counts, 'companyNames' => $companyNames]);
     }
 
-    public function create()
+    public function create(CustomFieldService $cf)
     {
         $companies = \App\Models\Company::active()->orderBy('name')->get(['id', 'name']);
-        return Inertia::render('admin/sites/Create', ['companies' => $companies]);
+        return Inertia::render('admin/sites/Create', ['companies' => $companies, 'customFields' => $cf->clientConfig('site')]);
     }
 
     public function store(Request $request)
@@ -32,6 +33,10 @@ class SiteController extends Controller
         $validated = $this->validatePayload($request);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        unset($validated['custom_field_files']);
+        if (app(CustomFieldService::class)->touched($request)) {
+            $validated['custom_fields'] = app(CustomFieldService::class)->fromRequest($request, 'site') ?: null;
+        }
 
         Site::create($validated);
 
@@ -53,7 +58,7 @@ class SiteController extends Controller
 
         return Inertia::render('admin/sites/Show', [
             'site' => array_merge(
-                $site->only('id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active'),
+                $site->only('id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active', 'custom_fields'),
                 [
                     'company' => $site->company ? $site->company->only('id', 'name') : null,
                     'areas' => $site->areas->map(fn ($a) => array_merge(
@@ -63,13 +68,14 @@ class SiteController extends Controller
                     'lines' => $site->lines->map(fn ($l) => $l->only('id', 'code', 'name', 'is_active')),
                 ],
             ),
+            'customFields' => app(CustomFieldService::class)->clientConfig('site'),
         ]);
     }
 
-    public function edit(Site $site)
+    public function edit(Site $site, CustomFieldService $cf)
     {
         $companies = \App\Models\Company::active()->orderBy('name')->get(['id', 'name']);
-        return Inertia::render('admin/sites/Edit', ['site' => $site->only('id', 'company_id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active'), 'companies' => $companies]);
+        return Inertia::render('admin/sites/Edit', ['site' => $site->only('id', 'company_id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active', 'custom_fields'), 'companies' => $companies, 'customFields' => $cf->clientConfig('site')]);
     }
 
     public function update(Request $request, Site $site)
@@ -77,6 +83,10 @@ class SiteController extends Controller
         $validated = $this->validatePayload($request, $site);
 
         $validated['is_active'] = $request->boolean('is_active');
+        unset($validated['custom_field_files']);
+        if (app(CustomFieldService::class)->touched($request)) {
+            $validated['custom_fields'] = app(CustomFieldService::class)->fromRequest($request, 'site', $site->custom_fields) ?: null;
+        }
 
         $site->update($validated);
 
@@ -114,7 +124,9 @@ class SiteController extends Controller
             $codeRule .= ',' . $site->id;
         }
 
-        return $request->validate([
+        $cf = app(CustomFieldService::class);
+
+        return $request->validate(array_merge([
             'name'        => 'required|string|max:255',
             'code'        => $codeRule,
             'company_id'  => 'nullable|exists:companies,id',
@@ -124,6 +136,6 @@ class SiteController extends Controller
             'country'     => 'nullable|string|size:2',
             'timezone'    => 'nullable|string|max:50',
             'is_active'   => 'nullable|boolean',
-        ]);
+        ], $cf->rules('site')), [], $cf->attributeNames('site'));
     }
 }

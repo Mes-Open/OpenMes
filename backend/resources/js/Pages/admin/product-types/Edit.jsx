@@ -3,7 +3,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
 import { PRODUCT_TYPE_FIELDS } from './fields';
 
-export default function ProductTypeEdit({ productType }) {
+export default function ProductTypeEdit({ productType, customFields = [] }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${productType.name}`} />
@@ -19,12 +19,14 @@ export default function ProductTypeEdit({ productType }) {
                 action={`/admin/product-types/${productType.id}`}
                 method="put"
                 fields={PRODUCT_TYPE_FIELDS}
+                customFields={customFields}
                 initial={{
                     code: productType.code ?? '',
                     name: productType.name ?? '',
                     description: productType.description ?? '',
                     unit_of_measure: productType.unit_of_measure ?? 'pcs',
                     is_active: !!productType.is_active,
+                    custom_fields: productType.custom_fields ?? {},
                 }}
                 submitLabel="Save Changes"
                 cancelHref="/admin/product-types"

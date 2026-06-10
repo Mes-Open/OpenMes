@@ -1407,5 +1407,16 @@
     "unit": "birim",
     "work orders": "iş emirleri",
     "— none —": "— yok —",
-    "Security": "Güvenlik"
+    "Security": "Güvenlik",
+    "Custom fields": "Özel alanlar",
+    "Custom Fields": "Özel Alanlar",
+    "Define extra fields on records across the system": "Sistem genelinde kayıtlara ek alanlar tanımlayın",
+    "Will be removed on save.": "Kaydederken kaldırılacak.",
+    "— Select —": "— Seçin —",
+    "Selected": "Seçildi",
+    "Yes": "Evet",
+    "No": "Hayır",
+    "Download": "İndir",
+    "File": "Dosya",
+    "Image": "Görsel"
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Issue extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasCustomFields, HasFactory;
 
     const STATUS_OPEN = 'OPEN';
     const STATUS_ACKNOWLEDGED = 'ACKNOWLEDGED';

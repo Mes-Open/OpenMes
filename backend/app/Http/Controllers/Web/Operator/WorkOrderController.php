@@ -276,6 +276,8 @@ class WorkOrderController extends Controller
                 ]);
         }
 
-        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos'));
+        $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
+
+        return Inertia::render('operator/WorkOrderDetail', compact('workOrder', 'issueTypes', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'issueCustomFields'));
     }
 }

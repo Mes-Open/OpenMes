@@ -35,6 +35,7 @@ class WorkOrdersActiveShape extends Shape
             'completed_at',
             'planned_start_at',
             'planned_end_at',
+            'custom_fields',
             'created_at',
             'updated_at',
         ];

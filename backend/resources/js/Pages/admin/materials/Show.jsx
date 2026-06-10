@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 
 const MOVEMENT_TYPE_COLORS = {
     receipt:    'text-green-700',
@@ -20,7 +21,7 @@ function fmt(val, decimals = 3) {
     return Number(val ?? 0).toFixed(decimals);
 }
 
-export default function MaterialShow({ material, lots = [], recentMovements = [] }) {
+export default function MaterialShow({ material, lots = [], recentMovements = [], customFields = [] }) {
     const available = material.available_quantity ?? 0;
     const minStock = material.min_stock_level ?? 0;
     const stockCardBorder = available < minStock ? 'border-red-400' : 'border-blue-400';
@@ -127,6 +128,11 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                             </>
                         )}
                     </div>
+                </div>
+
+                {/* Custom fields */}
+                <div className="mb-6">
+                    <CustomFieldsDisplay definitions={customFields} values={material.custom_fields} />
                 </div>
 
                 {/* Lots */}

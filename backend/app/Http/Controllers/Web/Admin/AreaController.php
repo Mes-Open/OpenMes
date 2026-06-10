@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Area;
 use App\Models\Site;
+use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -33,6 +34,7 @@ class AreaController extends Controller
 
         return Inertia::render('admin/areas/Create', [
             'sites' => $sites,
+            'customFields' => app(CustomFieldService::class)->clientConfig('area'),
         ]);
     }
 
@@ -47,6 +49,10 @@ class AreaController extends Controller
         $validated = $this->validatePayload($request);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        unset($validated['custom_field_files']);
+        if (app(CustomFieldService::class)->touched($request)) {
+            $validated['custom_fields'] = app(CustomFieldService::class)->fromRequest($request, 'area') ?: null;
+        }
 
         Area::create($validated);
 
@@ -70,7 +76,7 @@ class AreaController extends Controller
 
         return Inertia::render('admin/areas/Show', [
             'area' => array_merge(
-                $area->only('id', 'code', 'name', 'description', 'is_active'),
+                $area->only('id', 'code', 'name', 'description', 'is_active', 'custom_fields'),
                 [
                     'site' => $area->site ? $area->site->only('id', 'name') : null,
                     'lines' => $area->lines->map(fn ($l) => array_merge(
@@ -79,6 +85,7 @@ class AreaController extends Controller
                     )),
                 ],
             ),
+            'customFields' => app(CustomFieldService::class)->clientConfig('area'),
         ]);
     }
 
@@ -87,8 +94,9 @@ class AreaController extends Controller
         $sites = \App\Models\Site::active()->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('admin/areas/Edit', [
-            'area' => $area->only('id', 'site_id', 'code', 'name', 'description', 'is_active'),
+            'area' => $area->only('id', 'site_id', 'code', 'name', 'description', 'is_active', 'custom_fields'),
             'sites' => $sites,
+            'customFields' => app(CustomFieldService::class)->clientConfig('area'),
         ]);
     }
 
@@ -97,6 +105,10 @@ class AreaController extends Controller
         $validated = $this->validatePayload($request, $area);
 
         $validated['is_active'] = $request->boolean('is_active');
+        unset($validated['custom_field_files']);
+        if (app(CustomFieldService::class)->touched($request)) {
+            $validated['custom_fields'] = app(CustomFieldService::class)->fromRequest($request, 'area', $area->custom_fields) ?: null;
+        }
 
         $area->update($validated);
 
@@ -129,7 +141,9 @@ class AreaController extends Controller
 
     private function validatePayload(Request $request, ?Area $area = null): array
     {
-        return $request->validate([
+        $cf = app(CustomFieldService::class);
+
+        return $request->validate(array_merge([
             'site_id'     => ['required', 'exists:sites,id'],
             'name'        => ['required', 'string', 'max:255'],
             'code'        => [
@@ -140,6 +154,6 @@ class AreaController extends Controller
             ],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active'   => ['nullable', 'boolean'],
-        ]);
+        ], $cf->rules('area')), [], $cf->attributeNames('area'));
     }
 }

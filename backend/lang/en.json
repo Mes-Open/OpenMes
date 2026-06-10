@@ -3103,5 +3103,20 @@
     "UoM": "UoM",
     "Used": "Used",
     "Users & Accounts": "Users & Accounts",
-    "Logging in...": "Logging in..."
+    "Logging in...": "Logging in...",
+    "Text area": "Text area",
+    "Number": "Number",
+    "Whole number": "Whole number",
+    "Yes / No": "Yes / No",
+    "Date & time": "Date & time",
+    "Dropdown": "Dropdown",
+    "Multi-select": "Multi-select",
+    "Text": "Text",
+    "File": "File",
+    "Image": "Image",
+    "Custom Fields": "Custom Fields",
+    "Define extra fields on records across the system": "Define extra fields on records across the system",
+    "Custom fields": "Custom fields",
+    "Will be removed on save.": "Will be removed on save.",
+    "No": "No"
 }

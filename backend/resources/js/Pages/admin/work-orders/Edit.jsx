@@ -4,7 +4,7 @@ import ResourceForm from '../../../components/ResourceForm';
 import { woFields } from './fields';
 
 export default function WorkOrderEdit() {
-    const { workOrder, lines = [], productTypes = [] } = usePage().props;
+    const { workOrder, lines = [], productTypes = [], customFields = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${workOrder.order_no}`} />
@@ -13,6 +13,7 @@ export default function WorkOrderEdit() {
                 action={`/admin/work-orders/${workOrder.id}`}
                 method="put"
                 fields={woFields(lines, productTypes, { withStatus: true })}
+                customFields={customFields}
                 initial={{
                     order_no: workOrder.order_no ?? '',
                     line_id: workOrder.line_id != null ? String(workOrder.line_id) : '',
@@ -22,6 +23,7 @@ export default function WorkOrderEdit() {
                     due_date: workOrder.due_date ?? '',
                     description: workOrder.description ?? '',
                     status: workOrder.status ?? 'PENDING',
+                    custom_fields: workOrder.custom_fields ?? {},
                 }}
                 submitLabel="Save Changes"
                 cancelHref="/admin/work-orders"

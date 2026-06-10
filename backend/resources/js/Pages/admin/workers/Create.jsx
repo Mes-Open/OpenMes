@@ -1,9 +1,10 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import WorkerForm from './WorkerForm';
+import { customFieldInitial, submitForm } from '../../../lib/customFieldForm';
 
 export default function WorkerCreate() {
-    const { crews = [], wageGroups = [], personnelClasses = [], skills = [] } = usePage().props;
+    const { crews = [], wageGroups = [], personnelClasses = [], skills = [], customFields = [] } = usePage().props;
     const form = useForm({
         code: '',
         name: '',
@@ -14,18 +15,19 @@ export default function WorkerCreate() {
         personnel_class_id: '',
         is_active: true,
         skills: [],
+        ...customFieldInitial(),
     });
 
     const submit = (e) => {
         e.preventDefault();
-        form.post('/admin/workers');
+        submitForm(form, 'post', '/admin/workers');
     };
 
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Worker" />
             <h1 className="text-3xl font-bold text-gray-800 mb-6">New Worker</h1>
-            <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} skills={skills} onSubmit={submit} />
+            <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} skills={skills} customFields={customFields} onSubmit={submit} />
         </div>
     );
 }

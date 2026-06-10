@@ -1,9 +1,10 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import WorkerForm from './WorkerForm';
+import { customFieldInitial, submitForm } from '../../../lib/customFieldForm';
 
 export default function WorkerEdit() {
-    const { worker, crews = [], wageGroups = [], personnelClasses = [], skills = [] } = usePage().props;
+    const { worker, crews = [], wageGroups = [], personnelClasses = [], skills = [], customFields = [] } = usePage().props;
 
     const form = useForm({
         code: worker.code ?? '',
@@ -15,18 +16,19 @@ export default function WorkerEdit() {
         personnel_class_id: worker.personnel_class_id != null ? String(worker.personnel_class_id) : '',
         is_active: !!worker.is_active,
         skills: worker.skills ?? [],
+        ...customFieldInitial(worker.custom_fields),
     });
 
     const submit = (e) => {
         e.preventDefault();
-        form.put(`/admin/workers/${worker.id}`);
+        submitForm(form, 'put', `/admin/workers/${worker.id}`);
     };
 
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${worker.name}`} />
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Worker</h1>
-            <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} skills={skills} isEdit onSubmit={submit} />
+            <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} skills={skills} customFields={customFields} isEdit onSubmit={submit} />
         </div>
     );
 }
