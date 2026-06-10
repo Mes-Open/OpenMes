@@ -98,21 +98,11 @@ class WorkerController extends Controller
     /**
      * Store a newly created worker.
      */
-    public function store(Request $request, CustomFieldService $cf)
+    public function store(StoreWorkerRequest $request, CustomFieldService $cf)
     {
-        $validated = $request->validate(array_merge([
-            'code'               => 'required|string|max:50|unique:workers',
-            'name'               => 'required|string|max:255',
-            'email'              => 'nullable|email|max:255',
-            'phone'              => 'nullable|string|max:50',
-            'crew_id'            => 'nullable|exists:crews,id',
-            'wage_group_id'      => 'nullable|exists:wage_groups,id',
-            'personnel_class_id' => 'nullable|exists:personnel_classes,id',
-            'is_active'          => 'boolean',
-            'skills'             => 'nullable|array',
-            'skills.*.id'        => 'required|exists:skills,id',
-            'skills.*.level'     => 'nullable|integer|min:1|max:5',
-        ], $cf->rules('worker')), [], $cf->attributeNames('worker'));
+        // StoreWorkerRequest validates the worker fields (incl. pay_type/pay_rate/
+        // pay_currency from develop) AND the custom fields (MergesCustomFieldRules).
+        $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active', true);
         unset($validated['custom_field_files']);
@@ -147,6 +137,9 @@ class WorkerController extends Controller
                 'crew_id' => $worker->crew_id,
                 'wage_group_id' => $worker->wage_group_id,
                 'personnel_class_id' => $worker->personnel_class_id,
+                'pay_type'           => $worker->pay_type,
+                'pay_rate'           => $worker->pay_rate,
+                'pay_currency'       => $worker->pay_currency,
                 'is_active'          => $worker->is_active,
                 'custom_fields'      => $worker->custom_fields,
                 'skills'             => $worker->skills->map(fn ($s) => [
@@ -165,21 +158,9 @@ class WorkerController extends Controller
     /**
      * Update the specified worker.
      */
-    public function update(Request $request, Worker $worker, CustomFieldService $cf)
+    public function update(UpdateWorkerRequest $request, Worker $worker, CustomFieldService $cf)
     {
-        $validated = $request->validate(array_merge([
-            'code'               => 'required|string|max:50|unique:workers,code,' . $worker->id,
-            'name'               => 'required|string|max:255',
-            'email'              => 'nullable|email|max:255',
-            'phone'              => 'nullable|string|max:50',
-            'crew_id'            => 'nullable|exists:crews,id',
-            'wage_group_id'      => 'nullable|exists:wage_groups,id',
-            'personnel_class_id' => 'nullable|exists:personnel_classes,id',
-            'is_active'          => 'boolean',
-            'skills'             => 'nullable|array',
-            'skills.*.id'        => 'required|exists:skills,id',
-            'skills.*.level'     => 'nullable|integer|min:1|max:5',
-        ], $cf->rules('worker')), [], $cf->attributeNames('worker'));
+        $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active');
         unset($validated['custom_field_files']);
