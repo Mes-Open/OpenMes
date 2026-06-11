@@ -20,6 +20,18 @@ class UpdateMaterialRequest extends FormRequest
         return 'material';
     }
 
+    /**
+     * The scrap % column is NOT NULL DEFAULT 0, but a cleared form field arrives
+     * as null (ConvertEmptyStringsToNull) and would trip the constraint on save.
+     * Coerce a blank back to 0.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('default_scrap_percentage') === null || $this->input('default_scrap_percentage') === '') {
+            $this->merge(['default_scrap_percentage' => 0]);
+        }
+    }
+
     public function rules(): array
     {
         return array_merge([
