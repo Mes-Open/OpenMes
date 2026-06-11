@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Batch extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasCustomFields, HasFactory;
 
     const STATUS_PENDING = 'PENDING';
 

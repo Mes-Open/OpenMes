@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
 use App\Models\Concerns\HasTenant;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Area extends Model
 {
-    use HasFactory, HasTenant, Auditable;
+    use Auditable, HasCustomFields, HasFactory, HasTenant;
 
     protected $fillable = [
         'name',

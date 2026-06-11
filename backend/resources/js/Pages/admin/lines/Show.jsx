@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 
 const WORK_ORDER_STATUS_LABELS = {
     PENDING: 'Pending',
@@ -733,6 +734,7 @@ export default function LineShow() {
         viewColumns = [],
         allViewTemplates = [],
         effectiveWorkstations = [],
+        customFields = [],
     } = usePage().props;
 
     const handleToggleActive = () => {
@@ -848,6 +850,10 @@ export default function LineShow() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="mb-6">
+                <CustomFieldsDisplay definitions={customFields} values={line.custom_fields ?? {}} />
             </div>
 
             <LineStatusesCard line={line} lineStatuses={lineStatuses} />

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Line;
 use App\Models\Shift;
+use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -21,22 +22,28 @@ class ShiftController extends Controller
     {
         return Inertia::render('admin/shifts/Create', [
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customFields' => app(CustomFieldService::class)->clientConfig('shift'),
         ]);
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $cf = app(CustomFieldService::class);
+        $validated = $request->validate(array_merge([
             'name'       => 'required|string|max:50',
             'code'       => 'required|string|max:10|unique:shifts,code',
             'start_time' => 'required|date_format:H:i',
             'end_time'   => 'required|date_format:H:i',
             'sort_order' => 'nullable|integer|min:0',
             'line_id'    => 'nullable|exists:lines,id',
-        ]);
+        ], $cf->rules('shift')), [], $cf->attributeNames('shift'));
 
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['sort_order'] = $validated['sort_order'] ?? Shift::max('sort_order') + 1;
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'shift') ?: null;
+        }
 
         // Overlap is scoped to the same line (or both global) — same-time shifts
         // on different lines are fine.
@@ -52,23 +59,29 @@ class ShiftController extends Controller
     public function edit(Shift $shift)
     {
         return Inertia::render('admin/shifts/Edit', [
-            'shift' => $shift->only('id', 'code', 'name', 'start_time', 'end_time', 'sort_order', 'line_id', 'is_active'),
+            'shift' => $shift->only('id', 'code', 'name', 'start_time', 'end_time', 'sort_order', 'line_id', 'is_active', 'custom_fields'),
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customFields' => app(CustomFieldService::class)->clientConfig('shift'),
         ]);
     }
 
     public function update(Request $request, Shift $shift)
     {
-        $validated = $request->validate([
+        $cf = app(CustomFieldService::class);
+        $validated = $request->validate(array_merge([
             'name'       => 'required|string|max:50',
             'code'       => 'required|string|max:10|unique:shifts,code,' . $shift->id,
             'start_time' => 'required|date_format:H:i',
             'end_time'   => 'required|date_format:H:i',
             'sort_order' => 'nullable|integer|min:0',
             'line_id'    => 'nullable|exists:lines,id',
-        ]);
+        ], $cf->rules('shift')), [], $cf->attributeNames('shift'));
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'shift', $shift->custom_fields) ?: null;
+        }
 
         if ($this->hasOverlap($validated['start_time'], $validated['end_time'], $validated['line_id'] ?? null, $shift->id)) {
             return back()->withInput()->with('error', __('This shift overlaps with an existing shift on this line. Adjust the times and try again.'));

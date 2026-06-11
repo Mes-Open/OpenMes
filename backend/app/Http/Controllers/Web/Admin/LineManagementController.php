@@ -7,6 +7,7 @@ use App\Models\Area;
 use App\Models\Line;
 use App\Models\LineStatus;
 use App\Models\ProductType;
+use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -38,6 +39,7 @@ class LineManagementController extends Controller
     {
         return Inertia::render('admin/lines/Create', [
             'areas' => $this->areaOptions(),
+            'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
     }
 
@@ -53,15 +55,20 @@ class LineManagementController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $cf = app(CustomFieldService::class);
+        $validated = $request->validate(array_merge([
             'code'        => 'required|string|max:50|unique:lines',
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
             'area_id'     => 'nullable|exists:areas,id',
             'is_active'   => 'boolean',
-        ]);
+        ], $cf->rules('line')), [], $cf->attributeNames('line'));
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'line') ?: null;
+        }
 
         Line::create($validated);
 
@@ -104,7 +111,7 @@ class LineManagementController extends Controller
 
         return Inertia::render('admin/lines/Show', [
             'line' => array_merge(
-                $line->only('id', 'code', 'name', 'description', 'is_active', 'default_operator_view', 'view_template_id'),
+                $line->only('id', 'code', 'name', 'description', 'is_active', 'default_operator_view', 'view_template_id', 'custom_fields'),
                 [
                     'workstations_count' => $line->workstations_count,
                     'work_orders_count'  => $line->work_orders_count,
@@ -139,6 +146,7 @@ class LineManagementController extends Controller
                 'code'         => $ws->code,
                 'is_line_itself' => $ws->is_line_itself ?? false,
             ])->values(),
+            'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
     }
 
@@ -148,8 +156,9 @@ class LineManagementController extends Controller
     public function edit(Line $line)
     {
         return Inertia::render('admin/lines/Edit', [
-            'line' => $line->only('id', 'code', 'name', 'description', 'area_id', 'is_active'),
+            'line' => $line->only('id', 'code', 'name', 'description', 'area_id', 'is_active', 'custom_fields'),
             'areas' => $this->areaOptions(),
+            'customFields' => app(CustomFieldService::class)->clientConfig('line'),
         ]);
     }
 
@@ -158,15 +167,20 @@ class LineManagementController extends Controller
      */
     public function update(Request $request, Line $line)
     {
-        $validated = $request->validate([
+        $cf = app(CustomFieldService::class);
+        $validated = $request->validate(array_merge([
             'code'        => 'required|string|max:50|unique:lines,code,' . $line->id,
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
             'area_id'     => 'nullable|exists:areas,id',
             'is_active'   => 'boolean',
-        ]);
+        ], $cf->rules('line')), [], $cf->attributeNames('line'));
 
         $validated['is_active'] = $request->boolean('is_active');
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'line', $line->custom_fields) ?: null;
+        }
 
         $line->update($validated);
 
