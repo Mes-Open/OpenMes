@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Tool;
 use App\Models\WorkstationType;
+use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -28,6 +29,7 @@ class ToolController extends Controller
     {
         return Inertia::render('admin/tools/Create', [
             'workstationTypes' => WorkstationType::active()->orderBy('name')->get(['id', 'name']),
+            'customFields' => app(CustomFieldService::class)->clientConfig('tool'),
         ]);
     }
 
@@ -36,16 +38,21 @@ class ToolController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $cf = app(CustomFieldService::class);
+        $validated = $request->validate(array_merge([
             'code'                => 'required|string|max:50|unique:tools',
             'name'                => 'required|string|max:255',
             'description'         => 'nullable|string|max:2000',
             'workstation_type_id' => 'nullable|exists:workstation_types,id',
             'status'              => 'nullable|string|in:available,in_use,maintenance,retired',
             'next_service_at'     => 'nullable|date',
-        ]);
+        ], $cf->rules('tool')), [], $cf->attributeNames('tool'));
 
         $validated['status'] = $validated['status'] ?? Tool::STATUS_AVAILABLE;
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'tool') ?: null;
+        }
 
         Tool::create($validated);
 
@@ -59,8 +66,9 @@ class ToolController extends Controller
     public function edit(Tool $tool)
     {
         return Inertia::render('admin/tools/Edit', [
-            'tool' => $tool->only('id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'next_service_at'),
+            'tool' => $tool->only('id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'next_service_at', 'custom_fields'),
             'workstationTypes' => WorkstationType::active()->orderBy('name')->get(['id', 'name']),
+            'customFields' => app(CustomFieldService::class)->clientConfig('tool'),
         ]);
     }
 
@@ -69,14 +77,20 @@ class ToolController extends Controller
      */
     public function update(Request $request, Tool $tool)
     {
-        $validated = $request->validate([
+        $cf = app(CustomFieldService::class);
+        $validated = $request->validate(array_merge([
             'code'                => 'required|string|max:50|unique:tools,code,' . $tool->id,
             'name'                => 'required|string|max:255',
             'description'         => 'nullable|string|max:2000',
             'workstation_type_id' => 'nullable|exists:workstation_types,id',
             'status'              => 'nullable|string|in:available,in_use,maintenance,retired',
             'next_service_at'     => 'nullable|date',
-        ]);
+        ], $cf->rules('tool')), [], $cf->attributeNames('tool'));
+
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'tool', $tool->custom_fields) ?: null;
+        }
 
         $tool->update($validated);
 

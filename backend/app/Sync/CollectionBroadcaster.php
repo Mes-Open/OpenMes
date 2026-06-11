@@ -75,6 +75,7 @@ class CollectionBroadcaster
             'label_templates' => [Models\LabelTemplate::class, null],
             'maintenance_events' => [Models\MaintenanceEvent::class, null],
             'maintenance_schedules' => [Models\MaintenanceSchedule::class, null],
+            'custom_field_definitions' => [Models\CustomFieldDefinition::class, null],
         ];
     }
 

@@ -20,6 +20,7 @@ export default function AreaEdit() {
                     name: area.name ?? '',
                     description: area.description ?? '',
                     is_active: !!area.is_active,
+                    custom_fields: area.custom_fields ?? {},
                 }}
                 submitLabel="Save Changes"
                 cancelHref="/admin/areas"

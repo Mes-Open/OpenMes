@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Worker extends Model
 {
-    use Auditable, HasFactory;
+    use Auditable, HasCustomFields, HasFactory;
 
     /** Supported compensation modes for per-worker pay. */
     public const PAY_TYPES = ['hourly', 'weekly', 'piece_rate'];

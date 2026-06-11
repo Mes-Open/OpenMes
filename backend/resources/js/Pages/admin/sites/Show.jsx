@@ -1,8 +1,9 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 
 export default function SiteShow() {
-    const { site } = usePage().props;
+    const { site, customFields = [] } = usePage().props;
     const { company, areas = [], lines = [] } = site;
 
     const locationParts = [site.address, [site.city, site.country].filter(Boolean).join(', ')].filter(Boolean);
@@ -83,6 +84,10 @@ export default function SiteShow() {
                         <p className="text-xs uppercase tracking-wide text-gray-500">Description</p>
                         <p className="text-gray-700 mt-1 text-sm">{site.description || '—'}</p>
                     </div>
+                </div>
+
+                <div className="mb-6">
+                    <CustomFieldsDisplay definitions={customFields} values={site.custom_fields ?? {}} />
                 </div>
 
                 {/* Areas table */}

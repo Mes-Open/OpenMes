@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreMaterialRequest;
+use App\Http\Requests\Web\Admin\UpdateMaterialRequest;
 use App\Models\Material;
 use App\Models\MaterialType;
-use Illuminate\Http\Request;
+use App\Services\CustomFieldService;
 use Inertia\Inertia;
 
 class MaterialManagementController extends Controller
@@ -22,31 +24,26 @@ class MaterialManagementController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(CustomFieldService $customFields)
     {
         return Inertia::render('admin/materials/Create', [
             'materialTypes' => MaterialType::orderBy('name')->get(['id', 'name']),
+            'customFields' => $customFields->clientConfig('material'),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreMaterialRequest $request, CustomFieldService $cf)
     {
-        $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:materials',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'material_type_id' => 'required|exists:material_types,id',
-            'unit_of_measure' => 'nullable|string|max:20',
-            'tracking_type' => 'nullable|in:none,batch,serial',
-            'default_scrap_percentage' => 'nullable|numeric|min:0|max:100',
-            'external_code' => 'nullable|string|max:100',
-            'external_system' => 'nullable|string|max:50',
-            'is_active' => 'boolean',
-        ]);
+        $validated = $request->validated();
+        unset($validated['custom_field_files']);
 
         $validated['is_active'] = $request->boolean('is_active', true);
         $validated['unit_of_measure'] = $validated['unit_of_measure'] ?? 'pcs';
         $validated['tracking_type'] = $validated['tracking_type'] ?? 'none';
+
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'material') ?: null;
+        }
 
         Material::create($validated);
 
@@ -54,7 +51,7 @@ class MaterialManagementController extends Controller
             ->with('success', 'Material created successfully.');
     }
 
-    public function show(Material $material)
+    public function show(Material $material, CustomFieldService $customFields)
     {
         $material->load(['materialType', 'sources.integrationConfig', 'bomItems.processTemplate.productType']);
 
@@ -106,6 +103,7 @@ class MaterialManagementController extends Controller
                 'price_currency'           => $material->price_currency,
                 'external_code'            => $material->external_code,
                 'external_system'          => $material->external_system,
+                'custom_fields'            => $material->custom_fields,
                 'material_type'            => $material->materialType ? ['name' => $material->materialType->name] : null,
                 'sources'                  => $material->sources->map(fn ($s) => [
                     'id'               => $s->id,
@@ -126,36 +124,33 @@ class MaterialManagementController extends Controller
             ],
             'lots'            => $lots,
             'recentMovements' => $recentMovements,
+            'customFields'    => $customFields->clientConfig('material'),
         ]);
     }
 
-    public function edit(Material $material)
+    public function edit(Material $material, CustomFieldService $customFields)
     {
         return Inertia::render('admin/materials/Edit', [
             'material' => $material->only(
                 'id', 'code', 'name', 'description', 'material_type_id', 'unit_of_measure',
-                'tracking_type', 'default_scrap_percentage', 'external_code', 'external_system', 'is_active'
+                'tracking_type', 'default_scrap_percentage', 'external_code', 'external_system', 'is_active',
+                'custom_fields'
             ),
             'materialTypes' => MaterialType::orderBy('name')->get(['id', 'name']),
+            'customFields' => $customFields->clientConfig('material'),
         ]);
     }
 
-    public function update(Request $request, Material $material)
+    public function update(UpdateMaterialRequest $request, Material $material, CustomFieldService $cf)
     {
-        $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:materials,code,'.$material->id,
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'material_type_id' => 'required|exists:material_types,id',
-            'unit_of_measure' => 'nullable|string|max:20',
-            'tracking_type' => 'nullable|in:none,batch,serial',
-            'default_scrap_percentage' => 'nullable|numeric|min:0|max:100',
-            'external_code' => 'nullable|string|max:100',
-            'external_system' => 'nullable|string|max:50',
-            'is_active' => 'boolean',
-        ]);
+        $validated = $request->validated();
+        unset($validated['custom_field_files']);
 
         $validated['is_active'] = $request->boolean('is_active');
+
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'material', $material->custom_fields) ?: null;
+        }
 
         $material->update($validated);
 

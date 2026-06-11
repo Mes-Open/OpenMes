@@ -10,6 +10,7 @@ use App\Models\PersonnelClass;
 use App\Models\Skill;
 use App\Models\WageGroup;
 use App\Models\Worker;
+use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -30,7 +31,7 @@ class WorkerController extends Controller
     /**
      * Display the certifications page for a worker.
      */
-    public function show(Worker $worker)
+    public function show(Worker $worker, CustomFieldService $cf)
     {
         $worker->load(['crew', 'wageGroup', 'personnelClass', 'skills']);
         $skills = Skill::orderBy('name')->get();
@@ -63,42 +64,51 @@ class WorkerController extends Controller
 
         return Inertia::render('admin/workers/Show', [
             'worker' => [
-                'id' => $worker->id,
-                'code' => $worker->code,
-                'name' => $worker->name,
-                'email' => $worker->email,
-                'is_active' => $worker->is_active,
-                'crew' => $worker->crew ? ['name' => $worker->crew->name] : null,
-                'wageGroup' => $worker->wageGroup ? ['name' => $worker->wageGroup->name] : null,
-                'personnelClass' => $worker->personnelClass ? ['name' => $worker->personnelClass->name] : null,
+                'id'               => $worker->id,
+                'code'             => $worker->code,
+                'name'             => $worker->name,
+                'email'            => $worker->email,
+                'is_active'        => $worker->is_active,
+                'crew'             => $worker->crew ? ['name' => $worker->crew->name] : null,
+                'wageGroup'        => $worker->wageGroup ? ['name' => $worker->wageGroup->name] : null,
+                'personnelClass'   => $worker->personnelClass ? ['name' => $worker->personnelClass->name] : null,
+                'custom_fields'    => $worker->custom_fields,
             ],
             'certifications' => $certifications,
-            'skills' => $skills->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'code' => $s->code]),
-            'levels' => PersonnelClass::LEVELS,
+            'skills'         => $skills->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'code' => $s->code]),
+            'levels'         => PersonnelClass::LEVELS,
+            'customFields'   => $cf->clientConfig('worker'),
         ]);
     }
 
     /**
      * Show the form for creating a new worker.
      */
-    public function create()
+    public function create(CustomFieldService $cf)
     {
         return Inertia::render('admin/workers/Create', [
             'crews' => Crew::active()->orderBy('name')->get(['id', 'name']),
             'wageGroups' => WageGroup::active()->orderBy('name')->get(['id', 'name']),
             'personnelClasses' => PersonnelClass::active()->orderBy('name')->get(['id', 'name']),
-            'skills' => Skill::orderBy('name')->get(['id', 'name']),
+            'skills'           => Skill::orderBy('name')->get(['id', 'name']),
+            'customFields'     => $cf->clientConfig('worker'),
         ]);
     }
 
     /**
      * Store a newly created worker.
      */
-    public function store(StoreWorkerRequest $request)
+    public function store(StoreWorkerRequest $request, CustomFieldService $cf)
     {
+        // StoreWorkerRequest validates the worker fields (incl. pay_type/pay_rate/
+        // pay_currency from develop) AND the custom fields (MergesCustomFieldRules).
         $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'worker') ?: null;
+        }
 
         $worker = Worker::create($validated);
 
@@ -113,7 +123,7 @@ class WorkerController extends Controller
     /**
      * Show the form for editing a worker.
      */
-    public function edit(Worker $worker)
+    public function edit(Worker $worker, CustomFieldService $cf)
     {
         $worker->load('skills');
 
@@ -127,30 +137,36 @@ class WorkerController extends Controller
                 'crew_id' => $worker->crew_id,
                 'wage_group_id' => $worker->wage_group_id,
                 'personnel_class_id' => $worker->personnel_class_id,
-                'pay_type' => $worker->pay_type,
-                'pay_rate' => $worker->pay_rate,
-                'pay_currency' => $worker->pay_currency,
-                'is_active' => $worker->is_active,
-                'skills' => $worker->skills->map(fn ($s) => [
-                    'id' => $s->id,
+                'pay_type'           => $worker->pay_type,
+                'pay_rate'           => $worker->pay_rate,
+                'pay_currency'       => $worker->pay_currency,
+                'is_active'          => $worker->is_active,
+                'custom_fields'      => $worker->custom_fields,
+                'skills'             => $worker->skills->map(fn ($s) => [
+                    'id'    => $s->id,
                     'level' => $s->pivot->level ?? 1,
                 ]),
             ],
             'crews' => Crew::active()->orderBy('name')->get(['id', 'name']),
             'wageGroups' => WageGroup::active()->orderBy('name')->get(['id', 'name']),
             'personnelClasses' => PersonnelClass::active()->orderBy('name')->get(['id', 'name']),
-            'skills' => Skill::orderBy('name')->get(['id', 'name']),
+            'skills'           => Skill::orderBy('name')->get(['id', 'name']),
+            'customFields'     => $cf->clientConfig('worker'),
         ]);
     }
 
     /**
      * Update the specified worker.
      */
-    public function update(UpdateWorkerRequest $request, Worker $worker)
+    public function update(UpdateWorkerRequest $request, Worker $worker, CustomFieldService $cf)
     {
         $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active');
+        unset($validated['custom_field_files']);
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'worker', $worker->custom_fields) ?: null;
+        }
 
         $worker->update($validated);
 
