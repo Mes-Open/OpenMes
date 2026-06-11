@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
+import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 
 export default function WorkerShow() {
-    const { worker, certifications = [], skills = [], levels = [] } = usePage().props;
+    const { worker, certifications = [], skills = [], levels = [], customFields = [] } = usePage().props;
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState({
         skill_id: '',
@@ -61,6 +62,10 @@ export default function WorkerShow() {
                     <div className="flex gap-2">
                         <a href={`/admin/workers/${worker.id}/edit`} className="btn-touch btn-secondary">{__('Edit')}</a>
                     </div>
+                </div>
+
+                <div className="mb-6">
+                    <CustomFieldsDisplay definitions={customFields} values={worker.custom_fields ?? {}} />
                 </div>
 
                 {/* Certifications card */}

@@ -20,6 +20,7 @@ export default function ToolEdit() {
                     workstation_type_id: tool.workstation_type_id != null ? String(tool.workstation_type_id) : '',
                     status: tool.status ?? 'available',
                     next_service_at: (tool.next_service_at ?? '').slice(0, 10),
+                    custom_fields: tool.custom_fields ?? {},
                 }}
                 submitLabel="Save Changes"
                 cancelHref="/admin/tools"

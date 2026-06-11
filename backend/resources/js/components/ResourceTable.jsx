@@ -140,22 +140,22 @@ export default function ResourceTable({
                                                         </svg>
                                                     );
                                                     return a.href ? (
-                                                        <Link key={i} href={a.href} className={cls} title={__(a.label)} aria-label={__(a.label)}>
+                                                        <Link key={i} href={a.href} className={cls} title={__(a.label)} aria-label={__(a.label)} data-action={a.label}>
                                                             {glyph}
                                                         </Link>
                                                     ) : (
-                                                        <button key={i} onClick={a.onClick} className={cls} title={__(a.label)} aria-label={__(a.label)}>
+                                                        <button key={i} onClick={a.onClick} className={cls} title={__(a.label)} aria-label={__(a.label)} data-action={a.label}>
                                                             {glyph}
                                                         </button>
                                                     );
                                                 }
                                                 // Labeled button (domain actions without an icon).
                                                 return a.href ? (
-                                                    <Link key={i} href={a.href} className={actionClass(a)}>
+                                                    <Link key={i} href={a.href} className={actionClass(a)} data-action={a.label}>
                                                         {__(a.label)}
                                                     </Link>
                                                 ) : (
-                                                    <button key={i} onClick={a.onClick} className={actionClass(a)}>
+                                                    <button key={i} onClick={a.onClick} className={actionClass(a)} data-action={a.label}>
                                                         {__(a.label)}
                                                     </button>
                                                 );

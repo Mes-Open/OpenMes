@@ -3,7 +3,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
 import { PRODUCT_TYPE_FIELDS } from './fields';
 
-export default function ProductTypeCreate() {
+export default function ProductTypeCreate({ customFields = [] }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Product Type" />
@@ -18,7 +18,8 @@ export default function ProductTypeCreate() {
                 action="/admin/product-types"
                 method="post"
                 fields={PRODUCT_TYPE_FIELDS}
-                initial={{ code: '', name: '', description: '', unit_of_measure: 'pcs', is_active: true }}
+                customFields={customFields}
+                initial={{ code: '', name: '', description: '', unit_of_measure: 'pcs', is_active: true, custom_fields: {} }}
                 submitLabel="Create"
                 cancelHref="/admin/product-types"
             />

@@ -31,6 +31,7 @@ class IssuesOpenShape extends Shape
             'assigned_to_id',
             'reported_at',
             'acknowledged_at',
+            'custom_fields',
             'created_at',
             'updated_at',
         ];
