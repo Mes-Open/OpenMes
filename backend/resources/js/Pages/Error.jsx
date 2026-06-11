@@ -1,13 +1,15 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../layouts/AppLayout';
 import OperatorLayout from '../layouts/OperatorLayout';
 import { __ } from '../lib/i18n';
 
 /**
  * Friendly error page rendered for production error statuses (see
- * bootstrap/app.php). It opts into the same persistent layout the user already
- * has, so the sidebar / chrome stays put and they can navigate away instead of
- * landing on a bare error screen.
+ * bootstrap/app.php). It wraps itself in the same chrome the viewer already
+ * has — admins/supervisors get the admin sidebar, operators their touch
+ * layout, guests a standalone card — so the user can navigate away instead of
+ * landing on a bare error screen. The layout is chosen here (not via the
+ * static `.layout`) so it reliably reads the shared auth props.
  */
 const TITLES = {
     403: 'Forbidden',
@@ -26,10 +28,13 @@ const MESSAGES = {
 };
 
 export default function ErrorPage({ status }) {
+    const { auth } = usePage().props;
+    const roles = auth?.user?.roles ?? [];
+
     const title = TITLES[status] ?? 'Error';
     const message = MESSAGES[status] ?? 'An unexpected error occurred.';
 
-    return (
+    const content = (
         <>
             <Head title={`${status} — ${__(title)}`} />
             <div className="flex items-center justify-center py-20 px-4">
@@ -56,17 +61,12 @@ export default function ErrorPage({ status }) {
             </div>
         </>
     );
-}
 
-// Reuse the viewer's existing chrome so the side panel stays visible: admins and
-// supervisors get the admin sidebar, operators their touch layout, guests none.
-ErrorPage.layout = (page) => {
-    const roles = page.props?.auth?.user?.roles ?? [];
     if (roles.length === 0) {
-        return page;
+        return content;
     }
 
-    return roles.includes('Admin') || roles.includes('Supervisor')
-        ? <AppLayout>{page}</AppLayout>
-        : <OperatorLayout>{page}</OperatorLayout>;
-};
+    const Layout = roles.includes('Admin') || roles.includes('Supervisor') ? AppLayout : OperatorLayout;
+
+    return <Layout>{content}</Layout>;
+}
