@@ -18,7 +18,14 @@ class PrintMultipleLabelsRequest extends FormRequest
         return [
             'type' => ['required', Rule::in(array_keys(LabelTemplate::TYPES))],
             'format' => ['required', Rule::in(['pdf', 'zpl'])],
-            'template_id' => 'nullable|integer|exists:label_templates,id',
+            // The controller picks the generator by `type`, so an explicit
+            // template must be of that same type — reject mismatches here.
+            'template_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('label_templates', 'id')
+                    ->where(fn ($q) => $q->where('type', $this->input('type'))),
+            ],
             'ids' => 'required|array|min:1',
             'ids.*' => 'integer',
         ];

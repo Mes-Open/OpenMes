@@ -90,6 +90,47 @@ class PalletLabelPrintTest extends TestCase
         $this->get(route('packaging.labels.pallet.zpl', $pallet))->assertRedirect();
     }
 
+    public function test_print_multiple_rejects_template_of_a_different_type(): void
+    {
+        $pallet = $this->pallet();
+        $woTemplate = LabelTemplate::create([
+            'name' => 'WO Template',
+            'type' => LabelTemplate::TYPE_WORK_ORDER,
+            'size' => '100x50',
+            'fields_config' => LabelTemplate::defaultFieldsFor(LabelTemplate::TYPE_WORK_ORDER),
+            'barcode_format' => 'code128',
+            'is_default' => true,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->operator)
+            ->postJson(route('packaging.labels.print-multiple'), [
+                'type' => LabelTemplate::TYPE_PALLET,
+                'format' => 'zpl',
+                'template_id' => $woTemplate->id,
+                'ids' => [$pallet->id],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('template_id');
+    }
+
+    public function test_print_multiple_accepts_matching_pallet_template(): void
+    {
+        $template = $this->palletTemplate();
+        $pallet = $this->pallet();
+
+        $response = $this->actingAs($this->operator)
+            ->postJson(route('packaging.labels.print-multiple'), [
+                'type' => LabelTemplate::TYPE_PALLET,
+                'format' => 'zpl',
+                'template_id' => $template->id,
+                'ids' => [$pallet->id],
+            ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString($pallet->pallet_no, $response->getContent());
+    }
+
     public function test_user_without_packaging_role_is_forbidden(): void
     {
         $this->palletTemplate();
