@@ -1456,5 +1456,16 @@
     "unit": "birim",
     "work orders": "iş emirleri",
     "— none —": "— yok —",
-    "Security": "Güvenlik"
+    "Security": "Güvenlik",
+    "Page not found": "Sayfa bulunamadı",
+    "Too many requests": "Çok fazla istek",
+    "Server error": "Sunucu hatası",
+    "Service unavailable": "Hizmet kullanılamıyor",
+    "You do not have permission to view this page.": "Bu sayfayı görüntüleme izniniz yok.",
+    "The page you are looking for does not exist or was moved.": "Aradığınız sayfa mevcut değil veya taşınmış.",
+    "Too many requests. Please wait a moment and try again.": "Çok fazla istek. Lütfen biraz bekleyip tekrar deneyin.",
+    "Something went wrong on our end. Please try again.": "Tarafımızda bir şeyler ters gitti. Lütfen tekrar deneyin.",
+    "The service is temporarily unavailable. Please try again shortly.": "Hizmet geçici olarak kullanılamıyor. Lütfen kısa süre sonra tekrar deneyin.",
+    "Back to dashboard": "Panoya dön",
+    "Try again": "Tekrar dene"
 }

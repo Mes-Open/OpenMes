@@ -3224,5 +3224,16 @@
     "This work order does not belong to the selected line.": "To zlecenie nie należy do wybranej linii.",
     "Scrap recorded successfully.": "Odpad zarejestrowany.",
     "Man": "Człowiek",
-    "Environment": "Środowisko"
+    "Environment": "Środowisko",
+    "Page not found": "Nie znaleziono strony",
+    "Too many requests": "Zbyt wiele żądań",
+    "Server error": "Błąd serwera",
+    "Service unavailable": "Usługa niedostępna",
+    "You do not have permission to view this page.": "Nie masz uprawnień do wyświetlenia tej strony.",
+    "The page you are looking for does not exist or was moved.": "Strona, której szukasz, nie istnieje lub została przeniesiona.",
+    "Too many requests. Please wait a moment and try again.": "Zbyt wiele żądań. Odczekaj chwilę i spróbuj ponownie.",
+    "Something went wrong on our end. Please try again.": "Coś poszło nie tak po naszej stronie. Spróbuj ponownie.",
+    "The service is temporarily unavailable. Please try again shortly.": "Usługa jest chwilowo niedostępna. Spróbuj ponownie za chwilę.",
+    "Back to dashboard": "Powrót do panelu",
+    "Try again": "Spróbuj ponownie"
 }

@@ -58,4 +58,35 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
             return redirect()->route('login')->withErrors(['session' => 'Your session has expired. Please log in again.']);
         });
+
+        // Render a friendly Inertia "Error" page for error statuses in
+        // production, so the app chrome (sidebar) stays put and the user can
+        // navigate away instead of landing on a bare error screen. API/JSON
+        // clients keep their normal JSON error; local/testing keep the debug
+        // page and untouched test responses.
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
+            if (app()->environment(['local', 'testing'])) {
+                return $response;
+            }
+
+            if ($request->is('api/*') || ($request->expectsJson() && ! $request->header('X-Inertia'))) {
+                return $response;
+            }
+
+            if (in_array($response->getStatusCode(), [500, 503, 404, 403, 429], true)) {
+                // For errors thrown inside a route, HandleInertiaRequests has
+                // already shared auth/nav, so the Error page keeps the user's
+                // sidebar. A bare routing 404 (no session/auth context) renders
+                // standalone — the page handles a missing user gracefully.
+                // Pin the root view: a routing 404 happens before the Inertia
+                // middleware sets it.
+                \Inertia\Inertia::setRootView('inertia');
+
+                return \Inertia\Inertia::render('Error', ['status' => $response->getStatusCode()])
+                    ->toResponse($request)
+                    ->setStatusCode($response->getStatusCode());
+            }
+
+            return $response;
+        });
     })->create();
