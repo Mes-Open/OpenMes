@@ -20,6 +20,19 @@ class StoreMaterialRequest extends FormRequest
         return 'material';
     }
 
+    /**
+     * The scrap % column is NOT NULL DEFAULT 0, but an empty form field arrives
+     * as null (ConvertEmptyStringsToNull). Passing that null to create() inserts
+     * an explicit null and trips the constraint — the DB default only applies
+     * when the column is omitted. Coerce a blank back to 0.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('default_scrap_percentage') === null || $this->input('default_scrap_percentage') === '') {
+            $this->merge(['default_scrap_percentage' => 0]);
+        }
+    }
+
     public function rules(): array
     {
         return array_merge([
