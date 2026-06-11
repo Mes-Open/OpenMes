@@ -74,13 +74,17 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if (in_array($response->getStatusCode(), [500, 503, 404, 403, 429], true)) {
-                // For errors thrown inside a route, HandleInertiaRequests has
-                // already shared auth/nav, so the Error page keeps the user's
-                // sidebar. A bare routing 404 (no session/auth context) renders
-                // standalone — the page handles a missing user gracefully.
-                // Pin the root view: a routing 404 happens before the Inertia
-                // middleware sets it.
+                // Pin the root view (a routing 404 fires before the Inertia
+                // middleware sets it) and (re)share auth/nav so the Error page
+                // keeps the user's sidebar. The share touches the session, which
+                // exists for in-route errors but not a bare routing 404 — there
+                // we skip it and render the page standalone.
                 \Inertia\Inertia::setRootView('inertia');
+                if ($request->hasSession() && $request->session()->isStarted()) {
+                    \Inertia\Inertia::share(
+                        app(\App\Http\Middleware\HandleInertiaRequests::class)->share($request)
+                    );
+                }
 
                 return \Inertia\Inertia::render('Error', ['status' => $response->getStatusCode()])
                     ->toResponse($request)

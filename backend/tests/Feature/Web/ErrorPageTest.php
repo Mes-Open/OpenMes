@@ -57,6 +57,23 @@ class ErrorPageTest extends TestCase
             );
     }
 
+    public function test_model_not_found_404_inside_a_route_keeps_the_sidebar(): void
+    {
+        // A bad id resolves to a ModelNotFoundException after the session has
+        // started, so auth is (re)shared and the Error page keeps the chrome.
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        $this->actingAs($admin)
+            ->get('/admin/work-orders/99999999')
+            ->assertStatus(404)
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Error')
+                ->where('status', 404)
+                ->where('auth.user.roles', ['Admin'])
+            );
+    }
+
     public function test_api_errors_stay_json_not_an_inertia_page(): void
     {
         $response = $this->getJson('/api/v1/a-route-that-does-not-exist-xyz');
