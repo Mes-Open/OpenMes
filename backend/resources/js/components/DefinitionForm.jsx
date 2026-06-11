@@ -1,4 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
+import { __ } from '../lib/i18n';
 
 /**
  * Create/edit form for a custom-field definition. Unlike ResourceForm this is
@@ -14,7 +15,7 @@ import { Link, useForm } from '@inertiajs/react';
 const OPTION_TYPES = ['select', 'multiselect'];
 const RANGE_TYPES = ['number', 'integer'];
 
-export default function DefinitionForm({ action, method = 'post', initial, entities = [], types = [], submitLabel = 'Save' }) {
+export default function DefinitionForm({ action, method = 'post', initial, entities = [], types = [], submitLabel }) {
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
 
@@ -34,17 +35,17 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
 
     return (
         <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6 max-w-2xl space-y-5">
-            <SelectField label="Entity" required value={data.entity_type} error={errors.entity_type}
-                placeholder="— Select entity —" options={entities} onChange={(v) => setData('entity_type', v)} />
+            <SelectField label={__('Entity')} required value={data.entity_type} error={errors.entity_type}
+                placeholder={__('— Select entity —')} options={entities} onChange={(v) => setData('entity_type', v)} />
 
-            <TextField label="Key" required value={data.key} error={errors.key}
-                help="Machine name: lowercase letters, numbers, underscores (e.g. shelf_life_days)."
+            <TextField label={__('Key')} required value={data.key} error={errors.key}
+                help={__('Machine name: lowercase letters, numbers, underscores (e.g. shelf_life_days).')}
                 onChange={(v) => setData('key', v)} />
 
-            <TextField label="Label" required value={data.label} error={errors.label} onChange={(v) => setData('label', v)} />
+            <TextField label={__('Label')} required value={data.label} error={errors.label} onChange={(v) => setData('label', v)} />
 
-            <SelectField label="Type" required value={data.type} error={errors.type}
-                placeholder="— Select type —" options={types} onChange={(v) => setData('type', v)} />
+            <SelectField label={__('Type')} required value={data.type} error={errors.type}
+                placeholder={__('— Select type —')} options={types} onChange={(v) => setData('type', v)} />
 
             {isOptioned && (
                 <OptionsEditor options={options} setOption={setOption} addOption={addOption}
@@ -53,18 +54,18 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
 
             {isRange && (
                 <div className="grid grid-cols-2 gap-4">
-                    <TextField label="Min" type="number" value={data.config?.min ?? ''} error={errors['config.min']}
+                    <TextField label={__('Min')} type="number" value={data.config?.min ?? ''} error={errors['config.min']}
                         onChange={(v) => setConfig({ min: v })} />
-                    <TextField label="Max" type="number" value={data.config?.max ?? ''} error={errors['config.max']}
+                    <TextField label={__('Max')} type="number" value={data.config?.max ?? ''} error={errors['config.max']}
                         onChange={(v) => setConfig({ max: v })} />
                 </div>
             )}
 
             <div className="flex items-end gap-6">
-                <CheckboxField label="Required" checked={data.required} onChange={(v) => setData('required', v)} />
-                <CheckboxField label="Active" checked={data.is_active} onChange={(v) => setData('is_active', v)} />
+                <CheckboxField label={__('Required')} checked={data.required} onChange={(v) => setData('required', v)} />
+                <CheckboxField label={__('Active')} checked={data.is_active} onChange={(v) => setData('is_active', v)} />
                 <div className="w-28">
-                    <TextField label="Position" type="number" value={data.position ?? 0} error={errors.position}
+                    <TextField label={__('Position')} type="number" value={data.position ?? 0} error={errors.position}
                         onChange={(v) => setData('position', v)} />
                 </div>
             </div>
@@ -72,9 +73,9 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
             <div className="flex items-center gap-3 pt-2">
                 <button type="submit" disabled={processing}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-                    {processing ? 'Saving…' : submitLabel}
+                    {processing ? __('Saving…') : (submitLabel ?? __('Save'))}
                 </button>
-                <Link href="/admin/custom-fields" className="text-gray-500 hover:text-gray-800 text-sm">Cancel</Link>
+                <Link href="/admin/custom-fields" className="text-gray-500 hover:text-gray-800 text-sm">{__('Cancel')}</Link>
             </div>
         </form>
     );
@@ -123,23 +124,23 @@ function OptionsEditor({ options, setOption, addOption, removeOption, error }) {
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-                Options <span className="text-red-500">*</span>
+                {__('Options')} <span className="text-red-500">*</span>
             </label>
             <div className="space-y-2">
-                {options.length === 0 && <p className="text-sm text-gray-400">No options yet.</p>}
+                {options.length === 0 && <p className="text-sm text-gray-400">{__('No options yet.')}</p>}
                 {options.map((o, i) => (
                     <div key={i} className="flex items-center gap-2">
-                        <input className="form-input flex-1" placeholder="value" value={o.value ?? ''}
+                        <input className="form-input flex-1" placeholder={__('value')} value={o.value ?? ''}
                             onChange={(e) => setOption(i, { value: e.target.value })} />
-                        <input className="form-input flex-1" placeholder="label" value={o.label ?? ''}
+                        <input className="form-input flex-1" placeholder={__('label')} value={o.label ?? ''}
                             onChange={(e) => setOption(i, { label: e.target.value })} />
                         <button type="button" onClick={() => removeOption(i)}
-                            className="text-red-600 hover:text-red-800 text-sm px-2" title="Remove">✕</button>
+                            className="text-red-600 hover:text-red-800 text-sm px-2" title={__('Remove')}>✕</button>
                     </div>
                 ))}
             </div>
             <button type="button" onClick={addOption} className="mt-2 text-sm text-blue-600 hover:text-blue-800">
-                + Add option
+                {__('+ Add option')}
             </button>
             {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
         </div>

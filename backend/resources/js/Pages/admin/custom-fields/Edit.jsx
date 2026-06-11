@@ -1,13 +1,14 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import DefinitionForm from '../../../components/DefinitionForm';
+import { __ } from '../../../lib/i18n';
 
 export default function CustomFieldEdit() {
     const { definition, entities = [], types = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${definition.label}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Custom Field</h1>
+            <Head title={__('Edit :label', { label: definition.label })} />
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('Edit Custom Field')}</h1>
             <DefinitionForm
                 action={`/admin/custom-fields/${definition.id}`}
                 method="put"
@@ -27,7 +28,7 @@ export default function CustomFieldEdit() {
                         max: definition.config?.max ?? '',
                     },
                 }}
-                submitLabel="Save Changes"
+                submitLabel={__('Save Changes')}
             />
         </div>
     );
