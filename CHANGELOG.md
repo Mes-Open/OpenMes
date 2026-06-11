@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- Friendly in-app error page: in production, error statuses (500/503/404/403/429) now render an Inertia `Error` page that keeps the user's chrome (sidebar) — admins/supervisors get the admin sidebar, operators their touch layout — so they can navigate away instead of landing on a bare error screen. API/JSON clients keep their normal JSON error; local/testing keep the debug page.
+
 ---
 
 ## [0.14.4] - 2026-06-09
