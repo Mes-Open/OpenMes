@@ -3263,4 +3263,15 @@
     "Custom field deactivated successfully.": "Pole niestandardowe zostało dezaktywowane.",
     "The key must start with a letter and use only lowercase letters, numbers and underscores.": "Klucz musi zaczynać się od litery i zawierać wyłącznie małe litery, cyfry i podkreślenia.",
     "Add at least one option for a dropdown or multi-select field.": "Dodaj co najmniej jedną opcję dla pola wyboru lub listy wielokrotnego wyboru."
+    "Page not found": "Nie znaleziono strony",
+    "Too many requests": "Zbyt wiele żądań",
+    "Server error": "Błąd serwera",
+    "Service unavailable": "Usługa niedostępna",
+    "You do not have permission to view this page.": "Nie masz uprawnień do wyświetlenia tej strony.",
+    "The page you are looking for does not exist or was moved.": "Strona, której szukasz, nie istnieje lub została przeniesiona.",
+    "Too many requests. Please wait a moment and try again.": "Zbyt wiele żądań. Odczekaj chwilę i spróbuj ponownie.",
+    "Something went wrong on our end. Please try again.": "Coś poszło nie tak po naszej stronie. Spróbuj ponownie.",
+    "The service is temporarily unavailable. Please try again shortly.": "Usługa jest chwilowo niedostępna. Spróbuj ponownie za chwilę.",
+    "Back to dashboard": "Powrót do panelu",
+    "Try again": "Spróbuj ponownie"
 }
