@@ -29,6 +29,7 @@ class Pallet extends Model
         return [
             'status' => PalletStatus::class,
             'qty' => 'integer',
+            'shipped_at' => 'datetime',
         ];
     }
 
@@ -37,6 +38,15 @@ class Pallet extends Model
         static::creating(function (self $pallet): void {
             if (empty($pallet->pallet_no)) {
                 $pallet->pallet_no = self::nextPalletNo();
+            }
+        });
+
+        // Stamp the shipped transition exactly once. Later edits to a shipped
+        // pallet must not move it into another shift's handover window, so the
+        // calculator attributes by shipped_at instead of updated_at.
+        static::saving(function (self $pallet): void {
+            if ($pallet->status === PalletStatus::Shipped && $pallet->shipped_at === null) {
+                $pallet->shipped_at = now();
             }
         });
     }

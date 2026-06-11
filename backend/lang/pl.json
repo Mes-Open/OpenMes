@@ -3301,7 +3301,7 @@
     "Custom field activated successfully.": "Pole niestandardowe zostało aktywowane.",
     "Custom field deactivated successfully.": "Pole niestandardowe zostało dezaktywowane.",
     "The key must start with a letter and use only lowercase letters, numbers and underscores.": "Klucz musi zaczynać się od litery i zawierać wyłącznie małe litery, cyfry i podkreślenia.",
-    "Add at least one option for a dropdown or multi-select field.": "Dodaj co najmniej jedną opcję dla pola wyboru lub listy wielokrotnego wyboru."
+    "Add at least one option for a dropdown or multi-select field.": "Dodaj co najmniej jedną opcję dla pola wyboru lub listy wielokrotnego wyboru.",
     "Page not found": "Nie znaleziono strony",
     "Too many requests": "Zbyt wiele żądań",
     "Server error": "Błąd serwera",
@@ -3312,5 +3312,21 @@
     "Something went wrong on our end. Please try again.": "Coś poszło nie tak po naszej stronie. Spróbuj ponownie.",
     "The service is temporarily unavailable. Please try again shortly.": "Usługa jest chwilowo niedostępna. Spróbuj ponownie za chwilę.",
     "Back to dashboard": "Powrót do panelu",
-    "Try again": "Spróbuj ponownie"
+    "Try again": "Spróbuj ponownie",
+    "Packing Station": "Stanowisko pakowania",
+    "Station backlog": "Backlog",
+    "Create pallet for order": "Utwórz paletę dla zlecenia",
+    "— Select order —": "— Wybierz zlecenie —",
+    "+ Create pallet": "+ Utwórz paletę",
+    "Active pallet": "Aktywna paleta",
+    "Pieces on pallet:": "Sztuk na palecie:",
+    "Close pallet": "Zamknij paletę",
+    ":count open": ":count otwartych",
+    "No open pallets — create one above": "Brak otwartych palet — utwórz nową powyżej",
+    "Pallet active": "Aktywna",
+    "Scan an EAN code…": "Przyłóż kod EAN do skanera…",
+    "Orders to pack": "Zlecenia do spakowania",
+    ":count items": ":count pozycji",
+    "No orders with assigned EAN codes": "Brak zleceń z przypisanymi kodami EAN",
+    "No scans this shift": "Brak skanowań w tej zmianie"
 }

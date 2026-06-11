@@ -57,11 +57,12 @@ class ShiftHandoverCalculator
         $unpacked = max(0, $good - $packed);
         $wipTotal = $openPalletsQty + $unpacked;
 
-        // Shipped — pallets dispatched during the window.
+        // Shipped — pallets dispatched during the window. Attributed by the
+        // one-time shipped_at stamp (not updated_at, which any later edit moves).
         $shipped = (int) $byLine(
             Pallet::query()
                 ->where('status', PalletStatus::Shipped->value)
-                ->whereBetween('updated_at', [$start, $end])
+                ->whereBetween('shipped_at', [$start, $end])
         )->sum('qty');
 
         $discrepancies = $this->discrepancies($good, $packed, $shipped, $unpacked);
