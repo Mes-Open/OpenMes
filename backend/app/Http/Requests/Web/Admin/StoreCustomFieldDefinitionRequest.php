@@ -43,8 +43,8 @@ class StoreCustomFieldDefinitionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'key.regex' => 'The key must start with a letter and use only lowercase letters, numbers and underscores.',
-            'config.options.required' => 'Add at least one option for a dropdown or multi-select field.',
+            'key.regex' => __('The key must start with a letter and use only lowercase letters, numbers and underscores.'),
+            'config.options.required' => __('Add at least one option for a dropdown or multi-select field.'),
         ];
     }
 
