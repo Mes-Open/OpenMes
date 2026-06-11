@@ -3224,5 +3224,16 @@
     "This work order does not belong to the selected line.": "This work order does not belong to the selected line.",
     "Scrap recorded successfully.": "Scrap recorded successfully.",
     "Man": "Man",
-    "Environment": "Environment"
+    "Environment": "Environment",
+    "Page not found": "Page not found",
+    "Too many requests": "Too many requests",
+    "Server error": "Server error",
+    "Service unavailable": "Service unavailable",
+    "You do not have permission to view this page.": "You do not have permission to view this page.",
+    "The page you are looking for does not exist or was moved.": "The page you are looking for does not exist or was moved.",
+    "Too many requests. Please wait a moment and try again.": "Too many requests. Please wait a moment and try again.",
+    "Something went wrong on our end. Please try again.": "Something went wrong on our end. Please try again.",
+    "The service is temporarily unavailable. Please try again shortly.": "The service is temporarily unavailable. Please try again shortly.",
+    "Back to dashboard": "Back to dashboard",
+    "Try again": "Try again"
 }
