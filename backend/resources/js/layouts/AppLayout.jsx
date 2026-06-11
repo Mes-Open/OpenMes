@@ -161,24 +161,26 @@ function DesktopClock() {
 }
 
 /**
- * Flat list of every navigable sidebar item (top links + group/subgroup
- * children) for the sidebar search. `trail` is the group path shown under a
- * result, e.g. "Production / Production Lines". Disabled entries are skipped.
+ * Flat list of every navigable sidebar item (top links, group/subgroup headers
+ * that have their own landing page, and children) for the sidebar search.
+ * `trail` is the group path shown under a result, e.g. "Production /
+ * Production Lines". Disabled entries are skipped.
  */
 function flattenNavItems() {
     const items = ADMIN_LINKS.map((link) => ({
         label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
     }));
-    const walk = (children, trail) => {
-        children.forEach((child) => {
-            if (child.children) {
-                walk(child.children, [...trail, child.label]);
-            } else if (child.href && !child.disabled) {
-                items.push({ label: child.label, href: child.href, match: child.match, exact: child.exact, trail });
+    const walk = (nodes, trail) => {
+        nodes.forEach((node) => {
+            if (node.href && !node.disabled) {
+                items.push({ label: node.label, href: node.href, match: node.match, exact: node.exact, trail });
+            }
+            if (node.children) {
+                walk(node.children, [...trail, node.label]);
             }
         });
     };
-    ADMIN_GROUPS.forEach((group) => walk(group.children, [group.label]));
+    walk(ADMIN_GROUPS, []);
     items.push({ label: 'Settings', href: '/settings', match: ['/settings'], trail: [] });
     return items;
 }
@@ -265,7 +267,14 @@ function Sidebar({
                 {results ? (
                     results.length ? (
                         results.map((item) => (
-                            <SearchResultLink key={item.href} item={item} path={path} onNavigate={clearSearch} />
+                            // Group headers can share an href with their first child
+                            // (e.g. Orders and All Orders), so href alone isn't unique.
+                            <SearchResultLink
+                                key={`${item.trail.join('/')}>${item.label}`}
+                                item={item}
+                                path={path}
+                                onNavigate={clearSearch}
+                            />
                         ))
                     ) : (
                         <p className="px-5 py-3 text-sm text-slate-500">{__('No results')}</p>

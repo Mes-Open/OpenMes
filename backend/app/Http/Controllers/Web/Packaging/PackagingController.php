@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Packaging;
 use App\Enums\PalletStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreatePalletStationRequest;
+use App\Http\Requests\PackagingScanRequest;
 use App\Models\PackagingScanLog;
 use App\Models\Pallet;
 use App\Models\WorkOrder;
@@ -52,12 +53,9 @@ class PackagingController extends Controller
         return response()->json(['items' => $this->buildItemList()]);
     }
 
-    public function scan(Request $request)
+    public function scan(PackagingScanRequest $request)
     {
-        $validated = $request->validate([
-            'ean' => 'required|string|max:100',
-            'pallet_id' => 'nullable|integer|exists:pallets,id',
-        ]);
+        $validated = $request->validated();
 
         $eanRecord = WorkOrderEan::where('ean', $validated['ean'])->first();
 

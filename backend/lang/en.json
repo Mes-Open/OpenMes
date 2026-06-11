@@ -3301,7 +3301,7 @@
     "Custom field activated successfully.": "Custom field activated successfully.",
     "Custom field deactivated successfully.": "Custom field deactivated successfully.",
     "The key must start with a letter and use only lowercase letters, numbers and underscores.": "The key must start with a letter and use only lowercase letters, numbers and underscores.",
-    "Add at least one option for a dropdown or multi-select field.": "Add at least one option for a dropdown or multi-select field."
+    "Add at least one option for a dropdown or multi-select field.": "Add at least one option for a dropdown or multi-select field.",
     "Page not found": "Page not found",
     "Too many requests": "Too many requests",
     "Server error": "Server error",
@@ -3312,5 +3312,21 @@
     "Something went wrong on our end. Please try again.": "Something went wrong on our end. Please try again.",
     "The service is temporarily unavailable. Please try again shortly.": "The service is temporarily unavailable. Please try again shortly.",
     "Back to dashboard": "Back to dashboard",
-    "Try again": "Try again"
+    "Try again": "Try again",
+    "Packing Station": "Packing Station",
+    "Station backlog": "Backlog",
+    "Create pallet for order": "Create pallet for order",
+    "— Select order —": "— Select order —",
+    "+ Create pallet": "+ Create pallet",
+    "Active pallet": "Active pallet",
+    "Pieces on pallet:": "Pieces on pallet:",
+    "Close pallet": "Close pallet",
+    ":count open": ":count open",
+    "No open pallets — create one above": "No open pallets — create one above",
+    "Pallet active": "Active",
+    "Scan an EAN code…": "Scan an EAN code…",
+    "Orders to pack": "Orders to pack",
+    ":count items": ":count items",
+    "No orders with assigned EAN codes": "No orders with assigned EAN codes",
+    "No scans this shift": "No scans this shift"
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Packaging;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PrintMultipleLabelsRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\LabelTemplate;
@@ -10,7 +11,6 @@ use App\Models\Pallet;
 use App\Models\WorkOrder;
 use App\Services\Packaging\LabelGenerator;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class LabelPrintController extends Controller
 {
@@ -94,15 +94,9 @@ class LabelPrintController extends Controller
         ]);
     }
 
-    public function printMultiple(Request $request)
+    public function printMultiple(PrintMultipleLabelsRequest $request)
     {
-        $validated = $request->validate([
-            'type' => ['required', Rule::in(array_keys(LabelTemplate::TYPES))],
-            'format' => ['required', Rule::in(['pdf', 'zpl'])],
-            'template_id' => 'nullable|integer|exists:label_templates,id',
-            'ids' => 'required|array|min:1',
-            'ids.*' => 'integer',
-        ]);
+        $validated = $request->validated();
 
         $template = $validated['template_id']
             ? LabelTemplate::findOrFail($validated['template_id'])

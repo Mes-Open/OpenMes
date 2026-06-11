@@ -80,4 +80,27 @@ class PalletLabelPrintTest extends TestCase
             ->get(route('packaging.labels.pallet.pdf', $pallet))
             ->assertNotFound();
     }
+
+    public function test_guest_is_redirected_from_pallet_label_routes(): void
+    {
+        $this->palletTemplate();
+        $pallet = $this->pallet();
+
+        $this->get(route('packaging.labels.pallet.pdf', $pallet))->assertRedirect();
+        $this->get(route('packaging.labels.pallet.zpl', $pallet))->assertRedirect();
+    }
+
+    public function test_user_without_packaging_role_is_forbidden(): void
+    {
+        $this->palletTemplate();
+        $pallet = $this->pallet();
+        $user = User::factory()->create(); // no Operator/Supervisor/Admin role
+
+        $this->actingAs($user)
+            ->get(route('packaging.labels.pallet.pdf', $pallet))
+            ->assertForbidden();
+        $this->actingAs($user)
+            ->get(route('packaging.labels.pallet.zpl', $pallet))
+            ->assertForbidden();
+    }
 }
