@@ -42,6 +42,7 @@ class WorkOrderService
                 'due_date' => $data['due_date'] ?? null,
                 'description' => $data['description'] ?? null,
                 'extra_data' => $data['extra_data'] ?? null,
+                'custom_fields' => $data['custom_fields'] ?? null,
             ]);
 
             return $workOrder;

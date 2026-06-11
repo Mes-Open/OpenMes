@@ -24,6 +24,7 @@ export default function SiteEdit() {
                     country: site.country ?? '',
                     timezone: site.timezone ?? '',
                     is_active: !!site.is_active,
+                    custom_fields: site.custom_fields ?? {},
                 }}
                 submitLabel="Save Changes"
                 cancelHref="/admin/sites"

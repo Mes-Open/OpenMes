@@ -25,6 +25,7 @@ class ProductTypesShape extends Shape
             'description',
             'unit_of_measure',
             'is_active',
+            'custom_fields',
             'created_at',
             'updated_at',
         ];

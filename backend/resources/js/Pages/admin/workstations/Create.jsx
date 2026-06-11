@@ -1,18 +1,21 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import CustomFields from '../../../components/CustomFields';
+import { customFieldInitial, customFieldProps, submitForm } from '../../../lib/customFieldForm';
 
 export default function WorkstationCreate() {
-    const { line } = usePage().props;
+    const { line, customFields = [] } = usePage().props;
     const form = useForm({
         code: '',
         name: '',
         workstation_type: '',
         is_active: true,
+        ...customFieldInitial(),
     });
 
     const submit = (e) => {
         e.preventDefault();
-        form.post(`/admin/lines/${line.id}/workstations`);
+        submitForm(form, 'post', `/admin/lines/${line.id}/workstations`);
     };
 
     return (
@@ -90,6 +93,8 @@ export default function WorkstationCreate() {
                     />
                     Active (workstation is ready for use)
                 </label>
+
+                {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
 
                 <div className="flex items-center gap-3 pt-2">
                     <button

@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\TestControl\TenantController as E2eTenantController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
 use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Web\Admin\BomManagementController;
 use App\Http\Controllers\Web\Admin\CompanyController;
+use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\Connectivity\ConnectivityController;
 use App\Http\Controllers\Web\Admin\Connectivity\MachineTopicController;
 use App\Http\Controllers\Web\Admin\Connectivity\MqttConnectionController;
@@ -526,6 +528,12 @@ Route::middleware('auth')->group(function () {
         Route::resource('anomaly-reasons', AnomalyReasonController::class)->except(['show']);
         Route::post('/anomaly-reasons/{anomalyReason}/toggle-active', [AnomalyReasonController::class, 'toggleActive'])->name('anomaly-reasons.toggle-active');
 
+        // Custom Fields (admin-defined fields on registered entities)
+        Route::resource('custom-fields', CustomFieldDefinitionController::class)
+            ->parameters(['custom-fields' => 'customField'])->except(['show']);
+        Route::post('/custom-fields/{customField}/toggle-active', [CustomFieldDefinitionController::class, 'toggleActive'])->name('custom-fields.toggle-active');
+        Route::get('/custom-field-files/{file}', [CustomFieldDefinitionController::class, 'downloadFile'])->name('custom-field-files.show');
+
         // Scrap Reasons
         Route::resource('scrap-reasons', ScrapReasonController::class)->except(['show']);
         Route::post('/scrap-reasons/{scrapReason}/toggle-active', [ScrapReasonController::class, 'toggleActive'])->name('scrap-reasons.toggle-active');
@@ -673,3 +681,18 @@ Route::middleware('auth')->group(function () {
         });
     });
 });
+
+/*
+ * E2E test-control surface — isolated-tenant lifecycle for the Playwright suite
+ * (../../e2e). Hard-gated by EnsureE2eEnabled: 404 unless config('e2e.enabled')
+ * AND non-production. Called by the test runner without a session, so these are
+ * CSRF-exempt (see bootstrap/app.php validateCsrfTokens except).
+ */
+Route::prefix('__e2e__')
+    ->middleware(\App\Http\Middleware\EnsureE2eEnabled::class)
+    ->group(function () {
+        Route::post('/tenant', [E2eTenantController::class, 'store']);
+        Route::post('/tenant/{tenant}/reset', [E2eTenantController::class, 'reset']);
+        Route::post('/tenant/{tenant}/bump-work-order', [E2eTenantController::class, 'bumpWorkOrder']);
+        Route::delete('/tenant/{tenant}', [E2eTenantController::class, 'destroy']);
+    });

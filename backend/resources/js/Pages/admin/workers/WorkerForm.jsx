@@ -1,5 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { __ } from '../../../lib/i18n';
+import CustomFields from '../../../components/CustomFields';
+import { customFieldProps } from '../../../lib/customFieldForm';
 
 /**
  * Bespoke create/edit form for shop-floor workers.
@@ -8,7 +10,7 @@ import { __ } from '../../../lib/i18n';
  * The skills matrix mirrors UserForm: a checkbox per skill plus a 1–5 level
  * select, writing form.data.skills = [{ id, level }].
  */
-export default function WorkerForm({ form, crews, wageGroups, personnelClasses, skills, isEdit, onSubmit }) {
+export default function WorkerForm({ form, crews, wageGroups, personnelClasses, skills, customFields = [], isEdit, onSubmit }) {
     const { data, setData, errors, processing } = form;
 
     const selectedSkills = new Map((data.skills ?? []).map((s) => [String(s.id), s.level ?? 1]));
@@ -106,6 +108,8 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
                     })}
                 </div>
             </div>
+
+            {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
 
             <div className="flex items-center gap-3 pt-2">
                 <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">

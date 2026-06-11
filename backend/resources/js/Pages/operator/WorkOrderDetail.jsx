@@ -3,6 +3,8 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
+import CustomFields from '../../components/CustomFields';
+import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 import { formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
 // ---------------------------------------------------------------------------
@@ -925,17 +927,18 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
 // Report Issue Modal
 // ---------------------------------------------------------------------------
 
-function ReportIssueModal({ workOrder, issueTypes, onClose }) {
+function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose }) {
     const form = useForm({
         work_order_id: workOrder.id,
         issue_type_id: '',
         title: '',
         description: '',
+        ...customFieldInitial(),
     });
 
     const submit = (e) => {
         e.preventDefault();
-        form.post('/operator/issue', { onSuccess: onClose });
+        submitForm(form, 'post', '/operator/issue', { onSuccess: onClose });
     };
 
     return (
@@ -1007,6 +1010,8 @@ function ReportIssueModal({ workOrder, issueTypes, onClose }) {
                                     <p className="text-red-600 text-sm mt-1">{form.errors.description}</p>
                                 )}
                             </div>
+
+                            {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
                         </div>
 
                         <div className="flex gap-3 justify-end mt-6">
@@ -1140,7 +1145,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {} } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {} } = usePage().props;
 
     const [createBatchOpen, setCreateBatchOpen] = useState(false);
     const [reportIssueOpen, setReportIssueOpen] = useState(false);
@@ -1470,6 +1475,7 @@ export default function WorkOrderDetail() {
                 <ReportIssueModal
                     workOrder={workOrder}
                     issueTypes={issueTypes}
+                    customFields={issueCustomFields}
                     onClose={() => setReportIssueOpen(false)}
                 />
             )}

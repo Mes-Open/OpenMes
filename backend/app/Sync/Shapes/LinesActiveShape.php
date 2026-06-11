@@ -19,7 +19,7 @@ class LinesActiveShape extends Shape
 
     public function columns(): array
     {
-        return ['id', 'code', 'name', 'is_active', 'area_id', 'division_id'];
+        return ['id', 'code', 'name', 'is_active', 'area_id', 'division_id', 'custom_fields'];
     }
 
     public function where(User $user): ?string

@@ -4,7 +4,7 @@ import ResourceForm from '../../../components/ResourceForm';
 import { woFields } from './fields';
 
 export default function WorkOrderCreate() {
-    const { lines = [], productTypes = [] } = usePage().props;
+    const { lines = [], productTypes = [], customFields = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Work Order" />
@@ -13,7 +13,8 @@ export default function WorkOrderCreate() {
                 action="/admin/work-orders"
                 method="post"
                 fields={woFields(lines, productTypes)}
-                initial={{ order_no: '', line_id: '', product_type_id: '', planned_qty: '', priority: 0, due_date: '', description: '' }}
+                customFields={customFields}
+                initial={{ order_no: '', line_id: '', product_type_id: '', planned_qty: '', priority: 0, due_date: '', description: '', custom_fields: {} }}
                 submitLabel="Create"
                 cancelHref="/admin/work-orders"
             />
