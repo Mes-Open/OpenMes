@@ -8,12 +8,18 @@ enum PalletStatus: string
     case Closed = 'closed';
     case Shipped = 'shipped';
 
+    /**
+     * Status labels use pallet-specific translation keys (not the shared
+     * 'Open'/'Closed'/'Shipped' keys): in gendered locales the adjective must
+     * agree with "pallet" (pl: "Otwarta", not the verb "Otwórz" the shared
+     * 'Open' key resolves to on buttons).
+     */
     public function label(): string
     {
         return match ($this) {
-            self::Open => __('Open'),
-            self::Closed => __('Closed'),
-            self::Shipped => __('Shipped'),
+            self::Open => __('Pallet open'),
+            self::Closed => __('Pallet closed'),
+            self::Shipped => __('Pallet shipped'),
         };
     }
 
