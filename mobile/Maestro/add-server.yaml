@@ -1,0 +1,12 @@
+appId: com.openmes.mobile
+---
+- launchApp:
+    clearState: true
+- tapOn: "SERVER, Demo, demo.getopenmes.com, \uf078"
+- tapOn: "+ Add server"
+- tapOn: "e.g. Factory A, Staging"
+- inputText: "local"
+- tapOn: "https://your-instance.example.com"
+- inputText: "http://10.0.2.2"
+- tapOn: "Add server"
+
