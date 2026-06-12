@@ -34,10 +34,10 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
     };
 
     return (
-        <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-sm p-6 max-w-3xl space-y-5">
+        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             {/* Account type */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                <label className="block text-sm font-medium text-om-muted mb-1">Account Type</label>
                 <div className="flex gap-4">
                     {['user', 'workstation'].map((t) => (
                         <label key={t} className="flex items-center gap-2 text-sm">
@@ -67,7 +67,7 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                 </Field>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-om-muted">
                 <input type="checkbox" checked={!!data.force_password_change} onChange={(e) => setData('force_password_change', e.target.checked)} />
                 Require password change at next login
             </label>
@@ -90,21 +90,21 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
 
             {/* Optional worker profile — personal users only, collapsed by default */}
             {isUser && (
-                <div className="border border-gray-200 rounded-lg">
+                <div className="border border-om-line2 rounded-om-sm">
                     <button
                         type="button"
                         onClick={() => setShowWorker((v) => !v)}
-                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
+                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-om-muted hover:bg-om-bg rounded-om-sm"
                     >
                         <span>
                             Worker profile{' '}
-                            <span className="font-normal text-gray-400">— optional, only for shop-floor staff</span>
+                            <span className="font-normal text-om-faint">— optional, only for shop-floor staff</span>
                         </span>
-                        <span className="text-gray-400">{showWorker ? '▲' : '▼'}</span>
+                        <span className="text-om-faint">{showWorker ? '▲' : '▼'}</span>
                     </button>
                     {showWorker && (
-                <div className="border-t border-gray-200 p-4 space-y-4">
-                    <p className="text-xs text-gray-400">Fill in a worker code to link/create a shop-floor worker profile for this account. Leave this collapsed for office/admin accounts.</p>
+                <div className="border-t border-om-line2 p-4 space-y-4">
+                    <p className="text-xs text-om-faint">Fill in a worker code to link/create a shop-floor worker profile for this account. Leave this collapsed for office/admin accounts.</p>
                     <div className="grid grid-cols-2 gap-4">
                         <Field label="Worker Code" error={errors.worker_code}>
                             <input type="text" value={data.worker_code} onChange={(e) => setData('worker_code', e.target.value)} className="form-input w-full" />
@@ -127,15 +127,15 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Skills &amp; level (1–5)</label>
-                        <div className="border border-gray-200 rounded divide-y">
-                            {skills.length === 0 && <p className="px-3 py-2 text-sm text-gray-400">No skills defined.</p>}
+                        <label className="block text-sm font-medium text-om-muted mb-2">Skills &amp; level (1–5)</label>
+                        <div className="border border-om-line2 rounded divide-y">
+                            {skills.length === 0 && <p className="px-3 py-2 text-sm text-om-faint">No skills defined.</p>}
                             {skills.map((skill) => {
                                 const id = String(skill.id);
                                 const on = selectedSkills.has(id);
                                 return (
                                     <div key={skill.id} className="flex items-center gap-3 px-3 py-2">
-                                        <label className="flex items-center gap-2 flex-1 text-sm text-gray-700">
+                                        <label className="flex items-center gap-2 flex-1 text-sm text-om-muted">
                                             <input type="checkbox" checked={on} onChange={(e) => toggleSkill(skill.id, e.target.checked)} />
                                             {skill.name}
                                         </label>
@@ -155,10 +155,10 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
             )}
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
                     {processing ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Account'}
                 </button>
-                <Link href="/admin/users" className="text-gray-500 hover:text-gray-800 text-sm">Cancel</Link>
+                <Link href="/admin/users" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
             </div>
         </form>
     );
@@ -167,11 +167,11 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
 function Field({ label, error, required, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {label} {required && <span className="text-om-blocked">*</span>}
             </label>
             {children}
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

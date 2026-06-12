@@ -5,20 +5,20 @@ import { SEVERITY_LABELS } from './fields';
 
 function severityBadgeClass(severity) {
     if (severity === 'CRITICAL' || severity === 'HIGH') {
-        return 'bg-red-100 text-red-800';
+        return 'bg-om-blocked-bg text-om-blocked';
     }
     if (severity === 'MEDIUM') {
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-om-downtime-bg text-om-downtime';
     }
-    return 'bg-gray-200 text-gray-600';
+    return 'bg-om-line2 text-om-muted';
 }
 
 export default function IssueTypesIndex() {
     const { counts = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
+        { key: 'code', label: 'Code', className: 'font-mono text-om-muted' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
         {
             key: 'severity',
             label: 'Severity',

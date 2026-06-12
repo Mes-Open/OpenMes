@@ -778,7 +778,7 @@ export default function Queue() {
                                         }`}>
                                     {ws.name}
                                     {isSelected && queueCount > 0 && (
-                                        <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 bg-white text-om-ink rounded-full font-mono text-[10px] font-semibold">
+                                        <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 bg-om-card text-om-ink rounded-full font-mono text-[10px] font-semibold">
                                             {queueCount}
                                         </span>
                                     )}

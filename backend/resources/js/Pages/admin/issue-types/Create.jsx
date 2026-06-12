@@ -7,7 +7,7 @@ export default function IssueTypeCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Issue Type" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New Issue Type</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">New Issue Type</h1>
             <ResourceForm
                 action="/admin/issue-types"
                 method="post"

@@ -15,10 +15,10 @@ const WORK_ORDER_STATUS_LABELS = {
 };
 
 const WORK_ORDER_STATUS_CLASSES = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    IN_PROGRESS: 'bg-blue-100 text-blue-800',
-    COMPLETED: 'bg-green-100 text-green-800',
-    BLOCKED: 'bg-red-100 text-red-800',
+    PENDING: 'bg-om-downtime-bg text-om-downtime',
+    IN_PROGRESS: 'bg-om-chip text-om-accent',
+    COMPLETED: 'bg-om-running-bg text-om-running',
+    BLOCKED: 'bg-om-blocked-bg text-om-blocked',
 };
 
 function Icon({ d, className = 'w-5 h-5' }) {
@@ -46,24 +46,24 @@ function LineStatusesCard({ line, lineStatuses }) {
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-om-card rounded-om-sm shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-800">Line Statuses</h2>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <h2 className="text-xl font-bold text-om-ink">Line Statuses</h2>
+                    <p className="text-sm text-om-muted mt-0.5">
                         Kanban statuses available for work orders on this line. Global statuses are shown in gray.
                     </p>
                 </div>
-                <Link href="/admin/line-statuses" className="text-sm text-blue-600 hover:underline">
+                <Link href="/admin/line-statuses" className="text-sm text-om-accent hover:underline">
                     Manage global statuses →
                 </Link>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
                 {lineStatuses.length === 0 ? (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-om-muted">
                         No statuses yet. Add one below or{' '}
-                        <Link href="/admin/line-statuses" className="text-blue-600 hover:underline">
+                        <Link href="/admin/line-statuses" className="text-om-accent hover:underline">
                             manage global statuses
                         </Link>
                         .
@@ -93,19 +93,19 @@ function LineStatusesCard({ line, lineStatuses }) {
                 )}
             </div>
 
-            <form onSubmit={submit} className="border-t border-gray-100 pt-4 flex items-end gap-3 flex-wrap">
+            <form onSubmit={submit} className="border-t border-om-line2 pt-4 flex items-end gap-3 flex-wrap">
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-500">Color</label>
+                    <label className="text-xs text-om-muted">Color</label>
                     <input
                         type="color"
                         value={form.data.color}
                         onChange={(e) => form.setData('color', e.target.value)}
-                        className="w-10 h-10 rounded cursor-pointer border border-gray-300 p-0.5"
+                        className="w-10 h-10 rounded cursor-pointer border border-om-line p-0.5"
                         required
                     />
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
-                    <label className="text-xs text-gray-500">Status name (line-specific)</label>
+                    <label className="text-xs text-om-muted">Status name (line-specific)</label>
                     <input
                         type="text"
                         value={form.data.name}
@@ -117,7 +117,7 @@ function LineStatusesCard({ line, lineStatuses }) {
                     />
                 </div>
                 <div className="flex flex-col gap-1 w-20">
-                    <label className="text-xs text-gray-500">Order</label>
+                    <label className="text-xs text-om-muted">Order</label>
                     <input
                         type="number"
                         value={form.data.sort_order}
@@ -129,7 +129,7 @@ function LineStatusesCard({ line, lineStatuses }) {
                 <button
                     type="submit"
                     disabled={form.processing}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    className="px-3 py-2 border border-om-line rounded-om-sm text-sm font-medium text-om-muted hover:bg-om-bg disabled:opacity-50"
                 >
                     <Icon d="M12 4v16m8-8H4" className="w-4 h-4 inline-block mr-1" />
                     Add to this line
@@ -159,35 +159,35 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
     const assignedSet = new Set(initialAssigned);
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-om-card rounded-om-sm shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-800">Assigned Product Types</h2>
-                    <p className="text-sm text-gray-500 mt-0.5">Product types that can be produced on this line.</p>
+                    <h2 className="text-xl font-bold text-om-ink">Assigned Product Types</h2>
+                    <p className="text-sm text-om-muted mt-0.5">Product types that can be produced on this line.</p>
                 </div>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
                 {line.product_types.length === 0 ? (
-                    <p className="text-sm text-gray-400">No product types assigned — all types are allowed.</p>
+                    <p className="text-sm text-om-faint">No product types assigned — all types are allowed.</p>
                 ) : (
                     line.product_types.map((pt) => (
                         <span
                             key={pt.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-sm font-medium rounded-lg"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-om-chip border border-om-line text-om-accent text-sm font-medium rounded-om-sm"
                         >
-                            <span className="font-mono text-xs text-blue-500">{pt.code}</span>
+                            <span className="font-mono text-xs text-om-accent">{pt.code}</span>
                             {pt.name}
                         </span>
                     ))
                 )}
             </div>
 
-            <div className="border-t border-gray-100 pt-4">
+            <div className="border-t border-om-line2 pt-4">
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                    className="text-sm text-om-accent hover:text-om-accent font-medium flex items-center gap-1"
                 >
                     <Icon d="M12 4v16m8-8H4" className="w-4 h-4" />
                     <span>{open ? 'Hide selector' : 'Change assignment'}</span>
@@ -196,7 +196,7 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
                 {open && (
                     <form onSubmit={submit} className="mt-3">
                         {allProductTypes.length === 0 ? (
-                            <p className="text-sm text-gray-500">No active product types defined yet.</p>
+                            <p className="text-sm text-om-muted">No active product types defined yet.</p>
                         ) : (
                             <>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
@@ -205,33 +205,33 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
                                         return (
                                             <label
                                                 key={pt.id}
-                                                className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                                                className={`flex items-center gap-2 p-2.5 rounded-om-sm border cursor-pointer transition-colors ${
                                                     checked
-                                                        ? 'border-blue-400 bg-blue-50'
-                                                        : 'border-gray-200 hover:border-gray-300'
+                                                        ? 'border-blue-400 bg-om-chip'
+                                                        : 'border-om-line2 hover:border-om-line'
                                                 }`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={checked}
                                                     onChange={() => toggleType(pt.id)}
-                                                    className="rounded border-gray-300 text-blue-600"
+                                                    className="rounded border-om-line text-om-accent"
                                                 />
                                                 <div className="min-w-0">
-                                                    <p className="text-sm font-medium text-gray-800 truncate">{pt.name}</p>
-                                                    <p className="text-xs text-gray-400 font-mono">{pt.code}</p>
+                                                    <p className="text-sm font-medium text-om-ink truncate">{pt.name}</p>
+                                                    <p className="text-xs text-om-faint font-mono">{pt.code}</p>
                                                 </div>
                                             </label>
                                         );
                                     })}
                                 </div>
-                                <p className="text-xs text-gray-400 mb-3">
+                                <p className="text-xs text-om-faint mb-3">
                                     Leave all unchecked to allow all product types on this line.
                                 </p>
                                 <button
                                     type="submit"
                                     disabled={form.processing}
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                                    className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
                                 >
                                     {form.processing ? 'Saving…' : 'Save Assignment'}
                                 </button>
@@ -248,23 +248,23 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
 
 function WorkstationsCard({ line, effectiveWorkstations }) {
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-om-card rounded-om-sm shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-800">Workstations</h2>
+                    <h2 className="text-xl font-bold text-om-ink">Workstations</h2>
                     {effectiveWorkstations.length === 0 || (effectiveWorkstations.length === 1 && effectiveWorkstations[0].is_line_itself) ? (
-                        <p className="text-sm text-amber-600 mt-0.5 font-medium">
+                        <p className="text-sm text-om-downtime mt-0.5 font-medium">
                             No workstations configured — line itself acts as a single workstation.
                         </p>
                     ) : (
-                        <p className="text-sm text-gray-500 mt-0.5">
+                        <p className="text-sm text-om-muted mt-0.5">
                             {line.workstations_count} workstation(s) on this line.
                         </p>
                     )}
                 </div>
                 <Link
                     href={`/admin/lines/${line.id}/workstations`}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="px-3 py-2 border border-om-line rounded-om-sm text-sm font-medium text-om-muted hover:bg-om-bg"
                 >
                     Manage
                 </Link>
@@ -274,23 +274,23 @@ function WorkstationsCard({ line, effectiveWorkstations }) {
                 {effectiveWorkstations.map((ws) => (
                     <div
                         key={ws.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        className={`flex items-center gap-3 p-3 rounded-om-sm border ${
                             ws.is_line_itself
-                                ? 'border-amber-200 bg-amber-50'
-                                : 'border-gray-200 bg-gray-50'
+                                ? 'border-om-line bg-om-downtime-bg'
+                                : 'border-om-line2 bg-om-panel'
                         }`}
                     >
-                        <div className={`${ws.is_line_itself ? 'bg-amber-100' : 'bg-green-100'} rounded-full p-2 flex-shrink-0`}>
+                        <div className={`${ws.is_line_itself ? 'bg-om-downtime-bg' : 'bg-om-running-bg'} rounded-full p-2 flex-shrink-0`}>
                             <Icon
                                 d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                                className={`w-5 h-5 ${ws.is_line_itself ? 'text-amber-600' : 'text-green-600'}`}
+                                className={`w-5 h-5 ${ws.is_line_itself ? 'text-om-downtime' : 'text-om-running'}`}
                             />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-800 truncate">{ws.name}</p>
-                            <p className="text-xs text-gray-400 font-mono">{ws.code}</p>
+                            <p className="text-sm font-semibold text-om-ink truncate">{ws.name}</p>
+                            <p className="text-xs text-om-faint font-mono">{ws.code}</p>
                             {ws.is_line_itself && (
-                                <p className="text-xs text-amber-600">virtual (line = workstation)</p>
+                                <p className="text-xs text-om-downtime">virtual (line = workstation)</p>
                             )}
                         </div>
                     </div>
@@ -320,27 +320,27 @@ function OperatorsCard({ line, availableOperators }) {
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-om-card rounded-om-sm shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Assigned Operators</h2>
+                <h2 className="text-xl font-bold text-om-ink">Assigned Operators</h2>
             </div>
 
             {line.users.length > 0 ? (
                 <div className="space-y-2 mb-4">
                     {line.users.map((user) => (
-                        <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div key={user.id} className="flex items-center justify-between p-3 bg-om-panel rounded-om-sm">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold">
                                     {user.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                    <p className="font-medium text-gray-800">{user.name}</p>
-                                    <p className="text-sm text-gray-500">{user.username}</p>
+                                    <p className="font-medium text-om-ink">{user.name}</p>
+                                    <p className="text-sm text-om-muted">{user.username}</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => unassign(user.id, user.name)}
-                                className="text-red-600 hover:text-red-800 p-2"
+                                className="text-om-blocked hover:text-om-blocked p-2"
                                 title="Remove operator"
                             >
                                 <Icon d="M6 18L18 6M6 6l12 12" />
@@ -349,18 +349,18 @@ function OperatorsCard({ line, availableOperators }) {
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-8 bg-gray-50 rounded-lg mb-4">
+                <div className="text-center py-8 bg-om-panel rounded-om-sm mb-4">
                     <Icon
                         d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                        className="mx-auto h-12 w-12 text-gray-400 mb-2"
+                        className="mx-auto h-12 w-12 text-om-faint mb-2"
                     />
-                    <p className="text-gray-600">No operators assigned yet</p>
+                    <p className="text-om-muted">No operators assigned yet</p>
                 </div>
             )}
 
             {availableOperators.length > 0 ? (
-                <form onSubmit={submit} className="border-t border-gray-200 pt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Assign New Operator</label>
+                <form onSubmit={submit} className="border-t border-om-line2 pt-4">
+                    <label className="block text-sm font-medium text-om-muted mb-1">Assign New Operator</label>
                     <div className="flex gap-2">
                         <select
                             value={form.data.user_id}
@@ -378,17 +378,17 @@ function OperatorsCard({ line, availableOperators }) {
                         <button
                             type="submit"
                             disabled={form.processing}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                            className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50 flex items-center gap-2"
                         >
                             <Icon d="M12 4v16m8-8H4" />
                             Assign
                         </button>
                     </div>
-                    {form.errors.user_id && <p className="mt-1 text-xs text-red-600">{form.errors.user_id}</p>}
+                    {form.errors.user_id && <p className="mt-1 text-xs text-om-blocked">{form.errors.user_id}</p>}
                 </form>
             ) : (
-                <div className="border-t border-gray-200 pt-4">
-                    <p className="text-sm text-gray-500 text-center">
+                <div className="border-t border-om-line2 pt-4">
+                    <p className="text-sm text-om-muted text-center">
                         All available operators are already assigned to this line.
                     </p>
                 </div>
@@ -401,25 +401,25 @@ function OperatorsCard({ line, availableOperators }) {
 
 function WorkOrdersCard({ line, workOrders }) {
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Recent Work Orders</h2>
+        <div className="bg-om-card rounded-om-sm shadow-sm p-6">
+            <h2 className="text-xl font-bold text-om-ink mb-4">Recent Work Orders</h2>
 
             {workOrders.length > 0 ? (
                 <>
                     <div className="space-y-2">
                         {workOrders.map((wo) => (
-                            <div key={wo.id} className="p-3 bg-gray-50 rounded-lg">
+                            <div key={wo.id} className="p-3 bg-om-panel rounded-om-sm">
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
-                                        <p className="font-medium text-gray-800">{wo.work_order_number}</p>
-                                        <p className="text-sm text-gray-600">{wo.product_name}</p>
-                                        <p className="text-xs text-gray-500 mt-1">
+                                        <p className="font-medium text-om-ink">{wo.work_order_number}</p>
+                                        <p className="text-sm text-om-muted">{wo.product_name}</p>
+                                        <p className="text-xs text-om-muted mt-1">
                                             Quantity: {wo.planned_qty} | Created: {wo.created_at?.slice(0, 16).replace('T', ' ')}
                                         </p>
                                     </div>
                                     <span
                                         className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                            WORK_ORDER_STATUS_CLASSES[wo.status] ?? 'bg-gray-100 text-gray-800'
+                                            WORK_ORDER_STATUS_CLASSES[wo.status] ?? 'bg-om-chip text-om-ink'
                                         }`}
                                     >
                                         {WORK_ORDER_STATUS_LABELS[wo.status] ?? wo.status}
@@ -429,18 +429,18 @@ function WorkOrdersCard({ line, workOrders }) {
                         ))}
                     </div>
                     {line.work_orders_count > 10 && (
-                        <p className="text-sm text-gray-500 text-center mt-4">
+                        <p className="text-sm text-om-muted text-center mt-4">
                             Showing 10 most recent of {line.work_orders_count} total work orders
                         </p>
                     )}
                 </>
             ) : (
-                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <div className="text-center py-8 bg-om-panel rounded-om-sm">
                     <Icon
                         d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                        className="mx-auto h-12 w-12 text-gray-400 mb-2"
+                        className="mx-auto h-12 w-12 text-om-faint mb-2"
                     />
-                    <p className="text-gray-600">No work orders yet</p>
+                    <p className="text-om-muted">No work orders yet</p>
                 </div>
             )}
         </div>
@@ -461,9 +461,9 @@ function DefaultViewCard({ line }) {
     const current = line.default_operator_view ?? 'queue';
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6 mt-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-1">Default Operator View</h2>
-            <p className="text-sm text-gray-500 mb-4">
+        <div className="bg-om-card rounded-om-sm shadow-sm p-6 mt-6">
+            <h2 className="text-xl font-bold text-om-ink mb-1">Default Operator View</h2>
+            <p className="text-sm text-om-muted mb-4">
                 Choose which view operators see by default when they select this line.
             </p>
             <div className="flex gap-3">
@@ -481,10 +481,10 @@ function DefaultViewCard({ line }) {
                 ].map((opt) => (
                     <label
                         key={opt.value}
-                        className={`flex-1 flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                        className={`flex-1 flex items-center gap-3 p-4 rounded-om-sm border-2 cursor-pointer transition-colors ${
                             current === opt.value
-                                ? 'border-blue-500 bg-blue-50'
-                                : 'border-gray-200 hover:border-gray-300'
+                                ? 'border-om-accent bg-om-chip'
+                                : 'border-om-line2 hover:border-om-line'
                         }`}
                     >
                         <input
@@ -493,11 +493,11 @@ function DefaultViewCard({ line }) {
                             value={opt.value}
                             checked={current === opt.value}
                             onChange={() => handleChange(opt.value)}
-                            className="text-blue-600 focus:ring-blue-500"
+                            className="text-om-accent focus:ring-om-accent"
                         />
                         <div>
-                            <span className="text-sm font-semibold text-gray-800">{opt.label}</span>
-                            <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+                            <span className="text-sm font-semibold text-om-ink">{opt.label}</span>
+                            <p className="text-xs text-om-muted mt-0.5">{opt.desc}</p>
                         </div>
                     </label>
                 ))}
@@ -517,14 +517,14 @@ function ViewTemplateCard({ line, allViewTemplates }) {
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6 mt-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-1">Workstation View</h2>
-            <p className="text-sm text-gray-500 mb-4">
+        <div className="bg-om-card rounded-om-sm shadow-sm p-6 mt-6">
+            <h2 className="text-xl font-bold text-om-ink mb-1">Workstation View</h2>
+            <p className="text-sm text-om-muted mb-4">
                 Select a view template that defines which columns operators see in the Workstation view for this line.
             </p>
             <form onSubmit={submit} className="flex items-end gap-3">
                 <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">View Template</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">View Template</label>
                     <select
                         value={form.data.view_template_id}
                         onChange={(e) => form.setData('view_template_id', e.target.value)}
@@ -541,15 +541,15 @@ function ViewTemplateCard({ line, allViewTemplates }) {
                 <button
                     type="submit"
                     disabled={form.processing}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
                 >
                     {form.processing ? 'Saving…' : 'Save'}
                 </button>
             </form>
             {allViewTemplates.length === 0 && (
-                <p className="text-xs text-gray-400 mt-3">
+                <p className="text-xs text-om-faint mt-3">
                     No templates created yet.{' '}
-                    <Link href="/admin/view-templates/create" className="text-blue-600 hover:underline">
+                    <Link href="/admin/view-templates/create" className="text-om-accent hover:underline">
                         Create one
                     </Link>
                     .
@@ -612,9 +612,9 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6 mt-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-1">Workstation View Columns</h2>
-            <p className="text-sm text-gray-500 mb-4">
+        <div className="bg-om-card rounded-om-sm shadow-sm p-6 mt-4">
+            <h2 className="text-xl font-bold text-om-ink mb-1">Workstation View Columns</h2>
+            <p className="text-sm text-om-muted mb-4">
                 Configure which columns operators see in the Workstation view for this line.{' '}
                 Columns with source <strong>extra_data</strong> pull values from the work order&apos;s imported data.{' '}
                 Columns with source <strong>field</strong> pull from work order fields (order_no, description, due_date, priority).
@@ -624,21 +624,21 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                 {/* Existing columns */}
                 <div className="space-y-2 mb-4">
                     {columns.length === 0 ? (
-                        <div className="text-sm text-gray-400 text-center py-4">
+                        <div className="text-sm text-om-faint text-center py-4">
                             No custom columns configured. Default view will be shown.
                         </div>
                     ) : (
                         columns.map((col, i) => (
-                            <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                                <span className="text-gray-400 text-sm font-mono w-6 text-center">{i + 1}</span>
-                                <span className="flex-1 text-sm font-medium text-gray-800">{col.label}</span>
-                                <code className="text-xs text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                            <div key={i} className="flex items-center gap-2 bg-om-panel rounded-om-sm px-3 py-2">
+                                <span className="text-om-faint text-sm font-mono w-6 text-center">{i + 1}</span>
+                                <span className="flex-1 text-sm font-medium text-om-ink">{col.label}</span>
+                                <code className="text-xs text-om-muted bg-om-line2 px-1.5 py-0.5 rounded">
                                     {col.source}.{col.key}
                                 </code>
                                 <button
                                     type="button"
                                     onClick={() => moveUp(i)}
-                                    className="p-1 text-gray-400 hover:text-gray-700"
+                                    className="p-1 text-om-faint hover:text-om-ink"
                                     title="Move up"
                                 >
                                     <Icon d="M5 15l7-7 7 7" className="w-4 h-4" />
@@ -646,7 +646,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                                 <button
                                     type="button"
                                     onClick={() => moveDown(i)}
-                                    className="p-1 text-gray-400 hover:text-gray-700"
+                                    className="p-1 text-om-faint hover:text-om-ink"
                                     title="Move down"
                                 >
                                     <Icon d="M19 9l-7 7-7-7" className="w-4 h-4" />
@@ -654,7 +654,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                                 <button
                                     type="button"
                                     onClick={() => remove(i)}
-                                    className="p-1 text-red-400 hover:text-red-600"
+                                    className="p-1 text-red-400 hover:text-om-blocked"
                                     title="Remove"
                                 >
                                     <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
@@ -665,9 +665,9 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                 </div>
 
                 {/* Add new column */}
-                <div className="flex flex-wrap gap-2 items-end border-t border-gray-200 pt-4 mb-4">
+                <div className="flex flex-wrap gap-2 items-end border-t border-om-line2 pt-4 mb-4">
                     <div className="flex-1 min-w-[140px]">
-                        <label className="text-xs text-gray-500 block mb-1">Column Label</label>
+                        <label className="text-xs text-om-muted block mb-1">Column Label</label>
                         <input
                             type="text"
                             value={newLabel}
@@ -677,7 +677,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                         />
                     </div>
                     <div className="flex-1 min-w-[140px]">
-                        <label className="text-xs text-gray-500 block mb-1">Data Key</label>
+                        <label className="text-xs text-om-muted block mb-1">Data Key</label>
                         <input
                             type="text"
                             value={newKey}
@@ -687,7 +687,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                         />
                     </div>
                     <div className="w-36">
-                        <label className="text-xs text-gray-500 block mb-1">Source</label>
+                        <label className="text-xs text-om-muted block mb-1">Source</label>
                         <select
                             value={newSource}
                             onChange={(e) => setNewSource(e.target.value)}
@@ -701,7 +701,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                         type="button"
                         onClick={add}
                         disabled={!newLabel || !newKey}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                        className="px-3 py-2 border border-om-line rounded-om-sm text-sm font-medium text-om-muted hover:bg-om-bg disabled:opacity-40"
                     >
                         + Add
                     </button>
@@ -711,7 +711,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                     <button
                         type="submit"
                         disabled={processing}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                        className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
                     >
                         {processing ? 'Saving…' : 'Save View Columns'}
                     </button>
@@ -749,20 +749,20 @@ export default function LineShow() {
             <div className="mb-6">
                 <Link
                     href="/admin/lines"
-                    className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4 text-sm"
+                    className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4 text-sm"
                 >
                     <Icon d="M15 19l-7-7 7-7" />
                     Back to Production Lines
                 </Link>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <h1 className="text-3xl font-bold text-gray-800">{line.name}</h1>
+                        <h1 className="text-3xl font-bold text-om-ink">{line.name}</h1>
                         {line.is_active ? (
-                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">
                                 Active
                             </span>
                         ) : (
-                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
+                            <span className="px-3 py-1 bg-om-chip text-om-muted rounded-full text-sm font-medium">
                                 Inactive
                             </span>
                         )}
@@ -770,17 +770,17 @@ export default function LineShow() {
                     <div className="flex gap-2">
                         <Link
                             href={`/admin/lines/${line.id}/edit`}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            className="px-4 py-2 border border-om-line rounded-om-sm text-sm font-medium text-om-muted hover:bg-om-bg flex items-center gap-2"
                         >
                             <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             Edit Line
                         </Link>
                         <button
                             onClick={handleToggleActive}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                            className={`px-4 py-2 rounded-om-sm text-sm font-medium flex items-center gap-2 ${
                                 line.is_active
-                                    ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    ? 'border border-om-line text-om-muted hover:bg-om-bg'
+                                    : 'bg-om-ink text-white hover:bg-black'
                             }`}
                         >
                             {line.is_active ? (
@@ -797,22 +797,22 @@ export default function LineShow() {
                         </button>
                     </div>
                 </div>
-                <p className="text-sm text-gray-500 font-mono mt-1">{line.code}</p>
-                {line.description && <p className="text-gray-600 mt-2">{line.description}</p>}
+                <p className="text-sm text-om-muted font-mono mt-1">{line.code}</p>
+                {line.description && <p className="text-om-muted mt-2">{line.description}</p>}
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-white rounded-lg shadow-sm p-5">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-5">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600">Work Orders</p>
-                            <p className="text-3xl font-bold text-blue-600">{line.work_orders_count}</p>
+                            <p className="text-sm text-om-muted">Work Orders</p>
+                            <p className="text-3xl font-bold text-om-accent">{line.work_orders_count}</p>
                         </div>
-                        <div className="bg-blue-100 rounded-full p-3">
+                        <div className="bg-om-chip rounded-full p-3">
                             <Icon
                                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                className="w-8 h-8 text-blue-600"
+                                className="w-8 h-8 text-om-accent"
                             />
                         </div>
                     </div>
@@ -820,32 +820,32 @@ export default function LineShow() {
 
                 <Link
                     href={`/admin/lines/${line.id}/workstations`}
-                    className="bg-white rounded-lg shadow-sm p-5 hover:shadow-md transition-shadow block"
+                    className="bg-om-card rounded-om-sm shadow-sm p-5 hover:shadow-md transition-shadow block"
                 >
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600">Workstations</p>
-                            <p className="text-3xl font-bold text-green-600">{line.workstations_count}</p>
+                            <p className="text-sm text-om-muted">Workstations</p>
+                            <p className="text-3xl font-bold text-om-running">{line.workstations_count}</p>
                         </div>
-                        <div className="bg-green-100 rounded-full p-3">
+                        <div className="bg-om-running-bg rounded-full p-3">
                             <Icon
                                 d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                                className="w-8 h-8 text-green-600"
+                                className="w-8 h-8 text-om-running"
                             />
                         </div>
                     </div>
                 </Link>
 
-                <div className="bg-white rounded-lg shadow-sm p-5">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-5">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600">Assigned Operators</p>
-                            <p className="text-3xl font-bold text-purple-600">{line.users_count}</p>
+                            <p className="text-sm text-om-muted">Assigned Operators</p>
+                            <p className="text-3xl font-bold text-om-ink">{line.users_count}</p>
                         </div>
-                        <div className="bg-purple-100 rounded-full p-3">
+                        <div className="bg-om-chip rounded-full p-3">
                             <Icon
                                 d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-                                className="w-8 h-8 text-purple-600"
+                                className="w-8 h-8 text-om-ink"
                             />
                         </div>
                     </div>

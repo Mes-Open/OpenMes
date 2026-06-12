@@ -13,7 +13,7 @@ export default function ViewTemplateEdit({ viewTemplate }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${viewTemplate.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit View Template</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit View Template</h1>
             <ViewTemplateForm form={form} submitLabel="Save Changes" onSubmit={submit} />
         </div>
     );

@@ -3,14 +3,14 @@ import AppLayout from '../../../layouts/AppLayout';
 import { formatDate, formatNumber } from '../../../lib/i18n';
 
 const STATUS_COLORS = {
-    BLOCKED:     'bg-red-100 text-red-700',
-    IN_PROGRESS: 'bg-blue-100 text-blue-700',
-    ACCEPTED:    'bg-green-100 text-green-700',
-    PENDING:     'bg-gray-100 text-gray-600',
-    PAUSED:      'bg-yellow-100 text-yellow-700',
-    DONE:        'bg-green-200 text-green-800',
-    REJECTED:    'bg-red-200 text-red-800',
-    CANCELLED:   'bg-gray-200 text-gray-600',
+    BLOCKED:     'bg-om-blocked-bg text-om-blocked',
+    IN_PROGRESS: 'bg-om-chip text-om-accent',
+    ACCEPTED:    'bg-om-running-bg text-om-running',
+    PENDING:     'bg-om-chip text-om-muted',
+    PAUSED:      'bg-om-downtime-bg text-om-downtime',
+    DONE:        'bg-om-running-bg text-om-running',
+    REJECTED:    'bg-om-blocked-bg text-om-blocked',
+    CANCELLED:   'bg-om-line2 text-om-muted',
 };
 const STATUS_LABELS = {
     PENDING: 'Pending', ACCEPTED: 'Accepted', IN_PROGRESS: 'In Progress',
@@ -73,11 +73,11 @@ export default function ScheduleIndex() {
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Production Schedule</h1>
-                        <p className="text-sm text-gray-500 mt-0.5">
+                        <h1 className="text-3xl font-bold text-om-ink">Production Schedule</h1>
+                        <p className="text-sm text-om-muted mt-0.5">
                             Week {weekStartFmt} &ndash; {weekEndFmt}
                             {currentShift && (
-                                <span className="text-green-600 font-medium">
+                                <span className="text-om-running font-medium">
                                     &nbsp;&middot;&nbsp;Current shift: {currentShift.name} ({currentShift.start_time?.slice(0, 5)}&ndash;{currentShift.end_time?.slice(0, 5)})
                                 </span>
                             )}
@@ -88,7 +88,7 @@ export default function ScheduleIndex() {
                     <div className="flex items-center gap-2 flex-wrap">
                         <button
                             onClick={() => navigate({ week: prevWeek, line_id: lineId || '' })}
-                            className="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-2 rounded-lg"
+                            className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
                             title="Previous week"
                         >
                             &larr;
@@ -114,7 +114,7 @@ export default function ScheduleIndex() {
 
                         <button
                             onClick={() => navigate({ week: nextWeek, line_id: lineId || '' })}
-                            className="btn-touch bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-2 rounded-lg"
+                            className="btn-touch bg-om-chip text-om-muted hover:bg-om-line2 px-3 py-2 rounded-om-sm"
                             title="Next week"
                         >
                             &rarr;
@@ -123,7 +123,7 @@ export default function ScheduleIndex() {
                         {!isCurrentWeek && (
                             <button
                                 onClick={() => navigate({ line_id: lineId || '' })}
-                                className="text-sm text-blue-600 hover:underline"
+                                className="text-sm text-om-accent hover:underline"
                             >
                                 Today
                             </button>
@@ -132,12 +132,12 @@ export default function ScheduleIndex() {
                 </div>
 
                 {workOrders.length === 0 ? (
-                    <div className="card flex flex-col items-center py-16 text-center bg-white rounded-xl border border-gray-200 shadow-sm">
-                        <svg className="w-14 h-14 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="card flex flex-col items-center py-16 text-center bg-om-card rounded-om border border-om-line2 shadow-sm">
+                        <svg className="w-14 h-14 text-om-faintest mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <p className="text-gray-500">No work orders scheduled for this week.</p>
-                        <Link href="/admin/work-orders/create" className="mt-4 btn-touch btn-primary px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <p className="text-om-muted">No work orders scheduled for this week.</p>
+                        <Link href="/admin/work-orders/create" className="mt-4 btn-touch btn-primary px-4 py-2 bg-om-ink text-white rounded-om-sm hover:bg-black">
                             Create Work Order
                         </Link>
                     </div>
@@ -150,10 +150,10 @@ export default function ScheduleIndex() {
                                     if (lineOrders.length === 0) return null;
                                     return (
                                         <div key={line.id}>
-                                            <h2 className="flex items-center gap-2 text-base font-bold text-gray-700 mb-2">
-                                                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                            <h2 className="flex items-center gap-2 text-base font-bold text-om-muted mb-2">
+                                                <span className="w-2 h-2 rounded-full bg-om-ink"></span>
                                                 {line.name}
-                                                <span className="text-xs font-normal text-gray-400">
+                                                <span className="text-xs font-normal text-om-faint">
                                                     ({lineOrders.length} {lineOrders.length === 1 ? 'order' : 'orders'})
                                                 </span>
                                             </h2>
@@ -163,8 +163,8 @@ export default function ScheduleIndex() {
                                 })}
                                 {ordersByLine['__none__'] && ordersByLine['__none__'].length > 0 && (
                                     <div>
-                                        <h2 className="flex items-center gap-2 text-base font-bold text-gray-700 mb-2">
-                                            <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                                        <h2 className="flex items-center gap-2 text-base font-bold text-om-muted mb-2">
+                                            <span className="w-2 h-2 rounded-full bg-om-faintest"></span>
                                             No Line Assigned
                                         </h2>
                                         <OrderTable orders={ordersByLine['__none__']} />
@@ -183,56 +183,56 @@ export default function ScheduleIndex() {
 
 function OrderTable({ orders }) {
     return (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white mb-1">
-            <table className="min-w-full divide-y divide-gray-100">
+        <div className="overflow-hidden rounded-om-sm border border-om-line2 bg-om-card mb-1">
+            <table className="min-w-full divide-y divide-om-line2">
                 <thead>
                     <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Order</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Product</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden sm:table-cell">Due</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden md:table-cell">Qty</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 hidden lg:table-cell">Priority</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted">Order</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted">Product</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted hidden sm:table-cell">Due</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted hidden md:table-cell">Qty</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted hidden lg:table-cell">Priority</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-om-line2">
                     {orders.map((wo) => {
                         const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && !['DONE','REJECTED','CANCELLED'].includes(wo.status);
                         return (
                             <tr
                                 key={wo.id}
-                                className={`hover:bg-gray-50 cursor-pointer ${isOverdue ? 'bg-red-50' : ''}`}
+                                className={`hover:bg-om-bg cursor-pointer ${isOverdue ? 'bg-om-blocked-bg' : ''}`}
                                 onClick={() => window.location.href = `/admin/work-orders/${wo.id}`}
                             >
                                 <td className="px-4 py-3">
-                                    <span className="inline-flex items-center font-mono text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                                    <span className="inline-flex items-center font-mono text-sm font-semibold text-om-accent bg-om-chip border border-om-line rounded px-2 py-0.5">
                                         {wo.order_no}
                                     </span>
                                 </td>
-                                <td className="px-4 py-3 text-sm text-gray-700">{wo.product_name ?? '—'}</td>
+                                <td className="px-4 py-3 text-sm text-om-muted">{wo.product_name ?? '—'}</td>
                                 <td className="px-4 py-3 text-sm hidden sm:table-cell">
                                     {wo.due_date ? (
-                                        <span className={isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600'}>
+                                        <span className={isOverdue ? 'text-om-blocked font-semibold' : 'text-om-muted'}>
                                             {formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}
                                             {isOverdue && ' ⚠'}
                                         </span>
-                                    ) : <span className="text-gray-400">—</span>}
+                                    ) : <span className="text-om-faint">—</span>}
                                 </td>
-                                <td className="px-4 py-3 text-sm text-gray-600 hidden md:table-cell">
+                                <td className="px-4 py-3 text-sm text-om-muted hidden md:table-cell">
                                     {wo.planned_qty != null ? formatNumber(Number(wo.planned_qty)) : '—'}
                                 </td>
                                 <td className="px-4 py-3">
-                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[wo.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[wo.status] ?? 'bg-om-chip text-om-muted'}`}>
                                         {STATUS_LABELS[wo.status] ?? wo.status}
                                     </span>
                                 </td>
                                 <td className="px-4 py-3 hidden lg:table-cell">
                                     {wo.priority ? (
                                         <div className="flex items-center gap-1.5">
-                                            <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${Math.min(wo.priority, 100)}px`, maxWidth: '80px' }} />
-                                            <span className="text-xs text-gray-500">{wo.priority}</span>
+                                            <div className="h-1.5 rounded-full bg-om-ink" style={{ width: `${Math.min(wo.priority, 100)}px`, maxWidth: '80px' }} />
+                                            <span className="text-xs text-om-muted">{wo.priority}</span>
                                         </div>
-                                    ) : <span className="text-gray-400 text-xs">—</span>}
+                                    ) : <span className="text-om-faint text-xs">—</span>}
                                 </td>
                             </tr>
                         );

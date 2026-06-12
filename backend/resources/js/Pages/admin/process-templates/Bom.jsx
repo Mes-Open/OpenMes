@@ -3,13 +3,13 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 const TYPE_COLORS = {
-    raw_material:  'bg-amber-100 text-amber-800',
-    semi_finished: 'bg-blue-100 text-blue-800',
-    packaging:     'bg-purple-100 text-purple-800',
+    raw_material:  'bg-om-downtime-bg text-om-downtime',
+    semi_finished: 'bg-om-chip text-om-accent',
+    packaging:     'bg-om-chip text-om-ink',
 };
 
 function typeColorClass(code) {
-    return TYPE_COLORS[code] ?? 'bg-gray-100 text-gray-800';
+    return TYPE_COLORS[code] ?? 'bg-om-chip text-om-ink';
 }
 
 function AddMaterialForm({ productType, processTemplate, materials, steps, onCancel }) {
@@ -51,14 +51,14 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
             <form onSubmit={submit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Material <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-om-muted mb-1">
+                            Material <span className="text-om-blocked">*</span>
                         </label>
                         <select
                             value={data.material_id}
                             onChange={(e) => onMaterialChange(e.target.value)}
                             required
-                            className={`form-input w-full${errors.material_id ? ' border-red-500' : ''}`}
+                            className={`form-input w-full${errors.material_id ? ' border-om-blocked' : ''}`}
                         >
                             <option value="">Select material...</option>
                             {materials.map((m) => (
@@ -68,13 +68,13 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                             ))}
                         </select>
                         {errors.material_id && (
-                            <p className="mt-1 text-sm text-red-600">{errors.material_id}</p>
+                            <p className="mt-1 text-sm text-om-blocked">{errors.material_id}</p>
                         )}
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Quantity per Unit{unit ? ` (${unit})` : ''} <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-om-muted mb-1">
+                            Quantity per Unit{unit ? ` (${unit})` : ''} <span className="text-om-blocked">*</span>
                         </label>
                         <input
                             type="number"
@@ -83,18 +83,18 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                             required
                             value={data.quantity_per_unit}
                             onChange={(e) => setData('quantity_per_unit', e.target.value)}
-                            className={`form-input w-full${errors.quantity_per_unit ? ' border-red-500' : ''}`}
+                            className={`form-input w-full${errors.quantity_per_unit ? ' border-om-blocked' : ''}`}
                         />
-                        <p className="mt-1 text-xs text-gray-400">
+                        <p className="mt-1 text-xs text-om-faint">
                             How much of this material is needed per one finished product unit.
                         </p>
                         {errors.quantity_per_unit && (
-                            <p className="mt-1 text-sm text-red-600">{errors.quantity_per_unit}</p>
+                            <p className="mt-1 text-sm text-om-blocked">{errors.quantity_per_unit}</p>
                         )}
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-om-muted mb-1">
                             Step (optional)
                         </label>
                         <select
@@ -112,7 +112,7 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Scrap %</label>
+                        <label className="block text-sm font-medium text-om-muted mb-1">Scrap %</label>
                         <input
                             type="number"
                             step="0.01"
@@ -123,14 +123,14 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                             className="form-input w-full"
                         />
                         {selectedMaterial?.default_scrap_percentage != null && (
-                            <p className="mt-1 text-xs text-gray-400">
+                            <p className="mt-1 text-xs text-om-faint">
                                 Pre-filled from the material default ({selectedMaterial.default_scrap_percentage}%); adjust if needed.
                             </p>
                         )}
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Consumed At</label>
+                        <label className="block text-sm font-medium text-om-muted mb-1">Consumed At</label>
                         <select
                             value={data.consumed_at}
                             onChange={(e) => setData('consumed_at', e.target.value)}
@@ -143,7 +143,7 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <label className="block text-sm font-medium text-om-muted mb-1">Notes</label>
                         <input
                             type="text"
                             value={data.notes}
@@ -188,7 +188,7 @@ export default function ProcessTemplatesBom() {
                 <div className="mb-6">
                     <a
                         href={`/admin/product-types/${productType.id}/process-templates/${processTemplate.id}`}
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4"
+                        className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -198,8 +198,8 @@ export default function ProcessTemplatesBom() {
 
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-800">Bill of Materials</h1>
-                            <p className="text-sm text-gray-600 mt-1">
+                            <h1 className="text-3xl font-bold text-om-ink">Bill of Materials</h1>
+                            <p className="text-sm text-om-muted mt-1">
                                 {processTemplate.name} (v{processTemplate.version}) &bull; {productType.name}
                             </p>
                         </div>
@@ -228,43 +228,43 @@ export default function ProcessTemplatesBom() {
 
                 {bomItems.length > 0 ? (
                     <div className="card overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-om-line2">
+                            <thead className="bg-om-panel">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
                                         Material
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
                                         Type
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
                                         Step
                                     </th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-om-muted uppercase">
                                         Qty/Unit
                                     </th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-om-muted uppercase">
                                         Scrap %
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
                                         Consumed
                                     </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
                                         Tracking
                                     </th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-om-muted uppercase">
                                         Actions
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-om-card divide-y divide-om-line2">
                                 {bomItems.map((item) => (
                                     <tr key={item.id}>
                                         <td className="px-4 py-3">
-                                            <div className="text-sm font-medium text-gray-900">
+                                            <div className="text-sm font-medium text-om-ink">
                                                 {item.material_name}
                                             </div>
-                                            <div className="text-xs text-gray-500 font-mono">{item.material_code}</div>
+                                            <div className="text-xs text-om-muted font-mono">{item.material_code}</div>
                                         </td>
                                         <td className="px-4 py-3">
                                             <span
@@ -275,11 +275,11 @@ export default function ProcessTemplatesBom() {
                                                 {item.material_type_name}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600">
+                                        <td className="px-4 py-3 text-sm text-om-muted">
                                             {item.step_number != null ? (
                                                 `#${item.step_number} ${item.step_name}`
                                             ) : (
-                                                <span className="text-gray-400">General</span>
+                                                <span className="text-om-faint">General</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-right font-mono">
@@ -288,17 +288,17 @@ export default function ProcessTemplatesBom() {
                                         <td className="px-4 py-3 text-sm text-right">
                                             {item.scrap_percentage}%
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+                                        <td className="px-4 py-3 text-sm text-om-muted capitalize">
                                             {item.consumed_at}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+                                        <td className="px-4 py-3 text-sm text-om-muted capitalize">
                                             {item.tracking_type}
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <button
                                                 type="button"
                                                 onClick={() => handleRemove(item)}
-                                                className="text-red-600 hover:text-red-800 text-sm"
+                                                className="text-om-blocked hover:text-om-blocked text-sm"
                                             >
                                                 Remove
                                             </button>
@@ -310,7 +310,7 @@ export default function ProcessTemplatesBom() {
                     </div>
                 ) : (
                     <div className="card text-center py-12">
-                        <p className="text-gray-500 text-lg mb-4">No materials in BOM yet.</p>
+                        <p className="text-om-muted text-lg mb-4">No materials in BOM yet.</p>
                         <button
                             type="button"
                             onClick={() => setShowAddForm(true)}

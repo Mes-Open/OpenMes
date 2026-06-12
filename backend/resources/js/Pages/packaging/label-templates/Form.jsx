@@ -11,20 +11,20 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
 
     const sel = (label, name, map, error) => (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{label} <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-om-muted mb-1">{label} <span className="text-om-blocked">*</span></label>
             <select value={data[name] ?? ''} onChange={(e) => setData(name, e.target.value)} className="form-input w-full">
                 {Object.entries(map).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 
     return (
-        <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-om-muted mb-1">Name <span className="text-om-blocked">*</span></label>
                 <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
-                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+                {errors.name && <p className="mt-1 text-xs text-om-blocked">{errors.name}</p>}
             </div>
 
             {sel('Type', 'type', types, errors.type)}
@@ -32,10 +32,10 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
             {sel('Barcode Format', 'barcode_format', barcodeFormats, errors.barcode_format)}
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Fields on label</label>
-                <div className="grid grid-cols-2 gap-2 border border-gray-200 rounded-lg p-3">
+                <label className="block text-sm font-medium text-om-muted mb-2">Fields on label</label>
+                <div className="grid grid-cols-2 gap-2 border border-om-line2 rounded-om-sm p-3">
                     {Object.entries(availableFields).map(([key, label]) => (
-                        <label key={key} className="flex items-center gap-2 text-sm text-gray-700">
+                        <label key={key} className="flex items-center gap-2 text-sm text-om-muted">
                             <input
                                 type="checkbox"
                                 checked={!!data.fields?.[key]}
@@ -48,21 +48,21 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
             </div>
 
             <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2 text-sm text-om-muted">
                     <input type="checkbox" checked={!!data.is_default} onChange={(e) => setData('is_default', e.target.checked)} />
                     Default template for this type
                 </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2 text-sm text-om-muted">
                     <input type="checkbox" checked={!!data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
                     Active
                 </label>
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
                     {processing ? 'Saving…' : submitLabel}
                 </button>
-                <Link href="/packaging/label-templates" className="text-gray-500 hover:text-gray-800 text-sm">Cancel</Link>
+                <Link href="/packaging/label-templates" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
             </div>
         </form>
     );

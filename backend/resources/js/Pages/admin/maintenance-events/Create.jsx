@@ -8,8 +8,8 @@ export default function MaintenanceEventCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Maintenance Event" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New Maintenance Event</h1>
-            <p className="text-sm text-gray-500 mb-4 max-w-2xl">
+            <h1 className="text-3xl font-bold text-om-ink mb-6">New Maintenance Event</h1>
+            <p className="text-sm text-om-muted mb-4 max-w-2xl">
                 Select at least one of Tool, Line, or Workstation.
             </p>
             <ResourceForm

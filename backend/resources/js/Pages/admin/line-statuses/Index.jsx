@@ -15,8 +15,8 @@ export default function LineStatusesIndex() {
         <>
             <Head title="Line Statuses" />
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Line Statuses</h1>
-                <p className="text-gray-500 text-sm mb-6">
+                <h1 className="text-3xl font-bold text-om-ink mb-2">Line Statuses</h1>
+                <p className="text-om-muted text-sm mb-6">
                     Global kanban statuses available to every production line.
                 </p>
                 <Editor />
@@ -34,10 +34,10 @@ function Editor() {
     );
 
     return (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
             <table className="w-full text-sm">
                 <thead>
-                    <tr className="text-left text-gray-500 border-b bg-gray-50">
+                    <tr className="text-left text-om-muted border-b bg-om-panel">
                         <th className="px-4 py-3">Color</th>
                         <th className="px-4 py-3">Name</th>
                         <th className="px-4 py-3 w-24">Order</th>
@@ -87,7 +87,7 @@ function StatusRow({ status }) {
     return (
         <tr className="border-b last:border-0">
             <td className="px-4 py-2">
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-gray-300 p-0.5" />
+                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-om-line p-0.5" />
             </td>
             <td className="px-4 py-2">
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="form-input w-full" />
@@ -109,7 +109,7 @@ function StatusRow({ status }) {
                     </button>
                     <button
                         onClick={destroy}
-                        className="p-1.5 rounded-md transition-colors text-red-600 hover:text-red-800"
+                        className="p-1.5 rounded-md transition-colors text-om-blocked hover:text-om-blocked"
                         title="Delete"
                         aria-label="Delete"
                     >
@@ -143,20 +143,20 @@ function AddRow({ nextOrder }) {
     };
 
     return (
-        <tr className="bg-gray-50/50">
+        <tr className="bg-om-panel/50">
             <td className="px-4 py-2">
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-gray-300 p-0.5" />
+                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-om-line p-0.5" />
             </td>
             <td className="px-4 py-2">
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="New status name…" className="form-input w-full" />
             </td>
-            <td className="px-4 py-2 text-gray-400">{nextOrder}</td>
+            <td className="px-4 py-2 text-om-faint">{nextOrder}</td>
             <td />
             <td className="px-4 py-2 text-right">
                 <button
                     onClick={add}
                     disabled={!name.trim() || adding}
-                    className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    className="bg-om-ink text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-black disabled:opacity-50"
                 >
                     {adding ? 'Adding…' : 'Add'}
                 </button>

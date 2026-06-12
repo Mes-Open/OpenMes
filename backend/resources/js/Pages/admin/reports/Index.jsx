@@ -4,9 +4,9 @@ import AppLayout from '../../../layouts/AppLayout';
 import { __, formatDateTime, formatNumber } from '../../../lib/i18n';
 
 const STATUS_BADGE = {
-    DONE: 'bg-green-100 text-green-800',
-    CANCELLED: 'bg-gray-100 text-gray-600',
-    REJECTED: 'bg-red-100 text-red-700',
+    DONE: 'bg-om-running-bg text-om-running',
+    CANCELLED: 'bg-om-chip text-om-muted',
+    REJECTED: 'bg-om-blocked-bg text-om-blocked',
 };
 
 const PRESET_LABELS = {
@@ -78,8 +78,8 @@ export default function ReportsIndex() {
             <div className="max-w-7xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Work Order History')}</h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                        <h1 className="text-3xl font-bold text-om-ink">{__('Work Order History')}</h1>
+                        <p className="text-om-muted mt-1">
                             {__('Completed, cancelled and rejected orders — full execution record.')}
                         </p>
                     </div>
@@ -107,10 +107,10 @@ export default function ReportsIndex() {
                             key={p}
                             type="button"
                             onClick={() => setPreset(p)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                            className={`px-3 py-1.5 rounded-om-sm text-sm font-medium border ${
                                 form.preset === p
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-600 hover:bg-gray-50'
+                                    ? 'bg-om-ink text-white border-om-accent'
+                                    : 'bg-om-card text-om-muted border-om-line2 hover:bg-om-bg'
                             }`}
                         >
                             {__(PRESET_LABELS[p] ?? p)}
@@ -119,7 +119,7 @@ export default function ReportsIndex() {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-3">
                     {form.preset === 'custom' && (
                         <>
                             <Field label={__('From')}>
@@ -201,10 +201,10 @@ export default function ReportsIndex() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-x-auto">
+                <div className="bg-om-card rounded-om-sm shadow-sm overflow-x-auto">
                     <table className="min-w-full text-sm">
                         <thead>
-                            <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-200 dark:border-slate-700">
+                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
                                 <th className="px-4 py-3">{__('Order')}</th>
                                 <th className="px-4 py-3">{__('Product')}</th>
                                 <th className="px-4 py-3">{__('Line')}</th>
@@ -218,61 +218,61 @@ export default function ReportsIndex() {
                                 <th className="px-4 py-3 text-right">{__('Issues')}</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        <tbody className="divide-y divide-om-line2">
                             {rows.map((r) => (
                                 <tr
                                     key={r.id}
-                                    className="hover:bg-gray-50 dark:hover:bg-slate-700/40 cursor-pointer"
+                                    className="hover:bg-om-bg cursor-pointer"
                                     onClick={() => router.visit(`/admin/reports/${r.id}`)}
                                 >
-                                    <td className="px-4 py-3 font-medium text-blue-600">
+                                    <td className="px-4 py-3 font-medium text-om-accent">
                                         <Link href={`/admin/reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
                                             {r.order_no}
                                         </Link>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                                    <td className="px-4 py-3 text-om-muted">
                                         {r.product_name ?? '—'}
                                         {r.product_code && (
-                                            <span className="text-xs text-gray-400 font-mono ml-1">{r.product_code}</span>
+                                            <span className="text-xs text-om-faint font-mono ml-1">{r.product_code}</span>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.line_name ?? '—'}</td>
+                                    <td className="px-4 py-3 text-om-muted">{r.line_name ?? '—'}</td>
                                     <td className="px-4 py-3">
                                         <span
                                             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                STATUS_BADGE[r.status] ?? 'bg-gray-100 text-gray-600'
+                                                STATUS_BADGE[r.status] ?? 'bg-om-chip text-om-muted'
                                             }`}
                                         >
                                             {__(r.status)}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                                    <td className="px-4 py-3 text-om-muted whitespace-nowrap">
                                         {r.completed_at ? formatDateTime(r.completed_at) : '—'}
                                     </td>
                                     <td className="px-4 py-3 text-right font-mono">
                                         {formatNumber(r.produced_qty)} / {formatNumber(r.planned_qty)}
                                     </td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                                    <td className="px-4 py-3 text-om-muted whitespace-nowrap">
                                         {fmtDuration(r.execution_minutes)}
                                     </td>
-                                    <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-400">
+                                    <td className="px-4 py-3 font-mono text-xs text-om-muted">
                                         {r.lots.length ? r.lots.slice(0, 2).join(', ') : '—'}
-                                        {r.lots.length > 2 && <span className="text-gray-400"> +{r.lots.length - 2}</span>}
+                                        {r.lots.length > 2 && <span className="text-om-faint"> +{r.lots.length - 2}</span>}
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         {r.issues_count > 0 ? (
-                                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">
+                                            <span className="px-2 py-0.5 rounded-full text-xs bg-om-downtime-bg text-om-downtime">
                                                 {r.issues_count}
                                             </span>
                                         ) : (
-                                            <span className="text-gray-300">0</span>
+                                            <span className="text-om-faintest">0</span>
                                         )}
                                     </td>
                                 </tr>
                             ))}
                             {rows.length === 0 && (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
+                                    <td colSpan={9} className="px-4 py-10 text-center text-om-muted">
                                         {__('No orders match the current filters.')}
                                     </td>
                                 </tr>
@@ -292,10 +292,10 @@ export default function ReportsIndex() {
                                 onClick={() => link.url && goPage(new URL(link.url).searchParams.get('page'))}
                                 className={`px-3 py-1 text-sm rounded border ${
                                     link.active
-                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        ? 'bg-om-ink text-white border-om-accent'
                                         : link.url
-                                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:border-slate-600'
-                                        : 'border-gray-200 text-gray-400 cursor-default'
+                                        ? 'border-om-line text-om-muted hover:bg-om-bg'
+                                        : 'border-om-line2 text-om-faint cursor-default'
                                 }`}
                                 dangerouslySetInnerHTML={{ __html: link.label }}
                             />
@@ -309,9 +309,9 @@ export default function ReportsIndex() {
 
 function SummaryCard({ label, value }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-500 uppercase">{label}</div>
-            <div className="text-2xl font-bold text-gray-800 dark:text-gray-100 mt-1">{value}</div>
+        <div className="bg-om-card rounded-om-sm shadow-sm p-4">
+            <div className="text-xs text-om-muted uppercase">{label}</div>
+            <div className="text-2xl font-bold text-om-ink mt-1">{value}</div>
         </div>
     );
 }
@@ -319,7 +319,7 @@ function SummaryCard({ label, value }) {
 function Field({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+            <label className="block text-xs font-medium text-om-muted mb-1">{label}</label>
             {children}
         </div>
     );

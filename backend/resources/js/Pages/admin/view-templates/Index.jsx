@@ -6,8 +6,8 @@ export default function ViewTemplatesIndex() {
     const { counts = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'description', label: 'Description', className: 'text-gray-600' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
+        { key: 'description', label: 'Description', className: 'text-om-muted' },
         { key: 'lines', label: 'Lines using', render: (r) => counts[r.id] ?? 0 },
     ];
 

@@ -1,63 +1,44 @@
-// OpenMES — Industrial-utility palette (signal amber on near-black / warm-light)
-// Operator screens lean dark for shop-floor focus; supervisor/admin lean warm-light for data density.
+// OpenMES — Geist White palette (design/openmes-fable-remix; see packages/ui/src/tokens).
+// Light-only v1: the `dark` block (and statusPaletteDark) intentionally mirrors
+// the light values, so every screen doing Colors[scheme] renders Geist White
+// regardless of device scheme; the dark shop-floor variant returns later via
+// token theming. Export surface is unchanged — only the values moved.
 
-const tintColorLight = '#f59021';
-const tintColorDark = '#f5a524';
+import { colors as om } from '@openmes/ui';
+
+const geistWhite = {
+  // surfaces
+  text: om.ink,
+  textMuted: om.muted,
+  textFaint: om.faint,
+  background: om.bg,
+  surface: om.card,
+  surfaceAlt: om.chip,
+  surfaceInverse: om.ink,
+  border: om.line,
+  borderStrong: om.faintest,
+  // brand
+  tint: om.accent,
+  accent: om.accent,
+  brandNavy: '#1f2547',
+  // navigation
+  tabIconDefault: om.faint,
+  tabIconSelected: om.ink,
+  // status
+  success: om.running,
+  warning: om.downtime,
+  danger: om.blocked,
+  info: om.accent,
+  // soft fills
+  successSoft: om.runningBg,
+  warningSoft: om.downtimeBg,
+  dangerSoft: om.blockedBg,
+  infoSoft: om.chip,
+};
 
 const Colors = {
-  light: {
-    // surfaces
-    text: '#171715',
-    textMuted: '#5f5d56',
-    textFaint: '#8a8780',
-    background: '#f3f1ec',
-    surface: '#ffffff',
-    surfaceAlt: '#ebe8e0',
-    surfaceInverse: '#171715',
-    border: '#d9d5cb',
-    borderStrong: '#bfbab0',
-    // brand
-    tint: tintColorLight,
-    accent: '#f59021',
-    brandNavy: '#1f2547',
-    // navigation
-    tabIconDefault: '#8a8780',
-    tabIconSelected: tintColorLight,
-    // status
-    success: '#1f9d6c',
-    warning: '#f5a524',
-    danger: '#dc2626',
-    info: '#3a6ed6',
-    // soft fills
-    successSoft: '#dff5e9',
-    warningSoft: '#fbe9c8',
-    dangerSoft: '#fbe2e2',
-    infoSoft: '#e2ecfa',
-  },
-  dark: {
-    text: '#eaeaea',
-    textMuted: '#9a9aa2',
-    textFaint: '#6a6a72',
-    background: '#0e0e10',
-    surface: '#16161a',
-    surfaceAlt: '#1d1d22',
-    surfaceInverse: '#ffffff',
-    border: '#26262d',
-    borderStrong: '#3a3a44',
-    tint: tintColorDark,
-    accent: '#f5a524',
-    brandNavy: '#1f2547',
-    tabIconDefault: '#6a6a72',
-    tabIconSelected: tintColorDark,
-    success: '#3ecf8e',
-    warning: '#f5a524',
-    danger: '#ef4444',
-    info: '#5b8def',
-    successSoft: '#0e3424',
-    warningSoft: '#3a2a0c',
-    dangerSoft: '#3a0e0e',
-    infoSoft: '#0e1a3a',
-  },
+  light: geistWhite,
+  dark: { ...geistWhite },
 };
 
 export default Colors;
@@ -79,35 +60,27 @@ export const SANS_BOLD = 'Geist_700Bold';
 
 // Brand colors used regardless of scheme
 export const BRAND = {
-  amber: '#f59021',
-  amberSoft: '#fbe9c8',
-  amberAccent: '#f5a524',
+  amber: om.accent,
+  amberSoft: om.chip,
+  amberAccent: om.accent,
   navy: '#1f2547',
 };
 
 export type StatusKind = 'pending' | 'inProgress' | 'blocked' | 'paused' | 'done' | 'cancelled' | 'rejected';
 
-// Status palette — pill backgrounds tuned for both schemes (using soft tints with strong fg).
+// Status palette — fg/bg pairs from the Geist White state tokens.
 export const statusPalette: Record<StatusKind, { bg: string; fg: string; dot: string }> = {
-  pending: { bg: '#ebe8e0', fg: '#5f5d56', dot: '#8a8780' },
-  inProgress: { bg: '#dff5e9', fg: '#0f7a4f', dot: '#1f9d6c' },
-  blocked: { bg: '#fbe2e2', fg: '#b91c1c', dot: '#dc2626' },
-  paused: { bg: '#fbe9c8', fg: '#8a5a0e', dot: '#f5a524' },
-  done: { bg: '#e6e4dd', fg: '#5f5d56', dot: '#8a8780' },
-  cancelled: { bg: '#ebe8e0', fg: '#8a8780', dot: '#8a8780' },
-  rejected: { bg: '#fbe2e2', fg: '#991b1b', dot: '#dc2626' },
+  pending: { bg: om.pendingBg, fg: om.pending, dot: om.faint },
+  inProgress: { bg: om.runningBg, fg: om.running, dot: om.running },
+  blocked: { bg: om.blockedBg, fg: om.blocked, dot: om.blocked },
+  paused: { bg: om.downtimeBg, fg: om.downtime, dot: om.downtime },
+  done: { bg: om.doneBg, fg: om.done, dot: om.faint },
+  cancelled: { bg: om.pendingBg, fg: om.faint, dot: om.faint },
+  rejected: { bg: om.blockedBg, fg: om.blocked, dot: om.blocked },
 };
 
-// Dark-scheme equivalents for use inside dark surfaces (operator screens).
-export const statusPaletteDark: Record<StatusKind, { bg: string; fg: string; dot: string }> = {
-  pending: { bg: '#1f1f24', fg: '#a8a8b0', dot: '#6a6a72' },
-  inProgress: { bg: '#0e3424', fg: '#7eebbf', dot: '#3ecf8e' },
-  blocked: { bg: '#3a0e0e', fg: '#ff9999', dot: '#ef4444' },
-  paused: { bg: '#332b1c', fg: '#e6c585', dot: '#e6c585' },
-  done: { bg: '#1f1f24', fg: '#a8a8b0', dot: '#a8a8b0' },
-  cancelled: { bg: '#1f1f24', fg: '#6a6a72', dot: '#6a6a72' },
-  rejected: { bg: '#3a0e0e', fg: '#ff9999', dot: '#ef4444' },
-};
+// Light-only v1 — mirrors statusPalette (dark shop-floor variant returns later).
+export const statusPaletteDark: Record<StatusKind, { bg: string; fg: string; dot: string }> = statusPalette;
 
 export function statusKindFor(status: string | undefined | null): StatusKind {
   switch ((status ?? '').toUpperCase()) {

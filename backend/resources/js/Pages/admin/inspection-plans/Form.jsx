@@ -27,19 +27,19 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
     const { data, setData, errors, processing } = form;
 
     return (
-        <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-sm p-6 max-w-4xl space-y-5">
+        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-4xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-om-muted mb-1">Name <span className="text-om-blocked">*</span></label>
                 <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
-                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+                {errors.name && <p className="mt-1 text-xs text-om-blocked">{errors.name}</p>}
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-om-muted mb-1">Description</label>
                 <textarea value={data.description ?? ''} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Scope <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-om-muted mb-1">Scope <span className="text-om-blocked">*</span></label>
                 <div className="flex gap-4">
                     {[['material', 'Specific material'], ['material_type', 'Material type'], ['generic', 'Generic']].map(([v, lbl]) => (
                         <label key={v} className="flex items-center gap-2 text-sm">
@@ -52,27 +52,27 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
 
             {data.scope === 'material' && (
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Material <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">Material <span className="text-om-blocked">*</span></label>
                     <select value={data.material_id ?? ''} onChange={(e) => setData('material_id', e.target.value)} className="form-input w-full">
                         <option value="">— Select material —</option>
                         {materials.map((m) => <option key={m.id} value={String(m.id)}>{m.name}</option>)}
                     </select>
-                    {errors.material_id && <p className="mt-1 text-xs text-red-600">{errors.material_id}</p>}
+                    {errors.material_id && <p className="mt-1 text-xs text-om-blocked">{errors.material_id}</p>}
                 </div>
             )}
             {data.scope === 'material_type' && (
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Material Type <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">Material Type <span className="text-om-blocked">*</span></label>
                     <select value={data.material_type_id ?? ''} onChange={(e) => setData('material_type_id', e.target.value)} className="form-input w-full">
                         <option value="">— Select type —</option>
                         {materialTypes.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
                     </select>
-                    {errors.material_type_id && <p className="mt-1 text-xs text-red-600">{errors.material_type_id}</p>}
+                    {errors.material_type_id && <p className="mt-1 text-xs text-om-blocked">{errors.material_type_id}</p>}
                 </div>
             )}
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Criteria <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-om-muted mb-2">Criteria <span className="text-om-blocked">*</span></label>
                 <RepeatableRows
                     value={data.criteria}
                     onChange={(rows) => setData('criteria', rows)}
@@ -80,14 +80,14 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
                     addLabel="+ Add criterion"
                     newRow={() => ({ name: '', type: 'visual', required: true, unit: '', spec_min: '', spec_max: '' })}
                 />
-                {errors.criteria && <p className="mt-1 text-xs text-red-600">{errors.criteria}</p>}
+                {errors.criteria && <p className="mt-1 text-xs text-om-blocked">{errors.criteria}</p>}
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
                     {processing ? 'Saving…' : submitLabel}
                 </button>
-                <Link href="/admin/inspection-plans" className="text-gray-500 hover:text-gray-800 text-sm">Cancel</Link>
+                <Link href="/admin/inspection-plans" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
             </div>
         </form>
     );

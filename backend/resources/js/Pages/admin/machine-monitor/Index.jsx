@@ -11,21 +11,21 @@ import { __, formatNumber } from '../../../lib/i18n';
  */
 
 const BORDER = {
-    green: 'border-green-500',
+    green: 'border-om-running',
     amber: 'border-amber-400',
-    blue:  'border-blue-500',
-    gray:  'border-gray-400',
-    red:   'border-red-500',
+    blue:  'border-om-accent',
+    gray:  'border-om-faintest',
+    red:   'border-om-blocked',
     slate: 'border-slate-300',
 };
 
 const BADGE = {
-    green: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-    blue:  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    gray:  'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-    red:   'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-    slate: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+    green: 'bg-om-running-bg text-om-running',
+    amber: 'bg-om-downtime-bg text-om-downtime',
+    blue:  'bg-om-chip text-om-accent',
+    gray:  'bg-om-chip text-om-muted',
+    red:   'bg-om-blocked-bg text-om-blocked',
+    slate: 'bg-slate-100 text-slate-600',
 };
 
 const POLL_MS = 3000;
@@ -79,26 +79,26 @@ export default function MachineMonitorIndex() {
             <div className="p-6 space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{__('Machine Monitor')}</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <h1 className="text-2xl font-bold text-om-ink">{__('Machine Monitor')}</h1>
+                        <p className="text-sm text-om-muted mt-1">
                             {__('Live workstation states from connected machines.')}
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={() => setLive((l) => !l)}
-                        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                        className="flex items-center gap-2 text-sm text-om-muted hover:text-om-ink"
                         title={live ? __('Pause live updates') : __('Resume live updates')}
                     >
-                        <span className={`w-2 h-2 rounded-full ${live ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
+                        <span className={`w-2 h-2 rounded-full ${live ? 'bg-om-running animate-pulse' : 'bg-slate-400'}`} />
                         {live ? __('Live') : __('Paused')}
                     </button>
                 </div>
 
                 {tiles.length === 0 ? (
-                    <div className="text-center py-16 text-gray-400 dark:text-gray-500">
+                    <div className="text-center py-16 text-om-faint">
                         <p className="text-sm">{__('No workstations are wired to a machine connection yet.')}</p>
-                        <Link href="/admin/connectivity/modbus" className="mt-2 inline-block text-blue-500 hover:underline text-sm">
+                        <Link href="/admin/connectivity/modbus" className="mt-2 inline-block text-om-accent hover:underline text-sm">
                             {__('Configure a Modbus connection →')}
                         </Link>
                     </div>
@@ -123,11 +123,11 @@ function Tile({ t, now }) {
     const metadata = t.metadata && typeof t.metadata === 'object' ? Object.entries(t.metadata) : [];
 
     return (
-        <div className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 border-l-4 ${border} shadow-sm p-5`}>
+        <div className={`bg-om-card rounded-om border border-om-line2 border-l-4 ${border} shadow-sm p-5`}>
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                    <h3 className="font-bold text-gray-900 dark:text-white truncate">{t.name}</h3>
-                    {t.line && <p className="text-xs text-gray-500 dark:text-gray-400">{t.line}</p>}
+                    <h3 className="font-bold text-om-ink truncate">{t.name}</h3>
+                    {t.line && <p className="text-xs text-om-muted">{t.line}</p>}
                 </div>
                 <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${badge}`}>
                     {t.state}
@@ -135,24 +135,24 @@ function Tile({ t, now }) {
             </div>
 
             {elapsed && (
-                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{__('in state for')} {elapsed}</p>
+                <p className="mt-1 text-xs text-om-faint">{__('in state for')} {elapsed}</p>
             )}
 
             <div className="grid grid-cols-3 gap-2 text-center mt-4">
                 <Metric label={__('Availability')} value={t.availability != null ? `${t.availability}%` : '—'} />
-                <Metric label={__('Good')} value={formatNumber(Number(t.good ?? 0))} tone="text-green-600 dark:text-green-400" />
-                <Metric label={__('Reject')} value={formatNumber(Number(t.reject ?? 0))} tone="text-red-500 dark:text-red-400" />
+                <Metric label={__('Good')} value={formatNumber(Number(t.good ?? 0))} tone="text-om-running" />
+                <Metric label={__('Reject')} value={formatNumber(Number(t.reject ?? 0))} tone="text-om-blocked" />
             </div>
 
             {t.quality != null && (
-                <p className="mt-3 text-xs text-gray-400 dark:text-gray-500 text-center">{__('Quality')} {t.quality}%</p>
+                <p className="mt-3 text-xs text-om-faint text-center">{__('Quality')} {t.quality}%</p>
             )}
 
             {metadata.length > 0 && (
-                <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap gap-1.5">
+                <div className="mt-3 pt-2 border-t border-om-line2 flex flex-wrap gap-1.5">
                     {metadata.map(([k, v]) => (
-                        <span key={k} className="text-[11px] bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-600 dark:text-gray-300">
-                            <span className="text-gray-400 dark:text-gray-500">{k}:</span> {String(v)}
+                        <span key={k} className="text-[11px] bg-om-panel border border-om-line2 rounded px-1.5 py-0.5 text-om-muted">
+                            <span className="text-om-faint">{k}:</span> {String(v)}
                         </span>
                     ))}
                 </div>
@@ -161,10 +161,10 @@ function Tile({ t, now }) {
     );
 }
 
-function Metric({ label, value, tone = 'text-gray-800 dark:text-gray-100' }) {
+function Metric({ label, value, tone = 'text-om-ink' }) {
     return (
         <div>
-            <p className="text-[10px] uppercase text-gray-400 dark:text-gray-500">{label}</p>
+            <p className="text-[10px] uppercase text-om-faint">{label}</p>
             <p className={`text-lg font-bold ${tone}`}>{value}</p>
         </div>
     );

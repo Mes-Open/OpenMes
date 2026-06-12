@@ -61,12 +61,12 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         className="form-input w-full"
                     />
                 </Field>
-                <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="flex items-center gap-3 text-sm font-medium text-om-muted">
                     <input
                         type="checkbox"
                         checked={data.is_active}
                         onChange={(e) => setData('is_active', e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="w-4 h-4 rounded border-om-line text-om-accent focus:ring-om-accent"
                     />
                     Active (start listening on daemon start)
                 </label>
@@ -129,7 +129,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                             <>
                                 Password
                                 {mqtt?.has_password && (
-                                    <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1">(leave blank to keep current)</span>
+                                    <span className="text-xs text-om-faint font-normal ml-1">(leave blank to keep current)</span>
                                 )}
                             </>
                         }
@@ -148,12 +148,12 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
 
             {/* TLS */}
             <Section title="TLS / Security">
-                <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="flex items-center gap-3 text-sm font-medium text-om-muted">
                     <input
                         type="checkbox"
                         checked={data.use_tls}
                         onChange={(e) => setData('use_tls', e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="w-4 h-4 rounded border-om-line text-om-accent focus:ring-om-accent"
                     />
                     Enable TLS (port 8883)
                 </label>
@@ -215,12 +215,12 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         />
                     </Field>
                 </div>
-                <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="flex items-center gap-3 text-sm font-medium text-om-muted">
                     <input
                         type="checkbox"
                         checked={data.clean_session}
                         onChange={(e) => setData('clean_session', e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="w-4 h-4 rounded border-om-line text-om-accent focus:ring-om-accent"
                     />
                     Clean session (recommended for stateless connections)
                 </label>
@@ -231,13 +231,13 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                 <button
                     type="submit"
                     disabled={processing}
-                    className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="px-5 py-2 bg-om-ink text-white text-sm font-medium rounded-om-sm hover:bg-black transition-colors disabled:opacity-50"
                 >
                     {processing ? 'Saving…' : submitLabel}
                 </button>
                 <a
                     href={cancelHref}
-                    className="px-5 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    className="px-5 py-2 bg-om-chip text-om-muted text-sm font-medium rounded-om-sm hover:bg-om-line2 transition-colors"
                 >
                     Cancel
                 </a>
@@ -245,7 +245,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                     <button
                         type="button"
                         onClick={onDelete}
-                        className="ml-auto px-5 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors"
+                        className="ml-auto px-5 py-2 bg-om-blocked-bg text-om-blocked text-sm font-medium rounded-om-sm hover:bg-om-blocked-bg transition-colors"
                     >
                         Delete Connection
                     </button>
@@ -257,8 +257,8 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
 
 function Section({ title, children }) {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">{title}</h2>
+        <div className="bg-om-card rounded-om border border-om-line2 p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wider">{title}</h2>
             {children}
         </div>
     );
@@ -267,11 +267,11 @@ function Section({ title, children }) {
 function Field({ label, required, error, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {label} {required && <span className="text-om-blocked">*</span>}
             </label>
             {children}
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

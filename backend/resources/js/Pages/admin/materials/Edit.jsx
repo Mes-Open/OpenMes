@@ -8,7 +8,7 @@ export default function MaterialEdit() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${material.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Material</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Material</h1>
             <ResourceForm
                 action={`/admin/materials/${material.id}`}
                 method="put"

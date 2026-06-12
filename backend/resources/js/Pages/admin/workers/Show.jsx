@@ -40,11 +40,11 @@ export default function WorkerShow() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-sm text-gray-500">{worker.code}</span>
+                            <span className="font-mono text-sm text-om-muted">{worker.code}</span>
                             {worker.is_active ? (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">{__('Active')}</span>
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-om-running-bg text-om-running">{__('Active')}</span>
                             ) : (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{__('Inactive')}</span>
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-om-chip text-om-muted">{__('Inactive')}</span>
                             )}
                             {worker.personnelClass && (
                                 <span className="px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700">
@@ -52,8 +52,8 @@ export default function WorkerShow() {
                                 </span>
                             )}
                         </div>
-                        <h1 className="text-3xl font-bold text-gray-800 mt-1">{worker.name}</h1>
-                        <p className="text-gray-600 mt-1 text-sm">
+                        <h1 className="text-3xl font-bold text-om-ink mt-1">{worker.name}</h1>
+                        <p className="text-om-muted mt-1 text-sm">
                             {worker.crew && <span>{__('Crew')}: {worker.crew.name} · </span>}
                             {worker.wageGroup && <span>{__('Wage group')}: {worker.wageGroup.name} · </span>}
                             {worker.email && <span>{worker.email}</span>}
@@ -72,8 +72,8 @@ export default function WorkerShow() {
                 <section className="card">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                         <div>
-                            <h2 className="text-lg font-semibold text-gray-700">{__('Certifications')}</h2>
-                            <p className="text-xs text-gray-500">{__('ISA-95 Personnel Capability — issued skill certifications with validity windows.')}</p>
+                            <h2 className="text-lg font-semibold text-om-muted">{__('Certifications')}</h2>
+                            <p className="text-xs text-om-muted">{__('ISA-95 Personnel Capability — issued skill certifications with validity windows.')}</p>
                         </div>
                         <button
                             type="button"
@@ -88,12 +88,12 @@ export default function WorkerShow() {
                     </div>
 
                     {certifications.length === 0 ? (
-                        <p className="text-sm text-gray-500 italic">{__('No certifications recorded.')}</p>
+                        <p className="text-sm text-om-muted italic">{__('No certifications recorded.')}</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full text-sm">
                                 <thead>
-                                    <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
+                                    <tr className="text-left text-xs uppercase tracking-wide text-om-muted border-b">
                                         <th className="py-2 pr-3">{__('Skill')}</th>
                                         <th className="py-2 pr-3">{__('Cert level')}</th>
                                         <th className="py-2 pr-3">{__('From')}</th>
@@ -103,29 +103,29 @@ export default function WorkerShow() {
                                         <th className="py-2 pr-3 text-right">{__('Actions')}</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
+                                <tbody className="divide-y divide-om-line2">
                                     {certifications.map((cert) => (
                                         <tr key={cert.skill_id}>
                                             <td className="py-2 pr-3">
-                                                <div className="font-medium text-gray-800">{cert.skill_name}</div>
-                                                <div className="text-xs font-mono text-gray-500">{cert.skill_code}</div>
+                                                <div className="font-medium text-om-ink">{cert.skill_name}</div>
+                                                <div className="text-xs font-mono text-om-muted">{cert.skill_code}</div>
                                             </td>
                                             <td className="py-2 pr-3">
                                                 <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium">
                                                     {capitalize(cert.cert_level)}
                                                 </span>
                                             </td>
-                                            <td className="py-2 pr-3 text-gray-700">{cert.certified_from ?? '—'}</td>
-                                            <td className="py-2 pr-3 text-gray-700">{cert.certified_until ?? __('Never')}</td>
+                                            <td className="py-2 pr-3 text-om-muted">{cert.certified_from ?? '—'}</td>
+                                            <td className="py-2 pr-3 text-om-muted">{cert.certified_until ?? __('Never')}</td>
                                             <td className="py-2 pr-3">
                                                 <StatusBadge status={cert.status} />
                                             </td>
-                                            <td className="py-2 pr-3 text-xs text-gray-500">{cert.cert_notes}</td>
+                                            <td className="py-2 pr-3 text-xs text-om-muted">{cert.cert_notes}</td>
                                             <td className="py-2 pr-3 text-right">
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDetach(cert.skill_id)}
-                                                    className="text-red-600 hover:text-red-800 p-1"
+                                                    className="text-om-blocked hover:text-om-blocked p-1"
                                                     title={__('Remove')}
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,17 +149,17 @@ export default function WorkerShow() {
                     onKeyDown={(e) => e.key === 'Escape' && setShowModal(false)}
                 >
                     <div
-                        className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4"
+                        className="bg-om-card rounded-om-sm shadow-xl w-full max-w-lg mx-4"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <form onSubmit={handleAttach}>
-                            <div className="p-5 border-b border-gray-200">
-                                <h3 className="text-lg font-semibold text-gray-800">{__('Add certification')}</h3>
-                                <p className="text-xs text-gray-500 mt-1">{__('Record a skill certification for :name.', { name: worker.name })}</p>
+                            <div className="p-5 border-b border-om-line2">
+                                <h3 className="text-lg font-semibold text-om-ink">{__('Add certification')}</h3>
+                                <p className="text-xs text-om-muted mt-1">{__('Record a skill certification for :name.', { name: worker.name })}</p>
                             </div>
                             <div className="p-5 space-y-4">
                                 <div>
-                                    <label className="form-label">{__('Skill')} <span className="text-red-500">*</span></label>
+                                    <label className="form-label">{__('Skill')} <span className="text-om-blocked">*</span></label>
                                     <select
                                         name="skill_id"
                                         className="form-input w-full"
@@ -174,7 +174,7 @@ export default function WorkerShow() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="form-label">{__('Cert level')} <span className="text-red-500">*</span></label>
+                                    <label className="form-label">{__('Cert level')} <span className="text-om-blocked">*</span></label>
                                     <select
                                         name="cert_level"
                                         className="form-input w-full"
@@ -207,7 +207,7 @@ export default function WorkerShow() {
                                             value={form.certified_until}
                                             onChange={(e) => setForm({ ...form, certified_until: e.target.value })}
                                         />
-                                        <p className="text-xs text-gray-400 mt-1">{__('Leave blank for no expiry.')}</p>
+                                        <p className="text-xs text-om-faint mt-1">{__('Leave blank for no expiry.')}</p>
                                     </div>
                                 </div>
                                 <div>
@@ -222,7 +222,7 @@ export default function WorkerShow() {
                                     />
                                 </div>
                             </div>
-                            <div className="p-5 border-t border-gray-200 flex justify-end gap-2">
+                            <div className="p-5 border-t border-om-line2 flex justify-end gap-2">
                                 <button type="button" onClick={() => setShowModal(false)} className="btn-touch btn-secondary">{__('Cancel')}</button>
                                 <button type="submit" className="btn-touch btn-primary">{__('Save certification')}</button>
                             </div>
@@ -243,10 +243,10 @@ function capitalize(str) {
 
 function StatusBadge({ status }) {
     if (status === 'valid') {
-        return <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">{__('Valid')}</span>;
+        return <span className="px-2 py-0.5 rounded-full text-xs bg-om-running-bg text-om-running">{__('Valid')}</span>;
     }
     if (status === 'expiring') {
-        return <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800">{__('Expires soon')}</span>;
+        return <span className="px-2 py-0.5 rounded-full text-xs bg-om-downtime-bg text-om-downtime">{__('Expires soon')}</span>;
     }
-    return <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">{__('Expired')}</span>;
+    return <span className="px-2 py-0.5 rounded-full text-xs bg-om-blocked-bg text-om-blocked">{__('Expired')}</span>;
 }

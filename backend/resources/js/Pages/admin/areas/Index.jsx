@@ -6,9 +6,9 @@ export default function AreasIndex() {
     const { counts = {}, siteNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'site', label: 'Site', className: 'text-gray-600', render: (r) => siteNames[r.site_id] ?? '—' },
+        { key: 'code', label: 'Code', className: 'font-mono text-om-muted' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
+        { key: 'site', label: 'Site', className: 'text-om-muted', render: (r) => siteNames[r.site_id] ?? '—' },
         { key: 'lines', label: 'Lines', render: (r) => counts[r.id] ?? 0 },
         { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
     ];

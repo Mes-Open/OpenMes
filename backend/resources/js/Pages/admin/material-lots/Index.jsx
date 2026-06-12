@@ -7,16 +7,16 @@ export default function MaterialLotsIndex() {
     const { materialNames = {}, sourceNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'lot_number', label: 'Lot Number', className: 'font-mono text-gray-700' },
-        { key: 'material', label: 'Material', className: 'text-gray-600', render: (r) => materialNames[r.material_id] ?? '—' },
-        { key: 'qty', label: 'Avail / Recv', className: 'text-gray-600', render: (r) => `${r.quantity_available ?? '—'} / ${r.quantity_received ?? '—'}` },
-        { key: 'unit_of_measure', label: 'Unit', className: 'text-gray-600' },
-        { key: 'expiry_date', label: 'Expiry', className: 'text-gray-500', render: (r) => (r.expiry_date ? r.expiry_date.slice(0, 10) : '—') },
+        { key: 'lot_number', label: 'Lot Number', className: 'font-mono text-om-muted' },
+        { key: 'material', label: 'Material', className: 'text-om-muted', render: (r) => materialNames[r.material_id] ?? '—' },
+        { key: 'qty', label: 'Avail / Recv', className: 'text-om-muted', render: (r) => `${r.quantity_available ?? '—'} / ${r.quantity_received ?? '—'}` },
+        { key: 'unit_of_measure', label: 'Unit', className: 'text-om-muted' },
+        { key: 'expiry_date', label: 'Expiry', className: 'text-om-muted', render: (r) => (r.expiry_date ? r.expiry_date.slice(0, 10) : '—') },
         {
             key: 'status',
             label: 'Status',
             render: (r) => (
-                <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
                     {r.status}
                 </span>
             ),

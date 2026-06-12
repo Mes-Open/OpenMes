@@ -22,8 +22,8 @@ export default function CustomFieldsIndex() {
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">{__('Custom Fields')}</h1>
-                        <p className="text-sm text-gray-500 mt-1">{__('Admin-defined fields attached to records across the system.')}</p>
+                        <h1 className="text-3xl font-bold text-om-ink">{__('Custom Fields')}</h1>
+                        <p className="text-sm text-om-muted mt-1">{__('Admin-defined fields attached to records across the system.')}</p>
                     </div>
                     <Link href="/admin/custom-fields/create" className="btn-touch btn-primary text-sm">{__('+ New Custom Field')}</Link>
                 </div>
@@ -37,9 +37,9 @@ export default function CustomFieldsIndex() {
                     </select>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
+                    <table className="min-w-full divide-y divide-om-line2">
+                        <thead className="bg-om-panel">
                             <tr>
                                 <Th>{__('Entity')}</Th>
                                 <Th>{__('Key')}</Th>
@@ -51,33 +51,33 @@ export default function CustomFieldsIndex() {
                                 <Th right>{__('Actions')}</Th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-om-line2">
                             {rows.length === 0 && (
-                                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">{__('No custom fields yet.')}</td></tr>
+                                <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-om-faint">{__('No custom fields yet.')}</td></tr>
                             )}
                             {rows.map((d) => (
-                                <tr key={d.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2 text-sm text-gray-700">{d.entity_label}</td>
-                                    <td className="px-4 py-2 text-sm font-mono text-gray-600">{d.key}</td>
-                                    <td className="px-4 py-2 text-sm font-medium text-gray-800">{d.label}</td>
-                                    <td className="px-4 py-2 text-sm text-gray-600">
+                                <tr key={d.id} className="hover:bg-om-bg">
+                                    <td className="px-4 py-2 text-sm text-om-muted">{d.entity_label}</td>
+                                    <td className="px-4 py-2 text-sm font-mono text-om-muted">{d.key}</td>
+                                    <td className="px-4 py-2 text-sm font-medium text-om-ink">{d.label}</td>
+                                    <td className="px-4 py-2 text-sm text-om-muted">
                                         {d.type_label}
-                                        {d.options_count > 0 && <span className="text-gray-400"> ({d.options_count})</span>}
+                                        {d.options_count > 0 && <span className="text-om-faint"> ({d.options_count})</span>}
                                     </td>
                                     <td className="px-4 py-2 text-center text-sm">{d.required ? __('Yes') : '—'}</td>
-                                    <td className="px-4 py-2 text-center text-sm text-gray-500">{d.position}</td>
+                                    <td className="px-4 py-2 text-center text-sm text-om-muted">{d.position}</td>
                                     <td className="px-4 py-2 text-center">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${d.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${d.is_active ? 'bg-om-running-bg text-om-running' : 'bg-om-chip text-om-muted'}`}>
                                             {d.is_active ? __('Active') : __('Inactive')}
                                         </span>
                                     </td>
                                     <td className="px-4 py-2">
                                         <div className="flex items-center justify-end gap-3 text-sm">
-                                            <Link href={`/admin/custom-fields/${d.id}/edit`} className="text-blue-600 hover:text-blue-800">{__('Edit')}</Link>
-                                            <button type="button" onClick={() => toggle(d)} className="text-gray-600 hover:text-gray-900">
+                                            <Link href={`/admin/custom-fields/${d.id}/edit`} className="text-om-accent hover:text-om-accent">{__('Edit')}</Link>
+                                            <button type="button" onClick={() => toggle(d)} className="text-om-muted hover:text-om-ink">
                                                 {d.is_active ? __('Deactivate') : __('Activate')}
                                             </button>
-                                            <button type="button" onClick={() => destroy(d)} className="text-red-600 hover:text-red-800">{__('Delete')}</button>
+                                            <button type="button" onClick={() => destroy(d)} className="text-om-blocked hover:text-om-blocked">{__('Delete')}</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -92,7 +92,7 @@ export default function CustomFieldsIndex() {
 
 function Th({ children, right, center }) {
     const align = right ? 'text-right' : center ? 'text-center' : 'text-left';
-    return <th className={`px-4 py-2 ${align} text-xs font-medium text-gray-500 uppercase`}>{children}</th>;
+    return <th className={`px-4 py-2 ${align} text-xs font-medium text-om-muted uppercase`}>{children}</th>;
 }
 
 CustomFieldsIndex.layout = (page) => <AppLayout>{page}</AppLayout>;

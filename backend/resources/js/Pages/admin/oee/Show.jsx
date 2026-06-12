@@ -2,15 +2,15 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatNumber } from '../../../lib/i18n';
 
-const KIND_BG = { blue: 'bg-blue-400', amber: 'bg-amber-400', red: 'bg-red-400' };
-const KIND_TEXT = { blue: 'text-blue-700', amber: 'text-amber-700', red: 'text-red-700' };
-const KIND_BADGE = { blue: 'bg-blue-100 text-blue-700', amber: 'bg-amber-100 text-amber-700', red: 'bg-red-100 text-red-700' };
+const KIND_BG = { blue: 'bg-om-accent', amber: 'bg-om-downtime', red: 'bg-om-blocked' };
+const KIND_TEXT = { blue: 'text-om-accent', amber: 'text-om-downtime', red: 'text-om-blocked' };
+const KIND_BADGE = { blue: 'bg-om-chip text-om-accent', amber: 'bg-om-downtime-bg text-om-downtime', red: 'bg-om-blocked-bg text-om-blocked' };
 
 function oeeBand(v) {
-    if (v == null) return 'text-gray-500';
-    if (v >= 85) return 'text-green-600';
-    if (v >= 65) return 'text-yellow-600';
-    return 'text-red-600';
+    if (v == null) return 'text-om-muted';
+    if (v >= 85) return 'text-om-running';
+    if (v >= 65) return 'text-om-downtime';
+    return 'text-om-blocked';
 }
 
 export default function OeeShow() {
@@ -28,8 +28,8 @@ export default function OeeShow() {
                 {/* Header */}
                 <div className="flex justify-between items-start flex-wrap gap-3">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{line.name} — OEE</h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{dateFrom} to {dateTo}</p>
+                        <h1 className="text-3xl font-bold text-om-ink">{line.name} — OEE</h1>
+                        <p className="text-om-muted mt-1 text-sm">{dateFrom} to {dateTo}</p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
                         <a
@@ -57,9 +57,9 @@ export default function OeeShow() {
                 </div>
 
                 {/* Date filters */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-4">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-4">
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">From</label>
                         <input
                             type="date"
                             value={dateFrom ?? ''}
@@ -68,7 +68,7 @@ export default function OeeShow() {
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">To</label>
                         <input
                             type="date"
                             value={dateTo ?? ''}
@@ -80,25 +80,25 @@ export default function OeeShow() {
 
                 {/* Downtime by Reason */}
                 {downtimeByReason.length > 0 && (
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
-                        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Downtime by Reason</h2>
+                    <div className="bg-om-card rounded-om-sm shadow-sm p-5">
+                        <h2 className="text-lg font-bold text-om-ink mb-4">Downtime by Reason</h2>
                         <div className="space-y-2">
                             {downtimeByReason.map((item, i) => {
-                                const bg = KIND_BG[item.kind_color] ?? 'bg-red-400';
-                                const badge = KIND_BADGE[item.kind_color] ?? 'bg-red-100 text-red-700';
+                                const bg = KIND_BG[item.kind_color] ?? 'bg-om-blocked';
+                                const badge = KIND_BADGE[item.kind_color] ?? 'bg-om-blocked-bg text-om-blocked';
                                 const pct = (item.total_minutes / maxMinutes) * 100;
                                 return (
                                     <div key={i} className="flex items-center gap-3">
                                         <div className="w-44 shrink-0">
-                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.reason}</span>
+                                            <span className="text-sm font-medium text-om-muted">{item.reason}</span>
                                             <span className={`text-xs ml-1 px-1.5 py-0.5 rounded font-medium ${badge}`}>{item.kind_label}</span>
                                         </div>
-                                        <div className="flex-1 bg-gray-100 dark:bg-slate-700 rounded-full h-5 overflow-hidden">
+                                        <div className="flex-1 bg-om-chip rounded-full h-5 overflow-hidden">
                                             <div className={`h-full rounded-full ${bg}`} style={{ width: `${pct}%` }} />
                                         </div>
                                         <div className="w-28 text-right shrink-0">
-                                            <span className="text-sm font-mono font-bold text-gray-700 dark:text-gray-300">{item.total_minutes}min</span>
-                                            <span className="text-xs text-gray-400 ml-1">({item.count}×)</span>
+                                            <span className="text-sm font-mono font-bold text-om-muted">{item.total_minutes}min</span>
+                                            <span className="text-xs text-om-faint ml-1">({item.count}×)</span>
                                         </div>
                                     </div>
                                 );
@@ -109,29 +109,29 @@ export default function OeeShow() {
 
                 {/* Records Table */}
                 {records.length > 0 ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5 overflow-hidden">
-                        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Daily Records</h2>
+                    <div className="bg-om-card rounded-om-sm shadow-sm p-5 overflow-hidden">
+                        <h2 className="text-lg font-bold text-om-ink mb-4">Daily Records</h2>
                         <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                                <thead className="bg-gray-50 dark:bg-slate-700">
+                            <table className="min-w-full divide-y divide-om-line2 text-sm">
+                                <thead className="bg-om-panel">
                                     <tr>
                                         {['Date', 'Shift', 'Planned', 'Operating', 'Downtime', 'A%', 'P%', 'Q%', 'OEE%', 'Produced', 'Scrap'].map((h) => (
-                                            <th key={h} className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase ${['Planned', 'Operating', 'Downtime', 'A%', 'P%', 'Q%', 'OEE%', 'Produced', 'Scrap'].includes(h) ? 'text-right' : 'text-left'}`}>
+                                            <th key={h} className={`px-3 py-2 text-xs font-medium text-om-muted uppercase ${['Planned', 'Operating', 'Downtime', 'A%', 'P%', 'Q%', 'OEE%', 'Produced', 'Scrap'].includes(h) ? 'text-right' : 'text-left'}`}>
                                                 {h}
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                <tbody className="divide-y divide-om-line2">
                                     {records.map((r, i) => {
                                         const oeeClass = oeeBand(r.oee_pct != null ? Number(r.oee_pct) : null);
                                         return (
                                             <tr key={i}>
                                                 <td className="px-3 py-2 font-mono">{r.record_date}</td>
-                                                <td className="px-3 py-2 text-gray-500">{r.shift?.name ?? 'All'}</td>
+                                                <td className="px-3 py-2 text-om-muted">{r.shift?.name ?? 'All'}</td>
                                                 <td className="px-3 py-2 text-right font-mono">{r.planned_minutes}min</td>
                                                 <td className="px-3 py-2 text-right font-mono">{r.operating_minutes}min</td>
-                                                <td className="px-3 py-2 text-right font-mono text-red-600">{r.downtime_minutes}min</td>
+                                                <td className="px-3 py-2 text-right font-mono text-om-blocked">{r.downtime_minutes}min</td>
                                                 <td className="px-3 py-2 text-right">{r.availability_pct != null ? Number(r.availability_pct).toFixed(1) + '%' : '—'}</td>
                                                 <td className="px-3 py-2 text-right">{r.performance_pct != null ? Number(r.performance_pct).toFixed(1) + '%' : '—'}</td>
                                                 <td className="px-3 py-2 text-right">{r.quality_pct != null ? Number(r.quality_pct).toFixed(1) + '%' : '—'}</td>
@@ -148,8 +148,8 @@ export default function OeeShow() {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-8 text-center">
-                        <p className="text-gray-500">No OEE records for this period.</p>
+                    <div className="bg-om-card rounded-om-sm shadow-sm p-8 text-center">
+                        <p className="text-om-muted">No OEE records for this period.</p>
                     </div>
                 )}
             </div>

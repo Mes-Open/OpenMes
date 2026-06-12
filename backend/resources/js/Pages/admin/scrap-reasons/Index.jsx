@@ -9,9 +9,9 @@ export default function ScrapReasonsIndex() {
     const categoryLabels = Object.fromEntries(scrapCategoryOptions().map((c) => [c.value, c.label]));
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
-        { key: 'category', label: __('Category'), className: 'text-gray-600', render: (r) => categoryLabels[r.category] ?? r.category },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'category', label: __('Category'), className: 'text-om-muted', render: (r) => categoryLabels[r.category] ?? r.category },
         { key: 'scrap_entries', label: __('Used'), align: 'right', render: (r) => counts[r.id] ?? 0 },
         { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
@@ -24,7 +24,7 @@ export default function ScrapReasonsIndex() {
         },
         {
             label: __('Delete'),
-            className: 'text-red-600 hover:underline',
+            className: 'text-om-blocked hover:underline',
             onClick: () => {
                 if (confirm(__('Delete scrap reason ":name"?', { name: r.name }))) {
                     router.delete(`/admin/scrap-reasons/${r.id}`, { preserveScroll: true });

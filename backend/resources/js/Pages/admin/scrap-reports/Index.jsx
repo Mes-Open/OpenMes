@@ -32,12 +32,12 @@ export default function ScrapReportsIndex() {
             <Head title="Scrap Reports" />
             <div className="max-w-7xl mx-auto space-y-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Scrap Reports</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Which reasons cause the most scrap (Pareto), and scrap rate per line.</p>
+                    <h1 className="text-3xl font-bold text-om-ink">Scrap Reports</h1>
+                    <p className="text-om-muted mt-1 text-sm">Which reasons cause the most scrap (Pareto), and scrap rate per line.</p>
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-4">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-4">
                     <Filter label="Line">
                         <select value={lineId ?? ''} onChange={(e) => apply({ line_id: e.target.value })} className="form-input py-1.5 text-sm min-w-[160px]">
                             <option value="">All Lines</option>
@@ -67,31 +67,31 @@ export default function ScrapReportsIndex() {
                             <div className="space-y-2 mb-6">
                                 {reasons.map((r) => (
                                     <div key={r.scrap_reason_id} className="flex items-center gap-3 text-sm">
-                                        <span className="w-44 shrink-0 truncate text-gray-700 dark:text-gray-200" title={r.name}>{r.name}</span>
-                                        <div className="flex-1 h-5 bg-gray-100 dark:bg-slate-700 rounded">
-                                            <div className="h-5 bg-red-500 rounded" style={{ width: `${(num(r.qty) / maxQty) * 100}%` }} />
+                                        <span className="w-44 shrink-0 truncate text-om-muted" title={r.name}>{r.name}</span>
+                                        <div className="flex-1 h-5 bg-om-chip rounded">
+                                            <div className="h-5 bg-om-blocked rounded" style={{ width: `${(num(r.qty) / maxQty) * 100}%` }} />
                                         </div>
-                                        <span className="w-28 shrink-0 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                                            {fmt(r.qty)} <span className="text-gray-400">({num(r.pct).toFixed(1)}%)</span>
+                                        <span className="w-28 shrink-0 text-right tabular-nums text-om-muted">
+                                            {fmt(r.qty)} <span className="text-om-faint">({num(r.pct).toFixed(1)}%)</span>
                                         </span>
                                     </div>
                                 ))}
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
+                                <table className="min-w-full text-sm divide-y divide-om-line2">
                                     <thead>
                                         <tr>
                                             {['Code', 'Reason', 'Category', 'Quantity', '% of Total', 'Cumulative %'].map((h, i) => (
-                                                <th key={h} className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase ${i >= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
+                                                <th key={h} className={`px-3 py-2 text-xs font-medium text-om-muted uppercase ${i >= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                    <tbody className="divide-y divide-om-line2">
                                         {reasons.map((r) => (
                                             <tr key={r.scrap_reason_id}>
-                                                <td className="px-3 py-2 font-mono text-gray-600 dark:text-gray-300">{r.code}</td>
-                                                <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-100">{r.name}</td>
-                                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{CATEGORY_LABELS[r.category] ?? r.category}</td>
+                                                <td className="px-3 py-2 font-mono text-om-muted">{r.code}</td>
+                                                <td className="px-3 py-2 font-medium text-om-ink">{r.name}</td>
+                                                <td className="px-3 py-2 text-om-muted">{CATEGORY_LABELS[r.category] ?? r.category}</td>
                                                 <td className="px-3 py-2 text-right tabular-nums">{fmt(r.qty)}</td>
                                                 <td className="px-3 py-2 text-right tabular-nums">{num(r.pct).toFixed(1)}%</td>
                                                 <td className="px-3 py-2 text-right tabular-nums">{num(r.cumulative_pct).toFixed(1)}%</td>
@@ -108,18 +108,18 @@ export default function ScrapReportsIndex() {
                 <Card title="Scrap rate per line">
                     {ratePerLine.length === 0 ? <Empty>No data.</Empty> : (
                         <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
+                            <table className="min-w-full text-sm divide-y divide-om-line2">
                                 <thead>
                                     <tr>
                                         {['Line', 'Scrap', 'Produced', 'Scrap rate'].map((h, i) => (
-                                            <th key={h} className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase ${i >= 1 ? 'text-right' : 'text-left'}`}>{h}</th>
+                                            <th key={h} className={`px-3 py-2 text-xs font-medium text-om-muted uppercase ${i >= 1 ? 'text-right' : 'text-left'}`}>{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                <tbody className="divide-y divide-om-line2">
                                     {ratePerLine.map((r) => (
                                         <tr key={r.line_id}>
-                                            <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-100">{r.line_name}</td>
+                                            <td className="px-3 py-2 font-medium text-om-ink">{r.line_name}</td>
                                             <td className="px-3 py-2 text-right tabular-nums">{fmt(r.scrap_qty)}</td>
                                             <td className="px-3 py-2 text-right tabular-nums">{fmt(r.produced_qty)}</td>
                                             <td className="px-3 py-2 text-right tabular-nums font-medium">
@@ -144,7 +144,7 @@ ScrapReportsIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 function Filter({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+            <label className="block text-xs font-medium text-om-muted mb-1">{label}</label>
             {children}
         </div>
     );
@@ -152,23 +152,23 @@ function Filter({ label, children }) {
 
 function Kpi({ label, value, sub }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate" title={String(value)}>{value}</p>
-            {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+        <div className="bg-om-card rounded-om-sm shadow-sm p-5">
+            <p className="text-sm text-om-muted">{label}</p>
+            <p className="text-2xl font-bold text-om-ink truncate" title={String(value)}>{value}</p>
+            {sub && <p className="text-xs text-om-muted mt-0.5">{sub}</p>}
         </div>
     );
 }
 
 function Card({ title, children }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
-            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">{title}</h2>
+        <div className="bg-om-card rounded-om-sm shadow-sm p-5">
+            <h2 className="text-lg font-bold text-om-ink mb-4">{title}</h2>
             {children}
         </div>
     );
 }
 
 function Empty({ children }) {
-    return <p className="text-gray-500 text-center py-8">{children}</p>;
+    return <p className="text-om-muted text-center py-8">{children}</p>;
 }

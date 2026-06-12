@@ -9,7 +9,7 @@ export default function SubassemblyCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Subassembly" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New Subassembly</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">New Subassembly</h1>
             <ResourceForm
                 action="/admin/subassemblies"
                 method="post"

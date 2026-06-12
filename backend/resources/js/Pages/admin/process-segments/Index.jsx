@@ -6,11 +6,11 @@ export default function ProcessSegmentsIndex() {
     const { workstationTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'segment_type', label: 'Type', className: 'text-gray-600', render: (r) => r.segment_type },
-        { key: 'wstype', label: 'Workstation Type', className: 'text-gray-600', render: (r) => workstationTypeNames[r.workstation_type_id] ?? '—' },
-        { key: 'required_operators', label: 'Operators', className: 'text-gray-600' },
+        { key: 'code', label: 'Code', className: 'font-mono text-om-muted' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
+        { key: 'segment_type', label: 'Type', className: 'text-om-muted', render: (r) => r.segment_type },
+        { key: 'wstype', label: 'Workstation Type', className: 'text-om-muted', render: (r) => workstationTypeNames[r.workstation_type_id] ?? '—' },
+        { key: 'required_operators', label: 'Operators', className: 'text-om-muted' },
         { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 

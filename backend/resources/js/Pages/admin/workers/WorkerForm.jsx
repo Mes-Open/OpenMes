@@ -28,7 +28,7 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
     };
 
     return (
-        <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-sm p-6 max-w-3xl space-y-5">
+        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             <div className="grid grid-cols-2 gap-4">
                 <Field label={__('Code')} error={errors.code} required>
                     <input type="text" value={data.code} onChange={(e) => setData('code', e.target.value)} className="form-input w-full" />
@@ -63,7 +63,7 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
             </div>
 
             <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">{__('Compensation')}</h3>
+                <h3 className="text-sm font-semibold text-om-muted mb-2">{__('Compensation')}</h3>
                 <div className="grid grid-cols-2 gap-4">
                     <Field label={__('Pay type')} error={errors.pay_type}>
                         <select value={data.pay_type ?? ''} onChange={(e) => setData('pay_type', e.target.value)} className="form-input w-full">
@@ -77,24 +77,24 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
                         <input type="number" step="0.0001" min="0" value={data.pay_rate ?? ''} onChange={(e) => setData('pay_rate', e.target.value)} className="form-input w-full" />
                     </Field>
                 </div>
-                <p className="mt-1 text-xs text-gray-400">{__('Hourly/weekly: rate per hour/week. Piece rate: amount per produced piece. Currency is set system-wide in Settings.')}</p>
+                <p className="mt-1 text-xs text-om-faint">{__('Hourly/weekly: rate per hour/week. Piece rate: amount per produced piece. Currency is set system-wide in Settings.')}</p>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-om-muted">
                 <input type="checkbox" checked={!!data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
                 {__('Active')}
             </label>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{__('Skills & level (1-5)')}</label>
-                <div className="border border-gray-200 rounded divide-y">
-                    {skills.length === 0 && <p className="px-3 py-2 text-sm text-gray-400">{__('No skills defined.')}</p>}
+                <label className="block text-sm font-medium text-om-muted mb-2">{__('Skills & level (1-5)')}</label>
+                <div className="border border-om-line2 rounded divide-y">
+                    {skills.length === 0 && <p className="px-3 py-2 text-sm text-om-faint">{__('No skills defined.')}</p>}
                     {skills.map((skill) => {
                         const id = String(skill.id);
                         const on = selectedSkills.has(id);
                         return (
                             <div key={skill.id} className="flex items-center gap-3 px-3 py-2">
-                                <label className="flex items-center gap-2 flex-1 text-sm text-gray-700">
+                                <label className="flex items-center gap-2 flex-1 text-sm text-om-muted">
                                     <input type="checkbox" checked={on} onChange={(e) => toggleSkill(skill.id, e.target.checked)} />
                                     {skill.name}
                                 </label>
@@ -112,10 +112,10 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
             {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
                     {processing ? __('Saving…') : isEdit ? __('Save Changes') : __('Create Worker')}
                 </button>
-                <Link href="/admin/workers" className="text-gray-500 hover:text-gray-800 text-sm">{__('Cancel')}</Link>
+                <Link href="/admin/workers" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
             </div>
         </form>
     );
@@ -124,11 +124,11 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
 function Field({ label, error, required, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {label} {required && <span className="text-om-blocked">*</span>}
             </label>
             {children}
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

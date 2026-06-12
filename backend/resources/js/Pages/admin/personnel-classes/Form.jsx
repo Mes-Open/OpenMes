@@ -37,7 +37,7 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
     };
 
     return (
-        <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-sm p-6 max-w-3xl space-y-5">
+        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             <Field label={__('Code')} error={errors.code} required>
                 <input type="text" value={data.code} onChange={(e) => setData('code', e.target.value)} className="form-input w-full" autoFocus />
             </Field>
@@ -49,15 +49,15 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
             </Field>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{__('Required skills & minimum level')}</label>
-                <div className="border border-gray-200 rounded-lg divide-y">
-                    {skills.length === 0 && <p className="px-3 py-3 text-sm text-gray-400">{__('No skills defined.')}</p>}
+                <label className="block text-sm font-medium text-om-muted mb-2">{__('Required skills & minimum level')}</label>
+                <div className="border border-om-line2 rounded-om-sm divide-y">
+                    {skills.length === 0 && <p className="px-3 py-3 text-sm text-om-faint">{__('No skills defined.')}</p>}
                     {skills.map((skill) => {
                         const id = String(skill.id);
                         const isOn = selected.has(id);
                         return (
                             <div key={skill.id} className="flex items-center gap-3 px-3 py-2">
-                                <label className="flex items-center gap-2 flex-1 text-sm text-gray-700">
+                                <label className="flex items-center gap-2 flex-1 text-sm text-om-muted">
                                     <input type="checkbox" checked={isOn} onChange={(e) => toggleSkill(skill.id, e.target.checked)} />
                                     {skill.name}
                                 </label>
@@ -76,19 +76,19 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
                         );
                     })}
                 </div>
-                {errors.required_skill_ids && <p className="mt-1 text-xs text-red-600">{errors.required_skill_ids}</p>}
+                {errors.required_skill_ids && <p className="mt-1 text-xs text-om-blocked">{errors.required_skill_ids}</p>}
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-om-muted">
                 <input type="checkbox" checked={!!data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
                 {__('Active')}
             </label>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
                     {processing ? __('Saving…') : submitLabel}
                 </button>
-                <Link href="/admin/personnel-classes" className="text-gray-500 hover:text-gray-800 text-sm">{__('Cancel')}</Link>
+                <Link href="/admin/personnel-classes" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
             </div>
         </form>
     );
@@ -97,11 +97,11 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
 function Field({ label, error, required, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {label} {required && <span className="text-om-blocked">*</span>}
             </label>
             {children}
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

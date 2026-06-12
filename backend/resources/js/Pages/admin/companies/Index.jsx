@@ -4,10 +4,10 @@ import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
 
 export default function CompaniesIndex() {
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'type', label: 'Type', className: 'text-gray-600' },
-        { key: 'email', label: 'Email', className: 'text-gray-600' },
+        { key: 'code', label: 'Code', className: 'font-mono text-om-muted' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
+        { key: 'type', label: 'Type', className: 'text-om-muted' },
+        { key: 'email', label: 'Email', className: 'text-om-muted' },
         { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 

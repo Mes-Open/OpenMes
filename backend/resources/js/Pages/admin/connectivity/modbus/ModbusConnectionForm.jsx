@@ -42,8 +42,8 @@ export default function ModbusConnectionForm({ action, method, submitLabel, canc
                 <Field label={__('Description')} error={errors.description}>
                     <textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
                 </Field>
-                <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    <input type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <label className="flex items-center gap-3 text-sm font-medium text-om-muted">
+                    <input type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} className="w-4 h-4 rounded border-om-line text-om-accent focus:ring-om-accent" />
                     {__('Active (start polling on daemon start)')}
                 </label>
             </Section>
@@ -88,14 +88,14 @@ export default function ModbusConnectionForm({ action, method, submitLabel, canc
             </Section>
 
             <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={processing} className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                <button type="submit" disabled={processing} className="px-5 py-2 bg-om-ink text-white text-sm font-medium rounded-om-sm hover:bg-black transition-colors disabled:opacity-50">
                     {processing ? __('Saving…') : submitLabel}
                 </button>
-                <Link href={cancelHref} className="px-5 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                <Link href={cancelHref} className="px-5 py-2 bg-om-chip text-om-muted text-sm font-medium rounded-om-sm hover:bg-om-line2 transition-colors">
                     {__('Cancel')}
                 </Link>
                 {onDelete && (
-                    <button type="button" onClick={onDelete} className="ml-auto px-5 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors">
+                    <button type="button" onClick={onDelete} className="ml-auto px-5 py-2 bg-om-blocked-bg text-om-blocked text-sm font-medium rounded-om-sm hover:bg-om-blocked-bg transition-colors">
                         {__('Delete Connection')}
                     </button>
                 )}

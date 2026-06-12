@@ -7,7 +7,7 @@ export default function CompanyCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Company" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New Company</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">New Company</h1>
             <ResourceForm
                 action="/admin/companies"
                 method="post"

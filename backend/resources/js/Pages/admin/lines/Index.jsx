@@ -6,9 +6,9 @@ export default function LinesIndex() {
     const { counts = {}, areaNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'area', label: 'Area', className: 'text-gray-600', render: (r) => areaNames[r.area_id] ?? '—' },
+        { key: 'code', label: 'Code', className: 'font-mono text-om-muted' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
+        { key: 'area', label: 'Area', className: 'text-om-muted', render: (r) => areaNames[r.area_id] ?? '—' },
         { key: 'ws', label: 'Stations', render: (r) => counts[r.id]?.workstations ?? 0 },
         { key: 'wo', label: 'Work Orders', render: (r) => counts[r.id]?.work_orders ?? 0 },
         { key: 'ops', label: 'Operators', render: (r) => counts[r.id]?.operators ?? 0 },

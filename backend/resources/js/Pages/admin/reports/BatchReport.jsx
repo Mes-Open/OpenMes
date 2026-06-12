@@ -3,17 +3,17 @@ import AppLayout from '../../../layouts/AppLayout';
 
 function PassBadge({ pass }) {
     return pass
-        ? <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">PASS</span>
-        : <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700">FAIL</span>;
+        ? <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-om-running-bg text-om-running">PASS</span>
+        : <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-om-blocked-bg text-om-blocked">FAIL</span>;
 }
 
 function StatusBadge({ status }) {
     const styles = {
-        DONE: 'bg-green-100 text-green-700',
-        IN_PROGRESS: 'bg-blue-100 text-blue-700',
+        DONE: 'bg-om-running-bg text-om-running',
+        IN_PROGRESS: 'bg-om-chip text-om-accent',
     };
     return (
-        <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${styles[status] ?? 'bg-gray-100 text-gray-600'}`}>
+        <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${styles[status] ?? 'bg-om-chip text-om-muted'}`}>
             {status}
         </span>
     );
@@ -33,7 +33,7 @@ export default function BatchReport() {
                     <button
                         type="button"
                         onClick={() => window.history.back()}
-                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        className="inline-flex items-center gap-2 text-om-accent hover:text-om-accent text-sm font-medium"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -79,29 +79,29 @@ export default function BatchReport() {
                 {bom.length > 0 && (
                     <Section title="Materials (BOM)">
                         <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-slate-700">
+                            <table className="min-w-full text-sm divide-y divide-om-line2">
+                                <thead className="bg-om-panel">
                                     <tr>
                                         {['Material', 'Code', 'Type', 'Qty/Unit', 'Total', 'Unit', 'Supplier LOT'].map((h) => (
-                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-om-muted uppercase">{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                <tbody className="divide-y divide-om-line2">
                                     {bom.map((item, i) => (
                                         <tr key={i}>
                                             <td className="px-3 py-2 font-medium">{item.material_name}</td>
-                                            <td className="px-3 py-2 font-mono text-gray-600">{item.material_code}</td>
-                                            <td className="px-3 py-2 text-gray-600">{item.material_type?.replace(/_/g, ' ')}</td>
+                                            <td className="px-3 py-2 font-mono text-om-muted">{item.material_code}</td>
+                                            <td className="px-3 py-2 text-om-muted">{item.material_type?.replace(/_/g, ' ')}</td>
                                             <td className="px-3 py-2 text-right font-mono">{item.quantity_per_unit}</td>
                                             <td className="px-3 py-2 text-right font-mono font-bold">
                                                 {item.total_qty}
                                                 {item.scrap_percentage > 0 && (
-                                                    <span className="text-xs text-gray-400 ml-1">(+{item.scrap_percentage}%)</span>
+                                                    <span className="text-xs text-om-faint ml-1">(+{item.scrap_percentage}%)</span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2 text-gray-600">{item.unit_of_measure}</td>
-                                            <td className="px-3 py-2 text-gray-400 font-mono">{item.external_code ?? '—'}</td>
+                                            <td className="px-3 py-2 text-om-muted">{item.unit_of_measure}</td>
+                                            <td className="px-3 py-2 text-om-faint font-mono">{item.external_code ?? '—'}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -113,26 +113,26 @@ export default function BatchReport() {
                 {/* Production Steps */}
                 <Section title="Production Steps">
                     {steps.length === 0 ? (
-                        <p className="text-gray-400 text-sm">No steps recorded.</p>
+                        <p className="text-om-faint text-sm">No steps recorded.</p>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-slate-700">
+                            <table className="min-w-full text-sm divide-y divide-om-line2">
+                                <thead className="bg-om-panel">
                                     <tr>
                                         {['#', 'Step', 'Started', 'Started By', 'Completed', 'Completed By', 'Duration', 'Status'].map((h) => (
-                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-om-muted uppercase">{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                <tbody className="divide-y divide-om-line2">
                                     {steps.map((step, i) => (
                                         <tr key={step.id ?? i}>
-                                            <td className="px-3 py-2 font-mono text-gray-500">{step.step_number}</td>
+                                            <td className="px-3 py-2 font-mono text-om-muted">{step.step_number}</td>
                                             <td className="px-3 py-2 font-medium">{step.name}</td>
-                                            <td className="px-3 py-2 text-gray-500 font-mono text-xs">{step.started_at ?? '—'}</td>
-                                            <td className="px-3 py-2 text-gray-600">{step.started_by?.name ?? '—'}</td>
-                                            <td className="px-3 py-2 text-gray-500 font-mono text-xs">{step.completed_at ?? '—'}</td>
-                                            <td className="px-3 py-2 text-gray-600">{step.completed_by?.name ?? '—'}</td>
+                                            <td className="px-3 py-2 text-om-muted font-mono text-xs">{step.started_at ?? '—'}</td>
+                                            <td className="px-3 py-2 text-om-muted">{step.started_by?.name ?? '—'}</td>
+                                            <td className="px-3 py-2 text-om-muted font-mono text-xs">{step.completed_at ?? '—'}</td>
+                                            <td className="px-3 py-2 text-om-muted">{step.completed_by?.name ?? '—'}</td>
                                             <td className="px-3 py-2 text-right font-mono">{step.duration_minutes ? `${step.duration_minutes} min` : '—'}</td>
                                             <td className="px-3 py-2"><StatusBadge status={step.status} /></td>
                                         </tr>
@@ -147,22 +147,22 @@ export default function BatchReport() {
                 {confirmations.length > 0 && (
                     <Section title="Process Confirmations">
                         <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-slate-700">
+                            <table className="min-w-full text-sm divide-y divide-om-line2">
+                                <thead className="bg-om-panel">
                                     <tr>
                                         {['Date & Time', 'Type', 'Value', 'Confirmed By', 'Notes'].map((h) => (
-                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-om-muted uppercase">{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                <tbody className="divide-y divide-om-line2">
                                     {confirmations.map((c, i) => (
                                         <tr key={c.id ?? i}>
                                             <td className="px-3 py-2 font-mono text-xs">{c.confirmed_at}</td>
                                             <td className="px-3 py-2 capitalize">{c.confirmation_type}</td>
                                             <td className="px-3 py-2 font-mono">{c.value ?? '—'}</td>
                                             <td className="px-3 py-2">{c.confirmed_by?.name ?? '—'}</td>
-                                            <td className="px-3 py-2 text-gray-500">{c.notes ?? '—'}</td>
+                                            <td className="px-3 py-2 text-om-muted">{c.notes ?? '—'}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -176,25 +176,25 @@ export default function BatchReport() {
                     <Section title={`Quality Checks (${qualityChecks.length})`}>
                         <div className="space-y-4">
                             {qualityChecks.map((qc, qi) => (
-                                <div key={qc.id ?? qi} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                                    <div className="bg-gray-50 dark:bg-slate-700 px-4 py-2 flex flex-wrap gap-3 items-center text-sm">
+                                <div key={qc.id ?? qi} className="border border-om-line2 rounded-om-sm overflow-hidden">
+                                    <div className="bg-om-panel px-4 py-2 flex flex-wrap gap-3 items-center text-sm">
                                         <span className="font-bold">Check #{qi + 1}</span>
-                                        <span className="text-gray-500 font-mono text-xs">{qc.checked_at}</span>
-                                        <span className="text-gray-600">By: {qc.checked_by?.name ?? '—'}</span>
+                                        <span className="text-om-muted font-mono text-xs">{qc.checked_at}</span>
+                                        <span className="text-om-muted">By: {qc.checked_by?.name ?? '—'}</span>
                                         {qc.production_quantity != null && (
-                                            <span className="text-gray-600">Production: {Number(qc.production_quantity).toFixed(0)} pcs</span>
+                                            <span className="text-om-muted">Production: {Number(qc.production_quantity).toFixed(0)} pcs</span>
                                         )}
                                         <PassBadge pass={qc.all_passed} />
                                     </div>
-                                    <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                        <thead className="bg-gray-50 dark:bg-slate-700">
+                                    <table className="min-w-full text-sm divide-y divide-om-line2">
+                                        <thead className="bg-om-panel">
                                             <tr>
                                                 {['Sample #', 'Parameter', 'Value', 'Result'].map((h) => (
-                                                    <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                                    <th key={h} className="px-3 py-2 text-left text-xs font-medium text-om-muted uppercase">{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                        <tbody className="divide-y divide-om-line2">
                                             {(qc.samples ?? []).map((s, si) => (
                                                 <tr key={s.id ?? si}>
                                                     <td className="px-3 py-2 font-mono">{s.sample_number}</td>
@@ -222,11 +222,11 @@ export default function BatchReport() {
                             ['Labels readable', <PassBadge key="lbl" pass={checklist.labels_readable} />],
                             ['Label matches product', <PassBadge key="match" pass={checklist.label_matches_product} />],
                             ['Overall', checklist.all_passed
-                                ? <span key="overall" className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">ALL PASS</span>
-                                : <span key="overall" className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700">FAILED</span>
+                                ? <span key="overall" className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-om-running-bg text-om-running">ALL PASS</span>
+                                : <span key="overall" className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-om-blocked-bg text-om-blocked">FAILED</span>
                             ],
                         ]} />
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-xs text-om-faint mt-2">
                             Checked by: {checklist.checked_by?.name ?? '—'} | {checklist.checked_at ?? '—'}
                         </p>
                     </Section>
@@ -242,9 +242,9 @@ BatchReport.layout = (page) => <AppLayout>{page}</AppLayout>;
 
 function Section({ title, children }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700">
-                <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{title}</h2>
+        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-om-line2">
+                <h2 className="text-base font-bold text-om-ink">{title}</h2>
             </div>
             <div className="p-5">{children}</div>
         </div>
@@ -256,9 +256,9 @@ function InfoTable({ rows }) {
         <table className="w-full text-sm">
             <tbody>
                 {rows.map(([label, value], i) => (
-                    <tr key={i} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
-                        <td className="py-2 pr-4 text-gray-500 font-medium w-2/5">{label}</td>
-                        <td className="py-2 text-gray-800 dark:text-gray-200">{value}</td>
+                    <tr key={i} className="border-b border-om-line2 last:border-0">
+                        <td className="py-2 pr-4 text-om-muted font-medium w-2/5">{label}</td>
+                        <td className="py-2 text-om-ink">{value}</td>
                     </tr>
                 ))}
             </tbody>

@@ -7,12 +7,12 @@ export default function MaterialsIndex() {
     const { counts = {}, materialTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'type', label: 'Type', className: 'text-gray-600', render: (r) => materialTypeNames[r.material_type_id] ?? '—' },
-        { key: 'unit_of_measure', label: 'UoM', className: 'text-gray-600' },
-        { key: 'tracking_type', label: 'Tracking', className: 'text-gray-600', render: (r) => TRACKING_LABELS[r.tracking_type] ?? r.tracking_type ?? '—' },
-        { key: 'stock_quantity', label: 'Stock', className: 'text-gray-600', render: (r) => (r.stock_quantity ?? '—') },
+        { key: 'code', label: 'Code', className: 'font-mono text-om-muted' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
+        { key: 'type', label: 'Type', className: 'text-om-muted', render: (r) => materialTypeNames[r.material_type_id] ?? '—' },
+        { key: 'unit_of_measure', label: 'UoM', className: 'text-om-muted' },
+        { key: 'tracking_type', label: 'Tracking', className: 'text-om-muted', render: (r) => TRACKING_LABELS[r.tracking_type] ?? r.tracking_type ?? '—' },
+        { key: 'stock_quantity', label: 'Stock', className: 'text-om-muted', render: (r) => (r.stock_quantity ?? '—') },
         { key: 'bom', label: 'In BOMs', render: (r) => counts[r.id] ?? 0 },
         { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
     ];

@@ -24,7 +24,7 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
     };
 
     return (
-        <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-sm p-6 max-w-3xl space-y-5">
+        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             <Field label="Code" error={errors.code} required>
                 <input type="text" value={data.code} onChange={(e) => setData('code', e.target.value)} className="form-input w-full" autoFocus />
             </Field>
@@ -65,17 +65,17 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
             </Field>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Required skills</label>
-                <div className="border border-gray-200 rounded-lg divide-y">
-                    {skills.length === 0 && <p className="px-3 py-3 text-sm text-gray-400">No skills defined.</p>}
+                <label className="block text-sm font-medium text-om-muted mb-2">Required skills</label>
+                <div className="border border-om-line2 rounded-om-sm divide-y">
+                    {skills.length === 0 && <p className="px-3 py-3 text-sm text-om-faint">No skills defined.</p>}
                     {skills.map((skill) => (
-                        <label key={skill.id} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700">
+                        <label key={skill.id} className="flex items-center gap-2 px-3 py-2 text-sm text-om-muted">
                             <input type="checkbox" checked={selected.has(Number(skill.id))} onChange={(e) => toggleSkill(skill.id, e.target.checked)} />
                             {skill.name}
                         </label>
                     ))}
                 </div>
-                {errors.required_skill_ids && <p className="mt-1 text-xs text-red-600">{errors.required_skill_ids}</p>}
+                {errors.required_skill_ids && <p className="mt-1 text-xs text-om-blocked">{errors.required_skill_ids}</p>}
             </div>
 
             <Field label="Parameters (JSON)" error={errors.parameters_raw}>
@@ -88,10 +88,10 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
             </Field>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
                     {processing ? 'Saving…' : submitLabel}
                 </button>
-                <Link href="/admin/process-segments" className="text-gray-500 hover:text-gray-800 text-sm">Cancel</Link>
+                <Link href="/admin/process-segments" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
             </div>
         </form>
     );
@@ -100,11 +100,11 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
 function Field({ label, error, required, children }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {label} {required && <span className="text-om-blocked">*</span>}
             </label>
             {children}
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

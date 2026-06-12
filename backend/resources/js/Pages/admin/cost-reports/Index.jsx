@@ -69,8 +69,8 @@ export default function CostReportsIndex() {
             <div className="max-w-7xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Production Cost Report')}</h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                        <h1 className="text-3xl font-bold text-om-ink">{__('Production Cost Report')}</h1>
+                        <p className="text-om-muted mt-1">
                             {__('Material, labor and additional cost per finished work order.')}
                         </p>
                     </div>
@@ -80,13 +80,13 @@ export default function CostReportsIndex() {
                 </div>
 
                 {summary.mixed_currency && (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-2">
+                    <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2">
                         {__('Mixed currencies - totals are summed without conversion.')}
                     </div>
                 )}
 
                 {summary.limited && (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-2">
+                    <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2">
                         {__('Large result set: summary totals cover the first 10000 orders. Narrow the filters for an exact total.')}
                     </div>
                 )}
@@ -112,10 +112,10 @@ export default function CostReportsIndex() {
                             key={p}
                             type="button"
                             onClick={() => setPreset(p)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                            className={`px-3 py-1.5 rounded-om-sm text-sm font-medium border ${
                                 form.preset === p
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-600 hover:bg-gray-50'
+                                    ? 'bg-om-ink text-white border-om-accent'
+                                    : 'bg-om-card text-om-muted border-om-line2 hover:bg-om-bg'
                             }`}
                         >
                             {__(PRESET_LABELS[p] ?? p)}
@@ -124,7 +124,7 @@ export default function CostReportsIndex() {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-3">
                     {form.preset === 'custom' && (
                         <>
                             <Field label={__('From')}>
@@ -192,10 +192,10 @@ export default function CostReportsIndex() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-x-auto">
+                <div className="bg-om-card rounded-om-sm shadow-sm overflow-x-auto">
                     <table className="min-w-full text-sm">
                         <thead>
-                            <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-200 dark:border-slate-700">
+                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
                                 <th className="px-4 py-3">{__('Order')}</th>
                                 <th className="px-4 py-3">{__('Product')}</th>
                                 <th className="px-4 py-3">{__('Line')}</th>
@@ -207,25 +207,25 @@ export default function CostReportsIndex() {
                                 <th className="px-4 py-3 text-right">{__('Cost per unit')}</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        <tbody className="divide-y divide-om-line2">
                             {rows.map((r) => (
                                 <tr
                                     key={r.id}
-                                    className="hover:bg-gray-50 dark:hover:bg-slate-700/40 cursor-pointer"
+                                    className="hover:bg-om-bg cursor-pointer"
                                     onClick={() => router.visit(`/admin/cost-reports/${r.id}`)}
                                 >
-                                    <td className="px-4 py-3 font-medium text-blue-600">
+                                    <td className="px-4 py-3 font-medium text-om-accent">
                                         <Link href={`/admin/cost-reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
                                             {r.order_no}
                                         </Link>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.product_name ?? '—'}</td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.line_name ?? '—'}</td>
+                                    <td className="px-4 py-3 text-om-muted">{r.product_name ?? '—'}</td>
+                                    <td className="px-4 py-3 text-om-muted">{r.line_name ?? '—'}</td>
                                     <td className="px-4 py-3 text-right font-mono">{formatNumber(r.produced_qty)}</td>
                                     <td className="px-4 py-3 text-right font-mono">{money(r.material_cost, r.currency)}</td>
                                     <td className="px-4 py-3 text-right font-mono">{money(r.labor_cost, r.currency)}</td>
                                     <td className="px-4 py-3 text-right font-mono">{money(r.additional_cost, r.currency)}</td>
-                                    <td className="px-4 py-3 text-right font-mono font-semibold text-gray-800 dark:text-gray-100">
+                                    <td className="px-4 py-3 text-right font-mono font-semibold text-om-ink">
                                         {money(r.total_cost, r.currency)}
                                     </td>
                                     <td className="px-4 py-3 text-right font-mono">
@@ -235,7 +235,7 @@ export default function CostReportsIndex() {
                             ))}
                             {rows.length === 0 && (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
+                                    <td colSpan={9} className="px-4 py-10 text-center text-om-muted">
                                         {__('No orders match the current filters.')}
                                     </td>
                                 </tr>
@@ -255,10 +255,10 @@ export default function CostReportsIndex() {
                                 onClick={() => link.url && goPage(new URL(link.url).searchParams.get('page'))}
                                 className={`px-3 py-1 text-sm rounded border ${
                                     link.active
-                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        ? 'bg-om-ink text-white border-om-accent'
                                         : link.url
-                                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:border-slate-600'
-                                        : 'border-gray-200 text-gray-400 cursor-default'
+                                        ? 'border-om-line text-om-muted hover:bg-om-bg'
+                                        : 'border-om-line2 text-om-faint cursor-default'
                                 }`}
                                 dangerouslySetInnerHTML={{ __html: link.label }}
                             />
@@ -272,9 +272,9 @@ export default function CostReportsIndex() {
 
 function SummaryCard({ label, value }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-500 uppercase">{label}</div>
-            <div className="text-2xl font-bold text-gray-800 dark:text-gray-100 mt-1">{value}</div>
+        <div className="bg-om-card rounded-om-sm shadow-sm p-4">
+            <div className="text-xs text-om-muted uppercase">{label}</div>
+            <div className="text-2xl font-bold text-om-ink mt-1">{value}</div>
         </div>
     );
 }
@@ -282,7 +282,7 @@ function SummaryCard({ label, value }) {
 function Field({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+            <label className="block text-xs font-medium text-om-muted mb-1">{label}</label>
             {children}
         </div>
     );

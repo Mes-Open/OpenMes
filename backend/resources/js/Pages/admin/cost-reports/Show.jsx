@@ -24,18 +24,18 @@ export default function CostReportShow() {
             <Head title={`${__('Production Cost')} · ${b.order_no}`} />
             <div className="max-w-5xl mx-auto space-y-6">
                 <div>
-                    <Link href="/admin/cost-reports" className="text-sm text-blue-600 hover:underline">
+                    <Link href="/admin/cost-reports" className="text-sm text-om-accent hover:underline">
                         ← {__('Production Cost Report')}
                     </Link>
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mt-1">{b.order_no}</h1>
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <h1 className="text-3xl font-bold text-om-ink mt-1">{b.order_no}</h1>
+                    <p className="text-om-muted">
                         {meta.product_name ?? '—'} · {meta.line_name ?? '—'}
                         {meta.completed_at && <> · {formatDateTime(meta.completed_at)}</>}
                     </p>
                 </div>
 
                 {b.mixed_currency && (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-2">
+                    <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2">
                         {__('Mixed currencies - totals are summed without conversion.')}
                     </div>
                 )}
@@ -57,7 +57,7 @@ export default function CostReportShow() {
                 <Section title={__('Materials')} total={money(b.materials.total, currency)}>
                     <table className="min-w-full text-sm">
                         <thead>
-                            <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-200 dark:border-slate-700">
+                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
                                 <th className="px-4 py-2">{__('Material')}</th>
                                 <th className="px-4 py-2">{__('Source')}</th>
                                 <th className="px-4 py-2 text-right">{__('Qty')}</th>
@@ -65,16 +65,16 @@ export default function CostReportShow() {
                                 <th className="px-4 py-2 text-right">{__('Line total')}</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        <tbody className="divide-y divide-om-line2">
                             {b.materials.items.map((it, i) => (
                                 <tr key={i}>
                                     <td className="px-4 py-2">
                                         {it.material_name ?? '—'}
-                                        {it.material_code && <span className="text-xs text-gray-400 font-mono ml-1">{it.material_code}</span>}
+                                        {it.material_code && <span className="text-xs text-om-faint font-mono ml-1">{it.material_code}</span>}
                                     </td>
                                     <td className="px-4 py-2">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                            it.source === 'actual' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-700'
+                                            it.source === 'actual' ? 'bg-om-running-bg text-om-running' : 'bg-om-chip text-om-accent'
                                         }`}>
                                             {it.source === 'actual' ? __('Actual consumption') : __('BOM estimate')}
                                         </span>
@@ -93,7 +93,7 @@ export default function CostReportShow() {
                 <Section title={__('Labor')} total={money(b.labor.total, currency)}>
                     <table className="min-w-full text-sm">
                         <thead>
-                            <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-200 dark:border-slate-700">
+                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
                                 <th className="px-4 py-2">{__('Worker')}</th>
                                 <th className="px-4 py-2">{__('Pay type')}</th>
                                 <th className="px-4 py-2 text-right">{__('Basis')}</th>
@@ -101,12 +101,12 @@ export default function CostReportShow() {
                                 <th className="px-4 py-2 text-right">{__('Line total')}</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        <tbody className="divide-y divide-om-line2">
                             {b.labor.items.map((it, i) => (
                                 <tr key={i}>
                                     <td className="px-4 py-2">
                                         {it.worker_name ?? '—'}
-                                        {it.worker_code && <span className="text-xs text-gray-400 font-mono ml-1">{it.worker_code}</span>}
+                                        {it.worker_code && <span className="text-xs text-om-faint font-mono ml-1">{it.worker_code}</span>}
                                     </td>
                                     <td className="px-4 py-2">{__(PAY_TYPE_LABELS[it.pay_type] ?? it.pay_type)}</td>
                                     <td className="px-4 py-2 text-right font-mono">
@@ -125,12 +125,12 @@ export default function CostReportShow() {
                 <Section title={__('Additional costs')} total={money(b.additional.total, currency)}>
                     <table className="min-w-full text-sm">
                         <thead>
-                            <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-200 dark:border-slate-700">
+                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
                                 <th className="px-4 py-2">{__('Description')}</th>
                                 <th className="px-4 py-2 text-right">{__('Line total')}</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        <tbody className="divide-y divide-om-line2">
                             {b.additional.items.map((it, i) => (
                                 <tr key={i}>
                                     <td className="px-4 py-2">{it.description ?? '—'}</td>
@@ -143,7 +143,7 @@ export default function CostReportShow() {
                 </Section>
 
                 {/* Grand total */}
-                <div className="bg-gray-800 dark:bg-slate-900 text-white rounded-lg p-4 flex items-center justify-between">
+                <div className="bg-om-ink text-white rounded-om-sm p-4 flex items-center justify-between">
                     <span className="text-lg font-medium">{__('Total cost')}</span>
                     <span className="text-2xl font-bold font-mono">{money(b.total_cost, currency)}</span>
                 </div>
@@ -154,10 +154,10 @@ export default function CostReportShow() {
 
 function Section({ title, total, children }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-x-auto">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-700">
-                <h2 className="font-semibold text-gray-800 dark:text-gray-100">{title}</h2>
-                <span className="font-mono text-gray-700 dark:text-gray-300">{total}</span>
+        <div className="bg-om-card rounded-om-sm shadow-sm overflow-x-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-om-line2">
+                <h2 className="font-semibold text-om-ink">{title}</h2>
+                <span className="font-mono text-om-muted">{total}</span>
             </div>
             {children}
         </div>
@@ -166,9 +166,9 @@ function Section({ title, total, children }) {
 
 function Card({ label, value, strong }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-500 uppercase">{label}</div>
-            <div className={`mt-1 ${strong ? 'text-2xl font-bold' : 'text-lg font-semibold'} text-gray-800 dark:text-gray-100`}>
+        <div className="bg-om-card rounded-om-sm shadow-sm p-4">
+            <div className="text-xs text-om-muted uppercase">{label}</div>
+            <div className={`mt-1 ${strong ? 'text-2xl font-bold' : 'text-lg font-semibold'} text-om-ink`}>
                 {value}
             </div>
         </div>
@@ -179,7 +179,7 @@ function EmptyRow({ items, colSpan }) {
     if (items.length > 0) return null;
     return (
         <tr>
-            <td colSpan={colSpan} className="px-4 py-6 text-center text-gray-400 text-sm">
+            <td colSpan={colSpan} className="px-4 py-6 text-center text-om-faint text-sm">
                 {__('No cost data for this work order.')}
             </td>
         </tr>

@@ -6,9 +6,9 @@ export default function SubassembliesIndex() {
     const { productTypeNames = {}, counts = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'product_type', label: 'Product Type', className: 'text-gray-600', render: (r) => productTypeNames[r.product_type_id] ?? '—' },
+        { key: 'code', label: 'Code', className: 'font-mono text-om-muted' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
+        { key: 'product_type', label: 'Product Type', className: 'text-om-muted', render: (r) => productTypeNames[r.product_type_id] ?? '—' },
         { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 

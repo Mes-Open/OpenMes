@@ -3,20 +3,20 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 const ACTION_COLORS = {
-    created:      'bg-green-100 text-green-700',
-    updated:      'bg-blue-100 text-blue-700',
-    deleted:      'bg-red-100 text-red-700',
-    login:        'bg-purple-100 text-purple-700',
-    logout:       'bg-gray-100 text-gray-600',
-    login_failed: 'bg-red-100 text-red-700',
+    created:      'bg-om-running-bg text-om-running',
+    updated:      'bg-om-chip text-om-accent',
+    deleted:      'bg-om-blocked-bg text-om-blocked',
+    login:        'bg-om-chip text-purple-700',
+    logout:       'bg-om-chip text-om-muted',
+    login_failed: 'bg-om-blocked-bg text-om-blocked',
 };
 
 const METHOD_COLORS = {
-    GET:    'bg-gray-100 text-gray-600',
-    POST:   'bg-green-100 text-green-700',
-    PUT:    'bg-blue-100 text-blue-700',
-    PATCH:  'bg-blue-100 text-blue-700',
-    DELETE: 'bg-red-100 text-red-700',
+    GET:    'bg-om-chip text-om-muted',
+    POST:   'bg-om-running-bg text-om-running',
+    PUT:    'bg-om-chip text-om-accent',
+    PATCH:  'bg-om-chip text-om-accent',
+    DELETE: 'bg-om-blocked-bg text-om-blocked',
 };
 
 function entityLabel(log) {
@@ -37,10 +37,10 @@ function Pagination({ meta, links, onPage }) {
                     onClick={() => link.url && onPage(new URL(link.url).searchParams.get('page'))}
                     className={`px-3 py-1 text-sm rounded border transition-colors ${
                         link.active
-                            ? 'bg-blue-600 text-white border-blue-600'
+                            ? 'bg-om-ink text-white border-om-accent'
                             : link.url
-                            ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                            : 'border-gray-200 text-gray-400 cursor-default'
+                            ? 'border-om-line text-om-muted hover:bg-om-bg'
+                            : 'border-om-line2 text-om-faint cursor-default'
                     }`}
                     dangerouslySetInnerHTML={{ __html: link.label }}
                 />
@@ -71,7 +71,7 @@ function DetailModal({ log, onClose }) {
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto"
+                className="bg-om-card rounded-om-sm shadow-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between p-4 border-b">
@@ -79,7 +79,7 @@ function DetailModal({ log, onClose }) {
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                        className="text-om-faint hover:text-om-ink text-xl leading-none"
                         aria-label="Close"
                     >
                         &times;
@@ -87,46 +87,46 @@ function DetailModal({ log, onClose }) {
                 </div>
                 <div className="p-4 space-y-3 text-sm">
                     <div>
-                        <strong className="text-gray-700">Timestamp:</strong>{' '}
+                        <strong className="text-om-muted">Timestamp:</strong>{' '}
                         <span className="font-mono text-xs">{formatTs(log.created_at)}</span>
                     </div>
                     <div>
-                        <strong className="text-gray-700">Source:</strong>{' '}
-                        <span className={`px-2 py-0.5 rounded text-xs uppercase ${log.source === 'audit' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <strong className="text-om-muted">Source:</strong>{' '}
+                        <span className={`px-2 py-0.5 rounded text-xs uppercase ${log.source === 'audit' ? 'bg-om-chip text-purple-700' : 'bg-om-chip text-om-muted'}`}>
                             {log.source || '—'}
                         </span>
                     </div>
                     <div>
-                        <strong className="text-gray-700">User:</strong>{' '}
+                        <strong className="text-om-muted">User:</strong>{' '}
                         <span>{log.user?.name ?? 'Guest'}</span>
                     </div>
                     <div>
-                        <strong className="text-gray-700">IP address:</strong>{' '}
+                        <strong className="text-om-muted">IP address:</strong>{' '}
                         <span className="font-mono text-xs">{log.ip_address || '—'}</span>
                     </div>
 
                     {log.source === 'audit' && (
                         <div className="space-y-2 border-t pt-3">
                             <div>
-                                <strong className="text-gray-700">Action:</strong>{' '}
+                                <strong className="text-om-muted">Action:</strong>{' '}
                                 <span>{log.action || '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-gray-700">Entity:</strong>{' '}
+                                <strong className="text-om-muted">Entity:</strong>{' '}
                                 <span>{entityLabel(log) || '—'}</span>
                             </div>
                             {log.before_state && (
                                 <details className="mt-2">
-                                    <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">Before state</summary>
-                                    <pre className="bg-gray-50 p-2 rounded text-xs overflow-x-auto mt-1 whitespace-pre-wrap break-words">
+                                    <summary className="text-xs text-om-muted cursor-pointer hover:text-om-ink">Before state</summary>
+                                    <pre className="bg-om-panel p-2 rounded text-xs overflow-x-auto mt-1 whitespace-pre-wrap break-words">
                                         {prettyJson(log.before_state)}
                                     </pre>
                                 </details>
                             )}
                             {log.after_state && (
                                 <details className="mt-2" open>
-                                    <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">After state</summary>
-                                    <pre className="bg-gray-50 p-2 rounded text-xs overflow-x-auto mt-1 whitespace-pre-wrap break-words">
+                                    <summary className="text-xs text-om-muted cursor-pointer hover:text-om-ink">After state</summary>
+                                    <pre className="bg-om-panel p-2 rounded text-xs overflow-x-auto mt-1 whitespace-pre-wrap break-words">
                                         {prettyJson(log.after_state)}
                                     </pre>
                                 </details>
@@ -137,42 +137,42 @@ function DetailModal({ log, onClose }) {
                     {log.source === 'request' && (
                         <div className="space-y-2 border-t pt-3">
                             <div>
-                                <strong className="text-gray-700">Method:</strong>{' '}
-                                <span className="font-mono px-2 py-0.5 rounded bg-gray-100 text-xs">{log.method || '—'}</span>
+                                <strong className="text-om-muted">Method:</strong>{' '}
+                                <span className="font-mono px-2 py-0.5 rounded bg-om-chip text-xs">{log.method || '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-gray-700">Path:</strong>{' '}
+                                <strong className="text-om-muted">Path:</strong>{' '}
                                 <span className="font-mono text-xs break-all">{log.path || '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-gray-700">Route name:</strong>{' '}
+                                <strong className="text-om-muted">Route name:</strong>{' '}
                                 <span className="font-mono text-xs">{log.route_name || '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-gray-700">Status:</strong>{' '}
+                                <strong className="text-om-muted">Status:</strong>{' '}
                                 <span>{log.status ?? '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-gray-700">Duration:</strong>{' '}
+                                <strong className="text-om-muted">Duration:</strong>{' '}
                                 <span>{log.duration_ms != null ? `${log.duration_ms} ms` : '—'}</span>
                             </div>
                             <div>
-                                <strong className="text-gray-700">Sampled:</strong>{' '}
+                                <strong className="text-om-muted">Sampled:</strong>{' '}
                                 <span>{log.sampled ? 'yes' : 'no'}</span>
                             </div>
                         </div>
                     )}
 
-                    <div className="text-xs text-gray-400 pt-3 border-t break-words">
+                    <div className="text-xs text-om-faint pt-3 border-t break-words">
                         <strong>User agent:</strong>{' '}
                         <span>{log.user_agent || '—'}</span>
                     </div>
                 </div>
-                <div className="flex justify-end p-3 border-t bg-gray-50">
+                <div className="flex justify-end p-3 border-t bg-om-panel">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                     >
                         Close
                     </button>
@@ -228,17 +228,17 @@ export default function Activity() {
             <Head title="Activity Logs" />
             <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800">Activity Logs</h1>
-                    <p className="text-gray-600 mt-1">
+                    <h1 className="text-3xl font-bold text-om-ink">Activity Logs</h1>
+                    <p className="text-om-muted mt-1">
                         What users did across the system — entity changes, navigation, auth events.
                     </p>
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-lg shadow-sm p-5 mb-6">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">From</label>
                             <input
                                 type="date"
                                 value={form.from}
@@ -247,7 +247,7 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">To</label>
                             <input
                                 type="date"
                                 value={form.to}
@@ -256,7 +256,7 @@ export default function Activity() {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">User</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">User</label>
                             <select
                                 value={form.user_id}
                                 onChange={(e) => setForm((f) => ({ ...f, user_id: e.target.value }))}
@@ -269,7 +269,7 @@ export default function Activity() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Source</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">Source</label>
                             <select
                                 value={form.source}
                                 onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
@@ -281,7 +281,7 @@ export default function Activity() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Entity</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">Entity</label>
                             <select
                                 value={form.entity_type}
                                 onChange={(e) => setForm((f) => ({ ...f, entity_type: e.target.value }))}
@@ -294,7 +294,7 @@ export default function Activity() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Action</label>
+                            <label className="block text-xs font-medium text-om-muted mb-1">Action</label>
                             <select
                                 value={form.action}
                                 onChange={(e) => setForm((f) => ({ ...f, action: e.target.value }))}
@@ -311,20 +311,20 @@ export default function Activity() {
                         <button
                             type="button"
                             onClick={() => apply()}
-                            className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-white hover:bg-black transition-colors"
                         >
                             Apply
                         </button>
                         <button
                             type="button"
                             onClick={clear}
-                            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
                             Clear
                         </button>
                         <a
                             href={exportUrl()}
-                            className="sm:ml-auto px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="sm:ml-auto px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
                             Export CSV
                         </a>
@@ -332,10 +332,10 @@ export default function Activity() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm divide-y divide-gray-200">
-                            <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                        <table className="min-w-full text-sm divide-y divide-om-line2">
+                            <thead className="bg-om-panel text-xs uppercase text-om-muted">
                                 <tr>
                                     <th className="text-left px-4 py-2">When</th>
                                     <th className="text-left px-4 py-2">Who</th>
@@ -343,70 +343,70 @@ export default function Activity() {
                                     <th className="text-left px-4 py-2">Details</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white">
+                            <tbody className="divide-y divide-om-line2 bg-om-card">
                                 {logItems.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-4 py-16 text-center text-gray-400">
+                                        <td colSpan={4} className="px-4 py-16 text-center text-om-faint">
                                             No activity in this period.
                                         </td>
                                     </tr>
                                 ) : logItems.map((log, i) => (
-                                    <tr key={log.id ?? i} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
+                                    <tr key={log.id ?? i} className="hover:bg-om-bg">
+                                        <td className="px-4 py-3 text-om-muted whitespace-nowrap text-xs">
                                             {log.created_at
                                                 ? String(log.created_at).replace('T', ' ').replace(/\.\d+Z?$/, '')
                                                 : '—'}
                                         </td>
-                                        <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
+                                        <td className="px-4 py-3 text-om-ink whitespace-nowrap">
                                             {log.user?.name ?? 'Guest'}
                                         </td>
                                         <td className="px-4 py-3">
                                             {log.source === 'audit' ? (
                                                 <>
-                                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ACTION_COLORS[log.action] ?? 'bg-gray-100 text-gray-600'}`}>
+                                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${ACTION_COLORS[log.action] ?? 'bg-om-chip text-om-muted'}`}>
                                                         {log.action
                                                             ? log.action.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
                                                             : '—'}
                                                     </span>
                                                     {' '}
-                                                    <span className="text-gray-700 ml-1">
+                                                    <span className="text-om-muted ml-1">
                                                         {entityLabel(log)}
                                                     </span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span className={`font-mono text-xs px-2 py-0.5 rounded ${METHOD_COLORS[log.method] ?? 'bg-gray-100 text-gray-600'}`}>
+                                                    <span className={`font-mono text-xs px-2 py-0.5 rounded ${METHOD_COLORS[log.method] ?? 'bg-om-chip text-om-muted'}`}>
                                                         {log.method}
                                                     </span>
                                                     {' '}
-                                                    <span className="text-gray-700 text-xs font-mono break-all">{log.path}</span>
+                                                    <span className="text-om-muted text-xs font-mono break-all">{log.path}</span>
                                                     {' '}
-                                                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                                                    <span className="text-xs text-om-faint whitespace-nowrap">
                                                         &rarr; {log.status} &bull; {log.duration_ms}ms
                                                     </span>
                                                 </>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-gray-500">
+                                        <td className="px-4 py-3 text-xs text-om-muted">
                                             <button
                                                 type="button"
                                                 onClick={() => setDetailLog(log)}
-                                                className="text-blue-600 hover:underline text-xs"
+                                                className="text-om-accent hover:underline text-xs"
                                             >
                                                 Details
                                             </button>
                                             {log.source === 'audit' && (log.action === 'updated' || log.action === 'created') && (
                                                 <>
-                                                    <span className="text-gray-300 mx-1">|</span>
+                                                    <span className="text-om-faintest mx-1">|</span>
                                                     <a
                                                         href={`/admin/audit-logs?user_id=${log.user_id ?? ''}&entity_type=${encodeURIComponent(log.entity_type ?? '')}`}
-                                                        className="text-blue-600 hover:underline"
+                                                        className="text-om-accent hover:underline"
                                                     >
                                                         View changes
                                                     </a>
                                                 </>
                                             )}
-                                            <div className="text-gray-400 mt-1">{log.ip_address}</div>
+                                            <div className="text-om-faint mt-1">{log.ip_address}</div>
                                         </td>
                                     </tr>
                                 ))}

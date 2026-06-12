@@ -37,8 +37,8 @@ export default function ProductionAnomalyCreate() {
             <div className="max-w-2xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Record Production Anomaly</h1>
-                        <p className="text-gray-600 mt-1">Log a deviation from the production plan</p>
+                        <h1 className="text-3xl font-bold text-om-ink">Record Production Anomaly</h1>
+                        <p className="text-om-muted mt-1">Log a deviation from the production plan</p>
                     </div>
                     <Link href="/admin/production-anomalies" className="btn-touch btn-secondary">
                         &larr; Back
@@ -52,7 +52,7 @@ export default function ProductionAnomalyCreate() {
                             {/* Work Order */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Work Order <span className="text-red-500">*</span>
+                                    Work Order <span className="text-om-blocked">*</span>
                                 </label>
                                 <select
                                     value={data.work_order_id}
@@ -68,14 +68,14 @@ export default function ProductionAnomalyCreate() {
                                     ))}
                                 </select>
                                 {errors.work_order_id && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.work_order_id}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.work_order_id}</p>
                                 )}
                             </div>
 
                             {/* Batch */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Batch <span className="text-gray-400 text-xs">(optional)</span>
+                                    Batch <span className="text-om-faint text-xs">(optional)</span>
                                 </label>
                                 <select
                                     value={data.batch_id}
@@ -89,17 +89,17 @@ export default function ProductionAnomalyCreate() {
                                     ))}
                                 </select>
                                 {data.work_order_id && filteredBatches.length === 0 && (
-                                    <p className="text-sm text-gray-400 mt-1">No batches available for this work order.</p>
+                                    <p className="text-sm text-om-faint mt-1">No batches available for this work order.</p>
                                 )}
                                 {errors.batch_id && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.batch_id}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.batch_id}</p>
                                 )}
                             </div>
 
                             {/* Anomaly Reason */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Anomaly Reason <span className="text-red-500">*</span>
+                                    Anomaly Reason <span className="text-om-blocked">*</span>
                                 </label>
                                 <select
                                     value={data.anomaly_reason_id}
@@ -115,14 +115,14 @@ export default function ProductionAnomalyCreate() {
                                     ))}
                                 </select>
                                 {errors.anomaly_reason_id && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.anomaly_reason_id}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.anomaly_reason_id}</p>
                                 )}
                             </div>
 
                             {/* Product Name */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Product Name <span className="text-red-500">*</span>
+                                    Product Name <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -134,14 +134,14 @@ export default function ProductionAnomalyCreate() {
                                     maxLength={200}
                                 />
                                 {errors.product_name && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.product_name}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.product_name}</p>
                                 )}
                             </div>
 
                             {/* Planned Qty */}
                             <div>
                                 <label className="form-label">
-                                    Planned Quantity <span className="text-red-500">*</span>
+                                    Planned Quantity <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -154,14 +154,14 @@ export default function ProductionAnomalyCreate() {
                                     placeholder="0.00"
                                 />
                                 {errors.planned_qty && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.planned_qty}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.planned_qty}</p>
                                 )}
                             </div>
 
                             {/* Actual Qty */}
                             <div>
                                 <label className="form-label">
-                                    Actual Quantity <span className="text-red-500">*</span>
+                                    Actual Quantity <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -174,7 +174,7 @@ export default function ProductionAnomalyCreate() {
                                     placeholder="0.00"
                                 />
                                 {errors.actual_qty && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.actual_qty}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.actual_qty}</p>
                                 )}
                             </div>
 
@@ -190,7 +190,7 @@ export default function ProductionAnomalyCreate() {
                                     placeholder="Additional details about the anomaly..."
                                 />
                                 {errors.comment && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.comment}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.comment}</p>
                                 )}
                             </div>
                         </div>

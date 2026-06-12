@@ -6,10 +6,10 @@ export default function CostSourcesIndex() {
     const { counts = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
+        { key: 'code', label: 'Code', className: 'font-mono text-om-muted' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
         { key: 'unit_cost', label: 'Unit Cost', render: (r) => `${r.unit_cost ?? '—'} ${r.currency ?? ''}`.trim() },
-        { key: 'unit', label: 'Unit', className: 'text-gray-600' },
+        { key: 'unit', label: 'Unit', className: 'text-om-muted' },
         { key: 'used', label: 'Used', render: (r) => counts[r.id] ?? 0 },
         { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
     ];

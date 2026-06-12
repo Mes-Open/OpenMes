@@ -11,10 +11,10 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
     };
 
     return (
-        <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Work order <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-om-muted mb-1">
+                    Work order <span className="text-om-blocked">*</span>
                 </label>
                 <select
                     value={data.work_order_id ?? ''}
@@ -28,12 +28,12 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                         </option>
                     ))}
                 </select>
-                {errors.work_order_id && <p className="mt-1 text-xs text-red-600">{errors.work_order_id}</p>}
+                {errors.work_order_id && <p className="mt-1 text-xs text-om-blocked">{errors.work_order_id}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">Quantity</label>
                     <input
                         type="number"
                         min={0}
@@ -41,11 +41,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                         onChange={(e) => setData('qty', e.target.value)}
                         className="form-input w-full"
                     />
-                    {errors.qty && <p className="mt-1 text-xs text-red-600">{errors.qty}</p>}
+                    {errors.qty && <p className="mt-1 text-xs text-om-blocked">{errors.qty}</p>}
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Status <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-om-muted mb-1">
+                        Status <span className="text-om-blocked">*</span>
                     </label>
                     <select
                         value={data.status ?? 'open'}
@@ -58,7 +58,7 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                             </option>
                         ))}
                     </select>
-                    {errors.status && <p className="mt-1 text-xs text-red-600">{errors.status}</p>}
+                    {errors.status && <p className="mt-1 text-xs text-om-blocked">{errors.status}</p>}
                 </div>
             </div>
 
@@ -79,11 +79,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 <button
                     type="submit"
                     disabled={processing}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
                 >
                     {processing ? 'Saving…' : submitLabel}
                 </button>
-                <Link href="/admin/pallets" className="text-gray-500 hover:text-gray-800 text-sm">
+                <Link href="/admin/pallets" className="text-om-muted hover:text-om-ink text-sm">
                     Cancel
                 </Link>
             </div>
@@ -94,14 +94,14 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 function TextField({ label, value, error, onChange }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+            <label className="block text-sm font-medium text-om-muted mb-1">{label}</label>
             <input
                 type="text"
                 value={value ?? ''}
                 onChange={(e) => onChange(e.target.value)}
                 className="form-input w-full"
             />
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

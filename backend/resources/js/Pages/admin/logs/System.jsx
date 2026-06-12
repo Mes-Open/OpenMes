@@ -3,22 +3,22 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 
 const LEVEL_BADGE = {
-    debug:     'bg-gray-100 text-gray-600',
-    info:      'bg-blue-100 text-blue-700',
-    notice:    'bg-blue-100 text-blue-700',
-    warning:   'bg-amber-100 text-amber-800',
-    error:     'bg-red-100 text-red-700',
-    critical:  'bg-red-200 text-red-900 font-bold',
-    alert:     'bg-red-200 text-red-900 font-bold',
-    emergency: 'bg-red-300 text-red-900 font-bold',
+    debug:     'bg-om-chip text-om-muted',
+    info:      'bg-om-chip text-om-accent',
+    notice:    'bg-om-chip text-om-accent',
+    warning:   'bg-om-downtime-bg text-om-downtime',
+    error:     'bg-om-blocked-bg text-om-blocked',
+    critical:  'bg-om-blocked-bg text-om-blocked font-bold',
+    alert:     'bg-om-blocked-bg text-om-blocked font-bold',
+    emergency: 'bg-om-blocked-bg border border-om-blocked text-om-blocked font-bold',
 };
 
 const DEPLOYMENT_STATE_BADGE = {
-    completed:   'bg-green-100 text-green-700',
-    failed:      'bg-red-100 text-red-700',
-    rolled_back: 'bg-red-100 text-red-700',
-    queued:      'bg-blue-100 text-blue-700',
-    in_progress: 'bg-blue-100 text-blue-700',
+    completed:   'bg-om-running-bg text-om-running',
+    failed:      'bg-om-blocked-bg text-om-blocked',
+    rolled_back: 'bg-om-blocked-bg text-om-blocked',
+    queued:      'bg-om-chip text-om-accent',
+    in_progress: 'bg-om-chip text-om-accent',
 };
 
 function Pagination({ meta, links, onPage }) {
@@ -33,10 +33,10 @@ function Pagination({ meta, links, onPage }) {
                     onClick={() => link.url && onPage(new URL(link.url).searchParams.get('page'))}
                     className={`px-3 py-1 text-sm rounded border transition-colors ${
                         link.active
-                            ? 'bg-blue-600 text-white border-blue-600'
+                            ? 'bg-om-ink text-white border-om-accent'
                             : link.url
-                            ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                            : 'border-gray-200 text-gray-400 cursor-default'
+                            ? 'border-om-line text-om-muted hover:bg-om-bg'
+                            : 'border-om-line2 text-om-faint cursor-default'
                     }`}
                     dangerouslySetInnerHTML={{ __html: link.label }}
                 />
@@ -108,10 +108,10 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
     return (
         <div>
             {/* App log filters */}
-            <div className="bg-white rounded-lg shadow-sm p-5 mb-6">
+            <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">Date</label>
                         {availableDates && availableDates.length > 0 ? (
                             <select
                                 value={form.date}
@@ -132,7 +132,7 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                         )}
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Level</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">Level</label>
                         <select
                             value={form.level}
                             onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
@@ -145,7 +145,7 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                         </select>
                     </div>
                     <div className="sm:col-span-2">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Search</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">Search</label>
                         <input
                             type="text"
                             value={form.search}
@@ -160,14 +160,14 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                     <button
                         type="button"
                         onClick={applyFilters}
-                        className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-white hover:bg-black transition-colors"
                     >
                         Apply
                     </button>
                     <button
                         type="button"
                         onClick={clearFilters}
-                        className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                     >
                         Clear
                     </button>
@@ -180,11 +180,11 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                     type="button"
                     onClick={live ? stopLive : startLive}
                     aria-pressed={live}
-                    className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors flex items-center gap-2"
                 >
                     {live ? (
                         <>
-                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
+                            <span className="w-2 h-2 rounded-full bg-om-blocked animate-pulse" aria-hidden="true" />
                             Live &mdash; stop
                         </>
                     ) : (
@@ -192,25 +192,25 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                     )}
                 </button>
                 {live && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-om-muted">
                         {liveError
-                            ? <span className="text-red-600">{liveError}</span>
+                            ? <span className="text-om-blocked">{liveError}</span>
                             : 'Auto-refreshing every 5s'}
                     </span>
                 )}
             </div>
 
             {/* Entries */}
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
                 {entries.length === 0 ? (
-                    <div className="px-4 py-16 text-center text-gray-400">No log entries match your filters.</div>
+                    <div className="px-4 py-16 text-center text-om-faint">No log entries match your filters.</div>
                 ) : entries.map((entry, idx) => (
                     <AppLogEntry key={`${idx}:${entry.timestamp}:${String(entry.message ?? '').substring(0, 40)}`} entry={entry} truncate={truncate} />
                 ))}
             </div>
 
             {entries.length > 0 && (
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-xs text-om-faint mt-2">
                     {entries.length} entries shown (most recent first). Older entries beyond the 2 MB tail window are not displayed.
                 </p>
             )}
@@ -220,7 +220,7 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
 
 function AppLogEntry({ entry, truncate }) {
     const [open, setOpen] = useState(false);
-    const badgeCls = LEVEL_BADGE[(entry.level ?? '').toLowerCase()] ?? 'bg-gray-100 text-gray-600';
+    const badgeCls = LEVEL_BADGE[(entry.level ?? '').toLowerCase()] ?? 'bg-om-chip text-om-muted';
     const hasContext = (entry.context && entry.context.trim() !== '') || (entry.message && entry.message.length > 300);
 
     return (
@@ -228,17 +228,17 @@ function AppLogEntry({ entry, truncate }) {
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-start gap-3"
+                className="w-full text-left px-4 py-3 hover:bg-om-bg flex items-start gap-3"
             >
-                <span className="font-mono text-xs text-gray-500 whitespace-nowrap mt-0.5">{entry.timestamp}</span>
+                <span className="font-mono text-xs text-om-muted whitespace-nowrap mt-0.5">{entry.timestamp}</span>
                 <span className={`inline-block px-2 py-0.5 rounded text-xs uppercase whitespace-nowrap ${badgeCls}`}>
                     {entry.level}
                 </span>
-                <span className="text-xs text-gray-400 whitespace-nowrap">{entry.environment}</span>
-                <span className="text-sm text-gray-800 break-all flex-1">{truncate(entry.message, 300)}</span>
+                <span className="text-xs text-om-faint whitespace-nowrap">{entry.environment}</span>
+                <span className="text-sm text-om-ink break-all flex-1">{truncate(entry.message, 300)}</span>
             </button>
             {open && hasContext && (
-                <pre className="bg-gray-50 text-xs text-gray-700 px-4 py-3 overflow-x-auto whitespace-pre-wrap break-words border-t">
+                <pre className="bg-om-panel text-xs text-om-muted px-4 py-3 overflow-x-auto whitespace-pre-wrap break-words border-t">
                     {entry.message}{entry.context ? '\n\n' + entry.context.replace(/\s+$/, '') : ''}
                 </pre>
             )}
@@ -259,7 +259,7 @@ function FailedJobsTab({ entries, missing }) {
 
     if (missing) {
         return (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 p-5">
+            <div className="rounded-om-sm border border-om-line bg-om-downtime-bg text-amber-900 p-5">
                 <p className="font-medium">Failed jobs table is missing.</p>
                 <p className="text-sm mt-1">Run the Laravel queue migrations to enable the failed_jobs table.</p>
             </div>
@@ -267,10 +267,10 @@ function FailedJobsTab({ entries, missing }) {
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-                <table className="min-w-full text-sm divide-y divide-gray-200">
-                    <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <table className="min-w-full text-sm divide-y divide-om-line2">
+                    <thead className="bg-om-panel text-xs uppercase text-om-muted">
                         <tr>
                             <th className="text-left px-4 py-2">ID</th>
                             <th className="text-left px-4 py-2">Connection</th>
@@ -281,10 +281,10 @@ function FailedJobsTab({ entries, missing }) {
                             <th className="text-left px-4 py-2">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-om-line2 bg-om-card">
                         {logItems.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-4 py-16 text-center text-gray-400">No failed jobs.</td>
+                                <td colSpan={7} className="px-4 py-16 text-center text-om-faint">No failed jobs.</td>
                             </tr>
                         ) : logItems.map((job) => (
                             <FailedJobRow key={job.id} job={job} />
@@ -309,38 +309,38 @@ function FailedJobRow({ job }) {
     const firstLine = (job.exception ?? '').split('\n')[0].substring(0, 200);
 
     return (
-        <tr className="hover:bg-gray-50 align-top">
-            <td className="px-4 py-3 text-xs font-mono text-gray-500 whitespace-nowrap">{job.id}</td>
-            <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">{job.connection}</td>
-            <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">{job.queue}</td>
-            <td className="px-4 py-3 text-xs text-gray-600">
-                <button type="button" onClick={() => setShowPayload((v) => !v)} className="text-blue-600 hover:underline">
+        <tr className="hover:bg-om-bg align-top">
+            <td className="px-4 py-3 text-xs font-mono text-om-muted whitespace-nowrap">{job.id}</td>
+            <td className="px-4 py-3 text-xs text-om-muted whitespace-nowrap">{job.connection}</td>
+            <td className="px-4 py-3 text-xs text-om-muted whitespace-nowrap">{job.queue}</td>
+            <td className="px-4 py-3 text-xs text-om-muted">
+                <button type="button" onClick={() => setShowPayload((v) => !v)} className="text-om-accent hover:underline">
                     {showPayload ? 'Hide payload' : 'View payload'}
                 </button>
                 {showPayload && (
-                    <pre className="mt-2 bg-gray-50 p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
+                    <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
                         {String(job.payload ?? '').substring(0, 4000)}
                     </pre>
                 )}
             </td>
-            <td className="px-4 py-3 text-xs text-gray-700 max-w-md">
-                <div className="text-red-700 break-words">{firstLine}</div>
-                <button type="button" onClick={() => setShowTrace((v) => !v)} className="mt-1 text-blue-600 hover:underline text-xs">
+            <td className="px-4 py-3 text-xs text-om-muted max-w-md">
+                <div className="text-om-blocked break-words">{firstLine}</div>
+                <button type="button" onClick={() => setShowTrace((v) => !v)} className="mt-1 text-om-accent hover:underline text-xs">
                     {showTrace ? 'Hide stack trace' : 'Show stack trace'}
                 </button>
                 {showTrace && (
-                    <pre className="mt-2 bg-gray-50 p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words text-gray-700">
+                    <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words text-om-muted">
                         {String(job.exception ?? '').substring(0, 8000)}
                     </pre>
                 )}
             </td>
-            <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap font-mono">{job.failed_at}</td>
+            <td className="px-4 py-3 text-xs text-om-muted whitespace-nowrap font-mono">{job.failed_at}</td>
             <td className="px-4 py-3 text-xs whitespace-nowrap">
                 <form method="POST" action={`/admin/logs/system/retry-failed-job/${job.uuid}`} className="inline">
                     <input type="hidden" name="_token" value={csrf_token} />
                     <button
                         type="submit"
-                        className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        className="px-3 py-1 text-xs rounded bg-om-ink text-white hover:bg-black transition-colors"
                     >
                         Retry
                     </button>
@@ -363,13 +363,13 @@ function DeploymentsTab({ entries, missing }) {
 
     if (missing) {
         return (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 text-blue-900 p-5">
+            <div className="rounded-om-sm border border-om-line bg-om-chip text-om-ink p-5">
                 <p className="font-medium">Deployment audit log is not available on this build.</p>
                 <p className="text-sm mt-1">
                     Deployments log requires v0.12+ schema (system_updates table). This table was introduced by the
                     updater hardening work and has not been merged into this branch yet.
                 </p>
-                <p className="text-xs mt-2 text-blue-700">
+                <p className="text-xs mt-2 text-om-accent">
                     Once the system_updates migration lands, this tab will surface start/end timestamps, the upgraded
                     version, success/failure status, and any error output from each deployment.
                 </p>
@@ -378,10 +378,10 @@ function DeploymentsTab({ entries, missing }) {
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-                <table className="min-w-full text-sm divide-y divide-gray-200">
-                    <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                <table className="min-w-full text-sm divide-y divide-om-line2">
+                    <thead className="bg-om-panel text-xs uppercase text-om-muted">
                         <tr>
                             <th className="text-left px-4 py-2">Started</th>
                             <th className="text-left px-4 py-2">Finished</th>
@@ -391,10 +391,10 @@ function DeploymentsTab({ entries, missing }) {
                             <th className="text-left px-4 py-2">Output</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-om-line2 bg-om-card">
                         {logItems.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-4 py-16 text-center text-gray-400">
+                                <td colSpan={6} className="px-4 py-16 text-center text-om-faint">
                                     No deployments recorded.
                                 </td>
                             </tr>
@@ -416,13 +416,13 @@ function DeploymentsTab({ entries, missing }) {
 function DeploymentRow({ row }) {
     const [showOutput, setShowOutput] = useState(false);
     const state = row.state ?? 'unknown';
-    const badgeCls = DEPLOYMENT_STATE_BADGE[state] ?? 'bg-gray-100 text-gray-600';
+    const badgeCls = DEPLOYMENT_STATE_BADGE[state] ?? 'bg-om-chip text-om-muted';
 
     return (
-        <tr className="hover:bg-gray-50 align-top">
-            <td className="px-4 py-3 text-xs font-mono text-gray-600 whitespace-nowrap">{row.started_at ?? '—'}</td>
-            <td className="px-4 py-3 text-xs font-mono text-gray-600 whitespace-nowrap">{row.finished_at ?? '—'}</td>
-            <td className="px-4 py-3 text-xs text-gray-800 whitespace-nowrap font-mono">
+        <tr className="hover:bg-om-bg align-top">
+            <td className="px-4 py-3 text-xs font-mono text-om-muted whitespace-nowrap">{row.started_at ?? '—'}</td>
+            <td className="px-4 py-3 text-xs font-mono text-om-muted whitespace-nowrap">{row.finished_at ?? '—'}</td>
+            <td className="px-4 py-3 text-xs text-om-ink whitespace-nowrap font-mono">
                 {row.from_version ?? '—'} &rarr; {row.to_version ?? '—'}
             </td>
             <td className="px-4 py-3 text-xs whitespace-nowrap">
@@ -430,21 +430,21 @@ function DeploymentRow({ row }) {
                     {state.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}
                 </span>
             </td>
-            <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">{row.triggered_by ?? '—'}</td>
-            <td className="px-4 py-3 text-xs text-gray-600">
+            <td className="px-4 py-3 text-xs text-om-muted whitespace-nowrap">{row.triggered_by ?? '—'}</td>
+            <td className="px-4 py-3 text-xs text-om-muted">
                 {row.error ? (
                     <>
-                        <button type="button" onClick={() => setShowOutput((v) => !v)} className="text-blue-600 hover:underline">
+                        <button type="button" onClick={() => setShowOutput((v) => !v)} className="text-om-accent hover:underline">
                             {showOutput ? 'Hide output' : 'View output'}
                         </button>
                         {showOutput && (
-                            <pre className="mt-2 bg-gray-50 p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
+                            <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
                                 {String(row.error).substring(0, 8000)}
                             </pre>
                         )}
                     </>
                 ) : (
-                    <span className="text-gray-400">—</span>
+                    <span className="text-om-faint">—</span>
                 )}
             </td>
         </tr>
@@ -471,8 +471,8 @@ export default function System() {
             <Head title="System Logs" />
             <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800">System Logs</h1>
-                    <p className="text-gray-600 mt-1">
+                    <h1 className="text-3xl font-bold text-om-ink">System Logs</h1>
+                    <p className="text-om-muted mt-1">
                         Application errors, failed jobs, and deployment events — for diagnostics.
                     </p>
                 </div>
@@ -486,8 +486,8 @@ export default function System() {
                             onClick={() => switchTab(key)}
                             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
                                 tab === key
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    ? 'border-om-accent text-om-accent'
+                                    : 'border-transparent text-om-muted hover:text-om-ink'
                             }`}
                         >
                             {label}

@@ -6,19 +6,19 @@ export default function MaintenanceSchedulesIndex() {
     const { toolNames = {}, lineNames = {}, workstationNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
         {
             key: 'target',
             label: 'Target',
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) => toolNames[r.tool_id] ?? lineNames[r.line_id] ?? workstationNames[r.workstation_id] ?? '—',
         },
-        { key: 'frequency', label: 'Frequency', className: 'text-gray-600' },
-        { key: 'interval_value', label: 'Every', className: 'text-gray-600' },
+        { key: 'frequency', label: 'Frequency', className: 'text-om-muted' },
+        { key: 'interval_value', label: 'Every', className: 'text-om-muted' },
         {
             key: 'next_due_at',
             label: 'Next Due',
-            className: 'text-gray-500',
+            className: 'text-om-muted',
             render: (r) => (r.next_due_at ? r.next_due_at.slice(0, 16).replace('T', ' ') : '—'),
         },
         { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },

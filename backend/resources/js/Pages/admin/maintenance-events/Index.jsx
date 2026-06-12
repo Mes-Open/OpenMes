@@ -12,12 +12,12 @@ export default function MaintenanceEventsIndex() {
     } = usePage().props;
 
     const columns = [
-        { key: 'title', label: 'Title', className: 'font-medium text-gray-800' },
-        { key: 'event_type', label: 'Type', className: 'text-gray-600' },
+        { key: 'title', label: 'Title', className: 'font-medium text-om-ink' },
+        { key: 'event_type', label: 'Type', className: 'text-om-muted' },
         {
             key: 'target',
             label: 'Target',
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) =>
                 toolNames[r.tool_id] ??
                 lineNames[r.line_id] ??
@@ -27,13 +27,13 @@ export default function MaintenanceEventsIndex() {
         {
             key: 'assigned',
             label: 'Assigned',
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) => userNames[r.assigned_to_id] ?? '—',
         },
         {
             key: 'scheduled_at',
             label: 'Scheduled',
-            className: 'text-gray-500',
+            className: 'text-om-muted',
             render: (r) => (r.scheduled_at ? r.scheduled_at.slice(0, 16).replace('T', ' ') : '—'),
         },
         {
@@ -42,7 +42,7 @@ export default function MaintenanceEventsIndex() {
             render: (r) => (
                 <span
                     className={`text-xs px-2 py-0.5 rounded font-medium ${
-                        EVENT_STATUS_STYLES[r.status] ?? 'bg-gray-100 text-gray-700'
+                        EVENT_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'
                     }`}
                 >
                     {r.status}

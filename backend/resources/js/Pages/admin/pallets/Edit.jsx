@@ -10,8 +10,8 @@ export default function PalletEdit() {
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${pallet.pallet_no}`} />
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">
-                    Edit Pallet <span className="font-mono text-2xl text-gray-500">{pallet.pallet_no}</span>
+                <h1 className="text-3xl font-bold text-om-ink">
+                    Edit Pallet <span className="font-mono text-2xl text-om-muted">{pallet.pallet_no}</span>
                 </h1>
                 <LabelPrintMenu kind="pallet" id={pallet.id} templates={labelTemplates} label="Print label" />
             </div>
