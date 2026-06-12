@@ -3262,7 +3262,7 @@
     "Custom field activated successfully.": "Custom field activated successfully.",
     "Custom field deactivated successfully.": "Custom field deactivated successfully.",
     "The key must start with a letter and use only lowercase letters, numbers and underscores.": "The key must start with a letter and use only lowercase letters, numbers and underscores.",
-    "Add at least one option for a dropdown or multi-select field.": "Add at least one option for a dropdown or multi-select field."
+    "Add at least one option for a dropdown or multi-select field.": "Add at least one option for a dropdown or multi-select field.",
     "Page not found": "Page not found",
     "Too many requests": "Too many requests",
     "Server error": "Server error",
