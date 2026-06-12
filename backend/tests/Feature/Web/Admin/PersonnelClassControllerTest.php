@@ -7,6 +7,7 @@ use App\Models\Skill;
 use App\Models\User;
 use App\Models\Worker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -32,19 +33,19 @@ class PersonnelClassControllerTest extends TestCase
     {
         PersonnelClass::factory()->create(['code' => 'PC-LIST', 'name' => 'Press Operator']);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.personnel-classes.index'));
-
-        $response->assertStatus(200);
-        $response->assertSee('Press Operator');
+        // Row data is delivered client-side via Electric SQL, not in server HTML.
+        $this->actingAs($this->admin)->get(route('admin.personnel-classes.index'))
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/personnel-classes/Index'));
     }
 
     public function test_admin_can_view_personnel_class_show(): void
     {
         $weld = Skill::create(['code' => 'WELD', 'name' => 'Welding']);
-        $pc   = PersonnelClass::factory()->create([
-            'code'                        => 'PC-SHOW',
-            'name'                        => 'Welder',
-            'required_skill_ids'          => [$weld->id],
+        $pc = PersonnelClass::factory()->create([
+            'code' => 'PC-SHOW',
+            'name' => 'Welder',
+            'required_skill_ids' => [$weld->id],
             'default_required_cert_level' => [$weld->id => 'expert'],
         ]);
 
@@ -60,12 +61,12 @@ class PersonnelClassControllerTest extends TestCase
         $skill = Skill::create(['code' => 'SKL', 'name' => 'Skill A']);
 
         $response = $this->actingAs($this->admin)->post(route('admin.personnel-classes.store'), [
-            'code'                          => 'PC-NEW',
-            'name'                          => 'New Class',
-            'description'                   => 'A new class',
-            'required_skill_ids'            => [$skill->id],
-            'default_required_cert_level'   => [$skill->id => 'operator'],
-            'is_active'                     => '1',
+            'code' => 'PC-NEW',
+            'name' => 'New Class',
+            'description' => 'A new class',
+            'required_skill_ids' => [$skill->id],
+            'default_required_cert_level' => [$skill->id => 'operator'],
+            'is_active' => '1',
         ]);
 
         $response->assertRedirect(route('admin.personnel-classes.index'));
@@ -85,12 +86,12 @@ class PersonnelClassControllerTest extends TestCase
         $pc = PersonnelClass::factory()->create(['code' => 'PC-EDIT', 'name' => 'Original']);
 
         $response = $this->actingAs($this->admin)->put(route('admin.personnel-classes.update', $pc), [
-            'code'      => 'PC-EDIT',
-            'name'      => 'Renamed',
+            'code' => 'PC-EDIT',
+            'name' => 'Renamed',
             'is_active' => '1',
         ]);
 
-        $response->assertRedirect(route('admin.personnel-classes.show', $pc));
+        $response->assertRedirect(route('admin.personnel-classes.index'));
         $this->assertDatabaseHas('personnel_classes', ['id' => $pc->id, 'name' => 'Renamed']);
     }
 
@@ -119,7 +120,7 @@ class PersonnelClassControllerTest extends TestCase
 
     public function test_delete_with_force_detaches_workers_and_succeeds(): void
     {
-        $pc     = PersonnelClass::factory()->create();
+        $pc = PersonnelClass::factory()->create();
         $worker = Worker::factory()->create(['personnel_class_id' => $pc->id]);
 
         $response = $this->actingAs($this->admin)

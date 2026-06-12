@@ -6,6 +6,7 @@ use App\Models\Line;
 use App\Models\MaintenanceEvent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -47,8 +48,13 @@ class MaintenanceEventTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.maintenance-events.index'));
 
         $response->assertStatus(200);
-        $response->assertSee('Belt Replacement');
-        $response->assertSee('Oil Change');
+
+        // The Index page is Electric-fed: event rows stream client-side, not via
+        // props/HTML. The controller only renders the page + lookup maps, so we
+        // assert the component loads for an authorized admin.
+        $response->assertInertia(
+            fn (AssertableInertia $page) => $page->component('admin/maintenance-events/Index')
+        );
     }
 
     public function test_admin_can_create_maintenance_event(): void

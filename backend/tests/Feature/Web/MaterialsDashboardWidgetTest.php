@@ -8,6 +8,7 @@ use App\Models\MaterialLot;
 use App\Models\MaterialType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class MaterialsDashboardWidgetTest extends TestCase
@@ -46,11 +47,13 @@ class MaterialsDashboardWidgetTest extends TestCase
             'min_stock_level' => 50,
         ]);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.dashboard'));
-
-        $response->assertOk();
-        $response->assertSee('Materials Overview');
-        $response->assertSee('Low stock material');
+        $this->actingAs($this->admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where('enabledWidgets', fn ($widgets) => collect($widgets)->contains('materials_overview'))
+                ->where('materialsStats.low_stock_count', 1)
+            );
     }
 
     public function test_widget_lists_lots_expiring_within_30d(): void
@@ -71,11 +74,16 @@ class MaterialsDashboardWidgetTest extends TestCase
             'status' => MaterialLot::STATUS_RELEASED,
         ]);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.dashboard'));
-
-        $response->assertOk();
-        $response->assertSee('Expiring 30d');
-        $response->assertSee('LOT-EXP-1');
+        // The expiring-lot rows themselves stream to the browser via Electric;
+        // the dashboard payload carries the aggregate "expiring within 30d"
+        // count that the widget header shows.
+        $this->actingAs($this->admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where('materialsStats.expiring_count', 1)
+                ->where('materialsStats.lots_total', 1)
+            );
     }
 
     public function test_widget_hidden_when_disabled(): void
@@ -104,8 +112,11 @@ class MaterialsDashboardWidgetTest extends TestCase
             'status' => MaterialLot::STATUS_QUARANTINE,
         ]);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.dashboard'));
-        $response->assertOk();
-        $response->assertSee('1 quarantined');
+        $this->actingAs($this->admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where('materialsStats.quarantined_count', 1)
+            );
     }
 }
