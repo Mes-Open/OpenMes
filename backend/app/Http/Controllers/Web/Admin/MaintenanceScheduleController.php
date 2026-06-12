@@ -22,8 +22,8 @@ class MaintenanceScheduleController extends Controller
     public function index(Request $request)
     {
         return Inertia::render('admin/maintenance-schedules/Index', [
-            'toolNames'        => Tool::pluck('name', 'id'),
-            'lineNames'        => Line::pluck('name', 'id'),
+            'toolNames' => Tool::pluck('name', 'id'),
+            'lineNames' => Line::pluck('name', 'id'),
             'workstationNames' => Workstation::pluck('name', 'id'),
         ]);
     }
@@ -34,12 +34,12 @@ class MaintenanceScheduleController extends Controller
     public function create()
     {
         return Inertia::render('admin/maintenance-schedules/Create', [
-            'tools'        => Tool::orderBy('name')->get(['id', 'name']),
-            'lines'        => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'tools' => Tool::orderBy('name')->get(['id', 'name']),
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
-            'costSources'  => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'users'        => User::orderBy('name')->get(['id', 'name']),
-            'frequencies'  => MaintenanceSchedule::FREQUENCIES,
+            'costSources' => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users' => User::orderBy('name')->get(['id', 'name']),
+            'frequencies' => MaintenanceSchedule::FREQUENCIES,
         ]);
     }
 
@@ -51,7 +51,7 @@ class MaintenanceScheduleController extends Controller
         $validated = $this->validatePayload($request);
 
         $validated['created_by_id'] = $request->user()?->id;
-        $validated['is_active']     = $request->boolean('is_active', true);
+        $validated['is_active'] = $request->boolean('is_active', true);
 
         MaintenanceSchedule::create($validated);
 
@@ -73,13 +73,13 @@ class MaintenanceScheduleController extends Controller
             'preferred_time' => $maintenanceSchedule->preferred_time
                 ? substr($maintenanceSchedule->preferred_time, 0, 5)
                 : '',
-            'next_due_at'  => $maintenanceSchedule->next_due_at?->format('Y-m-d\TH:i'),
-            'tools'        => Tool::orderBy('name')->get(['id', 'name']),
-            'lines'        => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'next_due_at' => $maintenanceSchedule->next_due_at?->format('Y-m-d\TH:i'),
+            'tools' => Tool::orderBy('name')->get(['id', 'name']),
+            'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'workstations' => Workstation::orderBy('name')->get(['id', 'name']),
-            'costSources'  => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'users'        => User::orderBy('name')->get(['id', 'name']),
-            'frequencies'  => MaintenanceSchedule::FREQUENCIES,
+            'costSources' => CostSource::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'users' => User::orderBy('name')->get(['id', 'name']),
+            'frequencies' => MaintenanceSchedule::FREQUENCIES,
         ]);
     }
 
@@ -150,12 +150,12 @@ class MaintenanceScheduleController extends Controller
     private function formData(): array
     {
         return [
-            'lines'        => Line::active()->orderBy('name')->get(),
+            'lines' => Line::active()->orderBy('name')->get(),
             'workstations' => Workstation::active()->orderBy('name')->get(),
-            'tools'        => Tool::orderBy('name')->get(),
-            'costSources'  => CostSource::active()->orderBy('name')->get(),
-            'users'        => User::orderBy('name')->get(),
-            'frequencies'  => MaintenanceSchedule::FREQUENCIES,
+            'tools' => Tool::orderBy('name')->get(),
+            'costSources' => CostSource::active()->orderBy('name')->get(),
+            'users' => User::orderBy('name')->get(),
+            'frequencies' => MaintenanceSchedule::FREQUENCIES,
         ];
     }
 
@@ -167,24 +167,31 @@ class MaintenanceScheduleController extends Controller
      */
     private function validatePayload(Request $request): array
     {
-        return $request->validate([
-            'name'             => 'required|string|max:255',
-            'description'      => 'nullable|string|max:2000',
-            'tool_id'          => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
-            'line_id'          => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
-            'workstation_id'   => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
-            'event_type'       => 'required|string|in:planned,corrective,inspection',
-            'assigned_to_id'   => 'nullable|exists:users,id',
-            'cost_source_id'   => 'nullable|exists:cost_sources,id',
-            'frequency'        => 'required|string|in:' . implode(',', MaintenanceSchedule::FREQUENCIES),
-            'interval_value'   => 'required|integer|min:1',
-            'preferred_time'   => 'nullable|date_format:H:i',
-            'lead_time_days'   => 'nullable|integer|min:0|max:30',
-            'next_due_at'      => 'required|date',
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'tool_id' => 'nullable|required_without_all:line_id,workstation_id|exists:tools,id',
+            'line_id' => 'nullable|required_without_all:tool_id,workstation_id|exists:lines,id',
+            'workstation_id' => 'nullable|required_without_all:tool_id,line_id|exists:workstations,id',
+            'event_type' => 'required|string|in:planned,corrective,inspection',
+            'assigned_to_id' => 'nullable|exists:users,id',
+            'cost_source_id' => 'nullable|exists:cost_sources,id',
+            'frequency' => 'required|string|in:'.implode(',', MaintenanceSchedule::FREQUENCIES),
+            'interval_value' => 'required|integer|min:1',
+            'preferred_time' => 'nullable|date_format:H:i',
+            'lead_time_days' => 'nullable|integer|min:0|max:30',
+            'next_due_at' => 'required|date',
         ], [
-            'tool_id.required_without_all'        => __('Select at least one of: Tool, Line, or Workstation.'),
-            'line_id.required_without_all'        => __('Select at least one of: Tool, Line, or Workstation.'),
+            'tool_id.required_without_all' => __('Select at least one of: Tool, Line, or Workstation.'),
+            'line_id.required_without_all' => __('Select at least one of: Tool, Line, or Workstation.'),
             'workstation_id.required_without_all' => __('Select at least one of: Tool, Line, or Workstation.'),
         ]);
+
+        // lead_time_days is NOT NULL (DB default 0); the form may submit it empty
+        // (null), which would override the default and break the insert. Fall
+        // back to 0 ("generate on the due date").
+        $validated['lead_time_days'] = $validated['lead_time_days'] ?? 0;
+
+        return $validated;
     }
 }
