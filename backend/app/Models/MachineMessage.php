@@ -10,8 +10,10 @@ class MachineMessage extends Model
 {
     use HasFactory;
 
-    const STATUS_OK      = 'ok';
-    const STATUS_ERROR   = 'error';
+    const STATUS_OK = 'ok';
+
+    const STATUS_ERROR = 'error';
+
     const STATUS_SKIPPED = 'skipped';
 
     // Append-only log — no updated_at
@@ -31,9 +33,9 @@ class MachineMessage extends Model
     protected function casts(): array
     {
         return [
-            'parsed_data'       => 'array',
+            'parsed_data' => 'array',
             'actions_triggered' => 'array',
-            'received_at'       => 'datetime',
+            'received_at' => 'datetime',
         ];
     }
 
@@ -45,10 +47,10 @@ class MachineMessage extends Model
     public function statusColor(): string
     {
         return match ($this->processing_status) {
-            self::STATUS_OK      => 'green',
-            self::STATUS_ERROR   => 'red',
+            self::STATUS_OK => 'green',
+            self::STATUS_ERROR => 'red',
             self::STATUS_SKIPPED => 'yellow',
-            default              => 'slate',
+            default => 'slate',
         };
     }
 

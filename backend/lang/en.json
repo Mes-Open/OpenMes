@@ -3339,5 +3339,14 @@
     "Break window created successfully.": "Break window created successfully.",
     "Break window updated successfully.": "Break window updated successfully.",
     "Break window deleted successfully.": "Break window deleted successfully.",
-    "This crew already has a break window that overlaps these times.": "This crew already has a break window that overlaps these times."
+    "This crew already has a break window that overlaps these times.": "This crew already has a break window that overlaps these times.",
+    "Trash": "Trash",
+    "Restore": "Restore",
+    "Item": "Item",
+    "Deleted by": "Deleted by",
+    "Deleted at": "Deleted at",
+    "Trash is empty.": "Trash is empty.",
+    "Deleted items are kept here and can be restored. Restoring also brings back records deleted together with the item.": "Deleted items are kept here and can be restored. Restoring also brings back records deleted together with the item.",
+    "Restore this item (and records deleted with it)?": "Restore this item (and records deleted with it)?",
+    "Item restored (including related records deleted with it).": "Item restored (including related records deleted with it)."
 }

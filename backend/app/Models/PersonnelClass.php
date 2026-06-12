@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,13 +18,14 @@ use Illuminate\Support\Facades\DB;
 class PersonnelClass extends Model
 {
     use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     /** Strict ranking of cert_level (used to evaluate "level meets requirement"). */
     public const LEVEL_RANK = [
-        'trainee'  => 1,
+        'trainee' => 1,
         'operator' => 2,
-        'expert'   => 3,
-        'trainer'  => 4,
+        'expert' => 3,
+        'trainer' => 4,
     ];
 
     public const LEVELS = ['trainee', 'operator', 'expert', 'trainer'];
@@ -41,8 +43,8 @@ class PersonnelClass extends Model
     protected function casts(): array
     {
         return [
-            'is_active'                   => 'boolean',
-            'required_skill_ids'          => 'array',
+            'is_active' => 'boolean',
+            'required_skill_ids' => 'array',
             'default_required_cert_level' => 'array',
         ];
     }
@@ -79,7 +81,7 @@ class PersonnelClass extends Model
      */
     public function workerMeetsRequirements(Worker $worker): bool
     {
-        $reqIds    = $this->required_skill_ids ?? [];
+        $reqIds = $this->required_skill_ids ?? [];
         $reqLevels = $this->default_required_cert_level ?? [];
 
         if (empty($reqIds)) {
@@ -94,7 +96,7 @@ class PersonnelClass extends Model
                 ->where('skill_id', $skillId)
                 ->where(function ($q) use ($today) {
                     $q->whereNull('certified_until')
-                      ->orWhere('certified_until', '>=', $today);
+                        ->orWhere('certified_until', '>=', $today);
                 })
                 ->first();
 
@@ -116,7 +118,7 @@ class PersonnelClass extends Model
      */
     public function levelMeets(string $actual, string $required): bool
     {
-        $actualRank   = self::LEVEL_RANK[$actual] ?? 0;
+        $actualRank = self::LEVEL_RANK[$actual] ?? 0;
         $requiredRank = self::LEVEL_RANK[$required] ?? 0;
 
         return $actualRank >= $requiredRank;

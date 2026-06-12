@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 class Attachment extends Model
 {
     use HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'entity_type',
@@ -52,13 +54,13 @@ class Attachment extends Model
         $bytes = $this->file_size ?? 0;
 
         if ($bytes < 1024) {
-            return $bytes . ' B';
+            return $bytes.' B';
         }
 
         if ($bytes < 1_048_576) {
-            return round($bytes / 1024, 1) . ' KB';
+            return round($bytes / 1024, 1).' KB';
         }
 
-        return round($bytes / 1_048_576, 1) . ' MB';
+        return round($bytes / 1_048_576, 1).' MB';
     }
 }

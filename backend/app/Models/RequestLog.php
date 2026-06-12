@@ -30,9 +30,9 @@ class RequestLog extends Model
     protected function casts(): array
     {
         return [
-            'created_at'  => 'datetime',
-            'sampled'     => 'boolean',
-            'status'      => 'integer',
+            'created_at' => 'datetime',
+            'sampled' => 'boolean',
+            'status' => 'integer',
             'duration_ms' => 'integer',
         ];
     }

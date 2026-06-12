@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WorkOrderShiftEntry extends Model
 {
+    use SoftDeletesWithAudit;
+
     protected $fillable = [
         'work_order_id',
         'shift_id',

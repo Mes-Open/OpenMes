@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EmployeeActivity extends Model
 {
     use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     public const TYPES = [
         'work', 'break', 'rest', 'travel', 'setup',
@@ -22,17 +24,17 @@ class EmployeeActivity extends Model
 
     /** Default color + icon per type — mirrors the design tachograph palette. */
     public const TYPE_META = [
-        'work'     => ['color' => '#5fb3e0', 'short' => 'WORK', 'label' => 'Work'],
-        'break'    => ['color' => '#e9c46a', 'short' => 'BRK',  'label' => 'Break'],
-        'rest'     => ['color' => '#e76f51', 'short' => 'REST', 'label' => 'Rest'],
-        'travel'   => ['color' => '#264653', 'short' => 'TRV',  'label' => 'Travel'],
-        'setup'    => ['color' => '#f4a261', 'short' => 'SET',  'label' => 'Setup / changeover'],
-        'meeting'  => ['color' => '#a78bfa', 'short' => 'MTG',  'label' => 'Meeting'],
+        'work' => ['color' => '#5fb3e0', 'short' => 'WORK', 'label' => 'Work'],
+        'break' => ['color' => '#e9c46a', 'short' => 'BRK',  'label' => 'Break'],
+        'rest' => ['color' => '#e76f51', 'short' => 'REST', 'label' => 'Rest'],
+        'travel' => ['color' => '#264653', 'short' => 'TRV',  'label' => 'Travel'],
+        'setup' => ['color' => '#f4a261', 'short' => 'SET',  'label' => 'Setup / changeover'],
+        'meeting' => ['color' => '#a78bfa', 'short' => 'MTG',  'label' => 'Meeting'],
         'training' => ['color' => '#3ecf8e', 'short' => 'TRN',  'label' => 'Training'],
-        'maint'    => ['color' => '#dc2626', 'short' => 'MNT',  'label' => 'Maintenance'],
-        'qc'       => ['color' => '#7c3aed', 'short' => 'QC',   'label' => 'Quality check'],
-        'off'      => ['color' => '#cfccc4', 'short' => 'OFF',  'label' => 'Off shift'],
-        'custom'   => ['color' => '#06b6d4', 'short' => 'CST',  'label' => 'Custom'],
+        'maint' => ['color' => '#dc2626', 'short' => 'MNT',  'label' => 'Maintenance'],
+        'qc' => ['color' => '#7c3aed', 'short' => 'QC',   'label' => 'Quality check'],
+        'off' => ['color' => '#cfccc4', 'short' => 'OFF',  'label' => 'Off shift'],
+        'custom' => ['color' => '#06b6d4', 'short' => 'CST',  'label' => 'Custom'],
     ];
 
     protected $fillable = [
@@ -44,7 +46,7 @@ class EmployeeActivity extends Model
 
     protected $casts = [
         'starts_at' => 'datetime',
-        'ends_at'   => 'datetime',
+        'ends_at' => 'datetime',
     ];
 
     public function worker(): BelongsTo

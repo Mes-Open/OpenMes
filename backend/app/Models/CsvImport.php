@@ -24,8 +24,8 @@ class CsvImport extends Model
     protected function casts(): array
     {
         return [
-            'error_log'    => 'array',
-            'started_at'   => 'datetime',
+            'error_log' => 'array',
+            'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
     }

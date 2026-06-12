@@ -84,7 +84,7 @@ class ProcessTemplateStepWebTest extends TestCase
             ->delete($this->base($pt, $tpl)."/steps/{$step->id}");
 
         $response->assertRedirect();
-        $this->assertDatabaseMissing('template_steps', ['id' => $step->id]);
+        $this->assertSoftDeleted('template_steps', ['id' => $step->id]);
     }
 
     public function test_admin_can_move_step_up(): void

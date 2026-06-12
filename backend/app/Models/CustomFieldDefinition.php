@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CustomFieldType;
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 class CustomFieldDefinition extends Model
 {
     use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'entity_type',

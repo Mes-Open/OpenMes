@@ -117,7 +117,7 @@ class ProcessSegmentControllerTest extends TestCase
             ->delete(route('admin.process-segments.destroy', $segment));
 
         $response->assertRedirect(route('admin.process-segments.index'));
-        $this->assertDatabaseMissing('process_segments', ['id' => $segment->id]);
+        $this->assertSoftDeleted('process_segments', ['id' => $segment->id]);
     }
 
     public function test_delete_blocked_when_segment_in_use(): void

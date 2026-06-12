@@ -146,6 +146,6 @@ class CustomFieldDefinitionWebTest extends TestCase
         $this->assertFalse($def->fresh()->is_active);
 
         $this->actingAs($this->admin)->delete("/admin/custom-fields/{$def->id}");
-        $this->assertDatabaseMissing('custom_field_definitions', ['id' => $def->id]);
+        $this->assertSoftDeleted('custom_field_definitions', ['id' => $def->id]);
     }
 }

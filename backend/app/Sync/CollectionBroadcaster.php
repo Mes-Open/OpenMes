@@ -128,7 +128,14 @@ class CollectionBroadcaster
         }
 
         foreach ($byModel as $model => $collections) {
-            foreach (['created', 'updated', 'deleted'] as $event) {
+            // `deleted` also fires on soft delete, broadcasting the row's removal.
+            // `restored` (SoftDeletes models only) re-broadcasts it as an upsert.
+            $events = ['created', 'updated', 'deleted'];
+            if (method_exists($model, 'restored')) {
+                $events[] = 'restored';
+            }
+
+            foreach ($events as $event) {
                 $model::{$event}(function ($m) use ($collections, $event) {
                     $row = $m->attributesToArray();
                     $tenant = $m->getAttribute('tenant_id');

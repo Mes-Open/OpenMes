@@ -74,7 +74,7 @@ class PackagingEanWebTest extends TestCase
             ->delete("/packaging/eans/{$ean->id}")
             ->assertRedirect();
 
-        $this->assertDatabaseMissing('work_order_eans', ['id' => $ean->id]);
+        $this->assertSoftDeleted('work_order_eans', ['id' => $ean->id]);
     }
 
     public function test_operator_cannot_delete_ean(): void

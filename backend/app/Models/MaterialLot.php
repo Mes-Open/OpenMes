@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,7 @@ class MaterialLot extends Model
 {
     use HasFactory;
     use HasTenant;
+    use SoftDeletesWithAudit;
 
     public const STATUS_RECEIVED = 'received';
 
@@ -201,5 +203,13 @@ class MaterialLot extends Model
     {
         return $query->where('status', self::STATUS_RELEASED)
             ->where('quantity_available', '>', 0);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\MaterialSublot::class, 'parent_lot_id'],
+        ];
     }
 }
