@@ -19,9 +19,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - **Packing station now follows the configured Shifts**: the station's "this shift" window (packed-count / history / stats) is derived from `Shift::current()` (admin → **Shifts**) instead of a hard-coded 06:00–18:00 / 18:00–06:00 split — including overnight shifts — falling back to the fixed split only when no shift is configured. The station header shows the active shift's name and window.
 
-### Fixed
-- Creating/updating a maintenance schedule with an empty **Lead time (days)** crashed with a NOT NULL violation (23502): the field is validated as nullable but the column is `NOT NULL default 0`, and submitting `null` overrode the default. The controller now falls back to `0` ("generate on the due date"). Regression test added. (also shipped as v0.14.5)
-
 ---
 
 ## [0.14.5] - 2026-06-12
