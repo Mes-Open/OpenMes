@@ -1483,5 +1483,10 @@
     "Absence recorded successfully.": "Devamsızlık kaydedildi.",
     "Absence updated successfully.": "Devamsızlık güncellendi.",
     "Absence deleted successfully.": "Devamsızlık silindi.",
-    "This worker already has an absence that overlaps these dates.": "Bu çalışanın bu tarihlerle çakışan bir devamsızlığı zaten var."
+    "This worker already has an absence that overlaps these dates.": "Bu çalışanın bu tarihlerle çakışan bir devamsızlığı zaten var.",
+    "Break Windows": "Mola Pencereleri",
+    "Break window created successfully.": "Mola penceresi oluşturuldu.",
+    "Break window updated successfully.": "Mola penceresi güncellendi.",
+    "Break window deleted successfully.": "Mola penceresi silindi.",
+    "This crew already has a break window that overlaps these times.": "Bu ekibin bu saatlerle çakışan bir mola penceresi zaten var."
 }

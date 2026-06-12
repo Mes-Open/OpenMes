@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Crew extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
 
     protected $fillable = [
         'code',
@@ -50,6 +50,14 @@ class Crew extends Model
     public function workers(): HasMany
     {
         return $this->hasMany(Worker::class);
+    }
+
+    /**
+     * Get the recurring break windows for this crew.
+     */
+    public function breakWindows(): HasMany
+    {
+        return $this->hasMany(CrewBreakWindow::class);
     }
 
     /**

@@ -58,6 +58,10 @@ class ShapeRegistry
             'table' => 'worker_absences',
             'columns' => ['id', 'worker_id', 'type', 'starts_on', 'ends_on', 'all_day', 'start_time', 'end_time', 'status', 'reason', 'created_by_id', 'created_at', 'updated_at'],
         ],
+        'crew_break_windows' => [
+            'table' => 'crew_break_windows',
+            'columns' => ['id', 'crew_id', 'name', 'start_time', 'end_time', 'days_of_week', 'is_active', 'created_at', 'updated_at'],
+        ],
         'factories' => [
             'table' => 'factories',
             'columns' => ['id', 'code', 'name', 'description', 'is_active', 'created_at', 'updated_at'],

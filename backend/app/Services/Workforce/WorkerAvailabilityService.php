@@ -2,13 +2,16 @@
 
 namespace App\Services\Workforce;
 
+use App\Models\Crew;
+use App\Models\CrewBreakWindow;
 use App\Models\Worker;
 use App\Models\WorkerAbsence;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 
 /**
- * Worker availability derived from recorded absences. The seam other features
- * (assignment warnings, capacity planning) hook into.
+ * Worker availability derived from recorded absences and crew break windows.
+ * The seam other features (assignment warnings, capacity planning) hook into.
  */
 class WorkerAvailabilityService
 {
@@ -43,5 +46,41 @@ class WorkerAvailabilityService
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * Is the worker on a crew break at the given moment? A worker with no crew
+     * is never on a crew break. Honours weekday + time-of-day of active windows.
+     */
+    public function isOnBreak(Worker $worker, CarbonInterface $moment): bool
+    {
+        if (! $worker->crew_id) {
+            return false;
+        }
+
+        return CrewBreakWindow::query()
+            ->active()
+            ->where('crew_id', $worker->crew_id)
+            ->get()
+            ->contains(fn (CrewBreakWindow $w) => $w->coversTime($moment));
+    }
+
+    /**
+     * Active break windows for a crew that apply on the given date, ordered by
+     * start time — for rendering a day's break blocks.
+     *
+     * @return Collection<int, CrewBreakWindow>
+     */
+    public function crewBreakWindowsOn(Crew|int $crew, CarbonInterface $date): Collection
+    {
+        $crewId = $crew instanceof Crew ? $crew->id : $crew;
+
+        return CrewBreakWindow::query()
+            ->active()
+            ->where('crew_id', $crewId)
+            ->orderBy('start_time')
+            ->get()
+            ->filter(fn (CrewBreakWindow $w) => $w->appliesOn($date))
+            ->values();
     }
 }

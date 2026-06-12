@@ -3333,5 +3333,10 @@
     "Absence recorded successfully.": "Absence recorded successfully.",
     "Absence updated successfully.": "Absence updated successfully.",
     "Absence deleted successfully.": "Absence deleted successfully.",
-    "This worker already has an absence that overlaps these dates.": "This worker already has an absence that overlaps these dates."
+    "This worker already has an absence that overlaps these dates.": "This worker already has an absence that overlaps these dates.",
+    "Break Windows": "Break Windows",
+    "Break window created successfully.": "Break window created successfully.",
+    "Break window updated successfully.": "Break window updated successfully.",
+    "Break window deleted successfully.": "Break window deleted successfully.",
+    "This crew already has a break window that overlaps these times.": "This crew already has a break window that overlaps these times."
 }
