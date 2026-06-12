@@ -11,6 +11,8 @@ import { Link } from '@inertiajs/react';
  *   id        — entity id (workOrder / batch / batchStep)
  *   templates — all active label templates [{id,name,type,size,barcode_format,is_default}]
  *   label     — button text (default 'Print Label')
+ *   iconOnly  — hide the text label, render just the printer icon + chevron
+ *               (saves space in dense tablet tables; `label` becomes the tooltip)
  */
 const KIND_TO_TYPE = {
     'work-order': 'work_order',
@@ -19,7 +21,7 @@ const KIND_TO_TYPE = {
     pallet: 'pallet',
 };
 
-export default function LabelPrintMenu({ kind, id, templates = [], label = 'Print Label' }) {
+export default function LabelPrintMenu({ kind, id, templates = [], label = 'Print Label', iconOnly = false }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     const wantType = KIND_TO_TYPE[kind];
@@ -58,10 +60,12 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
+                title={iconOnly ? label : undefined}
+                aria-label={iconOnly ? label : undefined}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
             >
                 {printIcon}
-                {label}
+                {!iconOnly && label}
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                 </svg>

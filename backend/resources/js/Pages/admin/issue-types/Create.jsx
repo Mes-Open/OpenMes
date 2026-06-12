@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { ISSUE_TYPE_FIELDS } from './fields';
+import { issueTypeFields } from './fields';
 
 export default function IssueTypeCreate() {
     return (
@@ -11,7 +11,7 @@ export default function IssueTypeCreate() {
             <ResourceForm
                 action="/admin/issue-types"
                 method="post"
-                fields={ISSUE_TYPE_FIELDS}
+                fields={issueTypeFields()}
                 initial={{ code: '', name: '', severity: 'MEDIUM', is_blocking: false, is_active: true }}
                 submitLabel="Create"
                 cancelHref="/admin/issue-types"

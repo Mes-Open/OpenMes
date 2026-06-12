@@ -48,6 +48,12 @@ class CostSourceController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        // These columns are NOT NULL with DB defaults; a blank field arrives as
+        // null (ConvertEmptyStringsToNull) and would trip the constraint on an
+        // explicit insert, so restore the defaults.
+        $validated['unit_cost'] ??= 0;
+        $validated['unit'] ??= 'szt';
+        $validated['currency'] ??= 'PLN';
 
         CostSource::create($validated);
 
@@ -81,6 +87,11 @@ class CostSourceController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
+        // NOT NULL columns with DB defaults — coerce a cleared field back rather
+        // than passing an explicit null (which the DB default won't catch).
+        $validated['unit_cost'] ??= 0;
+        $validated['unit'] ??= 'szt';
+        $validated['currency'] ??= 'PLN';
 
         $costSource->update($validated);
 

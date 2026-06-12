@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { COMPANY_FIELDS } from './fields';
+import { companyFields } from './fields';
 
 export default function CompanyEdit({ company }) {
     return (
@@ -11,7 +11,7 @@ export default function CompanyEdit({ company }) {
             <ResourceForm
                 action={`/admin/companies/${company.id}`}
                 method="put"
-                fields={COMPANY_FIELDS}
+                fields={companyFields()}
                 initial={{
                     code: company.code ?? '',
                     name: company.name ?? '',

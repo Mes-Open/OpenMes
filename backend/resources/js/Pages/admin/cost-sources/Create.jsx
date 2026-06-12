@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { COST_SOURCE_FIELDS } from './fields';
+import { costSourceFields } from './fields';
 
 export default function CostSourceCreate() {
     return (
@@ -11,7 +11,7 @@ export default function CostSourceCreate() {
             <ResourceForm
                 action="/admin/cost-sources"
                 method="post"
-                fields={COST_SOURCE_FIELDS}
+                fields={costSourceFields()}
                 initial={{ code: '', name: '', description: '', unit_cost: '', unit: '', currency: '', is_active: true }}
                 submitLabel="Create"
                 cancelHref="/admin/cost-sources"

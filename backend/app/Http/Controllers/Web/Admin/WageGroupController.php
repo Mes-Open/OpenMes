@@ -47,6 +47,11 @@ class WageGroupController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        // NOT NULL columns with DB defaults; a blank field arrives as null
+        // (ConvertEmptyStringsToNull) and would trip the constraint, so restore
+        // the defaults instead of inserting an explicit null.
+        $validated['base_hourly_rate'] ??= 0;
+        $validated['currency'] ??= 'PLN';
 
         WageGroup::create($validated);
 
@@ -79,6 +84,10 @@ class WageGroupController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
+        // NOT NULL columns with DB defaults — coerce a cleared field rather than
+        // passing an explicit null.
+        $validated['base_hourly_rate'] ??= 0;
+        $validated['currency'] ??= 'PLN';
 
         $wageGroup->update($validated);
 

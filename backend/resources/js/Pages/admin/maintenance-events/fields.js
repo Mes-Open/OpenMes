@@ -1,3 +1,5 @@
+import { __ } from '../../../lib/i18n';
+
 const opt = (none, arr) => [
     { value: '', label: none },
     ...arr.map((x) => ({ value: String(x.id), label: x.name })),
@@ -5,28 +7,28 @@ const opt = (none, arr) => [
 
 export function maintenanceEventFields({ tools, lines, workstations, costSources, users }) {
     return [
-        { name: 'title', label: 'Title', required: true },
+        { name: 'title', label: __('Title'), required: true },
         {
             name: 'event_type',
-            label: 'Type',
+            label: __('Type'),
             type: 'select',
             required: true,
             options: [
-                { value: 'planned', label: 'Planned' },
-                { value: 'corrective', label: 'Corrective' },
-                { value: 'inspection', label: 'Inspection' },
+                { value: 'planned', label: __('Planned') },
+                { value: 'corrective', label: __('Corrective') },
+                { value: 'inspection', label: __('Inspection') },
             ],
         },
-        { name: 'tool_id', label: 'Tool', type: 'select', options: opt('— None —', tools) },
-        { name: 'line_id', label: 'Line', type: 'select', options: opt('— None —', lines) },
-        { name: 'workstation_id', label: 'Workstation', type: 'select', options: opt('— None —', workstations) },
-        { name: 'cost_source_id', label: 'Cost Source', type: 'select', options: opt('— None —', costSources) },
-        { name: 'assigned_to_id', label: 'Assigned To', type: 'select', options: opt('— None —', users) },
-        { name: 'scheduled_at', label: 'Scheduled At', type: 'datetime', required: true },
-        { name: 'scheduled_end_at', label: 'Scheduled End', type: 'datetime' },
-        { name: 'actual_cost', label: 'Actual Cost', type: 'number' },
-        { name: 'currency', label: 'Currency' },
-        { name: 'description', label: 'Description', type: 'textarea' },
+        { name: 'tool_id', label: __('Tool'), type: 'select', options: opt(__('— None —'), tools) },
+        { name: 'line_id', label: __('Line'), type: 'select', options: opt(__('— None —'), lines) },
+        { name: 'workstation_id', label: __('Workstation'), type: 'select', options: opt(__('— None —'), workstations) },
+        { name: 'cost_source_id', label: __('Cost Source'), type: 'select', options: opt(__('— None —'), costSources) },
+        { name: 'assigned_to_id', label: __('Assigned To'), type: 'select', options: opt(__('— None —'), users) },
+        { name: 'scheduled_at', label: __('Scheduled At'), type: 'datetime', required: true },
+        { name: 'scheduled_end_at', label: __('Scheduled End'), type: 'datetime' },
+        { name: 'actual_cost', label: __('Actual Cost'), type: 'number' },
+        { name: 'currency', label: __('Currency') },
+        { name: 'description', label: __('Description'), type: 'textarea' },
     ];
 }
 

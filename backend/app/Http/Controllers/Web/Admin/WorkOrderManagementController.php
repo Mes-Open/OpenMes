@@ -150,6 +150,11 @@ class WorkOrderManagementController extends Controller
             $validated['custom_fields'] = $cf->fromRequest($request, 'work_order', $workOrder->custom_fields) ?: null;
         }
 
+        // priority is NOT NULL DEFAULT 0; a cleared field arrives as null. The
+        // store path coerces via WorkOrderService — preserve the existing value
+        // here rather than passing an explicit null.
+        $validated['priority'] ??= $workOrder->priority;
+
         $workOrder->update($validated);
 
         return redirect()->route('admin.work-orders.index')

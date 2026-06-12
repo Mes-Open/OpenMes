@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { FACTORY_FIELDS } from './fields';
+import { factoryFields } from './fields';
 
 export default function FactoryEdit({ factory }) {
     return (
@@ -11,7 +11,7 @@ export default function FactoryEdit({ factory }) {
             <ResourceForm
                 action={`/admin/factories/${factory.id}`}
                 method="put"
-                fields={FACTORY_FIELDS}
+                fields={factoryFields()}
                 initial={{
                     code: factory.code ?? '',
                     name: factory.name ?? '',

@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { ANOMALY_REASON_FIELDS } from './fields';
+import { anomalyReasonFields } from './fields';
 
 export default function AnomalyReasonCreate() {
     return (
@@ -11,7 +11,7 @@ export default function AnomalyReasonCreate() {
             <ResourceForm
                 action="/admin/anomaly-reasons"
                 method="post"
-                fields={ANOMALY_REASON_FIELDS}
+                fields={anomalyReasonFields()}
                 initial={{ code: '', name: '', category: '', description: '', is_active: true }}
                 submitLabel="Create"
                 cancelHref="/admin/anomaly-reasons"

@@ -66,6 +66,9 @@ class MaintenanceEventController extends Controller
         ]);
 
         $validated['status'] = MaintenanceEvent::STATUS_PENDING;
+        // currency is NOT NULL DEFAULT 'PLN'; a cleared field arrives as null and
+        // would trip the constraint, so restore the default.
+        $validated['currency'] ??= 'PLN';
 
         MaintenanceEvent::create($validated);
 
@@ -119,6 +122,9 @@ class MaintenanceEventController extends Controller
             'line_id.required_without_all'        => 'Select at least one of: Tool, Line, or Workstation.',
             'workstation_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
         ]);
+
+        // currency is NOT NULL DEFAULT 'PLN' — coerce a cleared field.
+        $validated['currency'] ??= 'PLN';
 
         $maintenanceEvent->update($validated);
 

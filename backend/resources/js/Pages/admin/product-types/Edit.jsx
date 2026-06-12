@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { PRODUCT_TYPE_FIELDS } from './fields';
+import { productTypeFields } from './fields';
 
 export default function ProductTypeEdit({ productType, customFields = [] }) {
     return (
@@ -18,7 +18,7 @@ export default function ProductTypeEdit({ productType, customFields = [] }) {
                 backHref="/admin/product-types"
                 action={`/admin/product-types/${productType.id}`}
                 method="put"
-                fields={PRODUCT_TYPE_FIELDS}
+                fields={productTypeFields()}
                 customFields={customFields}
                 initial={{
                     code: productType.code ?? '',

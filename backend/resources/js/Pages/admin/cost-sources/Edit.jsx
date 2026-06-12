@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { COST_SOURCE_FIELDS } from './fields';
+import { costSourceFields } from './fields';
 
 export default function CostSourceEdit({ costSource }) {
     return (
@@ -11,7 +11,7 @@ export default function CostSourceEdit({ costSource }) {
             <ResourceForm
                 action={`/admin/cost-sources/${costSource.id}`}
                 method="put"
-                fields={COST_SOURCE_FIELDS}
+                fields={costSourceFields()}
                 initial={{
                     code: costSource.code ?? '',
                     name: costSource.name ?? '',

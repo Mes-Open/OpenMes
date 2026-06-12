@@ -21,14 +21,19 @@ class UpdateMaterialRequest extends FormRequest
     }
 
     /**
-     * The scrap % column is NOT NULL DEFAULT 0, but a cleared form field arrives
-     * as null (ConvertEmptyStringsToNull) and would trip the constraint on save.
-     * Coerce a blank back to 0.
+     * Both columns are NOT NULL with DB defaults, but a cleared form field
+     * arrives as null (ConvertEmptyStringsToNull) and would trip the constraint
+     * on save. The store path coerces these in its request/controller; mirror it
+     * here so editing-then-clearing doesn't 500. (DB defaults only apply when a
+     * column is omitted, never when an explicit null is passed.)
      */
     protected function prepareForValidation(): void
     {
         if ($this->input('default_scrap_percentage') === null || $this->input('default_scrap_percentage') === '') {
             $this->merge(['default_scrap_percentage' => 0]);
+        }
+        if ($this->input('unit_of_measure') === null || $this->input('unit_of_measure') === '') {
+            $this->merge(['unit_of_measure' => 'pcs']);
         }
     }
 

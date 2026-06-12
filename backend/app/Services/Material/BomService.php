@@ -30,11 +30,22 @@ class BomService
             }
         }
 
+        // Both columns are NOT NULL with DB defaults; a blank form field arrives
+        // as null (ConvertEmptyStringsToNull) and create() would insert it
+        // explicitly, tripping the constraint. Fall back to the column defaults.
+        $data['scrap_percentage'] ??= 0;
+        $data['consumed_at'] ??= 'start';
+
         return BomItem::create($data);
     }
 
     public function updateItem(BomItem $item, array $data): BomItem
     {
+        // Preserve the existing value when a NOT NULL column's field is cleared,
+        // rather than passing an explicit null (which trips the constraint).
+        $data['scrap_percentage'] ??= $item->scrap_percentage;
+        $data['consumed_at'] ??= $item->consumed_at;
+
         $item->update($data);
 
         return $item->fresh(['material.materialType', 'templateStep']);

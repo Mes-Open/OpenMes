@@ -1,14 +1,15 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
-const CATEGORY_LABELS = {
-    material: 'Material',
-    machine: 'Machine',
-    method: 'Method',
-    man: 'Man',
-    environment: 'Environment',
-    unknown: 'Unknown',
-};
+const categoryLabels = () => ({
+    material: __('Material'),
+    machine: __('Machine'),
+    method: __('Method'),
+    man: __('Man'),
+    environment: __('Environment'),
+    unknown: __('Unknown'),
+});
 
 const num = (v) => Number(v ?? 0);
 const fmt = (v) => num(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -20,6 +21,7 @@ export default function ScrapReportsIndex() {
         ratePerLine = [],
     } = usePage().props;
 
+    const categories = categoryLabels();
     const reasons = pareto.reasons ?? [];
     const topReason = reasons[0] ?? null;
     const maxQty = Math.max(...reasons.map((r) => num(r.qty)), 1);
@@ -29,40 +31,40 @@ export default function ScrapReportsIndex() {
 
     return (
         <>
-            <Head title="Scrap Reports" />
+            <Head title={__('Scrap Reports')} />
             <div className="max-w-7xl mx-auto space-y-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Scrap Reports</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Which reasons cause the most scrap (Pareto), and scrap rate per line.</p>
+                    <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Scrap Reports')}</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{__('Which reasons cause the most scrap (Pareto), and scrap rate per line.')}</p>
                 </div>
 
                 {/* Filters */}
                 <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-4">
-                    <Filter label="Line">
+                    <Filter label={__('Line')}>
                         <select value={lineId ?? ''} onChange={(e) => apply({ line_id: e.target.value })} className="form-input py-1.5 text-sm min-w-[160px]">
-                            <option value="">All Lines</option>
+                            <option value="">{__('All Lines')}</option>
                             {lines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                         </select>
                     </Filter>
-                    <Filter label="From">
+                    <Filter label={__('From')}>
                         <input type="date" value={dateFrom ?? ''} onChange={(e) => apply({ date_from: e.target.value })} className="form-input py-1.5 text-sm" />
                     </Filter>
-                    <Filter label="To">
+                    <Filter label={__('To')}>
                         <input type="date" value={dateTo ?? ''} onChange={(e) => apply({ date_to: e.target.value })} className="form-input py-1.5 text-sm" />
                     </Filter>
                 </div>
 
                 {/* KPI cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Kpi label="Total scrap quantity" value={fmt(pareto.total_qty)} />
-                    <Kpi label="Scrap entries" value={fmt(pareto.total_entries)} />
-                    <Kpi label="Distinct reasons" value={reasons.length} />
-                    <Kpi label="Top reason" value={topReason?.name ?? '—'} sub={topReason ? `${num(topReason.pct).toFixed(1)}% of total` : null} />
+                    <Kpi label={__('Total scrap quantity')} value={fmt(pareto.total_qty)} />
+                    <Kpi label={__('Scrap entries')} value={fmt(pareto.total_entries)} />
+                    <Kpi label={__('Distinct reasons')} value={reasons.length} />
+                    <Kpi label={__('Top reason')} value={topReason?.name ?? '—'} sub={topReason ? __(':pct% of total', { pct: num(topReason.pct).toFixed(1) }) : null} />
                 </div>
 
                 {/* Pareto: simple sorted bars + table */}
-                <Card title="Scrap Pareto by reason">
-                    {reasons.length === 0 ? <Empty>No scrap reported in this period.</Empty> : (
+                <Card title={__('Scrap Pareto by reason')}>
+                    {reasons.length === 0 ? <Empty>{__('No scrap reported in this period.')}</Empty> : (
                         <>
                             <div className="space-y-2 mb-6">
                                 {reasons.map((r) => (
@@ -81,7 +83,7 @@ export default function ScrapReportsIndex() {
                                 <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
                                     <thead>
                                         <tr>
-                                            {['Code', 'Reason', 'Category', 'Quantity', '% of Total', 'Cumulative %'].map((h, i) => (
+                                            {[__('Code'), __('Reason'), __('Category'), __('Quantity'), __('% of Total'), __('Cumulative %')].map((h, i) => (
                                                 <th key={h} className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase ${i >= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
                                             ))}
                                         </tr>
@@ -91,7 +93,7 @@ export default function ScrapReportsIndex() {
                                             <tr key={r.scrap_reason_id}>
                                                 <td className="px-3 py-2 font-mono text-gray-600 dark:text-gray-300">{r.code}</td>
                                                 <td className="px-3 py-2 font-medium text-gray-800 dark:text-gray-100">{r.name}</td>
-                                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{CATEGORY_LABELS[r.category] ?? r.category}</td>
+                                                <td className="px-3 py-2 text-gray-600 dark:text-gray-300">{categories[r.category] ?? r.category}</td>
                                                 <td className="px-3 py-2 text-right tabular-nums">{fmt(r.qty)}</td>
                                                 <td className="px-3 py-2 text-right tabular-nums">{num(r.pct).toFixed(1)}%</td>
                                                 <td className="px-3 py-2 text-right tabular-nums">{num(r.cumulative_pct).toFixed(1)}%</td>
@@ -105,13 +107,13 @@ export default function ScrapReportsIndex() {
                 </Card>
 
                 {/* Scrap rate per line: simple table */}
-                <Card title="Scrap rate per line">
-                    {ratePerLine.length === 0 ? <Empty>No data.</Empty> : (
+                <Card title={__('Scrap rate per line')}>
+                    {ratePerLine.length === 0 ? <Empty>{__('No data.')}</Empty> : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
                                 <thead>
                                     <tr>
-                                        {['Line', 'Scrap', 'Produced', 'Scrap rate'].map((h, i) => (
+                                        {[__('Line'), __('Scrap'), __('Produced'), __('Scrap rate')].map((h, i) => (
                                             <th key={h} className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase ${i >= 1 ? 'text-right' : 'text-left'}`}>{h}</th>
                                         ))}
                                     </tr>

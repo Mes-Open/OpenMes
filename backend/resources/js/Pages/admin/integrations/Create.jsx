@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { INTEGRATION_FIELDS } from './fields';
+import { integrationFields } from './fields';
 
 export default function IntegrationCreate() {
     return (
@@ -11,7 +11,7 @@ export default function IntegrationCreate() {
             <ResourceForm
                 action="/admin/integrations"
                 method="post"
-                fields={INTEGRATION_FIELDS}
+                fields={integrationFields()}
                 initial={{ system_type: '', system_name: '', is_active: true }}
                 submitLabel="Create"
                 cancelHref="/admin/integrations"

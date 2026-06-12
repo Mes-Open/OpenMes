@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { WORKSTATION_TYPE_FIELDS } from './fields';
+import { workstationTypeFields } from './fields';
 
 export default function WorkstationTypeEdit({ workstationType }) {
     return (
@@ -11,7 +11,7 @@ export default function WorkstationTypeEdit({ workstationType }) {
             <ResourceForm
                 action={`/admin/workstation-types/${workstationType.id}`}
                 method="put"
-                fields={WORKSTATION_TYPE_FIELDS}
+                fields={workstationTypeFields()}
                 initial={{
                     code: workstationType.code ?? '',
                     name: workstationType.name ?? '',

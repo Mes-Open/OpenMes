@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Global line statuses — inline-managed (no separate create/edit pages; the
@@ -13,11 +14,11 @@ import { realtimeCollection } from '../../../lib/realtimeCollection';
 export default function LineStatusesIndex() {
     return (
         <>
-            <Head title="Line Statuses" />
+            <Head title={__('Line Statuses')} />
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Line Statuses</h1>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">{__('Line Statuses')}</h1>
                 <p className="text-gray-500 text-sm mb-6">
-                    Global kanban statuses available to every production line.
+                    {__('Global kanban statuses available to every production line.')}
                 </p>
                 <Editor />
             </div>
@@ -38,11 +39,11 @@ function Editor() {
             <table className="w-full text-sm">
                 <thead>
                     <tr className="text-left text-gray-500 border-b bg-gray-50">
-                        <th className="px-4 py-3">Color</th>
-                        <th className="px-4 py-3">Name</th>
-                        <th className="px-4 py-3 w-24">Order</th>
-                        <th className="px-4 py-3 w-24">Default</th>
-                        <th className="px-4 py-3 text-right">Actions</th>
+                        <th className="px-4 py-3">{__('Color')}</th>
+                        <th className="px-4 py-3">{__('Name')}</th>
+                        <th className="px-4 py-3 w-24">{__('Order')}</th>
+                        <th className="px-4 py-3 w-24">{__('Default')}</th>
+                        <th className="px-4 py-3 text-right">{__('Actions')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -79,7 +80,7 @@ function StatusRow({ status }) {
     };
 
     const destroy = () => {
-        if (confirm(`Delete status "${status.name}"?`)) {
+        if (confirm(__('Delete status ":name"?', { name: status.name }))) {
             router.delete(`/admin/line-statuses/${status.id}`, { preserveScroll: true });
         }
     };
@@ -105,13 +106,13 @@ function StatusRow({ status }) {
                         disabled={!dirty || saving}
                         className="btn-touch btn-primary text-sm disabled:opacity-50"
                     >
-                        {saving ? 'Saving…' : 'Save'}
+                        {saving ? __('Saving…') : __('Save')}
                     </button>
                     <button
                         onClick={destroy}
                         className="p-1.5 rounded-md transition-colors text-red-600 hover:text-red-800"
-                        title="Delete"
-                        aria-label="Delete"
+                        title={__('Delete')}
+                        aria-label={__('Delete')}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -148,7 +149,7 @@ function AddRow({ nextOrder }) {
                 <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-gray-300 p-0.5" />
             </td>
             <td className="px-4 py-2">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="New status name…" className="form-input w-full" />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={__('New status name…')} className="form-input w-full" />
             </td>
             <td className="px-4 py-2 text-gray-400">{nextOrder}</td>
             <td />
@@ -158,7 +159,7 @@ function AddRow({ nextOrder }) {
                     disabled={!name.trim() || adding}
                     className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
-                    {adding ? 'Adding…' : 'Add'}
+                    {adding ? __('Adding…') : __('Add')}
                 </button>
             </td>
         </tr>
