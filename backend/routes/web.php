@@ -45,6 +45,7 @@ use App\Http\Controllers\Web\Admin\SkillController;
 use App\Http\Controllers\Web\Admin\SubassemblyController;
 use App\Http\Controllers\Web\Admin\ToolController;
 use App\Http\Controllers\Web\Admin\WageGroupController;
+use App\Http\Controllers\Web\Admin\WorkerAbsenceController;
 use App\Http\Controllers\Web\Admin\WorkerController;
 // Gate 5 — Tracking advanced
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
@@ -556,6 +557,9 @@ Route::middleware('auth')->group(function () {
         // Worker certifications (ISA-95 Personnel Capability — pivot management)
         Route::post('/workers/{worker}/skills', [WorkerController::class, 'attachSkill'])->name('workers.skills.attach');
         Route::delete('/workers/{worker}/skills/{skill}', [WorkerController::class, 'detachSkill'])->name('workers.skills.detach');
+
+        // Worker absences (vacation / sick / …) — availability source.
+        Route::resource('worker-absences', WorkerAbsenceController::class)->except(['show']);
 
         // ISA-95 Personnel Classes (competency templates)
         Route::resource('personnel-classes', \App\Http\Controllers\Web\Admin\PersonnelClassController::class);
