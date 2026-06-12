@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useForm } from '@inertiajs/react';
+import { Button } from '@openmes/ui';
 import AuthLayout from '../../layouts/AuthLayout';
 import { __ } from '../../lib/i18n';
 
@@ -17,6 +18,9 @@ import { __ } from '../../lib/i18n';
  *   (matches SettingsController::updatePassword validation)
  *
  * Validation errors are surfaced from form.errors.
+ *
+ * Geist White restyle: light-only v1 — former `dark:` classes removed.
+ * Inputs stay hand-rolled (the eye-toggle overlay needs pr-12 on the field).
  */
 export default function ChangePassword({ forceChange = false }) {
     const [showCurrent, setShowCurrent] = useState(false);
@@ -40,22 +44,26 @@ export default function ChangePassword({ forceChange = false }) {
         form.data.password === form.data.password_confirmation;
 
     const isDisabled =
-        form.processing ||
         !form.data.current_password ||
         !form.data.password ||
         !form.data.password_confirmation ||
         !passwordsMatch;
 
+    // §04 input idiom — shared field classes (with room for the eye button).
+    const fieldCls = (hasError) =>
+        `w-full text-[13px] text-om-ink placeholder:text-om-faint bg-om-bg rounded-om-sm border px-3 py-2.5 pr-12 outline-none transition-colors focus:border-om-accent focus:bg-om-card focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)] ${hasError ? 'border-om-blocked' : 'border-om-line'}`;
+    const labelCls = 'block mb-[7px] font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint';
+
     return (
         <div>
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 text-center">{__('Change Password')}</h1>
-                <p className="text-gray-600 dark:text-gray-300 mt-2 text-center text-sm">
+                <h1 className="text-xl font-semibold tracking-[-0.02em] text-om-ink text-center">{__('Change Password')}</h1>
+                <p className="text-om-muted mt-2 text-center text-sm">
                     {__('Update your password to keep your account secure.')}
                 </p>
 
                 {forceChange && (
-                    <div className="mt-4 p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg text-sm">
+                    <div className="mt-4 p-4 bg-om-downtime-bg border border-om-downtime/30 text-om-downtime rounded-om-sm text-sm">
                         <strong>{__('Action required:')}</strong> {__('You must change your password before continuing.')}
                     </div>
                 )}
@@ -64,7 +72,7 @@ export default function ChangePassword({ forceChange = false }) {
             <form onSubmit={submit}>
                 {/* Current Password */}
                 <div className="mb-4">
-                    <label htmlFor="current_password" className="form-label">
+                    <label htmlFor="current_password" className={labelCls}>
                         {__('Current Password')}
                     </label>
                     <div className="relative">
@@ -74,27 +82,27 @@ export default function ChangePassword({ forceChange = false }) {
                             name="current_password"
                             value={form.data.current_password}
                             onChange={(e) => form.setData('current_password', e.target.value)}
-                            className={`form-input w-full pr-12${form.errors.current_password ? ' border-red-500' : ''}`}
+                            className={fieldCls(form.errors.current_password)}
                             autoComplete="current-password"
                             required
                         />
                         <button
                             type="button"
                             onClick={() => setShowCurrent((v) => !v)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-om-faint hover:text-om-muted"
                             tabIndex={-1}
                         >
                             <EyeIcon open={showCurrent} />
                         </button>
                     </div>
                     {form.errors.current_password && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.current_password}</p>
+                        <p className="mt-[5px] text-[11.5px] text-om-blocked">{form.errors.current_password}</p>
                     )}
                 </div>
 
                 {/* New Password */}
                 <div className="mb-4">
-                    <label htmlFor="new_password" className="form-label">
+                    <label htmlFor="new_password" className={labelCls}>
                         {__('New Password')}
                     </label>
                     <div className="relative">
@@ -104,7 +112,7 @@ export default function ChangePassword({ forceChange = false }) {
                             name="new_password"
                             value={form.data.password}
                             onChange={(e) => form.setData('password', e.target.value)}
-                            className={`form-input w-full pr-12${form.errors.password ? ' border-red-500' : ''}`}
+                            className={fieldCls(form.errors.password)}
                             autoComplete="new-password"
                             minLength={8}
                             required
@@ -112,21 +120,21 @@ export default function ChangePassword({ forceChange = false }) {
                         <button
                             type="button"
                             onClick={() => setShowNew((v) => !v)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-om-faint hover:text-om-muted"
                             tabIndex={-1}
                         >
                             <EyeIcon open={showNew} />
                         </button>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{__('Minimum 8 characters')}</p>
+                    <p className="mt-[5px] text-[11.5px] text-om-faint">{__('Minimum 8 characters')}</p>
                     {form.errors.password && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.password}</p>
+                        <p className="mt-[5px] text-[11.5px] text-om-blocked">{form.errors.password}</p>
                     )}
                 </div>
 
                 {/* Confirm New Password */}
                 <div className="mb-6">
-                    <label htmlFor="new_password_confirmation" className="form-label">
+                    <label htmlFor="new_password_confirmation" className={labelCls}>
                         {__('Confirm New Password')}
                     </label>
                     <div className="relative">
@@ -136,7 +144,7 @@ export default function ChangePassword({ forceChange = false }) {
                             name="new_password_confirmation"
                             value={form.data.password_confirmation}
                             onChange={(e) => form.setData('password_confirmation', e.target.value)}
-                            className="form-input w-full pr-12"
+                            className={fieldCls(false)}
                             autoComplete="new-password"
                             minLength={8}
                             required
@@ -144,16 +152,16 @@ export default function ChangePassword({ forceChange = false }) {
                         <button
                             type="button"
                             onClick={() => setShowConfirm((v) => !v)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-om-faint hover:text-om-muted"
                             tabIndex={-1}
                         >
                             <EyeIcon open={showConfirm} />
                         </button>
                     </div>
-                    <p className={`mt-1 text-sm ${passwordsMatch ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                    <p className={`mt-[5px] text-[11.5px] ${passwordsMatch ? 'text-om-running' : 'text-om-faint'}`}>
                         {!form.data.password_confirmation && __('Re-enter your new password')}
                         {form.data.password_confirmation && !passwordsMatch && (
-                            <span className="text-red-600 dark:text-red-400">{__('Passwords do not match')}</span>
+                            <span className="text-om-blocked">{__('Passwords do not match')}</span>
                         )}
                         {passwordsMatch && __('✓ Passwords match')}
                     </p>
@@ -161,18 +169,20 @@ export default function ChangePassword({ forceChange = false }) {
 
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row gap-3">
-                    <button
+                    <Button
                         type="submit"
+                        variant="accent"
+                        className="flex-1"
+                        loading={form.processing}
                         disabled={isDisabled}
-                        className={`btn-touch btn-primary flex-1${isDisabled ? ' opacity-50 cursor-not-allowed' : ''}`}
                     >
                         {form.processing ? __('Changing...') : __('Change Password')}
-                    </button>
+                    </Button>
 
                     {!forceChange && (
                         <a
                             href="/operator/select-line"
-                            className="btn-touch btn-secondary flex-1 text-center"
+                            className="flex-1 inline-flex items-center justify-center text-[13px] font-semibold text-om-ink bg-transparent border border-om-line hover:bg-om-chip rounded-om-sm px-4 py-[9px] text-center transition-colors"
                         >
                             {__('Cancel')}
                         </a>

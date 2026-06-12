@@ -1,7 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+// Light-only v1: the dark statusPaletteDark branch is dropped — `dark` is accepted but ignored.
 import { useTranslation } from 'react-i18next';
 
-import { MONO, statusKindFor, statusPalette, statusPaletteDark } from '@/constants/Colors';
+import { StatusPill as OmStatusPill, type StatusKey } from '@openmes/ui';
+
+import { statusKindFor, type StatusKind } from '@/constants/Colors';
 import { statusLabel } from '@/lib/statusLabels';
 
 interface Props {
@@ -10,32 +12,22 @@ interface Props {
   dark?: boolean;
 }
 
-export function StatusPill({ status, label, dark }: Props) {
+/** Map the app's status kinds onto the design system's pill states. */
+const PILL_STATUS: Record<StatusKind, StatusKey> = {
+  pending: 'pending',
+  inProgress: 'running',
+  blocked: 'blocked',
+  paused: 'downtime',
+  done: 'done',
+  cancelled: 'done',
+  rejected: 'blocked',
+};
+
+/** Delegates to the design system's StatusPill (Geist White §06). */
+export function StatusPill({ status, label }: Props) {
   // Subscribe to language changes — statusLabel() reads from i18n.t() which is
   // otherwise unreactive.
   useTranslation();
-  const kind = statusKindFor(status);
-  const palette = (dark ? statusPaletteDark : statusPalette)[kind];
   const display = (label ?? statusLabel(status)).toString().toUpperCase();
-
-  return (
-    <View style={[styles.pill, { backgroundColor: palette.bg }]}>
-      <View style={[styles.dot, { backgroundColor: palette.dot }]} />
-      <Text style={[styles.text, { color: palette.fg }]}>{display}</Text>
-    </View>
-  );
+  return <OmStatusPill status={PILL_STATUS[statusKindFor(status)]} label={display} />;
 }
-
-const styles = StyleSheet.create({
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  dot: { width: 6, height: 6, borderRadius: 1 },
-  text: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6, fontFamily: MONO },
-});

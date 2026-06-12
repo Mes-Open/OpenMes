@@ -1,5 +1,6 @@
 import { Fragment, useEffect } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
+import { Button } from '@openmes/ui';
 import CustomFields from './CustomFields';
 import { customFieldProps, submitForm } from '../lib/customFieldForm';
 
@@ -28,6 +29,12 @@ import { customFieldProps, submitForm } from '../lib/customFieldForm';
  *   customFields — optional admin-defined custom-field definitions (clientConfig);
  *                  rendered after the static fields, bound to data.custom_fields
  */
+
+// Geist White input + label idiom (light-only v1 — dark: variants removed).
+const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
+const INPUT_CLASS =
+    'w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
+
 export default function ResourceForm({
     action,
     method = 'post',
@@ -70,14 +77,14 @@ export default function ResourceForm({
     return (
         <>
             {breadcrumbs?.length > 0 && (
-                <nav className="text-sm text-gray-500 mb-4 flex items-center gap-1">
+                <nav className="text-[13px] text-om-muted mb-4 flex items-center gap-1">
                     {breadcrumbs.map((b, i) => (
                         <Fragment key={i}>
                             {i > 0 && <span>/</span>}
                             {b.href ? (
-                                <Link href={b.href} className="hover:underline">{b.label}</Link>
+                                <Link href={b.href} className="hover:underline hover:text-om-ink">{b.label}</Link>
                             ) : (
-                                <span className="text-gray-800">{b.label}</span>
+                                <span className="text-om-ink">{b.label}</span>
                             )}
                         </Fragment>
                     ))}
@@ -85,7 +92,7 @@ export default function ResourceForm({
             )}
 
             {backHref && (
-                <Link href={backHref} className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">
+                <Link href={backHref} className="text-[13px] text-om-muted hover:text-om-ink flex items-center gap-2 mb-4 transition-colors">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
@@ -93,13 +100,13 @@ export default function ResourceForm({
                 </Link>
             )}
 
-            {title && <h1 className="text-3xl font-bold text-gray-800 mb-6">{title}</h1>}
+            {title && <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-6">{title}</h1>}
 
-            <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6 max-w-2xl space-y-5">
+            <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-6 max-w-2xl space-y-5">
                 {Object.keys(errors).length > 0 && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className="text-sm font-medium text-red-800">Please fix the following:</p>
-                        <ul className="mt-1 text-sm text-red-700 list-disc list-inside">
+                    <div className="bg-om-blocked-bg border border-om-blocked/20 rounded-om-sm p-3">
+                        <p className="text-[12.5px] font-semibold text-om-blocked">Please fix the following:</p>
+                        <ul className="mt-1 text-[11.5px] text-om-blocked list-disc list-inside">
                             {Object.entries(errors).map(([field, msg]) => (
                                 <li key={field}>{(fields.find((f) => f.name === field)?.label ?? field)}: {msg}</li>
                             ))}
@@ -116,15 +123,14 @@ export default function ResourceForm({
                 )}
 
                 <div className="flex items-center gap-3 pt-2">
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="primary" loading={processing}>
                         {processing ? 'Saving…' : submitLabel}
-                    </button>
+                    </Button>
                     {cancelHref && (
-                        <Link href={cancelHref} className="text-gray-500 hover:text-gray-800 text-sm">
+                        <Link
+                            href={cancelHref}
+                            className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
+                        >
                             Cancel
                         </Link>
                     )}
@@ -141,11 +147,18 @@ function Field({ field, value, error, setData }) {
     if (type === 'checkbox') {
         return (
             <div>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" name={name} checked={!!value} onChange={(e) => set(e.target.checked)} />
+                <label className="flex items-center gap-2.5 text-[13px] text-om-ink">
+                    {/* 18px accent checkbox idiom — native input kept for name/focus/e2e semantics */}
+                    <input
+                        type="checkbox"
+                        name={name}
+                        checked={!!value}
+                        onChange={(e) => set(e.target.checked)}
+                        className="size-[18px] accent-om-accent"
+                    />
                     {label}
                 </label>
-                {help && <p className="text-sm text-gray-500 mt-1">{help}</p>}
+                {help && <p className="text-[12px] text-om-muted mt-1">{help}</p>}
             </div>
         );
     }
@@ -159,8 +172,8 @@ function Field({ field, value, error, setData }) {
 
         return (
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {label} {required && <span className="text-red-500">*</span>}
+                <label className={LABEL_CLASS}>
+                    {label} {required && <span className="text-om-accent">*</span>}
                 </label>
                 <div name={name} className="flex flex-wrap gap-2">
                     {(options ?? []).map((o) => {
@@ -170,10 +183,10 @@ function Field({ field, value, error, setData }) {
                                 type="button"
                                 key={String(o.value)}
                                 onClick={() => toggle(o.value)}
-                                className={`px-3 py-1.5 rounded-lg text-sm border ${
+                                className={`px-3 py-1.5 rounded-om-sm text-[13px] border transition-colors ${
                                     active
-                                        ? 'bg-blue-600 text-white border-blue-600'
-                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        ? 'bg-om-ink text-white border-om-ink'
+                                        : 'bg-om-card text-om-ink border-om-line hover:bg-om-chip'
                                 }`}
                             >
                                 {o.label}
@@ -181,16 +194,16 @@ function Field({ field, value, error, setData }) {
                         );
                     })}
                 </div>
-                {help && <p className="text-sm text-gray-500 mt-1">{help}</p>}
-                {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+                {help && <p className="text-[12px] text-om-muted mt-1">{help}</p>}
+                {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
             </div>
         );
     }
 
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className={LABEL_CLASS}>
+                {label} {required && <span className="text-om-accent">*</span>}
             </label>
 
             {type === 'textarea' ? (
@@ -200,10 +213,11 @@ function Field({ field, value, error, setData }) {
                     onChange={(e) => set(e.target.value)}
                     rows={3}
                     placeholder={placeholder}
-                    className="form-input w-full"
+                    className={INPUT_CLASS}
                 />
             ) : type === 'select' ? (
-                <select name={name} value={value ?? ''} onChange={(e) => set(e.target.value)} className="form-input w-full">
+                /* Native <select> kept for now — same input styling. */
+                <select name={name} value={value ?? ''} onChange={(e) => set(e.target.value)} className={INPUT_CLASS}>
                     {(options ?? []).map((o) => (
                         <option key={o.value} value={o.value}>
                             {o.label}
@@ -216,7 +230,7 @@ function Field({ field, value, error, setData }) {
                     name={name}
                     value={value || '#3b82f6'}
                     onChange={(e) => set(e.target.value)}
-                    className="h-9 w-16 rounded border border-gray-300 p-0.5"
+                    className="h-9 w-16 rounded-om-sm border border-om-line bg-om-bg p-0.5"
                 />
             ) : (
                 <input
@@ -225,12 +239,12 @@ function Field({ field, value, error, setData }) {
                     value={value ?? ''}
                     onChange={(e) => set(e.target.value)}
                     placeholder={placeholder}
-                    className="form-input w-full"
+                    className={INPUT_CLASS}
                 />
             )}
 
-            {help && <p className="text-sm text-gray-500 mt-1">{help}</p>}
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {help && <p className="text-[12px] text-om-muted mt-1">{help}</p>}
+            {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
         </div>
     );
 }

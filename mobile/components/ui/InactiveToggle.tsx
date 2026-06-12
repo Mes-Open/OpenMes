@@ -1,9 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens; dark shop-floor theming returns via token theming later.
+import { StyleSheet, Text, View } from 'react-native';
 
-import { Mono } from '@/components/ui/Mono';
+import { colors, fonts, monoLabel, radius } from '@openmes/ui';
+
 import { Switch } from '@/components/ui/Switch';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 
 interface Props {
   value: boolean;
@@ -12,13 +12,9 @@ interface Props {
 }
 
 export function InactiveToggle({ value, onValueChange, label = 'SHOW INACTIVE' }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
-    <View style={[styles.wrap, { borderColor: palette.border }]}>
-      <Mono size={11} color={palette.textFaint} letterSpacing={0.6}>
-        {label.toUpperCase()}
-      </Mono>
+    <View style={styles.wrap}>
+      <Text style={styles.label}>{label.toUpperCase()}</Text>
       <Switch value={value} onValueChange={onValueChange} />
     </View>
   );
@@ -31,7 +27,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 6,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.line2,
+    backgroundColor: colors.card,
+  },
+  label: {
+    ...monoLabel,
+    fontFamily: fonts.mono.native.regular,
+    color: colors.faint,
   },
 });

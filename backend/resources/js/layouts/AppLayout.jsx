@@ -18,6 +18,11 @@ import { __ } from '../lib/i18n';
  * window.location, which wouldn't update while the layout stays mounted).
  *
  * Persists collapse (`sb`) + dark mode (`theme`) in localStorage.
+ *
+ * STYLING (Geist White v1): this chrome is light-only for now — `dark:` variant
+ * classes were removed; the dark shop-floor variant returns later via om-* token
+ * theming. The theme toggle below stays functional (it still flips the `dark`
+ * class + localStorage) but is visually neutral here.
  */
 export default function AppLayout({ children }) {
     const page = usePage();
@@ -55,7 +60,7 @@ export default function AppLayout({ children }) {
 
     return (
         <LiveShapesProvider>
-        <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <div className="flex h-screen overflow-hidden bg-om-bg">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
                     <Sidebar
@@ -85,14 +90,17 @@ export default function AppLayout({ children }) {
 
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
                 {/* Mobile top bar */}
-                <header className="lg:hidden shrink-0 flex items-center gap-3 h-14 px-4 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm z-20">
+                <header className="lg:hidden shrink-0 flex items-center gap-3 h-14 px-4 bg-om-card border-b border-om-line z-20">
                     <button
                         onClick={() => setMobileOpen(true)}
-                        className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                        className="p-2 rounded-om-sm text-om-muted hover:bg-om-chip hover:text-om-ink"
                     >
                         <Icon d="M4 6h16M4 12h16M4 18h16" className="w-6 h-6" />
                     </button>
-                    <img src="/logo_open_mes.png" alt="OpenMES" className="h-7" />
+                    <span className="flex items-center gap-2.5">
+                        <span className="size-6 shrink-0 rounded-md bg-[linear-gradient(135deg,#EA5A2B_0_50%,#1A1917_50%_100%)]" />
+                        <span className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">openmes</span>
+                    </span>
                 </header>
 
                 {/* Desktop clock (top-right) — ported from app.blade.php's Europe/Warsaw clock */}
@@ -114,12 +122,12 @@ function FlashMessages() {
     return (
         <div className="mb-4 space-y-2">
             {flash.success && (
-                <div className="p-3 rounded-lg bg-green-100 border border-green-300 text-green-800 text-sm">
+                <div className="p-3 rounded-om-sm bg-om-running-bg border border-om-line text-om-running text-[13px]">
                     {flash.success}
                 </div>
             )}
             {flash.error && (
-                <div className="p-3 rounded-lg bg-red-100 border border-red-300 text-red-800 text-sm">
+                <div className="p-3 rounded-om-sm bg-om-blocked-bg border border-om-line text-om-blocked text-[13px]">
                     {flash.error}
                 </div>
             )}
@@ -151,10 +159,10 @@ function DesktopClock() {
     }, [locale]);
     return (
         <div className="hidden lg:flex items-center justify-end px-4 py-1.5 shrink-0">
-            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex items-center gap-2 text-[13px] text-om-faint">
                 <Icon className="w-4 h-4" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 <span>{t.date}</span>
-                <span className="font-mono font-semibold text-gray-700 dark:text-gray-200">{t.time}</span>
+                <span className="font-mono text-om-muted">{t.time}</span>
             </div>
         </div>
     );
@@ -217,18 +225,23 @@ function Sidebar({
 
     return (
         <aside
-            className={`fixed inset-y-0 left-0 z-40 flex flex-col shrink-0 bg-slate-900 text-slate-100 w-64
+            className={`fixed inset-y-0 left-0 z-40 flex flex-col shrink-0 bg-om-panel text-om-ink w-64
+                        border-r border-om-line
                         lg:relative lg:inset-auto lg:z-auto lg:translate-x-0 overflow-hidden
                         transition-[width,transform] duration-300 ease-in-out ${translate} ${widthClass}`}
         >
-            {/* Logo / header */}
-            <div className="flex items-center h-16 px-3 shrink-0 border-b border-slate-700/60">
+            {/* Logo / header — split orange/black brand mark + lowercase wordmark */}
+            <div className="flex items-center h-16 px-3 shrink-0 border-b border-om-line">
                 <Link href="/admin/dashboard" className="flex items-center gap-2.5 min-w-0 overflow-hidden">
-                    <img src="/logo_open_mes.png" alt="OpenMES" className="h-8 w-8 shrink-0 object-contain" />
+                    <span className="size-6 shrink-0 rounded-md bg-[linear-gradient(135deg,#EA5A2B_0_50%,#1A1917_50%_100%)]" />
                     {showLabels && (
-                        <span className="min-w-0 overflow-hidden leading-tight">
-                            <span className="block text-white font-bold text-sm tracking-tight truncate">OpenMES</span>
-                            {appVersion && <span className="block text-[10px] text-slate-400 truncate">{appVersion}</span>}
+                        <span className="flex items-center gap-2 min-w-0 overflow-hidden">
+                            <span className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink truncate">openmes</span>
+                            {appVersion && (
+                                <span className="shrink-0 rounded border border-om-line px-[5px] py-px font-mono text-[9px] text-om-faint">
+                                    {appVersion}
+                                </span>
+                            )}
                         </span>
                     )}
                 </Link>
@@ -239,14 +252,14 @@ function Sidebar({
                         href="/onboarding/step/1"
                         prefetch
                         title={__('Setup Wizard')}
-                        className="ml-auto p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 shrink-0"
+                        className="ml-auto p-1.5 rounded-full text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0"
                     >
                         <Icon d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" className="w-5 h-5" />
                     </Link>
                 )}
                 <button
                     onClick={onCloseMobile}
-                    className={`lg:hidden ${showLabels && isAdmin ? '' : 'ml-auto'} p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 shrink-0`}
+                    className={`lg:hidden ${showLabels && isAdmin ? '' : 'ml-auto'} p-1.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip shrink-0`}
                 >
                     <Icon d="M6 18L18 6M6 6l12 12" className="w-5 h-5" />
                 </button>
@@ -277,7 +290,7 @@ function Sidebar({
                             />
                         ))
                     ) : (
-                        <p className="px-5 py-3 text-sm text-slate-500">{__('No results')}</p>
+                        <p className="px-5 py-3 text-[13px] text-om-faint">{__('No results')}</p>
                     )
                 ) : (
                     <>
@@ -293,7 +306,7 @@ function Sidebar({
                         ))}
 
                         {/* Separator under the top links (parity with the Blade sidebar) */}
-                        {showLabels && <div className="mx-4 my-2 border-t border-slate-700/60" />}
+                        {showLabels && <div className="mx-4 my-2 border-t border-om-line" />}
 
                         {ADMIN_GROUPS.map((group) => (
                             <NavGroup
@@ -309,13 +322,13 @@ function Sidebar({
             </nav>
 
             {/* Footer */}
-            <div className="border-t border-slate-700/60 shrink-0">
-                {/* Dark mode toggle */}
+            <div className="border-t border-om-line shrink-0">
+                {/* Dark mode toggle — functional but visually neutral (light-only v1) */}
                 <div className="px-2 pt-2">
                     <button
                         onClick={onToggleDark}
-                        className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium
-                                    text-slate-300 hover:bg-slate-700 hover:text-white transition-colors
+                        className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-om-sm text-[13px] font-medium
+                                    text-om-muted hover:bg-om-chip hover:text-om-ink transition-colors
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
                         <Icon
@@ -333,10 +346,10 @@ function Sidebar({
                     <Link
                         href="/settings"
                         prefetch
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
                                     ${isActive(path, ['/settings'])
-                                        ? 'bg-blue-600 text-white'
-                                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'}
+                                        ? 'bg-om-ink text-white'
+                                        : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
                         <Icon d={ICONS.settings} className="w-5 h-5 shrink-0" />
@@ -352,16 +365,16 @@ function Sidebar({
                             href="/settings/profile"
                             prefetch
                             title={__('Profile')}
-                            className={`flex items-center gap-3 min-w-0 rounded-md hover:bg-slate-700 transition-colors
+                            className={`flex items-center gap-3 min-w-0 rounded-om-sm hover:bg-om-chip transition-colors
                                         ${collapsed && !mobileOpen ? '' : 'flex-1 -ml-1 pl-1 pr-2 py-0.5'}`}
                         >
-                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0 text-white text-sm font-bold">
+                            <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center shrink-0 text-white text-[12px] font-semibold">
                                 {auth?.user?.initial ?? '?'}
                             </div>
                             {showLabels && (
                                 <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-sm font-medium text-white truncate">{auth?.user?.name}</p>
-                                    <p className="text-xs text-slate-400 truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                                    <p className="text-[13px] font-medium text-om-ink truncate">{auth?.user?.name}</p>
+                                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
                                 </div>
                             )}
                         </Link>
@@ -370,7 +383,7 @@ function Sidebar({
                             <button
                                 type="submit"
                                 title={__('Logout')}
-                                className="p-1.5 rounded-md text-slate-400 hover:text-red-400 hover:bg-slate-700 transition-colors"
+                                className="p-1.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
                             >
                                 <Icon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" className="w-4 h-4" />
                             </button>
@@ -379,17 +392,17 @@ function Sidebar({
                 </div>
 
                 {/* Collapse toggle (desktop) */}
-                <div className="hidden lg:flex border-t border-slate-700/60 px-2 py-2">
+                <div className="hidden lg:flex border-t border-om-line px-2 py-2">
                     <button
                         onClick={onToggleCollapsed}
-                        className="flex items-center justify-center w-full py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                        className="flex items-center justify-center w-full py-2 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
                         title={collapsed ? __('Expand sidebar') : __('Collapse sidebar')}
                     >
                         <Icon
                             className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`}
                             d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
                         />
-                        {!collapsed && <span className="ml-2 text-sm">{__('Collapse')}</span>}
+                        {!collapsed && <span className="ml-2 text-[13px]">{__('Collapse')}</span>}
                     </button>
                 </div>
             </div>
@@ -423,7 +436,7 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
                         focusAfterExpand.current = true;
                         onExpand();
                     }}
-                    className="flex items-center justify-center w-full py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    className="flex items-center justify-center w-full py-2.5 rounded-om-sm text-om-faint hover:text-om-ink hover:bg-om-chip transition-colors"
                 >
                     <Icon d={SEARCH_ICON} className="w-5 h-5" />
                 </button>
@@ -437,7 +450,7 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
             <div className="relative">
                 <Icon
                     d={SEARCH_ICON}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-om-faint pointer-events-none"
                 />
                 <input
                     ref={inputRef}
@@ -449,9 +462,9 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
                         if (e.key === 'Enter') onSubmit();
                     }}
                     placeholder={__('Search menu…')}
-                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm
-                               text-slate-100 placeholder-slate-500
-                               focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full pl-9 pr-3 py-2 rounded-om-sm bg-om-bg border border-om-line text-[13px]
+                               text-om-ink placeholder:text-om-faint
+                               focus:outline-none focus:border-om-ink focus:ring-1 focus:ring-om-ink"
                 />
             </div>
         </div>
@@ -466,12 +479,12 @@ function SearchResultLink({ item, path, onNavigate }) {
                 href={item.href}
                 prefetch
                 onClick={onNavigate}
-                className={`flex flex-col gap-0.5 px-3 py-2 rounded-lg text-sm transition-colors
-                            ${active ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                className={`flex flex-col gap-0.5 px-3 py-2 rounded-om-sm text-[13px] transition-colors
+                            ${active ? 'bg-om-ink text-white' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
             >
                 <span className="font-medium">{__(item.label)}</span>
                 {item.trail.length > 0 && (
-                    <span className={`text-xs ${active ? 'text-blue-200' : 'text-slate-500'}`}>
+                    <span className={`text-xs ${active ? 'text-white/60' : 'text-om-faint'}`}>
                         {item.trail.map((t) => __(t)).join(' / ')}
                     </span>
                 )}
@@ -482,19 +495,19 @@ function SearchResultLink({ item, path, onNavigate }) {
 
 function NavLink({ link, path, collapsed, showLabels, alertCount }) {
     const active = isActive(path, link.match, link.exact);
-    const activeClass = link.alert && active ? 'bg-red-600 text-white' : active ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white';
+    const activeClass = active ? 'bg-om-ink text-white' : 'text-om-muted hover:bg-om-chip hover:text-om-ink';
     return (
         <div className="relative group px-2">
             <Link
                 href={link.href}
                 prefetch
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
                             ${activeClass} ${collapsed && !showLabels ? 'justify-center !px-0' : ''}`}
             >
                 <span className="relative shrink-0">
                     <Icon d={ICONS[link.icon]} className="w-5 h-5" />
                     {alertCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                        <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-om-blocked text-white font-mono text-[9px] leading-none">
                             {alertCount > 9 ? '9+' : alertCount}
                         </span>
                     )}
@@ -503,7 +516,7 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
                     <span className="flex items-center gap-2">
                         {__(link.label)}
                         {link.alert && alertCount > 0 && (
-                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                            <span className="inline-flex items-center justify-center px-[7px] py-px rounded-full bg-om-blocked-bg text-om-blocked font-mono text-[10px]">
                                 {alertCount}
                             </span>
                         )}
@@ -544,13 +557,17 @@ function NavGroup({ group, path, collapsed, showLabels }) {
             <div className="relative group">
                 <button
                     onClick={toggle}
-                    className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                                text-slate-300 hover:bg-slate-700 hover:text-white
+                    className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-om-sm transition-colors
+                                text-om-faint hover:bg-om-chip hover:text-om-ink
                                 ${collapsed && !showLabels ? 'justify-center !px-0' : ''}
-                                ${groupActive && showLabels ? 'bg-slate-700/50 text-white' : ''}`}
+                                ${groupActive && showLabels ? 'text-om-ink' : ''}`}
                 >
                     <Icon d={ICONS[group.icon]} className="w-5 h-5 shrink-0" />
-                    {showLabels && <span className="flex-1 text-left">{__(group.label)}</span>}
+                    {showLabels && (
+                        <span className="flex-1 text-left font-mono text-[10px] uppercase tracking-[0.12em]">
+                            {__(group.label)}
+                        </span>
+                    )}
                     {showLabels && (
                         <Icon
                             d="M19 9l-7 7-7-7"
@@ -562,7 +579,7 @@ function NavGroup({ group, path, collapsed, showLabels }) {
             </div>
 
             {open && showLabels && (
-                <div className="mt-0.5 ml-4 space-y-0.5 border-l border-slate-700/60 pl-3">
+                <div className="mt-0.5 ml-4 space-y-0.5 border-l border-om-line pl-3">
                     {group.children.map((child) =>
                         child.children ? (
                             <SubGroup key={child.key} group={child} path={path} />
@@ -586,8 +603,8 @@ function SubGroup({ group, path }) {
         <div>
             <button
                 onClick={() => setOpen((o) => !o)}
-                className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors
-                            ${active ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
+                            ${active ? 'text-om-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
             >
                 <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0 opacity-60" />
                 {__(group.label)}
@@ -597,7 +614,7 @@ function SubGroup({ group, path }) {
                 />
             </button>
             {open && (
-                <div className="ml-3 mt-0.5 space-y-0.5 border-l border-slate-700/40 pl-3">
+                <div className="ml-3 mt-0.5 space-y-0.5 border-l border-om-line2 pl-3">
                     {group.children.map((child) => (
                         <ChildLink key={child.href} child={child} path={path} dot="sm" />
                     ))}
@@ -617,12 +634,12 @@ function ChildLink({ child, path, dot }) {
         return (
             <span
                 title={child.title ? __(child.title) : undefined}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-600 cursor-not-allowed select-none"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] text-om-faintest cursor-not-allowed select-none"
             >
                 <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
                 {__(child.label)}
                 {child.badge && (
-                    <span className="ml-auto text-[10px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">
+                    <span className="ml-auto font-mono text-[10px] bg-om-chip text-om-faint px-1.5 py-0.5 rounded">
                         {__(child.badge)}
                     </span>
                 )}
@@ -634,8 +651,8 @@ function ChildLink({ child, path, dot }) {
         <Link
             href={child.href}
             prefetch
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors
-                        ${active ? 'text-blue-400 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+            className={`flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
+                        ${active ? 'bg-om-ink text-white font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
         >
             <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
             {__(child.label)}
@@ -645,7 +662,7 @@ function ChildLink({ child, path, dot }) {
 
 function Tooltip({ children }) {
     return (
-        <span className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-slate-700 text-white text-xs rounded-md whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg pointer-events-none">
+        <span className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-om-ink text-white text-xs rounded-om-sm whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] pointer-events-none">
             {children}
         </span>
     );

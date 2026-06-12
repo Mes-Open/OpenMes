@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
+import { StatusPill } from '@openmes/ui';
 import { realtimeCollection } from '../lib/realtimeCollection';
 import { __ } from '../lib/i18n';
 
@@ -39,21 +40,23 @@ const ICON_PATH = {
     activate: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
 };
 const ICON_COLOR = {
-    edit: 'text-blue-600 hover:text-blue-800',
-    delete: 'text-red-600 hover:text-red-800',
-    deactivate: 'text-gray-600 hover:text-gray-800',
-    activate: 'text-gray-600 hover:text-gray-800',
+    edit: 'text-om-muted hover:text-om-ink hover:bg-om-chip',
+    delete: 'text-om-blocked hover:bg-om-blocked-bg',
+    deactivate: 'text-om-muted hover:text-om-ink hover:bg-om-chip',
+    activate: 'text-om-muted hover:text-om-ink hover:bg-om-chip',
 };
 
 /**
  * Labeled-button styles for non-CRUD domain actions (Accept, Pause, Cancel, …)
  * that have no obvious icon — kept as real buttons rather than plain links.
+ * Geist White (light-only v1 — dark: variants removed).
  */
+const ACTION_BASE = 'inline-flex items-center justify-center rounded-om-sm px-3 py-1.5 text-[12.5px] font-semibold transition-colors';
 const ACTION_CLASS = {
-    primary: 'btn-touch btn-primary text-sm',
-    secondary: 'btn-touch btn-secondary text-sm',
-    danger: 'btn-touch text-sm bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50',
-    warning: 'btn-touch text-sm bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50',
+    primary: `${ACTION_BASE} bg-om-ink text-white hover:bg-black`,
+    secondary: `${ACTION_BASE} bg-om-chip text-om-ink hover:bg-om-line2`,
+    danger: `${ACTION_BASE} bg-om-blocked-bg text-om-blocked hover:bg-[#f8ddd6]`,
+    warning: `${ACTION_BASE} bg-om-downtime-bg text-om-downtime hover:brightness-95`,
 };
 const actionClass = (a) => a.className ?? ACTION_CLASS[a.variant] ?? ACTION_CLASS.secondary;
 export default function ResourceTable({
@@ -84,45 +87,55 @@ export default function ResourceTable({
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">{__(title)}</h1>
+                    <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__(title)}</h1>
                     {subtitle && <div className="mt-1">{subtitle}</div>}
                 </div>
                 {createHref && (
                     <Link
                         href={createHref}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+                        className="inline-flex items-center justify-center rounded-om-sm bg-om-ink px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black"
                     >
                         {__(createLabel)}
                     </Link>
                 )}
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
+            <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
+                <table className="w-full text-[13.5px]">
                     <thead>
-                        <tr className="text-left text-gray-500 border-b bg-gray-50">
+                        <tr className="text-left bg-om-panel border-b border-om-line2">
                             {columns.map((c) => (
-                                <th key={c.key} className={`px-4 py-3 ${c.align === 'right' ? 'text-right' : ''}`}>
+                                <th
+                                    key={c.key}
+                                    className={`px-4 py-2.5 font-mono text-[9px] font-medium uppercase tracking-[0.1em] ${
+                                        c.key === orderBy ? 'text-om-ink' : 'text-om-faint'
+                                    } ${c.align === 'right' ? 'text-right' : ''}`}
+                                >
                                     {__(c.label)}
+                                    {c.key === orderBy && (orderDir === 'desc' ? ' ↓' : ' ↑')}
                                 </th>
                             ))}
-                            {actions && <th className="px-4 py-3 text-right">{__('Actions')}</th>}
+                            {actions && (
+                                <th className="px-4 py-2.5 font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-om-faint text-right">
+                                    {__('Actions')}
+                                </th>
+                            )}
                         </tr>
                     </thead>
                     <tbody>
                         {visibleRows.length === 0 && (
                             <tr>
-                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-8 text-center text-gray-400">
+                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-8 text-center text-om-faint">
                                     {__(emptyText)}
                                 </td>
                             </tr>
                         )}
                         {visibleRows.map((row) => (
-                            <tr key={getKey(row)} className="border-b last:border-0 hover:bg-gray-50">
+                            <tr key={getKey(row)} className="border-b border-om-line2 last:border-0 hover:bg-om-bg transition-colors">
                                 {columns.map((c) => (
                                     <td
                                         key={c.key}
-                                        className={`px-4 py-3 ${c.className ?? 'text-gray-700'} ${c.align === 'right' ? 'text-right' : ''}`}
+                                        className={`px-4 py-3 ${c.className ?? 'text-om-ink'} ${c.align === 'right' ? 'text-right' : ''}`}
                                     >
                                         {c.render ? c.render(row) : row[c.key]}
                                     </td>
@@ -133,7 +146,7 @@ export default function ResourceTable({
                                             {actions(row).map((a, i) => {
                                                 // Icon button (Edit / toggle / Delete) — the legacy look.
                                                 if (a.icon && ICON_PATH[a.icon]) {
-                                                    const cls = `p-1.5 rounded-md transition-colors ${ICON_COLOR[a.icon]}`;
+                                                    const cls = `p-1.5 rounded-om-sm transition-colors ${ICON_COLOR[a.icon]}`;
                                                     const glyph = (
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={ICON_PATH[a.icon]} />
@@ -175,12 +188,10 @@ export default function ResourceTable({
 /** Reusable Active/Inactive pill for an `is_active` boolean column. */
 export function ActiveBadge({ active }) {
     return (
-        <span
-            className={`text-xs px-2 py-0.5 rounded font-medium ${
-                active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'
-            }`}
-        >
-            {__(active ? 'Active' : 'Inactive')}
-        </span>
+        <StatusPill
+            status={active ? 'running' : 'pending'}
+            pulse={false}
+            label={__(active ? 'Active' : 'Inactive')}
+        />
     );
 }

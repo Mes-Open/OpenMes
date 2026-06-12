@@ -1,33 +1,70 @@
-import { Image, type ImageStyle } from "react-native";
+// Light-only v1: no scheme handling — the mark's accent/ink colors are fixed.
+import { StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 
-const LOGO_WIDE = require("@/assets/images/logo-wide.png");
-const LOGO_ASPECT = 744 / 390; // intrinsic dimensions of logo-wide.png
+import { colors, fonts } from '@openmes/ui';
 
 interface LogoProps {
   /**
-   * Approximate cap height of the wordmark (px). The logo image preserves its
-   * intrinsic aspect ratio, so width follows from `size * 1.7 * LOGO_ASPECT`.
+   * Approximate cap height of the wordmark (px). The mark square scales with
+   * it so the lockup keeps its proportions at any size.
    */
   size?: number;
-  /** Kept for API compatibility — the asset has fixed colors and ignores it. */
+  /** Kept for API compatibility — the mark has fixed colors and ignores it. */
   color?: string;
   style?: ImageStyle;
 }
 
 /**
- * Official OpenMES wordmark + gear-and-factory mark, rendered from
- * `assets/images/logo-wide.png`. The image carries both the icon and the
- * wordmark in one asset and never re-tints based on theme — the gear stays
- * orange and the wordmark stays navy/orange regardless of light/dark mode.
+ * OpenMES brand lockup, drawn in code (no asset): a small split square —
+ * accent-orange triangle over ink triangle, divided along the anti-diagonal —
+ * followed by the lowercase "openmes" wordmark in Geist semibold ink.
+ *
+ * Each triangle is an absolutely-positioned 0×0 View using the border trick
+ * (colored border + transparent border meet along the diagonal).
  */
 export function BrandLogo({ size = 18, style }: LogoProps) {
-  const height = Math.round(size * 1.7);
-  const width = Math.round(height * LOGO_ASPECT);
+  const mark = Math.max(8, Math.round(size * 1.1));
   return (
-    <Image
-      source={LOGO_WIDE}
-      resizeMode="contain"
-      style={[{ width, height }, style]}
-    />
+    <View
+      accessibilityRole="image"
+      accessibilityLabel="openmes"
+      // `style` stays typed ImageStyle for API compatibility with the old
+      // Image-based logo; the shared subset (layout/margins) applies cleanly.
+      style={[styles.row, { gap: Math.round(size * 0.45) }, style as StyleProp<ViewStyle>]}>
+      <View style={[styles.mark, { width: mark, height: mark, borderRadius: Math.max(2, Math.round(mark * 0.18)) }]}>
+        <View
+          style={[
+            styles.triangle,
+            { borderTopWidth: mark, borderRightWidth: mark, borderTopColor: colors.accent },
+          ]}
+        />
+        <View
+          style={[
+            styles.triangle,
+            { borderBottomWidth: mark, borderLeftWidth: mark, borderBottomColor: colors.ink },
+          ]}
+        />
+      </View>
+      <Text style={[styles.word, { fontSize: Math.round(size * 1.05) }]}>openmes</Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
+  mark: { overflow: 'hidden', position: 'relative' },
+  triangle: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+    borderColor: 'transparent',
+  },
+  word: {
+    fontFamily: fonts.sans.native.semibold,
+    color: colors.ink,
+    letterSpacing: -0.3,
+    textTransform: 'lowercase',
+  },
+});

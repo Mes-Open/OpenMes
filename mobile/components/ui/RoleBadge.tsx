@@ -1,17 +1,20 @@
+// Light-only v1: no scheme handling — role colors aligned to Geist White tokens.
 import { StyleSheet, View } from 'react-native';
+
+import { colors } from '@openmes/ui';
 
 import { Mono } from '@/components/ui/Mono';
 import type { Role } from '@/types/api';
 
 /**
- * Per-role accent palette — matches the design bundle (om-tablet-frame.jsx).
- * Operator amber, Supervisor blue, Admin red. The same color drives the role
+ * Per-role accent palette — Operator gets the system accent orange,
+ * Supervisor blue, Admin the blocked red. The same color drives the role
  * badge pill, the footer avatar tile, and any other role-coded chrome.
  */
 export const ROLE_COLOR: Record<Role, string> = {
-  Operator: '#f5a524',
+  Operator: colors.accent,
   Supervisor: '#5b8def',
-  Admin: '#ef4444',
+  Admin: colors.blocked,
 };
 
 export function roleColor(role: Role | null | undefined): string {
@@ -38,7 +41,7 @@ export function RoleBadge({ role, label }: Props) {
         styles.badge,
         { backgroundColor: `${color}1c`, borderColor: `${color}40` },
       ]}>
-      <Mono size={9} color={color} weight="700" letterSpacing={0.6}>
+      <Mono size={9} color={color} weight="600" letterSpacing={0.8}>
         {text}
       </Mono>
     </View>

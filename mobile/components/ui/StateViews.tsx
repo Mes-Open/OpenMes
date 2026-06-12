@@ -1,50 +1,46 @@
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens.
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { Button } from './Button';
-import Colors, { MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { Button, colors, fonts } from '@openmes/ui';
 
 export function LoadingState({ label }: { label?: string }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
     <View style={styles.center}>
-      <ActivityIndicator color={palette.tint} />
-      {label ? (
-        <Text style={[styles.mono, { color: palette.textFaint }]}>{label.toUpperCase()}</Text>
-      ) : null}
+      <ActivityIndicator color={colors.accent} />
+      {label ? <Text style={styles.mono}>{label.toUpperCase()}</Text> : null}
     </View>
   );
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+  // Auto-translate the retry label — same English-as-key convention as Button.
+  const { t } = useTranslation();
   const message = error instanceof Error ? error.message : String(error ?? 'Unknown error');
   return (
     <View style={styles.center}>
-      <View style={[styles.iconBadge, { backgroundColor: palette.dangerSoft }]}>
-        <Text style={{ color: palette.danger, fontSize: 22, fontWeight: '700' }}>!</Text>
+      <View style={[styles.iconBadge, { backgroundColor: colors.blockedBg }]}>
+        <Text style={{ color: colors.blocked, fontSize: 22, fontFamily: fonts.sans.native.bold }}>!</Text>
       </View>
-      <Text style={[styles.title, { color: palette.text }]}>Something went wrong</Text>
-      <Text style={[styles.text, { color: palette.textMuted }]}>{message}</Text>
+      <Text style={styles.title}>Something went wrong</Text>
+      <Text style={styles.text}>{message}</Text>
       {onRetry ? (
-        <Button title="Retry" onPress={onRetry} variant="outline" style={{ marginTop: 14 }} />
+        <Button variant="accent" onPress={onRetry} style={{ marginTop: 14 }}>
+          {t('Retry')}
+        </Button>
       ) : null}
     </View>
   );
 }
 
 export function EmptyState({ title, subtitle }: { title: string; subtitle?: string }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
     <View style={styles.center}>
-      <View style={[styles.iconBadge, { backgroundColor: palette.surfaceAlt }]}>
-        <Text style={{ color: palette.textFaint, fontSize: 22 }}>—</Text>
+      <View style={[styles.iconBadge, { backgroundColor: colors.chip }]}>
+        <Text style={{ color: colors.faint, fontSize: 22 }}>—</Text>
       </View>
-      <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
-      {subtitle ? <Text style={[styles.text, { color: palette.textMuted }]}>{subtitle}</Text> : null}
+      <Text style={styles.title}>{title}</Text>
+      {subtitle ? <Text style={styles.text}>{subtitle}</Text> : null}
     </View>
   );
 }
@@ -59,7 +55,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  title: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
-  text: { fontSize: 13, textAlign: 'center', marginTop: 2 },
-  mono: { fontSize: 11, fontFamily: MONO, letterSpacing: 0.6, marginTop: 4 },
+  title: { fontSize: 16, fontFamily: fonts.sans.native.semibold, letterSpacing: -0.2, color: colors.ink },
+  text: { fontSize: 13, textAlign: 'center', marginTop: 2, color: colors.muted, fontFamily: fonts.sans.native.regular },
+  mono: {
+    fontSize: 10,
+    fontFamily: fonts.mono.native.regular,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.faint,
+    marginTop: 4,
+  },
 });

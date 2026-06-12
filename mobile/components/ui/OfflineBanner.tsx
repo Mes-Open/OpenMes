@@ -1,7 +1,9 @@
+// Light-only v1: no scheme handling — downtime tokens, fixed.
 import { StyleSheet, Text, View } from 'react-native';
 
+import { colors, fonts } from '@openmes/ui';
+
 import { Mono } from '@/components/ui/Mono';
-import { BRAND } from '@/constants/Colors';
 
 interface Props {
   /** Number of mutations queued while offline. */
@@ -11,10 +13,10 @@ interface Props {
 }
 
 /**
- * Top amber banner shown when the device is offline. The mobile app doesn't
- * currently maintain an offline action queue (no AsyncStorage / MMKV backed
- * mutation buffer), so this is rendered conditionally by the screens that
- * surface offline state — see operator's Today / Active step.
+ * Top downtime-amber banner shown when the device is offline. The mobile app
+ * doesn't currently maintain an offline action queue (no AsyncStorage / MMKV
+ * backed mutation buffer), so this is rendered conditionally by the screens
+ * that surface offline state — see operator's Today / Active step.
  *
  * TODO(offline): wire to a real network-state hook (NetInfo) and a queued
  * mutation store. Until then the screens decide when to mount this.
@@ -24,7 +26,7 @@ export function OfflineBanner({ queued, visible = true }: Props) {
   return (
     <View style={styles.bar}>
       <View style={styles.dot} />
-      <Mono size={11} color="#1a1208" weight="700" letterSpacing={0.6} style={{ flex: 1 }}>
+      <Mono size={11} color={colors.downtime} weight="600" letterSpacing={0.6} style={{ flex: 1 }}>
         {queued && queued > 0
           ? `OFFLINE · ${queued} ACTION${queued === 1 ? '' : 'S'} QUEUED`
           : 'OFFLINE'}
@@ -41,14 +43,13 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    backgroundColor: BRAND.amber,
+    backgroundColor: colors.downtimeBg,
   },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#1a1208' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.downtime },
   cta: {
-    color: '#1a1208',
-    fontFamily: 'GeistMono_600SemiBold',
+    color: colors.downtime,
+    fontFamily: fonts.mono.native.semibold,
     fontSize: 10,
-    fontWeight: '700',
     letterSpacing: 0.4,
   },
 });

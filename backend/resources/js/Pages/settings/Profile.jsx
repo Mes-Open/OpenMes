@@ -1,4 +1,6 @@
+// Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Badge, Button, InlineAlert, TextField } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
@@ -24,91 +26,83 @@ export default function Profile() {
             <Head title={__('Profile')} />
 
             <div className="mb-6">
-                <Link href="/settings" className="text-blue-600 dark:text-blue-300 hover:text-blue-800 flex items-center gap-2 mb-4">
+                <Link href="/settings" className="text-[13px] text-om-muted hover:text-om-ink flex items-center gap-2 mb-4 transition-colors">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                     </svg>
                     {__('Back')}
                 </Link>
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Profile')}</h1>
+                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Profile')}</h1>
             </div>
 
-            <div className="card">
+            <div className="bg-om-card border border-om-line rounded-om p-6">
                 <form onSubmit={handleSubmit}>
                     {/* Avatar */}
-                    <div className="mb-6 flex items-center gap-4">
-                        <div className="flex-shrink-0 h-20 w-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 dark:text-blue-300 font-bold text-3xl">{initial}</span>
+                    <div className="mb-6 flex items-center gap-4 border-b border-om-line pb-6">
+                        <div className="flex-shrink-0 h-20 w-20 bg-om-chip rounded-full flex items-center justify-center">
+                            <span className="text-om-ink font-semibold text-3xl">{initial}</span>
                         </div>
                         <div>
-                            <h3 className="font-semibold text-gray-800 dark:text-gray-100">{user.username}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{role}</p>
+                            <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">{user.username}</h3>
+                            <p className="text-[12.5px] text-om-muted">{role}</p>
                         </div>
                     </div>
 
                     {/* Name */}
-                    <div className="mb-6">
-                        <label htmlFor="name" className="form-label">{__('Name')}</label>
-                        <input
-                            type="text"
-                            id="name"
-                            value={data.name}
-                            onChange={(e) => setData('name', e.target.value)}
-                            className={`form-input w-full${errors.name ? ' border-red-500' : ''}`}
-                            required
-                            autoFocus
-                        />
-                        {errors.name && <p className="text-red-600 dark:text-red-300 text-sm mt-1">{errors.name}</p>}
-                    </div>
+                    <TextField
+                        className="mb-6"
+                        label={__('Name')}
+                        id="name"
+                        value={data.name}
+                        onChange={(v) => setData('name', v)}
+                        error={errors.name}
+                        required
+                        autoFocus
+                    />
 
                     {/* Email */}
-                    <div className="mb-6">
-                        <label htmlFor="email" className="form-label">{__('Email')}</label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={data.email}
-                            onChange={(e) => setData('email', e.target.value)}
-                            className={`form-input w-full${errors.email ? ' border-red-500' : ''}`}
-                            required
-                        />
-                        {errors.email && <p className="text-red-600 dark:text-red-300 text-sm mt-1">{errors.email}</p>}
-                    </div>
+                    <TextField
+                        className="mb-6"
+                        label={__('Email')}
+                        type="email"
+                        id="email"
+                        value={data.email}
+                        onChange={(v) => setData('email', v)}
+                        error={errors.email}
+                        required
+                    />
 
                     {/* Read-only account info */}
-                    <div className="bg-gray-50 dark:bg-gray-900/40 rounded-lg p-4 mb-6">
-                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">{__('Account Information')}</h3>
+                    <div className="bg-om-chip rounded-om-sm p-4 mb-6">
+                        <h3 className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-3">{__('Account Information')}</h3>
                         <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600 dark:text-gray-300">{__('Username:')}</span>
-                                <span className="font-medium text-gray-800 dark:text-gray-100">{user.username}</span>
+                            <div className="flex justify-between text-[12.5px]">
+                                <span className="text-om-muted">{__('Username:')}</span>
+                                <span className="font-medium text-om-ink">{user.username}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600 dark:text-gray-300">{__('Role:')}</span>
-                                <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded text-xs font-medium">{role}</span>
+                            <div className="flex justify-between items-center text-[12.5px]">
+                                <span className="text-om-muted">{__('Role:')}</span>
+                                <Badge variant="outline">{role}</Badge>
                             </div>
                         </div>
                     </div>
 
                     {/* Info note */}
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-                        <div className="flex gap-3">
-                            <svg className="w-5 h-5 text-blue-600 dark:text-blue-300 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <div className="text-sm text-blue-800 dark:text-blue-200">
-                                <p className="font-semibold mb-1">{__('Note:')}</p>
-                                <p>{__('To change your username or role, contact an administrator.')}</p>
-                            </div>
-                        </div>
-                    </div>
+                    <InlineAlert severity="info" title={__('Note:')} className="mb-6">
+                        {__('To change your username or role, contact an administrator.')}
+                    </InlineAlert>
 
                     {/* Actions */}
                     <div className="flex justify-end gap-3">
-                        <Link href="/settings" className="btn-touch btn-secondary">{__('Cancel')}</Link>
-                        <button type="submit" disabled={processing} className="btn-touch btn-primary">
+                        <Link
+                            href="/settings"
+                            className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
+                        >
+                            {__('Cancel')}
+                        </Link>
+                        <Button type="submit" variant="accent" loading={processing}>
                             {__('Save')}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

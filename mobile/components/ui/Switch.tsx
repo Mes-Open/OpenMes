@@ -1,3 +1,4 @@
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens; dark shop-floor theming returns via token theming later.
 import { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -7,31 +8,31 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors, radius } from '@openmes/ui';
 
 interface Props {
   value: boolean;
   onValueChange?: (next: boolean) => void;
   disabled?: boolean;
-  /** Force dark variant (operator screens). */
+  /** Kept for API compatibility — ignored in light-only v1. */
   dark?: boolean;
-  /** Override the "on" track color. Default: green. */
+  /** Kept for API compatibility — ignored; the "on" track is always accent. */
   onColor?: string;
   style?: StyleProp<ViewStyle>;
   testID?: string;
 }
 
-const TRACK_W = 40;
-const TRACK_H = 22;
+/** Geist White switch geometry: 42×24 track, 18px thumb, 3px insets. */
+const TRACK_W = 42;
+const TRACK_H = 24;
 const KNOB = 18;
-const PADDING = 2;
+const PADDING = 3;
 const TRAVEL = TRACK_W - KNOB - PADDING * 2;
 
 /**
- * Pill-shaped two-tone switch matching the OpenMES design language: a soft
- * neutral track flips to the "on" color, with a white knob that slides between
- * 2px insets. Replaces React Native's split-color Switch which doesn't honor
+ * Pill-shaped two-tone switch on the Geist White design system: a faintest
+ * neutral track flips to accent, with a white knob that slides between 3px
+ * insets. Replaces React Native's split-color Switch which doesn't honor
  * our palette on Android.
  */
 export function Switch({
@@ -43,29 +44,18 @@ export function Switch({
   style,
   testID,
 }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = dark ? Colors.dark : Colors[scheme];
-  const useDarkOff = dark || scheme === 'dark';
-
-  const offTrack = useDarkOff ? '#3a3a44' : '#cfccc4';
-  const onTrack = onColor ?? palette.success;
-
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
   useEffect(() => {
     Animated.timing(anim, {
       toValue: value ? 1 : 0,
-      duration: 150,
-      useNativeDriver: false,
+      duration: 160,
+      useNativeDriver: true,
     }).start();
   }, [value, anim]);
 
-  const trackColor = anim.interpolate({
+  const translateX = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [offTrack, onTrack],
-  });
-  const knobLeft = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [PADDING, PADDING + TRAVEL],
+    outputRange: [0, TRAVEL],
   });
 
   return (
@@ -74,14 +64,12 @@ export function Switch({
       onPress={() => !disabled && onValueChange?.(!value)}
       disabled={disabled}
       hitSlop={6}
-      style={[
-        { opacity: disabled ? 0.5 : 1 },
-        style,
-      ]}
+      style={[{ opacity: disabled ? 0.6 : 1 }, style]}
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}>
-      <Animated.View style={[styles.track, { backgroundColor: trackColor }]}>
-        <Animated.View style={[styles.knob, { left: knobLeft }]} />
+      <Animated.View
+        style={[styles.track, { backgroundColor: value ? colors.accent : colors.faintest }]}>
+        <Animated.View style={[styles.knob, { transform: [{ translateX }] }]} />
       </Animated.View>
     </Pressable>
   );
@@ -91,17 +79,18 @@ const styles = StyleSheet.create({
   track: {
     width: TRACK_W,
     height: TRACK_H,
-    borderRadius: TRACK_H / 2,
+    borderRadius: radius.pill,
     justifyContent: 'center',
   },
   knob: {
     position: 'absolute',
     top: PADDING,
+    left: PADDING,
     width: KNOB,
     height: KNOB,
     borderRadius: KNOB / 2,
-    backgroundColor: '#ffffff',
-    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.2)',
+    backgroundColor: '#FFFFFF',
+    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)',
     elevation: 2,
   },
 });

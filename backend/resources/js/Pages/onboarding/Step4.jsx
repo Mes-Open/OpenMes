@@ -1,9 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Button, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
 
 /**
  * Onboarding Step 4 — Create First Work Order.
  * POST /onboarding/step/4 → OnboardingController@storeStep4
+ *
+ * Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
  */
 
 const currentYear = new Date().getFullYear();
@@ -21,71 +24,54 @@ export default function Step4() {
     return (
         <>
             <Head title="Step 4 — Work Order" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Create First Work Order</h2>
-            <p className="text-gray-600 mb-6">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 4/4</div>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">Create First Work Order</h2>
+            <p className="text-sm text-om-muted mb-6">
                 A work order represents a production batch to manufacture. Create your first one.
             </p>
 
             <form onSubmit={submit}>
                 <div className="space-y-4">
-                    <div>
-                        <label htmlFor="order_no" className="block text-sm font-medium text-gray-700 mb-1">
-                            Order Number <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            id="order_no"
-                            type="text"
-                            value={data.order_no}
-                            onChange={(e) => setData('order_no', e.target.value)}
-                            required
-                            className={`w-full rounded-lg border px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition ${errors.order_no ? 'border-red-500' : 'border-gray-300'}`}
-                        />
-                        {errors.order_no && <p className="mt-1 text-sm text-red-600">{errors.order_no}</p>}
-                    </div>
+                    <TextField
+                        label={<>Order Number <span className="text-om-accent">*</span></>}
+                        id="order_no"
+                        mono
+                        value={data.order_no}
+                        onChange={(v) => setData('order_no', v)}
+                        error={errors.order_no}
+                        required
+                    />
 
-                    <div>
-                        <label htmlFor="planned_qty" className="block text-sm font-medium text-gray-700 mb-1">
-                            Planned Quantity <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            id="planned_qty"
-                            type="number"
-                            value={data.planned_qty}
-                            onChange={(e) => setData('planned_qty', e.target.value)}
-                            required
-                            step="0.01"
-                            min="0.01"
-                            className={`w-full rounded-lg border px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition ${errors.planned_qty ? 'border-red-500' : 'border-gray-300'}`}
-                        />
-                        {errors.planned_qty && <p className="mt-1 text-sm text-red-600">{errors.planned_qty}</p>}
-                    </div>
+                    <TextField
+                        label={<>Planned Quantity <span className="text-om-accent">*</span></>}
+                        id="planned_qty"
+                        type="number"
+                        value={data.planned_qty}
+                        onChange={(v) => setData('planned_qty', v)}
+                        error={errors.planned_qty}
+                        required
+                        step="0.01"
+                        min="0.01"
+                    />
 
-                    <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                            Description
-                        </label>
-                        <textarea
-                            id="description"
-                            rows={2}
-                            value={data.description}
-                            onChange={(e) => setData('description', e.target.value)}
-                            placeholder="Optional notes"
-                            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
-                        />
-                    </div>
+                    <TextField
+                        label="Description"
+                        id="description"
+                        multiline
+                        rows={2}
+                        value={data.description}
+                        onChange={(v) => setData('description', v)}
+                        placeholder="Optional notes"
+                    />
                 </div>
 
-                <div className="flex justify-between mt-6">
-                    <Link href="/onboarding/step/3" className="btn-touch btn-secondary">
+                <div className="flex items-center justify-between mt-6">
+                    <Link href="/onboarding/step/3" className="text-om-muted hover:text-om-ink text-[13px] transition-colors">
                         ← Back
                     </Link>
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="btn-touch btn-primary disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="accent" loading={processing}>
                         {processing ? 'Saving…' : 'Complete Setup'}
-                    </button>
+                    </Button>
                 </div>
             </form>
         </>

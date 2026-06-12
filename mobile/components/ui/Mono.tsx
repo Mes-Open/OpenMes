@@ -1,14 +1,8 @@
+// Light-only v1: Colors[scheme] defaults dropped — Geist White tokens.
 import { StyleSheet, Text, View, type TextProps, type TextStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import Colors, {
-  MONO,
-  SANS_BOLD,
-  SANS_MEDIUM,
-  SANS_REGULAR,
-  SANS_SEMIBOLD,
-} from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors, fonts } from '@openmes/ui';
 
 interface Props extends TextProps {
   size?: number;
@@ -18,18 +12,29 @@ interface Props extends TextProps {
   letterSpacing?: number;
 }
 
+// Only weights 400 / 500 / 600 ship for Geist Mono — bold maps to semibold.
+const MONO_FACE: Record<string, string> = {
+  '400': fonts.mono.native.regular,
+  '500': fonts.mono.native.medium,
+  '600': fonts.mono.native.semibold,
+  '700': fonts.mono.native.semibold,
+};
+
+function monoFontFamily(weight: TextStyle['fontWeight']): string {
+  if (typeof weight === 'string' && MONO_FACE[weight]) return MONO_FACE[weight];
+  if (typeof weight === 'number') return MONO_FACE[String(weight)] ?? fonts.mono.native.medium;
+  return fonts.mono.native.medium;
+}
+
 export function Mono({ size = 12, color, weight = '500', upper, letterSpacing, style, children, ...rest }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
     <Text
       {...rest}
       style={[
         {
-          fontFamily: MONO,
+          fontFamily: monoFontFamily(weight),
           fontSize: size,
-          color: color ?? palette.textMuted,
-          fontWeight: weight,
+          color: color ?? colors.muted,
           letterSpacing: letterSpacing ?? 0.5,
         },
         upper ? styles.upper : null,
@@ -45,16 +50,13 @@ interface SectionLabelProps {
   right?: React.ReactNode;
 }
 
+/** Mono uppercase letterspaced section label — the system's metadata idiom. */
 export function SectionLabel({ children, right }: SectionLabelProps) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   // Auto-translate so call sites can pass English keys directly.
   const { t } = useTranslation();
   return (
     <View style={styles.row}>
-      <Text style={[styles.label, { color: palette.textFaint, fontFamily: MONO }]}>
-        {t(children).toUpperCase()}
-      </Text>
+      <Text style={styles.label}>{t(children).toUpperCase()}</Text>
       {right}
     </View>
   );
@@ -76,16 +78,16 @@ interface SansProps extends TextProps {
 }
 
 const SANS_FACE: Record<string, string> = {
-  '400': SANS_REGULAR,
-  '500': SANS_MEDIUM,
-  '600': SANS_SEMIBOLD,
-  '700': SANS_BOLD,
+  '400': fonts.sans.native.regular,
+  '500': fonts.sans.native.medium,
+  '600': fonts.sans.native.semibold,
+  '700': fonts.sans.native.bold,
 };
 
 function sansFontFamily(weight: TextStyle['fontWeight']): string {
   if (typeof weight === 'string' && SANS_FACE[weight]) return SANS_FACE[weight];
-  if (typeof weight === 'number') return SANS_FACE[String(weight)] ?? SANS_REGULAR;
-  return SANS_REGULAR;
+  if (typeof weight === 'number') return SANS_FACE[String(weight)] ?? fonts.sans.native.regular;
+  return fonts.sans.native.regular;
 }
 
 export function Sans({
@@ -98,8 +100,6 @@ export function Sans({
   children,
   ...rest
 }: SansProps) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
     <Text
       {...rest}
@@ -111,8 +111,7 @@ export function Sans({
           // titles before this change.
           fontFamily: sansFontFamily(weight),
           fontSize: size,
-          color: color ?? palette.text,
-          fontWeight: weight,
+          color: color ?? colors.ink,
           letterSpacing: letterSpacing ?? -0.1,
           lineHeight: lineHeight ?? Math.round(size * 1.25),
         },
@@ -126,5 +125,11 @@ export function Sans({
 const styles = StyleSheet.create({
   upper: { textTransform: 'uppercase' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  label: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8 },
+  label: {
+    fontFamily: fonts.mono.native.regular,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.faint,
+  },
 });

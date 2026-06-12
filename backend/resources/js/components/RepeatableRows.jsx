@@ -1,3 +1,5 @@
+import { Button } from '@openmes/ui';
+
 /**
  * Editable list of sub-rows for dynamic subforms (e.g. view-template columns,
  * inspection-plan criteria). `value` is an array of row objects; `fields`
@@ -10,6 +12,11 @@
  *   addLabel  — text for the add button
  *   newRow    — () => object for a fresh row (defaults to empty strings per field)
  */
+
+// Geist White compact-row input idiom (light-only v1 — no dark: variants).
+const INPUT_CLASS =
+    'w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-1.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
+
 export default function RepeatableRows({ value, onChange, fields, addLabel = '+ Add row', newRow }) {
     const rows = value ?? [];
 
@@ -20,19 +27,24 @@ export default function RepeatableRows({ value, onChange, fields, addLabel = '+ 
 
     return (
         <div className="space-y-2">
-            <div className="flex gap-2 px-1 text-xs font-medium text-gray-500">
+            <div className="flex gap-2 px-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">
                 {fields.map((f) => <div key={f.name} className={f.width ?? 'flex-1'}>{f.label}</div>)}
                 <div className="w-8" />
             </div>
-            {rows.length === 0 && <p className="text-sm text-gray-400 px-1">No rows yet.</p>}
+            {rows.length === 0 && <p className="text-[13px] text-om-faint px-1">No rows yet.</p>}
             {rows.map((row, i) => (
                 <div key={i} className="flex items-center gap-2">
                     {fields.map((f) => (
                         <div key={f.name} className={`${f.width ?? 'flex-1'} ${f.type === 'checkbox' ? 'flex justify-center' : ''}`}>
                             {f.type === 'checkbox' ? (
-                                <input type="checkbox" checked={!!row[f.name]} onChange={(e) => update(i, f.name, e.target.checked)} />
+                                <input
+                                    type="checkbox"
+                                    checked={!!row[f.name]}
+                                    onChange={(e) => update(i, f.name, e.target.checked)}
+                                    className="size-[18px] accent-om-accent"
+                                />
                             ) : f.type === 'select' ? (
-                                <select value={row[f.name] ?? ''} onChange={(e) => update(i, f.name, e.target.value)} className="form-input w-full text-sm py-1">
+                                <select value={row[f.name] ?? ''} onChange={(e) => update(i, f.name, e.target.value)} className={INPUT_CLASS}>
                                     {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                             ) : (
@@ -41,15 +53,22 @@ export default function RepeatableRows({ value, onChange, fields, addLabel = '+ 
                                     value={row[f.name] ?? ''}
                                     onChange={(e) => update(i, f.name, e.target.value)}
                                     placeholder={f.placeholder}
-                                    className="form-input w-full text-sm py-1"
+                                    className={INPUT_CLASS}
                                 />
                             )}
                         </div>
                     ))}
-                    <button type="button" onClick={() => remove(i)} className="w-8 text-red-500 hover:text-red-700 text-lg leading-none" title="Remove">×</button>
+                    <button
+                        type="button"
+                        onClick={() => remove(i)}
+                        className="w-8 h-8 shrink-0 rounded-om-sm text-lg leading-none text-om-blocked hover:bg-om-blocked-bg transition-colors"
+                        title="Remove"
+                    >
+                        ×
+                    </button>
                 </div>
             ))}
-            <button type="button" onClick={add} className="text-blue-600 hover:underline text-sm">{addLabel}</button>
+            <Button variant="ghost" onClick={add}>{addLabel}</Button>
         </div>
     );
 }

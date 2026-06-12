@@ -1,8 +1,9 @@
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens; dark shop-floor theming returns via token theming later.
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import Colors, { MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors, fonts, monoLabel, radius } from '@openmes/ui';
 
 interface Props extends TextInputProps {
   label: string;
@@ -28,51 +29,59 @@ export function Field({
   required,
   style,
   placeholder,
+  onFocus,
+  onBlur,
   ...rest
 }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   // Auto-translate label, hint, labelHint, placeholder, and error so every
   // form screen picks up i18n without per-screen edits. Strings are i18n
   // keys (English phrase = key, per Laravel __() convention). If a key is
   // missing the value returned by t() is the key itself — same as today.
   const { t } = useTranslation();
+  // Focus state drives the accent border + focusRing halo (TextField idiom).
+  const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.labelRow}>
-        <Text style={[styles.label, { color: palette.textFaint }]}>
+        <Text style={styles.label}>
           {t(label)}
-          {required ? <Text style={{ color: palette.danger }}>{' *'}</Text> : null}
+          {required ? <Text style={{ color: colors.blocked }}>{' *'}</Text> : null}
         </Text>
-        {labelHint ? (
-          <Text style={[styles.labelHint, { color: palette.textFaint }]}>{t(labelHint)}</Text>
-        ) : null}
+        {labelHint ? <Text style={styles.labelHint}>{t(labelHint)}</Text> : null}
       </View>
-      <View
-        style={[
-          styles.inputWrap,
-          {
-            backgroundColor: palette.surface,
-            borderColor: error ? palette.danger : palette.border,
-          },
-        ]}>
-        <TextInput
-          placeholderTextColor={palette.textFaint}
-          placeholder={placeholder ? t(placeholder) : undefined}
-          {...rest}
+      <View style={[styles.ring, focused && styles.ringFocused]}>
+        <View
           style={[
-            styles.input,
-            { color: palette.text, fontFamily: mono ? MONO : undefined },
-            style,
-          ]}
-        />
-        {suffix ? <View style={styles.suffix}>{suffix}</View> : null}
+            styles.inputWrap,
+            focused && styles.inputWrapFocused,
+            error ? styles.inputWrapError : null,
+          ]}>
+          <TextInput
+            placeholderTextColor={colors.faint}
+            placeholder={placeholder ? t(placeholder) : undefined}
+            {...rest}
+            onFocus={(e) => {
+              setFocused(true);
+              onFocus?.(e);
+            }}
+            onBlur={(e) => {
+              setFocused(false);
+              onBlur?.(e);
+            }}
+            style={[
+              styles.input,
+              { fontFamily: mono ? fonts.mono.native.regular : fonts.sans.native.regular },
+              style,
+            ]}
+          />
+          {suffix ? <View style={styles.suffix}>{suffix}</View> : null}
+        </View>
       </View>
       {error ? (
-        <Text style={[styles.error, { color: palette.danger }]}>{t(error)}</Text>
+        <Text style={styles.error}>{t(error)}</Text>
       ) : hint ? (
-        <Text style={[styles.hint, { color: palette.textFaint }]}>{t(hint)}</Text>
+        <Text style={styles.hint}>{t(hint)}</Text>
       ) : null}
     </View>
   );
@@ -81,23 +90,64 @@ export function Field({
 const styles = StyleSheet.create({
   wrap: { gap: 6 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  label: { fontSize: 10.5, fontWeight: '600', letterSpacing: 0.7, textTransform: 'uppercase', fontFamily: MONO },
-  labelHint: { fontSize: 10, fontWeight: '400', fontFamily: MONO, letterSpacing: 0.4 },
+  label: {
+    ...monoLabel,
+    fontFamily: fonts.mono.native.medium,
+    color: colors.faint,
+  },
+  labelHint: {
+    fontSize: 10,
+    fontFamily: fonts.mono.native.regular,
+    letterSpacing: 0.4,
+    color: colors.faint,
+  },
+  /** Always-mounted focus halo — 3px pad pulled back by margin so layout is stable. */
+  ring: {
+    padding: 3,
+    margin: -3,
+    borderRadius: radius.sm + 3,
+    backgroundColor: 'transparent',
+  },
+  ringFocused: {
+    backgroundColor: colors.focusRing,
+  },
   inputWrap: {
+    backgroundColor: colors.bg,
     borderWidth: 1,
-    borderRadius: 10,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
     paddingHorizontal: 14,
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  inputWrapFocused: {
+    borderColor: colors.accent,
+    backgroundColor: colors.card,
+  },
+  inputWrapError: {
+    borderColor: colors.blocked,
+  },
   input: {
     flex: 1,
     fontSize: 14,
+    color: colors.ink,
     paddingVertical: 12,
   },
   suffix: { alignItems: 'center', justifyContent: 'center' },
-  error: { fontSize: 11, fontFamily: MONO, letterSpacing: 0.4, marginTop: 2 },
-  hint: { fontSize: 10.5, fontFamily: MONO, letterSpacing: 0.3, marginTop: 2 },
+  error: {
+    fontSize: 11,
+    fontFamily: fonts.mono.native.regular,
+    letterSpacing: 0.4,
+    marginTop: 2,
+    color: colors.blocked,
+  },
+  hint: {
+    fontSize: 10.5,
+    fontFamily: fonts.mono.native.regular,
+    letterSpacing: 0.3,
+    marginTop: 2,
+    color: colors.faint,
+  },
 });

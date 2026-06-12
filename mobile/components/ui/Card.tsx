@@ -1,7 +1,7 @@
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens.
 import { Pressable, StyleSheet, View, type ViewProps } from 'react-native';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors, radius } from '@openmes/ui';
 
 interface Props extends ViewProps {
   onPress?: () => void;
@@ -10,25 +10,22 @@ interface Props extends ViewProps {
   leftAccent?: string;
 }
 
+/** Surface per variant — white card, flat panel, or ink inverse. */
+const VARIANT_BG: Record<NonNullable<Props['variant']>, string> = {
+  default: colors.card,
+  flat: colors.panel,
+  inverse: colors.ink,
+};
+
 export function Card({ onPress, style, children, variant = 'default', accent, leftAccent, ...rest }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-
-  const bg =
-    variant === 'inverse'
-      ? palette.surfaceInverse
-      : variant === 'flat'
-      ? palette.surfaceAlt
-      : palette.surface;
-
   const content = (
     <View
       {...rest}
       style={[
         styles.card,
         {
-          backgroundColor: bg,
-          borderColor: palette.border,
+          backgroundColor: VARIANT_BG[variant],
+          borderColor: variant === 'inverse' ? colors.ink : colors.line2,
           overflow: accent || leftAccent ? 'hidden' : undefined,
         },
         leftAccent ? { borderLeftWidth: 4, borderLeftColor: leftAccent } : null,
@@ -64,7 +61,7 @@ export function Card({ onPress, style, children, variant = 'default', accent, le
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 14,
+    borderRadius: radius.md,
     padding: 14,
     borderWidth: 1,
   },

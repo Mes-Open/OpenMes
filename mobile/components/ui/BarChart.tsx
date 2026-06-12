@@ -1,11 +1,11 @@
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens.
 import { StyleSheet, View } from 'react-native';
 
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors } from '@openmes/ui';
 
 interface Props {
   data: number[];
-  /** Index of the bar to highlight in amber. Defaults to none. */
+  /** Index of the bar to highlight in the accent orange. Defaults to none. */
   highlightIndex?: number;
   /** Bars after this index are rendered in the dark "now/ahead" tone. */
   darkAfter?: number;
@@ -14,8 +14,6 @@ interface Props {
 
 /** Vertical bar chart built with plain Views — no SVG dependency. */
 export function BarChart({ data, highlightIndex, darkAfter, height = 110 }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const max = Math.max(1, ...data);
 
   return (
@@ -24,11 +22,7 @@ export function BarChart({ data, highlightIndex, darkAfter, height = 110 }: Prop
         const h = Math.max(2, Math.round((v / max) * height));
         const isHighlight = highlightIndex === i;
         const isDark = darkAfter != null && i > darkAfter;
-        const bg = isHighlight
-          ? BRAND.amber
-          : isDark
-          ? palette.surfaceInverse
-          : palette.borderStrong;
+        const bg = isHighlight ? colors.accent : isDark ? colors.ink : colors.faintest;
         return (
           <View key={i} style={styles.col}>
             <View style={[styles.bar, { height: h, backgroundColor: bg }]} />

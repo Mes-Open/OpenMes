@@ -1,3 +1,4 @@
+// Light-only v1: no theming here — formatting logic only; all visuals delegate to StatPanel.
 import { StatPanel } from '@/components/ui/Detail';
 import type { CustomFieldDefinition, CustomFieldValues } from '@/types/api';
 

@@ -1,5 +1,7 @@
+// Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls (scanning logic untouched).
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
+import { Badge, Button, StatusPill } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __, formatTime } from '../../lib/i18n';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
@@ -21,13 +23,13 @@ function groupByLine(pallets) {
 }
 
 function ProgressBar({ pct, done }) {
-    const color = done ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-indigo-500';
+    const color = done ? 'bg-om-running' : pct >= 50 ? 'bg-om-downtime' : 'bg-om-accent';
     return (
         <div className="flex items-center gap-2">
-            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+            <div className="flex-1 bg-om-line rounded-full h-1.5">
                 <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${pct}%` }} />
             </div>
-            <span className="text-xs text-gray-500 w-8 text-right">{pct}%</span>
+            <span className="font-mono text-[11px] text-om-faint w-8 text-right">{pct}%</span>
         </div>
     );
 }
@@ -266,10 +268,10 @@ export default function Station() {
 
     const flashBg =
         flash === 'success'
-            ? 'bg-green-50 dark:bg-green-900/20 border-green-300'
+            ? 'bg-om-running-bg border-om-running/30'
             : flash === 'error'
-            ? 'bg-red-50 dark:bg-red-900/20 border-red-300'
-            : '';
+            ? 'bg-om-blocked-bg border-om-blocked/30'
+            : 'bg-om-card border-om-line';
 
     return (
         <>
@@ -278,67 +280,65 @@ export default function Station() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                            <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-om-ink flex items-center gap-2">
+                            <svg className="w-6 h-6 text-om-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
                             </svg>
                             {__('Packing Station')}
                         </h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-[12.5px] text-om-muted mt-1">
                             {__('Shift')}:{' '}
-                            <span className="font-semibold">
+                            <span className="font-semibold text-om-ink">
                                 {currentShift
                                     ? `${currentShift.name} (${currentShift.start}–${currentShift.end})`
                                     : <ShiftLabel />}
                             </span>
-                            &nbsp;&middot;&nbsp; {__('Logged in')}: <span className="font-semibold">{auth?.user?.name}</span>
+                            &nbsp;&middot;&nbsp; {__('Logged in')}: <span className="font-semibold text-om-ink">{auth?.user?.name}</span>
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-3 py-1.5 rounded-full">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            {__('Scanning active')}
-                        </span>
+                        <StatusPill status="running" label={__('Scanning active')} />
                     </div>
                 </div>
 
                 {/* Stats row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                    <div className="card text-center">
-                        <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.today_packed ?? '—'}</p>
-                        <p className="text-xs text-gray-500 mt-1">{__('Packed (shift)')}</p>
+                    <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
+                        <p className="font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] text-om-ink">{stats.today_packed ?? '—'}</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Packed (shift)')}</p>
                     </div>
-                    <div className="card text-center">
-                        <p className="text-3xl font-extrabold text-gray-700 dark:text-gray-200">{stats.plan ?? '—'}</p>
-                        <p className="text-xs text-gray-500 mt-1">{__('Total plan')}</p>
+                    <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
+                        <p className="font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] text-om-muted">{stats.plan ?? '—'}</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Total plan')}</p>
                     </div>
-                    <div className="card text-center">
-                        <p className={`text-3xl font-extrabold ${(stats.backlog ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
+                        <p className={`font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] ${(stats.backlog ?? 0) > 0 ? 'text-om-blocked' : 'text-om-running'}`}>
                             {stats.backlog ?? '—'}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">{__('Station backlog')}</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Station backlog')}</p>
                     </div>
-                    <div className="card text-center">
-                        <p className={`text-3xl font-extrabold ${realizacja >= 100 ? 'text-green-600' : realizacja >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                    <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
+                        <p className={`font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] ${realizacja >= 100 ? 'text-om-running' : realizacja >= 50 ? 'text-om-downtime' : 'text-om-blocked'}`}>
                             {realizacja}%
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">{__('Completion')}</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Completion')}</p>
                     </div>
                 </div>
 
                 {/* Active pallet */}
-                <div className="card mb-6">
+                <div className="bg-om-card border border-om-line rounded-om p-5 mb-6">
                     {!activePallet ? (
                         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
                             <div className="flex-1">
-                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                                <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
                                     {__('Create pallet for order')}
                                 </label>
+                                {/* Native <select> kept — onKey's SELECT-tag guard depends on it */}
                                 <select
                                     value={palletWoId}
                                     onChange={(e) => setPalletWoId(e.target.value)}
-                                    className="form-input w-full"
+                                    className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
                                 >
                                     <option value="">{__('— Select order —')}</option>
                                     {items.map((it) => (
@@ -348,58 +348,58 @@ export default function Station() {
                                     ))}
                                 </select>
                             </div>
-                            <button
-                                type="button"
+                            <Button
+                                variant="accent"
                                 onClick={createPallet}
                                 disabled={!palletWoId || palletBusy}
-                                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                                className="px-6 py-4 text-[15px]"
                             >
                                 {__('+ Create pallet')}
-                            </button>
+                            </Button>
                         </div>
                     ) : (
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{__('Active pallet')}</p>
-                                <p className="text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                                <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Active pallet')}</p>
+                                <p className="font-mono text-[40px] leading-tight font-semibold tracking-[-0.02em] text-om-ink">
                                     {activePallet.pallet_no}
                                 </p>
-                                <p className="text-sm text-gray-500">
-                                    {__('Order')} <span className="font-semibold">{activePallet.order_no}</span>
-                                    &nbsp;&middot;&nbsp; {__('Pieces on pallet:')} <span className="font-semibold">{activePallet.qty ?? 0}</span>
+                                <p className="text-[13px] text-om-muted">
+                                    {__('Order')} <span className="font-semibold text-om-ink">{activePallet.order_no}</span>
+                                    &nbsp;&middot;&nbsp; {__('Pieces on pallet:')} <span className="font-semibold text-om-ink">{activePallet.qty ?? 0}</span>
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <LabelPrintMenu kind="pallet" id={activePallet.id} templates={labelTemplates} label={__('Label')} />
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="primary"
                                     onClick={closePallet}
                                     disabled={palletBusy}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 text-white hover:bg-gray-800 disabled:opacity-50"
+                                    className="px-6 py-4 text-[15px]"
                                 >
                                     {__('Close pallet')}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* Open pallets (persist across shifts) — grouped by line, resumable */}
-                <div className="card overflow-hidden p-0 mb-6">
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                        <h2 className="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
+                <div className="bg-om-card border border-om-line rounded-om overflow-hidden mb-6">
+                    <div className="px-4 py-3 border-b border-om-line flex items-center justify-between">
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">
                             {__('Open pallets')}
                         </h2>
-                        <span className="text-xs text-gray-400">{__(':count open', { count: openPallets.length })}</span>
+                        <Badge variant="neutral">{__(':count open', { count: openPallets.length })}</Badge>
                     </div>
                     {openPallets.length === 0 ? (
-                        <div className="px-4 py-6 text-center text-gray-400 text-sm">
+                        <div className="px-4 py-6 text-center text-om-faint text-[12.5px]">
                             {__('No open pallets — create one above')}
                         </div>
                     ) : (
                         groupByLine(openPallets).map(([lineName, pallets]) => (
                             <div key={lineName}>
-                                <div className="px-4 py-1.5 bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                <div className="px-4 py-1.5 bg-om-chip font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">
                                     {lineName}
                                 </div>
                                 {pallets.map((p) => {
@@ -407,29 +407,27 @@ export default function Station() {
                                     return (
                                         <div
                                             key={p.id}
-                                            className={`px-4 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700/50 ${isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+                                            className={`px-4 py-3 flex items-center justify-between gap-3 border-b border-om-line ${isActive ? 'bg-om-selected' : ''}`}
                                         >
                                             <div className="min-w-0">
-                                                <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{p.pallet_no}</span>
-                                                <span className="text-sm text-gray-500">
+                                                <span className="font-mono font-semibold text-om-ink">{p.pallet_no}</span>
+                                                <span className="text-[13px] text-om-muted">
                                                     &nbsp;&middot;&nbsp; {p.order_no}
-                                                    &nbsp;&middot;&nbsp; <span className="font-semibold text-gray-700 dark:text-gray-300">{p.qty} {__('pcs')}</span>
+                                                    &nbsp;&middot;&nbsp; <span className="font-semibold text-om-ink">{p.qty} {__('pcs')}</span>
                                                     {p.location ? <>&nbsp;&middot;&nbsp; {p.location}</> : null}
                                                 </span>
                                             </div>
                                             <div className="shrink-0">
                                                 {isActive ? (
-                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                                                        {__('Pallet active')}
-                                                    </span>
+                                                    <StatusPill status="running" label={__('Pallet active')} />
                                                 ) : (
-                                                    <button
-                                                        type="button"
+                                                    <Button
+                                                        variant="accent"
                                                         onClick={() => resumePallet(p)}
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+                                                        className="px-5 py-3"
                                                     >
                                                         {__('Resume')}
-                                                    </button>
+                                                    </Button>
                                                 )}
                                             </div>
                                         </div>
@@ -442,52 +440,54 @@ export default function Station() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                     {/* Last scan */}
-                    <div className="card">
-                        <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">
+                    <div className="bg-om-card border border-om-line rounded-om p-5">
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink border-b border-om-line pb-2.5 mb-3">
                             {__('Last scan')}
                         </h2>
                         {!lastScan ? (
-                            <div className="py-8 text-center text-gray-400 dark:text-gray-600 text-sm">
+                            <div className="py-8 text-center text-om-faint text-[12.5px]">
                                 {__('Scan an EAN code…')}
                             </div>
                         ) : (
                             <div>
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
-                                        <p className="text-xl font-bold text-gray-800 dark:text-white">{lastScan.product}</p>
-                                        <p className="text-sm text-gray-500 mt-0.5">
+                                        <p className="text-xl font-semibold tracking-[-0.01em] text-om-ink">{lastScan.product}</p>
+                                        <p className="text-[12.5px] text-om-muted mt-0.5">
                                             EAN: <span className="font-mono">{lastScan.ean}</span>
                                             &nbsp;&middot;&nbsp; {lastScan.scanned_at}
                                         </p>
                                     </div>
-                                    <span className={`shrink-0 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${lastScan.success ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'}`}>
-                                        {lastScan.success ? __('OK') : __('Error')}
-                                    </span>
+                                    <StatusPill
+                                        className="shrink-0"
+                                        status={lastScan.success ? 'running' : 'blocked'}
+                                        label={lastScan.success ? __('OK') : __('Error')}
+                                    />
                                 </div>
                                 {lastScan.success && (
                                     <div className="mt-3 flex items-center gap-3">
-                                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div className="flex-1 bg-om-line rounded-full h-2">
                                             <div
-                                                className={`h-2 rounded-full transition-all duration-500 ${lastScan.progress >= 100 ? 'bg-green-500' : lastScan.progress >= 50 ? 'bg-yellow-500' : 'bg-indigo-500'}`}
+                                                className={`h-2 rounded-full transition-all duration-500 ${lastScan.progress >= 100 ? 'bg-om-running' : lastScan.progress >= 50 ? 'bg-om-downtime' : 'bg-om-accent'}`}
                                                 style={{ width: `${lastScan.progress ?? 0}%` }}
                                             />
                                         </div>
-                                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                        <span className="font-mono text-[13px] font-semibold text-om-ink">
                                             {lastScan.packed_qty} / {lastScan.planned_qty} {__('pcs')}
                                         </span>
                                     </div>
                                 )}
                                 {!lastScan.success && lastScan.error && (
-                                    <div className="mt-3 text-sm text-red-600 dark:text-red-400 font-medium">{lastScan.error}</div>
+                                    <div className="mt-3 text-[13px] text-om-blocked font-medium">{lastScan.error}</div>
                                 )}
                             </div>
                         )}
                     </div>
 
                     {/* Flash overlay */}
-                    <div className={`card flex items-center justify-center min-h-[120px] ${flashBg}`}>
+                    <div className={`border rounded-om flex items-center justify-center min-h-[120px] ${flashBg}`}>
                         {flash === null && (
-                            <div className="text-center text-gray-400 dark:text-gray-600 text-sm select-none">
+                            <div className="text-center text-om-faint text-[12.5px] select-none">
                                 <svg className="mx-auto w-10 h-10 mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
                                         d="M12 4v1m6.364 1.636l-.707.707M20 12h-1M17.657 17.657l-.707-.707M12 20v-1M6.343 17.657l-.707.707M4 12H3M6.343 6.343l.707.707" />
@@ -497,63 +497,63 @@ export default function Station() {
                         )}
                         {flash === 'success' && (
                             <div className="text-center">
-                                <svg className="mx-auto w-14 h-14 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="mx-auto w-14 h-14 text-om-running" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                                 </svg>
-                                <p className="text-green-700 dark:text-green-300 font-bold mt-2">{__('Scanned!')}</p>
+                                <p className="text-om-running font-semibold mt-2">{__('Scanned!')}</p>
                             </div>
                         )}
                         {flash === 'error' && (
                             <div className="text-center">
-                                <svg className="mx-auto w-14 h-14 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="mx-auto w-14 h-14 text-om-blocked" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
-                                <p className="text-red-700 dark:text-red-300 font-bold mt-2">{__('Scan error')}</p>
+                                <p className="text-om-blocked font-semibold mt-2">{__('Scan error')}</p>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* Items to pack */}
-                <div className="card overflow-hidden p-0 mb-6">
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                        <h2 className="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
+                <div className="bg-om-card border border-om-line rounded-om overflow-hidden mb-6">
+                    <div className="px-4 py-3 border-b border-om-line flex items-center justify-between">
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">
                             {__('Orders to pack')}
                         </h2>
-                        <span className="text-xs text-gray-400">{__(':count items', { count: items.length })}</span>
+                        <Badge variant="neutral">{__(':count items', { count: items.length })}</Badge>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                            <thead className="bg-gray-50 dark:bg-gray-800">
+                        <table className="min-w-full divide-y divide-om-line text-[13px]">
+                            <thead className="bg-om-panel">
                                 <tr>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{__('Order')}</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{__('Product')}</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EAN</th>
-                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{__('Packed')}</th>
-                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{__('Plan')}</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">{__('Progress')}</th>
+                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Order')}</th>
+                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Product')}</th>
+                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">EAN</th>
+                                    <th className="px-4 py-2.5 text-right font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Packed')}</th>
+                                    <th className="px-4 py-2.5 text-right font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Plan')}</th>
+                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint w-32">{__('Progress')}</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                            <tbody className="divide-y divide-om-line">
                                 {items.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
+                                        <td colSpan={6} className="px-4 py-8 text-center text-om-faint text-[12.5px]">
                                             {__('No orders with assigned EAN codes')}
                                         </td>
                                     </tr>
                                 ) : items.map((item) => (
-                                    <tr key={item.id} className={item.done ? 'bg-green-50 dark:bg-green-900/10' : ''}>
-                                        <td className="px-4 py-3 font-mono font-semibold text-indigo-600 dark:text-indigo-400">{item.order_no}</td>
-                                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{item.product}</td>
+                                    <tr key={item.id} className={item.done ? 'bg-om-running-bg/50' : ''}>
+                                        <td className="px-4 py-3 font-mono font-semibold text-om-ink">{item.order_no}</td>
+                                        <td className="px-4 py-3 text-om-ink">{item.product}</td>
                                         <td className="px-4 py-3">
                                             {(item.eans ?? []).map((ean) => (
-                                                <span key={ean} className="inline-block font-mono text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded mr-1 mb-0.5">
+                                                <span key={ean} className="inline-block font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px] mr-1 mb-0.5">
                                                     {ean}
                                                 </span>
                                             ))}
                                         </td>
-                                        <td className="px-4 py-3 text-right font-bold">{item.packed_qty}</td>
-                                        <td className="px-4 py-3 text-right text-gray-500">{item.planned_qty}</td>
+                                        <td className="px-4 py-3 text-right font-mono font-semibold text-om-ink">{item.packed_qty}</td>
+                                        <td className="px-4 py-3 text-right font-mono text-om-muted">{item.planned_qty}</td>
                                         <td className="px-4 py-3">
                                             <ProgressBar pct={item.progress} done={item.done} />
                                         </td>
@@ -565,33 +565,33 @@ export default function Station() {
                 </div>
 
                 {/* Scan log */}
-                <div className="card overflow-hidden p-0">
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                        <h2 className="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
+                <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
+                    <div className="px-4 py-3 border-b border-om-line">
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">
                             {__('Scan history (shift)')}
                         </h2>
                     </div>
                     <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                            <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                        <table className="min-w-full divide-y divide-om-line text-[13px]">
+                            <thead className="bg-om-panel sticky top-0">
                                 <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{__('Time')}</th>
-                                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{__('Product')}</th>
-                                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">EAN</th>
+                                    <th className="px-4 py-2 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Time')}</th>
+                                    <th className="px-4 py-2 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Product')}</th>
+                                    <th className="px-4 py-2 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">EAN</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                            <tbody className="divide-y divide-om-line">
                                 {history.length === 0 ? (
                                     <tr>
-                                        <td colSpan={3} className="px-4 py-6 text-center text-gray-400 text-sm">
+                                        <td colSpan={3} className="px-4 py-6 text-center text-om-faint text-[12.5px]">
                                             {__('No scans this shift')}
                                         </td>
                                     </tr>
                                 ) : history.map((entry) => (
                                     <tr key={entry.id}>
-                                        <td className="px-4 py-2.5 font-mono text-gray-500 text-xs whitespace-nowrap">{entry.scanned_at}</td>
-                                        <td className="px-4 py-2.5 font-medium text-gray-700 dark:text-gray-300">{entry.product_name}</td>
-                                        <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{entry.ean}</td>
+                                        <td className="px-4 py-2.5 font-mono text-om-muted text-[11px] whitespace-nowrap">{entry.scanned_at}</td>
+                                        <td className="px-4 py-2.5 font-medium text-om-ink">{entry.product_name}</td>
+                                        <td className="px-4 py-2.5 font-mono text-[11px] text-om-muted">{entry.ean}</td>
                                     </tr>
                                 ))}
                             </tbody>

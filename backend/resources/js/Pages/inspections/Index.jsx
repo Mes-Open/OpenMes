@@ -1,4 +1,6 @@
+// Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { StatusPill } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { formatNumber } from '../../lib/i18n';
 
@@ -24,29 +26,33 @@ const DISPOSITION_OPTIONS = [
     'return_to_supplier',
 ];
 
-function statusBadge(status) {
+// Inspection status → StatusPill status token.
+function statusPill(status) {
     const map = {
-        pass: 'bg-green-100 text-green-700',
-        conditional_pass: 'bg-yellow-100 text-yellow-700',
-        fail: 'bg-red-100 text-red-700',
-        pending: 'bg-gray-100 text-gray-600',
+        pass: 'running',
+        conditional_pass: 'downtime',
+        fail: 'blocked',
+        pending: 'pending',
     };
-    return map[status] ?? 'bg-gray-100 text-gray-600';
+    return map[status] ?? 'pending';
 }
 
-function dispositionBadge(disposition) {
+// Disposition → StatusPill status token.
+function dispositionPill(disposition) {
     const map = {
-        accept: 'bg-green-100 text-green-700',
-        accept_with_deviation: 'bg-green-100 text-green-800',
-        rework: 'bg-yellow-100 text-yellow-700',
-        quarantine: 'bg-blue-100 text-blue-700',
-        scrap: 'bg-red-100 text-red-700',
-        reject: 'bg-red-100 text-red-800',
-        return_to_supplier: 'bg-purple-100 text-purple-700',
-        pending: 'bg-gray-100 text-gray-500',
+        accept: 'running',
+        accept_with_deviation: 'running',
+        rework: 'downtime',
+        quarantine: 'pending',
+        scrap: 'blocked',
+        reject: 'blocked',
+        return_to_supplier: 'downtime',
+        pending: 'pending',
     };
-    return map[disposition] ?? 'bg-gray-100 text-gray-500';
+    return map[disposition] ?? 'pending';
 }
+
+const TH_CLASS = 'px-3 py-2 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint';
 
 function fmtNum(n) {
     if (n == null) return '—';
@@ -82,42 +88,45 @@ export default function InspectionsIndex() {
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Inbound Inspections</h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">Inbound Inspections</h1>
+                        <p className="text-[13px] text-om-muted mt-1">
                             Receive material lots and verify them against an inspection plan.
                         </p>
                     </div>
-                    <Link href="/inspections/create" className="btn-touch btn-primary">
+                    <Link
+                        href="/inspections/create"
+                        className="inline-flex items-center justify-center gap-2 rounded-om-sm bg-om-accent px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:brightness-95"
+                    >
                         + Start inspection
                     </Link>
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-                    <div className="card text-center">
-                        <div className="text-xs text-gray-500 uppercase">Pending</div>
-                        <div className={`text-2xl font-bold ${(stats.pending ?? 0) > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
+                        <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Pending</div>
+                        <div className={`mt-1 font-mono text-2xl font-semibold ${(stats.pending ?? 0) > 0 ? 'text-om-downtime' : 'text-om-faint'}`}>
                             {stats.pending ?? 0}
                         </div>
                     </div>
-                    <div className="card text-center">
-                        <div className="text-xs text-gray-500 uppercase">Failed (30d)</div>
-                        <div className={`text-2xl font-bold ${(stats.recent_fail ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
+                        <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Failed (30d)</div>
+                        <div className={`mt-1 font-mono text-2xl font-semibold ${(stats.recent_fail ?? 0) > 0 ? 'text-om-blocked' : 'text-om-running'}`}>
                             {stats.recent_fail ?? 0}
                         </div>
                     </div>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-1 mb-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex gap-1 mb-3 border-b border-om-line">
                     {tabs.map(({ key, label }) => (
                         <a
                             key={key}
                             href={tabHref(key)}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+                            className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-px transition-colors ${
                                 tab === key
-                                    ? 'border-blue-600 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                                    ? 'border-om-accent text-om-ink'
+                                    : 'border-transparent text-om-muted hover:text-om-ink'
                             }`}
                         >
                             {label}
@@ -126,13 +135,13 @@ export default function InspectionsIndex() {
                 </div>
 
                 {/* Disposition filter */}
-                <div className="flex items-center gap-2 mb-3 text-sm">
-                    <label htmlFor="disposition" className="text-gray-600 dark:text-gray-400">Disposition:</label>
+                <div className="flex items-center gap-2 mb-3">
+                    <label htmlFor="disposition" className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Disposition:</label>
                     <select
                         id="disposition"
                         value={selectedDisposition}
                         onChange={(e) => router.visit(dispHref(e.target.value), { preserveScroll: true })}
-                        className="form-input w-48"
+                        className="w-48 bg-om-bg border border-om-line rounded-om-sm px-3 py-2 text-[13px] text-om-ink outline-none focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
                     >
                         <option value="">All</option>
                         {DISPOSITION_OPTIONS.map((d) => (
@@ -140,7 +149,7 @@ export default function InspectionsIndex() {
                         ))}
                     </select>
                     {selectedDisposition && (
-                        <a href={`/inspections?tab=${tab}`} className="text-xs text-gray-500 hover:underline">
+                        <a href={`/inspections?tab=${tab}`} className="text-[11.5px] text-om-muted hover:text-om-ink">
                             Clear
                         </a>
                     )}
@@ -148,51 +157,55 @@ export default function InspectionsIndex() {
 
                 {/* Table */}
                 {inspections.length === 0 ? (
-                    <div className="card text-center py-8 text-gray-500">No inspections in this tab.</div>
+                    <div className="bg-om-card border border-om-line rounded-om text-center py-8 text-[13px] text-om-muted">No inspections in this tab.</div>
                 ) : (
-                    <div className="card overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                            <thead className="bg-gray-50 dark:bg-slate-700">
+                    <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
+                        <table className="min-w-full divide-y divide-om-line text-[13px]">
+                            <thead className="bg-om-bg">
                                 <tr>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Started</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Lot</th>
-                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Inspector</th>
-                                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Disposition</th>
-                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                    <th className={`${TH_CLASS} text-left`}>Started</th>
+                                    <th className={`${TH_CLASS} text-left`}>Material</th>
+                                    <th className={`${TH_CLASS} text-left`}>Lot</th>
+                                    <th className={`${TH_CLASS} text-right`}>Qty</th>
+                                    <th className={`${TH_CLASS} text-left`}>Inspector</th>
+                                    <th className={`${TH_CLASS} text-center`}>Status</th>
+                                    <th className={`${TH_CLASS} text-center`}>Disposition</th>
+                                    <th className={`${TH_CLASS} text-right`}>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            <tbody className="divide-y divide-om-line">
                                 {inspections.map((insp) => (
                                     <tr key={insp.id}>
-                                        <td className="px-3 py-2 font-mono text-xs">{insp.started_at_formatted ?? '—'}</td>
-                                        <td className="px-3 py-2">{insp.material?.name ?? '—'}</td>
-                                        <td className="px-3 py-2 font-mono">{insp.lot_number}</td>
-                                        <td className="px-3 py-2 text-right font-mono">
+                                        <td className="px-3 py-2 font-mono text-[12px] text-om-muted">{insp.started_at_formatted ?? '—'}</td>
+                                        <td className="px-3 py-2 text-om-ink">{insp.material?.name ?? '—'}</td>
+                                        <td className="px-3 py-2 font-mono text-om-ink">{insp.lot_number}</td>
+                                        <td className="px-3 py-2 text-right font-mono text-om-ink">
                                             {insp.quantity_received != null ? fmtNum(insp.quantity_received) : '—'}
                                         </td>
-                                        <td className="px-3 py-2 text-gray-500">{insp.inspector?.name ?? '—'}</td>
+                                        <td className="px-3 py-2 text-om-muted">{insp.inspector?.name ?? '—'}</td>
                                         <td className="px-3 py-2 text-center">
-                                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold capitalize ${statusBadge(insp.status)}`}>
-                                                {(insp.status ?? '').replace(/_/g, ' ')}
-                                            </span>
+                                            <StatusPill
+                                                status={statusPill(insp.status)}
+                                                pulse={false}
+                                                label={(insp.status ?? '').replace(/_/g, ' ')}
+                                            />
                                             {insp.issue_id && (
-                                                <span className="block text-xs text-red-600 mt-1">
+                                                <span className="block font-mono text-[11px] text-om-blocked mt-1">
                                                     NC #{insp.issue_id}
                                                 </span>
                                             )}
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold capitalize ${dispositionBadge(insp.disposition ?? 'pending')}`}>
-                                                {(insp.disposition ?? 'pending').replace(/_/g, ' ')}
-                                            </span>
+                                            <StatusPill
+                                                status={dispositionPill(insp.disposition ?? 'pending')}
+                                                pulse={false}
+                                                label={(insp.disposition ?? 'pending').replace(/_/g, ' ')}
+                                            />
                                         </td>
                                         <td className="px-3 py-2 text-right">
                                             <Link
                                                 href={`/inspections/${insp.id}`}
-                                                className="text-blue-600 hover:underline"
+                                                className="text-om-accent hover:underline"
                                             >
                                                 {insp.status === 'pending' ? 'Perform' : 'Open'}
                                             </Link>

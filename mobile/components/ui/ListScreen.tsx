@@ -1,14 +1,15 @@
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens.
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LegendList } from '@legendapp/list';
 
+import { colors, fonts, radius } from '@openmes/ui';
+
 import { Mono } from '@/components/ui/Mono';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 
 export interface FilterChip {
   id: string;
@@ -72,8 +73,6 @@ export function ListScreen<T>({
   onRefresh,
   extraHeader,
 }: Props<T>) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -88,13 +87,11 @@ export function ListScreen<T>({
     rightSlot ??
     (handleNew ? (
       <Pressable
+        accessibilityRole="button"
         onPress={handleNew}
         hitSlop={6}
-        style={({ pressed }) => [
-          styles.newBtn,
-          { backgroundColor: BRAND.amber, opacity: pressed ? 0.85 : 1 },
-        ]}>
-        <FontAwesome name="plus" size={14} color="#1a1208" />
+        style={({ pressed }) => [styles.newBtn, { opacity: pressed ? 0.85 : 1 }]}>
+        <FontAwesome name="plus" size={14} color="#FFFFFF" />
       </Pressable>
     ) : undefined);
 
@@ -110,7 +107,7 @@ export function ListScreen<T>({
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: palette.background }}>
+      <View style={styles.screen}>
         {headerBar}
         <LoadingState />
       </View>
@@ -118,7 +115,7 @@ export function ListScreen<T>({
   }
   if (isError) {
     return (
-      <View style={{ flex: 1, backgroundColor: palette.background }}>
+      <View style={styles.screen}>
         {headerBar}
         <ErrorState error={error} onRetry={onRefresh} />
       </View>
@@ -126,10 +123,10 @@ export function ListScreen<T>({
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={styles.screen}>
       {headerBar}
       <LegendList
-        style={{ backgroundColor: palette.background }}
+        style={{ backgroundColor: colors.bg }}
         data={items}
         keyExtractor={keyExtractor}
         contentContainerStyle={styles.list}
@@ -147,32 +144,15 @@ export function ListScreen<T>({
                     return (
                       <Pressable
                         key={f.id}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
                         onPress={() => onFilterChange?.(f.id)}
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: active ? palette.surfaceInverse : palette.surface,
-                            borderColor: active ? palette.surfaceInverse : palette.border,
-                          },
-                        ]}>
-                        <Text
-                          style={{
-                            fontFamily: 'GeistMono_500Medium',
-                            fontSize: 11,
-                            fontWeight: '600',
-                            letterSpacing: 0.4,
-                            color: active
-                              ? scheme === 'dark'
-                                ? '#171715'
-                                : '#fff'
-                              : palette.text,
-                          }}>
+                        style={[styles.chip, active && styles.chipActive]}>
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
                           {f.label}
                         </Text>
                         {f.count != null ? (
-                          <Mono
-                            size={10}
-                            color={active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.textFaint}>
+                          <Mono size={10} color={active ? '#FFFFFF' : colors.faint}>
                             {f.count}
                           </Mono>
                         ) : null}
@@ -199,10 +179,18 @@ export function ListScreen<T>({
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
   list: { padding: 18 },
   headerBlock: { gap: 12, marginBottom: 14 },
-  newBtn: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  chipsRow: { flexDirection: 'row', gap: 6 },
+  newBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+  },
+  chipsRow: { flexDirection: 'row', gap: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -211,5 +199,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
+    borderColor: colors.line2,
+    backgroundColor: colors.card,
   },
+  chipActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  chipText: {
+    fontSize: 12,
+    fontFamily: fonts.sans.native.semibold,
+    color: colors.muted,
+  },
+  chipTextActive: { color: '#FFFFFF' },
 });

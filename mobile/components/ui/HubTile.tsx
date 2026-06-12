@@ -1,9 +1,10 @@
+// Light-only v1: Colors[scheme] + forced dark surface dropped — `dark` is accepted but ignored.
 import { FontAwesome } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { colors, fonts, radius } from '@openmes/ui';
+
 import { Mono } from '@/components/ui/Mono';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 
 interface Props {
   /** FontAwesome icon name. */
@@ -15,50 +16,35 @@ interface Props {
   /** Count badge in the top-right (e.g. "14", "8.2K"). */
   count?: string | number;
   /**
-   * When true the icon tile is filled with the brand amber accent. Use
+   * When true the icon tile is filled with the accent orange. Use
    * sparingly — typically the "primary" tile in each hub.
    */
   accent?: boolean;
-  /** Render in dark mode (used on the Connectivity hub). */
+  /** Render in dark mode — kept for API compatibility, ignored in light-only v1. */
   dark?: boolean;
   onPress?: () => void;
 }
 
 /** Square-ish launcher tile: icon (top-left) + label + sub, optional count. */
-export function HubTile({ icon, label, sub, count, accent, dark, onPress }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-
-  // The `dark` flag forces the dark surface even when the global scheme is
-  // light (so the Connectivity hub keeps its in-brand dark look).
-  const force = dark ?? false;
-  const bg = force ? '#16161a' : palette.surface;
-  const border = force ? '#26262d' : palette.border;
-  const text = force ? '#eaeaea' : palette.text;
-  const subText = force ? '#6a6a72' : palette.textFaint;
-  const countBg = force ? '#0e0e10' : palette.surfaceAlt;
-  const countText = force ? '#9a9aa2' : palette.textMuted;
-  const iconBg = accent ? BRAND.amber : force ? '#1f1f24' : palette.surfaceAlt;
-  const iconColor = accent ? '#1a1208' : text;
-
+export function HubTile({ icon, label, sub, count, accent, onPress }: Props) {
   const inner = (
-    <View style={[styles.tile, { backgroundColor: bg, borderColor: border }]}>
-      <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
-        <FontAwesome name={icon} size={18} color={iconColor} />
+    <View style={styles.tile}>
+      <View style={[styles.iconWrap, { backgroundColor: accent ? colors.accent : colors.chip }]}>
+        <FontAwesome name={icon} size={18} color={accent ? '#FFFFFF' : colors.ink} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.label, { color: text }]} numberOfLines={2}>
+        <Text style={styles.label} numberOfLines={2}>
           {label}
         </Text>
         {sub ? (
-          <Mono size={10} color={subText} letterSpacing={0.4} style={{ marginTop: 4 }}>
+          <Mono size={10} color={colors.faint} letterSpacing={0.6} style={{ marginTop: 4 }}>
             {sub.toUpperCase()}
           </Mono>
         ) : null}
       </View>
       {count != null ? (
-        <View style={[styles.countPill, { backgroundColor: countBg }]}>
-          <Mono size={11} color={countText} weight="600">
+        <View style={styles.countPill}>
+          <Mono size={11} color={colors.muted} weight="500">
             {String(count)}
           </Mono>
         </View>
@@ -69,6 +55,7 @@ export function HubTile({ icon, label, sub, count, accent, dark, onPress }: Prop
   if (onPress) {
     return (
       <Pressable
+        accessibilityRole="button"
         onPress={onPress}
         style={({ pressed }) => [{ flex: 1, opacity: pressed ? 0.85 : 1 }]}>
         {inner}
@@ -108,19 +95,26 @@ const styles = StyleSheet.create({
   tile: {
     minHeight: 132,
     padding: 16,
-    borderRadius: 14,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.line2,
+    backgroundColor: colors.card,
     gap: 12,
     position: 'relative',
   },
   iconWrap: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontSize: 14, fontWeight: '600', lineHeight: 18 },
+  label: {
+    fontSize: 14,
+    fontFamily: fonts.sans.native.semibold,
+    color: colors.ink,
+    lineHeight: 18,
+  },
   countPill: {
     position: 'absolute',
     top: 12,
@@ -128,5 +122,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 8,
     borderRadius: 999,
+    backgroundColor: colors.chip,
   },
 });

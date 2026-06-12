@@ -1,8 +1,7 @@
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens; dark shop-floor theming returns via token theming later.
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Mono } from '@/components/ui/Mono';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors, fonts } from '@openmes/ui';
 
 interface Props {
   label: string;
@@ -12,28 +11,21 @@ interface Props {
 }
 
 export function SelectionChip({ label, active, onPress, count }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
       style={[
         styles.chip,
         {
-          backgroundColor: active ? '#fbe9c8' : palette.surface,
-          borderColor: active ? BRAND.amber : palette.border,
+          backgroundColor: active ? colors.ink : colors.card,
+          borderColor: active ? colors.ink : colors.line2,
         },
       ]}>
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: '600',
-          color: active ? '#8a5a0e' : palette.text,
-        }}>
-        {label}
-      </Text>
+      <Text style={[styles.label, { color: active ? '#FFFFFF' : colors.muted }]}>{label}</Text>
       {count != null ? (
-        <Mono size={10} color={active ? '#8a5a0e' : palette.textFaint}>{count}</Mono>
+        <Text style={[styles.count, { color: active ? '#FFFFFF' : colors.faint }]}>{count}</Text>
       ) : null}
     </Pressable>
   );
@@ -56,6 +48,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
+  },
+  label: {
+    fontSize: 12,
+    fontFamily: fonts.sans.native.semibold,
+  },
+  count: {
+    fontSize: 10,
+    fontFamily: fonts.mono.native.regular,
+    letterSpacing: 0.5,
   },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

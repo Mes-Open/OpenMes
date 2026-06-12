@@ -1,9 +1,7 @@
-import { FontAwesome } from '@expo/vector-icons';
+// Light-only v1: Colors[scheme] + dark-surface branches dropped — `dark` is accepted but ignored.
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Mono } from '@/components/ui/Mono';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors, fonts, radius } from '@openmes/ui';
 
 export type BannerTone = 'danger' | 'warning' | 'info' | 'success';
 
@@ -18,49 +16,36 @@ interface Props {
   cta?: string;
   /**
    * Force dark-surface styling (used inside the dark Connectivity hub).
-   * Defaults to following the app scheme.
+   * Light-only v1: accepted for API compatibility, ignored.
    */
   dark?: boolean;
 }
 
-export function Banner({ tone, title, detail, onPress, cta, dark }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+/** Tone → InlineAlert severity colors (Geist White §08 idiom: tinted bg + dot). */
+const TONE: Record<BannerTone, { bg: string; fg: string }> = {
+  danger: { bg: colors.blockedBg, fg: colors.blocked },
+  warning: { bg: colors.downtimeBg, fg: colors.downtime },
+  info: { bg: colors.chip, fg: colors.accent },
+  success: { bg: colors.runningBg, fg: colors.running },
+};
 
+export function Banner({ tone, title, detail, onPress, cta }: Props) {
   const t = TONE[tone];
-  // Solid tone for danger/warning so the alert is unmissable; soft tone for
-  // info/success so it doesn't shout.
-  const solid = tone === 'danger' || tone === 'warning';
-  const bg = solid ? t.bg : dark ? '#1f1f24' : palette.surface;
-  const border = solid ? t.bg : dark ? '#3a3a44' : palette.border;
-  const fg = solid ? '#fff' : t.fg;
-  const detailFg = solid ? 'rgba(255,255,255,0.85)' : palette.textMuted;
 
   const inner = (
-    <View style={[styles.bar, { backgroundColor: bg, borderColor: border }]}>
-      <View style={[styles.iconWrap, solid ? null : { backgroundColor: t.bg }]}>
-        <FontAwesome name={t.icon} size={16} color={solid ? '#fff' : t.fg} />
-      </View>
+    <View accessibilityRole="alert" style={[styles.bar, { backgroundColor: t.bg }]}>
+      <View style={[styles.dot, { backgroundColor: t.fg }]} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[styles.title, { color: fg }]} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
         {detail ? (
-          <Mono size={11} color={detailFg} style={{ marginTop: 3 }}>
+          <Text style={styles.detail} numberOfLines={1}>
             {detail}
-          </Mono>
+          </Text>
         ) : null}
       </View>
-      {cta ? (
-        <Mono
-          size={10}
-          color={solid ? '#fff' : t.fg}
-          weight="700"
-          letterSpacing={0.6}
-          style={{ marginLeft: 8 }}>
-          {cta.toUpperCase()}
-        </Mono>
-      ) : null}
+      {cta ? <Text style={[styles.cta, { color: t.fg }]}>{cta.toUpperCase()}</Text> : null}
     </View>
   );
 
@@ -74,31 +59,29 @@ export function Banner({ tone, title, detail, onPress, cta, dark }: Props) {
   return inner;
 }
 
-const TONE: Record<
-  BannerTone,
-  { bg: string; fg: string; icon: React.ComponentProps<typeof FontAwesome>['name'] }
-> = {
-  danger: { bg: '#dc2626', fg: '#b91c1c', icon: 'exclamation-triangle' },
-  warning: { bg: '#f5a524', fg: '#8a5a0e', icon: 'exclamation' },
-  info: { bg: '#3a6ed6', fg: '#1d4ed8', icon: 'info-circle' },
-  success: { bg: '#1f9d6c', fg: '#0f7a4f', icon: 'check' },
-};
-
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+    gap: 11,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+    borderRadius: radius.md,
   },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  dot: { width: 9, height: 9, borderRadius: 4.5, flexShrink: 0 },
+  title: { fontSize: 13, fontFamily: fonts.sans.native.semibold, color: colors.ink },
+  detail: {
+    marginTop: 3,
+    fontFamily: fonts.mono.native.regular,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    color: colors.muted,
   },
-  title: { fontSize: 14, fontWeight: '600', letterSpacing: -0.2 },
+  cta: {
+    marginLeft: 8,
+    fontFamily: fonts.mono.native.semibold,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
 });

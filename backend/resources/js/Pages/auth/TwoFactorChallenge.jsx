@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
+import { Button } from '@openmes/ui';
 import AuthLayout from '../../layouts/AuthLayout';
 import { __ } from '../../lib/i18n';
 
@@ -7,6 +8,9 @@ import { __ } from '../../lib/i18n';
  * Mid-login 2FA challenge — Inertia render name: auth/TwoFactorChallenge.
  * POST /2fa/challenge (two-factor.verify) with either `code` (TOTP) or
  * `recovery_code`. On success the controller logs the user in and redirects.
+ *
+ * Geist White restyle: light-only v1 — former `dark:` classes removed.
+ * Inputs stay hand-rolled (centered oversized code entry).
  */
 export default function TwoFactorChallenge() {
     const [mode, setMode] = useState('code'); // 'code' | 'recovery'
@@ -20,15 +24,19 @@ export default function TwoFactorChallenge() {
             .post('/2fa/challenge');
     };
 
+    // §04 input idiom, kept hand-rolled for the centered code styling.
+    const fieldBase =
+        'w-full text-center font-mono text-om-ink placeholder:text-om-faint bg-om-bg rounded-om-sm border border-om-line outline-none transition-colors focus:border-om-accent focus:bg-om-card focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)]';
+
     return (
         <>
             <Head title={__('Two-Factor Authentication')} />
 
             <div className="w-full">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 text-center">
+                <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2 text-center">
                     {__('Two-Factor Authentication')}
                 </h2>
-                <p className="text-gray-500 dark:text-gray-400 text-sm text-center mb-6">
+                <p className="text-om-muted text-sm text-center mb-6">
                     {mode === 'code'
                         ? __('Enter the 6-digit code from your authenticator app.')
                         : __('Enter one of your recovery codes.')}
@@ -45,9 +53,9 @@ export default function TwoFactorChallenge() {
                                 autoComplete="one-time-code"
                                 maxLength={6}
                                 autoFocus
-                                className="form-input w-full text-center text-3xl font-mono tracking-[0.5em] py-4"
+                                className={`${fieldBase} text-3xl tracking-[0.5em] py-4`}
                             />
-                            {form.errors.code && <p className="text-red-600 text-sm mt-2 text-center">{form.errors.code}</p>}
+                            {form.errors.code && <p className="text-om-blocked text-[11.5px] mt-2 text-center">{form.errors.code}</p>}
                         </div>
                     ) : (
                         <div>
@@ -57,19 +65,21 @@ export default function TwoFactorChallenge() {
                                 onChange={(e) => form.setData('recovery_code', e.target.value)}
                                 placeholder={__('Recovery code')}
                                 autoFocus
-                                className="form-input w-full text-center text-lg font-mono py-3"
+                                className={`${fieldBase} text-lg py-3`}
                             />
-                            {form.errors.recovery_code && <p className="text-red-600 text-sm mt-2 text-center">{form.errors.recovery_code}</p>}
+                            {form.errors.recovery_code && <p className="text-om-blocked text-[11.5px] mt-2 text-center">{form.errors.recovery_code}</p>}
                         </div>
                     )}
 
-                    <button
+                    <Button
                         type="submit"
-                        disabled={form.processing || (mode === 'code' ? form.data.code.length !== 6 : !form.data.recovery_code)}
-                        className="w-full px-5 py-3 bg-blue-600 text-white text-base font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        variant="accent"
+                        className="w-full"
+                        loading={form.processing}
+                        disabled={mode === 'code' ? form.data.code.length !== 6 : !form.data.recovery_code}
                     >
                         {form.processing ? __('Verifying…') : __('Verify')}
-                    </button>
+                    </Button>
 
                     <button
                         type="button"
@@ -77,7 +87,7 @@ export default function TwoFactorChallenge() {
                             setMode((m) => (m === 'code' ? 'recovery' : 'code'));
                             form.clearErrors();
                         }}
-                        className="w-full text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                        className="w-full text-sm text-om-muted hover:text-om-ink"
                     >
                         {mode === 'code' ? __('Use a recovery code instead') : __('Use an authenticator code instead')}
                     </button>

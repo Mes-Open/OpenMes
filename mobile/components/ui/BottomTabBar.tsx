@@ -1,10 +1,12 @@
+// Light-only v1: Colors[scheme] switching dropped — styling mirrors omTabBarOptions()
+// from '@openmes/ui/native' (64px card bar, line2 top hairline, ink/faint tints, 9.5px labels).
 import { FontAwesome } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors, fonts } from '@openmes/ui';
+
 import { useIssues } from '@/hooks/queries/useIssues';
 
 interface TabConfig {
@@ -14,7 +16,7 @@ interface TabConfig {
   label: string;
   /** FontAwesome icon name. */
   icon: React.ComponentProps<typeof FontAwesome>['name'];
-  /** When true, this tab is the raised amber FAB-style center button. */
+  /** When true, this tab is the raised accent FAB-style center button. */
   primary?: boolean;
   /** Show a red badge with this count if > 0. */
   badge?: number;
@@ -29,23 +31,13 @@ const TABS: Omit<TabConfig, 'badge'>[] = [
 ];
 
 export function BottomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const insets = useSafeAreaInsets();
 
   const openIssues = useIssues({ status: 'OPEN' });
   const alertCount = openIssues.data?.length ?? 0;
 
   return (
-    <View
-      style={[
-        styles.bar,
-        {
-          backgroundColor: palette.surface,
-          borderTopColor: palette.border,
-          paddingBottom: Math.max(insets.bottom, 6),
-        },
-      ]}>
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 6) }]}>
       {TABS.map((tab) => {
         // Only render tabs that exist in the route state (skip if undefined to avoid crashes).
         const route = state.routes.find((r) => r.name === tab.name);
@@ -68,43 +60,34 @@ export function BottomTabBar({ state, descriptors, navigation }: BottomTabBarPro
           return (
             <View key={tab.name} style={styles.cell}>
               <Pressable
+                accessibilityRole="button"
                 onPress={onPress}
                 style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1 }]}>
-                <FontAwesome name={tab.icon} size={26} color="#1a1208" />
+                <FontAwesome name={tab.icon} size={26} color="#FFFFFF" />
               </Pressable>
             </View>
           );
         }
 
-        const iconTint = isFocused ? palette.text : palette.textFaint;
-        const labelTint = isFocused ? palette.text : palette.textFaint;
+        const tint = isFocused ? colors.ink : colors.faint;
         return (
           <Pressable
             key={tab.name}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isFocused }}
             onPress={onPress}
             hitSlop={6}
             style={({ pressed }) => [styles.cell, { opacity: pressed ? 0.7 : 1 }]}>
             {isFocused ? <View style={styles.activeAccent} /> : null}
             <View style={styles.iconWrap}>
-              <FontAwesome name={tab.icon} size={22} color={iconTint} />
+              <FontAwesome name={tab.icon} size={22} color={tint} />
               {badge > 0 ? (
-                <View style={[styles.badge, { backgroundColor: palette.danger }]}>
-                  <Text style={[styles.badgeText, { fontFamily: MONO }]}>
-                    {badge > 9 ? '9+' : badge}
-                  </Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
                 </View>
               ) : null}
             </View>
-            <Text
-              style={[
-                styles.label,
-                {
-                  color: labelTint,
-                  fontWeight: isFocused ? '700' : '600',
-                },
-              ]}>
-              {tab.label.toUpperCase()}
-            </Text>
+            <Text style={[styles.label, { color: tint }]}>{tab.label.toUpperCase()}</Text>
           </Pressable>
         );
       })}
@@ -116,9 +99,12 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    minHeight: 64,
     paddingTop: 8,
     paddingHorizontal: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.line2,
   },
   cell: { flex: 1, alignItems: 'center', justifyContent: 'flex-start', minHeight: 56 },
   iconWrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
@@ -133,27 +119,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#ffffff',
+    borderColor: colors.card,
+    backgroundColor: colors.blocked,
   },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  label: { fontFamily: MONO, fontSize: 9.5, marginTop: 4, letterSpacing: 0.5 },
+  badgeText: { color: '#FFFFFF', fontSize: 10, fontFamily: fonts.mono.native.semibold },
+  label: {
+    fontFamily: fonts.sans.native.semibold,
+    fontSize: 9.5,
+    marginTop: 4,
+    letterSpacing: 0.5,
+  },
   activeAccent: {
     position: 'absolute',
     top: 0,
     width: 28,
     height: 2,
-    backgroundColor: BRAND.amber,
+    backgroundColor: colors.accent,
     borderRadius: 1,
   },
   primaryBtn: {
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: BRAND.amber,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -22,
-    boxShadow: '0px 6px 12px rgba(245, 144, 33, 0.4)',
+    boxShadow: '0px 6px 12px rgba(234, 90, 43, 0.35)',
     elevation: 8,
   },
 });

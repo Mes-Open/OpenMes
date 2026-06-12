@@ -1,3 +1,4 @@
+// Light-only v1: no theming here — RHF wiring only; visuals delegate to the Geist White-restyled Field.
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
 import type { TextInputProps } from 'react-native';
 

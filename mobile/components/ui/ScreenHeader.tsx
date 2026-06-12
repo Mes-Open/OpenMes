@@ -1,3 +1,4 @@
+// Light-only v1: Colors[scheme] switching dropped — variant="dark" is accepted but renders light.
 import { FontAwesome } from '@expo/vector-icons';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useEffect, useRef } from 'react';
@@ -5,9 +6,9 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
+import { colors, fonts } from '@openmes/ui';
+
 import { TabletStatusStripLive } from '@/components/tablet/TabletStatusStripLive';
-import Colors, { MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useDeviceClass } from '@/hooks/useDeviceClass';
 
 interface Props {
@@ -23,9 +24,12 @@ interface Props {
   variant?: 'menu' | 'back' | 'dark';
 }
 
+/**
+ * Screen chrome bar — Geist White §11 large-title idiom: mono uppercase
+ * context label above a 27px semibold ink title, with back/hamburger and a
+ * right slot preserved from the previous API.
+ */
 export function ScreenHeader({ title, subtitle, subtitleColor, rightAction, rightSlot, back, onBack, variant }: Props) {
-  const scheme = useColorScheme();
-  const palette = variant === 'dark' ? Colors.dark : Colors[scheme];
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { useTabletLayout: isTablet } = useDeviceClass();
@@ -39,84 +43,66 @@ export function ScreenHeader({ title, subtitle, subtitleColor, rightAction, righ
 
   return (
     <View>
-      {/* Status strip follows the active scheme so dark-mode toggles the
-          whole top bar, not just the body. Operator screens that force
-          variant="dark" stay dark regardless of system scheme. */}
-      {isTablet ? (
-        <TabletStatusStripLive dark={variant === 'dark' || scheme === 'dark'} />
-      ) : null}
-    <View
-      style={[
-        styles.bar,
-        {
-          paddingTop: barTopPadding,
-          backgroundColor: palette.background,
-          borderBottomColor: palette.border,
-        },
-      ]}>
-      {showBack ? (
-        <Pressable
-          onPress={onBack ?? (() => navigation.goBack())}
-          hitSlop={8}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            { borderColor: palette.border, opacity: pressed ? 0.6 : 1 },
-          ]}>
-          <FontAwesome name="chevron-left" size={16} color={palette.text} />
-        </Pressable>
-      ) : isTablet ? (
-        // Permanent sidebar already provides nav — no hamburger needed.
-        null
-      ) : (
-        <Pressable
-          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-          hitSlop={8}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            { borderColor: palette.border, opacity: pressed ? 0.6 : 1 },
-          ]}>
-          <FontAwesome name="bars" size={18} color={palette.text} />
-        </Pressable>
-      )}
-      <View style={styles.titleWrap}>
-        {subtitle ? (
-          <View style={styles.subtitleRow}>
-            {subtitleColor ? <PulsingDot color={subtitleColor} /> : null}
-            <Text
-              style={[
-                styles.subtitle,
-                {
-                  color: subtitleColor ?? palette.textMuted,
-                  fontWeight: subtitleColor ? '700' : '400',
-                },
-              ]}
-              numberOfLines={1}>
-              {t(subtitle).toUpperCase()}
+      {/* Operator screens that force variant="dark" keep the dark strip;
+          everything else renders the light Geist White chrome. */}
+      {isTablet ? <TabletStatusStripLive dark={variant === 'dark'} /> : null}
+      <View style={[styles.bar, { paddingTop: barTopPadding }]}>
+        {showBack ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onBack ?? (() => navigation.goBack())}
+            hitSlop={8}
+            style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}>
+            <FontAwesome name="chevron-left" size={16} color={colors.ink} />
+          </Pressable>
+        ) : isTablet ? (
+          // Permanent sidebar already provides nav — no hamburger needed.
+          null
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+            hitSlop={8}
+            style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}>
+            <FontAwesome name="bars" size={18} color={colors.ink} />
+          </Pressable>
+        )}
+        <View style={styles.titleWrap}>
+          {subtitle ? (
+            <View style={styles.subtitleRow}>
+              {subtitleColor ? <PulsingDot color={subtitleColor} /> : null}
+              <Text
+                style={[
+                  styles.subtitle,
+                  subtitleColor
+                    ? { color: subtitleColor, fontFamily: fonts.mono.native.semibold }
+                    : null,
+                ]}
+                numberOfLines={1}>
+                {t(subtitle).toUpperCase()}
+              </Text>
+            </View>
+          ) : null}
+          {title ? (
+            <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
+              {t(title)}
             </Text>
-          </View>
-        ) : null}
-        {title ? (
-          <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
-            {t(title)}
-          </Text>
-        ) : null}
+          ) : null}
+        </View>
+        {rightSlot ? (
+          rightSlot
+        ) : rightAction ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={rightAction.onPress}
+            hitSlop={8}
+            style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}>
+            <FontAwesome name={rightAction.icon} size={16} color={colors.ink} />
+          </Pressable>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
-      {rightSlot ? (
-        rightSlot
-      ) : rightAction ? (
-        <Pressable
-          onPress={rightAction.onPress}
-          hitSlop={8}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            { borderColor: palette.border, opacity: pressed ? 0.6 : 1 },
-          ]}>
-          <FontAwesome name={rightAction.icon} size={16} color={palette.text} />
-        </Pressable>
-      ) : (
-        <View style={{ width: 36 }} />
-      )}
-    </View>
     </View>
   );
 }
@@ -163,7 +149,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingBottom: 12,
     gap: 12,
+    backgroundColor: colors.bg,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
   },
   iconBtn: {
     width: 36,
@@ -172,10 +160,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 10,
     borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
   },
   titleWrap: { flex: 1, gap: 2 },
-  title: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2 },
-  subtitle: { fontSize: 11, fontFamily: MONO, letterSpacing: 0.6 },
+  title: {
+    fontSize: 27,
+    fontFamily: fonts.sans.native.semibold,
+    letterSpacing: -0.675,
+    color: colors.ink,
+  },
+  subtitle: {
+    fontSize: 10,
+    fontFamily: fonts.mono.native.regular,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.faint,
+  },
   subtitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   subtitleDot: { width: 7, height: 7, borderRadius: 3.5 },
   dotWrap: { width: 7, height: 7, alignItems: 'center', justifyContent: 'center' },

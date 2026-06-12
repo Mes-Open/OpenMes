@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
+import { Button, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
 
 /**
@@ -7,7 +8,13 @@ import OnboardingLayout from '../../layouts/OnboardingLayout';
  * POST /onboarding/step/3 → OnboardingController@storeStep3
  *
  * Dynamic step list with add/remove and drag-to-reorder, replacing Alpine.js x-data.
+ *
+ * Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
  */
+
+// Geist White input idiom for the inline step-row fields.
+const ROW_INPUT_CLASS =
+    'bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)] transition-colors';
 
 function DragHandle() {
     return (
@@ -69,39 +76,34 @@ export default function Step3() {
     return (
         <>
             <Head title="Step 3 — Process Template" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Define Process Template</h2>
-            <p className="text-gray-600 mb-6">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 3/4</div>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">Define Process Template</h2>
+            <p className="text-sm text-om-muted mb-6">
                 A process template defines the production steps (recipe) for your product. Add each step in the order
                 they happen during production.
             </p>
 
             <form onSubmit={submit}>
                 <div className="space-y-5">
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                            Template Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            id="name"
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            placeholder="e.g. Filter Assembly Process"
-                            className={`w-full rounded-lg border px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
-                        />
-                        {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-                    </div>
+                    <TextField
+                        label={<>Template Name <span className="text-om-accent">*</span></>}
+                        id="name"
+                        value={name}
+                        onChange={setName}
+                        error={errors.name}
+                        required
+                        placeholder="e.g. Filter Assembly Process"
+                    />
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Production Steps <span className="text-red-500">*</span>
+                        <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
+                            Production Steps <span className="text-om-accent">*</span>
                         </label>
-                        <p className="text-xs text-gray-500 mb-3">Add steps in order. Drag the handle to reorder.</p>
-                        {errors.steps && <p className="mb-2 text-sm text-red-600">{errors.steps}</p>}
+                        <p className="text-[12.5px] text-om-muted mb-3">Add steps in order. Drag the handle to reorder.</p>
+                        {errors.steps && <p className="mb-2 text-[11.5px] text-om-blocked">{errors.steps}</p>}
 
                         {/* Column headers */}
-                        <div className="flex gap-2 mb-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div className="flex gap-2 mb-2 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">
                             <span className="w-10" />
                             <span className="flex-1">Step Name</span>
                             <span className="w-28 text-center">Duration (min)</span>
@@ -111,8 +113,8 @@ export default function Step3() {
                         {steps.map((step, i) => (
                             <div
                                 key={step.id}
-                                className={`flex gap-2 mb-2 items-center rounded-lg transition-all
-                                    ${dragOverIndex === i && dragIndex !== i ? 'bg-blue-50 border border-blue-200 border-dashed' : ''}
+                                className={`flex gap-2 mb-2 items-center rounded-om-sm transition-all
+                                    ${dragOverIndex === i && dragIndex !== i ? 'bg-om-selected border border-om-accent/40 border-dashed' : ''}
                                     ${dragIndex === i ? 'opacity-50' : ''}`}
                                 draggable
                                 onDragStart={() => handleDragStart(i)}
@@ -122,7 +124,7 @@ export default function Step3() {
                             >
                                 {/* Drag handle */}
                                 <span
-                                    className="flex items-center justify-center w-10 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 select-none"
+                                    className="flex items-center justify-center w-10 cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted select-none"
                                     title="Drag to reorder"
                                 >
                                     <DragHandle />
@@ -133,7 +135,7 @@ export default function Step3() {
                                     onChange={(e) => updateStep(i, 'name', e.target.value)}
                                     required
                                     placeholder={`Step ${i + 1} (e.g. Assembly, Packaging...)`}
-                                    className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
+                                    className={`flex-1 ${ROW_INPUT_CLASS}`}
                                 />
                                 <input
                                     type="number"
@@ -141,13 +143,13 @@ export default function Step3() {
                                     onChange={(e) => updateStep(i, 'estimated_duration_minutes', e.target.value)}
                                     placeholder="min"
                                     min="0"
-                                    className="w-28 rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-center"
+                                    className={`w-28 text-center ${ROW_INPUT_CLASS}`}
                                 />
                                 {steps.length > 1 ? (
                                     <button
                                         type="button"
                                         onClick={() => removeStep(i)}
-                                        className="w-8 text-red-400 hover:text-red-600 text-lg leading-none"
+                                        className="w-8 text-om-blocked/60 hover:text-om-blocked text-lg leading-none"
                                     >
                                         &times;
                                     </button>
@@ -160,24 +162,20 @@ export default function Step3() {
                         <button
                             type="button"
                             onClick={addStep}
-                            className="text-sm text-blue-600 hover:text-blue-800 mt-2 font-medium"
+                            className="text-[13px] text-om-accent hover:underline mt-2 font-medium"
                         >
                             + Add another step
                         </button>
                     </div>
                 </div>
 
-                <div className="flex justify-between mt-6">
-                    <Link href="/onboarding/step/2" className="btn-touch btn-secondary">
+                <div className="flex items-center justify-between mt-6">
+                    <Link href="/onboarding/step/2" className="text-om-muted hover:text-om-ink text-[13px] transition-colors">
                         ← Back
                     </Link>
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="btn-touch btn-primary disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="accent" loading={processing}>
                         {processing ? 'Saving…' : 'Next: Work Order →'}
-                    </button>
+                    </Button>
                 </div>
             </form>
         </>

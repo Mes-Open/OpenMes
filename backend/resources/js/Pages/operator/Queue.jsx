@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Button, ProgressBar, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import { formatDate, formatNumber, formatTime } from '../../lib/i18n';
+
+// Geist White restyle: light-only v1 — former `dark:` classes removed.
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -31,15 +34,21 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// §04 input idiom — shared classes for dialog inputs/selects
+const inputCls =
+    'w-full rounded-om-sm border border-om-line bg-om-bg px-3 py-2.5 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/20';
+const monoLabelCls = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1.5';
+
 // ─── WO status badge (mirrors wo-status-badge blade component) ───────────────
 
 function WoStatusBadge({ status }) {
+    // WO status → design-system pill state
     const map = {
-        PENDING:     'bg-gray-100 text-gray-700',
-        IN_PROGRESS: 'bg-blue-100 text-blue-700',
-        ON_HOLD:     'bg-yellow-100 text-yellow-700',
-        DONE:        'bg-green-100 text-green-700',
-        CANCELLED:   'bg-red-100 text-red-700',
+        PENDING:     'pending',
+        IN_PROGRESS: 'running',
+        ON_HOLD:     'downtime',
+        DONE:        'done',
+        CANCELLED:   'blocked',
     };
     const label = {
         PENDING:     'Pending',
@@ -48,12 +57,7 @@ function WoStatusBadge({ status }) {
         DONE:        'Done',
         CANCELLED:   'Cancelled',
     };
-    const cls = map[status] ?? 'bg-gray-100 text-gray-700';
-    return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
-            {label[status] ?? status}
-        </span>
-    );
+    return <StatusPill status={map[status] ?? 'pending'} label={label[status] ?? status} />;
 }
 
 // ─── REPORT ISSUE MODAL ──────────────────────────────────────────────────────
@@ -86,43 +90,44 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
             <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-                <div className="relative bg-white dark:bg-slate-800 w-full sm:max-w-lg sm:rounded-xl shadow-2xl"
+                <div className="relative bg-om-card w-full sm:max-w-lg sm:rounded-om border border-om-line overflow-hidden shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                      onClick={(e) => e.stopPropagation()}>
 
                     {/* drag handle on mobile */}
                     <div className="flex justify-center pt-3 pb-1 sm:hidden">
-                        <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        <div className="w-10 h-1 bg-om-faintest rounded-full" />
                     </div>
 
-                    <div className="px-5 pt-3 pb-5 sm:p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Report Issue</h3>
-                                <p className="text-sm text-gray-500 font-mono">{woNo}</p>
-                            </div>
-                            <button type="button" onClick={onClose}
-                                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
+                    {/* header — §09 hairline */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-om-line2">
+                        <div>
+                            <h3 className="text-[15px] font-semibold text-om-ink">Report Issue</h3>
+                            <p className="mt-[3px] font-mono text-[11px] text-om-faint">{woNo}</p>
                         </div>
+                        <button type="button" onClick={onClose}
+                                className="p-2 text-om-faint hover:text-om-ink rounded-om-sm hover:bg-om-chip transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
 
-                        <form onSubmit={submit} className="space-y-4">
+                    <form onSubmit={submit}>
+                        <div className="px-5 py-4 space-y-4">
                             {/* Issue type */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Type <span className="text-red-500">*</span>
+                                <label className={monoLabelCls}>
+                                    Type <span className="text-om-blocked">*</span>
                                 </label>
                                 <div className="grid grid-cols-2 gap-2 mb-2">
                                     {issueTypes.map((type) => {
                                         const selected = String(form.data.issue_type_id) === String(type.id);
                                         return (
                                             <label key={type.id}
-                                                   className={`flex items-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-colors ${
-                                                       selected ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                                                   className={`flex items-center gap-2 p-3 rounded-om-sm border cursor-pointer transition-colors ${
+                                                       selected ? 'border-om-accent bg-om-selected' : 'border-om-line hover:border-om-faintest'
                                                    }`}>
                                                 <input type="radio" name="issue_type_id"
                                                        value={type.id}
@@ -130,14 +135,14 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
                                                        onChange={() => handleTypeChange(type.id, type.name)}
                                                        className="sr-only"
                                                        required />
-                                                <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-200 leading-tight">
+                                                <span className="flex-1 text-sm font-medium text-om-ink leading-tight">
                                                     {type.name}
                                                     {type.is_blocking && (
-                                                        <span className="block text-xs text-red-500 font-normal">⚠ blocking</span>
+                                                        <span className="block font-mono text-[10px] text-om-blocked font-normal">⚠ blocking</span>
                                                     )}
                                                 </span>
                                                 {selected && (
-                                                    <svg className="w-4 h-4 text-orange-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                    <svg className="w-4 h-4 text-om-accent flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                                                     </svg>
                                                 )}
@@ -149,47 +154,47 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
 
                             {/* Title */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Title <span className="text-red-500">*</span>
+                                <label className={monoLabelCls}>
+                                    Title <span className="text-om-blocked">*</span>
                                 </label>
                                 <input type="text" name="title"
                                        value={form.data.title}
                                        onChange={(e) => form.setData('title', e.target.value)}
-                                       className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-orange-400"
+                                       className={inputCls}
                                        placeholder="Brief summary…"
                                        required maxLength={255} />
                             </div>
 
                             {/* Description */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Details <span className="text-gray-400 font-normal text-xs">(optional)</span>
+                                <label className={monoLabelCls}>
+                                    Details <span className="text-om-faintest normal-case tracking-normal">(optional)</span>
                                 </label>
                                 <textarea name="description"
                                           value={form.data.description}
                                           onChange={(e) => form.setData('description', e.target.value)}
                                           rows={3}
-                                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+                                          className={`${inputCls} resize-none`}
                                           placeholder="Additional details, photos description, measurements…"
                                           maxLength={2000} />
                             </div>
+                        </div>
 
-                            <div className="flex gap-3 pt-1">
-                                <button type="button" onClick={onClose}
-                                        className="flex-1 py-3 text-base text-center rounded-lg bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-100 font-medium">
-                                    Cancel
-                                </button>
-                                <button type="submit"
-                                        disabled={form.processing || !form.data.issue_type_id || !form.data.title}
-                                        className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg py-3 disabled:opacity-40 inline-flex items-center justify-center gap-2">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
-                                    </svg>
-                                    Submit Report
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                        {/* footer — §09 panel */}
+                        <div className="flex gap-3 px-5 py-3.5 bg-om-panel border-t border-om-line2">
+                            <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px]">
+                                Cancel
+                            </Button>
+                            <Button variant="danger" type="submit"
+                                    disabled={form.processing || !form.data.issue_type_id || !form.data.title}
+                                    className="flex-1 px-6 py-4 text-[15px]">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
+                                </svg>
+                                Submit Report
+                            </Button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -222,58 +227,57 @@ function DoneQtyModal({ open, onClose, woId, woNo, statusId }) {
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
             <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-                <div className="relative bg-white dark:bg-slate-800 w-full sm:max-w-sm sm:rounded-xl shadow-2xl"
+                <div className="relative bg-om-card w-full sm:max-w-sm sm:rounded-om border border-om-line overflow-hidden shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                      onClick={(e) => e.stopPropagation()}>
 
                     <div className="flex justify-center pt-3 pb-1 sm:hidden">
-                        <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        <div className="w-10 h-1 bg-om-faintest rounded-full" />
                     </div>
 
-                    <div className="px-5 pt-3 pb-5 sm:p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Complete Work Order</h3>
-                                <p className="text-sm text-gray-500 font-mono">{woNo}</p>
-                            </div>
-                            <button type="button" onClick={onClose}
-                                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
+                    {/* header — §09 hairline */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-om-line2">
+                        <div>
+                            <h3 className="text-[15px] font-semibold text-om-ink">Complete Work Order</h3>
+                            <p className="mt-[3px] font-mono text-[11px] text-om-faint">{woNo}</p>
+                        </div>
+                        <button type="button" onClick={onClose}
+                                className="p-2 text-om-faint hover:text-om-ink rounded-om-sm hover:bg-om-chip transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form onSubmit={submit}>
+                        <div className="px-5 py-4">
+                            <label className={monoLabelCls}>
+                                Produced quantity <span className="text-om-blocked">*</span>
+                            </label>
+                            <input type="number"
+                                   value={qty}
+                                   onChange={(e) => setQty(e.target.value)}
+                                   className="w-full rounded-om-sm border border-om-line bg-om-bg font-mono text-3xl font-medium text-center py-4 text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/20"
+                                   placeholder="0" min="0" step="0.01" required autoFocus />
+                            <p className="text-xs text-om-faint mt-1.5">Enter the number of units actually produced.</p>
                         </div>
 
-                        <form onSubmit={submit}>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Produced quantity <span className="text-red-500">*</span>
-                                </label>
-                                <input type="number"
-                                       value={qty}
-                                       onChange={(e) => setQty(e.target.value)}
-                                       className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-2xl font-bold text-center py-4 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-400"
-                                       placeholder="0" min="0" step="0.01" required autoFocus />
-                                <p className="text-xs text-gray-500 mt-1">Enter the number of units actually produced.</p>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button type="button" onClick={onClose}
-                                        className="flex-1 py-3 text-base text-center rounded-lg bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-100 font-medium">
-                                    Cancel
-                                </button>
-                                <button type="submit"
-                                        disabled={processing || qty === '' || parseFloat(qty) < 0}
-                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg py-3 disabled:opacity-40 inline-flex items-center justify-center gap-2">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    Mark as Done
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                        {/* footer — §09 panel */}
+                        <div className="flex gap-3 px-5 py-3.5 bg-om-panel border-t border-om-line2">
+                            <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px]">
+                                Cancel
+                            </Button>
+                            <Button variant="accent" type="submit"
+                                    disabled={processing || qty === '' || parseFloat(qty) < 0}
+                                    className="flex-1 px-6 py-4 text-[15px]">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Mark as Done
+                            </Button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -302,39 +306,40 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
             <div className="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
-                <div className="relative bg-white dark:bg-slate-800 w-full sm:max-w-lg sm:rounded-xl shadow-2xl"
+                <div className="relative bg-om-card w-full sm:max-w-lg sm:rounded-om border border-om-line overflow-hidden shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                      onClick={(e) => e.stopPropagation()}>
 
                     {/* drag handle on mobile */}
                     <div className="flex justify-center pt-3 pb-1 sm:hidden">
-                        <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        <div className="w-10 h-1 bg-om-faintest rounded-full" />
                     </div>
 
-                    <div className="px-5 pt-3 pb-5 sm:p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Report Downtime</h3>
-                                <p className="text-sm text-gray-500">Record a production stoppage for this line</p>
-                            </div>
-                            <button type="button" onClick={onClose}
-                                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
+                    {/* header — §09 hairline */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-om-line2">
+                        <div>
+                            <h3 className="text-[15px] font-semibold text-om-ink">Report Downtime</h3>
+                            <p className="mt-[3px] text-sm text-om-muted">Record a production stoppage for this line</p>
                         </div>
+                        <button type="button" onClick={onClose}
+                                className="p-2 text-om-faint hover:text-om-ink rounded-om-sm hover:bg-om-chip transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
 
-                        <form onSubmit={submit} className="space-y-4">
+                    <form onSubmit={submit}>
+                        <div className="px-5 py-4 space-y-4">
                             {/* Reason */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Reason <span className="text-red-500">*</span>
+                                <label className={monoLabelCls}>
+                                    Reason <span className="text-om-blocked">*</span>
                                 </label>
                                 <select value={form.data.reason_id}
                                         onChange={(e) => form.setData('reason_id', e.target.value)}
-                                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-red-400"
+                                        className={inputCls}
                                         required>
                                     <option value="">— select reason —</option>
                                     {downtimeReasons.map((r) => (
@@ -342,40 +347,40 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                                     ))}
                                 </select>
                                 {form.errors.reason_id && (
-                                    <p className="mt-1 text-xs text-red-500">{form.errors.reason_id}</p>
+                                    <p className="mt-1 text-xs text-om-blocked">{form.errors.reason_id}</p>
                                 )}
                             </div>
 
                             {/* Notes */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Notes <span className="text-gray-400 font-normal text-xs">(optional)</span>
+                                <label className={monoLabelCls}>
+                                    Notes <span className="text-om-faintest normal-case tracking-normal">(optional)</span>
                                 </label>
                                 <textarea name="notes"
                                           value={form.data.notes}
                                           onChange={(e) => form.setData('notes', e.target.value)}
                                           rows={3}
-                                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                                          className={`${inputCls} resize-none`}
                                           placeholder="Additional context…"
                                           maxLength={2000} />
                             </div>
+                        </div>
 
-                            <div className="flex gap-3 pt-1">
-                                <button type="button" onClick={onClose}
-                                        className="flex-1 py-3 text-base text-center rounded-lg bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-100 font-medium">
-                                    Cancel
-                                </button>
-                                <button type="submit"
-                                        disabled={form.processing || !form.data.reason_id}
-                                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg py-3 disabled:opacity-40 inline-flex items-center justify-center gap-2">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                    Start Downtime
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                        {/* footer — §09 panel */}
+                        <div className="flex gap-3 px-5 py-3.5 bg-om-panel border-t border-om-line2">
+                            <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px]">
+                                Cancel
+                            </Button>
+                            <Button variant="danger" type="submit"
+                                    disabled={form.processing || !form.data.reason_id}
+                                    className="flex-1 px-6 py-4 text-[15px]">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Start Downtime
+                            </Button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -385,9 +390,9 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
 // ─── BOARD STATUS BADGE ──────────────────────────────────────────────────────
 
 function BoardStatusBadge({ lineStatus }) {
-    if (!lineStatus) return <span className="text-gray-400 text-sm">—</span>;
+    if (!lineStatus) return <span className="text-om-faintest text-sm">—</span>;
     return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-white"
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[20px] font-mono text-[10px] font-semibold tracking-[0.04em] text-white"
               style={{ backgroundColor: lineStatus.color }}>
             {lineStatus.name}
         </span>
@@ -399,8 +404,8 @@ function BoardStatusBadge({ lineStatus }) {
 function ActiveWoTableRow({ wo, lineStatuses, workflowMode, doneStatusIds, onReport, onDoneQty }) {
     const ls = wo.line_status ?? null;
     const rowBg = ls && ls.color && ls.color.length === 7
-        ? { backgroundColor: hexToRgba(ls.color, 0.12), borderLeft: `4px solid ${ls.color}` }
-        : { borderLeft: '4px solid transparent' };
+        ? { backgroundColor: hexToRgba(ls.color, 0.12), borderLeft: `3px solid ${ls.color}` }
+        : { borderLeft: '3px solid transparent' };
 
     const cycleStatus = () => {
         if (!lineStatuses.length) return;
@@ -424,8 +429,8 @@ function ActiveWoTableRow({ wo, lineStatuses, workflowMode, doneStatusIds, onRep
     return (
         <tr className="cursor-pointer transition-all hover:brightness-95 active:brightness-85"
             style={rowBg}>
-            <td className="px-4 py-3 font-mono font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">
-                <Link href={`/operator/work-order/${wo.id}`} className="hover:text-blue-600">
+            <td className="px-4 py-3 font-mono text-[13px] font-semibold text-om-ink whitespace-nowrap">
+                <Link href={`/operator/work-order/${wo.id}`} className="hover:text-om-accent">
                     {wo.order_no}
                 </Link>
             </td>
@@ -439,51 +444,49 @@ function ActiveWoTableRow({ wo, lineStatuses, workflowMode, doneStatusIds, onRep
                     <BoardStatusBadge lineStatus={ls} />
                 </td>
             )}
-            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                <Link href={`/operator/work-order/${wo.id}`} className="hover:text-blue-600">
+            <td className="px-4 py-3 text-[13.5px] font-medium text-om-ink">
+                <Link href={`/operator/work-order/${wo.id}`} className="hover:text-om-accent">
                     {wo.product_type?.name ?? '—'}
                 </Link>
             </td>
             <td className="px-4 py-3 text-sm whitespace-nowrap">
                 <Link href={`/operator/work-order/${wo.id}`}>
-                    <span className="font-medium text-gray-800 dark:text-gray-100">
+                    <span className="font-mono text-[13px] font-medium text-om-ink">
                         {fmtQty(producedQty)} / {fmtQty(plannedQty)}
                     </span>
                     {plannedQty > 0 && (
                         <>
-                            <span className="text-xs text-gray-400 ml-1">({fmtQty(pct)}%)</span>
-                            <div className="mt-1 w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
-                            </div>
+                            <span className="font-mono text-[10px] text-om-faint ml-1">({fmtQty(pct)}%)</span>
+                            <ProgressBar value={pct} className="mt-1.5 w-24" />
                         </>
                     )}
                 </Link>
             </td>
-            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-center">
+            <td className="px-4 py-3 font-mono text-[13px] text-om-muted text-center">
                 {wo.batches ? wo.batches.length : 0}
             </td>
-            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 text-center">
+            <td className="px-4 py-3 font-mono text-[13px] text-om-muted text-center">
                 {wo.priority || '—'}
             </td>
-            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+            <td className="px-4 py-3 font-mono text-[12px] text-om-muted whitespace-nowrap">
                 {fmtDate(wo.due_date, 'short')}
             </td>
             {/* Actions cell — does NOT navigate */}
             <td className="px-3 py-2 whitespace-nowrap">
-                <button type="button"
+                <Button variant="danger"
                         onClick={(e) => { e.stopPropagation(); onReport({ woId: wo.id, woNo: wo.order_no }); }}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 transition-colors"
+                        className="gap-1 text-xs"
                         title="Report issue">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
                     </svg>
                     Report
-                </button>
+                </Button>
             </td>
             {/* Detail arrow */}
             <td className="px-4 py-3 text-right" style={{ minWidth: 48, cursor: 'pointer' }}
                 onClick={() => router.visit(`/operator/work-order/${wo.id}`)}>
-                <svg className="w-6 h-6 text-blue-400 inline hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-om-faint inline hover:text-om-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
                 </svg>
             </td>
@@ -509,10 +512,10 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
     const producedQty = parseFloat(wo.produced_qty) || 0;
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:shadow-xl transition-all">
+        <div className="bg-om-card border border-om-line rounded-om p-6 transition-shadow hover:shadow-[0_16px_40px_-24px_rgba(26,25,23,0.4)]">
             <div className="flex items-center justify-between mb-3">
                 <Link href={`/operator/work-order/${wo.id}`}
-                      className="text-lg font-bold text-gray-800 dark:text-gray-100 hover:text-blue-700">
+                      className="font-mono text-[15px] font-semibold text-om-ink hover:text-om-accent">
                     {wo.order_no}
                 </Link>
                 <WoStatusBadge status={wo.status} />
@@ -520,10 +523,10 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
 
             {lineStatuses.length > 0 && (
                 <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                    <p className="text-xs text-gray-500 mb-1">Board Status</p>
+                    <p className={monoLabelCls}>Board Status</p>
                     <select defaultValue={String(wo.line_status_id ?? '')}
                             onChange={handleSelectChange}
-                            className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 font-medium py-1.5 px-3 cursor-pointer">
+                            className={`${inputCls} cursor-pointer font-medium`}>
                         <option value="">— none —</option>
                         {lineStatuses.map((ls) => (
                             <option key={ls.id} value={String(ls.id)}>{ls.name}</option>
@@ -534,44 +537,47 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
 
             <Link href={`/operator/work-order/${wo.id}`} className="block">
                 <div className="mb-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Product</p>
-                    <p className="font-medium text-gray-800 dark:text-gray-100">{wo.product_type?.name ?? '—'}</p>
+                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Product</p>
+                    <p className="text-[15px] font-medium text-om-ink">{wo.product_type?.name ?? '—'}</p>
                 </div>
                 <div className="mb-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Quantity</p>
-                    <p className="font-medium text-gray-800 dark:text-gray-100">
+                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Quantity</p>
+                    <p className="font-mono text-[15px] font-medium text-om-ink">
                         {fmtQty(producedQty, 2)} / {fmtQty(plannedQty, 2)}
                         {plannedQty > 0 && (
-                            <span className="text-sm text-gray-500 ml-1">
+                            <span className="text-[12px] text-om-faint ml-1">
                                 ({fmtQty((producedQty / plannedQty) * 100, 1)}%)
                             </span>
                         )}
                     </p>
+                    {plannedQty > 0 && (
+                        <ProgressBar value={Math.min((producedQty / plannedQty) * 100, 100)} className="mt-2" />
+                    )}
                 </div>
                 <div className="mb-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Batches</p>
-                    <p className="font-medium text-gray-800 dark:text-gray-100">{wo.batches ? wo.batches.length : 0}</p>
+                    <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Batches</p>
+                    <p className="font-mono text-[15px] font-medium text-om-ink">{wo.batches ? wo.batches.length : 0}</p>
                 </div>
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3 flex justify-between items-center text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">
-                        Priority: <span className="font-medium">{wo.priority || '—'}</span>
+                <div className="border-t border-om-line2 pt-3 mt-3 flex justify-between items-center text-sm">
+                    <span className="text-om-muted">
+                        Priority: <span className="font-mono font-medium text-om-ink">{wo.priority || '—'}</span>
                     </span>
                     {wo.due_date && (
-                        <span className="text-gray-600 dark:text-gray-400">
-                            Due: <span className="font-medium">{fmtDate(wo.due_date, 'short')}</span>
+                        <span className="text-om-muted">
+                            Due: <span className="font-mono font-medium text-om-ink">{fmtDate(wo.due_date, 'short')}</span>
                         </span>
                     )}
                 </div>
                 <div className="mt-4 flex items-center justify-between">
-                    <button type="button"
+                    <Button variant="danger"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReport({ woId: wo.id, woNo: wo.order_no }); }}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors">
+                            className="gap-1 text-xs">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z"/>
                         </svg>
                         Report
-                    </button>
-                    <span className="flex items-center gap-1 text-blue-600 text-sm font-medium">
+                    </Button>
+                    <span className="flex items-center gap-1 text-om-accent text-sm font-medium">
                         View Details
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
@@ -636,9 +642,9 @@ export default function Queue() {
         ['per_operation', 'hybrid'].includes(trackingMode);
 
     const trackingBadgeClass =
-        trackingMode === 'per_operation' ? 'bg-green-100 text-green-700' :
-        trackingMode === 'hybrid'        ? 'bg-amber-100 text-amber-700' :
-                                           'bg-gray-100 text-gray-600';
+        trackingMode === 'per_operation' ? 'text-om-running bg-om-running-bg' :
+        trackingMode === 'hybrid'        ? 'text-om-downtime bg-om-downtime-bg' :
+                                           'text-om-pending bg-om-pending-bg';
 
     const trackingLabel =
         trackingMode === 'per_operation' ? 'Per Operation' :
@@ -656,31 +662,31 @@ export default function Queue() {
                 {/* ── Header ── */}
                 <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Work Order Queue</h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-2">
+                        <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-om-ink">Work Order Queue</h1>
+                        <p className="text-sm text-om-muted mt-2">
                             Line: {line.name}
                             {selectedWorkstation && (
-                                <span className="text-blue-600 font-medium ml-2">/ {selectedWorkstation.name}</span>
+                                <span className="font-mono text-[12px] text-om-accent font-medium ml-2">/ {selectedWorkstation.name}</span>
                             )}
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Mode toggle: Queue / Workstation */}
-                        <div className="flex items-center bg-gray-100 dark:bg-slate-700 rounded-lg p-1 gap-1">
-                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-white dark:bg-slate-600 shadow text-blue-600">
+                        <div className="flex items-center gap-[3px] rounded-om-sm border border-om-line bg-om-bg p-[3px]">
+                            <span className="flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium bg-om-ink text-white">
                                 Queue
                             </span>
                             <Link href="/operator/workstation"
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white transition-all">
+                                  className="flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium text-om-muted hover:text-om-ink transition-colors">
                                 Workstation
                             </Link>
                         </div>
 
                         {/* View toggle: table / cards */}
-                        <div className="flex items-center bg-gray-100 dark:bg-slate-700 rounded-lg p-1 gap-1">
+                        <div className="flex items-center gap-[3px] rounded-om-sm border border-om-line bg-om-bg p-[3px]">
                             <button type="button" onClick={() => setView('table')}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                                        view === 'table' ? 'bg-white dark:bg-slate-600 shadow text-blue-600' : 'text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white'
+                                    className={`flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors cursor-pointer ${
+                                        view === 'table' ? 'bg-om-ink text-white' : 'text-om-muted hover:text-om-ink'
                                     }`}>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 6h18M3 14h18M3 18h18"/>
@@ -688,8 +694,8 @@ export default function Queue() {
                                 Table
                             </button>
                             <button type="button" onClick={() => setView('cards')}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                                        view === 'cards' ? 'bg-white dark:bg-slate-600 shadow text-blue-600' : 'text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white'
+                                    className={`flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors cursor-pointer ${
+                                        view === 'cards' ? 'bg-om-ink text-white' : 'text-om-muted hover:text-om-ink'
                                     }`}>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
@@ -699,7 +705,7 @@ export default function Queue() {
                         </div>
 
                         <Link href="/operator/select-line"
-                              className="px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors">
+                              className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink bg-om-card border border-om-line hover:bg-om-chip transition-colors">
                             Change Line
                         </Link>
                     </div>
@@ -707,38 +713,38 @@ export default function Queue() {
 
                 {/* ── Downtime bar ── */}
                 {activeDowntime ? (
-                    <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border-2 border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700 px-4 py-3">
+                    <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-om border border-om-blocked/30 bg-om-blocked-bg px-4 py-3">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                            <span className="text-sm font-semibold text-red-700 dark:text-red-300 truncate">
+                            <span className="flex-shrink-0 w-2.5 h-2.5 rounded-full bg-om-blocked animate-om-pulse" />
+                            <span className="text-sm font-semibold text-om-blocked truncate">
                                 Downtime in progress &mdash; {activeDowntime.reason.name}
                             </span>
-                            <span className="hidden sm:inline text-xs text-red-500 dark:text-red-400 whitespace-nowrap">
+                            <span className="hidden sm:inline font-mono text-[11px] text-om-blocked/70 whitespace-nowrap">
                                 (since {fmtDate(activeDowntime.started_at, 'long')})
                             </span>
                         </div>
-                        <span className="sm:hidden text-xs text-red-500 dark:text-red-400">
+                        <span className="sm:hidden font-mono text-[11px] text-om-blocked/70">
                             since {fmtDate(activeDowntime.started_at, 'long')}
                         </span>
                         {activeDowntime.notes && (
-                            <span className="text-xs text-red-600 dark:text-red-400 italic truncate max-w-xs hidden lg:inline">
+                            <span className="text-xs text-om-blocked/80 italic truncate max-w-xs hidden lg:inline">
                                 {activeDowntime.notes}
                             </span>
                         )}
-                        <button type="button"
+                        <Button variant="primary"
                                 onClick={() => router.post('/operator/downtime/' + activeDowntime.id + '/stop', {}, { preserveScroll: true })}
-                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-sm font-semibold transition-colors">
+                                className="flex-shrink-0 px-5 py-3 text-sm">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9 10h6v4H9z"/>
                             </svg>
                             Stop Downtime
-                        </button>
+                        </Button>
                     </div>
                 ) : downtimeReasons.length > 0 && (
                     <div className="mb-4 flex justify-end">
                         <button type="button"
                                 onClick={() => setDowntimeModalOpen(true)}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-700 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-sm font-semibold transition-colors">
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-om-sm border border-om-downtime/30 bg-om-downtime-bg hover:brightness-95 text-om-downtime text-sm font-semibold transition-all cursor-pointer">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
@@ -750,12 +756,12 @@ export default function Queue() {
                 {/* ── Workstation filter + tracking mode badge ── */}
                 {showWorkstationFilter && (
                     <div className="mb-4 flex flex-wrap items-center gap-3">
-                        <span className="text-xs font-semibold text-gray-500 uppercase">Workstation filter:</span>
+                        <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Workstation filter:</span>
 
                         <button type="button"
                                 onClick={() => router.get('/operator/queue', {}, { preserveState: false })}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                                    !selectedWorkstation ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                                className={`px-3.5 py-2 rounded-om-sm text-xs font-medium transition-colors cursor-pointer ${
+                                    !selectedWorkstation ? 'bg-om-ink text-white' : 'bg-om-chip text-om-muted hover:bg-om-line2'
                                 }`}>
                             All
                         </button>
@@ -767,12 +773,12 @@ export default function Queue() {
                                 <button key={ws.id}
                                         type="button"
                                         onClick={() => router.get('/operator/queue', { workstation: ws.id }, { preserveState: false })}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                                            isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                                        className={`px-3.5 py-2 rounded-om-sm text-xs font-medium transition-colors cursor-pointer ${
+                                            isSelected ? 'bg-om-ink text-white' : 'bg-om-chip text-om-muted hover:bg-om-line2'
                                         }`}>
                                     {ws.name}
                                     {isSelected && queueCount > 0 && (
-                                        <span className="ml-1 inline-flex items-center justify-center w-5 h-5 bg-white text-blue-600 rounded-full text-[10px] font-bold">
+                                        <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 bg-white text-om-ink rounded-full font-mono text-[10px] font-semibold">
                                             {queueCount}
                                         </span>
                                     )}
@@ -781,7 +787,7 @@ export default function Queue() {
                         })}
 
                         <div className="ml-auto">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase ${trackingBadgeClass}`}>
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[20px] font-mono text-[9.5px] uppercase tracking-[0.06em] ${trackingBadgeClass}`}>
                                 {trackingLabel}
                             </span>
                         </div>
@@ -791,9 +797,9 @@ export default function Queue() {
                 {/* ── Workstation queue (filtered) ── */}
                 {showWorkstationQueue && workstationQueue.length > 0 && (
                     <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-3">
+                        <h2 className="text-lg font-semibold tracking-[-0.01em] text-om-ink mb-3">
                             Ready at {selectedWorkstation.name}
-                            <span className="text-sm font-normal text-gray-500 ml-2">({workstationQueue.length})</span>
+                            <span className="font-mono text-[12px] font-normal text-om-faint ml-2">({workstationQueue.length})</span>
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {workstationQueue.map((wo) => {
@@ -812,26 +818,25 @@ export default function Queue() {
                                 return (
                                     <Link key={wo.id}
                                           href={`/operator/work-order/${wo.id}`}
-                                          className="block p-4 rounded-xl border-2 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-700 hover:border-blue-400 transition group">
+                                          className={`block p-4 rounded-om border border-om-line bg-om-card border-l-[3px] hover:bg-om-panel transition-colors group ${
+                                              currentStep?.status === 'IN_PROGRESS' ? 'border-l-om-running' : 'border-l-om-accent'
+                                          }`}>
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className="font-bold text-gray-800 dark:text-gray-100">{wo.order_no}</span>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                                                currentStep?.status === 'IN_PROGRESS'
-                                                    ? 'bg-amber-200 text-amber-800'
-                                                    : 'bg-green-200 text-green-800'
-                                            }`}>
-                                                {currentStep?.status === 'IN_PROGRESS' ? 'In Progress' : 'Ready'}
-                                            </span>
+                                            <span className="font-mono text-[13px] font-semibold text-om-ink">{wo.order_no}</span>
+                                            <StatusPill
+                                                status={currentStep?.status === 'IN_PROGRESS' ? 'running' : 'pending'}
+                                                label={currentStep?.status === 'IN_PROGRESS' ? 'In Progress' : 'Ready'}
+                                            />
                                         </div>
-                                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                                        <div className="text-sm font-medium text-om-ink">
                                             {wo.product_type?.name ?? '-'}
                                         </div>
                                         {currentStep && (
-                                            <div className="mt-2 text-xs text-blue-700 dark:text-blue-400 font-medium">
+                                            <div className="mt-2 text-xs text-om-accent font-medium">
                                                 Step {currentStep.step_number}: {currentStep.name}
                                             </div>
                                         )}
-                                        <div className="mt-1 text-[10px] text-gray-500">
+                                        <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.06em] text-om-faint">
                                             Qty: {wo.planned_qty} &middot; Batch #{currentBatch?.batch_number}
                                         </div>
                                     </Link>
@@ -842,55 +847,55 @@ export default function Queue() {
                 )}
 
                 {showWorkstationQueue && workstationQueue.length === 0 && (
-                    <div className="mb-6 p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800 text-center">
-                        <p className="text-sm text-gray-500">
-                            No work orders currently waiting at <strong>{selectedWorkstation.name}</strong>
+                    <div className="mb-6 p-6 rounded-om border border-om-line bg-om-card text-center">
+                        <p className="text-sm text-om-muted">
+                            No work orders currently waiting at <strong className="text-om-ink">{selectedWorkstation.name}</strong>
                         </p>
                     </div>
                 )}
 
                 {/* ── Active Work Orders ── */}
                 <div className="mb-8">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-3">
+                    <h2 className="text-lg font-semibold tracking-[-0.01em] text-om-ink mb-3">
                         Active Work Orders
-                        <span className="text-sm font-normal text-gray-500 ml-2">({activeWorkOrders.length})</span>
+                        <span className="font-mono text-[12px] font-normal text-om-faint ml-2">({activeWorkOrders.length})</span>
                     </h2>
 
                     {activeWorkOrders.length === 0 ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm text-center py-12">
-                            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="bg-om-card border border-om-line rounded-om text-center py-12">
+                            <svg className="mx-auto h-12 w-12 text-om-faintest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
-                            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No active work orders</h3>
-                            <p className="mt-1 text-sm text-gray-500">There are no work orders currently in progress on this line.</p>
+                            <h3 className="mt-2 text-sm font-medium text-om-ink">No active work orders</h3>
+                            <p className="mt-1 text-sm text-om-muted">There are no work orders currently in progress on this line.</p>
                         </div>
                     ) : (
                         <>
                             {/* Table view */}
                             {view === 'table' && (
-                                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-hidden">
+                                <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
                                     <div className="overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                            <thead className="bg-gray-50 dark:bg-slate-700">
+                                        <table className="min-w-full divide-y divide-om-line2">
+                                            <thead className="bg-om-panel">
                                                 <tr>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Order No</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Order No</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Status</th>
                                                     {lineStatuses.length > 0 && (
-                                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                                        <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">
                                                             Board Status
-                                                            <span className="ml-1 text-gray-400 font-normal normal-case text-xs" title="Tap badge to cycle">↻</span>
+                                                            <span className="ml-1 text-om-faintest font-normal normal-case tracking-normal text-xs" title="Tap badge to cycle">↻</span>
                                                         </th>
                                                     )}
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Product</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Qty (done / planned)</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Batches</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Priority</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Due</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Product</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Qty (done / planned)</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Batches</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Priority</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Due</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Actions</th>
                                                     <th className="px-4 py-3" />
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                            <tbody className="divide-y divide-om-line2">
                                                 {activeWorkOrders.map((wo) => (
                                                     <ActiveWoTableRow key={wo.id} wo={wo}
                                                                       lineStatuses={lineStatuses}
@@ -924,42 +929,42 @@ export default function Queue() {
 
                 {/* ── Recently Completed ── */}
                 <div>
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-3">
+                    <h2 className="text-lg font-semibold tracking-[-0.01em] text-om-ink mb-3">
                         Recently Completed
-                        <span className="text-sm font-normal text-gray-500 ml-2">({completedWorkOrders.length})</span>
+                        <span className="font-mono text-[12px] font-normal text-om-faint ml-2">({completedWorkOrders.length})</span>
                     </h2>
 
                     {completedWorkOrders.length === 0 ? (
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm text-center py-8">
-                            <p className="text-sm text-gray-500">No recently completed work orders</p>
+                        <div className="bg-om-card border border-om-line rounded-om text-center py-8">
+                            <p className="text-sm text-om-muted">No recently completed work orders</p>
                         </div>
                     ) : (
                         <>
                             {/* Table view */}
                             {view === 'table' && (
-                                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-hidden">
+                                <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
                                     <div className="overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                            <thead className="bg-gray-50 dark:bg-slate-700">
+                                        <table className="min-w-full divide-y divide-om-line2">
+                                            <thead className="bg-om-panel">
                                                 <tr>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Order No</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Product</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Produced</th>
-                                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">Completed at</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Order No</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Product</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Produced</th>
+                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Completed at</th>
                                                     <th className="px-4 py-3" />
                                                 </tr>
                                             </thead>
-                                            <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-100 dark:divide-gray-700">
+                                            <tbody className="bg-om-card divide-y divide-om-line2">
                                                 {completedWorkOrders.map((wo) => (
                                                     <tr key={wo.id}
                                                         onClick={() => router.visit(`/operator/work-order/${wo.id}`)}
-                                                        className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-pointer opacity-80">
-                                                        <td className="px-4 py-3 font-mono font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap">{wo.order_no}</td>
-                                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{wo.product_type?.name ?? '—'}</td>
-                                                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 font-medium">{fmtQty(wo.produced_qty)}</td>
-                                                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{fmtDate(wo.completed_at, 'long')}</td>
+                                                        className="hover:bg-om-panel transition-colors cursor-pointer opacity-70">
+                                                        <td className="px-4 py-3 font-mono text-[13px] font-semibold text-om-muted whitespace-nowrap">{wo.order_no}</td>
+                                                        <td className="px-4 py-3 text-[13.5px] text-om-muted">{wo.product_type?.name ?? '—'}</td>
+                                                        <td className="px-4 py-3 font-mono text-[13px] font-medium text-om-ink">{fmtQty(wo.produced_qty)}</td>
+                                                        <td className="px-4 py-3 font-mono text-[12px] text-om-faint whitespace-nowrap">{fmtDate(wo.completed_at, 'long')}</td>
                                                         <td className="px-4 py-3 text-right">
-                                                            <svg className="w-5 h-5 text-gray-400 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <svg className="w-5 h-5 text-om-faintest inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
                                                             </svg>
                                                         </td>
@@ -977,22 +982,22 @@ export default function Queue() {
                                     {completedWorkOrders.map((wo) => (
                                         <Link key={wo.id}
                                               href={`/operator/work-order/${wo.id}`}
-                                              className="block bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6 hover:shadow-xl cursor-pointer transition-all opacity-75">
+                                              className="block bg-om-card border border-om-line rounded-om p-6 cursor-pointer transition-opacity opacity-70 hover:opacity-100">
                                             <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">{wo.order_no}</h3>
-                                                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Completed</span>
+                                                <h3 className="font-mono text-[15px] font-semibold text-om-ink">{wo.order_no}</h3>
+                                                <StatusPill status="done" label="Completed" />
                                             </div>
                                             <div className="mb-3">
-                                                <p className="text-sm text-gray-600 dark:text-gray-400">Product</p>
-                                                <p className="font-medium text-gray-800 dark:text-gray-100">{wo.product_type?.name ?? '—'}</p>
+                                                <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Product</p>
+                                                <p className="text-[15px] font-medium text-om-ink">{wo.product_type?.name ?? '—'}</p>
                                             </div>
                                             <div className="mb-3">
-                                                <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
-                                                <p className="font-medium text-gray-800 dark:text-gray-100">{fmtQty(wo.produced_qty, 2)}</p>
+                                                <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Completed</p>
+                                                <p className="font-mono text-[15px] font-medium text-om-ink">{fmtQty(wo.produced_qty, 2)}</p>
                                             </div>
                                             {wo.completed_at && (
-                                                <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3 text-sm text-gray-600 dark:text-gray-400">
-                                                    Completed: {fmtDate(wo.completed_at, 'long')}
+                                                <div className="border-t border-om-line2 pt-3 mt-3 text-sm text-om-muted">
+                                                    Completed: <span className="font-mono text-[12px]">{fmtDate(wo.completed_at, 'long')}</span>
                                                 </div>
                                             )}
                                         </Link>

@@ -1,10 +1,11 @@
+// Light-only v1: Colors[scheme] switching dropped — Geist White tokens.
 import * as WebBrowser from 'expo-web-browser';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Button, colors, fonts, radius } from '@openmes/ui';
 
 import { Mono } from '@/components/ui/Mono';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import Colors, { MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 interface Props {
@@ -25,8 +26,6 @@ interface Props {
  * opens the Laravel API docs at that path when one is set in settings.
  */
 export function MissingScreen({ title, endpoint, subtitle, note }: Props) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const serverUrl = useSettingsStore((s) => s.serverUrl);
 
   const openApiDocs = () => {
@@ -35,39 +34,32 @@ export function MissingScreen({ title, endpoint, subtitle, note }: Props) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={styles.screen}>
       <ScreenHeader title={title} subtitle={subtitle ?? 'NOT IMPLEMENTED'} />
       <View style={styles.body}>
-        <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-          <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
+        <View style={styles.card}>
+          <Text style={styles.title}>{title}</Text>
           {endpoint ? (
-            <Mono size={11} color={palette.textMuted} style={{ marginTop: 4 }}>
+            <Mono size={11} color={colors.muted} style={{ marginTop: 4 }}>
               {endpoint}
             </Mono>
           ) : null}
 
           <View style={styles.pillRow}>
-            <View style={[styles.pillSquare, { borderColor: palette.border }]} />
-            <Mono size={10.5} color={palette.textFaint} letterSpacing={0.8} weight="700">
+            <View style={styles.pillSquare} />
+            <Mono size={10} color={colors.faint} letterSpacing={1.2} weight="600">
               MISSING
             </Mono>
           </View>
 
-          <Text style={[styles.note, { color: palette.textMuted }]}>
+          <Text style={styles.note}>
             {note ?? 'This screen has not been built yet. The underlying endpoint is available — wire up the UI when ready.'}
           </Text>
 
           {endpoint && serverUrl ? (
-            <Pressable
-              onPress={openApiDocs}
-              style={({ pressed }) => [
-                styles.linkBtn,
-                { borderColor: palette.border, opacity: pressed ? 0.6 : 1 },
-              ]}>
-              <Mono size={11} color={palette.text} weight="700" letterSpacing={0.5}>
-                OPEN API IN BROWSER →
-              </Mono>
-            </Pressable>
+            <Button variant="accent" onPress={openApiDocs} style={styles.linkBtn}>
+              OPEN API IN BROWSER →
+            </Button>
           ) : null}
         </View>
       </View>
@@ -76,14 +68,22 @@ export function MissingScreen({ title, endpoint, subtitle, note }: Props) {
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
   body: { flex: 1, padding: 18 },
   card: {
-    borderRadius: 14,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.line2,
+    backgroundColor: colors.card,
     padding: 20,
     gap: 4,
   },
-  title: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2 },
+  title: {
+    fontSize: 18,
+    fontFamily: fonts.sans.native.semibold,
+    letterSpacing: -0.2,
+    color: colors.ink,
+  },
   pillRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,14 +91,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
-  pillSquare: { width: 12, height: 12, borderWidth: 1, borderRadius: 2 },
-  note: { fontSize: 13, lineHeight: 20, fontFamily: MONO, opacity: 0.85 },
-  linkBtn: {
-    marginTop: 18,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
+  pillSquare: { width: 12, height: 12, borderWidth: 1, borderRadius: 2, borderColor: colors.faintest },
+  note: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.muted,
+    fontFamily: fonts.sans.native.regular,
   },
+  linkBtn: { marginTop: 18, alignSelf: 'flex-start' },
 });
