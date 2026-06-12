@@ -3262,7 +3262,7 @@
     "Custom field activated successfully.": "Pole niestandardowe zostało aktywowane.",
     "Custom field deactivated successfully.": "Pole niestandardowe zostało dezaktywowane.",
     "The key must start with a letter and use only lowercase letters, numbers and underscores.": "Klucz musi zaczynać się od litery i zawierać wyłącznie małe litery, cyfry i podkreślenia.",
-    "Add at least one option for a dropdown or multi-select field.": "Dodaj co najmniej jedną opcję dla pola wyboru lub listy wielokrotnego wyboru."
+    "Add at least one option for a dropdown or multi-select field.": "Dodaj co najmniej jedną opcję dla pola wyboru lub listy wielokrotnego wyboru.",
     "Page not found": "Nie znaleziono strony",
     "Too many requests": "Zbyt wiele żądań",
     "Server error": "Błąd serwera",
