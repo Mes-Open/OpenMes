@@ -38,6 +38,12 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d   # dev ove
 6. **No raw SQL with user input** — Eloquent/Query Builder only.
 7. **No new dependencies without justification** — prefer built-in Laravel/React capabilities. Any new package: latest stable, maintained, not deprecated/archived.
 8. **License is AGPL-3.0** — keep headers/notices consistent with it.
+9. **Soft deletes on every new CRUD entity** — any new model a user can delete must follow the soft-delete pattern, never hard-delete:
+   - model uses `App\Models\Concerns\SoftDeletesWithAudit` (SoftDeletes + `deleted_by_id` audit + cascade),
+   - register it in `App\Support\SoftDeleteRegistry::MODELS` (powers the Admin → Trash page, sync filtering and unique/exists validation),
+   - migration adds `$table->softDeletes()` + nullable `deleted_by_id` FK to `users` (`nullOnDelete`), and any **unique index must be partial** (`WHERE deleted_at IS NULL`) or the value can't be re-used after deletion,
+   - if the table has `cascadeOnDelete` children, mirror them in the model's `softDeleteCascades()` (DB cascades don't fire on soft delete),
+   - tests assert deletes with `assertSoftDeleted`, not `assertDatabaseMissing`.
 
 ## Electric shapes (live data)
 
