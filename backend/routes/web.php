@@ -115,6 +115,14 @@ Route::get('/offline', function () {
     return view('offline');
 })->name('offline');
 
+// Design-system gallery — local-only visual reference for @openmes/ui
+// (mirrors design/openmes-fable-remix "OpenMES Components" sheet).
+if (app()->environment('local')) {
+    Route::get('/dev/components', function () {
+        return \Inertia\Inertia::render('dev/ComponentGallery');
+    })->name('dev.components');
+}
+
 // Language switcher — persists the choice in the session; SetLocale applies it
 // on subsequent requests. Public so the login screen can switch too.
 Route::get('/locale/{locale}', function (string $locale) {

@@ -5,10 +5,17 @@
     // Resolve @openmes/ui's twin-platform files to the .native.tsx variant,
     // mirroring Metro — so the shared package typechecks under strict mode.
     "moduleSuffixes": [".native", ""],
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./*"
-      ]
+      ],
+      // @openmes/ui's real path is outside mobile/, so tsc's upward
+      // node_modules walk misses our react/react-native types — map them
+      // back here (Metro handles the same at runtime via nodeModulesPaths).
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"],
+      "react-native": ["./node_modules/react-native/types"]
     }
   },
   "include": [

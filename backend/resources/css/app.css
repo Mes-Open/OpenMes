@@ -44,6 +44,18 @@
 
     --radius-om: 12px;
     --radius-om-sm: 8px;
+
+    /* Pulsing live-status dot (StatusPill RUNNING, OnlineDot) */
+    --animate-om-pulse: om-pulse 2s infinite;
+    @keyframes om-pulse {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.3;
+        }
+    }
 }
 
 /* Custom styles for touch-optimized UI */
