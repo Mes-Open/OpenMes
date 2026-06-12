@@ -22,7 +22,7 @@ class UpdateWorkOrderRequest extends FormRequest
     public function rules(): array
     {
         return array_merge([
-            'order_no' => ['required', 'string', 'max:100', 'unique:work_orders,order_no,'.$this->route('workOrder')->id],
+            'order_no' => ['required', 'string', 'max:100', 'unique:work_orders,order_no,'.$this->route('work_order')->id],
             'line_id' => ['nullable', 'exists:lines,id'],
             'product_type_id' => ['nullable', 'exists:product_types,id'],
             'planned_qty' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
