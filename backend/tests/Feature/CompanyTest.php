@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -29,34 +30,34 @@ class CompanyTest extends TestCase
     public function test_admin_can_list_companies(): void
     {
         Company::create([
-            'code'      => 'CO001',
-            'name'      => 'Acme Supplier',
-            'type'      => Company::TYPE_SUPPLIER,
+            'code' => 'CO001',
+            'name' => 'Acme Supplier',
+            'type' => Company::TYPE_SUPPLIER,
             'is_active' => true,
         ]);
         Company::create([
-            'code'      => 'CO002',
-            'name'      => 'Globex Customer',
-            'type'      => Company::TYPE_CUSTOMER,
+            'code' => 'CO002',
+            'name' => 'Globex Customer',
+            'type' => Company::TYPE_CUSTOMER,
             'is_active' => false,
         ]);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.companies.index'));
-
-        $response->assertStatus(200);
-        $response->assertSee('Acme Supplier');
-        $response->assertSee('Globex Customer');
+        // Rows live-sync to the browser via the Electric `companies` shape, so
+        // the names are not in the server HTML — assert the Inertia page renders.
+        $this->actingAs($this->admin)->get(route('admin.companies.index'))
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/companies/Index'));
     }
 
     public function test_admin_can_create_company(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.companies.store'), [
-            'code'      => 'CO001',
-            'name'      => 'Test Supplier Ltd',
-            'type'      => 'supplier',
-            'email'     => 'contact@testsupplier.com',
-            'phone'     => '+48123456789',
-            'address'   => 'ul. Testowa 1, Warszawa',
+            'code' => 'CO001',
+            'name' => 'Test Supplier Ltd',
+            'type' => 'supplier',
+            'email' => 'contact@testsupplier.com',
+            'phone' => '+48123456789',
+            'address' => 'ul. Testowa 1, Warszawa',
             'is_active' => true,
         ]);
 
@@ -71,11 +72,11 @@ class CompanyTest extends TestCase
     public function test_admin_can_create_company_of_each_type(): void
     {
         foreach (['supplier', 'customer', 'both'] as $index => $type) {
-            $code = 'CO00' . ($index + 1);
+            $code = 'CO00'.($index + 1);
             $response = $this->actingAs($this->admin)->post(route('admin.companies.store'), [
-                'code'      => $code,
-                'name'      => "Company {$type}",
-                'type'      => $type,
+                'code' => $code,
+                'name' => "Company {$type}",
+                'type' => $type,
                 'is_active' => true,
             ]);
 
@@ -87,23 +88,23 @@ class CompanyTest extends TestCase
     public function test_admin_can_update_company(): void
     {
         $company = Company::create([
-            'code'      => 'CO001',
-            'name'      => 'Old Company Name',
-            'type'      => 'supplier',
+            'code' => 'CO001',
+            'name' => 'Old Company Name',
+            'type' => 'supplier',
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.companies.update', $company), [
-            'code'      => 'CO001',
-            'name'      => 'New Company Name',
-            'type'      => 'both',
-            'email'     => 'new@company.com',
+            'code' => 'CO001',
+            'name' => 'New Company Name',
+            'type' => 'both',
+            'email' => 'new@company.com',
             'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.companies.index'));
         $this->assertDatabaseHas('companies', [
-            'id'   => $company->id,
+            'id' => $company->id,
             'name' => 'New Company Name',
             'type' => 'both',
         ]);
@@ -112,9 +113,9 @@ class CompanyTest extends TestCase
     public function test_admin_can_toggle_active(): void
     {
         $company = Company::create([
-            'code'      => 'CO001',
-            'name'      => 'Active Company',
-            'type'      => 'supplier',
+            'code' => 'CO001',
+            'name' => 'Active Company',
+            'type' => 'supplier',
             'is_active' => true,
         ]);
 
@@ -123,7 +124,7 @@ class CompanyTest extends TestCase
 
         $response->assertRedirect(route('admin.companies.index'));
         $this->assertDatabaseHas('companies', [
-            'id'        => $company->id,
+            'id' => $company->id,
             'is_active' => false,
         ]);
 
@@ -132,7 +133,7 @@ class CompanyTest extends TestCase
             ->post(route('admin.companies.toggle-active', $company));
 
         $this->assertDatabaseHas('companies', [
-            'id'        => $company->id,
+            'id' => $company->id,
             'is_active' => true,
         ]);
     }
@@ -140,9 +141,9 @@ class CompanyTest extends TestCase
     public function test_admin_can_delete_company(): void
     {
         $company = Company::create([
-            'code'      => 'CO001',
-            'name'      => 'Deletable Company',
-            'type'      => 'customer',
+            'code' => 'CO001',
+            'name' => 'Deletable Company',
+            'type' => 'customer',
             'is_active' => true,
         ]);
 
@@ -156,16 +157,16 @@ class CompanyTest extends TestCase
     public function test_company_code_must_be_unique(): void
     {
         Company::create([
-            'code'      => 'CO001',
-            'name'      => 'Existing Company',
-            'type'      => 'supplier',
+            'code' => 'CO001',
+            'name' => 'Existing Company',
+            'type' => 'supplier',
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->post(route('admin.companies.store'), [
-            'code'      => 'CO001',
-            'name'      => 'Duplicate Company',
-            'type'      => 'customer',
+            'code' => 'CO001',
+            'name' => 'Duplicate Company',
+            'type' => 'customer',
             'is_active' => true,
         ]);
 
@@ -176,8 +177,8 @@ class CompanyTest extends TestCase
     public function test_company_name_is_required(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.companies.store'), [
-            'code'      => 'CO001',
-            'type'      => 'supplier',
+            'code' => 'CO001',
+            'type' => 'supplier',
             'is_active' => true,
         ]);
 
@@ -187,9 +188,9 @@ class CompanyTest extends TestCase
     public function test_company_type_must_be_valid(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.companies.store'), [
-            'code'      => 'CO001',
-            'name'      => 'Bad Type Company',
-            'type'      => 'invalid_type',
+            'code' => 'CO001',
+            'name' => 'Bad Type Company',
+            'type' => 'invalid_type',
             'is_active' => true,
         ]);
 
@@ -199,10 +200,10 @@ class CompanyTest extends TestCase
     public function test_company_email_must_be_valid_if_provided(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.companies.store'), [
-            'code'      => 'CO001',
-            'name'      => 'Company With Bad Email',
-            'type'      => 'supplier',
-            'email'     => 'not-an-email',
+            'code' => 'CO001',
+            'name' => 'Company With Bad Email',
+            'type' => 'supplier',
+            'email' => 'not-an-email',
             'is_active' => true,
         ]);
 
@@ -212,16 +213,16 @@ class CompanyTest extends TestCase
     public function test_update_allows_same_code_for_same_company(): void
     {
         $company = Company::create([
-            'code'      => 'CO001',
-            'name'      => 'Original Name',
-            'type'      => 'supplier',
+            'code' => 'CO001',
+            'name' => 'Original Name',
+            'type' => 'supplier',
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.companies.update', $company), [
-            'code'      => 'CO001',
-            'name'      => 'Updated Name',
-            'type'      => 'supplier',
+            'code' => 'CO001',
+            'name' => 'Updated Name',
+            'type' => 'supplier',
             'is_active' => true,
         ]);
 
@@ -238,9 +239,9 @@ class CompanyTest extends TestCase
     public function test_guest_cannot_create_company(): void
     {
         $response = $this->post(route('admin.companies.store'), [
-            'code'      => 'CO001',
-            'name'      => 'Ghost Company',
-            'type'      => 'supplier',
+            'code' => 'CO001',
+            'name' => 'Ghost Company',
+            'type' => 'supplier',
             'is_active' => true,
         ]);
 

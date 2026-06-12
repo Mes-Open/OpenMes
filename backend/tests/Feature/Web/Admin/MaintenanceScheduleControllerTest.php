@@ -6,6 +6,7 @@ use App\Models\Line;
 use App\Models\MaintenanceSchedule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -47,7 +48,13 @@ class MaintenanceScheduleControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.maintenance-schedules.index'));
 
         $response->assertStatus(200);
-        $response->assertSee('Quarterly Press Check');
+
+        // The Index page is Electric-fed: schedule rows stream client-side, not via
+        // props/HTML. The controller only renders the page + lookup maps, so we
+        // assert the component loads for an authorized admin.
+        $response->assertInertia(
+            fn (AssertableInertia $page) => $page->component('admin/maintenance-schedules/Index')
+        );
     }
 
     public function test_guest_cannot_access_schedules(): void

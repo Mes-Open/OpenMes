@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -63,10 +64,14 @@ class SystemLogControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.logs.system'));
 
         $response->assertStatus(200);
-        $response->assertSee('System Logs');
-        $response->assertSee('Application log');
-        $response->assertSee('Failed jobs');
-        $response->assertSee('Deployments');
+
+        // The tab labels live in React; the server picks the active tab via the prop.
+        $response->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->component('admin/logs/System')
+                ->where('tab', 'app')
+                ->has('entries')
+        );
     }
 
     public function test_failed_jobs_tab_shows_rows_when_present(): void
@@ -94,7 +99,17 @@ class SystemLogControllerTest extends TestCase
             ->get(route('admin.logs.system', ['tab' => 'failed_jobs']));
 
         $response->assertStatus(200);
-        $response->assertSee('No failed jobs.');
+
+        // Empty state: the table exists (missing=false) but holds no rows. The
+        // "No failed jobs." copy is rendered client-side from this empty prop.
+        $response->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->component('admin/logs/System')
+                ->where('tab', 'failed_jobs')
+                ->where('missing', false)
+                ->where('entries.total', 0)
+                ->has('entries.data', 0)
+        );
     }
 
     public function test_failed_jobs_tab_shows_info_card_when_table_missing(): void
@@ -105,7 +120,14 @@ class SystemLogControllerTest extends TestCase
             ->get(route('admin.logs.system', ['tab' => 'failed_jobs']));
 
         $response->assertStatus(200);
-        $response->assertSee('Failed jobs table is missing.');
+
+        // The "table missing" info card is gated by the missing=true prop.
+        $response->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->component('admin/logs/System')
+                ->where('tab', 'failed_jobs')
+                ->where('missing', true)
+        );
     }
 
     public function test_deployments_tab_shows_info_card_when_table_missing(): void
@@ -117,8 +139,15 @@ class SystemLogControllerTest extends TestCase
             ->get(route('admin.logs.system', ['tab' => 'deployments']));
 
         $response->assertStatus(200);
-        $response->assertSee('Deployment audit log is not available');
-        $response->assertSee('v0.12+ schema');
+
+        // The deployments info card ("not available / v0.12+ schema") is rendered
+        // client-side when the system_updates table is missing.
+        $response->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->component('admin/logs/System')
+                ->where('tab', 'deployments')
+                ->where('missing', true)
+        );
     }
 
     public function test_deployments_tab_renders_rows_when_table_present(): void
@@ -215,7 +244,15 @@ class SystemLogControllerTest extends TestCase
                 ]));
 
             $response->assertStatus(200);
-            $response->assertSee('No log entries match your filters.');
+
+            // No backing file → the controller returns an empty entries collection.
+            // The "No log entries match your filters." copy is rendered from this.
+            $response->assertInertia(
+                fn (AssertableInertia $page) => $page
+                    ->component('admin/logs/System')
+                    ->where('tab', 'app')
+                    ->has('entries', 0)
+            );
         } finally {
             if (is_file($stashed)) {
                 @rename($stashed, $fallback);

@@ -7,6 +7,7 @@ use App\Models\Division;
 use App\Models\Factory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -15,6 +16,7 @@ class DivisionTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private Factory $factory;
 
     protected function setUp(): void
@@ -29,8 +31,8 @@ class DivisionTest extends TestCase
         $this->admin->assignRole('Admin');
 
         $this->factory = Factory::create([
-            'code'      => 'FAC01',
-            'name'      => 'Test Factory',
+            'code' => 'FAC01',
+            'name' => 'Test Factory',
             'is_active' => true,
         ]);
     }
@@ -39,39 +41,39 @@ class DivisionTest extends TestCase
     {
         Division::create([
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Alpha Division',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Alpha Division',
+            'is_active' => true,
         ]);
         Division::create([
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV02',
-            'name'       => 'Beta Division',
-            'is_active'  => false,
+            'code' => 'DIV02',
+            'name' => 'Beta Division',
+            'is_active' => false,
         ]);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.divisions.index'));
-
-        $response->assertStatus(200);
-        $response->assertSee('Alpha Division');
-        $response->assertSee('Beta Division');
+        // Rows live-sync to the browser via the Electric `divisions` shape, so
+        // the names are not in the server HTML — assert the Inertia page renders.
+        $this->actingAs($this->admin)->get(route('admin.divisions.index'))
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/divisions/Index'));
     }
 
     public function test_admin_can_create_division(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.divisions.store'), [
-            'factory_id'  => $this->factory->id,
-            'code'        => 'DIV01',
-            'name'        => 'Assembly Division',
+            'factory_id' => $this->factory->id,
+            'code' => 'DIV01',
+            'name' => 'Assembly Division',
             'description' => 'Main assembly area',
-            'is_active'   => true,
+            'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.divisions.index'));
         $this->assertDatabaseHas('divisions', [
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Assembly Division',
+            'code' => 'DIV01',
+            'name' => 'Assembly Division',
         ]);
     }
 
@@ -79,22 +81,22 @@ class DivisionTest extends TestCase
     {
         $division = Division::create([
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Old Division Name',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Old Division Name',
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.divisions.update', $division), [
-            'factory_id'  => $this->factory->id,
-            'code'        => 'DIV01',
-            'name'        => 'New Division Name',
+            'factory_id' => $this->factory->id,
+            'code' => 'DIV01',
+            'name' => 'New Division Name',
             'description' => 'Updated description',
-            'is_active'   => true,
+            'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.divisions.index'));
         $this->assertDatabaseHas('divisions', [
-            'id'   => $division->id,
+            'id' => $division->id,
             'name' => 'New Division Name',
         ]);
     }
@@ -103,9 +105,9 @@ class DivisionTest extends TestCase
     {
         $division = Division::create([
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Empty Division',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Empty Division',
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -119,16 +121,16 @@ class DivisionTest extends TestCase
     {
         $division = Division::create([
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Division With Crews',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Division With Crews',
+            'is_active' => true,
         ]);
 
         Crew::create([
-            'code'        => 'CRW01',
-            'name'        => 'Crew Alpha',
+            'code' => 'CRW01',
+            'name' => 'Crew Alpha',
             'division_id' => $division->id,
-            'is_active'   => true,
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -143,9 +145,9 @@ class DivisionTest extends TestCase
     {
         $division = Division::create([
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Active Division',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Active Division',
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -153,7 +155,7 @@ class DivisionTest extends TestCase
 
         $response->assertRedirect(route('admin.divisions.index'));
         $this->assertDatabaseHas('divisions', [
-            'id'        => $division->id,
+            'id' => $division->id,
             'is_active' => false,
         ]);
 
@@ -162,7 +164,7 @@ class DivisionTest extends TestCase
             ->post(route('admin.divisions.toggle-active', $division));
 
         $this->assertDatabaseHas('divisions', [
-            'id'        => $division->id,
+            'id' => $division->id,
             'is_active' => true,
         ]);
     }
@@ -171,17 +173,17 @@ class DivisionTest extends TestCase
     {
         Division::create([
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'First Division',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'First Division',
+            'is_active' => true,
         ]);
 
         // The controller validates code as globally unique across all divisions.
         $response = $this->actingAs($this->admin)->post(route('admin.divisions.store'), [
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Duplicate Division',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Duplicate Division',
+            'is_active' => true,
         ]);
 
         $response->assertSessionHasErrors('code');
@@ -192,8 +194,8 @@ class DivisionTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->post(route('admin.divisions.store'), [
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'is_active' => true,
         ]);
 
         $response->assertSessionHasErrors('name');
@@ -203,8 +205,8 @@ class DivisionTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->post(route('admin.divisions.store'), [
             'factory_id' => $this->factory->id,
-            'name'       => 'No Code Division',
-            'is_active'  => true,
+            'name' => 'No Code Division',
+            'is_active' => true,
         ]);
 
         $response->assertSessionHasErrors('code');
@@ -214,9 +216,9 @@ class DivisionTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->post(route('admin.divisions.store'), [
             'factory_id' => 99999,
-            'code'       => 'DIV01',
-            'name'       => 'Bad Factory Division',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Bad Factory Division',
+            'is_active' => true,
         ]);
 
         $response->assertSessionHasErrors('factory_id');
@@ -226,16 +228,16 @@ class DivisionTest extends TestCase
     {
         $division = Division::create([
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Original Name',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Original Name',
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.divisions.update', $division), [
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Renamed Division',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Renamed Division',
+            'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.divisions.index'));
@@ -253,9 +255,9 @@ class DivisionTest extends TestCase
     {
         $response = $this->post(route('admin.divisions.store'), [
             'factory_id' => $this->factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Ghost Division',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Ghost Division',
+            'is_active' => true,
         ]);
 
         $response->assertRedirect(route('login'));

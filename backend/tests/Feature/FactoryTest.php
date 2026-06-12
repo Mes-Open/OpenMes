@@ -6,6 +6,7 @@ use App\Models\Division;
 use App\Models\Factory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -32,26 +33,26 @@ class FactoryTest extends TestCase
         Factory::create(['code' => 'FAC01', 'name' => 'Alpha Factory', 'is_active' => true]);
         Factory::create(['code' => 'FAC02', 'name' => 'Beta Factory', 'is_active' => false]);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.factories.index'));
-
-        $response->assertStatus(200);
-        $response->assertSee('Alpha Factory');
-        $response->assertSee('Beta Factory');
+        // Rows live-sync to the browser via the Electric `factories` shape, so
+        // the names are not in the server HTML — assert the Inertia page renders.
+        $this->actingAs($this->admin)->get(route('admin.factories.index'))
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/factories/Index'));
     }
 
     public function test_admin_can_create_factory(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.factories.store'), [
-            'code'        => 'FAC01',
-            'name'        => 'Test Factory',
+            'code' => 'FAC01',
+            'name' => 'Test Factory',
             'description' => 'A factory used for testing',
-            'is_active'   => true,
+            'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.factories.index'));
         $this->assertDatabaseHas('factories', [
-            'code'      => 'FAC01',
-            'name'      => 'Test Factory',
+            'code' => 'FAC01',
+            'name' => 'Test Factory',
             'is_active' => true,
         ]);
     }
@@ -59,21 +60,21 @@ class FactoryTest extends TestCase
     public function test_admin_can_update_factory(): void
     {
         $factory = Factory::create([
-            'code'      => 'FAC01',
-            'name'      => 'Old Name',
+            'code' => 'FAC01',
+            'name' => 'Old Name',
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.factories.update', $factory), [
-            'code'        => 'FAC01',
-            'name'        => 'New Name',
+            'code' => 'FAC01',
+            'name' => 'New Name',
             'description' => 'Updated description',
-            'is_active'   => true,
+            'is_active' => true,
         ]);
 
         $response->assertRedirect(route('admin.factories.index'));
         $this->assertDatabaseHas('factories', [
-            'id'   => $factory->id,
+            'id' => $factory->id,
             'name' => 'New Name',
         ]);
     }
@@ -81,8 +82,8 @@ class FactoryTest extends TestCase
     public function test_admin_can_toggle_active(): void
     {
         $factory = Factory::create([
-            'code'      => 'FAC01',
-            'name'      => 'Active Factory',
+            'code' => 'FAC01',
+            'name' => 'Active Factory',
             'is_active' => true,
         ]);
 
@@ -91,7 +92,7 @@ class FactoryTest extends TestCase
 
         $response->assertRedirect(route('admin.factories.index'));
         $this->assertDatabaseHas('factories', [
-            'id'        => $factory->id,
+            'id' => $factory->id,
             'is_active' => false,
         ]);
 
@@ -100,7 +101,7 @@ class FactoryTest extends TestCase
             ->post(route('admin.factories.toggle-active', $factory));
 
         $this->assertDatabaseHas('factories', [
-            'id'        => $factory->id,
+            'id' => $factory->id,
             'is_active' => true,
         ]);
     }
@@ -108,8 +109,8 @@ class FactoryTest extends TestCase
     public function test_admin_can_delete_factory_without_divisions(): void
     {
         $factory = Factory::create([
-            'code'      => 'FAC01',
-            'name'      => 'Empty Factory',
+            'code' => 'FAC01',
+            'name' => 'Empty Factory',
             'is_active' => true,
         ]);
 
@@ -123,16 +124,16 @@ class FactoryTest extends TestCase
     public function test_cannot_delete_factory_with_divisions(): void
     {
         $factory = Factory::create([
-            'code'      => 'FAC01',
-            'name'      => 'Factory With Divisions',
+            'code' => 'FAC01',
+            'name' => 'Factory With Divisions',
             'is_active' => true,
         ]);
 
         Division::create([
             'factory_id' => $factory->id,
-            'code'       => 'DIV01',
-            'name'       => 'Division One',
-            'is_active'  => true,
+            'code' => 'DIV01',
+            'name' => 'Division One',
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -148,8 +149,8 @@ class FactoryTest extends TestCase
         Factory::create(['code' => 'FAC01', 'name' => 'Existing Factory', 'is_active' => true]);
 
         $response = $this->actingAs($this->admin)->post(route('admin.factories.store'), [
-            'code'      => 'FAC01',
-            'name'      => 'Another Factory',
+            'code' => 'FAC01',
+            'name' => 'Another Factory',
             'is_active' => true,
         ]);
 
@@ -160,7 +161,7 @@ class FactoryTest extends TestCase
     public function test_factory_name_is_required(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.factories.store'), [
-            'code'      => 'FAC01',
+            'code' => 'FAC01',
             'is_active' => true,
         ]);
 
@@ -170,7 +171,7 @@ class FactoryTest extends TestCase
     public function test_factory_code_is_required(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.factories.store'), [
-            'name'      => 'Test Factory',
+            'name' => 'Test Factory',
             'is_active' => true,
         ]);
 
@@ -180,14 +181,14 @@ class FactoryTest extends TestCase
     public function test_update_allows_same_code_for_same_factory(): void
     {
         $factory = Factory::create([
-            'code'      => 'FAC01',
-            'name'      => 'Original Name',
+            'code' => 'FAC01',
+            'name' => 'Original Name',
             'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)->put(route('admin.factories.update', $factory), [
-            'code'      => 'FAC01',
-            'name'      => 'Renamed Factory',
+            'code' => 'FAC01',
+            'name' => 'Renamed Factory',
             'is_active' => true,
         ]);
 
@@ -205,8 +206,8 @@ class FactoryTest extends TestCase
     public function test_guest_cannot_create_factory(): void
     {
         $response = $this->post(route('admin.factories.store'), [
-            'code'      => 'FAC01',
-            'name'      => 'Test Factory',
+            'code' => 'FAC01',
+            'name' => 'Test Factory',
             'is_active' => true,
         ]);
 
