@@ -201,10 +201,12 @@ export const ADMIN_GROUPS = [
         label: 'Packaging',
         icon: 'packaging',
         href: '/packaging',
-        match: ['/packaging'],
+        match: ['/packaging', '/admin/pallets', '/supervisor/shift-handover'],
         children: [
             { label: 'Scanning Station', href: '/packaging/station', match: ['/packaging/station'] },
             { label: 'Packaging Overview', href: '/packaging', match: ['/packaging'], exact: true },
+            { label: 'Shift Handover', href: '/supervisor/shift-handover', match: ['/supervisor/shift-handover'] },
+            { label: 'Pallets', href: '/admin/pallets', match: ['/admin/pallets'] },
             { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'] },
             { label: 'Label Templates', href: '/packaging/label-templates', match: ['/packaging/label-templates'] },
         ],

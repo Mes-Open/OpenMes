@@ -16,6 +16,7 @@ const KIND_TO_TYPE = {
     'work-order': 'work_order',
     'finished-goods': 'finished_goods',
     'workstation-step': 'workstation_step',
+    pallet: 'pallet',
 };
 
 export default function LabelPrintMenu({ kind, id, templates = [], label = 'Print Label' }) {

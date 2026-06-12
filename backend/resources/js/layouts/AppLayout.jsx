@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import LiveAlertCount from '../components/LiveAlertCount';
@@ -160,6 +160,31 @@ function DesktopClock() {
     );
 }
 
+/**
+ * Flat list of every navigable sidebar item (top links, group/subgroup headers
+ * that have their own landing page, and children) for the sidebar search.
+ * `trail` is the group path shown under a result, e.g. "Production /
+ * Production Lines". Disabled entries are skipped.
+ */
+function flattenNavItems() {
+    const items = ADMIN_LINKS.map((link) => ({
+        label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
+    }));
+    const walk = (nodes, trail) => {
+        nodes.forEach((node) => {
+            if (node.href && !node.disabled) {
+                items.push({ label: node.label, href: node.href, match: node.match, exact: node.exact, trail });
+            }
+            if (node.children) {
+                walk(node.children, [...trail, node.label]);
+            }
+        });
+    };
+    walk(ADMIN_GROUPS, []);
+    items.push({ label: 'Settings', href: '/settings', match: ['/settings'], trail: [] });
+    return items;
+}
+
 function Sidebar({
     auth, alertCount, csrfToken, appVersion, path, collapsed, mobileOpen, showLabels,
     dark, onToggleCollapsed, onToggleDark, onCloseMobile,
@@ -167,6 +192,28 @@ function Sidebar({
     const isAdmin = auth?.user?.roles?.includes('Admin');
     const widthClass = collapsed ? 'lg:w-16' : 'lg:w-64';
     const translate = mobileOpen ? 'translate-x-0' : '-translate-x-full';
+
+    // Menu search: a non-empty query swaps the nav tree for a flat result list.
+    // Matches both the English label and its translation so users can search
+    // in the active locale.
+    const [query, setQuery] = useState('');
+    const searchItems = useMemo(flattenNavItems, []);
+    const q = query.trim().toLowerCase();
+    const results = q
+        ? searchItems.filter((item) =>
+            [item.label, __(item.label), ...item.trail.flatMap((t) => [t, __(t)])]
+                .join(' ')
+                .toLowerCase()
+                .includes(q))
+        : null;
+
+    const clearSearch = () => setQuery('');
+    const submitSearch = () => {
+        if (results?.length) {
+            router.visit(results[0].href);
+            clearSearch();
+        }
+    };
 
     return (
         <aside
@@ -205,31 +252,60 @@ function Sidebar({
                 </button>
             </div>
 
+            {/* Menu search */}
+            <NavSearch
+                query={query}
+                onChange={setQuery}
+                onSubmit={submitSearch}
+                collapsed={collapsed}
+                showLabels={showLabels}
+                onExpand={onToggleCollapsed}
+            />
+
             {/* Navigation */}
-            <nav className="sidebar-scroll flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5">
-                {ADMIN_LINKS.map((link) => (
-                    <NavLink
-                        key={link.href}
-                        link={link}
-                        path={path}
-                        collapsed={collapsed}
-                        showLabels={showLabels}
-                        alertCount={link.alert ? alertCount : 0}
-                    />
-                ))}
+            <nav className="sidebar-scroll flex-1 overflow-y-auto overflow-x-hidden pb-3 space-y-0.5">
+                {results ? (
+                    results.length ? (
+                        results.map((item) => (
+                            // Group headers can share an href with their first child
+                            // (e.g. Orders and All Orders), so href alone isn't unique.
+                            <SearchResultLink
+                                key={`${item.trail.join('/')}>${item.label}`}
+                                item={item}
+                                path={path}
+                                onNavigate={clearSearch}
+                            />
+                        ))
+                    ) : (
+                        <p className="px-5 py-3 text-sm text-slate-500">{__('No results')}</p>
+                    )
+                ) : (
+                    <>
+                        {ADMIN_LINKS.map((link) => (
+                            <NavLink
+                                key={link.href}
+                                link={link}
+                                path={path}
+                                collapsed={collapsed}
+                                showLabels={showLabels}
+                                alertCount={link.alert ? alertCount : 0}
+                            />
+                        ))}
 
-                {/* Separator under the top links (parity with the Blade sidebar) */}
-                {showLabels && <div className="mx-4 my-2 border-t border-slate-700/60" />}
+                        {/* Separator under the top links (parity with the Blade sidebar) */}
+                        {showLabels && <div className="mx-4 my-2 border-t border-slate-700/60" />}
 
-                {ADMIN_GROUPS.map((group) => (
-                    <NavGroup
-                        key={group.key}
-                        group={group}
-                        path={path}
-                        collapsed={collapsed}
-                        showLabels={showLabels}
-                    />
-                ))}
+                        {ADMIN_GROUPS.map((group) => (
+                            <NavGroup
+                                key={group.key}
+                                group={group}
+                                path={path}
+                                collapsed={collapsed}
+                                showLabels={showLabels}
+                            />
+                        ))}
+                    </>
+                )}
             </nav>
 
             {/* Footer */}
@@ -318,6 +394,89 @@ function Sidebar({
                 </div>
             </div>
         </aside>
+    );
+}
+
+const SEARCH_ICON = 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z';
+
+/**
+ * Sidebar menu search input. On a collapsed desktop sidebar it renders as an
+ * icon button that expands the sidebar and focuses the input (same pattern as
+ * collapsed groups). Escape clears, Enter opens the first result.
+ */
+function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand }) {
+    const inputRef = useRef(null);
+    const focusAfterExpand = useRef(false);
+
+    useEffect(() => {
+        if (showLabels && focusAfterExpand.current) {
+            focusAfterExpand.current = false;
+            inputRef.current?.focus();
+        }
+    }, [showLabels]);
+
+    if (collapsed && !showLabels) {
+        return (
+            <div className="relative group px-2 pt-3">
+                <button
+                    onClick={() => {
+                        focusAfterExpand.current = true;
+                        onExpand();
+                    }}
+                    className="flex items-center justify-center w-full py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                >
+                    <Icon d={SEARCH_ICON} className="w-5 h-5" />
+                </button>
+                <Tooltip>{__('Search')}</Tooltip>
+            </div>
+        );
+    }
+
+    return (
+        <div className="px-2 pt-3 pb-2">
+            <div className="relative">
+                <Icon
+                    d={SEARCH_ICON}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none"
+                />
+                <input
+                    ref={inputRef}
+                    type="search"
+                    value={query}
+                    onChange={(e) => onChange(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') onChange('');
+                        if (e.key === 'Enter') onSubmit();
+                    }}
+                    placeholder={__('Search menu…')}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm
+                               text-slate-100 placeholder-slate-500
+                               focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+            </div>
+        </div>
+    );
+}
+
+function SearchResultLink({ item, path, onNavigate }) {
+    const active = isActive(path, item.match, item.exact);
+    return (
+        <div className="px-2">
+            <Link
+                href={item.href}
+                prefetch
+                onClick={onNavigate}
+                className={`flex flex-col gap-0.5 px-3 py-2 rounded-lg text-sm transition-colors
+                            ${active ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+            >
+                <span className="font-medium">{__(item.label)}</span>
+                {item.trail.length > 0 && (
+                    <span className={`text-xs ${active ? 'text-blue-200' : 'text-slate-500'}`}>
+                        {item.trail.map((t) => __(t)).join(' / ')}
+                    </span>
+                )}
+            </Link>
+        </div>
     );
 }
 

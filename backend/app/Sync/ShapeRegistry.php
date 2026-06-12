@@ -2,8 +2,8 @@
 
 namespace App\Sync;
 
-use App\Sync\Shapes\IssueTypesShape;
 use App\Sync\Shapes\IssuesOpenShape;
+use App\Sync\Shapes\IssueTypesShape;
 use App\Sync\Shapes\LinesActiveShape;
 use App\Sync\Shapes\OeeRecordsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
@@ -127,6 +127,10 @@ class ShapeRegistry
         'lot_sequences' => [
             'table' => 'lot_sequences',
             'columns' => ['id', 'name', 'product_type_id', 'prefix', 'suffix', 'pattern', 'next_number', 'pad_size', 'year_prefix', 'reset_period', 'created_at', 'updated_at'],
+        ],
+        'pallets' => [
+            'table' => 'pallets',
+            'columns' => ['id', 'pallet_no', 'work_order_id', 'qty', 'status', 'location', 'erp_reference', 'created_at', 'updated_at'],
         ],
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
