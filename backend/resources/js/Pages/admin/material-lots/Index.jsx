@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
-import { STATUS_STYLES } from './fields';
+import { STATUS_STYLES, materialLotStatusLabel } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function MaterialLotsIndex() {
@@ -18,7 +18,7 @@ export default function MaterialLotsIndex() {
             label: __('Status'),
             render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {r.status}
+                    {materialLotStatusLabel(r.status)}
                 </span>
             ),
         },

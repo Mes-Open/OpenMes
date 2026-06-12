@@ -47,8 +47,10 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
         return (
             <Link href="/packaging/label-templates"
                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
-               title="Configure label templates first">
-                {printIcon} Set up labels…
+               title={iconOnly ? label : 'Configure label templates first'}
+               aria-label={iconOnly ? label : undefined}>
+                {printIcon}
+                {!iconOnly && 'Set up labels…'}
             </Link>
         );
     }

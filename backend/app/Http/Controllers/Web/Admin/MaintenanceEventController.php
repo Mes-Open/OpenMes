@@ -123,8 +123,9 @@ class MaintenanceEventController extends Controller
             'workstation_id.required_without_all' => 'Select at least one of: Tool, Line, or Workstation.',
         ]);
 
-        // currency is NOT NULL DEFAULT 'PLN' — coerce a cleared field.
-        $validated['currency'] ??= 'PLN';
+        // currency is NOT NULL — preserve the existing value when omitted/cleared
+        // rather than forcing it back to the 'PLN' default on every update.
+        $validated['currency'] ??= $maintenanceEvent->currency;
 
         $maintenanceEvent->update($validated);
 
