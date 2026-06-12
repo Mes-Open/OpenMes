@@ -1,19 +1,25 @@
+/**
+ * Work-orders list — restyled onto the Geist White design system (@openmes/ui).
+ * Light-only v1: the previous Colors[scheme] light/dark switch is dropped here;
+ * dark shop-floor theming returns with token theming later.
+ * Behavior (queries, filters, navigation, i18n) is unchanged.
+ */
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LegendList } from '@legendapp/list';
+import { format, isValid, parseISO } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 
-import { Mono, SectionLabel } from '@/components/ui/Mono';
+import { SegmentedControl, StatusPill, colors, fonts, type StatusKey } from '@openmes/ui';
+
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
-import { WorkOrderCard } from '@/components/workorders/WorkOrderCard';
 import { TabletStatusStripLive } from '@/components/tablet/TabletStatusStripLive';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useDeviceClass } from '@/hooks/useDeviceClass';
 import { useWorkOrders } from '@/hooks/queries/useWorkOrders';
 import { useLines } from '@/hooks/queries/useUsers';
-import type { WorkOrderStatus } from '@/types/api';
+import { isWorkOrderOverdue, statusLabel } from '@/lib/statusLabels';
+import type { WorkOrder, WorkOrderStatus } from '@/types/api';
 
 // Labels are i18n keys (English phrase = key, per Laravel __() convention).
 const STATUS_GROUPS: { key: string; label: string; statuses?: WorkOrderStatus[] }[] = [
@@ -25,10 +31,20 @@ const STATUS_GROUPS: { key: string; label: string; statuses?: WorkOrderStatus[] 
   { key: 'done', label: 'Done', statuses: ['DONE'] },
 ];
 
+/** Map API work-order statuses onto the design system's pill states. */
+const PILL_STATUS: Record<WorkOrderStatus, StatusKey> = {
+  PENDING: 'pending',
+  ACCEPTED: 'pending',
+  IN_PROGRESS: 'running',
+  BLOCKED: 'blocked',
+  PAUSED: 'downtime',
+  DONE: 'done',
+  REJECTED: 'blocked',
+  CANCELLED: 'done',
+};
+
 export function WorkOrdersListScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
   const { useTabletLayout: isTablet } = useDeviceClass();
 
@@ -48,62 +64,27 @@ export function WorkOrdersListScreen() {
 
   const query = useWorkOrders(filters);
   const orders = query.data ?? [];
-  const counts = useMemo(() => groupCounts(orders), [orders]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={styles.screen}>
       {isTablet ? <TabletStatusStripLive /> : null}
-      <View style={[styles.filters, { borderBottomColor: palette.border }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}>
-          {STATUS_GROUPS.map((g) => {
-            const active = g.key === statusKey;
-            const c = g.key === 'all' ? orders.length : counts[g.key] ?? 0;
-            return (
-              <Pressable
-                key={g.key}
-                onPress={() => setStatusKey(g.key)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: active ? '#241a08' : 'transparent',
-                    borderColor: active ? BRAND.amber : palette.border,
-                  },
-                ]}>
-                <Text
-                  style={[styles.chipText, { color: active ? BRAND.amber : palette.textMuted }]}>
-                  {t(g.label)}
-                </Text>
-                <Mono size={10} color={active ? BRAND.amber : palette.textFaint}>
-                  {c}
-                </Mono>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+      <View style={styles.filters}>
+        <SegmentedControl
+          options={STATUS_GROUPS.map((g) => ({ value: g.key, label: t(g.label) }))}
+          value={statusKey}
+          onChange={setStatusKey}
+        />
         {lines.length > 1 ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[styles.chipsRow, { marginTop: 8 }]}>
+            contentContainerStyle={styles.chipsRow}>
             <Pressable
               onPress={() => setLineId(null)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: lineId == null ? palette.surfaceInverse : 'transparent',
-                  borderColor: lineId == null ? palette.surfaceInverse : palette.border,
-                },
-              ]}>
-              <Text
-                style={[
-                  styles.chipText,
-                  {
-                    color: lineId == null ? (scheme === 'dark' ? '#171715' : '#fff') : palette.textMuted,
-                  },
-                ]}>
+              accessibilityRole="button"
+              accessibilityState={{ selected: lineId == null }}
+              style={[styles.chip, lineId == null && styles.chipActive]}>
+              <Text style={[styles.chipText, lineId == null && styles.chipTextActive]}>
                 All lines
               </Text>
             </Pressable>
@@ -113,22 +94,10 @@ export function WorkOrdersListScreen() {
                 <Pressable
                   key={l.id}
                   onPress={() => setLineId(l.id)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: active ? palette.surfaceInverse : 'transparent',
-                      borderColor: active ? palette.surfaceInverse : palette.border,
-                    },
-                  ]}>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.textMuted,
-                      },
-                    ]}>
-                    {l.name}
-                  </Text>
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.chip, active && styles.chipActive]}>
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{l.name}</Text>
                 </Pressable>
               );
             })}
@@ -142,25 +111,23 @@ export function WorkOrdersListScreen() {
         <ErrorState error={query.error} onRetry={query.refetch} />
       ) : (
         <LegendList
-          style={{ backgroundColor: palette.background }}
+          style={styles.screen}
           data={orders}
           keyExtractor={(wo) => String(wo.id)}
           contentContainerStyle={styles.list}
           ListHeaderComponent={
-            <SectionLabel
-              right={
-                <Mono size={11} color={palette.textFaint}>
-                  {orders.length} {orders.length === 1 ? 'ORDER' : 'ORDERS'}
-                </Mono>
-              }>
-              Work orders
-            </SectionLabel>
+            <View style={styles.listHeader}>
+              <Text style={styles.sectionLabel}>{t('Work orders').toUpperCase()}</Text>
+              <Text style={styles.sectionCount}>
+                {orders.length} {orders.length === 1 ? 'ORDER' : 'ORDERS'}
+              </Text>
+            </View>
           }
           ListEmptyComponent={
             <EmptyState title="No work orders" subtitle="Try a different filter or pull to refresh." />
           }
           renderItem={({ item }) => (
-            <WorkOrderCard workOrder={item} onPress={() => router.push(`/work-orders/${item.id}`)} />
+            <WorkOrderRow workOrder={item} onPress={() => router.push(`/work-orders/${item.id}`)} />
           )}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} />}
@@ -170,27 +137,111 @@ export function WorkOrdersListScreen() {
   );
 }
 
-function groupCounts(orders: { status: string }[]) {
-  const counts: Record<string, number> = {};
-  for (const g of STATUS_GROUPS) {
-    if (!g.statuses) continue;
-    counts[g.key] = orders.filter((o) => g.statuses!.includes(o.status as WorkOrderStatus)).length;
-  }
-  return counts;
+function WorkOrderRow({ workOrder, onPress }: { workOrder: WorkOrder; onPress: () => void }) {
+  const { t } = useTranslation();
+
+  const due = workOrder.due_date ? parseISO(workOrder.due_date) : null;
+  const dueLabel = due && isValid(due) ? format(due, 'MMM d') : null;
+  const overdue = isWorkOrderOverdue(workOrder);
+  const planned = workOrder.planned_qty ?? 0;
+  const produced = workOrder.produced_qty ?? 0;
+
+  const meta = [
+    `${workOrder.order_no} · ${produced}/${planned} ${t('pcs').toUpperCase()}`,
+    dueLabel ? `${t('DUE').toUpperCase()} ${dueLabel.toUpperCase()}` : null,
+    overdue ? t('Overdue').toUpperCase() : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.row}>
+      <View style={styles.rowBody}>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {workOrder.product_type?.name ?? '—'}
+        </Text>
+        <Text style={[styles.rowMeta, overdue && styles.rowMetaOverdue]} numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
+      <StatusPill
+        status={PILL_STATUS[workOrder.status] ?? 'pending'}
+        label={statusLabel(workOrder.status).toUpperCase()}
+      />
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
-  filters: { paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  filters: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
   chipsRow: { flexDirection: 'row', gap: 8 },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 999,
     borderWidth: 1,
+    borderColor: colors.line2,
+    backgroundColor: colors.card,
   },
-  chipText: { fontSize: 12, fontWeight: '600' },
-  list: { padding: 18, gap: 10 },
+  chipActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  chipText: {
+    fontSize: 12,
+    fontFamily: fonts.sans.native.semibold,
+    color: colors.muted,
+  },
+  chipTextActive: { color: '#FFFFFF' },
+  list: { padding: 18 },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionLabel: {
+    fontFamily: fonts.mono.native.regular,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.faint,
+  },
+  sectionCount: {
+    fontFamily: fonts.mono.native.regular,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: colors.faint,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line2,
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+  },
+  rowBody: { flex: 1, minWidth: 0 },
+  rowTitle: {
+    fontSize: 14,
+    fontFamily: fonts.sans.native.semibold,
+    color: colors.ink,
+  },
+  rowMeta: {
+    fontFamily: fonts.mono.native.regular,
+    fontSize: 10,
+    color: colors.faint,
+    marginTop: 3,
+  },
+  rowMetaOverdue: { color: colors.blocked },
 });
