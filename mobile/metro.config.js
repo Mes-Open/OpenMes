@@ -3,6 +3,20 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
+// @openmes/ui is a file: symlink to ../packages/ui (shared with the web app).
+// watchFolders makes Metro watch + serve files outside mobile/; nodeModulesPaths
+// makes the package's own react/react-native imports resolve from
+// mobile/node_modules (its real path sits outside, where the upward
+// node_modules walk would miss them) — guaranteeing a single React copy.
+config.watchFolders = [
+  ...(config.watchFolders ?? []),
+  path.resolve(__dirname, '../packages/ui'),
+];
+config.resolver.nodeModulesPaths = [
+  path.resolve(__dirname, 'node_modules'),
+  ...(config.resolver.nodeModulesPaths ?? []),
+];
+
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const next =

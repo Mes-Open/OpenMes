@@ -7,10 +7,43 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+/* Shared design-system package (symlinked via file: dep) — outside backend/,
+   so Tailwind's auto content detection won't find it on its own. Path works
+   both on the host and under the container mount (/var/www/packages). */
+@source '../../../packages/ui/src';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Geist', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* OpenMES design tokens — "Geist White" (mirror of packages/ui/src/tokens).
+       Keep in sync with packages/ui/src/tokens/index.ts. */
+    --color-om-bg: #f6f5f1;
+    --color-om-panel: #fbfaf8;
+    --color-om-card: #ffffff;
+    --color-om-chip: #f1efea;
+    --color-om-selected: #fcf6f3;
+    --color-om-line: #e6e4de;
+    --color-om-line2: #edebe6;
+    --color-om-ink: #1a1917;
+    --color-om-muted: #6f6c66;
+    --color-om-faint: #9b9892;
+    --color-om-faintest: #c4c0b8;
+    --color-om-accent: #ea5a2b;
+    --color-om-running: #1c9a55;
+    --color-om-running-bg: #e6f4ea;
+    --color-om-pending: #6f6c66;
+    --color-om-pending-bg: #f1efea;
+    --color-om-blocked: #d6442f;
+    --color-om-blocked-bg: #fbeae6;
+    --color-om-downtime: #c9821e;
+    --color-om-downtime-bg: #faf0dd;
+    --color-om-done: #54514b;
+    --color-om-done-bg: #ecebe7;
+
+    --radius-om: 12px;
+    --radius-om-sm: 8px;
 }
 
 /* Custom styles for touch-optimized UI */

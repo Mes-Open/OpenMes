@@ -18,8 +18,10 @@
     },
     "dependencies": {
         "@inertiajs/react": "^3.3.0",
+        "@openmes/ui": "file:../packages/ui",
         "@tanstack/db": "^0.6.7",
         "@tanstack/react-db": "^0.1.85",
+        "@tanstack/react-table": "^8.21.3",
         "alpinejs": "^3.15.8",
         "chart.js": "^4.5.1",
         "laravel-echo": "^2.3.7",

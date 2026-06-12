@@ -81,6 +81,11 @@ services:
       - ./backend/vite.config.js:/var/www/html/vite.config.js:ro
       - ./backend/package.json:/var/www/html/package.json:ro
       - ./backend/package-lock.json:/var/www/html/package-lock.json:ro
+      # Shared design-system source (@openmes/ui = file:../packages/ui) —
+      # `npm ci` symlinks node_modules/@openmes/ui here (.npmrc pins
+      # install-links=false), so edits under packages/ui rebuild live too.
+      - ./packages:/var/www/packages
+      - ./backend/.npmrc:/var/www/html/.npmrc:ro
       # Output the watcher writes — bind-mounted into the backend container too
       # so the live HTTP server picks up rebuilt bundles immediately.
       - ./backend/public/build:/var/www/html/public/build

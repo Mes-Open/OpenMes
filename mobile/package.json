@@ -17,6 +17,7 @@
     "@expo/vector-icons": "^15.0.3",
     "@hookform/resolvers": "^5.2.2",
     "@legendapp/list": "^2.0.19",
+    "@openmes/ui": "file:../packages/ui",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "11.5.2",
     "@react-navigation/drawer": "^7.9.4",
