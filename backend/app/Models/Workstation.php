@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Workstation extends Model
 {
     use HasCustomFields, HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'line_id',

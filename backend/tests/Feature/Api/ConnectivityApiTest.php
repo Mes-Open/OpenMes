@@ -87,7 +87,7 @@ class ConnectivityApiTest extends TestCase
         $c = $this->makeConnection();
         $this->authAdmin()->deleteJson("/api/v1/connectivity/connections/{$c->id}")
             ->assertStatus(200);
-        $this->assertDatabaseMissing('machine_connections', ['id' => $c->id]);
+        $this->assertSoftDeleted('machine_connections', ['id' => $c->id]);
     }
 
     public function test_mqtt_password_redacted(): void

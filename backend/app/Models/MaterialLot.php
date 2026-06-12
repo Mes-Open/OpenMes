@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,12 +21,18 @@ class MaterialLot extends Model
 {
     use HasFactory;
     use HasTenant;
+    use SoftDeletesWithAudit;
 
     public const STATUS_RECEIVED = 'received';
+
     public const STATUS_QUARANTINE = 'quarantine';
+
     public const STATUS_RELEASED = 'released';
+
     public const STATUS_CONSUMED = 'consumed';
+
     public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_REJECTED = 'rejected';
 
     public const STATUSES = [
@@ -153,7 +160,7 @@ class MaterialLot extends Model
      * Consume a quantity from this lot, transitioning to 'consumed' when depleted.
      *
      * @throws \InvalidArgumentException when $quantity <= 0
-     * @throws \DomainException          when $quantity exceeds available
+     * @throws \DomainException when $quantity exceeds available
      */
     public function consume(float $quantity): void
     {
@@ -195,5 +202,13 @@ class MaterialLot extends Model
     {
         return $query->where('status', self::STATUS_RELEASED)
             ->where('quantity_available', '>', 0);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\MaterialSublot::class, 'parent_lot_id'],
+        ];
     }
 }

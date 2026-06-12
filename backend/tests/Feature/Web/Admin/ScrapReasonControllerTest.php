@@ -118,7 +118,7 @@ class ScrapReasonControllerTest extends TestCase
 
         $this->actingAs($this->admin)->delete(route('admin.scrap-reasons.destroy', $reason));
 
-        $this->assertDatabaseMissing('scrap_reasons', ['id' => $reason->id]);
+        $this->assertSoftDeleted('scrap_reasons', ['id' => $reason->id]);
     }
 
     public function test_non_admin_cannot_manage_scrap_reasons(): void

@@ -110,6 +110,6 @@ class SiteControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->delete(route('admin.sites.destroy', $site));
 
         $response->assertRedirect(route('admin.sites.index'));
-        $this->assertDatabaseMissing('sites', ['id' => $site->id]);
+        $this->assertSoftDeleted('sites', ['id' => $site->id]);
     }
 }

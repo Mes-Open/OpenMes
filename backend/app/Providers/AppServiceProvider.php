@@ -50,6 +50,12 @@ class AppServiceProvider extends ServiceProvider
         // Reverb sync: register model → collection broadcast listeners.
         \App\Sync\CollectionBroadcaster::boot();
 
+        // unique:/exists: validation ignores soft-deleted rows on tables in
+        // SoftDeleteRegistry (one hook instead of per-rule whereNull clauses).
+        $this->app['validator']->setPresenceVerifier(
+            new \App\Validation\SoftDeleteAwarePresenceVerifier($this->app['db']),
+        );
+
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
 

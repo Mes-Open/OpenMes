@@ -195,6 +195,6 @@ class CrewBreakWindowControllerTest extends TestCase
             ->delete(route('admin.crew-break-windows.destroy', $window))
             ->assertRedirect(route('admin.crew-break-windows.index'));
 
-        $this->assertDatabaseMissing('crew_break_windows', ['id' => $window->id]);
+        $this->assertSoftDeleted('crew_break_windows', ['id' => $window->id]);
     }
 }

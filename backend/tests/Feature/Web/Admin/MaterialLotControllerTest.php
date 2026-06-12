@@ -169,7 +169,7 @@ class MaterialLotControllerTest extends TestCase
             ->delete(route('admin.material-lots.destroy', $lot))
             ->assertRedirect(route('admin.material-lots.index'));
 
-        $this->assertDatabaseMissing('material_lots', ['id' => $lot->id]);
+        $this->assertSoftDeleted('material_lots', ['id' => $lot->id]);
     }
 
     public function test_index_filters_by_status_and_material(): void

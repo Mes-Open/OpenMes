@@ -200,7 +200,7 @@ class ProductionAnomalyTest extends TestCase
             ->delete(route('admin.production-anomalies.destroy', $anomaly));
 
         $response->assertRedirect(route('admin.production-anomalies.index'));
-        $this->assertDatabaseMissing('production_anomalies', ['id' => $anomaly->id]);
+        $this->assertSoftDeleted('production_anomalies', ['id' => $anomaly->id]);
     }
 
     public function test_cannot_delete_processed_anomaly(): void

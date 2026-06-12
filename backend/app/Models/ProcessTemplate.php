@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ProcessTemplate extends Model
 {
     use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'product_type_id',
@@ -112,5 +114,16 @@ class ProcessTemplate extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\TemplateStep::class, 'process_template_id'],
+            [\App\Models\BomItem::class, 'process_template_id'],
+            [\App\Models\QualityCheckTemplate::class, 'process_template_id'],
+            [\App\Models\ProcessTemplatePhoto::class, 'process_template_id'],
+        ];
     }
 }

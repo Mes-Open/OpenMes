@@ -80,7 +80,7 @@ class WorkstationTypeApiTest extends TestCase
         $wt = WorkstationType::create(['code' => 'X', 'name' => 'Y']);
         $this->authAdmin()->deleteJson("/api/v1/workstation-types/{$wt->id}")
             ->assertStatus(200);
-        $this->assertDatabaseMissing('workstation_types', ['id' => $wt->id]);
+        $this->assertSoftDeleted('workstation_types', ['id' => $wt->id]);
     }
 
     public function test_cannot_delete_when_referenced(): void

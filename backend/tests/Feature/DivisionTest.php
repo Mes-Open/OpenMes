@@ -114,7 +114,7 @@ class DivisionTest extends TestCase
             ->delete(route('admin.divisions.destroy', $division));
 
         $response->assertRedirect(route('admin.divisions.index'));
-        $this->assertDatabaseMissing('divisions', ['id' => $division->id]);
+        $this->assertSoftDeleted('divisions', ['id' => $division->id]);
     }
 
     public function test_cannot_delete_division_with_crews(): void

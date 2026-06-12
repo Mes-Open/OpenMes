@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CsvImportMapping extends Model
 {
+    use SoftDeletesWithAudit;
+
     protected $fillable = [
         'name',
         'user_id',
@@ -33,14 +36,14 @@ class CsvImportMapping extends Model
     public static function systemFields(): array
     {
         return [
-            'order_no'           => 'Order Number',
-            'product_name'       => 'Product Name',
-            'quantity'           => 'Quantity (Planned)',
-            'line_code'          => 'Line Code',
-            'product_type_code'  => 'Product Type Code',
-            'priority'           => 'Priority',
-            'due_date'           => 'Due Date',
-            'description'        => 'Description',
+            'order_no' => 'Order Number',
+            'product_name' => 'Product Name',
+            'quantity' => 'Quantity (Planned)',
+            'line_code' => 'Line Code',
+            'product_type_code' => 'Product Type Code',
+            'priority' => 'Priority',
+            'due_date' => 'Due Date',
+            'description' => 'Description',
         ];
     }
 }

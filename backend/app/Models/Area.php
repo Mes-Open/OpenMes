@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasCustomFields;
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 class Area extends Model
 {
     use Auditable, HasCustomFields, HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'name',

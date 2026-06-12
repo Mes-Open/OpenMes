@@ -103,7 +103,7 @@ class PersonnelClassControllerTest extends TestCase
             ->delete(route('admin.personnel-classes.destroy', $pc));
 
         $response->assertRedirect(route('admin.personnel-classes.index'));
-        $this->assertDatabaseMissing('personnel_classes', ['id' => $pc->id]);
+        $this->assertSoftDeleted('personnel_classes', ['id' => $pc->id]);
     }
 
     public function test_delete_is_blocked_when_workers_assigned_without_force(): void
@@ -127,7 +127,7 @@ class PersonnelClassControllerTest extends TestCase
             ->delete(route('admin.personnel-classes.destroy', $pc), ['force' => '1']);
 
         $response->assertRedirect(route('admin.personnel-classes.index'));
-        $this->assertDatabaseMissing('personnel_classes', ['id' => $pc->id]);
+        $this->assertSoftDeleted('personnel_classes', ['id' => $pc->id]);
         $this->assertDatabaseHas('workers', ['id' => $worker->id, 'personnel_class_id' => null]);
     }
 

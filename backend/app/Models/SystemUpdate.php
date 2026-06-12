@@ -19,9 +19,12 @@ class SystemUpdate extends Model
 {
     use HasFactory;
 
-    public const STATE_QUEUED      = 'queued';
-    public const STATE_COMPLETED   = 'completed';
-    public const STATE_FAILED      = 'failed';
+    public const STATE_QUEUED = 'queued';
+
+    public const STATE_COMPLETED = 'completed';
+
+    public const STATE_FAILED = 'failed';
+
     public const STATE_ROLLED_BACK = 'rolled_back';
 
     protected $fillable = [
@@ -41,12 +44,12 @@ class SystemUpdate extends Model
     protected function casts(): array
     {
         return [
-            'started_at'           => 'datetime',
-            'finished_at'          => 'datetime',
-            'duration_seconds'     => 'integer',
-            'files_copied'         => 'integer',
+            'started_at' => 'datetime',
+            'finished_at' => 'datetime',
+            'duration_seconds' => 'integer',
+            'files_copied' => 'integer',
             'composer_install_ran' => 'boolean',
-            'checksum_verified'    => 'boolean',
+            'checksum_verified' => 'boolean',
         ];
     }
 

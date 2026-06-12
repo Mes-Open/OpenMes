@@ -130,7 +130,7 @@ class WorkerAbsenceControllerTest extends TestCase
             ->delete(route('admin.worker-absences.destroy', $absence))
             ->assertRedirect(route('admin.worker-absences.index'));
 
-        $this->assertDatabaseMissing('worker_absences', ['id' => $absence->id]);
+        $this->assertSoftDeleted('worker_absences', ['id' => $absence->id]);
     }
 
     public function test_guest_cannot_create(): void

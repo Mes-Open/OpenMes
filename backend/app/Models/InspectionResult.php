@@ -11,8 +11,11 @@ class InspectionResult extends Model
     use HasFactory;
 
     public const TYPE_VISUAL = 'visual';
+
     public const TYPE_MEASUREMENT = 'measurement';
+
     public const TYPE_FUNCTIONAL = 'functional';
+
     public const TYPE_PASS_FAIL = 'pass_fail';
 
     protected $fillable = [

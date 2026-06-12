@@ -208,7 +208,7 @@ class WorkOrderTest extends TestCase
 
         $response->assertStatus(200);
 
-        $this->assertDatabaseMissing('work_orders', [
+        $this->assertSoftDeleted('work_orders', [
             'id' => $workOrder->id,
         ]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,14 +12,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MaintenanceSchedule extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
+    use SoftDeletesWithAudit;
 
-    public const FREQ_DAILY     = 'daily';
-    public const FREQ_WEEKLY    = 'weekly';
-    public const FREQ_MONTHLY   = 'monthly';
+    public const FREQ_DAILY = 'daily';
+
+    public const FREQ_WEEKLY = 'weekly';
+
+    public const FREQ_MONTHLY = 'monthly';
+
     public const FREQ_QUARTERLY = 'quarterly';
-    public const FREQ_ANNUALLY  = 'annually';
-    public const FREQ_BY_HOURS  = 'by_hours';
+
+    public const FREQ_ANNUALLY = 'annually';
+
+    public const FREQ_BY_HOURS = 'by_hours';
 
     public const FREQUENCIES = [
         self::FREQ_DAILY,
@@ -52,10 +59,10 @@ class MaintenanceSchedule extends Model
     {
         return [
             'last_executed_at' => 'datetime',
-            'next_due_at'      => 'datetime',
-            'is_active'        => 'boolean',
-            'interval_value'   => 'integer',
-            'lead_time_days'   => 'integer',
+            'next_due_at' => 'datetime',
+            'is_active' => 'boolean',
+            'interval_value' => 'integer',
+            'lead_time_days' => 'integer',
         ];
     }
 
@@ -119,13 +126,13 @@ class MaintenanceSchedule extends Model
         $base = $this->next_due_at?->copy() ?? now();
 
         $next = match ($this->frequency) {
-            self::FREQ_DAILY     => $base->copy()->addDays($this->interval_value),
-            self::FREQ_WEEKLY    => $base->copy()->addWeeks($this->interval_value),
-            self::FREQ_MONTHLY   => $base->copy()->addMonths($this->interval_value),
+            self::FREQ_DAILY => $base->copy()->addDays($this->interval_value),
+            self::FREQ_WEEKLY => $base->copy()->addWeeks($this->interval_value),
+            self::FREQ_MONTHLY => $base->copy()->addMonths($this->interval_value),
             self::FREQ_QUARTERLY => $base->copy()->addMonths(3 * $this->interval_value),
-            self::FREQ_ANNUALLY  => $base->copy()->addYears($this->interval_value),
-            self::FREQ_BY_HOURS  => $base->copy()->addHours($this->interval_value),
-            default              => $base->copy()->addDays($this->interval_value),
+            self::FREQ_ANNUALLY => $base->copy()->addYears($this->interval_value),
+            self::FREQ_BY_HOURS => $base->copy()->addHours($this->interval_value),
+            default => $base->copy()->addDays($this->interval_value),
         };
 
         if ($this->preferred_time) {
@@ -133,7 +140,7 @@ class MaintenanceSchedule extends Model
             $next = $next->setTime($t->hour, $t->minute);
         }
 
-        $this->next_due_at      = $next;
+        $this->next_due_at = $next;
         $this->last_executed_at = now();
         $this->save();
     }

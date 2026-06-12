@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,14 +12,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Issue extends Model
 {
     use Auditable, HasCustomFields, HasFactory;
+    use SoftDeletesWithAudit;
 
     const STATUS_OPEN = 'OPEN';
+
     const STATUS_ACKNOWLEDGED = 'ACKNOWLEDGED';
+
     const STATUS_RESOLVED = 'RESOLVED';
+
     const STATUS_CLOSED = 'CLOSED';
 
     public const SOURCE_INBOUND_INSPECTION = 'inbound_inspection';
+
     public const SOURCE_IN_PROCESS = 'in_process';
+
     public const SOURCE_CUSTOMER_COMPLAINT = 'customer_complaint';
 
     protected $fillable = [

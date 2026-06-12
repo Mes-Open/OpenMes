@@ -151,7 +151,7 @@ class CompanyTest extends TestCase
             ->delete(route('admin.companies.destroy', $company));
 
         $response->assertRedirect(route('admin.companies.index'));
-        $this->assertDatabaseMissing('companies', ['id' => $company->id]);
+        $this->assertSoftDeleted('companies', ['id' => $company->id]);
     }
 
     public function test_company_code_must_be_unique(): void

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,16 +12,23 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class MachineConnection extends Model
 {
     use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
-    const PROTOCOL_MQTT   = 'mqtt';
-    const PROTOCOL_OPCUA  = 'opcua';
+    const PROTOCOL_MQTT = 'mqtt';
+
+    const PROTOCOL_OPCUA = 'opcua';
+
     const PROTOCOL_MODBUS = 'modbus';
-    const PROTOCOL_REST   = 'rest';
+
+    const PROTOCOL_REST = 'rest';
 
     const STATUS_DISCONNECTED = 'disconnected';
-    const STATUS_CONNECTED    = 'connected';
-    const STATUS_CONNECTING   = 'connecting';
-    const STATUS_ERROR        = 'error';
+
+    const STATUS_CONNECTED = 'connected';
+
+    const STATUS_CONNECTING = 'connecting';
+
+    const STATUS_ERROR = 'error';
 
     protected $fillable = [
         'tenant_id',
@@ -37,7 +45,7 @@ class MachineConnection extends Model
     protected function casts(): array
     {
         return [
-            'is_active'         => 'boolean',
+            'is_active' => 'boolean',
             'last_connected_at' => 'datetime',
             'messages_received' => 'integer',
         ];
@@ -91,26 +99,26 @@ class MachineConnection extends Model
     public function statusColor(): string
     {
         return match ($this->status) {
-            self::STATUS_CONNECTED    => 'green',
-            self::STATUS_CONNECTING   => 'yellow',
-            self::STATUS_ERROR        => 'red',
-            default                   => 'slate',
+            self::STATUS_CONNECTED => 'green',
+            self::STATUS_CONNECTING => 'yellow',
+            self::STATUS_ERROR => 'red',
+            default => 'slate',
         };
     }
 
     public function markConnected(): void
     {
         $this->update([
-            'status'           => self::STATUS_CONNECTED,
-            'status_message'   => null,
+            'status' => self::STATUS_CONNECTED,
+            'status_message' => null,
             'last_connected_at' => now(),
         ]);
     }
 
-    public function markDisconnected(string $reason = null): void
+    public function markDisconnected(?string $reason = null): void
     {
         $this->update([
-            'status'         => self::STATUS_DISCONNECTED,
+            'status' => self::STATUS_DISCONNECTED,
             'status_message' => $reason,
         ]);
     }
@@ -118,7 +126,7 @@ class MachineConnection extends Model
     public function markError(string $message): void
     {
         $this->update([
-            'status'         => self::STATUS_ERROR,
+            'status' => self::STATUS_ERROR,
             'status_message' => $message,
         ]);
     }
@@ -126,5 +134,14 @@ class MachineConnection extends Model
     public function incrementMessageCount(): void
     {
         $this->increment('messages_received');
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\MachineTopic::class, 'machine_connection_id'],
+            [\App\Models\MachineTag::class, 'machine_connection_id'],
+        ];
     }
 }

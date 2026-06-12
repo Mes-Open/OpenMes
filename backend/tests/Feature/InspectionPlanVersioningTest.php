@@ -180,7 +180,7 @@ class InspectionPlanVersioningTest extends TestCase
         $this->actingAs($this->admin)->delete("/admin/inspection-plans/{$plan->id}")
             ->assertRedirect();
 
-        $this->assertDatabaseMissing('inspection_plans', ['id' => $plan->id]);
+        $this->assertSoftDeleted('inspection_plans', ['id' => $plan->id]);
     }
 
     // ── Authorization ────────────────────────────────────────────────────

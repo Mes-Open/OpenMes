@@ -3338,5 +3338,14 @@
     "Break window created successfully.": "Okno przerwy utworzone.",
     "Break window updated successfully.": "Okno przerwy zaktualizowane.",
     "Break window deleted successfully.": "Okno przerwy usunięte.",
-    "This crew already has a break window that overlaps these times.": "Ta brygada ma już okno przerwy nakładające się na te godziny."
+    "This crew already has a break window that overlaps these times.": "Ta brygada ma już okno przerwy nakładające się na te godziny.",
+    "Trash": "Kosz",
+    "Restore": "Przywróć",
+    "Item": "Pozycja",
+    "Deleted by": "Usunął(-ęła)",
+    "Deleted at": "Usunięto",
+    "Trash is empty.": "Kosz jest pusty.",
+    "Deleted items are kept here and can be restored. Restoring also brings back records deleted together with the item.": "Usunięte elementy trafiają tutaj i można je przywrócić. Przywrócenie odzyskuje też rekordy usunięte razem z elementem.",
+    "Restore this item (and records deleted with it)?": "Przywrócić ten element (wraz z rekordami usuniętymi razem z nim)?",
+    "Item restored (including related records deleted with it).": "Element przywrócony (wraz z powiązanymi rekordami usuniętymi razem z nim)."
 }

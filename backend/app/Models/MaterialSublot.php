@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,9 +17,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MaterialSublot extends Model
 {
     use HasFactory;
+    use SoftDeletesWithAudit;
 
     public const STATUS_AVAILABLE = 'available';
+
     public const STATUS_RESERVED = 'reserved';
+
     public const STATUS_CONSUMED = 'consumed';
 
     public const STATUSES = [
