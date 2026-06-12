@@ -10,6 +10,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Added
 - Friendly in-app error page: in production, error statuses (500/503/404/403/429) now render an Inertia `Error` page that keeps the user's chrome (sidebar) — admins/supervisors get the admin sidebar, operators their touch layout — so they can navigate away instead of landing on a bare error screen. API/JSON clients keep their normal JSON error; local/testing keep the debug page.
 
+### Fixed
+- Creating/updating a maintenance schedule with an empty **Lead time (days)** crashed with a NOT NULL violation (23502): the field is validated as nullable but the column is `NOT NULL default 0`, and submitting `null` overrode the default. The controller now falls back to `0` ("generate on the due date"). Regression test added. (also shipped as v0.14.5)
+
 ---
 
 ## [0.14.4] - 2026-06-09
