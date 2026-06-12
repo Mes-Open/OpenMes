@@ -3,7 +3,6 @@
 namespace Tests\Feature\Web\Admin;
 
 use App\Models\Line;
-use App\Models\MaintenanceEvent;
 use App\Models\MaintenanceSchedule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,14 +28,14 @@ class MaintenanceScheduleControllerTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
-            'name'           => 'Weekly Lathe Lubrication',
-            'event_type'     => 'planned',
-            'frequency'      => 'weekly',
+            'name' => 'Weekly Lathe Lubrication',
+            'event_type' => 'planned',
+            'frequency' => 'weekly',
             'interval_value' => 1,
             'lead_time_days' => 0,
-            'next_due_at'    => '2026-06-01 08:00:00',
-            'line_id'        => Line::factory()->create()->id,
-            'is_active'      => '1',
+            'next_due_at' => '2026-06-01 08:00:00',
+            'line_id' => Line::factory()->create()->id,
+            'is_active' => '1',
         ], $overrides);
     }
 
@@ -65,9 +64,28 @@ class MaintenanceScheduleControllerTest extends TestCase
         $response->assertRedirect(route('admin.maintenance-schedules.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_schedules', [
-            'name'      => 'Weekly Lathe Lubrication',
+            'name' => 'Weekly Lathe Lubrication',
             'frequency' => 'weekly',
             'is_active' => true,
+        ]);
+    }
+
+    public function test_store_defaults_null_lead_time_days_to_zero(): void
+    {
+        // The form may submit lead_time_days empty (null); the column is NOT NULL
+        // with a DB default of 0, so a null must not break the insert (23502).
+        $response = $this->actingAs($this->admin)
+            ->post(route('admin.maintenance-schedules.store'), $this->validPayload([
+                'name' => 'Corrective null lead time',
+                'event_type' => 'corrective',
+                'lead_time_days' => null,
+            ]));
+
+        $response->assertRedirect(route('admin.maintenance-schedules.index'));
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('maintenance_schedules', [
+            'name' => 'Corrective null lead time',
+            'lead_time_days' => 0,
         ]);
     }
 
@@ -109,14 +127,14 @@ class MaintenanceScheduleControllerTest extends TestCase
 
         $response = $this->actingAs($this->admin)
             ->put(route('admin.maintenance-schedules.update', $schedule), $this->validPayload([
-                'name'    => 'New Name',
+                'name' => 'New Name',
                 'line_id' => $line->id,
             ]));
 
         $response->assertRedirect(route('admin.maintenance-schedules.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('maintenance_schedules', [
-            'id'   => $schedule->id,
+            'id' => $schedule->id,
             'name' => 'New Name',
         ]);
     }
@@ -137,9 +155,9 @@ class MaintenanceScheduleControllerTest extends TestCase
     {
         $line = Line::factory()->create();
         $schedule = MaintenanceSchedule::factory()->create([
-            'line_id'     => $line->id,
+            'line_id' => $line->id,
             'next_due_at' => now()->addDays(20), // far future — would be skipped by hourly job
-            'is_active'   => true,
+            'is_active' => true,
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -148,7 +166,7 @@ class MaintenanceScheduleControllerTest extends TestCase
         $response->assertRedirect(route('admin.maintenance-schedules.index'));
         $this->assertDatabaseHas('maintenance_events', [
             'schedule_id' => $schedule->id,
-            'title'       => $schedule->name,
+            'title' => $schedule->name,
         ]);
     }
 
