@@ -25,7 +25,7 @@ export default function TraceabilityIndex() {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{__('Traceability')}</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {__('Trace a finished LOT, material lot, supplier LOT or serial number through its full genealogy.')}
+                        {__('Trace a finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.')}
                     </p>
                 </div>
 
@@ -38,7 +38,7 @@ export default function TraceabilityIndex() {
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
                             autoFocus
-                            placeholder={__('Finished LOT, material lot, supplier LOT or serial number…')}
+                            placeholder={__('Finished LOT, material lot, supplier LOT, source container or serial number…')}
                             className="form-input flex-1"
                         />
                         <button type="submit" className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap">
@@ -119,6 +119,7 @@ function BatchResult({ data }) {
                                     <th className="px-3 py-2">{__('Material')}</th>
                                     <th className="px-3 py-2">{__('LOT')}</th>
                                     <th className="px-3 py-2">{__('Supplier LOT')}</th>
+                                    <th className="px-3 py-2">{__('Source container')}</th>
                                     <th className="px-3 py-2">{__('Status')}</th>
                                 </tr>
                             </thead>
@@ -132,6 +133,7 @@ function BatchResult({ data }) {
                                             <Link href={traceLink(lot.lot_number)} className="text-blue-600 dark:text-blue-400 hover:underline">{lot.lot_number}</Link>
                                         </td>
                                         <td className="px-3 py-2 font-mono text-gray-600 dark:text-gray-400">{lot.supplier_lot_no ?? '—'}</td>
+                                        <td className="px-3 py-2 font-mono text-gray-600 dark:text-gray-400">{lot.source_container_no ?? '—'}</td>
                                         <td className="px-3 py-2">
                                             <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">{lot.status}</span>
                                         </td>
@@ -195,6 +197,9 @@ function MaterialLotResult({ forward, backward }) {
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white font-mono">{forward.lot.lot_number}</h2>
                 {backward.supplier_lot_no && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{__('Supplier LOT')}: <span className="font-mono">{backward.supplier_lot_no}</span></p>
+                )}
+                {backward.source_container_no && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{__('Source container')}: <span className="font-mono">{backward.source_container_no}</span></p>
                 )}
             </Card>
 
@@ -266,6 +271,9 @@ function IngredientTree({ node }) {
                         <span className="text-gray-500 dark:text-gray-400">{child.material?.name ?? ''}</span>
                         {child.supplier_lot_no && (
                             <span className="text-xs text-gray-400 dark:text-gray-500">{__('Supplier LOT')}: <span className="font-mono">{child.supplier_lot_no}</span></span>
+                        )}
+                        {child.source_container_no && (
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{__('Source container')}: <span className="font-mono">{child.source_container_no}</span></span>
                         )}
                         {child.source_batch_id && (
                             <span className="text-xs px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">{__('semi-finished')}</span>

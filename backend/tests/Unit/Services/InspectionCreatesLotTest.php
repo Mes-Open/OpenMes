@@ -90,6 +90,28 @@ class InspectionCreatesLotTest extends TestCase
         $this->assertEqualsWithDelta(0.0, (float) $lot->quantity_available, 0.0001);
     }
 
+    public function test_lot_inherits_source_container_no_from_inspection(): void
+    {
+        $plan = $this->makePlan();
+        $insp = $this->svc->start(
+            $this->material,
+            'LOT-CONT-1',
+            10,
+            $plan,
+            $this->inspector,
+            'SUPP-REF-1',
+            'CONT-0042',
+        );
+        $this->svc->recordResult($insp->results->first(), ['value_boolean' => true]);
+
+        $this->svc->complete($insp);
+
+        $lot = MaterialLot::firstWhere('inspection_id', $insp->id);
+        $this->assertNotNull($lot);
+        $this->assertSame('CONT-0042', $lot->source_container_no);
+        $this->assertSame('SUPP-REF-1', $lot->supplier_lot_no);
+    }
+
     public function test_skips_lot_creation_when_tracking_disabled(): void
     {
         DB::table('system_settings')->updateOrInsert(

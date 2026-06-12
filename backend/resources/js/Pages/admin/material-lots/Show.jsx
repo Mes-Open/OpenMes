@@ -107,6 +107,7 @@ export default function MaterialLotShow({ lot }) {
                         </InfoCell>
                         <InfoCell label="Supplier lot">{lot.supplier_lot_no ?? '—'}</InfoCell>
                         <InfoCell label="Supplier reference">{lot.supplier_reference ?? '—'}</InfoCell>
+                        <InfoCell label="Source container">{lot.source_container_no ?? '—'}</InfoCell>
                         <InfoCell label="Inspection">
                             {lot.inspection ? (
                                 <Link

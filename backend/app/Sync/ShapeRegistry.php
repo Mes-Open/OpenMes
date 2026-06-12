@@ -174,7 +174,7 @@ class ShapeRegistry
         ],
         'material_lots' => [
             'table' => 'material_lots',
-            'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'created_at', 'updated_at'],
+            'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'source_container_no', 'created_at', 'updated_at'],
         ],
         'view_templates' => [
             'table' => 'view_templates',

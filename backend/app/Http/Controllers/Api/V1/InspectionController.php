@@ -65,6 +65,7 @@ class InspectionController extends Controller
             'lot_number' => 'required|string|max:100',
             'quantity_received' => 'nullable|numeric|min:0',
             'supplier_lot_ref' => 'nullable|string|max:100',
+            'source_container_no' => 'nullable|string|max:100',
             'inspection_plan_id' => 'nullable|integer|exists:inspection_plans,id',
         ]);
 
@@ -80,6 +81,7 @@ class InspectionController extends Controller
             $plan,
             $request->user(),
             $validated['supplier_lot_ref'] ?? null,
+            $validated['source_container_no'] ?? null,
         );
 
         return response()->json(['message' => 'Inspection started', 'data' => $inspection], 201);
@@ -146,7 +148,7 @@ class InspectionController extends Controller
                 $validated['notes'] ?? null,
                 $request->user(),
             );
-        } catch (\DomainException | \InvalidArgumentException $e) {
+        } catch (\DomainException|\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 

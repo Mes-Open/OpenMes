@@ -22,10 +22,15 @@ class MaterialLot extends Model
     use HasTenant;
 
     public const STATUS_RECEIVED = 'received';
+
     public const STATUS_QUARANTINE = 'quarantine';
+
     public const STATUS_RELEASED = 'released';
+
     public const STATUS_CONSUMED = 'consumed';
+
     public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_REJECTED = 'rejected';
 
     public const STATUSES = [
@@ -50,6 +55,7 @@ class MaterialLot extends Model
         'status',
         'supplier_lot_no',
         'supplier_reference',
+        'source_container_no',
         'inspection_id',
         'source_batch_id',
         'created_by_id',
@@ -153,7 +159,7 @@ class MaterialLot extends Model
      * Consume a quantity from this lot, transitioning to 'consumed' when depleted.
      *
      * @throws \InvalidArgumentException when $quantity <= 0
-     * @throws \DomainException          when $quantity exceeds available
+     * @throws \DomainException when $quantity exceeds available
      */
     public function consume(float $quantity): void
     {

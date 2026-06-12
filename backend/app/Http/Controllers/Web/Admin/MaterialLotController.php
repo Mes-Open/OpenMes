@@ -35,22 +35,22 @@ class MaterialLotController extends Controller
         ]);
 
         $consumptions = $materialLot->consumptions->map(function ($c) {
-            $step  = $c->batchStep;
+            $step = $c->batchStep;
             $batch = $step?->batch;
-            $wo    = $batch?->workOrder;
+            $wo = $batch?->workOrder;
 
             return [
-                'id'               => $c->id,
-                'consumed_at'      => $c->consumed_at?->toIso8601String(),
+                'id' => $c->id,
+                'consumed_at' => $c->consumed_at?->toIso8601String(),
                 'quantity_consumed' => $c->quantity_consumed,
-                'recorded_by'      => $c->recordedBy ? ['name' => $c->recordedBy->name] : null,
-                'batch_step'       => $step ? [
-                    'name'  => $step->name,
+                'recorded_by' => $c->recordedBy ? ['name' => $c->recordedBy->name] : null,
+                'batch_step' => $step ? [
+                    'name' => $step->name,
                     'batch' => $batch ? [
-                        'id'          => $batch->id,
-                        'lot_number'  => $batch->lot_number ?? null,
-                        'work_order'  => $wo ? [
-                            'id'         => $wo->id,
+                        'id' => $batch->id,
+                        'lot_number' => $batch->lot_number ?? null,
+                        'work_order' => $wo ? [
+                            'id' => $wo->id,
                             'lot_number' => $wo->lot_number ?? null,
                         ] : null,
                     ] : null,
@@ -60,43 +60,43 @@ class MaterialLotController extends Controller
 
         return Inertia::render('admin/material-lots/Show', [
             'lot' => [
-                'id'                 => $materialLot->id,
-                'lot_number'         => $materialLot->lot_number,
-                'status'             => $materialLot->status,
-                'received_at'        => $materialLot->received_at?->toIso8601String(),
+                'id' => $materialLot->id,
+                'lot_number' => $materialLot->lot_number,
+                'status' => $materialLot->status,
+                'received_at' => $materialLot->received_at?->toIso8601String(),
                 'manufacturing_date' => $materialLot->manufacturing_date?->toDateString(),
-                'expiry_date'        => $materialLot->expiry_date?->toDateString(),
-                'quantity_received'  => $materialLot->quantity_received,
+                'expiry_date' => $materialLot->expiry_date?->toDateString(),
+                'quantity_received' => $materialLot->quantity_received,
                 'quantity_available' => $materialLot->quantity_available,
-                'unit_of_measure'    => $materialLot->unit_of_measure,
-                'supplier_lot_no'    => $materialLot->supplier_lot_no,
+                'unit_of_measure' => $materialLot->unit_of_measure,
+                'supplier_lot_no' => $materialLot->supplier_lot_no,
                 'supplier_reference' => $materialLot->supplier_reference,
-                'extra_data'         => $materialLot->extra_data,
-                'material'           => $materialLot->material ? [
-                    'id'   => $materialLot->material->id,
+                'extra_data' => $materialLot->extra_data,
+                'material' => $materialLot->material ? [
+                    'id' => $materialLot->material->id,
                     'name' => $materialLot->material->name,
                     'code' => $materialLot->material->code,
                 ] : null,
-                'source'             => $materialLot->source ? [
-                    'id'            => $materialLot->source->id,
+                'source' => $materialLot->source ? [
+                    'id' => $materialLot->source->id,
                     'external_name' => $materialLot->source->external_name,
                 ] : null,
-                'inspection'         => $materialLot->inspection ? [
-                    'id'     => $materialLot->inspection->id,
+                'inspection' => $materialLot->inspection ? [
+                    'id' => $materialLot->inspection->id,
                     'status' => $materialLot->inspection->status,
                 ] : null,
-                'created_by'         => $materialLot->createdBy ? [
+                'created_by' => $materialLot->createdBy ? [
                     'name' => $materialLot->createdBy->name,
                 ] : null,
-                'sublots'            => $materialLot->sublots->map(fn ($sub) => [
-                    'id'             => $sub->id,
-                    'sublot_number'  => $sub->sublot_number,
-                    'quantity'       => $sub->quantity,
+                'sublots' => $materialLot->sublots->map(fn ($sub) => [
+                    'id' => $sub->id,
+                    'sublot_number' => $sub->sublot_number,
+                    'quantity' => $sub->quantity,
                     'unit_of_measure' => $sub->unit_of_measure,
-                    'status'         => $sub->status,
-                    'notes'          => $sub->notes,
+                    'status' => $sub->status,
+                    'notes' => $sub->notes,
                 ])->values(),
-                'consumptions'       => $consumptions,
+                'consumptions' => $consumptions,
             ],
         ]);
     }
@@ -210,6 +210,7 @@ class MaterialLotController extends Controller
             'status' => ['required', Rule::in(MaterialLot::STATUSES)],
             'supplier_lot_no' => ['nullable', 'string', 'max:100'],
             'supplier_reference' => ['nullable', 'string', 'max:255'],
+            'source_container_no' => ['nullable', 'string', 'max:100'],
             'inspection_id' => ['nullable', 'integer', 'exists:inspections,id'],
         ]);
     }

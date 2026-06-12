@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Source container on material lots**: new `source_container_no` field (scanned identifier of the physical container/pallet/drum a delivery arrived in). Scan inputs on the admin material-lot registration form and on the inbound-inspection start screen — the value entered at receiving is carried onto the material lot the inspection creates. Shown in the traceability console (lot header, ingredient-lot table, backward-trace tree) and resolvable in the genealogy search alongside lot number / supplier LOT / serial number.
 - **Pallets**: new shippable-unit entity. Each pallet gets a unique `pallet_no` drawn from a dedicated Postgres sequence (format `PAL-000001`), and tracks `work_order_id`, `qty`, `status` (open / closed / shipped), `location` and `erp_reference`. Full admin CRUD under **Packaging → Pallets** (`/admin/pallets`), live-synced list.
 - **Pallet labels**: new `pallet` label-template type wired into the existing template/label system. Prints QR + 1D barcode (both encoding the pallet number) plus pallet no., product, quantity and location, as PDF or ZPL. A default *Standard Pallet* template (100×100 mm) is seeded.
 - **Packing-station create-pallet action**: operators can open a pallet for a work order at the scanning station; subsequent scans of that order's pieces are assigned to the open pallet (incrementing its `qty`), with a close action and one-click label print. A scan whose EAN belongs to a different work order than the open pallet is rejected.

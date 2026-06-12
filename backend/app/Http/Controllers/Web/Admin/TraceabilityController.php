@@ -57,7 +57,7 @@ class TraceabilityController extends Controller
         }
 
         return Inertia::render('admin/traceability/Index', [
-            'term'   => $term,
+            'term' => $term,
             'result' => $result,
         ]);
     }
@@ -70,25 +70,25 @@ class TraceabilityController extends Controller
 
         return [
             'batch' => [
-                'id'           => $b->id,
+                'id' => $b->id,
                 'batch_number' => $b->batch_number,
-                'lot_number'   => $b->lot_number,
-                'work_order'   => $b->workOrder ? [
+                'lot_number' => $b->lot_number,
+                'work_order' => $b->workOrder ? [
                     'order_no' => $b->workOrder->order_no,
-                    'product'  => $b->workOrder->productType?->name,
+                    'product' => $b->workOrder->productType?->name,
                 ] : null,
                 'steps' => $b->steps->map(fn ($s) => [
-                    'id'           => $s->id,
-                    'step_number'  => $s->step_number,
-                    'name'         => $s->name,
-                    'status'       => $s->status,
-                    'workstation'  => $s->workstation?->name,
+                    'id' => $s->id,
+                    'step_number' => $s->step_number,
+                    'name' => $s->name,
+                    'status' => $s->status,
+                    'workstation' => $s->workstation?->name,
                     'completed_by' => $s->completedBy?->name,
                     'completed_at' => $s->completed_at ? Carbon::parse($s->completed_at)->format('Y-m-d H:i') : null,
                     'consumptions' => ($byStep[$s->id] ?? collect())->map(fn ($c) => [
                         'lot_number' => $c->materialLot?->lot_number,
-                        'material'   => $c->materialLot?->material?->name,
-                        'quantity'   => (float) $c->quantity_consumed,
+                        'material' => $c->materialLot?->material?->name,
+                        'quantity' => (float) $c->quantity_consumed,
                     ])->values(),
                 ])->values(),
                 'output_lots' => $b->outputLots->map(fn ($o) => [
@@ -96,11 +96,12 @@ class TraceabilityController extends Controller
                 ])->values(),
             ],
             'distinct_input_lots' => $g['distinct_input_lots']->map(fn ($lot) => [
-                'material'        => $lot->material?->name,
-                'material_code'   => $lot->material?->code,
-                'lot_number'      => $lot->lot_number,
+                'material' => $lot->material?->name,
+                'material_code' => $lot->material?->code,
+                'lot_number' => $lot->lot_number,
                 'supplier_lot_no' => $lot->supplier_lot_no,
-                'status'          => $lot->status,
+                'source_container_no' => $lot->source_container_no,
+                'status' => $lot->status,
             ])->values(),
         ];
     }
@@ -109,11 +110,11 @@ class TraceabilityController extends Controller
     private function mapForward(array $f): array
     {
         return [
-            'lot'         => $f['lot'],
+            'lot' => $f['lot'],
             'work_orders' => $f['work_orders']->map(fn ($wo) => [
                 'order_no' => $wo->order_no,
-                'product'  => $wo->productType?->name,
-                'status'   => $wo->status,
+                'product' => $wo->productType?->name,
+                'status' => $wo->status,
             ])->values(),
             'total_consumed' => $f['total_consumed'],
         ];
@@ -123,17 +124,17 @@ class TraceabilityController extends Controller
     private function mapSerial(SerialUnit $u): array
     {
         return [
-            'serial_no'  => $u->serial_no,
-            'status'     => $u->status,
-            'product'    => $u->workOrder?->productType?->name ?? $u->material?->name,
+            'serial_no' => $u->serial_no,
+            'status' => $u->status,
+            'product' => $u->workOrder?->productType?->name ?? $u->material?->name,
             'work_order' => $u->workOrder?->order_no,
-            'history'    => $u->history->map(fn ($h) => [
-                'workstation'  => $h->workstation?->name,
-                'step'         => $h->batchStep?->name,
-                'operator'     => $h->operator?->name,
+            'history' => $u->history->map(fn ($h) => [
+                'workstation' => $h->workstation?->name,
+                'step' => $h->batchStep?->name,
+                'operator' => $h->operator?->name,
                 'processed_at' => $h->processed_at ? Carbon::parse($h->processed_at)->format('Y-m-d H:i:s') : null,
-                'result'       => $h->result,
-                'parameters'   => $h->parameters,
+                'result' => $h->result,
+                'parameters' => $h->parameters,
             ])->values(),
         ];
     }
