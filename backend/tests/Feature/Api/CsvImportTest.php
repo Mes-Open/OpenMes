@@ -25,6 +25,7 @@ class CsvImportTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
 
         $this->user = User::factory()->admin()->create();
 

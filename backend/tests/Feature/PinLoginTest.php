@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -29,7 +30,7 @@ class PinLoginTest extends TestCase
         $this->operator = User::factory()->create([
             'username' => 'operator1',
             'password' => Hash::make('Secret123!'),
-            'pin' => Hash::make('1234'),
+            'pin' => Hash::make('123456'),
         ]);
         $this->operator->assignRole('Operator');
     }
@@ -42,11 +43,33 @@ class PinLoginTest extends TestCase
         );
     }
 
+    /**
+     * A complete, valid system-settings payload. The form has many required
+     * fields; tests that only care about one field still have to send the rest.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function systemSettingsPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'production_period' => 'none',
+            'workflow_mode' => 'status',
+            'schedule_view_mode' => 'weekly',
+            'schedule_shifts_per_day' => 1,
+            'schedule_horizon_weeks' => 6,
+            'realtime_mode' => 'polling',
+            'production_tracking_mode' => 'per_operation',
+            'production_qty_edit_policy' => 'none',
+            'scanner_mode' => 'hid',
+        ], $overrides);
+    }
+
     public function test_pin_login_rejected_when_disabled(): void
     {
         $response = $this->post('/login/pin', [
             'username' => 'operator1',
-            'pin' => '1234',
+            'pin' => '123456',
         ]);
 
         $response->assertStatus(302);
@@ -59,7 +82,7 @@ class PinLoginTest extends TestCase
 
         $response = $this->post('/login/pin', [
             'username' => 'operator1',
-            'pin' => '1234',
+            'pin' => '123456',
         ]);
 
         $response->assertRedirect();
@@ -72,7 +95,7 @@ class PinLoginTest extends TestCase
 
         $response = $this->post('/login/pin', [
             'username' => 'operator1',
-            'pin' => '9999',
+            'pin' => '999999',
         ]);
 
         $response->assertStatus(302);
@@ -91,7 +114,7 @@ class PinLoginTest extends TestCase
 
         $response = $this->post('/login/pin', [
             'username' => 'nopin',
-            'pin' => '1234',
+            'pin' => '123456',
         ]);
 
         $response->assertStatus(302);
@@ -167,19 +190,21 @@ class PinLoginTest extends TestCase
 
     public function test_system_settings_shows_pin_option(): void
     {
-        $response = $this->actingAs($this->admin)->get('/settings/system');
-
-        $response->assertStatus(200);
-        $response->assertSee('Enable PIN login');
+        // The system-settings page is React/Inertia: the "Enable PIN login"
+        // label lives in JSX, so assert the toggle's backing prop is present.
+        $this->actingAs($this->admin)->get('/settings/system')
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('settings/System')
+                ->has('settings.pin_login_enabled'));
     }
 
     public function test_admin_can_enable_pin_login(): void
     {
-        $response = $this->actingAs($this->admin)->post('/settings/system', [
-            'production_period' => 'none',
-            'workflow_mode' => 'status',
-            'pin_login_enabled' => '1',
-        ]);
+        $response = $this->actingAs($this->admin)->post(
+            '/settings/system',
+            $this->systemSettingsPayload(['pin_login_enabled' => '1'])
+        );
 
         $response->assertRedirect(route('settings.system'));
 
@@ -191,17 +216,20 @@ class PinLoginTest extends TestCase
     {
         $this->enablePinLogin();
 
-        $response = $this->get('/login');
-
-        $response->assertStatus(200);
-        $response->assertSee('Quick PIN');
+        // The "Quick PIN" tab is rendered client-side from the pinEnabled prop.
+        $this->get('/login')
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('auth/Login')
+                ->where('pinEnabled', true));
     }
 
     public function test_login_page_hides_pin_tab_when_disabled(): void
     {
-        $response = $this->get('/login');
-
-        $response->assertStatus(200);
-        $response->assertDontSee('Quick PIN');
+        $this->get('/login')
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('auth/Login')
+                ->where('pinEnabled', false));
     }
 }
