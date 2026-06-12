@@ -3328,7 +3328,7 @@
     "Orders to pack": "Orders to pack",
     ":count items": ":count items",
     "No orders with assigned EAN codes": "No orders with assigned EAN codes",
-    "No scans this shift": "No scans this shift"
+    "No scans this shift": "No scans this shift",
     "Delete cost source \":name\"?": "Delete cost source \":name\"?",
     "+ Add Workstation": "+ Add Workstation",
     "+ Create Workstation": "+ Create Workstation",
@@ -3407,5 +3407,10 @@
     "never": "never",
     "or place the module folder in": "or place the module folder in",
     "— Global (all lines) —": "— Global (all lines) —",
-    "— Select material (required) —": "— Select material (required) —"
+    "— Select material (required) —": "— Select material (required) —",
+    "Absences": "Absences",
+    "Absence recorded successfully.": "Absence recorded successfully.",
+    "Absence updated successfully.": "Absence updated successfully.",
+    "Absence deleted successfully.": "Absence deleted successfully.",
+    "This worker already has an absence that overlaps these dates.": "This worker already has an absence that overlaps these dates."
 }

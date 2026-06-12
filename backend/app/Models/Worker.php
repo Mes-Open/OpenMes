@@ -101,6 +101,25 @@ class Worker extends Model
     }
 
     /**
+     * Recorded absences (vacation / sick / …). See WorkerAvailabilityService
+     * for the availability logic that consumes these.
+     */
+    public function absences(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(WorkerAbsence::class);
+    }
+
+    /** True if an approved absence covers the given date. */
+    public function isAbsentOn(\Carbon\CarbonInterface $date): bool
+    {
+        return $this->absences()
+            ->approved()
+            ->whereDate('starts_on', '<=', $date)
+            ->whereDate('ends_on', '>=', $date)
+            ->exists();
+    }
+
+    /**
      * Skills whose certification expires within `$daysAhead` days but is not yet
      * expired. Skills with no certified_until are treated as never-expiring and
      * are excluded.
