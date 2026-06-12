@@ -24,6 +24,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.14.5] - 2026-06-12
+
+### Fixed
+- Creating/updating a maintenance schedule with an empty **Lead time (days)** crashed with a NOT NULL violation (23502): the field is validated as nullable but the column is `NOT NULL default 0`, and submitting `null` overrode the default. The controller now falls back to `0` ("generate on the due date"). Regression test added.
+
+---
+
 ## [0.14.4] - 2026-06-09
 
 ### Fixed
@@ -283,7 +290,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.4...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.14.5...develop
+[0.14.5]: https://github.com/Mes-Open/OpenMes/compare/v0.14.4...v0.14.5
 [0.14.4]: https://github.com/Mes-Open/OpenMes/compare/v0.14.3...v0.14.4
 [0.14.3]: https://github.com/Mes-Open/OpenMes/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/Mes-Open/OpenMes/compare/v0.14.1...v0.14.2
