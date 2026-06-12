@@ -62,6 +62,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d   # dev ove
 ## Workflow
 
 - Branch from `develop`; PRs target `develop`. `main` is release-only (merged from develop, tagged `vX.Y.Z`).
+- **Pre-commit hook runs the CI test gate** (`.githooks/pre-commit`, enabled by `composer install` via `core.hooksPath`): the same suite as `.github/workflows/tests.yml`, with `--stop-on-failure`. Skip once with `git commit --no-verify` (all hooks) or `SKIP_TESTS=1 git commit` (tests only) — but CI will still gate the PR.
 - Update `CHANGELOG.md` under the unreleased/current version heading for user-visible changes.
 - Versioning: PATCH = fixes/UI, MINOR = new feature, MAJOR = breaking change.
 - Commits: imperative, conventional-style prefixes (`feat:`, `fix:`, `i18n:`, `chore:`).
