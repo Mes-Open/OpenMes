@@ -12,21 +12,25 @@
         color: #000;
     }
     .label {
-        width: {{ $widthMm }}mm;
-        height: {{ $heightMm }}mm;
+        /* DomPDF ignores box-sizing:border-box, so width/height are content-box:
+           subtract the 3mm padding on each side. An exact page-sized block + the
+           padding would otherwise overflow and spill a blank trailing page. */
+        width: {{ $widthMm - 6 }}mm;
+        height: {{ $heightMm - 6 }}mm;
         padding: 3mm;
-        page-break-after: always;
-        page-break-inside: avoid;
         position: relative;
+        overflow: hidden;
     }
-    .label:last-child { page-break-after: auto; }
+    /* Page break is emitted explicitly by a .page-break div between labels,
+       so we never rely on :last-child (poorly supported by DomPDF). */
     .page-break { page-break-before: always; }
     .label-grid {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
     }
     .label-grid td { vertical-align: top; padding: 0; }
-    .label-content { padding-right: 2mm; }
+    .label-content { padding-right: 2mm; word-wrap: break-word; }
     .qr-cell { width: 20mm; text-align: right; vertical-align: top; }
     .qr { width: 18mm; height: 18mm; }
     .line { line-height: 1.25; margin-bottom: 0.4mm; }
