@@ -150,6 +150,43 @@ function Field({ field, value, error, setData }) {
         );
     }
 
+    // A row of toggleable options whose value is an array of the selected option
+    // values (e.g. weekdays). Keeps value types as given in options.
+    if (type === 'checkbox-group') {
+        const selected = Array.isArray(value) ? value : [];
+        const toggle = (v) =>
+            set(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
+
+        return (
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {label} {required && <span className="text-red-500">*</span>}
+                </label>
+                <div name={name} className="flex flex-wrap gap-2">
+                    {(options ?? []).map((o) => {
+                        const active = selected.includes(o.value);
+                        return (
+                            <button
+                                type="button"
+                                key={String(o.value)}
+                                onClick={() => toggle(o.value)}
+                                className={`px-3 py-1.5 rounded-lg text-sm border ${
+                                    active
+                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                                {o.label}
+                            </button>
+                        );
+                    })}
+                </div>
+                {help && <p className="text-sm text-gray-500 mt-1">{help}</p>}
+                {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            </div>
+        );
+    }
+
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

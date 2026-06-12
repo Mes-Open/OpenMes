@@ -126,12 +126,14 @@ export const ADMIN_GROUPS = [
         match: [
             '/admin/workers', '/admin/personnel-classes', '/admin/crews',
             '/admin/skills', '/admin/wage-groups', '/admin/worker-absences',
+            '/admin/crew-break-windows',
         ],
         children: [
             { label: 'Workers', href: '/admin/workers', match: ['/admin/workers'] },
             { label: 'Absences', href: '/admin/worker-absences', match: ['/admin/worker-absences'] },
             { label: 'Personnel Classes', href: '/admin/personnel-classes', match: ['/admin/personnel-classes'] },
             { label: 'Crews', href: '/admin/crews', match: ['/admin/crews'] },
+            { label: 'Break Windows', href: '/admin/crew-break-windows', match: ['/admin/crew-break-windows'] },
             { label: 'Skills', href: '/admin/skills', match: ['/admin/skills'] },
             { label: 'Wage Groups', href: '/admin/wage-groups', match: ['/admin/wage-groups'] },
         ],

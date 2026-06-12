@@ -3333,5 +3333,10 @@
     "Absence recorded successfully.": "Nieobecność zapisana.",
     "Absence updated successfully.": "Nieobecność zaktualizowana.",
     "Absence deleted successfully.": "Nieobecność usunięta.",
-    "This worker already has an absence that overlaps these dates.": "Ten pracownik ma już nieobecność nakładającą się na te daty."
+    "This worker already has an absence that overlaps these dates.": "Ten pracownik ma już nieobecność nakładającą się na te daty.",
+    "Break Windows": "Okna przerw",
+    "Break window created successfully.": "Okno przerwy utworzone.",
+    "Break window updated successfully.": "Okno przerwy zaktualizowane.",
+    "Break window deleted successfully.": "Okno przerwy usunięte.",
+    "This crew already has a break window that overlaps these times.": "Ta brygada ma już okno przerwy nakładające się na te godziny."
 }

@@ -7,7 +7,6 @@ use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Web\Admin\BomManagementController;
 use App\Http\Controllers\Web\Admin\CompanyController;
-use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\Connectivity\ConnectivityController;
 use App\Http\Controllers\Web\Admin\Connectivity\MachineTopicController;
 use App\Http\Controllers\Web\Admin\Connectivity\MqttConnectionController;
@@ -15,6 +14,7 @@ use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
 use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
+use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
@@ -560,6 +560,9 @@ Route::middleware('auth')->group(function () {
 
         // Worker absences (vacation / sick / …) — availability source.
         Route::resource('worker-absences', WorkerAbsenceController::class)->except(['show']);
+
+        // Crew break windows (recurring lunch / tea breaks) — availability source.
+        Route::resource('crew-break-windows', \App\Http\Controllers\Web\Admin\CrewBreakWindowController::class)->except(['show']);
 
         // ISA-95 Personnel Classes (competency templates)
         Route::resource('personnel-classes', \App\Http\Controllers\Web\Admin\PersonnelClassController::class);
