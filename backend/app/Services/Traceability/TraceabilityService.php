@@ -173,10 +173,13 @@ class TraceabilityService
             return ['type' => 'batch', 'model' => $batch];
         }
 
-        $lot = MaterialLot::where('lot_number', $term)
-            ->orWhere('supplier_lot_no', $term)
-            ->orWhere('source_container_no', $term)
-            ->first();
+        // Grouped so the orWhere chain can't escape the global scopes
+        // (tenant + soft-delete) via AND/OR precedence.
+        $lot = MaterialLot::where(function ($query) use ($term) {
+            $query->where('lot_number', $term)
+                ->orWhere('supplier_lot_no', $term)
+                ->orWhere('source_container_no', $term);
+        })->first();
         if ($lot) {
             return ['type' => 'material_lot', 'model' => $lot];
         }

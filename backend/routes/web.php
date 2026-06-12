@@ -475,7 +475,8 @@ Route::middleware('auth')->group(function () {
 
         // Trash — soft-deleted rows across all domain entities, with restore.
         Route::get('/trash', [\App\Http\Controllers\Web\Admin\TrashController::class, 'index'])->name('trash.index');
-        Route::post('/trash/{type}/{id}/restore', [\App\Http\Controllers\Web\Admin\TrashController::class, 'restore'])->name('trash.restore');
+        Route::post('/trash/{type}/{id}/restore', [\App\Http\Controllers\Web\Admin\TrashController::class, 'restore'])
+            ->whereNumber('id')->name('trash.restore');
 
         // Audit Logs
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');

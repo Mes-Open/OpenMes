@@ -65,10 +65,16 @@ class SoftDeleteTest extends TestCase
     public function test_delete_cascades_through_the_whole_aggregate(): void
     {
         $wo = $this->workOrderAggregate();
-        $batch = $wo->fresh()->id;
 
         $this->actingAs($this->admin);
         $wo->delete();
+
+        // Whole aggregate is soft-deleted, not removed.
+        $this->assertSoftDeleted('work_orders', ['id' => $wo->id]);
+        Batch::withTrashed()->where('work_order_id', $wo->id)
+            ->each(fn ($b) => $this->assertSoftDeleted('batches', ['id' => $b->id]));
+        WorkOrderEan::withTrashed()->where('work_order_id', $wo->id)
+            ->each(fn ($e) => $this->assertSoftDeleted('work_order_eans', ['id' => $e->id]));
 
         $this->assertSame(0, Batch::where('work_order_id', $wo->id)->count());
         $this->assertSame(0, WorkOrderEan::where('work_order_id', $wo->id)->count());

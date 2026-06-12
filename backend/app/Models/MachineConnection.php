@@ -142,6 +142,10 @@ class MachineConnection extends Model
         return [
             [\App\Models\MachineTopic::class, 'machine_connection_id'],
             [\App\Models\MachineTag::class, 'machine_connection_id'],
+            // Protocol-specific config rows had cascadeOnDelete FKs too.
+            [\App\Models\MqttConnection::class, 'machine_connection_id'],
+            [\App\Models\ModbusConnection::class, 'machine_connection_id'],
+            [\App\Models\OpcuaConnection::class, 'machine_connection_id'],
         ];
     }
 }

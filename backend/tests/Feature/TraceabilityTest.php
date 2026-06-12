@@ -142,6 +142,21 @@ class TraceabilityTest extends TestCase
         $this->assertEquals($s['rawLot']->id, $resolved['model']->id);
     }
 
+    public function test_resolve_does_not_match_soft_deleted_lots(): void
+    {
+        $s = $this->scenario();
+        $this->actingAs($this->admin);
+        $s['rawLot']->delete();
+
+        $svc = app(TraceabilityService::class);
+
+        // None of the alternate identifiers may leak the trashed lot — the
+        // orWhere chain is grouped so it can't escape the soft-delete scope.
+        $this->assertNull($svc->resolve('RAW-1'));
+        $this->assertNull($svc->resolve('SUPP-9'));
+        $this->assertNull($svc->resolve('CONT-7'));
+    }
+
     public function test_genealogy_payloads_expose_source_container_no(): void
     {
         $s = $this->scenario();
