@@ -25,9 +25,9 @@ import type {
 
 const STATE_COLOR: Record<string, string> = {
   pending: BRAND.amber,
-  pass: '#1f9d6c',
-  fail: '#dc2626',
-  conditional_pass: '#3a6ed6',
+  pass: '#1C9A55',
+  fail: '#D6442F',
+  conditional_pass: '#EA5A2B',
 };
 
 /**
@@ -394,9 +394,9 @@ export function TabletQualityCommand() {
                   <View style={styles.dispoRow}>
                     {(
                       [
-                        { action: 'accept', label: 'Release', color: '#1f9d6c' },
+                        { action: 'accept', label: 'Release', color: '#1C9A55' },
                         { action: 'quarantine', label: 'Quarantine', color: '#7c3aed' },
-                        { action: 'scrap', label: 'Scrap', color: '#dc2626' },
+                        { action: 'scrap', label: 'Scrap', color: '#D6442F' },
                       ] as const
                     ).map((opt) => (
                       <Pressable

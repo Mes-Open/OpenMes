@@ -26,7 +26,7 @@ const TONE: Record<Tone, ToneStyle> = {
   green:   { softBg: colors.runningBg, softBorder: `${colors.running}40`, value: colors.running, trend: colors.running },
   red:     { softBg: colors.blockedBg, softBorder: `${colors.blocked}40`, value: colors.blocked, trend: colors.running },
   purple:  { softBg: '#ede7f9', softBorder: '#d6c8f0', value: '#7c3aed', trend: '#7c3aed' },
-  blue:    { softBg: '#e2ecfa', softBorder: '#c5d6ef', value: '#1d4ed8', trend: '#1d4ed8' },
+  blue:    { softBg: '#F1EFEA', softBorder: '#c5d6ef', value: '#1d4ed8', trend: '#1d4ed8' },
   neutral: { softBg: colors.chip, softBorder: colors.line, value: colors.ink, trend: colors.muted },
 };
 

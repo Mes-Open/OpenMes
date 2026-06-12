@@ -54,7 +54,7 @@ export function PakowanieDashboard() {
                 onPress={() => router.push('/(drawer)/pakowanie/eans' as never)}
                 style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
                 <Card style={styles.linkCard}>
-                  <View style={[styles.iconWrap, { backgroundColor: '#fbe9c8' }]}>
+                  <View style={[styles.iconWrap, { backgroundColor: '#FAF0DD' }]}>
                     <FontAwesome name="qrcode" size={16} color={BRAND.amber} />
                   </View>
                   <View style={{ flex: 1 }}>

@@ -114,7 +114,7 @@ export function EansList() {
                   ]}>
                   <Mono
                     size={11}
-                    color={active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.text}
+                    color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.text}
                     weight="600"
                     letterSpacing={0.4}>
                     {f.label.toUpperCase()}
@@ -148,7 +148,7 @@ export function EansList() {
 function StatCol({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <View style={{ flex: 1, paddingHorizontal: 4 }}>
-      <Mono size={9.5} color="#9a9aa2" letterSpacing={0.7}>{label}</Mono>
+      <Mono size={9.5} color="#6F6C66" letterSpacing={0.7}>{label}</Mono>
       <Text style={styles.statValue}>{value}</Text>
       {sub ? (
         <Mono size={9.5} color="#7a7a82" letterSpacing={0.4} style={{ marginTop: 3 }}>
@@ -237,7 +237,7 @@ function countLines(items: { line?: string | null }[]) {
 
 const styles = StyleSheet.create({
   statsCard: {
-    backgroundColor: '#0e0e10',
+    backgroundColor: '#F6F5F1',
     borderRadius: 14,
     padding: 16,
     flexDirection: 'row',

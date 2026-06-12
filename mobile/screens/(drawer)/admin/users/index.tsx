@@ -14,8 +14,8 @@ import { useUsers } from '@/hooks/queries/useUsers';
 type FilterId = 'all' | 'Admin' | 'Supervisor' | 'Operator';
 
 const ROLE_COLORS: Record<string, string> = {
-  Admin: '#dc2626',
-  Supervisor: '#3a6ed6',
+  Admin: '#D6442F',
+  Supervisor: '#EA5A2B',
   Operator: BRAND.amber,
   Maintenance: '#7c3aed',
 };

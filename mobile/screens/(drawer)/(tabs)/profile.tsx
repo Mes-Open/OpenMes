@@ -68,7 +68,7 @@ export function ProfileTab() {
             <Text
               style={[
                 styles.avatarText,
-                { color: scheme === 'dark' ? '#171715' : '#ffffff', fontFamily: MONO },
+                { color: scheme === 'dark' ? '#1A1917' : '#ffffff', fontFamily: MONO },
               ]}>
               {initials}
             </Text>

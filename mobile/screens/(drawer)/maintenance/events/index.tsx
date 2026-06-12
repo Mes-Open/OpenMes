@@ -281,12 +281,12 @@ function typeIcon(e: MaintenanceEvent): {
 } {
   switch (e.event_type) {
     case 'inspection':
-      return { icon: 'shield', color: '#1f9d6c' };
+      return { icon: 'shield', color: '#1C9A55' };
     case 'planned':
-      return { icon: 'cog', color: '#3a6ed6' };
+      return { icon: 'cog', color: '#EA5A2B' };
     case 'corrective':
     default:
-      return { icon: 'wrench', color: '#dc2626' };
+      return { icon: 'wrench', color: '#D6442F' };
   }
 }
 

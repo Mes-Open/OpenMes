@@ -170,7 +170,7 @@ export function DrawerContent(props: DrawerContentComponentProps) {
               <Text style={styles.lineBadgeText}>{lineCode}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Mono size={9.5} color="#9a9aa2" letterSpacing={0.6}>ACTIVE LINE</Mono>
+              <Mono size={9.5} color="#6F6C66" letterSpacing={0.6}>ACTIVE LINE</Mono>
               <Text style={styles.lineName} numberOfLines={1}>
                 {lineName}
               </Text>
@@ -288,7 +288,7 @@ function DrawerItem({
       onPress={onPress}
       style={({ pressed }) => [
         styles.item,
-        active && { backgroundColor: '#1d1d22' },
+        active && { backgroundColor: '#F1EFEA' },
         !active && pressed && { backgroundColor: palette.surfaceAlt },
       ]}>
       <FontAwesome
@@ -312,7 +312,7 @@ function DrawerItem({
           style={[
             styles.tag,
             {
-              backgroundColor: active ? '#3a3a44' : palette.surfaceAlt,
+              backgroundColor: active ? '#C4C0B8' : palette.surfaceAlt,
             },
           ]}>
           <Text
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   lineCardWrap: { padding: 14 },
   lineCard: {
-    backgroundColor: '#1d1d22',
+    backgroundColor: '#F1EFEA',
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',

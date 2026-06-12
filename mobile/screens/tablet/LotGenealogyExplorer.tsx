@@ -24,12 +24,12 @@ import type {
 } from '@/api/materialLots';
 
 const STATUS_COLOR: Record<string, string> = {
-  available: '#1f9d6c',
+  available: '#1C9A55',
   pending_inspection: BRAND.amber,
   quarantined: '#7c3aed',
-  consumed: '#8a8780',
-  scrapped: '#dc2626',
-  expired: '#dc2626',
+  consumed: '#9B9892',
+  scrapped: '#D6442F',
+  expired: '#D6442F',
 };
 
 /**
@@ -328,7 +328,7 @@ function GenealogyTree({
           sources.slice(0, 4).map((c) => (
             <View
               key={c.id}
-              style={[styles.treeNode, { backgroundColor: '#3a6ed6' }]}>
+              style={[styles.treeNode, { backgroundColor: '#EA5A2B' }]}>
               <Mono size={9.5} color="#fff" weight="700" letterSpacing={0.3}>
                 {c.materialLot?.lot_number ?? `LOT #${c.material_lot_id}`}
               </Mono>

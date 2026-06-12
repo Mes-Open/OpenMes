@@ -202,7 +202,7 @@ export function WorkerForm({ initial, mode, onSubmit, onCancel, onDelete, submit
                   fontSize: 11,
                   fontWeight: '600',
                   letterSpacing: 0.4,
-                  color: picked ? (scheme === 'dark' ? '#171715' : '#ffffff') : palette.text,
+                  color: picked ? (scheme === 'dark' ? '#1A1917' : '#ffffff') : palette.text,
                 }}>
                 {sk.name}
               </Text>

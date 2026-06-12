@@ -21,12 +21,12 @@ import { isSupervisorOrAdmin, useAuthStore } from '@/stores/authStore';
 import type { BatchStepLotConsumption, MaterialLotStatus } from '@/api/materialLots';
 
 const STATUS_COLOR: Record<string, string> = {
-  available: '#1f9d6c',
+  available: '#1C9A55',
   pending_inspection: BRAND.amber,
   quarantined: '#7c3aed',
-  consumed: '#8a8780',
-  scrapped: '#dc2626',
-  expired: '#dc2626',
+  consumed: '#9B9892',
+  scrapped: '#D6442F',
+  expired: '#D6442F',
 };
 
 /**

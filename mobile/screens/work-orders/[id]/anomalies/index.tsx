@@ -104,7 +104,7 @@ export function AnomaliesList() {
                   }
                   style={({ pressed }) => [
                     styles.actionBtn,
-                    { borderColor: BRAND.amber, backgroundColor: '#fbe9c8', opacity: pressed ? 0.7 : 1 },
+                    { borderColor: BRAND.amber, backgroundColor: '#FAF0DD', opacity: pressed ? 0.7 : 1 },
                   ]}>
                   <Mono size={11} color={'#8a5a0e'} weight="700">PROCESS</Mono>
                 </Pressable>

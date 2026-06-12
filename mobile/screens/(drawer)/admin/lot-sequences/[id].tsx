@@ -33,9 +33,9 @@ export function EditLotSequenceScreen() {
   return (
     <DetailScreen>
       <View style={[styles.previewBlock, { backgroundColor: palette.surfaceInverse }]}>
-        <Mono size={10} color="#9a9aa2" letterSpacing={0.8}>NEXT LOT</Mono>
+        <Mono size={10} color="#6F6C66" letterSpacing={0.8}>NEXT LOT</Mono>
         <Text style={[styles.previewValue, { fontFamily: MONO }]}>{preview.data ?? '—'}</Text>
-        <Mono size={11} color="#9a9aa2" style={{ marginTop: 6 }}>
+        <Mono size={11} color="#6F6C66" style={{ marginTop: 6 }}>
           {s.product_type?.name?.toUpperCase() ?? 'DEFAULT FALLBACK'}
         </Mono>
       </View>

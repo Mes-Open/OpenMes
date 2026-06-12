@@ -22,9 +22,9 @@ type FilterId = 'all' | InspectionStatus;
 
 const STATUS_COLOR: Record<InspectionStatus, string> = {
   pending: BRAND.amber,
-  pass: '#1f9d6c',
-  fail: '#dc2626',
-  conditional_pass: '#3a6ed6',
+  pass: '#1C9A55',
+  fail: '#D6442F',
+  conditional_pass: '#EA5A2B',
 };
 
 const STATUS_LABEL: Record<InspectionStatus, string> = {
@@ -92,8 +92,8 @@ export function InspectionsList() {
         <View style={styles.heroRow}>
           {[
             { l: 'OPEN', v: counts.pending, c: BRAND.amber },
-            { l: 'PASS', v: counts.pass, c: '#1f9d6c' },
-            { l: 'FAIL', v: counts.fail, c: '#dc2626' },
+            { l: 'PASS', v: counts.pass, c: '#1C9A55' },
+            { l: 'FAIL', v: counts.fail, c: '#D6442F' },
             { l: 'QUAR', v: counts.quar, c: '#7c3aed' },
           ].map((s) => (
             <View

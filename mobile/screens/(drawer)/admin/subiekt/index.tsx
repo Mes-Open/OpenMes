@@ -80,7 +80,7 @@ export function SubiektNexoScreen() {
             </Mono>
           </View>
           <Text style={styles.heroTitle}>InsERT Subiekt nexo</Text>
-          <Mono size={11} color="#9a9aa2" style={{ marginTop: 4 }} letterSpacing={0.4}>
+          <Mono size={11} color="#6F6C66" style={{ marginTop: 4 }} letterSpacing={0.4}>
             {endpoint ? `ENDPOINT ${endpoint.toUpperCase()}` : 'ENDPOINT —'}
             {lastSyncAgo ? ` · LAST SYNC ${lastSyncAgo.toUpperCase()}` : ''}
           </Mono>
@@ -366,7 +366,7 @@ function safeDistance(iso: string): string | null {
 
 const styles = StyleSheet.create({
   scroll: { padding: 16, gap: 14, paddingBottom: 32 },
-  hero: { backgroundColor: '#0e0e10', borderRadius: 14, padding: 18 },
+  hero: { backgroundColor: '#F6F5F1', borderRadius: 14, padding: 18 },
   heroDot: {
     width: 10,
     height: 10,

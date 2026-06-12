@@ -128,7 +128,7 @@ export function DowntimeBanner({ lineId, workstationId, dark = true }: Props) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.idleTitle, { color: palette.danger }]}>Line stopped?</Text>
-          <Mono size={11} color={dark ? '#9a9aa2' : '#5f5d56'} style={{ marginTop: 3 }}>
+          <Mono size={11} color={dark ? '#6F6C66' : '#6F6C66'} style={{ marginTop: 3 }}>
             Report downtime to track availability
           </Mono>
         </View>
@@ -191,7 +191,7 @@ function ReasonPickerModal({
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Why is the line stopped?</Text>
-          <Mono size={11} color="#9a9aa2" style={{ marginTop: 4 }}>
+          <Mono size={11} color="#6F6C66" style={{ marginTop: 4 }}>
             Pick a kind, then a specific reason
           </Mono>
 
@@ -199,9 +199,9 @@ function ReasonPickerModal({
               below. Tapping the active kind clears back to "all". */}
           <View style={styles.kindRow}>
             {([
-              { id: 'planned', label: 'Planned', sub: 'scheduled work', color: '#5b8def' },
-              { id: 'changeover', label: 'Changeover', sub: 'product switch', color: '#f5a524' },
-              { id: 'unplanned', label: 'Breakdown', sub: 'unplanned', color: '#ef4444' },
+              { id: 'planned', label: 'Planned', sub: 'scheduled work', color: '#EA5A2B' },
+              { id: 'changeover', label: 'Changeover', sub: 'product switch', color: '#EA5A2B' },
+              { id: 'unplanned', label: 'Breakdown', sub: 'unplanned', color: '#D6442F' },
             ] as const).map((k) => {
               const on = kindFilter === k.id;
               return (
@@ -211,8 +211,8 @@ function ReasonPickerModal({
                   style={[
                     styles.kindCard,
                     {
-                      backgroundColor: on ? '#1d1d22' : '#0e0e10',
-                      borderColor: on ? k.color : '#26262d',
+                      backgroundColor: on ? '#F1EFEA' : '#F6F5F1',
+                      borderColor: on ? k.color : '#E6E4DE',
                     },
                   ]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -226,7 +226,7 @@ function ReasonPickerModal({
                     />
                     <Text style={styles.kindLabel}>{k.label}</Text>
                   </View>
-                  <Mono size={9.5} color="#6a6a72" letterSpacing={0.4} style={{ marginTop: 4 }}>
+                  <Mono size={9.5} color="#9B9892" letterSpacing={0.4} style={{ marginTop: 4 }}>
                     {k.sub.toUpperCase()}
                   </Mono>
                 </Pressable>
@@ -244,15 +244,15 @@ function ReasonPickerModal({
                   style={[
                     styles.reasonRow,
                     {
-                      backgroundColor: sel ? '#332b1c' : '#0e0e10',
-                      borderColor: sel ? BRAND.amber : '#26262d',
+                      backgroundColor: sel ? '#332b1c' : '#F6F5F1',
+                      borderColor: sel ? BRAND.amber : '#E6E4DE',
                     },
                   ]}>
                   <View
                     style={[
                       styles.reasonRadio,
                       {
-                        borderColor: sel ? BRAND.amber : '#6a6a72',
+                        borderColor: sel ? BRAND.amber : '#9B9892',
                         backgroundColor: sel ? BRAND.amber : 'transparent',
                       },
                     ]}
@@ -260,19 +260,19 @@ function ReasonPickerModal({
                   <Text
                     style={[
                       styles.reasonName,
-                      { color: '#eaeaea', fontWeight: sel ? '600' : '400' },
+                      { color: '#1A1917', fontWeight: sel ? '600' : '400' },
                     ]}
                     numberOfLines={1}>
                     {r.name}
                   </Text>
                   {r.kind === 'planned' ? (
                     <View style={styles.plannedTag}>
-                      <Mono size={9} color="#5b8def" weight="700" letterSpacing={0.5}>
+                      <Mono size={9} color="#EA5A2B" weight="700" letterSpacing={0.5}>
                         PLANNED
                       </Mono>
                     </View>
                   ) : r.kind === 'changeover' ? (
-                    <View style={[styles.plannedTag, { backgroundColor: '#fbe9c8' }]}>
+                    <View style={[styles.plannedTag, { backgroundColor: '#FAF0DD' }]}>
                       <Mono size={9} color="#8a5a0e" weight="700" letterSpacing={0.5}>
                         CHANGEOVER
                       </Mono>
@@ -287,7 +287,7 @@ function ReasonPickerModal({
             value={notes}
             onChangeText={onNotes}
             placeholder="Optional notes — what's blocking?"
-            placeholderTextColor="#6a6a72"
+            placeholderTextColor="#9B9892"
             multiline
             style={styles.notesInput}
           />
@@ -299,7 +299,7 @@ function ReasonPickerModal({
                 styles.cancelBtn,
                 { opacity: pressed ? 0.85 : 1 },
               ]}>
-              <Mono size={12} color="#eaeaea" weight="700" letterSpacing={0.5}>CANCEL</Mono>
+              <Mono size={12} color="#1A1917" weight="700" letterSpacing={0.5}>CANCEL</Mono>
             </Pressable>
             <Pressable
               onPress={onStart}
@@ -350,14 +350,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#ef4444',
+    borderColor: '#D6442F',
     backgroundColor: 'rgba(239,68,68,0.08)',
   },
   idleIcon: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#3a0e0e',
+    backgroundColor: '#FBEAE6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#D6442F',
     boxShadow: '0px 6px 14px rgba(220, 38, 38, 0.3)',
   },
   liveCol: { alignItems: 'center', gap: 6 },
@@ -406,13 +406,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalSheet: {
-    backgroundColor: '#16161a',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
     paddingBottom: 28,
     borderWidth: 1,
-    borderColor: '#26262d',
+    borderColor: '#E6E4DE',
     maxHeight: '88%',
   },
   modalHandle: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#3a3a44',
+    backgroundColor: '#C4C0B8',
     marginBottom: 14,
   },
   modalTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
@@ -441,10 +441,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#0e0e10',
+    backgroundColor: '#F6F5F1',
     borderWidth: 1,
-    borderColor: '#26262d',
-    color: '#eaeaea',
+    borderColor: '#E6E4DE',
+    color: '#1A1917',
     fontSize: 12,
     minHeight: 60,
     textAlignVertical: 'top',
@@ -454,8 +454,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#26262d',
-    backgroundColor: '#1d1d22',
+    borderColor: '#E6E4DE',
+    backgroundColor: '#F1EFEA',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -474,5 +474,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 2,
   },
-  kindLabel: { color: '#eaeaea', fontSize: 12, fontWeight: '700' },
+  kindLabel: { color: '#1A1917', fontSize: 12, fontWeight: '700' },
 });

@@ -89,10 +89,10 @@ export function TabletSupervisorWarRoom() {
         <>
           {plantOee != null ? (
             <View style={[styles.oeeBlock, { backgroundColor: palette.surfaceInverse }]}>
-              <Mono size={11} color="#9a9aa2" letterSpacing={0.6}>OEE</Mono>
+              <Mono size={11} color="#6F6C66" letterSpacing={0.6}>OEE</Mono>
               <Mono size={22} color="#fff" weight="600" letterSpacing={-0.3}>
                 {plantOee.toFixed(0)}
-                <Text style={{ color: '#9a9aa2', fontSize: 12 }}>%</Text>
+                <Text style={{ color: '#6F6C66', fontSize: 12 }}>%</Text>
               </Mono>
             </View>
           ) : null}
@@ -105,10 +105,10 @@ export function TabletSupervisorWarRoom() {
               styles.newBtn,
               { backgroundColor: palette.surfaceInverse, opacity: pressed ? 0.85 : 1 },
             ]}>
-            <FontAwesome name="plus" size={14} color={scheme === 'dark' ? '#171715' : '#fff'} />
+            <FontAwesome name="plus" size={14} color={scheme === 'dark' ? '#1A1917' : '#fff'} />
             <Mono
               size={12}
-              color={scheme === 'dark' ? '#171715' : '#fff'}
+              color={scheme === 'dark' ? '#1A1917' : '#fff'}
               weight="600"
               letterSpacing={0.4}>
               {t('NEW WORK ORDER').toUpperCase()}
@@ -233,14 +233,14 @@ function LineRow({
           <Text
             style={[
               styles.lineName,
-              { color: selected ? '#eaeaea' : palette.text },
+              { color: selected ? '#1A1917' : palette.text },
             ]}
             numberOfLines={1}>
             {summary.line.name}
           </Text>
           <Mono
             size={11}
-            color={selected ? '#9a9aa2' : palette.textMuted}
+            color={selected ? '#6F6C66' : palette.textMuted}
             style={{ marginTop: 2 }}>
             {summary.activeWo?.order_no ?? '—'}
           </Mono>
@@ -248,7 +248,7 @@ function LineRow({
         <StatusPill status={summary.activeWo?.status ?? 'PENDING'} dark={selected} />
       </View>
       <View style={styles.linePctRow}>
-        <View style={[styles.lineBar, { backgroundColor: selected ? '#0e0e10' : palette.surface }]}>
+        <View style={[styles.lineBar, { backgroundColor: selected ? '#F6F5F1' : palette.surface }]}>
           <View
             style={{
               width: `${summary.pct}%`,
@@ -257,7 +257,7 @@ function LineRow({
             }}
           />
         </View>
-        <Mono size={11} color={selected ? '#eaeaea' : palette.text} weight="600">
+        <Mono size={11} color={selected ? '#1A1917' : palette.text} weight="600">
           {summary.pct}%
         </Mono>
       </View>
@@ -386,9 +386,9 @@ function CycleChartCard() {
             <Text style={{ fontSize: 13, color: palette.textFaint }}>{' '}{t('avg')}</Text>
           </Mono>
         </View>
-        <View style={[styles.trendPill, { backgroundColor: '#dff5e9' }]}>
-          <FontAwesome name="line-chart" size={11} color="#1f9d6c" />
-          <Mono size={11} color="#1f9d6c">9% {t('under target')}</Mono>
+        <View style={[styles.trendPill, { backgroundColor: '#E6F4EA' }]}>
+          <FontAwesome name="line-chart" size={11} color="#1C9A55" />
+          <Mono size={11} color="#1C9A55">9% {t('under target')}</Mono>
         </View>
       </View>
       <View style={{ flex: 1, marginTop: 14, flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: '#dff5e9',
+    backgroundColor: '#E6F4EA',
   },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
   trendPill: {

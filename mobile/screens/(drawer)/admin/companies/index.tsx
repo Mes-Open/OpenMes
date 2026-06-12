@@ -14,8 +14,8 @@ import type { CompanyType } from '@/api/ops';
 type FilterId = 'all' | CompanyType | 'inactive';
 
 const TYPE_COLORS: Record<CompanyType, string> = {
-  supplier: '#3a6ed6',
-  customer: '#1f9d6c',
+  supplier: '#EA5A2B',
+  customer: '#1C9A55',
   both: BRAND.amber,
 };
 

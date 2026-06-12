@@ -105,7 +105,7 @@ export function OeeLineScreen() {
         {/* Hero */}
         <View style={styles.hero}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Mono size={11} color="#9a9aa2" letterSpacing={0.8}>CURRENT OEE</Mono>
+            <Mono size={11} color="#6F6C66" letterSpacing={0.8}>CURRENT OEE</Mono>
             <Pressable
               onPress={() =>
                 Alert.alert(
@@ -118,7 +118,7 @@ export function OeeLineScreen() {
               }
               hitSlop={8}
               style={styles.oeeHelpBtn}>
-              <Mono size={11} color="#9a9aa2" weight="700">?</Mono>
+              <Mono size={11} color="#6F6C66" weight="700">?</Mono>
             </Pressable>
           </View>
           <Text
@@ -136,11 +136,11 @@ export function OeeLineScreen() {
               { l: 'QUALITY', v: summary.qual, sub: `good ${Math.round(summary.totalProduced - summary.totalScrap)}` },
             ].map((s) => (
               <View key={s.l} style={styles.heroStatTile}>
-                <Mono size={9.5} color="#9a9aa2" letterSpacing={0.6}>{s.l}</Mono>
+                <Mono size={9.5} color="#6F6C66" letterSpacing={0.6}>{s.l}</Mono>
                 <Text style={[styles.heroStatValue, { fontFamily: MONO }]}>
                   {s.v != null ? `${s.v.toFixed(1)}%` : '—'}
                 </Text>
-                <Mono size={9.5} color="#9a9aa2" style={{ marginTop: 2 }}>{s.sub}</Mono>
+                <Mono size={9.5} color="#6F6C66" style={{ marginTop: 2 }}>{s.sub}</Mono>
               </View>
             ))}
           </View>
@@ -283,17 +283,17 @@ export function OeeLineScreen() {
 
 const styles = StyleSheet.create({
   scroll: { padding: 16, gap: 14, paddingBottom: 32 },
-  hero: { backgroundColor: '#0e0e10', borderRadius: 14, padding: 18 },
+  hero: { backgroundColor: '#F6F5F1', borderRadius: 14, padding: 18 },
   oeeHelpBtn: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#26262d',
+    backgroundColor: '#E6E4DE',
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroValue: { fontSize: 56, fontWeight: '600', letterSpacing: -1.5, lineHeight: 56, marginTop: 4 },
-  heroUnit: { fontSize: 24, color: '#9a9aa2' },
+  heroUnit: { fontSize: 24, color: '#6F6C66' },
   heroStats: { flexDirection: 'row', gap: 8, marginTop: 14 },
   heroStatTile: {
     flex: 1,

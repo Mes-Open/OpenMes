@@ -24,10 +24,10 @@ function categorize(eventType: string): FilterId | 'unknown' {
 
 function categoryColor(cat: ReturnType<typeof categorize>): string {
   if (cat === 'work_orders') return BRAND.amber;
-  if (cat === 'mqtt') return '#3a6ed6';
-  if (cat === 'auth') return '#1f9d6c';
+  if (cat === 'mqtt') return '#EA5A2B';
+  if (cat === 'auth') return '#1C9A55';
   if (cat === 'system') return '#7c3aed';
-  return '#8a8780';
+  return '#9B9892';
 }
 
 export function EventLogsScreen() {

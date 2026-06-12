@@ -122,15 +122,15 @@ export function TabletHrCommand() {
           <View style={{ flex: 1 }} />
 
           {/* On-shift KPI block */}
-          <View style={[styles.kpiBlock, { backgroundColor: '#0e0e10' }]}>
-            <Mono size={9.5} color="#9a9aa2" letterSpacing={0.7}>
+          <View style={[styles.kpiBlock, { backgroundColor: '#F6F5F1' }]}>
+            <Mono size={9.5} color="#6F6C66" letterSpacing={0.7}>
               {t('ON-SHIFT NOW').toUpperCase()}
             </Mono>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
               <Mono size={32} color={palette.success} weight="700" letterSpacing={-1}>
                 {onShiftCount}
               </Mono>
-              <Mono size={14} color="#9a9aa2">/{workers.length}</Mono>
+              <Mono size={14} color="#6F6C66">/{workers.length}</Mono>
             </View>
           </View>
         </View>

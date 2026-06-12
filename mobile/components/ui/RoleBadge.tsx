@@ -13,7 +13,7 @@ import type { Role } from '@/types/api';
  */
 export const ROLE_COLOR: Record<Role, string> = {
   Operator: colors.accent,
-  Supervisor: '#5b8def',
+  Supervisor: '#EA5A2B',
   Admin: colors.blocked,
 };
 

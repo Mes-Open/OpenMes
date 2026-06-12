@@ -150,17 +150,17 @@ export function ScanTab() {
             </Mono>
             <Mono
               size={10}
-              color={recent.ok ? '#3ecf8e' : '#ef4444'}
+              color={recent.ok ? '#1C9A55' : '#D6442F'}
               letterSpacing={0.6}>
               {recent.ok ? `✓ ${t('MATCHED').toUpperCase()}` : `✕ ${t('FAILED').toUpperCase()}`}
             </Mono>
           </View>
           <View style={styles.recentRow}>
-            <View style={[styles.recentIcon, { backgroundColor: recent.ok ? BRAND.amber : '#3a0e0e' }]}>
+            <View style={[styles.recentIcon, { backgroundColor: recent.ok ? BRAND.amber : '#FBEAE6' }]}>
               <FontAwesome
                 name={recent.ok ? 'cube' : 'exclamation'}
                 size={16}
-                color={recent.ok ? '#1a1208' : '#ef4444'}
+                color={recent.ok ? '#1a1208' : '#D6442F'}
               />
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     left: 18,
     right: 18,
     backgroundColor: 'rgba(20,20,22,0.92)',
-    borderColor: '#26262d',
+    borderColor: '#E6E4DE',
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,

@@ -87,7 +87,7 @@ export function ShiftsList() {
                       style={{
                         fontSize: 11,
                         fontWeight: '600',
-                        color: active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.textFaint,
+                        color: active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.textFaint,
                         fontFamily: MONO,
                       }}>
                       {DAY_LABELS[d] ?? String(d)}

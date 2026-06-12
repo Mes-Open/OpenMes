@@ -106,7 +106,7 @@ export function ApiTokensScreen() {
                 <View
                   style={[
                     styles.iconWrap,
-                    { backgroundColor: t.stale ? palette.surfaceAlt : '#0e0e10' },
+                    { backgroundColor: t.stale ? palette.surfaceAlt : '#F6F5F1' },
                   ]}>
                   <FontAwesome name="key" size={16} color={t.stale ? palette.textFaint : BRAND.amber} />
                 </View>
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 5,
     borderRadius: 3,
-    backgroundColor: '#fbe9c8',
+    backgroundColor: '#FAF0DD',
   },
   revoke: {
     paddingVertical: 5,

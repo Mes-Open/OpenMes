@@ -407,7 +407,7 @@ function ChipBtn({ label, active, onPress }: { label: string; active: boolean; o
         borderRadius: 999,
         borderWidth: 1,
         borderColor: active ? BRAND.amber : palette.border,
-        backgroundColor: active ? '#fbe9c8' : 'transparent',
+        backgroundColor: active ? '#FAF0DD' : 'transparent',
       }}>
       <Text style={{ fontSize: 12, fontWeight: '600', color: active ? '#8a5a0e' : palette.text }}>
         {label}

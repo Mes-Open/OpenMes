@@ -62,7 +62,7 @@ export function CrewForm({ initial, mode, onSubmit, submitting }: Props) {
 
       <Card style={{ gap: 12 }}>
         <SectionLabel
-          right={<Mono size={11} color="#8a8780">PICK A SUPERVISOR</Mono>}>
+          right={<Mono size={11} color="#9B9892">PICK A SUPERVISOR</Mono>}>
           Leader (optional)
         </SectionLabel>
         <Controller

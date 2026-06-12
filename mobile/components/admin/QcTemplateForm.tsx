@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: '#fbe9c8',
+    backgroundColor: '#FAF0DD',
   },
   paramBox: { borderWidth: 1, borderRadius: 12, padding: 12, gap: 10 },
   paramHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

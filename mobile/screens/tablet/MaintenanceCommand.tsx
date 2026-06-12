@@ -18,9 +18,9 @@ import type { MaintenanceEvent } from '@/api/maintenance';
 const STATE_COLOR: Record<string, string> = {
   pending: BRAND.amber,
   in_progress: BRAND.amber,
-  completed: '#1f9d6c',
-  cancelled: '#8a8780',
-  overdue: '#dc2626',
+  completed: '#1C9A55',
+  cancelled: '#9B9892',
+  overdue: '#D6442F',
 };
 
 function eventStateLabel(e: MaintenanceEvent): keyof typeof STATE_COLOR {

@@ -152,7 +152,7 @@ export function OeeDashboard() {
                 ]}>
                 <Mono
                   size={11}
-                  color={active ? (palette === Colors.dark ? '#171715' : '#fff') : palette.textMuted}
+                  color={active ? (palette === Colors.dark ? '#1A1917' : '#fff') : palette.textMuted}
                   weight="600"
                   letterSpacing={0.5}>
                   {id.toUpperCase()}
@@ -164,7 +164,7 @@ export function OeeDashboard() {
 
         {/* Plant aggregate */}
         <View style={styles.heroCard}>
-          <Mono size={11} color="#9a9aa2" letterSpacing={0.8}>PLANT AGGREGATE</Mono>
+          <Mono size={11} color="#6F6C66" letterSpacing={0.8}>PLANT AGGREGATE</Mono>
           <View style={styles.heroRow}>
             <Text style={styles.heroValue}>
               {plant.oee != null ? plant.oee.toFixed(1) : '—'}
@@ -178,7 +178,7 @@ export function OeeDashboard() {
               { l: 'QUAL', v: plant.qual, c: palette.success },
             ].map((s) => (
               <View key={s.l} style={styles.heroStatTile}>
-                <Mono size={9.5} color="#9a9aa2" letterSpacing={0.6}>{s.l}</Mono>
+                <Mono size={9.5} color="#6F6C66" letterSpacing={0.6}>{s.l}</Mono>
                 <Text style={[styles.heroStatValue, { color: s.c, fontFamily: MONO }]}>
                   {s.v != null ? s.v.toFixed(1) : '—'}%
                 </Text>
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroCard: {
-    backgroundColor: '#0e0e10',
+    backgroundColor: '#F6F5F1',
     borderRadius: 14,
     padding: 16,
   },
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     lineHeight: 46,
   },
-  heroValueUnit: { fontSize: 22, color: '#9a9aa2' },
+  heroValueUnit: { fontSize: 22, color: '#6F6C66' },
   heroStats: { flexDirection: 'row', gap: 8, marginTop: 12 },
   heroStatTile: {
     flex: 1,

@@ -304,7 +304,7 @@ function ActiveStepCard({
   return (
     <Card variant="inverse" accent={BRAND.amber} style={{ padding: 18, gap: 14 }}>
       <View>
-        <Mono size={10} color="#9a9aa2" letterSpacing={0.6}>
+        <Mono size={10} color="#6F6C66" letterSpacing={0.6}>
           CURRENT OPERATION · STEP {step.sequence ?? '—'}
         </Mono>
         <Text style={styles.stepName}>{step.name}</Text>
@@ -316,7 +316,7 @@ function ActiveStepCard({
 
       {step.status === 'IN_PROGRESS' ? (
         <View style={styles.timerBlock}>
-          <Mono size={10} color="#9a9aa2" letterSpacing={1}>ELAPSED</Mono>
+          <Mono size={10} color="#6F6C66" letterSpacing={1}>ELAPSED</Mono>
           <Text style={styles.timer}>
             {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
           </Text>
@@ -338,7 +338,7 @@ function ActiveStepCard({
             value={producedQty}
             onChangeText={setProducedQty}
             keyboardType="number-pad"
-            style={{ backgroundColor: '#1d1d22', borderColor: '#26262d', color: '#eaeaea' }}
+            style={{ backgroundColor: '#F1EFEA', borderColor: '#E6E4DE', color: '#1A1917' }}
           />
           <Button
             title="Complete step"
@@ -365,8 +365,8 @@ function ActiveStepCard({
         title="Report problem"
         variant="outline"
         onPress={onReport}
-        leftIcon={<FontAwesome name="exclamation-triangle" size={13} color="#ef4444" />}
-        style={{ borderColor: '#3a0e0e' }}
+        leftIcon={<FontAwesome name="exclamation-triangle" size={13} color="#D6442F" />}
+        style={{ borderColor: '#FBEAE6' }}
       />
     </Card>
   );
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   title: { fontSize: 22, fontWeight: '600', letterSpacing: -0.3, marginTop: 4 },
   stepName: { color: '#fff', fontSize: 22, fontWeight: '600', letterSpacing: -0.3, marginTop: 6 },
-  instruction: { color: '#eaeaea', fontSize: 14, lineHeight: 21 },
+  instruction: { color: '#1A1917', fontSize: 14, lineHeight: 21 },
   timerBlock: { alignItems: 'center', paddingVertical: 6 },
   timer: { color: '#fff', fontSize: 56, fontWeight: '500', fontFamily: MONO, letterSpacing: -2, lineHeight: 56, marginTop: 4 },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

@@ -178,7 +178,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
         style={{
           fontSize: 12,
           fontWeight: '600',
-          color: active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.textMuted,
+          color: active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.textMuted,
         }}>
         {label}
       </Text>
@@ -201,17 +201,17 @@ function ProductionSummary({ filters }: { filters: Filters | null }) {
     <View style={{ gap: 14 }}>
       {/* Hero block */}
       <View style={[styles.hero, { backgroundColor: palette.surfaceInverse }]}>
-        <Mono size={10} color="#9a9aa2" letterSpacing={0.6}>
+        <Mono size={10} color="#6F6C66" letterSpacing={0.6}>
           {d.line.toUpperCase()}
         </Mono>
-        <Mono size={10} color="#9a9aa2" letterSpacing={0.6} style={{ marginTop: 4 }}>
+        <Mono size={10} color="#6F6C66" letterSpacing={0.6} style={{ marginTop: 4 }}>
           {d.period.start} → {d.period.end}
         </Mono>
         <View style={styles.heroNumRow}>
           <Text style={styles.heroNum}>{pct}</Text>
           <Text style={styles.heroUnit}>%</Text>
         </View>
-        <Mono size={11} color="#9a9aa2" style={{ marginTop: 4 }}>
+        <Mono size={11} color="#6F6C66" style={{ marginTop: 4 }}>
           {fmt(d.production.total_produced)}/{fmt(d.production.total_planned)} PRODUCED
         </Mono>
         <View style={styles.heroBar}>
@@ -420,8 +420,8 @@ const styles = StyleSheet.create({
     letterSpacing: -2,
     lineHeight: 56,
   },
-  heroUnit: { color: '#9a9aa2', fontSize: 22, fontFamily: MONO },
-  heroBar: { height: 4, backgroundColor: '#26262d', borderRadius: 2, marginTop: 14, overflow: 'hidden' },
+  heroUnit: { color: '#6F6C66', fontSize: 22, fontFamily: MONO },
+  heroBar: { height: 4, backgroundColor: '#E6E4DE', borderRadius: 2, marginTop: 14, overflow: 'hidden' },
   heroBarFill: { height: '100%', backgroundColor: BRAND.amber },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   kpi: { flexBasis: '48%', flexGrow: 1, gap: 6 },

@@ -27,10 +27,10 @@ interface ToneStyle {
   label: string;
 }
 const TONES: Record<ToolStatus, ToneStyle> = {
-  available:   { color: '#1f9d6c', bg: '#dff5e9', label: 'AVAILABLE' },
-  in_use:      { color: '#1d4ed8', bg: '#e2ecfa', label: 'IN USE' },
-  maintenance: { color: '#8a5a0e', bg: '#fbe9c8', label: 'MAINTENANCE' },
-  retired:     { color: '#5f5d56', bg: '#ebe8e0', label: 'RETIRED' },
+  available:   { color: '#1C9A55', bg: '#E6F4EA', label: 'AVAILABLE' },
+  in_use:      { color: '#1d4ed8', bg: '#F1EFEA', label: 'IN USE' },
+  maintenance: { color: '#8a5a0e', bg: '#FAF0DD', label: 'MAINTENANCE' },
+  retired:     { color: '#6F6C66', bg: '#F1EFEA', label: 'RETIRED' },
 };
 
 export function ToolsList() {
@@ -75,13 +75,13 @@ export function ToolsList() {
                 ]}>
                 <Mono
                   size={11}
-                  color={active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.text}
+                  color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.text}
                   weight="600">
                   {f.label}
                 </Mono>
                 <Mono
                   size={10}
-                  color={active ? '#9a9aa2' : palette.textFaint}>
+                  color={active ? '#6F6C66' : palette.textFaint}>
                   {count}
                 </Mono>
               </Pressable>

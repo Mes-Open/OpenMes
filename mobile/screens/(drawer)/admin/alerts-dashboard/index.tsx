@@ -280,7 +280,7 @@ function FeedRow({ item, last }: { item: FeedItem; last: boolean }) {
           </Mono>
           <Mono size={10} color={DARK.textFaint}>· {item.line}</Mono>
           {item.ack ? (
-            <Mono size={9} color="#5b8def" letterSpacing={0.5}>● ACK</Mono>
+            <Mono size={9} color="#EA5A2B" letterSpacing={0.5}>● ACK</Mono>
           ) : null}
         </View>
         <Text style={[styles.feedDesc, { color: DARK.text }]} numberOfLines={2}>

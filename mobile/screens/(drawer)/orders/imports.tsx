@@ -18,10 +18,10 @@ const STATUS_MAP: Record<
   StatusKey,
   { label: string; color: string; bg: string }
 > = {
-  processing: { label: 'PROCESSING', color: '#8a5a0e', bg: '#fbe9c8' },
-  done: { label: 'DONE', color: '#1f9d6c', bg: '#dff5e9' },
-  failed: { label: 'FAILED', color: '#c0392b', bg: '#fbe2e2' },
-  pending: { label: 'PENDING', color: '#5f5d56', bg: '#ebe8e0' },
+  processing: { label: 'PROCESSING', color: '#8a5a0e', bg: '#FAF0DD' },
+  done: { label: 'DONE', color: '#1C9A55', bg: '#E6F4EA' },
+  failed: { label: 'FAILED', color: '#c0392b', bg: '#FBEAE6' },
+  pending: { label: 'PENDING', color: '#6F6C66', bg: '#F1EFEA' },
 };
 
 function statusKeyFor(status: string | undefined): StatusKey {

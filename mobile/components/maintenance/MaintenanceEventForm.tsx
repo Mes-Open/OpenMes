@@ -27,9 +27,9 @@ interface TypeOption {
 }
 
 const TYPES: TypeOption[] = [
-  { id: 'planned', label: 'Preventive', color: '#3a6ed6', icon: 'cog' },
-  { id: 'corrective', label: 'Corrective', color: '#dc2626', icon: 'wrench' },
-  { id: 'inspection', label: 'Inspection', color: '#1f9d6c', icon: 'shield' },
+  { id: 'planned', label: 'Preventive', color: '#EA5A2B', icon: 'cog' },
+  { id: 'corrective', label: 'Corrective', color: '#D6442F', icon: 'wrench' },
+  { id: 'inspection', label: 'Inspection', color: '#1C9A55', icon: 'shield' },
 ];
 
 export const eventSchema = z.object({

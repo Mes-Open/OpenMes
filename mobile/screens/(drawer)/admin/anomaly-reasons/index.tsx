@@ -15,9 +15,9 @@ type SevFilter = 'all' | 'minor' | 'major' | 'scrap' | 'inactive';
 
 const SEV_COLORS: Record<string, string> = {
   minor: BRAND.amber,
-  major: '#dc2626',
+  major: '#D6442F',
   scrap: '#7c3aed',
-  cosmetic: '#8a8780',
+  cosmetic: '#9B9892',
 };
 
 /**

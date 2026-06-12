@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 10,
     borderRadius: 10,
-    backgroundColor: '#3a0e0e',
+    backgroundColor: '#FBEAE6',
     borderWidth: 1,
     borderColor: DARK.danger,
   },

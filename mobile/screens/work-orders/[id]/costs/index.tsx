@@ -385,7 +385,7 @@ function AttachmentsTab({
                     ? { borderBottomColor: palette.border, borderBottomWidth: StyleSheet.hairlineWidth }
                     : null,
                 ]}>
-                <View style={[styles.rowIcon, { backgroundColor: '#fbe9c8' }]}>
+                <View style={[styles.rowIcon, { backgroundColor: '#FAF0DD' }]}>
                   <FontAwesome name="file" size={14} color={BRAND.amber} />
                 </View>
                 <Pressable
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   totalValue: { fontSize: 28, fontWeight: '600', letterSpacing: -0.5, marginTop: 6 },
-  totalUnit: { fontSize: 14, fontWeight: '500', color: '#8a8780' },
+  totalUnit: { fontSize: 14, fontWeight: '500', color: '#9B9892' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   rowIcon: {
     width: 36,

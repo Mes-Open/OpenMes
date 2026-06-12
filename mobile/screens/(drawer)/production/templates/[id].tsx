@@ -54,7 +54,7 @@ export function TemplateDetailScreen() {
         }
       />
 
-      <View style={[styles.notice, { backgroundColor: '#fbe9c8', borderColor: BRAND.amber }]}>
+      <View style={[styles.notice, { backgroundColor: '#FAF0DD', borderColor: BRAND.amber }]}>
         <FontAwesome name="info-circle" size={14} color="#8a5a0e" />
         <Text style={{ color: '#8a5a0e', fontSize: 12, flex: 1, lineHeight: 17 }}>
           Editing template steps (add, edit, reorder) is best done on the web app. Mobile supports

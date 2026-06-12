@@ -335,7 +335,7 @@ function DayCell({
           {format(parseISO(day.date), 'd')}
         </Mono>
         {day.on_duty > 0 ? (
-          <View style={[styles.dayDot, { backgroundColor: '#1f9d6c' }]} />
+          <View style={[styles.dayDot, { backgroundColor: '#1C9A55' }]} />
         ) : null}
       </View>
 

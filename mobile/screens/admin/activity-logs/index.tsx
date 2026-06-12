@@ -14,9 +14,9 @@ import type { AuditAction, AuditLog } from '@/api/auditLogs';
 type FilterId = 'all' | AuditAction;
 
 const ACTION_COLOR: Record<AuditAction, string> = {
-  created: '#1f9d6c',
+  created: '#1C9A55',
   updated: BRAND.amber,
-  deleted: '#dc2626',
+  deleted: '#D6442F',
 };
 
 /**

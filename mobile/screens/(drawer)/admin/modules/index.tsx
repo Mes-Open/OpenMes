@@ -45,7 +45,7 @@ export function ModulesList() {
                 <View
                   style={[
                     styles.iconWrap,
-                    { backgroundColor: item.enabled ? '#fbe9c8' : palette.surfaceAlt },
+                    { backgroundColor: item.enabled ? '#FAF0DD' : palette.surfaceAlt },
                   ]}>
                   <FontAwesome
                     name="cube"

@@ -223,7 +223,7 @@ export function TabletOperatorTerminal() {
             style={({ pressed }) => [styles.scanTile, { opacity: pressed ? 0.92 : 1 }]}>
             <FontAwesome name="qrcode" size={36} color="#1a1208" />
             <Text style={styles.scanTitle}>{t('Scan part / lot')}</Text>
-            <Mono size={12} color="#3a2a0c">{t('Tap or use external scanner')}</Mono>
+            <Mono size={12} color="#FAF0DD">{t('Tap or use external scanner')}</Mono>
           </Pressable>
 
           <View style={styles.andonCard}>
@@ -428,7 +428,7 @@ function StepRow({
   // sees full context but knows which ones are theirs. Mirrors web commit 7dec2bf.
   const isMine = myWorkstationId == null || step.workstation_id === myWorkstationId;
   const dim = !isMine && !isRunning;
-  const dotBg = isDone ? DARK.success : isRunning ? BRAND.amber : '#26262d';
+  const dotBg = isDone ? DARK.success : isRunning ? BRAND.amber : '#E6E4DE';
   const elapsed = (() => {
     if (!step.started_at) return '—';
     try {
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 4,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#D6442F',
     alignSelf: 'center',
   },
   grid3: { flex: 1, flexDirection: 'row', gap: 16 },
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 14,
     borderWidth: 1,
-    backgroundColor: '#0e0e10',
+    backgroundColor: '#F6F5F1',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minHeight: 76,
     borderRadius: 12,
-    backgroundColor: '#0e0e10',
+    backgroundColor: '#F6F5F1',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

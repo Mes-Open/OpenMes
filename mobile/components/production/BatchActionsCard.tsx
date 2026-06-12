@@ -71,7 +71,7 @@ export function BatchActionsCard({ batch }: Props) {
         <Button
           title="Cancel batch"
           variant="outline"
-          leftIcon={<FontAwesome name="ban" size={13} color="#dc2626" />}
+          leftIcon={<FontAwesome name="ban" size={13} color="#D6442F" />}
           onPress={() =>
             confirmAction(
               'Cancel batch',

@@ -40,14 +40,14 @@ const ENTITIES: { key: EntityKey; label: string; icon: React.ComponentProps<type
 
 const SEV_COLORS: Record<string, string> = {
   minor: BRAND.amber,
-  major: '#dc2626',
+  major: '#D6442F',
   scrap: '#7c3aed',
 };
 
 const SEV_OPTIONS: { id: string; label: string; color: string }[] = [
-  { id: '', label: 'Cosmetic', color: '#8a8780' },
+  { id: '', label: 'Cosmetic', color: '#9B9892' },
   { id: 'minor', label: 'Minor', color: BRAND.amber },
-  { id: 'major', label: 'Major', color: '#dc2626' },
+  { id: 'major', label: 'Major', color: '#D6442F' },
   { id: 'scrap', label: 'Scrap', color: '#7c3aed' },
 ];
 

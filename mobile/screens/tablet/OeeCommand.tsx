@@ -174,8 +174,8 @@ export function TabletOeeCommand() {
                   style={({ pressed }) => [
                     styles.lineRow,
                     {
-                      backgroundColor: active ? '#1d1d22' : palette.surfaceAlt,
-                      borderColor: active ? '#1d1d22' : palette.border,
+                      backgroundColor: active ? '#F1EFEA' : palette.surfaceAlt,
+                      borderColor: active ? '#F1EFEA' : palette.border,
                       opacity: pressed ? 0.9 : 1,
                     },
                   ]}>
@@ -205,7 +205,7 @@ export function TabletOeeCommand() {
                     </Text>
                     <Mono
                       size={10}
-                      color={active ? '#9a9aa2' : palette.textFaint}
+                      color={active ? '#6F6C66' : palette.textFaint}
                       letterSpacing={0.4}>
                       {line.code ?? ''}
                     </Mono>
@@ -236,7 +236,7 @@ export function TabletOeeCommand() {
           {/* Hero + APQ row */}
           <View style={styles.heroRow}>
             <View style={styles.heroBig}>
-              <Mono size={10.5} color="#9a9aa2" letterSpacing={0.8}>OEE · A-SHIFT</Mono>{/* shift label stays code-style */}
+              <Mono size={10.5} color="#6F6C66" letterSpacing={0.8}>OEE · A-SHIFT</Mono>{/* shift label stays code-style */}
               <Mono
                 size={68}
                 weight="600"
@@ -244,7 +244,7 @@ export function TabletOeeCommand() {
                 letterSpacing={-2.5}
                 style={{ marginTop: 4, lineHeight: 70 }}>
                 {lineSummary.oee != null ? lineSummary.oee.toFixed(1) : '—'}
-                <Text style={{ fontSize: 28, color: '#9a9aa2', fontWeight: '500' }}>{' %'}</Text>
+                <Text style={{ fontSize: 28, color: '#6F6C66', fontWeight: '500' }}>{' %'}</Text>
               </Mono>
               <Mono
                 size={10.5}
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
   heroRow: { flexDirection: 'row', gap: 10 },
   heroBig: {
     flex: 1.4,
-    backgroundColor: '#0e0e10',
+    backgroundColor: '#F6F5F1',
     borderRadius: 16,
     padding: 18,
   },

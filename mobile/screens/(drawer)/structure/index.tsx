@@ -82,7 +82,7 @@ export function StructureHub() {
               styles.addBtn,
               { backgroundColor: palette.surfaceInverse, opacity: pressed ? 0.85 : 1 },
             ]}>
-            <FontAwesome name="plus" size={14} color={scheme === 'dark' ? '#171715' : '#fff'} />
+            <FontAwesome name="plus" size={14} color={scheme === 'dark' ? '#1A1917' : '#fff'} />
           </Pressable>
         }
       />
@@ -332,7 +332,7 @@ function StructureRow({
             color={
               active
                 ? scheme === 'dark'
-                  ? '#171715'
+                  ? '#1A1917'
                   : '#fff'
                 : palette.textFaint
             }
@@ -347,7 +347,7 @@ function StructureRow({
               {title}
             </Text>
             {status ? (
-              <View style={[styles.statusPill, { backgroundColor: '#fbe9c8' }]}>
+              <View style={[styles.statusPill, { backgroundColor: '#FAF0DD' }]}>
                 <Mono size={9.5} color={status.color} weight="700" letterSpacing={0.6}>
                   {status.label.toUpperCase()}
                 </Mono>

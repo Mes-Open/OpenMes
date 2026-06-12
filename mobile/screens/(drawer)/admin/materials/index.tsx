@@ -98,7 +98,7 @@ function MaterialRow({ item, onPress }: { item: Material; onPress: () => void })
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-      <Card leftAccent={belowMin ? palette.warning : undefined} style={belowMin ? { backgroundColor: '#fbe9c8' } : undefined}>
+      <Card leftAccent={belowMin ? palette.warning : undefined} style={belowMin ? { backgroundColor: '#FAF0DD' } : undefined}>
         <View style={styles.row}>
           <View style={[styles.iconWrap, { backgroundColor: `${iconColor}22` }]}>
             <FontAwesome name="cube" size={18} color={iconColor} />

@@ -20,7 +20,7 @@ const PRESETS = [
   { name: 'Blue', value: '#2563eb' },
   { name: 'Green', value: '#16a34a' },
   { name: 'Amber', value: '#d97706' },
-  { name: 'Red', value: '#dc2626' },
+  { name: 'Red', value: '#D6442F' },
   { name: 'Purple', value: '#7c3aed' },
 ];
 

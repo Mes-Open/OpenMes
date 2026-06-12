@@ -25,7 +25,7 @@ import type { MaintenanceEventType } from '@/api/maintenance';
 
 const TYPE_TONE: Record<MaintenanceEventType, { bg: string; fg: string; label: string }> = {
   planned:    { bg: '#1d4ed8', fg: '#fff', label: 'PLANNED' },
-  corrective: { bg: '#dc2626', fg: '#fff', label: 'CORRECTIVE' },
+  corrective: { bg: '#D6442F', fg: '#fff', label: 'CORRECTIVE' },
   inspection: { bg: '#7c3aed', fg: '#fff', label: 'INSPECTION' },
 };
 
@@ -109,8 +109,8 @@ export function MaintenanceEventDetailScreen() {
         </View>
         <Text style={[styles.title, { color: palette.text }]}>{e.title}</Text>
         {e.status === 'in_progress' && startedAgo ? (
-          <View style={[styles.statusPill, { backgroundColor: '#fbe9c8' }]}>
-            <View style={[styles.statusDot, { backgroundColor: '#f5a524' }]} />
+          <View style={[styles.statusPill, { backgroundColor: '#FAF0DD' }]}>
+            <View style={[styles.statusDot, { backgroundColor: '#EA5A2B' }]} />
             <Mono size={11} color={'#8a5a0e'} weight="700" letterSpacing={0.5}>
               IN PROGRESS · {startedAgo.toUpperCase()}
             </Mono>

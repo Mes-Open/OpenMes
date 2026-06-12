@@ -106,7 +106,7 @@ export function ActivityTimeline({
           styles.bar,
           {
             height,
-            backgroundColor: forceDark ? '#0e0e10' : palette.surfaceAlt,
+            backgroundColor: forceDark ? '#F6F5F1' : palette.surfaceAlt,
             borderColor: palette.border,
           },
         ]}>

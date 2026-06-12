@@ -151,7 +151,7 @@ export function DowntimeHistoryScreen() {
                 ]}>
                 <Mono
                   size={11}
-                  color={active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.text}
+                  color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.text}
                   weight="600"
                   letterSpacing={0.5}>
                   {f.label.toUpperCase()}

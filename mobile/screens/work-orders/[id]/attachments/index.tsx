@@ -91,7 +91,7 @@ export function AttachmentsList() {
           <Card>
             <Pressable onPress={() => onDownload(item.id)}>
               <View style={styles.row}>
-                <View style={[styles.iconWrap, { backgroundColor: '#fbe9c8' }]}>
+                <View style={[styles.iconWrap, { backgroundColor: '#FAF0DD' }]}>
                   <FontAwesome name="file" size={16} color={BRAND.amber} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>

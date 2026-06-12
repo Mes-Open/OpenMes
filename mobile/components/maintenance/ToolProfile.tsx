@@ -19,10 +19,10 @@ const STATUS_CONFIG: Record<
   ToolStatus,
   { label: string; color: string; icon: React.ComponentProps<typeof FontAwesome>['name'] }
 > = {
-  available: { label: 'Available', color: '#1f9d6c', icon: 'check-circle' },
-  in_use: { label: 'In use', color: '#3a6ed6', icon: 'cog' },
+  available: { label: 'Available', color: '#1C9A55', icon: 'check-circle' },
+  in_use: { label: 'In use', color: '#EA5A2B', icon: 'cog' },
   maintenance: { label: 'In maintenance', color: BRAND.amber, icon: 'wrench' },
-  retired: { label: 'Retired', color: '#8a8780', icon: 'ban' },
+  retired: { label: 'Retired', color: '#9B9892', icon: 'ban' },
 };
 
 /**

@@ -96,7 +96,7 @@ export function ConfirmationsCard({ batchId }: Props) {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: active ? '#fbe9c8' : palette.surface,
+                      backgroundColor: active ? '#FAF0DD' : palette.surface,
                       borderColor: active ? BRAND.amber : palette.border,
                     },
                   ]}>

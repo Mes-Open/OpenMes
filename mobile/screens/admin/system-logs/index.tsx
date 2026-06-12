@@ -216,14 +216,14 @@ function LevelChip({
 }
 
 const LEVEL_COLOR: Partial<Record<LogLevel, string>> = {
-  debug: '#9a9aa2',
-  info: '#5b8def',
-  notice: '#5b8def',
-  warning: '#f5a524',
-  error: '#ef4444',
-  critical: '#ef4444',
-  alert: '#ef4444',
-  emergency: '#ef4444',
+  debug: '#6F6C66',
+  info: '#EA5A2B',
+  notice: '#EA5A2B',
+  warning: '#EA5A2B',
+  error: '#D6442F',
+  critical: '#D6442F',
+  alert: '#D6442F',
+  emergency: '#D6442F',
 };
 
 // ─── Failed jobs ────────────────────────────────────────────────────────────

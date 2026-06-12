@@ -128,13 +128,13 @@ export function AuditLogsScreen() {
 function actionTone(a: string, palette: { success: string; warning: string; danger: string; info: string }) {
   switch (a) {
     case 'created':
-      return { bg: '#dff5e9', fg: '#0f7a4f', accent: palette.success };
+      return { bg: '#E6F4EA', fg: '#0f7a4f', accent: palette.success };
     case 'updated':
-      return { bg: '#e2ecfa', fg: '#1d4ed8', accent: palette.info };
+      return { bg: '#F1EFEA', fg: '#1d4ed8', accent: palette.info };
     case 'deleted':
-      return { bg: '#fbe2e2', fg: '#991b1b', accent: palette.danger };
+      return { bg: '#FBEAE6', fg: '#991b1b', accent: palette.danger };
     default:
-      return { bg: '#ebe8e0', fg: '#5f5d56', accent: '#8a8780' };
+      return { bg: '#F1EFEA', fg: '#6F6C66', accent: '#9B9892' };
   }
 }
 

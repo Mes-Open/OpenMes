@@ -262,7 +262,7 @@ export function ScheduleScreen() {
                 ]}>
                 <Mono
                   size={11}
-                  color={active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.textMuted}
+                  color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.textMuted}
                   weight="700"
                   letterSpacing={0.6}>
                   {m === 'day' ? t('Day').toUpperCase() : t('Week').toUpperCase()}
@@ -307,7 +307,7 @@ export function ScheduleScreen() {
                 ]}>
                 <Mono
                   size={10}
-                  color={active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.textFaint}
+                  color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.textFaint}
                   letterSpacing={0.6}>
                   {format(d, 'EEE').toUpperCase()}
                 </Mono>
@@ -315,7 +315,7 @@ export function ScheduleScreen() {
                   style={[
                     styles.dayNum,
                     {
-                      color: active ? (scheme === 'dark' ? '#171715' : '#fff') : palette.text,
+                      color: active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.text,
                       fontFamily: MONO,
                     },
                   ]}>
@@ -691,7 +691,7 @@ function GanttRow({
             styles.gridLine,
             {
               left: (i + 1) * HOUR_COL_WIDTH,
-              backgroundColor: scheme === 'dark' ? '#26262d' : '#dcd8ce',
+              backgroundColor: scheme === 'dark' ? '#E6E4DE' : '#dcd8ce',
               pointerEvents: 'none',
             },
           ]}
@@ -728,7 +728,7 @@ function OperatorRow({ op }: { op: OperatorOnShift }) {
     op.status === 'in'
       ? { bg: palette.successSoft, fg: palette.success, label: 'In', dot: palette.success }
       : op.status === 'break'
-      ? { bg: '#fbe9c8', fg: '#8a5a0e', label: 'Break', dot: '#f5a524' }
+      ? { bg: '#FAF0DD', fg: '#8a5a0e', label: 'Break', dot: '#EA5A2B' }
       : op.status === 'no-show'
       ? { bg: palette.dangerSoft, fg: palette.danger, label: 'No-show', dot: palette.danger }
       : { bg: palette.surfaceAlt, fg: palette.textFaint, label: 'Out', dot: palette.textFaint };
@@ -748,7 +748,7 @@ function OperatorRow({ op }: { op: OperatorOnShift }) {
       <View style={[styles.avatar, { backgroundColor: palette.surfaceInverse }]}>
         <Text
           style={{
-            color: scheme === 'dark' ? '#171715' : '#fff',
+            color: scheme === 'dark' ? '#1A1917' : '#fff',
             fontFamily: MONO,
             fontSize: 13,
             fontWeight: '700',
@@ -783,16 +783,16 @@ function OperatorRow({ op }: { op: OperatorOnShift }) {
 function blockColor(status: MockGanttBlock['status']): { bg: string; fg: string } {
   switch (status) {
     case 'running':
-      return { bg: '#3ecf8e', fg: '#fff' };
+      return { bg: '#1C9A55', fg: '#fff' };
     case 'paused':
-      return { bg: '#f5a524', fg: '#1a1208' };
+      return { bg: '#EA5A2B', fg: '#1a1208' };
     case 'blocked':
-      return { bg: '#ef4444', fg: '#fff' };
+      return { bg: '#D6442F', fg: '#fff' };
     case 'maintenance':
       return { bg: '#a78bfa', fg: '#fff' };
     case 'queued':
     default:
-      return { bg: '#cdc9bf', fg: '#5f5d56' };
+      return { bg: '#cdc9bf', fg: '#6F6C66' };
   }
 }
 

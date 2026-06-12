@@ -108,7 +108,7 @@ function TraceLine({ message }: { message: MachineMessage }) {
       ? '#ff6b6b'
       : message.processing_status === 'skipped'
       ? BRAND.amber
-      : '#3ecf8e';
+      : '#1C9A55';
 
   // Compact payload display: parsed JSON if present, else raw.
   const payload = (() => {
@@ -135,7 +135,7 @@ function TraceLine({ message }: { message: MachineMessage }) {
       <Text style={styles.line} numberOfLines={2}>
         <Text style={{ color: tsColor }}>{time}</Text>{' '}
         <Text style={{ color: BRAND.amber }}>{message.topic}</Text>{' '}
-        <Text style={{ color: '#eaeaea' }}>{payload}</Text>
+        <Text style={{ color: '#1A1917' }}>{payload}</Text>
       </Text>
       {message.processing_error ? (
         <Text style={[styles.errLine]} numberOfLines={2}>
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   traceBlock: {
-    backgroundColor: '#0e0e10',
+    backgroundColor: '#F6F5F1',
     borderRadius: 12,
     padding: 14,
     minHeight: 200,

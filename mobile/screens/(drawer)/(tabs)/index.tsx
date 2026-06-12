@@ -160,7 +160,7 @@ function ActiveOrderHero({ order, onOpen }: { order: WorkOrder; onOpen: () => vo
       <View style={[styles.heroAccent, { backgroundColor: BRAND.amber }]} />
       <View style={styles.heroTopRow}>
         <View style={{ flex: 1 }}>
-          <Mono size={10} color="#9a9aa2" letterSpacing={0.6}>
+          <Mono size={10} color="#6F6C66" letterSpacing={0.6}>
             ACTIVE WORK ORDER
           </Mono>
           <Text style={[styles.heroOrderNo, { color: BRAND.amber }]}>{order.order_no}</Text>
@@ -173,10 +173,10 @@ function ActiveOrderHero({ order, onOpen }: { order: WorkOrder; onOpen: () => vo
 
       <View style={styles.heroProgressBlock}>
         <View style={styles.heroProgressRow}>
-          <Mono size={11} color="#9a9aa2">
+          <Mono size={11} color="#6F6C66">
             {`${produced}/${planned} produced`}
           </Mono>
-          <Mono size={11} color="#eaeaea">{`${pct}%`}</Mono>
+          <Mono size={11} color="#1A1917">{`${pct}%`}</Mono>
         </View>
         <View style={styles.heroBarTrack}>
           <View style={[styles.heroBarFill, { width: `${pct}%` }]} />
@@ -483,10 +483,10 @@ const styles = StyleSheet.create({
   heroAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 2 },
   heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   heroOrderNo: { fontSize: 18, fontWeight: '700', fontFamily: MONO, letterSpacing: 0.4, marginTop: 6 },
-  heroProduct: { color: '#eaeaea', fontSize: 15, marginTop: 2 },
+  heroProduct: { color: '#1A1917', fontSize: 15, marginTop: 2 },
   heroProgressBlock: { gap: 6 },
   heroProgressRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  heroBarTrack: { height: 6, backgroundColor: '#26262d', borderRadius: 1, overflow: 'hidden' },
+  heroBarTrack: { height: 6, backgroundColor: '#E6E4DE', borderRadius: 1, overflow: 'hidden' },
   heroBarFill: { height: '100%', backgroundColor: BRAND.amber },
   heroBtn: {
     height: 50,

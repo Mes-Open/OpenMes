@@ -394,8 +394,8 @@ function ResultInput({
     return (
       <View style={styles.boolRow}>
         {[
-          { v: true, label: 'PASS', color: '#1f9d6c' },
-          { v: false, label: 'FAIL', color: '#dc2626' },
+          { v: true, label: 'PASS', color: '#1C9A55' },
+          { v: false, label: 'FAIL', color: '#D6442F' },
         ].map((opt) => {
           const on = draft.value_boolean === opt.v;
           return (

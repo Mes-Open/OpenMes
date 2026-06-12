@@ -24,9 +24,9 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 const SEVERITY_OPTIONS = [
-  { id: 'minor', label: 'Minor', color: '#f5a524' },
+  { id: 'minor', label: 'Minor', color: '#EA5A2B' },
   { id: 'major', label: 'Major', color: '#f97316' },
-  { id: 'block', label: 'Block', color: '#ef4444' },
+  { id: 'block', label: 'Block', color: '#D6442F' },
 ] as const;
 
 export function NewIssueScreen() {
@@ -124,7 +124,7 @@ export function NewIssueScreen() {
                     style={({ pressed }) => [
                       styles.catCard,
                       {
-                        backgroundColor: active ? '#fbe9c8' : palette.surface,
+                        backgroundColor: active ? '#FAF0DD' : palette.surface,
                         borderColor: active ? BRAND.amber : palette.border,
                         opacity: pressed ? 0.85 : 1,
                       },

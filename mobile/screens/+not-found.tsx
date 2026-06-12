@@ -20,7 +20,7 @@ export function NotFoundScreen() {
         </View>
 
         <View style={styles.body}>
-          <View style={[styles.iconBadge, { backgroundColor: '#fbe9c8' }]}>
+          <View style={[styles.iconBadge, { backgroundColor: '#FAF0DD' }]}>
             <FontAwesome name="compass" size={28} color={BRAND.amber} />
           </View>
           <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>

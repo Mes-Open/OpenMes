@@ -99,7 +99,7 @@ export function PackagingChecklistCard({ batchId }: Props) {
               style={({ pressed }) => [
                 styles.itemRow,
                 {
-                  backgroundColor: checked ? '#fbe9c8' : palette.surface,
+                  backgroundColor: checked ? '#FAF0DD' : palette.surface,
                   borderColor: checked ? BRAND.amber : palette.border,
                   opacity: pressed ? 0.85 : 1,
                 },

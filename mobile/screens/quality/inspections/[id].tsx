@@ -26,9 +26,9 @@ import type {
 
 const STATUS_COLOR: Record<InspectionStatus, string> = {
   pending: BRAND.amber,
-  pass: '#1f9d6c',
-  fail: '#dc2626',
-  conditional_pass: '#3a6ed6',
+  pass: '#1C9A55',
+  fail: '#D6442F',
+  conditional_pass: '#EA5A2B',
 };
 
 /**
@@ -224,13 +224,13 @@ const DISPOSITION_OPTIONS: Array<{
   icon: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }> = [
-  { action: 'accept', label: 'Release', icon: 'check-circle', color: '#1f9d6c' },
-  { action: 'accept_with_deviation', label: 'Release w/ deviation', icon: 'exclamation-circle', color: '#3a6ed6' },
+  { action: 'accept', label: 'Release', icon: 'check-circle', color: '#1C9A55' },
+  { action: 'accept_with_deviation', label: 'Release w/ deviation', icon: 'exclamation-circle', color: '#EA5A2B' },
   { action: 'rework', label: 'Rework', icon: 'refresh', color: BRAND.amber },
   { action: 'quarantine', label: 'Quarantine', icon: 'lock', color: '#8a5a0e' },
   { action: 'return_to_supplier', label: 'Return to supplier', icon: 'reply', color: '#7c3aed' },
-  { action: 'scrap', label: 'Scrap', icon: 'trash', color: '#dc2626' },
-  { action: 'reject', label: 'Reject', icon: 'times-circle', color: '#dc2626' },
+  { action: 'scrap', label: 'Scrap', icon: 'trash', color: '#D6442F' },
+  { action: 'reject', label: 'Reject', icon: 'times-circle', color: '#D6442F' },
 ];
 
 function ResultRow({

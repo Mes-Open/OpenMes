@@ -31,10 +31,10 @@ type SeverityId = AlertSeverity;
 const SEVERITY_ORDER: SeverityId[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
 const SEVERITY_COLOR: Record<SeverityId, string> = {
-  CRITICAL: '#dc2626',
+  CRITICAL: '#D6442F',
   HIGH: '#f97316',
-  MEDIUM: '#f5a524',
-  LOW: '#3a6ed6',
+  MEDIUM: '#EA5A2B',
+  LOW: '#EA5A2B',
 };
 
 const TYPE_ICON: Record<AlertType, React.ComponentProps<typeof FontAwesome>['name']> = {

@@ -150,7 +150,7 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
                         style={[
                           styles.roleTile,
                           {
-                            backgroundColor: active ? '#1d1d22' : palette.surface,
+                            backgroundColor: active ? '#F1EFEA' : palette.surface,
                             borderColor: active ? palette.text : palette.border,
                           },
                         ]}>
@@ -164,7 +164,7 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
                         {sub ? (
                           <Mono
                             size={9.5}
-                            color={active ? '#9a9aa2' : palette.textFaint}
+                            color={active ? '#6F6C66' : palette.textFaint}
                             letterSpacing={0.5}
                             style={{ marginTop: 4 }}>
                             {sub}
@@ -221,7 +221,7 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
       {mode === 'create' ? (
         <>
           <SectionLabel>Credentials</SectionLabel>
-          <View style={[styles.tempPwCard, { backgroundColor: '#fbe9c8', borderColor: '#e8c179' }]}>
+          <View style={[styles.tempPwCard, { backgroundColor: '#FAF0DD', borderColor: '#e8c179' }]}>
             <FontAwesome name="key" size={16} color="#a8650a" style={{ marginTop: 2 }} />
             <View style={{ flex: 1 }}>
               <Text style={styles.tempPwBody}>
