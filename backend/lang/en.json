@@ -3328,5 +3328,10 @@
     "Orders to pack": "Orders to pack",
     ":count items": ":count items",
     "No orders with assigned EAN codes": "No orders with assigned EAN codes",
-    "No scans this shift": "No scans this shift"
+    "No scans this shift": "No scans this shift",
+    "Absences": "Absences",
+    "Absence recorded successfully.": "Absence recorded successfully.",
+    "Absence updated successfully.": "Absence updated successfully.",
+    "Absence deleted successfully.": "Absence deleted successfully.",
+    "This worker already has an absence that overlaps these dates.": "This worker already has an absence that overlaps these dates."
 }

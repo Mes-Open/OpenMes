@@ -52,6 +52,7 @@ class CollectionBroadcaster
             'companies' => [Models\Company::class, null],
             'cost_sources' => [Models\CostSource::class, null],
             'wage_groups' => [Models\WageGroup::class, null],
+            'worker_absences' => [Models\WorkerAbsence::class, null],
             'factories' => [Models\Factory::class, null],
             'divisions' => [Models\Division::class, null],
             'areas' => [Models\Area::class, null],

@@ -54,6 +54,10 @@ class ShapeRegistry
             'table' => 'wage_groups',
             'columns' => ['id', 'code', 'name', 'description', 'base_hourly_rate', 'currency', 'is_active', 'created_at', 'updated_at'],
         ],
+        'worker_absences' => [
+            'table' => 'worker_absences',
+            'columns' => ['id', 'worker_id', 'type', 'starts_on', 'ends_on', 'all_day', 'start_time', 'end_time', 'status', 'reason', 'created_by_id', 'created_at', 'updated_at'],
+        ],
         'factories' => [
             'table' => 'factories',
             'columns' => ['id', 'code', 'name', 'description', 'is_active', 'created_at', 'updated_at'],

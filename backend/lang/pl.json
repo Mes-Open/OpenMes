@@ -3328,5 +3328,10 @@
     "Orders to pack": "Zlecenia do spakowania",
     ":count items": ":count pozycji",
     "No orders with assigned EAN codes": "Brak zleceń z przypisanymi kodami EAN",
-    "No scans this shift": "Brak skanowań w tej zmianie"
+    "No scans this shift": "Brak skanowań w tej zmianie",
+    "Absences": "Nieobecności",
+    "Absence recorded successfully.": "Nieobecność zapisana.",
+    "Absence updated successfully.": "Nieobecność zaktualizowana.",
+    "Absence deleted successfully.": "Nieobecność usunięta.",
+    "This worker already has an absence that overlaps these dates.": "Ten pracownik ma już nieobecność nakładającą się na te daty."
 }

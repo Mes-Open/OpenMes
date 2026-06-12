@@ -1478,5 +1478,10 @@
     "Something went wrong on our end. Please try again.": "Tarafımızda bir şeyler ters gitti. Lütfen tekrar deneyin.",
     "The service is temporarily unavailable. Please try again shortly.": "Hizmet geçici olarak kullanılamıyor. Lütfen kısa süre sonra tekrar deneyin.",
     "Back to dashboard": "Panoya dön",
-    "Try again": "Tekrar dene"
+    "Try again": "Tekrar dene",
+    "Absences": "Devamsızlıklar",
+    "Absence recorded successfully.": "Devamsızlık kaydedildi.",
+    "Absence updated successfully.": "Devamsızlık güncellendi.",
+    "Absence deleted successfully.": "Devamsızlık silindi.",
+    "This worker already has an absence that overlaps these dates.": "Bu çalışanın bu tarihlerle çakışan bir devamsızlığı zaten var."
 }
