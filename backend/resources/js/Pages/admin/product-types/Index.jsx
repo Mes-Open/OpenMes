@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Product Types — card grid. A faithful React port of the original
@@ -30,17 +31,17 @@ export default function ProductTypesIndex() {
         router.post(`/admin/product-types/${pt.id}/toggle-active`, {}, { preserveScroll: true });
 
     const destroy = (pt) => {
-        if (confirm(`Are you sure you want to delete "${pt.name}"?`)) {
+        if (confirm(__('Are you sure you want to delete ":name"?', { name: pt.name }))) {
             router.delete(`/admin/product-types/${pt.id}`, { preserveScroll: true });
         }
     };
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="Product Types" />
+            <Head title={__('Product Types')} />
 
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Product Types</h1>
+                <h1 className="text-3xl font-bold text-gray-800">{__('Product Types')}</h1>
                 <div className="flex items-center gap-2">
                     <Link
                         href="/admin/csv-import"
@@ -49,12 +50,12 @@ export default function ProductTypesIndex() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                         </svg>
-                        Import
+                        {__('Import')}
                     </Link>
                     <a
                         href="/admin/import-example/product-types"
                         className="w-6 h-6 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold hover:bg-blue-100 hover:text-blue-600 transition"
-                        title="Download example CSV file for product types import"
+                        title={__('Download example CSV file for product types import')}
                     >
                         ?
                     </a>
@@ -62,7 +63,7 @@ export default function ProductTypesIndex() {
                         <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        Add Product Type
+                        {__('Add Product Type')}
                     </Link>
                 </div>
             </div>
@@ -83,14 +84,14 @@ export default function ProductTypesIndex() {
                                             <div className="flex items-center gap-2 mb-1">
                                                 <h3 className="text-lg font-bold text-gray-800">{pt.name}</h3>
                                                 {pt.is_active ? (
-                                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Active</span>
+                                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">{__('Active')}</span>
                                                 ) : (
-                                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Inactive</span>
+                                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">{__('Inactive')}</span>
                                                 )}
                                             </div>
                                             <p className="text-sm text-gray-500 font-mono">{pt.code}</p>
                                             {pt.unit_of_measure && (
-                                                <p className="text-xs text-gray-600 mt-1">Unit: {pt.unit_of_measure}</p>
+                                                <p className="text-xs text-gray-600 mt-1">{__('Unit:')} {pt.unit_of_measure}</p>
                                             )}
                                         </div>
                                     </div>
@@ -103,11 +104,11 @@ export default function ProductTypesIndex() {
                                     <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
                                         <div className="text-center">
                                             <p className="text-2xl font-bold text-blue-600">{templates}</p>
-                                            <p className="text-xs text-gray-600">Templates</p>
+                                            <p className="text-xs text-gray-600">{__('Templates')}</p>
                                         </div>
                                         <div className="text-center">
                                             <p className="text-2xl font-bold text-purple-600">{workOrders}</p>
-                                            <p className="text-xs text-gray-600">Work Orders</p>
+                                            <p className="text-xs text-gray-600">{__('Work Orders')}</p>
                                         </div>
                                     </div>
 
@@ -117,13 +118,13 @@ export default function ProductTypesIndex() {
                                             href={`/admin/product-types/${pt.id}`}
                                             className="flex-1 btn-touch btn-secondary text-center text-sm"
                                         >
-                                            View Details
+                                            {__('View Details')}
                                         </Link>
                                         <Link
                                             href={`/admin/product-types/${pt.id}/edit`}
                                             className="text-blue-600 hover:text-blue-800 p-2"
-                                            title="Edit"
-                                            aria-label="Edit"
+                                            title={__('Edit')}
+                                            aria-label={__('Edit')}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -133,8 +134,8 @@ export default function ProductTypesIndex() {
                                             type="button"
                                             onClick={() => toggleActive(pt)}
                                             className="text-gray-600 hover:text-gray-800 p-2"
-                                            title={pt.is_active ? 'Deactivate' : 'Activate'}
-                                            aria-label={pt.is_active ? 'Deactivate' : 'Activate'}
+                                            title={pt.is_active ? __('Deactivate') : __('Activate')}
+                                            aria-label={pt.is_active ? __('Deactivate') : __('Activate')}
                                         >
                                             {pt.is_active ? (
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,15 +152,15 @@ export default function ProductTypesIndex() {
                                                 type="button"
                                                 onClick={() => destroy(pt)}
                                                 className="text-red-600 hover:text-red-800 p-2"
-                                                title="Delete"
-                                                aria-label="Delete"
+                                                title={__('Delete')}
+                                                aria-label={__('Delete')}
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                 </svg>
                                             </button>
                                         ) : (
-                                            <span className="text-gray-300 p-2" title="Cannot delete - has templates or work orders">
+                                            <span className="text-gray-300 p-2" title={__('Cannot delete - has templates or work orders')}>
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                 </svg>
@@ -176,7 +177,7 @@ export default function ProductTypesIndex() {
                         <div className="card">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600">Total Product Types</p>
+                                    <p className="text-sm text-gray-600">{__('Total Product Types')}</p>
                                     <p className="text-2xl font-bold text-gray-900">{list.length}</p>
                                 </div>
                                 <div className="bg-blue-100 rounded-full p-3">
@@ -190,7 +191,7 @@ export default function ProductTypesIndex() {
                         <div className="card">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600">Active Types</p>
+                                    <p className="text-sm text-gray-600">{__('Active Types')}</p>
                                     <p className="text-2xl font-bold text-green-600">{activeCount}</p>
                                 </div>
                                 <div className="bg-green-100 rounded-full p-3">
@@ -204,7 +205,7 @@ export default function ProductTypesIndex() {
                         <div className="card">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-600">Total Templates</p>
+                                    <p className="text-sm text-gray-600">{__('Total Templates')}</p>
                                     <p className="text-2xl font-bold text-gray-900">{totalTemplates}</p>
                                 </div>
                                 <div className="bg-purple-100 rounded-full p-3">
@@ -222,13 +223,13 @@ export default function ProductTypesIndex() {
                     <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
-                    <p className="text-lg font-medium text-gray-700">No product types yet</p>
-                    <p className="text-sm text-gray-500 mt-1 mb-4">Get started by creating your first product type.</p>
+                    <p className="text-lg font-medium text-gray-700">{__('No product types yet')}</p>
+                    <p className="text-sm text-gray-500 mt-1 mb-4">{__('Get started by creating your first product type.')}</p>
                     <Link href="/admin/product-types/create" className="inline-block btn-touch btn-primary">
                         <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        Create Product Type
+                        {__('Create Product Type')}
                     </Link>
                 </div>
             )}

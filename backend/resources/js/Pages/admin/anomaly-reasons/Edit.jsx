@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { ANOMALY_REASON_FIELDS } from './fields';
+import { anomalyReasonFields } from './fields';
 
 export default function AnomalyReasonEdit({ anomalyReason }) {
     return (
@@ -11,7 +11,7 @@ export default function AnomalyReasonEdit({ anomalyReason }) {
             <ResourceForm
                 action={`/admin/anomaly-reasons/${anomalyReason.id}`}
                 method="put"
-                fields={ANOMALY_REASON_FIELDS}
+                fields={anomalyReasonFields()}
                 initial={{
                     code: anomalyReason.code ?? '',
                     name: anomalyReason.name ?? '',

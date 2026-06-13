@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { ISSUE_TYPE_FIELDS } from './fields';
+import { issueTypeFields } from './fields';
 
 export default function IssueTypeEdit({ issueType }) {
     return (
@@ -11,7 +11,7 @@ export default function IssueTypeEdit({ issueType }) {
             <ResourceForm
                 action={`/admin/issue-types/${issueType.id}`}
                 method="put"
-                fields={ISSUE_TYPE_FIELDS}
+                fields={issueTypeFields()}
                 initial={{
                     code: issueType.code ?? '',
                     name: issueType.name ?? '',

@@ -712,7 +712,7 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
 
             {/* Actions */}
             <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-center gap-1">
+                <div className="flex items-center justify-center gap-3">
                     {!isDone && (
                         <button
                             type="button"
@@ -726,7 +726,7 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                                     produced,
                                 })
                             }
-                            className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow transition-colors"
+                            className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow transition-colors"
                             title="Add produced quantity"
                         >
                             +
@@ -735,7 +735,7 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                     <button
                         type="button"
                         onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-lg font-bold shadow transition-colors"
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-lg font-bold shadow transition-colors"
                         title="Report problem"
                     >
                         !
@@ -756,13 +756,13 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                                 description: wo.description ?? '-',
                             })
                         }
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-400 hover:bg-gray-500 text-white text-sm font-bold shadow transition-colors"
+                        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-400 hover:bg-gray-500 text-white text-sm font-bold shadow transition-colors"
                         title="Details"
                     >
                         ?
                     </button>
                     {labelTemplates.some((t) => t.type === 'work_order') && (
-                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label="Label" />
+                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label="Label" iconOnly />
                     )}
                 </div>
             </td>

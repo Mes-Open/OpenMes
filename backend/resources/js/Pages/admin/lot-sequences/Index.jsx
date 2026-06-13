@@ -1,37 +1,38 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
+import { __ } from '../../../lib/i18n';
 
 export default function LotSequencesIndex() {
     const { productTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'product_type', label: 'Product Type', className: 'text-gray-600', render: (r) => productTypeNames[r.product_type_id] ?? 'Global' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
+        { key: 'product_type', label: __('Product Type'), className: 'text-gray-600', render: (r) => productTypeNames[r.product_type_id] ?? __('Global') },
         {
             key: 'format',
-            label: 'Format',
+            label: __('Format'),
             className: 'font-mono text-gray-700',
             render: (r) => r.pattern || r.prefix,
         },
-        { key: 'next_number', label: 'Next #', className: 'text-gray-600' },
-        { key: 'pad_size', label: 'Pad', className: 'text-gray-600' },
+        { key: 'next_number', label: __('Next #'), className: 'text-gray-600' },
+        { key: 'pad_size', label: __('Pad'), className: 'text-gray-600' },
         {
             key: 'reset_period',
-            label: 'Reset',
+            label: __('Reset'),
             className: 'text-gray-600',
             render: (r) => (r.reset_period && r.reset_period !== 'none' ? r.reset_period : '—'),
         },
     ];
 
     const actions = (r) => [
-        { label: 'Edit', icon: 'edit', href: `/admin/lot-sequences/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', href: `/admin/lot-sequences/${r.id}/edit` },
         {
-            label: 'Delete',
+            label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
             onClick: () => {
-                if (confirm(`Delete LOT sequence "${r.name}"?`)) {
+                if (confirm(__('Delete LOT sequence ":name"?', { name: r.name }))) {
                     router.delete(`/admin/lot-sequences/${r.id}`, { preserveScroll: true });
                 }
             },
@@ -40,16 +41,16 @@ export default function LotSequencesIndex() {
 
     return (
         <>
-            <Head title="LOT Sequences" />
+            <Head title={__('LOT Sequences')} />
             <ResourceTable
                 shape="lot_sequences"
-                title="LOT Sequences"
+                title={__('LOT Sequences')}
                 createHref="/admin/lot-sequences/create"
-                createLabel="+ New Sequence"
+                createLabel={__('+ New Sequence')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
-                emptyText="No LOT sequences yet."
+                emptyText={__('No LOT sequences yet.')}
             />
         </>
     );

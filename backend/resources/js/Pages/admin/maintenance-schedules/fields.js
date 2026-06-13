@@ -1,7 +1,9 @@
+import { __ } from '../../../lib/i18n';
+
 const EVENT_TYPES = [
-    { value: 'planned', label: 'Planned' },
-    { value: 'corrective', label: 'Corrective' },
-    { value: 'inspection', label: 'Inspection' },
+    { value: 'planned', label: __('Planned') },
+    { value: 'corrective', label: __('Corrective') },
+    { value: 'inspection', label: __('Inspection') },
 ];
 
 const opt = (none, arr) => [
@@ -11,19 +13,19 @@ const opt = (none, arr) => [
 
 export function maintenanceScheduleFields({ tools = [], lines = [], workstations = [], costSources = [], users = [], frequencies = [] }) {
     return [
-        { name: 'name', label: 'Name', required: true },
-        { name: 'description', label: 'Description', type: 'textarea' },
-        { name: 'event_type', label: 'Event Type', type: 'select', required: true, options: EVENT_TYPES },
-        { name: 'tool_id', label: 'Tool', type: 'select', options: opt('— None —', tools) },
-        { name: 'line_id', label: 'Line', type: 'select', options: opt('— None —', lines) },
-        { name: 'workstation_id', label: 'Workstation', type: 'select', options: opt('— None —', workstations) },
-        { name: 'assigned_to_id', label: 'Assigned To', type: 'select', options: opt('— None —', users) },
-        { name: 'cost_source_id', label: 'Cost Source', type: 'select', options: opt('— None —', costSources) },
-        { name: 'frequency', label: 'Frequency', type: 'select', required: true, options: frequencies.map((f) => ({ value: f, label: f })) },
-        { name: 'interval_value', label: 'Interval Value', type: 'number', required: true },
-        { name: 'preferred_time', label: 'Preferred Time', type: 'time' },
-        { name: 'lead_time_days', label: 'Lead Time (days)', type: 'number' },
-        { name: 'next_due_at', label: 'Next Due At', type: 'datetime', required: true },
-        { name: 'is_active', label: 'Active', type: 'checkbox' },
+        { name: 'name', label: __('Name'), required: true },
+        { name: 'description', label: __('Description'), type: 'textarea' },
+        { name: 'event_type', label: __('Event Type'), type: 'select', required: true, options: EVENT_TYPES },
+        { name: 'tool_id', label: __('Tool'), type: 'select', options: opt(__('— None —'), tools) },
+        { name: 'line_id', label: __('Line'), type: 'select', options: opt(__('— None —'), lines) },
+        { name: 'workstation_id', label: __('Workstation'), type: 'select', options: opt(__('— None —'), workstations) },
+        { name: 'assigned_to_id', label: __('Assigned To'), type: 'select', options: opt(__('— None —'), users) },
+        { name: 'cost_source_id', label: __('Cost Source'), type: 'select', options: opt(__('— None —'), costSources) },
+        { name: 'frequency', label: __('Frequency'), type: 'select', required: true, options: frequencies.map((f) => ({ value: f, label: f })) },
+        { name: 'interval_value', label: __('Interval Value'), type: 'number', required: true },
+        { name: 'preferred_time', label: __('Preferred Time'), type: 'time' },
+        { name: 'lead_time_days', label: __('Lead Time (days)'), type: 'number' },
+        { name: 'next_due_at', label: __('Next Due At'), type: 'datetime', required: true },
+        { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
 }

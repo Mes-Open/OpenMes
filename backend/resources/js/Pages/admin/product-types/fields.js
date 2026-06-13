@@ -1,32 +1,34 @@
-export const PRODUCT_TYPE_FIELDS = [
+import { __ } from '../../../lib/i18n';
+
+export const productTypeFields = () => [
     {
         name: 'code',
-        label: 'Product Code',
+        label: __('Product Code'),
         required: true,
-        placeholder: 'e.g., WIDGET-A, PROD-001',
-        help: 'Unique identifier',
+        placeholder: __('e.g., WIDGET-A, PROD-001'),
+        help: __('Unique identifier'),
     },
     {
         name: 'name',
-        label: 'Product Name',
+        label: __('Product Name'),
         required: true,
-        placeholder: 'e.g., Widget Type A, Standard Component',
+        placeholder: __('e.g., Widget Type A, Standard Component'),
     },
     {
         name: 'description',
-        label: 'Description',
+        label: __('Description'),
         type: 'textarea',
-        placeholder: 'Optional description',
+        placeholder: __('Optional description'),
     },
     {
         name: 'unit_of_measure',
-        label: 'Unit of Measure',
-        placeholder: 'e.g., pcs, kg, m (optional)',
-        help: 'How this product is counted or measured',
+        label: __('Unit of Measure'),
+        placeholder: __('e.g., pcs, kg, m (optional)'),
+        help: __('How this product is counted or measured'),
     },
     {
         name: 'is_active',
-        label: 'Active (ready for production)',
+        label: __('Active (ready for production)'),
         type: 'checkbox',
     },
 ];

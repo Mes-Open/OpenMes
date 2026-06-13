@@ -1,48 +1,49 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import { __ } from '../../../lib/i18n';
 
 export default function LinesIndex() {
     const { counts = {}, areaNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: 'Code', className: 'font-mono text-gray-700' },
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'area', label: 'Area', className: 'text-gray-600', render: (r) => areaNames[r.area_id] ?? '—' },
-        { key: 'ws', label: 'Stations', render: (r) => counts[r.id]?.workstations ?? 0 },
-        { key: 'wo', label: 'Work Orders', render: (r) => counts[r.id]?.work_orders ?? 0 },
-        { key: 'ops', label: 'Operators', render: (r) => counts[r.id]?.operators ?? 0 },
-        { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
+        { key: 'area', label: __('Area'), className: 'text-gray-600', render: (r) => areaNames[r.area_id] ?? '—' },
+        { key: 'ws', label: __('Stations'), render: (r) => counts[r.id]?.workstations ?? 0 },
+        { key: 'wo', label: __('Work Orders'), render: (r) => counts[r.id]?.work_orders ?? 0 },
+        { key: 'ops', label: __('Operators'), render: (r) => counts[r.id]?.operators ?? 0 },
+        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
-        { label: 'Configure', href: `/admin/lines/${r.id}` },
-        { label: 'Edit', icon: 'edit', href: `/admin/lines/${r.id}/edit` },
+        { label: __('Configure'), href: `/admin/lines/${r.id}` },
+        { label: __('Edit'), icon: 'edit', href: `/admin/lines/${r.id}/edit` },
         {
-            label: r.is_active ? 'Deactivate' : 'Activate',
+            label: r.is_active ? __('Deactivate') : __('Activate'),
             icon: r.is_active ? 'deactivate' : 'activate',
             onClick: () => router.post(`/admin/lines/${r.id}/toggle-active`, {}, { preserveScroll: true }),
         },
         {
-            label: 'Delete',
+            label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => { if (confirm(`Delete line "${r.name}"? (only if it has no work orders)`)) router.delete(`/admin/lines/${r.id}`, { preserveScroll: true }); },
+            onClick: () => { if (confirm(__('Delete line ":name"? (only if it has no work orders)', { name: r.name }))) router.delete(`/admin/lines/${r.id}`, { preserveScroll: true }); },
         },
     ];
 
     return (
         <>
-            <Head title="Production Lines" />
+            <Head title={__('Production Lines')} />
             <ResourceTable
                 shape="lines_all"
-                title="Production Lines"
+                title={__('Production Lines')}
                 createHref="/admin/lines/create"
-                createLabel="+ New Line"
+                createLabel={__('+ New Line')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
-                emptyText="No production lines yet."
+                emptyText={__('No production lines yet.')}
             />
         </>
     );

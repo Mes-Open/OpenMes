@@ -1,25 +1,27 @@
-export const ISSUE_TYPE_FIELDS = [
-    { name: 'code', label: 'Code', required: true },
-    { name: 'name', label: 'Name', required: true },
+import { __ } from '../../../lib/i18n';
+
+export const issueTypeFields = () => [
+    { name: 'code', label: __('Code'), required: true },
+    { name: 'name', label: __('Name'), required: true },
     {
         name: 'severity',
-        label: 'Severity',
+        label: __('Severity'),
         type: 'select',
         required: true,
         options: [
-            { value: 'LOW', label: 'Low' },
-            { value: 'MEDIUM', label: 'Medium' },
-            { value: 'HIGH', label: 'High' },
-            { value: 'CRITICAL', label: 'Critical' },
+            { value: 'LOW', label: __('Low') },
+            { value: 'MEDIUM', label: __('Medium') },
+            { value: 'HIGH', label: __('High') },
+            { value: 'CRITICAL', label: __('Critical') },
         ],
     },
-    { name: 'is_blocking', label: 'Blocking', type: 'checkbox' },
-    { name: 'is_active', label: 'Active', type: 'checkbox' },
+    { name: 'is_blocking', label: __('Blocking'), type: 'checkbox' },
+    { name: 'is_active', label: __('Active'), type: 'checkbox' },
 ];
 
 export const SEVERITY_LABELS = {
-    LOW: 'Low',
-    MEDIUM: 'Medium',
-    HIGH: 'High',
-    CRITICAL: 'Critical',
+    LOW: __('Low'),
+    MEDIUM: __('Medium'),
+    HIGH: __('High'),
+    CRITICAL: __('Critical'),
 };

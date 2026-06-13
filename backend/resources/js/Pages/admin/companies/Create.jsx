@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { COMPANY_FIELDS } from './fields';
+import { companyFields } from './fields';
 
 export default function CompanyCreate() {
     return (
@@ -11,7 +11,7 @@ export default function CompanyCreate() {
             <ResourceForm
                 action="/admin/companies"
                 method="post"
-                fields={COMPANY_FIELDS}
+                fields={companyFields()}
                 initial={{ code: '', name: '', tax_id: '', type: 'supplier', email: '', phone: '', address: '', is_active: true }}
                 submitLabel="Create"
                 cancelHref="/admin/companies"

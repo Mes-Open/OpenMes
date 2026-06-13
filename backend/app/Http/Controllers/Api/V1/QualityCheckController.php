@@ -95,6 +95,10 @@ class QualityCheckController extends Controller
         ]);
 
         $validated['process_template_id'] = $processTemplateId;
+        // These columns are NOT NULL DEFAULT 3; a null in the payload would be
+        // inserted explicitly and trip the constraint, so restore the defaults.
+        $validated['min_checks_per_batch'] ??= 3;
+        $validated['samples_per_check'] ??= 3;
 
         $template = QualityCheckTemplate::create($validated);
 
@@ -118,6 +122,11 @@ class QualityCheckController extends Controller
             'parameters.*.min' => 'nullable|numeric',
             'parameters.*.max' => 'nullable|numeric',
         ]);
+
+        // NOT NULL DEFAULT 3 columns — preserve existing values if the payload
+        // sends an explicit null rather than omitting them.
+        $validated['min_checks_per_batch'] ??= $qualityCheckTemplate->min_checks_per_batch;
+        $validated['samples_per_check'] ??= $qualityCheckTemplate->samples_per_check;
 
         $qualityCheckTemplate->update($validated);
 

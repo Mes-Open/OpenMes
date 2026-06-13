@@ -1,17 +1,19 @@
-export const INTEGRATION_FIELDS = [
+import { __ } from '../../../lib/i18n';
+
+export const integrationFields = () => [
     {
         name: 'system_type',
-        label: 'System Type',
+        label: __('System Type'),
         required: true,
         type: 'select',
         options: [
-            { value: '', label: 'Select...' },
+            { value: '', label: __('Select...') },
             { value: 'subiekt_gt', label: 'Subiekt GT' },
             { value: 'subiekt_nexo', label: 'Subiekt nexo' },
             { value: 'wms', label: 'WMS' },
-            { value: 'erp_custom', label: 'Custom ERP' },
+            { value: 'erp_custom', label: __('Custom ERP') },
         ],
     },
-    { name: 'system_name', label: 'System Name', required: true },
-    { name: 'is_active', label: 'Active', type: 'checkbox' },
+    { name: 'system_name', label: __('System Name'), required: true },
+    { name: 'is_active', label: __('Active'), type: 'checkbox' },
 ];
