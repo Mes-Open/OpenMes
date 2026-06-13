@@ -26,6 +26,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - **Packing station now follows the configured Shifts**: the station's "this shift" window (packed-count / history / stats) is derived from `Shift::current()` (admin → **Shifts**) instead of a hard-coded 06:00–18:00 / 18:00–06:00 split — including overnight shifts — falling back to the fixed split only when no shift is configured. The station header shows the active shift's name and window.
 
+### Fixed
+- **Demo seeder crash (#73)**: `OeeAndDowntimeDemoSeeder` still inserted downtime reasons with the removed `is_planned` column (replaced by `kind`), so `DemoDataSeeder` aborted with a PostgreSQL "undefined column" error and demo OEE/downtime data was never created. It now writes `kind` (`planned` / `unplanned` / `changeover`). Regression test added.
+
 ---
 
 ## [0.14.5] - 2026-06-12
