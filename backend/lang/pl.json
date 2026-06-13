@@ -3348,5 +3348,8 @@
     "Trash is empty.": "Kosz jest pusty.",
     "Deleted items are kept here and can be restored. Restoring also brings back records deleted together with the item.": "Usunięte elementy trafiają tutaj i można je przywrócić. Przywrócenie odzyskuje też rekordy usunięte razem z elementem.",
     "Restore this item (and records deleted with it)?": "Przywrócić ten element (wraz z rekordami usuniętymi razem z nim)?",
-    "Item restored (including related records deleted with it).": "Element przywrócony (wraz z powiązanymi rekordami usuniętymi razem z nim)."
+    "Item restored (including related records deleted with it).": "Element przywrócony (wraz z powiązanymi rekordami usuniętymi razem z nim).",
+    "Scrap Overview": "Przegląd braków",
+    "Total scrap and top reason (30-day window)": "Suma braków i główna przyczyna (okno 30 dni)",
+    "Scrap (30 days)": "Braki (30 dni)"
 }

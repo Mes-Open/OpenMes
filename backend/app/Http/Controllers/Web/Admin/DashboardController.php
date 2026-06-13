@@ -9,6 +9,7 @@ use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\OeeRecord;
 use App\Services\Production\OeeCalculationService;
+use App\Services\Scrap\ScrapReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -62,6 +63,7 @@ class DashboardController extends Controller
             // them on demand once we wire that up.
             'inboundQcStats' => fn () => $this->inboundQcStats($enabledWidgets),
             'materialsStats' => fn () => $this->materialsStats($enabledWidgets),
+            'scrapStats' => fn () => $this->scrapStats($enabledWidgets),
         ]);
     }
 
@@ -103,6 +105,31 @@ class DashboardController extends Controller
             'reserved_total' => (float) Material::sum('reserved_quantity'),
             'lots_total' => MaterialLot::where('status', MaterialLot::STATUS_RELEASED)->count(),
             'quarantined_count' => MaterialLot::where('status', MaterialLot::STATUS_QUARANTINE)->count(),
+        ];
+    }
+
+    /**
+     * Total scrap (and the top reason) over the trailing 30 days. Reuses
+     * ScrapReportService::pareto() so this matches the Scrap Reports page maths.
+     */
+    private function scrapStats(array $enabledWidgets): ?array
+    {
+        if (! in_array('scrap_overview', $enabledWidgets, true)) {
+            return null;
+        }
+
+        $pareto = app(ScrapReportService::class)->pareto(
+            now()->subDays(29)->startOfDay(),
+            now()->endOfDay(),
+        );
+
+        $top = $pareto['reasons'][0] ?? null;
+
+        return [
+            'total_qty_30d' => $pareto['total_qty'],
+            'entries_30d' => $pareto['total_entries'],
+            'top_reason' => $top['name'] ?? null,
+            'top_reason_qty' => $top['qty'] ?? null,
         ];
     }
 }

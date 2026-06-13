@@ -3348,5 +3348,8 @@
     "Trash is empty.": "Trash is empty.",
     "Deleted items are kept here and can be restored. Restoring also brings back records deleted together with the item.": "Deleted items are kept here and can be restored. Restoring also brings back records deleted together with the item.",
     "Restore this item (and records deleted with it)?": "Restore this item (and records deleted with it)?",
-    "Item restored (including related records deleted with it).": "Item restored (including related records deleted with it)."
+    "Item restored (including related records deleted with it).": "Item restored (including related records deleted with it).",
+    "Scrap Overview": "Scrap Overview",
+    "Total scrap and top reason (30-day window)": "Total scrap and top reason (30-day window)",
+    "Scrap (30 days)": "Scrap (30 days)"
 }
