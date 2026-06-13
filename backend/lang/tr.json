@@ -1491,5 +1491,7 @@
     "This crew already has a break window that overlaps these times.": "Bu ekibin bu saatlerle çakışan bir mola penceresi zaten var.",
     "Scrap Overview": "Hurda Genel Bakış",
     "Total scrap and top reason (30-day window)": "Toplam hurda ve başlıca neden (30 günlük pencere)",
-    "Scrap (30 days)": "Hurda (30 gün)"
+    "Scrap (30 days)": "Hurda (30 gün)",
+    "Mark a step as the default variant only when it belongs to a variant group.": "Bir adımı varsayılan varyant olarak yalnızca bir varyant grubuna aitse işaretleyin.",
+    "This variant group already has a default step.": "Bu varyant grubunun zaten bir varsayılan adımı var."
 }

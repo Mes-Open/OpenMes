@@ -87,6 +87,9 @@ class ProcessTemplate extends Model
                     'estimated_duration_minutes' => $step->estimated_duration_minutes,
                     'workstation_id' => $step->workstation_id,
                     'workstation_name' => $step->workstation?->name,
+                    'is_optional' => (bool) $step->is_optional,
+                    'variant_group' => $step->variant_group,
+                    'is_default_variant' => (bool) $step->is_default_variant,
                 ];
             })->toArray(),
             'bom' => $this->bomItems->map(function ($item) {

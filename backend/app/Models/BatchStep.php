@@ -29,6 +29,9 @@ class BatchStep extends Model
         'instruction',
         'workstation_id',
         'status',
+        'is_optional',
+        'variant_group',
+        'skip_reason',
         'started_at',
         'completed_at',
         'confirmed_at',
@@ -42,6 +45,7 @@ class BatchStep extends Model
     {
         return [
             'step_number' => 'integer',
+            'is_optional' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'confirmed_at' => 'datetime',
@@ -137,6 +141,24 @@ class BatchStep extends Model
     public function canComplete(): bool
     {
         return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    /**
+     * Can this step be skipped? Only optional steps or members of a variant
+     * group, and only while still pending/in progress.
+     */
+    public function canSkip(): bool
+    {
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_IN_PROGRESS], true)
+            && ($this->is_optional || $this->variant_group !== null);
+    }
+
+    /** Other steps in the same variant group within this batch (excludes self). */
+    public function variantSiblings()
+    {
+        return $this->batch->steps()
+            ->where('variant_group', $this->variant_group)
+            ->where('id', '!=', $this->id);
     }
 
     /**

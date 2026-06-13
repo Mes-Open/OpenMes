@@ -111,6 +111,70 @@ class BatchService
     }
 
     /**
+     * Skip an optional step (or a variant-group member). Records who/when and an
+     * optional reason. Sequential enforcement already treats SKIPPED like DONE,
+     * so the next step unblocks.
+     *
+     * @throws \Exception
+     */
+    public function skipStep(BatchStep $step, User $user, ?string $reason = null): BatchStep
+    {
+        return DB::transaction(function () use ($step, $user, $reason) {
+            $this->guardWorkstationRouting($step, $user);
+
+            if (! $step->canSkip()) {
+                throw new \Exception('This step is required and cannot be skipped.');
+            }
+
+            $step->update([
+                'status' => BatchStep::STATUS_SKIPPED,
+                'skip_reason' => $reason,
+                'completed_at' => now(),
+                'completed_by_id' => $user->id,
+            ]);
+
+            $this->updateBatchStatus($step->batch);
+            $this->workOrderService->updateWorkOrderStatus($step->batch->workOrder);
+
+            return $step->fresh();
+        });
+    }
+
+    /**
+     * Choose a variant within a group: activate this step and skip its siblings.
+     * Lets the operator override the template's default variant.
+     *
+     * @throws \Exception
+     */
+    public function chooseVariant(BatchStep $step, User $user): BatchStep
+    {
+        return DB::transaction(function () use ($step, $user) {
+            if ($step->variant_group === null) {
+                throw new \Exception('This step is not part of a variant group.');
+            }
+
+            if ($step->status === BatchStep::STATUS_DONE) {
+                throw new \Exception('This variant is already completed.');
+            }
+
+            // Activate the chosen variant, skip every sibling not already done.
+            $step->update(['status' => BatchStep::STATUS_PENDING, 'skip_reason' => null]);
+
+            $step->variantSiblings()
+                ->where('status', '!=', BatchStep::STATUS_DONE)
+                ->update([
+                    'status' => BatchStep::STATUS_SKIPPED,
+                    'completed_at' => now(),
+                    'completed_by_id' => $user->id,
+                ]);
+
+            $this->updateBatchStatus($step->batch);
+
+            return $step->fresh();
+        });
+    }
+
+    /**
      * Report a problem on a step (creates an issue).
      *
      * @return \App\Models\Issue

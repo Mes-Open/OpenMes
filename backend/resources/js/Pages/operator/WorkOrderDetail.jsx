@@ -676,6 +676,24 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
         );
     };
 
+    const handleSkip = (step) => {
+        const reason = window.prompt('Reason for skipping this step (optional):');
+        if (reason === null) return; // cancelled
+        setInflightStepId(step.id);
+        router.post(
+            `/operator/batch-step/${step.id}/skip`,
+            { skip_reason: reason },
+            {
+                preserveScroll: true,
+                onFinish: () => setInflightStepId(null),
+            }
+        );
+    };
+
+    const canSkip = (step) =>
+        (step.is_optional || step.variant_group) &&
+        (step.status === 'PENDING' || step.status === 'IN_PROGRESS');
+
     return (
         <div>
             <h4 className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Steps</h4>
@@ -705,6 +723,12 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                             )}
                             <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                                 {step.name}
+                                {step.is_optional && (
+                                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 align-middle">Optional</span>
+                                )}
+                                {step.variant_group && (
+                                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700 align-middle">{step.variant_group}</span>
+                                )}
                             </span>
 
                             {/* Status label for terminal states */}
@@ -715,6 +739,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                             )}
                             {step.status === 'SKIPPED' && (
                                 <span className="text-xs text-gray-400 whitespace-nowrap">Skipped</span>
+                            )}
+                            {/* Re-select a skipped variant */}
+                            {step.status === 'SKIPPED' && step.variant_group && (
+                                <button
+                                    type="button"
+                                    disabled={isInflight}
+                                    onClick={() => handleStepAction(step, 'choose-variant')}
+                                    className="btn-touch bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-2 rounded-lg font-medium disabled:opacity-50 whitespace-nowrap"
+                                >
+                                    {isInflight ? '…' : 'Choose'}
+                                </button>
                             )}
                             {step.status === 'IN_PROGRESS' && !inflightStepId && (
                                 <span className="text-xs text-blue-600 whitespace-nowrap">
@@ -752,6 +787,18 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                                     className="btn-touch bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-lg font-medium disabled:opacity-50 whitespace-nowrap"
                                 >
                                     {isInflight ? '…' : 'Complete'}
+                                </button>
+                            )}
+
+                            {/* Skip — optional steps and variant alternatives */}
+                            {canSkip(step) && (
+                                <button
+                                    type="button"
+                                    disabled={isInflight}
+                                    onClick={() => handleSkip(step)}
+                                    className="btn-touch bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-200 text-sm px-3 py-2 rounded-lg font-medium disabled:opacity-50 whitespace-nowrap"
+                                >
+                                    {isInflight ? '…' : 'Skip'}
                                 </button>
                             )}
 

@@ -82,13 +82,29 @@ class Batch extends Model
     }
 
     /**
-     * Check if all steps are complete.
+     * Check if all steps are complete. Every step must be DONE or SKIPPED, and
+     * each variant group must have one executed (DONE) step — a fully-skipped
+     * group means no variant was chosen, so the batch isn't finished.
      */
     public function allStepsComplete(): bool
     {
-        return $this->steps()
+        $pending = $this->steps()
             ->whereNotIn('status', [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED])
-            ->count() === 0;
+            ->exists();
+
+        if ($pending) {
+            return false;
+        }
+
+        $variantSteps = $this->steps()->whereNotNull('variant_group')->get(['variant_group', 'status']);
+
+        foreach ($variantSteps->groupBy('variant_group') as $rows) {
+            if (! $rows->contains(fn ($s) => $s->status === BatchStep::STATUS_DONE)) {
+                return false; // a variant group with nothing executed
+            }
+        }
+
+        return true;
     }
 
     public function processConfirmations(): HasMany

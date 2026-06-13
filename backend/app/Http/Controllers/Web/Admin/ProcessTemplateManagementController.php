@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ProductType;
+use App\Http\Requests\Web\Admin\StoreTemplateStepRequest;
+use App\Http\Requests\Web\Admin\UpdateTemplateStepRequest;
 use App\Models\ProcessTemplate;
+use App\Models\ProductType;
 use App\Models\TemplateStep;
 use App\Models\Workstation;
 use Illuminate\Http\Request;
@@ -25,13 +27,13 @@ class ProcessTemplateManagementController extends Controller
 
         return Inertia::render('admin/process-templates/Index', [
             'productType' => $productType->only('id', 'name'),
-            'templates'   => $templates->map(fn($t) => [
-                'id'          => $t->id,
-                'name'        => $t->name,
-                'version'     => $t->version,
-                'is_active'   => (bool) $t->is_active,
+            'templates' => $templates->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'version' => $t->version,
+                'is_active' => (bool) $t->is_active,
                 'steps_count' => $t->steps_count,
-                'created_at'  => $t->created_at->format('Y-m-d H:i'),
+                'created_at' => $t->created_at->format('Y-m-d H:i'),
             ]),
         ]);
     }
@@ -79,12 +81,12 @@ class ProcessTemplateManagementController extends Controller
         }
 
         $processTemplate->load([
-            'steps' => fn($q) => $q->orderBy('step_number', 'asc'),
+            'steps' => fn ($q) => $q->orderBy('step_number', 'asc'),
             'steps.workstation.line',
             'steps.processSegment',
             'photos.uploadedBy',
         ]);
-        $workstations    = Workstation::active()->with('line')->orderBy('name')->get();
+        $workstations = Workstation::active()->with('line')->orderBy('name')->get();
         $processSegments = \App\Models\ProcessSegment::query()
             ->active()
             ->orderBy('segment_type')
@@ -92,55 +94,58 @@ class ProcessTemplateManagementController extends Controller
             ->get();
 
         return Inertia::render('admin/process-templates/Show', [
-            'productType'     => $processTemplate->productType->only('id', 'name'),
+            'productType' => $processTemplate->productType->only('id', 'name'),
             'processTemplate' => [
-                'id'         => $processTemplate->id,
-                'name'       => $processTemplate->name,
-                'version'    => $processTemplate->version,
-                'is_active'  => (bool) $processTemplate->is_active,
-                'steps'      => $processTemplate->steps->map(fn($s) => [
-                    'id'                          => $s->id,
-                    'step_number'                 => $s->step_number,
-                    'name'                        => $s->name,
-                    'instruction'                 => $s->instruction,
-                    'estimated_duration_minutes'  => $s->estimated_duration_minutes,
-                    'workstation_id'              => $s->workstation_id,
-                    'process_segment_id'          => $s->process_segment_id,
-                    'workstation'                 => $s->workstation ? [
-                        'id'        => $s->workstation->id,
-                        'name'      => $s->workstation->name,
+                'id' => $processTemplate->id,
+                'name' => $processTemplate->name,
+                'version' => $processTemplate->version,
+                'is_active' => (bool) $processTemplate->is_active,
+                'steps' => $processTemplate->steps->map(fn ($s) => [
+                    'id' => $s->id,
+                    'step_number' => $s->step_number,
+                    'name' => $s->name,
+                    'instruction' => $s->instruction,
+                    'estimated_duration_minutes' => $s->estimated_duration_minutes,
+                    'workstation_id' => $s->workstation_id,
+                    'process_segment_id' => $s->process_segment_id,
+                    'is_optional' => (bool) $s->is_optional,
+                    'variant_group' => $s->variant_group,
+                    'is_default_variant' => (bool) $s->is_default_variant,
+                    'workstation' => $s->workstation ? [
+                        'id' => $s->workstation->id,
+                        'name' => $s->workstation->name,
                         'line_name' => $s->workstation->line?->name,
                     ] : null,
-                    'process_segment'             => $s->processSegment ? [
-                        'id'   => $s->processSegment->id,
+                    'process_segment' => $s->processSegment ? [
+                        'id' => $s->processSegment->id,
                         'code' => $s->processSegment->code,
                     ] : null,
                 ]),
-                'photos'     => $processTemplate->photos->map(fn($p) => [
-                    'id'            => $p->id,
+                'photos' => $processTemplate->photos->map(fn ($p) => [
+                    'id' => $p->id,
                     'template_step_id' => $p->template_step_id,
-                    'url'           => route('process-templates.photos.show', [$processTemplate, $p]),
+                    'url' => route('process-templates.photos.show', [$processTemplate, $p]),
                     'original_name' => $p->original_name,
-                    'caption'       => $p->caption,
-                    'width'         => $p->width,
-                    'height'        => $p->height,
-                    'file_size'     => $p->file_size_human ?? null,
-                    'uploaded_by'   => $p->uploadedBy?->name,
-                    'created_at'    => $p->created_at->format('Y-m-d H:i'),
+                    'caption' => $p->caption,
+                    'width' => $p->width,
+                    'height' => $p->height,
+                    'file_size' => $p->file_size_human ?? null,
+                    'uploaded_by' => $p->uploadedBy?->name,
+                    'created_at' => $p->created_at->format('Y-m-d H:i'),
                 ]),
             ],
-            'workstations'    => $workstations->map(fn($w) => [
-                'id'        => $w->id,
-                'name'      => $w->name,
+            'workstations' => $workstations->map(fn ($w) => [
+                'id' => $w->id,
+                'name' => $w->name,
                 'line_name' => $w->line?->name,
             ]),
-            'processSegments' => $processSegments->map(fn($s) => [
-                'id'           => $s->id,
-                'code'         => $s->code,
-                'name'         => $s->name,
+            'processSegments' => $processSegments->map(fn ($s) => [
+                'id' => $s->id,
+                'code' => $s->code,
+                'name' => $s->name,
                 'segment_type' => $s->segment_type,
-                'instruction'  => $s->standard_instruction,
-                'duration'     => $s->estimated_duration_minutes,
+                'instruction' => $s->standard_instruction,
+                'duration' => $s->estimated_duration_minutes,
             ]),
         ]);
     }
@@ -156,11 +161,11 @@ class ProcessTemplateManagementController extends Controller
         }
 
         return Inertia::render('admin/process-templates/Edit', [
-            'productType'     => $productType->only('id', 'name'),
+            'productType' => $productType->only('id', 'name'),
             'processTemplate' => [
-                'id'        => $processTemplate->id,
-                'name'      => $processTemplate->name,
-                'version'   => $processTemplate->version,
+                'id' => $processTemplate->id,
+                'name' => $processTemplate->name,
+                'version' => $processTemplate->version,
                 'is_active' => (bool) $processTemplate->is_active,
             ],
         ]);
@@ -221,7 +226,7 @@ class ProcessTemplateManagementController extends Controller
             abort(404);
         }
 
-        $processTemplate->update(['is_active' => !$processTemplate->is_active]);
+        $processTemplate->update(['is_active' => ! $processTemplate->is_active]);
 
         $status = $processTemplate->is_active ? 'activated' : 'deactivated';
 
@@ -232,20 +237,14 @@ class ProcessTemplateManagementController extends Controller
     /**
      * Add a step to the process template
      */
-    public function addStep(Request $request, ProductType $productType, ProcessTemplate $processTemplate)
+    public function addStep(StoreTemplateStepRequest $request, ProductType $productType, ProcessTemplate $processTemplate)
     {
         // Ensure template belongs to this product type
         if ($processTemplate->product_type_id !== $productType->id) {
             abort(404);
         }
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'instruction' => 'nullable|string',
-            'estimated_duration_minutes' => 'nullable|integer|min:0',
-            'workstation_id' => 'nullable|exists:workstations,id',
-            'process_segment_id' => 'nullable|exists:process_segments,id',
-        ]);
+        $validated = $this->stepPayload($request);
 
         // Get the next step number
         $maxStepNumber = $processTemplate->steps()->max('step_number') ?? 0;
@@ -261,25 +260,33 @@ class ProcessTemplateManagementController extends Controller
     /**
      * Update a step in the process template
      */
-    public function updateStep(Request $request, ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)
+    public function updateStep(UpdateTemplateStepRequest $request, ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)
     {
         // Ensure template belongs to this product type and step belongs to template
         if ($processTemplate->product_type_id !== $productType->id || $step->process_template_id !== $processTemplate->id) {
             abort(404);
         }
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'instruction' => 'nullable|string',
-            'estimated_duration_minutes' => 'nullable|integer|min:0',
-            'workstation_id' => 'nullable|exists:workstations,id',
-            'process_segment_id' => 'nullable|exists:process_segments,id',
-        ]);
-
-        $step->update($validated);
+        $step->update($this->stepPayload($request));
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $processTemplate])
             ->with('success', 'Step updated successfully.');
+    }
+
+    /**
+     * Build the validated step payload: coerce the booleans and drop the
+     * default-variant flag when the step isn't part of a variant group.
+     *
+     * @return array<string, mixed>
+     */
+    private function stepPayload(Request $request): array
+    {
+        $data = $request->validated();
+        $data['is_optional'] = $request->boolean('is_optional');
+        $data['variant_group'] = $request->filled('variant_group') ? $request->input('variant_group') : null;
+        $data['is_default_variant'] = $data['variant_group'] !== null && $request->boolean('is_default_variant');
+
+        return $data;
     }
 
     /**
@@ -315,7 +322,7 @@ class ProcessTemplateManagementController extends Controller
         }
 
         $validated = $request->validate([
-            'order'   => 'required|array|min:1',
+            'order' => 'required|array|min:1',
             'order.*' => 'integer',
         ]);
 
@@ -366,7 +373,7 @@ class ProcessTemplateManagementController extends Controller
             ->first();
 
         if ($previousStep) {
-            $origStep     = $step->step_number;
+            $origStep = $step->step_number;
             $origPrevious = $previousStep->step_number;
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => -1]);
             DB::table('template_steps')->where('id', $previousStep->id)->update(['step_number' => $origStep]);
@@ -399,8 +406,8 @@ class ProcessTemplateManagementController extends Controller
             ->first();
 
         if ($nextStep) {
-            $origStep     = $step->step_number;
-            $origNext     = $nextStep->step_number;
+            $origStep = $step->step_number;
+            $origNext = $nextStep->step_number;
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => -1]);
             DB::table('template_steps')->where('id', $nextStep->id)->update(['step_number' => $origStep]);
             DB::table('template_steps')->where('id', $step->id)->update(['step_number' => $origNext]);

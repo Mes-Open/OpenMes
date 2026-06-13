@@ -3434,5 +3434,7 @@
     "Item restored (including related records deleted with it).": "Element przywrócony (wraz z powiązanymi rekordami usuniętymi razem z nim).",
     "Scrap Overview": "Przegląd braków",
     "Total scrap and top reason (30-day window)": "Suma braków i główna przyczyna (okno 30 dni)",
-    "Scrap (30 days)": "Braki (30 dni)"
+    "Scrap (30 days)": "Braki (30 dni)",
+    "Mark a step as the default variant only when it belongs to a variant group.": "Oznacz krok jako domyślny wariant tylko gdy należy do grupy wariantów.",
+    "This variant group already has a default step.": "Ta grupa wariantów ma już domyślny krok."
 }

@@ -16,6 +16,51 @@ function Icon({ d, className = 'w-5 h-5' }) {
 /* ------------------------------------------------------------------ */
 /* Add-step inline form                                                  */
 /* ------------------------------------------------------------------ */
+
+/* Shared "optional / variant" controls for the add & edit step forms. */
+function OptionalVariantFields({ data, setData, errors }) {
+    const inGroup = !!data.variant_group;
+    return (
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 rounded-lg p-3">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                    type="checkbox"
+                    checked={!!data.is_optional}
+                    onChange={(e) => setData('is_optional', e.target.checked)}
+                />
+                Optional (can be skipped)
+            </label>
+
+            <div>
+                <label className="form-label">Variant group</label>
+                <input
+                    type="text"
+                    value={data.variant_group ?? ''}
+                    onChange={(e) => setData('variant_group', e.target.value)}
+                    className="form-input w-full"
+                    placeholder="e.g. finish"
+                    maxLength={50}
+                />
+                <p className="text-xs text-gray-500 mt-1">Steps sharing a group are alternatives — one is run, the rest skipped.</p>
+            </div>
+
+            <label className={`flex items-center gap-2 text-sm ${inGroup ? 'text-gray-700' : 'text-gray-400'}`}>
+                <input
+                    type="checkbox"
+                    checked={!!data.is_default_variant}
+                    disabled={!inGroup}
+                    onChange={(e) => setData('is_default_variant', e.target.checked)}
+                />
+                Default variant for this product
+            </label>
+
+            {errors.is_default_variant && (
+                <p className="md:col-span-3 text-red-600 text-xs">{errors.is_default_variant}</p>
+            )}
+        </div>
+    );
+}
+
 function AddStepForm({ productType, processTemplate, processSegments, workstations, onCancel }) {
     const form = useForm({
         name: '',
@@ -23,6 +68,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         estimated_duration_minutes: '',
         workstation_id: '',
         process_segment_id: '',
+        is_optional: false,
+        variant_group: '',
+        is_default_variant: false,
     });
 
     const { data, setData, errors, processing } = form;
@@ -129,6 +177,8 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                             placeholder="e.g., 15"
                         />
                     </div>
+
+                    <OptionalVariantFields data={data} setData={setData} errors={errors} />
                 </div>
 
                 <div className="flex justify-end gap-3 mt-4">
@@ -154,6 +204,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         estimated_duration_minutes: step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
+        is_optional: !!step.is_optional,
+        variant_group: step.variant_group ?? '',
+        is_default_variant: !!step.is_default_variant,
     });
 
     const { data, setData, errors, processing } = form;
@@ -238,6 +291,8 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                         className="form-input w-full"
                     />
                 </div>
+
+                <OptionalVariantFields data={data} setData={setData} errors={errors} />
             </div>
 
             <div className="flex justify-end gap-3 mt-4">
@@ -365,7 +420,17 @@ function StepCard({
                         <div className="flex-1">
                             <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-gray-800">{step.name}</h3>
+                                    <h3 className="text-lg font-bold text-gray-800 inline-flex items-center gap-2 flex-wrap">
+                                        {step.name}
+                                        {step.is_optional && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">Optional</span>
+                                        )}
+                                        {step.variant_group && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
+                                                Variant: {step.variant_group}{step.is_default_variant ? ' (default)' : ''}
+                                            </span>
+                                        )}
+                                    </h3>
 
                                     {step.process_segment && (
                                         <p className="mt-1">

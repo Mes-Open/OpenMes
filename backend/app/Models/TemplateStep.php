@@ -25,6 +25,9 @@ class TemplateStep extends Model
         'min_duration_minutes',
         'requires_confirmation',
         'workstation_id',
+        'is_optional',
+        'variant_group',
+        'is_default_variant',
     ];
 
     protected function casts(): array
@@ -34,6 +37,8 @@ class TemplateStep extends Model
             'estimated_duration_minutes' => 'integer',
             'min_duration_minutes' => 'integer',
             'requires_confirmation' => 'boolean',
+            'is_optional' => 'boolean',
+            'is_default_variant' => 'boolean',
         ];
     }
 
