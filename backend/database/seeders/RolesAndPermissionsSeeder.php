@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Support\TabRegistry;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -69,6 +70,11 @@ class RolesAndPermissionsSeeder extends Seeder
             // Attachments (cross-cutting)
             'manage attachments',
         ];
+
+        // Per-tab access permissions (tab:<key>) backing the Settings → Access
+        // role × tab matrix. Admin gets all of them via syncPermissions below;
+        // other roles start with none (they have no admin-panel access today).
+        $permissions = array_merge($permissions, TabRegistry::permissions());
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);

@@ -166,8 +166,8 @@ function DesktopClock() {
  * `trail` is the group path shown under a result, e.g. "Production /
  * Production Lines". Disabled entries are skipped.
  */
-function flattenNavItems() {
-    const items = ADMIN_LINKS.map((link) => ({
+function flattenNavItems(links = ADMIN_LINKS, groups = ADMIN_GROUPS) {
+    const items = links.map((link) => ({
         label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
     }));
     const walk = (nodes, trail) => {
@@ -180,10 +180,15 @@ function flattenNavItems() {
             }
         });
     };
-    walk(ADMIN_GROUPS, []);
+    walk(groups, []);
     items.push({ label: 'Settings', href: '/settings', match: ['/settings'], trail: [] });
     return items;
 }
+
+// Map a nav entry to its access-matrix tab key. Group keys mostly equal tab
+// keys; only these two differ. Links map by their href.
+const GROUP_TAB_OVERRIDES = { adminGroup: 'admin', modulesGroup: 'modules' };
+const LINK_TAB = { '/admin/dashboard': 'dashboard', '/admin/alerts': 'alerts', '/admin/schedule': 'schedule' };
 
 function Sidebar({
     auth, alertCount, csrfToken, appVersion, path, collapsed, mobileOpen, showLabels,
@@ -193,11 +198,25 @@ function Sidebar({
     const widthClass = collapsed ? 'lg:w-16' : 'lg:w-64';
     const translate = mobileOpen ? 'translate-x-0' : '-translate-x-full';
 
+    // Filter the nav by the tabs this user may access (Settings → Access matrix).
+    // Backend (TabAccessMiddleware) is the real gate; this is UX. Undefined =>
+    // show everything (back-compat / non-tab contexts).
+    const tabs = auth?.user?.accessibleTabs;
+    const canTab = (t) => !t || !Array.isArray(tabs) || tabs.includes(t);
+    const visibleLinks = useMemo(
+        () => ADMIN_LINKS.filter((l) => canTab(LINK_TAB[l.href])),
+        [tabs],
+    );
+    const visibleGroups = useMemo(
+        () => ADMIN_GROUPS.filter((g) => canTab(GROUP_TAB_OVERRIDES[g.key] ?? g.key)),
+        [tabs],
+    );
+
     // Menu search: a non-empty query swaps the nav tree for a flat result list.
     // Matches both the English label and its translation so users can search
     // in the active locale.
     const [query, setQuery] = useState('');
-    const searchItems = useMemo(flattenNavItems, []);
+    const searchItems = useMemo(() => flattenNavItems(visibleLinks, visibleGroups), [visibleLinks, visibleGroups]);
     const q = query.trim().toLowerCase();
     const results = q
         ? searchItems.filter((item) =>
@@ -281,7 +300,7 @@ function Sidebar({
                     )
                 ) : (
                     <>
-                        {ADMIN_LINKS.map((link) => (
+                        {visibleLinks.map((link) => (
                             <NavLink
                                 key={link.href}
                                 link={link}
@@ -295,7 +314,7 @@ function Sidebar({
                         {/* Separator under the top links (parity with the Blade sidebar) */}
                         {showLabels && <div className="mx-4 my-2 border-t border-slate-700/60" />}
 
-                        {ADMIN_GROUPS.map((group) => (
+                        {visibleGroups.map((group) => (
                             <NavGroup
                                 key={group.key}
                                 group={group}

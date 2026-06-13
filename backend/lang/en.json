@@ -3436,5 +3436,11 @@
     "Total scrap and top reason (30-day window)": "Total scrap and top reason (30-day window)",
     "Scrap (30 days)": "Scrap (30 days)",
     "Mark a step as the default variant only when it belongs to a variant group.": "Mark a step as the default variant only when it belongs to a variant group.",
-    "This variant group already has a default step.": "This variant group already has a default step."
+    "This variant group already has a default step.": "This variant group already has a default step.",
+    "Tab Access": "Tab Access",
+    "Tab": "Tab",
+    "full": "full",
+    "Grant each role access to individual admin-panel tabs": "Grant each role access to individual admin-panel tabs",
+    "Grant each role access to individual admin-panel tabs. The Admin role always has full access.": "Grant each role access to individual admin-panel tabs. The Admin role always has full access.",
+    "Tab access updated successfully.": "Tab access updated successfully."
 }

@@ -1493,5 +1493,11 @@
     "Total scrap and top reason (30-day window)": "Toplam hurda ve başlıca neden (30 günlük pencere)",
     "Scrap (30 days)": "Hurda (30 gün)",
     "Mark a step as the default variant only when it belongs to a variant group.": "Bir adımı varsayılan varyant olarak yalnızca bir varyant grubuna aitse işaretleyin.",
-    "This variant group already has a default step.": "Bu varyant grubunun zaten bir varsayılan adımı var."
+    "This variant group already has a default step.": "Bu varyant grubunun zaten bir varsayılan adımı var.",
+    "Tab Access": "Sekme Erişimi",
+    "Tab": "Sekme",
+    "full": "tam",
+    "Grant each role access to individual admin-panel tabs": "Her role yönetici paneli sekmelerine erişim verin",
+    "Grant each role access to individual admin-panel tabs. The Admin role always has full access.": "Her role yönetici paneli sekmelerine erişim verin. Admin rolü her zaman tam erişime sahiptir.",
+    "Tab access updated successfully.": "Sekme erişimi güncellendi."
 }

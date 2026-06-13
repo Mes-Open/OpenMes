@@ -25,6 +25,9 @@ class HandleInertiaRequests extends Middleware
                     ...$user->only('id', 'name', 'username', 'email', 'tenant_id'),
                     'roles' => $user->getRoleNames(),
                     'initial' => mb_strtoupper(mb_substr($user->name, 0, 1)),
+                    // Admin-panel tabs this user may access — drives nav filtering.
+                    // Backend enforcement is in TabAccessMiddleware; this is UX only.
+                    'accessibleTabs' => $this->accessibleTabs($user),
                 ] : null,
             ],
             // Nav chrome needs the alert badge and a CSRF token for the
@@ -48,6 +51,23 @@ class HandleInertiaRequests extends Middleware
                 'info' => fn () => $request->session()->get('info'),
             ],
         ];
+    }
+
+    /**
+     * Tab keys the user can access (from TabRegistry), for nav filtering.
+     *
+     * @return array<int, string>
+     */
+    private function accessibleTabs($user): array
+    {
+        if (! $user) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            \App\Support\TabRegistry::keys(),
+            fn (string $key) => $user->can(\App\Support\TabRegistry::permission($key)),
+        ));
     }
 
     private function alertCount($user): int

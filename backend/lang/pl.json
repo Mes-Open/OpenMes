@@ -3436,5 +3436,11 @@
     "Total scrap and top reason (30-day window)": "Suma braków i główna przyczyna (okno 30 dni)",
     "Scrap (30 days)": "Braki (30 dni)",
     "Mark a step as the default variant only when it belongs to a variant group.": "Oznacz krok jako domyślny wariant tylko gdy należy do grupy wariantów.",
-    "This variant group already has a default step.": "Ta grupa wariantów ma już domyślny krok."
+    "This variant group already has a default step.": "Ta grupa wariantów ma już domyślny krok.",
+    "Tab Access": "Dostęp do zakładek",
+    "Tab": "Zakładka",
+    "full": "pełny",
+    "Grant each role access to individual admin-panel tabs": "Przyznaj rolom dostęp do poszczególnych zakładek panelu admina",
+    "Grant each role access to individual admin-panel tabs. The Admin role always has full access.": "Przyznaj rolom dostęp do poszczególnych zakładek panelu admina. Rola Admin zawsze ma pełny dostęp.",
+    "Tab access updated successfully.": "Dostęp do zakładek zaktualizowany."
 }

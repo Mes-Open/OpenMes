@@ -59,6 +59,17 @@ class AppServiceProvider extends ServiceProvider
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
 
+        // Admins always pass tab:* access checks — a safety net so they can
+        // never lock themselves out of the admin panel via the access matrix,
+        // even if a new tab's permission hasn't been granted yet.
+        Gate::before(function ($user, string $ability) {
+            if (str_starts_with($ability, 'tab:') && $user->hasRole('Admin')) {
+                return true;
+            }
+
+            return null;
+        });
+
         // Register the authentication event subscriber so login / logout /
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
