@@ -70,6 +70,18 @@ class AppServiceProvider extends ServiceProvider
             return null;
         });
 
+        // Octane keeps the Spatie PermissionRegistrar singleton (and its
+        // in-memory permission collection) alive across requests in a worker, so
+        // a runtime permission change — e.g. the Settings → Access matrix — isn't
+        // seen by other workers until they recycle, causing inconsistent 403s.
+        // Drop the singleton at the start of each Octane request so it reloads
+        // from the shared cache (no cache thrashing, just a per-request re-read).
+        if (class_exists(\Laravel\Octane\Events\RequestReceived::class)) {
+            Event::listen(\Laravel\Octane\Events\RequestReceived::class, function ($event) {
+                $event->sandbox->forgetInstance(\Spatie\Permission\PermissionRegistrar::class);
+            });
+        }
+
         // Register the authentication event subscriber so login / logout /
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
