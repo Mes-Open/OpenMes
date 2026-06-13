@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\DowntimeKind;
 use App\Models\DowntimeReason;
 use App\Models\Line;
 use App\Models\OeeRecord;
@@ -44,11 +45,11 @@ class OeeAndDowntimeDemoSeeder extends Seeder
     private function seedDowntimeReasons(): array
     {
         $defs = [
-            ['code' => 'MAINT_PLANNED', 'name' => 'Planned maintenance',  'is_planned' => true],
-            ['code' => 'TOOL_CHANGE',   'name' => 'Tool / die change',    'is_planned' => true],
-            ['code' => 'MAT_SHORTAGE',  'name' => 'Material shortage',    'is_planned' => false],
-            ['code' => 'MACH_BREAK',    'name' => 'Machine breakdown',    'is_planned' => false],
-            ['code' => 'QUALITY',       'name' => 'Quality hold',         'is_planned' => false],
+            ['code' => 'MAINT_PLANNED', 'name' => 'Planned maintenance',  'kind' => DowntimeKind::Planned->value],
+            ['code' => 'TOOL_CHANGE',   'name' => 'Tool / die change',    'kind' => DowntimeKind::Changeover->value],
+            ['code' => 'MAT_SHORTAGE',  'name' => 'Material shortage',    'kind' => DowntimeKind::Unplanned->value],
+            ['code' => 'MACH_BREAK',    'name' => 'Machine breakdown',    'kind' => DowntimeKind::Unplanned->value],
+            ['code' => 'QUALITY',       'name' => 'Quality hold',         'kind' => DowntimeKind::Unplanned->value],
         ];
 
         $result = [];
