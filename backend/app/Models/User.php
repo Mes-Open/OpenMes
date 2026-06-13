@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -12,7 +13,8 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens, HasRoles, HasTenant;
+    use HasApiTokens, HasFactory, HasRoles, HasTenant, Notifiable;
+    use SoftDeletesWithAudit;
 
     /**
      * The attributes that are mass assignable.

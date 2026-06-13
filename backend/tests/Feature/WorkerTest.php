@@ -175,7 +175,7 @@ class WorkerTest extends TestCase
             ->delete(route('admin.workers.destroy', $worker));
 
         $response->assertRedirect(route('admin.workers.index'));
-        $this->assertDatabaseMissing('workers', ['id' => $worker->id]);
+        $this->assertSoftDeleted('workers', ['id' => $worker->id]);
     }
 
     public function test_worker_code_must_be_unique(): void

@@ -136,7 +136,7 @@ class LineWorkstationApiTest extends TestCase
     {
         $line = Line::factory()->create();
         $this->authAdmin()->deleteJson("/api/v1/lines/{$line->id}")->assertStatus(200);
-        $this->assertDatabaseMissing('lines', ['id' => $line->id]);
+        $this->assertSoftDeleted('lines', ['id' => $line->id]);
     }
 
     public function test_cannot_delete_line_with_work_orders(): void
@@ -244,7 +244,7 @@ class LineWorkstationApiTest extends TestCase
         $line = Line::factory()->create();
         $ws = Workstation::factory()->create(['line_id' => $line->id]);
         $this->authAdmin()->deleteJson("/api/v1/workstations/{$ws->id}")->assertStatus(200);
-        $this->assertDatabaseMissing('workstations', ['id' => $ws->id]);
+        $this->assertSoftDeleted('workstations', ['id' => $ws->id]);
     }
 
     public function test_admin_can_toggle_workstation_active(): void

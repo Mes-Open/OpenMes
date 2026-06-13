@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class CostSource extends Model
 {
     use HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'code',
@@ -24,7 +26,7 @@ class CostSource extends Model
     {
         return [
             'is_active' => 'boolean',
-            'unit_cost'  => 'decimal:4',
+            'unit_cost' => 'decimal:4',
         ];
     }
 

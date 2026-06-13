@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Batch extends Model
 {
     use Auditable, HasCustomFields, HasFactory;
+    use SoftDeletesWithAudit;
 
     const STATUS_PENDING = 'PENDING';
 
@@ -186,5 +188,13 @@ class Batch extends Model
     public function scopeActive($query)
     {
         return $query->whereIn('status', [self::STATUS_PENDING, self::STATUS_IN_PROGRESS]);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\BatchStep::class, 'batch_id'],
+        ];
     }
 }

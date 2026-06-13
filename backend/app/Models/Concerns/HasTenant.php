@@ -8,7 +8,7 @@ trait HasTenant
 {
     public static function bootHasTenant(): void
     {
-        static::addGlobalScope(new TenantScope());
+        static::addGlobalScope(new TenantScope);
 
         static::creating(function ($model) {
             if (auth()->check() && empty($model->tenant_id)) {

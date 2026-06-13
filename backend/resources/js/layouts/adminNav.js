@@ -175,12 +175,13 @@ export const ADMIN_GROUPS = [
         key: 'adminGroup',
         label: 'Admin',
         icon: 'shield',
-        match: ['/admin/users', '/admin/logs', '/admin/audit-logs'],
+        match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash'],
         children: [
             { label: 'Users', href: '/admin/users', match: ['/admin/users'] },
             { label: 'Activity Logs', href: '/admin/logs/activity', match: ['/admin/logs/activity'] },
             { label: 'System Logs', href: '/admin/logs/system', match: ['/admin/logs/system'] },
             { label: 'Audit Logs', href: '/admin/audit-logs', match: ['/admin/audit-logs'] },
+            { label: 'Trash', href: '/admin/trash', match: ['/admin/trash'] },
         ],
     },
     {

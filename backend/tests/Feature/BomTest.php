@@ -186,7 +186,7 @@ class BomTest extends TestCase
         );
 
         $response->assertRedirect();
-        $this->assertDatabaseMissing('bom_items', ['id' => $bomItem->id]);
+        $this->assertSoftDeleted('bom_items', ['id' => $bomItem->id]);
     }
 
     // ── Snapshot with BOM ───────────────────────────────────────

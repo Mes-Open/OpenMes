@@ -9,3 +9,37 @@ if git diff --cached --name-only | grep "^modules/" > /dev/null 2>&1; then
     echo ""
     exit 1
 fi
+
+# ── CI test gate ─────────────────────────────────────────────────────────────
+# Run the SAME suite GitHub Actions runs on PRs to develop/main
+# (.github/workflows/tests.yml), so a commit that would turn CI red never
+# leaves the machine. Enabled by `composer install` (sets core.hooksPath).
+#
+# Escape hatches:
+#   git commit --no-verify     - skip all hooks once
+#   SKIP_TESTS=1 git commit    - skip only the test gate (e.g. WIP commit)
+if [ "$SKIP_TESTS" = "1" ]; then
+    echo "pre-commit: SKIP_TESTS=1 - skipping the test gate."
+    exit 0
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT/backend" || exit 1
+
+# Inertia feature tests need a Vite manifest (same reason CI builds assets).
+if [ ! -f public/build/manifest.json ]; then
+    echo "pre-commit: no Vite manifest - running npm run build..."
+    npm run build || exit 1
+fi
+
+# Same gate as CI's `php artisan test --stop-on-failure`. Invoked through
+# phpunit directly so the raised memory limit applies to the test process
+# itself (artisan test spawns children that ignore -d on the parent).
+echo "pre-commit: running the CI test suite (git commit --no-verify to skip)..."
+php -d memory_limit=1G vendor/bin/phpunit --stop-on-failure --no-progress || {
+    echo ""
+    echo "pre-commit: TESTS FAILED - commit aborted (this is what CI would do to your PR)."
+    exit 1
+}
+
+echo "pre-commit: tests green."

@@ -57,6 +57,7 @@ class AuditLog extends Model
     public function getEntityNameAttribute(): string
     {
         $parts = explode('\\', $this->entity_type);
+
         return end($parts);
     }
 

@@ -240,7 +240,7 @@ class UserApiTest extends TestCase
         $this->authAdmin()->deleteJson("/api/v1/users/{$user->id}")
             ->assertStatus(200);
 
-        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
     }
 
     public function test_admin_cannot_delete_self(): void

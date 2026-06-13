@@ -54,6 +54,7 @@ class Inspection extends Model
         'material_id',
         'lot_number',
         'supplier_lot_ref',
+        'source_container_no',
         'quantity_received',
         'inspector_id',
         'started_at',

@@ -107,7 +107,7 @@ class ProcessTemplatePhotoTest extends TestCase
             ->delete($this->uploadUrl()."/{$photo->id}");
 
         $response->assertRedirect();
-        $this->assertDatabaseMissing('process_template_photos', ['id' => $photo->id]);
+        $this->assertSoftDeleted('process_template_photos', ['id' => $photo->id]);
         Storage::assertMissing($path);
     }
 

@@ -8,6 +8,7 @@ export default function InspectionsCreate() {
         material_id: '',
         lot_number: '',
         supplier_lot_ref: '',
+        source_container_no: '',
         quantity_received: '',
         inspection_plan_id: '',
     });
@@ -79,6 +80,25 @@ export default function InspectionsCreate() {
                                 <p className="text-red-600 text-xs mt-1">{errors.supplier_lot_ref}</p>
                             )}
                         </div>
+                    </div>
+
+                    {/* Source container (scan) */}
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Source container no</label>
+                        <input
+                            type="text"
+                            maxLength={100}
+                            value={data.source_container_no}
+                            onChange={(e) => setData('source_container_no', e.target.value)}
+                            placeholder="Scan container barcode…"
+                            className="form-input w-full font-mono"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Scan the barcode of the container/pallet the delivery arrived in. Carried onto the created material lot for traceability.
+                        </p>
+                        {errors.source_container_no && (
+                            <p className="text-red-600 text-xs mt-1">{errors.source_container_no}</p>
+                        )}
                     </div>
 
                     {/* Quantity received */}

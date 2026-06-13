@@ -473,6 +473,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/csv-import/process', [AdminCsvImportController::class, 'process'])->name('csv-import.process');
         Route::delete('/csv-import/mappings/{mapping}', [AdminCsvImportController::class, 'destroyMapping'])->name('csv-import.mappings.destroy');
 
+        // Trash — soft-deleted rows across all domain entities, with restore.
+        Route::get('/trash', [\App\Http\Controllers\Web\Admin\TrashController::class, 'index'])->name('trash.index');
+        Route::post('/trash/{type}/{id}/restore', [\App\Http\Controllers\Web\Admin\TrashController::class, 'restore'])
+            ->whereNumber('id')->name('trash.restore');
+
         // Audit Logs
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');
         Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');

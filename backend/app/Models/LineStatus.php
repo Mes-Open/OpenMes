@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Model;
 
 class LineStatus extends Model
 {
+    use SoftDeletesWithAudit;
+
     protected $fillable = ['name', 'color', 'sort_order', 'line_id', 'is_default', 'is_done_status'];
 
     protected function casts(): array
     {
         return [
-            'is_default'     => 'boolean',
+            'is_default' => 'boolean',
             'is_done_status' => 'boolean',
         ];
     }
