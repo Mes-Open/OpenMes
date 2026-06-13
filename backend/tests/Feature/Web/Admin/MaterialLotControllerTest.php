@@ -6,6 +6,7 @@ use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -14,6 +15,7 @@ class MaterialLotControllerTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $operator;
 
     protected function setUp(): void
@@ -32,7 +34,7 @@ class MaterialLotControllerTest extends TestCase
     private function validPayload(array $overrides = []): array
     {
         return array_merge([
-            'lot_number' => 'BOLT-M10-' . now()->format('Y') . '-0001',
+            'lot_number' => 'BOLT-M10-'.now()->format('Y').'-0001',
             'material_id' => Material::factory()->create()->id,
             'quantity_received' => 100,
             'unit_of_measure' => 'pcs',
@@ -52,10 +54,11 @@ class MaterialLotControllerTest extends TestCase
     {
         MaterialLot::factory()->count(3)->create();
 
+        // Row data is delivered client-side via Electric SQL, not in server HTML.
         $this->actingAs($this->admin)
             ->get(route('admin.material-lots.index'))
             ->assertOk()
-            ->assertViewIs('admin.material-lots.index');
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/material-lots/Index'));
     }
 
     public function test_admin_can_create_lot(): void
@@ -79,6 +82,24 @@ class MaterialLotControllerTest extends TestCase
         $lot = MaterialLot::where('lot_number', 'NEW-LOT-001')->first();
         // quantity_available should default to quantity_received when omitted
         $this->assertEqualsWithDelta(250.0, (float) $lot->quantity_available, 0.0001);
+    }
+
+    public function test_store_persists_source_container_no(): void
+    {
+        $material = Material::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.material-lots.store'), $this->validPayload([
+                'material_id' => $material->id,
+                'lot_number' => 'CONT-LOT-001',
+                'source_container_no' => 'CONT-2026-0815',
+            ]))
+            ->assertRedirect(route('admin.material-lots.index'));
+
+        $this->assertDatabaseHas('material_lots', [
+            'lot_number' => 'CONT-LOT-001',
+            'source_container_no' => 'CONT-2026-0815',
+        ]);
     }
 
     public function test_store_validates_required_fields(): void
@@ -166,7 +187,7 @@ class MaterialLotControllerTest extends TestCase
             ->delete(route('admin.material-lots.destroy', $lot))
             ->assertRedirect(route('admin.material-lots.index'));
 
-        $this->assertDatabaseMissing('material_lots', ['id' => $lot->id]);
+        $this->assertSoftDeleted('material_lots', ['id' => $lot->id]);
     }
 
     public function test_index_filters_by_status_and_material(): void
@@ -177,14 +198,14 @@ class MaterialLotControllerTest extends TestCase
         MaterialLot::factory()->create(['material_id' => $materialA->id, 'status' => MaterialLot::STATUS_QUARANTINE, 'tenant_id' => $this->admin->tenant_id]);
         MaterialLot::factory()->create(['material_id' => $materialB->id, 'status' => MaterialLot::STATUS_RELEASED, 'tenant_id' => $this->admin->tenant_id]);
 
-        $response = $this->actingAs($this->admin)
+        // Filtering narrows an Electric shape client-side; the server still must
+        // render the Inertia page (200) when given the filter query string.
+        $this->actingAs($this->admin)
             ->get(route('admin.material-lots.index', [
                 'material_id' => $materialA->id,
                 'status' => MaterialLot::STATUS_RELEASED,
-            ]));
-
-        $response->assertOk();
-        $lots = $response->viewData('lots');
-        $this->assertCount(1, $lots);
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/material-lots/Index'));
     }
 }

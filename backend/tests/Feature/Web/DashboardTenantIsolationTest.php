@@ -9,6 +9,7 @@ use App\Models\MaterialType;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -86,12 +87,25 @@ class DashboardTenantIsolationTest extends TestCase
             'tenant_id' => $this->tenantB->id,
         ]);
 
-        $response = $this->actingAs($this->adminA)->get(route('admin.dashboard'));
+        // Both tenants have exactly one low-stock material. Tenant A's
+        // dashboard stats must only count its own — low_stock_count == 1, not 2.
+        // The materialsStats aggregate is computed through the HasTenant global
+        // scope, so a value of 2 here would mean cross-tenant leakage.
+        $this->actingAs($this->adminA)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where('materialsStats.low_stock_count', 1)
+            );
 
-        $response->assertOk();
-        $response->assertSee('Tenant A low-stock widget');
-        $response->assertDontSee('Tenant B low-stock widget');
-        $response->assertDontSee('MAT-B-LOW');
+        // Sanity: from Tenant B's side the same query also yields exactly 1,
+        // proving each side sees only its own row (not the combined 2).
+        $this->actingAs($this->adminB)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where('materialsStats.low_stock_count', 1)
+            );
     }
 
     public function test_admin_dashboard_lots_scoped_to_tenant(): void
@@ -136,14 +150,26 @@ class DashboardTenantIsolationTest extends TestCase
             'tenant_id' => $this->tenantB->id,
         ]);
 
-        $response = $this->actingAs($this->adminA)->get(route('admin.dashboard'));
+        // Each tenant owns exactly one released, soon-expiring lot. Tenant A's
+        // lot aggregates (expiring within 30d / released lots total) must count
+        // only its own lot — a value of 2 would mean MaterialLot's tenant scope
+        // leaked Tenant B's row.
+        $this->actingAs($this->adminA)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where('materialsStats.expiring_count', 1)
+                ->where('materialsStats.lots_total', 1)
+            );
 
-        $response->assertOk();
-        $response->assertSee('LOT-A-EXP');
-        $response->assertDontSee('LOT-B-EXP');
-        // Material name from foreign tenant must also not appear via the
-        // eager-loaded relation.
-        $response->assertDontSee('Tenant B expiring material');
+        // And Tenant B independently sees its single lot, never the sum.
+        $this->actingAs($this->adminB)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where('materialsStats.expiring_count', 1)
+                ->where('materialsStats.lots_total', 1)
+            );
     }
 
     public function test_admin_dashboard_reserved_total_only_counts_own_tenant(): void
@@ -174,22 +200,27 @@ class DashboardTenantIsolationTest extends TestCase
         $this->assertNotNull($widget);
         $this->assertTrue($widget->enabled);
 
-        $response = $this->actingAs($this->adminA)->get(route('admin.dashboard'));
-        $response->assertOk();
-
-        $materialsStats = $response->viewData('materialsStats');
-        $this->assertIsArray($materialsStats);
-        $this->assertEqualsWithDelta(
-            250.0,
-            (float) $materialsStats['reserved_total'],
-            0.001,
-            'Reserved total must only sum the current tenant\'s reserved_quantity'
-        );
+        // Tenant A reserved 250, Tenant B reserved 999. Logged in as A, the
+        // reserved_total stat must equal 250 — NOT the cross-tenant sum (1249).
+        $this->actingAs($this->adminA)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where(
+                    'materialsStats.reserved_total',
+                    fn ($total) => abs((float) $total - 250.0) < 0.001
+                )
+            );
 
         // Logged in as Tenant B should see 999, not 1249.
-        $response = $this->actingAs($this->adminB)->get(route('admin.dashboard'));
-        $response->assertOk();
-        $materialsStats = $response->viewData('materialsStats');
-        $this->assertEqualsWithDelta(999.0, (float) $materialsStats['reserved_total'], 0.001);
+        $this->actingAs($this->adminB)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/Dashboard')
+                ->where(
+                    'materialsStats.reserved_total',
+                    fn ($total) => abs((float) $total - 999.0) < 0.001
+                )
+            );
     }
 }

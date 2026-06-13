@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ViewTemplate extends Model
 {
+    use SoftDeletesWithAudit;
+
     protected $fillable = [
         'name',
         'description',

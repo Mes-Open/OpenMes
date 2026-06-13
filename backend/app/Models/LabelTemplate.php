@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class LabelTemplate extends Model
 {
     use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     const TYPE_WORK_ORDER = 'work_order';
 

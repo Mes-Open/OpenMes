@@ -7,6 +7,7 @@ use App\Models\RequestLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -52,8 +53,14 @@ class ActivityLogControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity'));
 
         $response->assertStatus(200);
-        $response->assertSee('WorkOrder');
-        $response->assertSee('#42');
+
+        // Rows are delivered as an Inertia prop (paginator), not server-rendered HTML.
+        $logs = $response->viewData('page')['props']['logs']['data'];
+        $audit = collect($logs)->firstWhere('source', 'audit');
+
+        $this->assertNotNull($audit, 'Expected an audit row in the logs prop.');
+        $this->assertSame('App\\Models\\WorkOrder', $audit['entity_type']);
+        $this->assertSame(42, (int) $audit['entity_id']);
     }
 
     public function test_index_shows_request_logs(): void
@@ -73,8 +80,13 @@ class ActivityLogControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity'));
 
         $response->assertStatus(200);
-        $response->assertSee('/admin/dashboard');
-        $response->assertSee('GET');
+
+        $logs = $response->viewData('page')['props']['logs']['data'];
+        $req = collect($logs)->firstWhere('source', 'request');
+
+        $this->assertNotNull($req, 'Expected a request row in the logs prop.');
+        $this->assertSame('/admin/dashboard', $req['path']);
+        $this->assertSame('GET', $req['method']);
     }
 
     public function test_index_filters_by_user(): void
@@ -104,10 +116,19 @@ class ActivityLogControllerTest extends TestCase
             ->get(route('admin.logs.activity', ['user_id' => $this->admin->id]));
 
         $response->assertStatus(200);
-        // Audit row entity badges include the #id; only the admin's row should be present.
-        $response->assertSee('WorkOrder');
-        $response->assertSee('#1');
-        $response->assertDontSee('#7');
+
+        // Only the admin's audit row should be present in the logs prop.
+        $audits = collect($response->viewData('page')['props']['logs']['data'])
+            ->where('source', 'audit');
+
+        $entityIds = $audits->map(fn ($row) => (int) $row['entity_id'])->all();
+        $this->assertContains(1, $entityIds, 'Admin WorkOrder #1 should be present.');
+        $this->assertNotContains(7, $entityIds, 'Other user Line #7 must be filtered out.');
+
+        $this->assertTrue(
+            $audits->contains(fn ($row) => $row['entity_type'] === 'App\\Models\\WorkOrder'),
+            'Admin WorkOrder audit row should be present.'
+        );
     }
 
     public function test_index_filters_by_date_range(): void
@@ -142,8 +163,14 @@ class ActivityLogControllerTest extends TestCase
         ]));
 
         $response->assertStatus(200);
-        $response->assertSee('#999');
-        $response->assertDontSee('#555');
+
+        $entityIds = collect($response->viewData('page')['props']['logs']['data'])
+            ->where('source', 'audit')
+            ->map(fn ($row) => (int) $row['entity_id'])
+            ->all();
+
+        $this->assertContains(999, $entityIds, 'Recent row #999 should be in range.');
+        $this->assertNotContains(555, $entityIds, 'Old row #555 should be out of range.');
     }
 
     public function test_index_filters_by_source_audit(): void
@@ -257,6 +284,14 @@ class ActivityLogControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.logs.activity'));
 
         $response->assertStatus(200);
-        $response->assertSee('Login failed');
+
+        // The null-user login_failed row must survive serialization to the prop
+        // (no crash on missing user relation) and carry the raw action.
+        $row = collect($response->viewData('page')['props']['logs']['data'])
+            ->firstWhere('action', 'login_failed');
+
+        $this->assertNotNull($row, 'login_failed row should be present in the logs prop.');
+        $this->assertNull($row['user_id']);
+        $this->assertNull($row['user'] ?? null, 'No user relation should be loaded for a null-user row.');
     }
 }

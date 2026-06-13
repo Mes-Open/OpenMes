@@ -80,15 +80,15 @@ class SystemApiTest extends TestCase
     {
         $r = $this->authAdmin()->getJson('/api/v1/system/modules');
         $r->assertStatus(200);
-        // Modules folder includes Packaging at minimum
+        // Packaging is now core; the modules folder ships ExampleHooks.
         $names = collect($r->json('data'))->pluck('name');
-        $this->assertTrue($names->contains('Packaging'));
+        $this->assertTrue($names->contains('ExampleHooks'));
     }
 
     public function test_admin_can_enable_disable_module(): void
     {
-        $this->authAdmin()->postJson('/api/v1/system/modules/Packaging/enable')->assertStatus(200);
-        $this->authAdmin()->postJson('/api/v1/system/modules/Packaging/disable')->assertStatus(200);
+        $this->authAdmin()->postJson('/api/v1/system/modules/ExampleHooks/enable')->assertStatus(200);
+        $this->authAdmin()->postJson('/api/v1/system/modules/ExampleHooks/disable')->assertStatus(200);
     }
 
     public function test_supervisor_cannot_manage_modules(): void

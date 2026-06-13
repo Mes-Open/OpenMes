@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Worker extends Model
 {
     use Auditable, HasCustomFields, HasFactory;
+    use SoftDeletesWithAudit;
 
     /** Supported compensation modes for per-worker pay. */
     public const PAY_TYPES = ['hourly', 'weekly', 'piece_rate'];
@@ -155,5 +157,14 @@ class Worker extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\WorkerAbsence::class, 'worker_id'],
+            [\App\Models\EmployeeActivity::class, 'worker_id'],
+        ];
     }
 }

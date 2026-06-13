@@ -26,6 +26,7 @@ export default function MaterialLotEdit() {
                     status: lot.status ?? 'received',
                     supplier_lot_no: lot.supplier_lot_no ?? '',
                     supplier_reference: lot.supplier_reference ?? '',
+                    source_container_no: lot.source_container_no ?? '',
                 }}
                 submitLabel="Save Changes"
                 cancelHref="/admin/material-lots"

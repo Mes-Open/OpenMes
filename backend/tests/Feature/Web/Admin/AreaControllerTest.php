@@ -7,6 +7,7 @@ use App\Models\Line;
 use App\Models\Site;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -30,10 +31,11 @@ class AreaControllerTest extends TestCase
         $site = Site::factory()->create();
         Area::factory()->create(['site_id' => $site->id, 'name' => 'Painting Booth']);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.areas.index'));
-
-        $response->assertOk();
-        $response->assertSee('Painting Booth');
+        // Rows live-sync to the browser via the Electric `areas` shape, so the
+        // names are not in the server HTML — assert the Inertia page renders.
+        $this->actingAs($this->admin)->get(route('admin.areas.index'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/areas/Index'));
     }
 
     public function test_admin_can_create_area_under_site(): void
@@ -48,8 +50,8 @@ class AreaControllerTest extends TestCase
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('areas', [
             'site_id' => $site->id,
-            'name'    => 'Assembly Hall A',
-            'code'    => 'AREA-AHA',
+            'name' => 'Assembly Hall A',
+            'code' => 'AREA-AHA',
         ]);
     }
 

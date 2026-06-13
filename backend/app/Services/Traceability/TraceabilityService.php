@@ -50,7 +50,7 @@ class TraceabilityService
             ->values();
 
         return [
-            'lot' => $lot->only(['id', 'lot_number', 'material_id', 'status', 'supplier_lot_no']),
+            'lot' => $lot->only(['id', 'lot_number', 'material_id', 'status', 'supplier_lot_no', 'source_container_no']),
             'consumptions' => $consumptions,
             'work_orders' => $workOrders,
             'total_consumed' => (float) $consumptions->sum('quantity_consumed'),
@@ -71,6 +71,7 @@ class TraceabilityService
             'material' => $lot->material?->only(['id', 'name', 'code']),
             'supplier_lot_no' => $lot->supplier_lot_no,
             'supplier_reference' => $lot->supplier_reference,
+            'source_container_no' => $lot->source_container_no,
             'inspection_id' => $lot->inspection_id,
             'source_batch_id' => $lot->source_batch_id,
             'ingredients' => [],
@@ -116,7 +117,7 @@ class TraceabilityService
         $consumptions = BatchStepLotConsumption::query()
             ->whereHas('batchStep', fn ($q) => $q->where('batch_id', $batch->id))
             ->with([
-                'materialLot:id,lot_number,material_id,supplier_lot_no,source_batch_id,status',
+                'materialLot:id,lot_number,material_id,supplier_lot_no,source_container_no,source_batch_id,status',
                 'materialLot.material:id,name,code',
                 'batchStep:id,batch_id,name,step_number',
                 'recordedBy:id,name',
@@ -156,7 +157,7 @@ class TraceabilityService
 
     /**
      * Resolve a free-text search to a result: a finished batch (by lot_number)
-     * or a material lot (by lot_number / supplier_lot_no).
+     * or a material lot (by lot_number / supplier_lot_no / source_container_no).
      *
      * @return array{type: string, model: mixed}|null
      */
@@ -172,9 +173,13 @@ class TraceabilityService
             return ['type' => 'batch', 'model' => $batch];
         }
 
-        $lot = MaterialLot::where('lot_number', $term)
-            ->orWhere('supplier_lot_no', $term)
-            ->first();
+        // Grouped so the orWhere chain can't escape the global scopes
+        // (tenant + soft-delete) via AND/OR precedence.
+        $lot = MaterialLot::where(function ($query) use ($term) {
+            $query->where('lot_number', $term)
+                ->orWhere('supplier_lot_no', $term)
+                ->orWhere('source_container_no', $term);
+        })->first();
         if ($lot) {
             return ['type' => 'material_lot', 'model' => $lot];
         }

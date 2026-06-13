@@ -126,12 +126,14 @@ export const ADMIN_GROUPS = [
         match: [
             '/admin/workers', '/admin/personnel-classes', '/admin/crews',
             '/admin/skills', '/admin/wage-groups', '/admin/worker-absences',
+            '/admin/crew-break-windows',
         ],
         children: [
             { label: 'Workers', href: '/admin/workers', match: ['/admin/workers'] },
             { label: 'Absences', href: '/admin/worker-absences', match: ['/admin/worker-absences'] },
             { label: 'Personnel Classes', href: '/admin/personnel-classes', match: ['/admin/personnel-classes'] },
             { label: 'Crews', href: '/admin/crews', match: ['/admin/crews'] },
+            { label: 'Break Windows', href: '/admin/crew-break-windows', match: ['/admin/crew-break-windows'] },
             { label: 'Skills', href: '/admin/skills', match: ['/admin/skills'] },
             { label: 'Wage Groups', href: '/admin/wage-groups', match: ['/admin/wage-groups'] },
         ],
@@ -173,12 +175,13 @@ export const ADMIN_GROUPS = [
         key: 'adminGroup',
         label: 'Admin',
         icon: 'shield',
-        match: ['/admin/users', '/admin/logs', '/admin/audit-logs'],
+        match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash'],
         children: [
             { label: 'Users', href: '/admin/users', match: ['/admin/users'] },
             { label: 'Activity Logs', href: '/admin/logs/activity', match: ['/admin/logs/activity'] },
             { label: 'System Logs', href: '/admin/logs/system', match: ['/admin/logs/system'] },
             { label: 'Audit Logs', href: '/admin/audit-logs', match: ['/admin/audit-logs'] },
+            { label: 'Trash', href: '/admin/trash', match: ['/admin/trash'] },
         ],
     },
     {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Factory extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'code',

@@ -127,6 +127,6 @@ class PalletCrudTest extends TestCase
             ->delete(route('admin.pallets.destroy', $pallet))
             ->assertRedirect(route('admin.pallets.index'));
 
-        $this->assertDatabaseMissing('pallets', ['id' => $pallet->id]);
+        $this->assertSoftDeleted('pallets', ['id' => $pallet->id]);
     }
 }

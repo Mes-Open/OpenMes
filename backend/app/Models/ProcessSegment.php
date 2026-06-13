@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,15 +21,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class ProcessSegment extends Model
 {
-    use HasFactory, HasTenant, Auditable;
+    use Auditable, HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
-    public const TYPE_PRODUCTION  = 'production';
-    public const TYPE_INSPECTION  = 'inspection';
+    public const TYPE_PRODUCTION = 'production';
+
+    public const TYPE_INSPECTION = 'inspection';
+
     public const TYPE_MAINTENANCE = 'maintenance';
-    public const TYPE_SETUP       = 'setup';
-    public const TYPE_CLEANING    = 'cleaning';
-    public const TYPE_TRANSPORT   = 'transport';
-    public const TYPE_OTHER       = 'other';
+
+    public const TYPE_SETUP = 'setup';
+
+    public const TYPE_CLEANING = 'cleaning';
+
+    public const TYPE_TRANSPORT = 'transport';
+
+    public const TYPE_OTHER = 'other';
 
     public const TYPES = [
         self::TYPE_PRODUCTION,
@@ -59,11 +67,11 @@ class ProcessSegment extends Model
     protected function casts(): array
     {
         return [
-            'is_active'                  => 'boolean',
-            'required_skill_ids'         => 'array',
-            'parameters'                 => 'array',
+            'is_active' => 'boolean',
+            'required_skill_ids' => 'array',
+            'parameters' => 'array',
             'estimated_duration_minutes' => 'integer',
-            'required_operators'         => 'integer',
+            'required_operators' => 'integer',
         ];
     }
 
@@ -95,6 +103,7 @@ class ProcessSegment extends Model
         if (empty($ids)) {
             return Skill::query()->whereRaw('1 = 0')->get();
         }
+
         return Skill::query()->whereIn('id', $ids)->get();
     }
 

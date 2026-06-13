@@ -50,6 +50,12 @@ export function materialLotFields(materials, sources, statuses) {
         },
         { name: 'supplier_lot_no', label: __('Supplier Lot #') },
         { name: 'supplier_reference', label: __('Supplier Ref') },
+        {
+            name: 'source_container_no',
+            label: __('Source Container #'),
+            placeholder: __('Scan container barcode…'),
+            help: __('Scan the barcode of the container/pallet/drum the material arrived in.'),
+        },
     ];
 }
 

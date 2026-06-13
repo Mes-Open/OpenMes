@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,9 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductionAnomaly extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
+    use SoftDeletesWithAudit;
 
-    const STATUS_DRAFT     = 'draft';
+    const STATUS_DRAFT = 'draft';
+
     const STATUS_PROCESSED = 'processed';
 
     protected $fillable = [
@@ -46,8 +49,8 @@ class ProductionAnomaly extends Model
     protected function casts(): array
     {
         return [
-            'planned_qty'   => 'decimal:2',
-            'actual_qty'    => 'decimal:2',
+            'planned_qty' => 'decimal:2',
+            'actual_qty' => 'decimal:2',
             'deviation_pct' => 'decimal:2',
         ];
     }

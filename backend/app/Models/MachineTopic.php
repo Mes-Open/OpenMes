@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,11 +11,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MachineTopic extends Model
 {
     use HasFactory;
+    use SoftDeletesWithAudit;
 
-    const FORMAT_JSON  = 'json';
+    const FORMAT_JSON = 'json';
+
     const FORMAT_PLAIN = 'plain';
-    const FORMAT_CSV   = 'csv';
-    const FORMAT_HEX   = 'hex';
+
+    const FORMAT_CSV = 'csv';
+
+    const FORMAT_HEX = 'hex';
 
     protected $fillable = [
         'machine_connection_id',
@@ -62,12 +67,13 @@ class MachineTopic extends Model
         // # matches everything at this level and below
         if (str_ends_with($pattern, '#')) {
             $prefix = rtrim(substr($pattern, 0, -1), '/');
-            return $prefix === '' || str_starts_with($topic, $prefix . '/') || $topic === $prefix;
+
+            return $prefix === '' || str_starts_with($topic, $prefix.'/') || $topic === $prefix;
         }
 
         // + matches exactly one level
         $patternParts = explode('/', $pattern);
-        $topicParts   = explode('/', $topic);
+        $topicParts = explode('/', $topic);
 
         if (count($patternParts) !== count($topicParts)) {
             return false;
@@ -80,5 +86,13 @@ class MachineTopic extends Model
         }
 
         return true;
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\TopicMapping::class, 'machine_topic_id'],
+        ];
     }
 }

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProcessConfirmation extends Model
 {
-    use HasTenant, Auditable;
+    use Auditable, HasTenant;
 
     const TYPE_PARAMETERS = 'parameters';
 

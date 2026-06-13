@@ -36,7 +36,7 @@ class MaterialLotController extends Controller
             $query->where('status', $status);
         }
         if ($supplier = $request->query('supplier_lot_no')) {
-            $query->where('supplier_lot_no', 'like', '%' . $supplier . '%');
+            $query->where('supplier_lot_no', 'like', '%'.$supplier.'%');
         }
         if ($expiring = $request->query('expiring_within_days')) {
             $until = now()->addDays((int) $expiring)->toDateString();
@@ -135,6 +135,7 @@ class MaterialLotController extends Controller
                 'inspection' => $materialLot->inspection,
                 'supplier_lot_no' => $materialLot->supplier_lot_no,
                 'supplier_reference' => $materialLot->supplier_reference,
+                'source_container_no' => $materialLot->source_container_no,
                 'source_batch_id' => $sourceBatchId,
                 'upstream_consumptions' => $upstream,
             ],

@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Company extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
+    use SoftDeletesWithAudit;
 
     const TYPE_SUPPLIER = 'supplier';
+
     const TYPE_CUSTOMER = 'customer';
+
     const TYPE_BOTH = 'both';
 
     protected $fillable = [

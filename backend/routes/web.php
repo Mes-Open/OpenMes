@@ -7,7 +7,6 @@ use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Web\Admin\BomManagementController;
 use App\Http\Controllers\Web\Admin\CompanyController;
-use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\Connectivity\ConnectivityController;
 use App\Http\Controllers\Web\Admin\Connectivity\MachineTopicController;
 use App\Http\Controllers\Web\Admin\Connectivity\MqttConnectionController;
@@ -15,6 +14,7 @@ use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
 use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
+use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
@@ -473,6 +473,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/csv-import/process', [AdminCsvImportController::class, 'process'])->name('csv-import.process');
         Route::delete('/csv-import/mappings/{mapping}', [AdminCsvImportController::class, 'destroyMapping'])->name('csv-import.mappings.destroy');
 
+        // Trash — soft-deleted rows across all domain entities, with restore.
+        Route::get('/trash', [\App\Http\Controllers\Web\Admin\TrashController::class, 'index'])->name('trash.index');
+        Route::post('/trash/{type}/{id}/restore', [\App\Http\Controllers\Web\Admin\TrashController::class, 'restore'])
+            ->whereNumber('id')->name('trash.restore');
+
         // Audit Logs
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');
         Route::get('/audit-logs/export', [AdminAuditLogController::class, 'export'])->name('audit-logs.export');
@@ -560,6 +565,9 @@ Route::middleware('auth')->group(function () {
 
         // Worker absences (vacation / sick / …) — availability source.
         Route::resource('worker-absences', WorkerAbsenceController::class)->except(['show']);
+
+        // Crew break windows (recurring lunch / tea breaks) — availability source.
+        Route::resource('crew-break-windows', \App\Http\Controllers\Web\Admin\CrewBreakWindowController::class)->except(['show']);
 
         // ISA-95 Personnel Classes (competency templates)
         Route::resource('personnel-classes', \App\Http\Controllers\Web\Admin\PersonnelClassController::class);

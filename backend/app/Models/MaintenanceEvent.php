@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,16 +10,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MaintenanceEvent extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
+    use SoftDeletesWithAudit;
 
-    const TYPE_PLANNED     = 'planned';
-    const TYPE_CORRECTIVE  = 'corrective';
-    const TYPE_INSPECTION  = 'inspection';
+    const TYPE_PLANNED = 'planned';
 
-    const STATUS_PENDING     = 'pending';
+    const TYPE_CORRECTIVE = 'corrective';
+
+    const TYPE_INSPECTION = 'inspection';
+
+    const STATUS_PENDING = 'pending';
+
     const STATUS_IN_PROGRESS = 'in_progress';
-    const STATUS_COMPLETED   = 'completed';
-    const STATUS_CANCELLED   = 'cancelled';
+
+    const STATUS_COMPLETED = 'completed';
+
+    const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
         'title',
@@ -43,11 +50,11 @@ class MaintenanceEvent extends Model
     protected function casts(): array
     {
         return [
-            'scheduled_at'      => 'datetime',
-            'scheduled_end_at'  => 'datetime',
-            'started_at'        => 'datetime',
-            'completed_at'  => 'datetime',
-            'actual_cost'   => 'decimal:2',
+            'scheduled_at' => 'datetime',
+            'scheduled_end_at' => 'datetime',
+            'started_at' => 'datetime',
+            'completed_at' => 'datetime',
+            'actual_cost' => 'decimal:2',
         ];
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\SoftDeleteRegistry;
 use App\Sync\ShapeRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,6 +34,14 @@ class CollectionController extends Controller
         $where = $shape->where($user);
         if ($where) {
             $query->whereRaw($where);
+        }
+
+        // Soft-deleted rows never reach clients. DB::table() bypasses the
+        // Eloquent SoftDeletes scope, so filter explicitly here; the live path
+        // is covered by CollectionBroadcaster (the `deleted` event broadcasts
+        // a delete op on soft delete too).
+        if (SoftDeleteRegistry::isSoftDeletable($shape->table())) {
+            $query->whereNull('deleted_at');
         }
 
         // Same tenant scope as App\Scopes\TenantScope: only when the user has a
