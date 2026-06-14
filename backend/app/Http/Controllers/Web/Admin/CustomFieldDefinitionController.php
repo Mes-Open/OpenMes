@@ -28,7 +28,7 @@ class CustomFieldDefinitionController extends Controller
             ->map(fn (CustomFieldDefinition $d) => [
                 'id' => $d->id,
                 'entity_type' => $d->entity_type,
-                'entity_label' => $entities[$d->entity_type] ?? $d->entity_type,
+                'entity_label' => $entities[$d->entity_type]['label'] ?? $d->entity_type,
                 'key' => $d->key,
                 'label' => $d->label,
                 'type' => $d->type->value,
@@ -144,11 +144,11 @@ class CustomFieldDefinitionController extends Controller
         return $data;
     }
 
-    /** Entities config (key => label) as [{value, label}] for the selects. */
+    /** Entities config (key => [label, …]) as [{value, label}] for the selects. */
     private function entityOptions(): array
     {
         return collect($this->service->entities())
-            ->map(fn ($label, $value) => ['value' => $value, 'label' => $label])
+            ->map(fn ($entity, $value) => ['value' => $value, 'label' => $entity['label'] ?? $value])
             ->values()
             ->all();
     }
