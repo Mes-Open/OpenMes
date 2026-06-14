@@ -195,7 +195,7 @@ const LINK_TAB = { '/admin/dashboard': 'dashboard', '/admin/alerts': 'alerts', '
 // granted admin tab. Links into OperatorLayout (its own touch chrome).
 const OPERATOR_LINES_LINK = { label: 'Lines', href: '/operator/select-line', icon: 'office', match: ['/operator'] };
 
-function Sidebar({
+export function Sidebar({
     auth, alertCount, csrfToken, appVersion, path, collapsed, mobileOpen, showLabels,
     dark, onToggleCollapsed, onToggleDark, onCloseMobile,
 }) {
