@@ -94,4 +94,25 @@ class TabRegistry
 
         return null;
     }
+
+    /**
+     * The landing path for a user granted admin-panel tabs — the first tab (in
+     * registry order) they can access. Lets a non-admin with granted tabs enter
+     * the admin panel (and see the sidebar) instead of their default screen.
+     * Returns null when the user has no accessible tab.
+     */
+    public static function firstAccessibleUrl($user): ?string
+    {
+        if (! $user) {
+            return null;
+        }
+
+        foreach (self::TABS as $key => $tab) {
+            if ($user->can(self::permission($key))) {
+                return $tab['prefixes'][0] ?? null;
+            }
+        }
+
+        return null;
+    }
 }

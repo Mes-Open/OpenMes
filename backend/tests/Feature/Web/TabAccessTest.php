@@ -20,6 +20,8 @@ class TabAccessTest extends TestCase
 
     private User $supervisor;
 
+    private User $operator;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,6 +31,8 @@ class TabAccessTest extends TestCase
         $this->admin->assignRole('Admin');
         $this->supervisor = User::factory()->create();
         $this->supervisor->assignRole('Supervisor');
+        $this->operator = User::factory()->create();
+        $this->operator->assignRole('Operator');
     }
 
     public function test_admin_reaches_every_tab(): void
@@ -101,6 +105,17 @@ class TabAccessTest extends TestCase
 
         $this->assertTrue(Role::findByName('Admin', 'web')->hasPermissionTo('tab:admin'));
         $this->actingAs($this->admin)->get('/admin/users')->assertOk();
+    }
+
+    public function test_operator_granted_a_tab_can_open_the_admin_panel(): void
+    {
+        // No grant → the admin panel stays forbidden.
+        $this->actingAs($this->operator)->get('/admin/work-orders')->assertForbidden();
+
+        Role::findByName('Operator', 'web')->givePermissionTo('tab:orders');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->actingAs($this->operator)->get('/admin/work-orders')->assertOk();
     }
 
     public function test_invalid_tab_key_is_rejected(): void

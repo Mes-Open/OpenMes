@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Auth\AuthService;
+use App\Support\TabRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,7 @@ class AuthController extends Controller
             Auth::logout();
             $request->session()->put('2fa_user_id', $user->id);
             $request->session()->put('2fa_remember', $request->filled('remember'));
+
             return redirect()->route('two-factor.challenge');
         }
 
@@ -115,6 +117,7 @@ class AuthController extends Controller
         if ($user->two_factor_enabled) {
             $request->session()->put('2fa_user_id', $user->id);
             $request->session()->put('2fa_remember', false);
+
             return redirect()->route('two-factor.challenge');
         }
 
@@ -207,6 +210,12 @@ class AuthController extends Controller
             if ($lineId) {
                 return redirect()->route('operator.queue', ['line' => $lineId]);
             }
+        }
+
+        // Non-admins granted admin-panel tabs land in the panel (the sidebar
+        // then shows their tabs) instead of the operator line-selection screen.
+        if ($url = TabRegistry::firstAccessibleUrl($user)) {
+            return redirect($url);
         }
 
         // Default to operator workflow
