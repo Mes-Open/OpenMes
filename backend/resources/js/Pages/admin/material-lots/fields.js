@@ -1,40 +1,61 @@
+import { __ } from '../../../lib/i18n';
+
+/** Localized display label for a material-lot status enum value. */
+export function materialLotStatusLabel(status) {
+    const labels = {
+        received: __('Received'),
+        quarantine: __('Quarantine'),
+        released: __('Released'),
+        consumed: __('Consumed'),
+        expired: __('Expired'),
+        rejected: __('Rejected'),
+    };
+    return labels[status] ?? status;
+}
+
 export function materialLotFields(materials, sources, statuses) {
     return [
-        { name: 'lot_number', label: 'Lot Number', required: true, placeholder: 'e.g. ACME-STEEL-2026-W24-001', help: 'Required. A unique identifier for this lot/batch.' },
+        { name: 'lot_number', label: __('Lot Number'), required: true, placeholder: __('e.g. ACME-STEEL-2026-W24-001'), help: __('Required. A unique identifier for this lot/batch.') },
         {
             name: 'material_id',
-            label: 'Material',
+            label: __('Material'),
             type: 'select',
             required: true,
             options: [
-                { value: '', label: '— Select material (required) —' },
+                { value: '', label: __('— Select material (required) —') },
                 ...materials.map((m) => ({ value: String(m.id), label: m.name })),
             ],
         },
         {
             name: 'source_id',
-            label: 'Source',
+            label: __('Source'),
             type: 'select',
             options: [
-                { value: '', label: '— None —' },
+                { value: '', label: __('— None —') },
                 ...sources.map((s) => ({ value: String(s.id), label: s.external_name })),
             ],
         },
-        { name: 'quantity_received', label: 'Qty Received', type: 'number', required: true },
-        { name: 'quantity_available', label: 'Qty Available', type: 'number', help: 'Defaults to the received quantity if left blank.' },
-        { name: 'unit_of_measure', label: 'Unit', required: true, placeholder: 'e.g. pcs, kg, l', help: 'Required.' },
-        { name: 'received_at', label: 'Received', type: 'date', required: true },
-        { name: 'manufacturing_date', label: 'Mfg Date', type: 'date' },
-        { name: 'expiry_date', label: 'Expiry', type: 'date' },
+        { name: 'quantity_received', label: __('Qty Received'), type: 'number', required: true },
+        { name: 'quantity_available', label: __('Qty Available'), type: 'number', help: __('Defaults to the received quantity if left blank.') },
+        { name: 'unit_of_measure', label: __('Unit'), required: true, placeholder: __('e.g. pcs, kg, l'), help: __('Required.') },
+        { name: 'received_at', label: __('Received'), type: 'date', required: true },
+        { name: 'manufacturing_date', label: __('Mfg Date'), type: 'date' },
+        { name: 'expiry_date', label: __('Expiry'), type: 'date' },
         {
             name: 'status',
-            label: 'Status',
+            label: __('Status'),
             type: 'select',
             required: true,
-            options: statuses.map((s) => ({ value: s, label: s })),
+            options: statuses.map((s) => ({ value: s, label: materialLotStatusLabel(s) })),
         },
-        { name: 'supplier_lot_no', label: 'Supplier Lot #' },
-        { name: 'supplier_reference', label: 'Supplier Ref' },
+        { name: 'supplier_lot_no', label: __('Supplier Lot #') },
+        { name: 'supplier_reference', label: __('Supplier Ref') },
+        {
+            name: 'source_container_no',
+            label: __('Source Container #'),
+            placeholder: __('Scan container barcode…'),
+            help: __('Scan the barcode of the container/pallet/drum the material arrived in.'),
+        },
     ];
 }
 

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Shift extends Model
 {
-    use HasFactory;
+    use HasCustomFields, HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'name',
@@ -26,8 +29,8 @@ class Shift extends Model
     {
         return [
             'days_of_week' => 'array',
-            'is_active'    => 'boolean',
-            'sort_order'   => 'integer',
+            'is_active' => 'boolean',
+            'sort_order' => 'integer',
         ];
     }
 
@@ -46,22 +49,22 @@ class Shift extends Model
      */
     public static function current(?int $lineId = null): ?self
     {
-        $now      = now();
+        $now = now();
         $dayOfWeek = (int) $now->format('N');
-        $time      = $now->format('H:i:s');
+        $time = $now->format('H:i:s');
 
         return static::where('is_active', true)
-            ->when($lineId, fn($q) => $q->where(fn($q2) =>
-                $q2->where('line_id', $lineId)->orWhereNull('line_id')
+            ->when($lineId, fn ($q) => $q->where(fn ($q2) => $q2->where('line_id', $lineId)->orWhereNull('line_id')
             ))
             ->get()
             ->first(function (self $shift) use ($dayOfWeek, $time) {
-                if (is_array($shift->days_of_week) && !in_array($dayOfWeek, $shift->days_of_week)) {
+                if (is_array($shift->days_of_week) && ! in_array($dayOfWeek, $shift->days_of_week)) {
                     return false;
                 }
                 if ($shift->start_time <= $shift->end_time) {
                     return $time >= $shift->start_time && $time < $shift->end_time;
                 }
+
                 return $time >= $shift->start_time || $time < $shift->end_time;
             });
     }
@@ -74,5 +77,13 @@ class Shift extends Model
     public static function dayName(int $day): string
     {
         return ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][$day] ?? '?';
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\WorkOrderShiftEntry::class, 'shift_id'],
+        ];
     }
 }

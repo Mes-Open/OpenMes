@@ -2,21 +2,29 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\MergesCustomFieldRules;
 use App\Models\Worker;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreWorkerRequest extends FormRequest
 {
+    use MergesCustomFieldRules;
+
     public function authorize(): bool
     {
         // Route is gated by the admin role middleware.
         return true;
     }
 
+    protected function customFieldEntityType(): string
+    {
+        return 'worker';
+    }
+
     public function rules(): array
     {
-        return [
+        return array_merge([
             'code' => ['required', 'string', 'max:50', 'unique:workers,code'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -31,6 +39,6 @@ class StoreWorkerRequest extends FormRequest
             'skills' => ['nullable', 'array'],
             'skills.*.id' => ['required', 'exists:skills,id'],
             'skills.*.level' => ['nullable', 'integer', 'min:1', 'max:5'],
-        ];
+        ], $this->customFieldRules());
     }
 }

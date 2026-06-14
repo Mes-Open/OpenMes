@@ -99,7 +99,7 @@ class ProductTypeApiTest extends TestCase
         $pt = ProductType::factory()->create();
         $this->authAdmin()->deleteJson("/api/v1/product-types/{$pt->id}")
             ->assertStatus(200);
-        $this->assertDatabaseMissing('product_types', ['id' => $pt->id]);
+        $this->assertSoftDeleted('product_types', ['id' => $pt->id]);
     }
 
     public function test_cannot_delete_when_referenced_by_work_order(): void

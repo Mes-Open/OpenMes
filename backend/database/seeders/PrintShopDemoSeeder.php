@@ -407,6 +407,40 @@ class PrintShopDemoSeeder extends Seeder
                 'planned_end_at'   => now()->addDays(3)->setTime(18, 0),
                 'description'     => 'University crewneck sweatshirts — embroidered crest, black, sizes S–XXL',
             ],
+
+            // Unassigned orders — created but not yet allocated to a production
+            // line (line_id null). They sit in the backlog awaiting scheduling,
+            // exercising the "no line assigned" path across the UI.
+            [
+                'order_no'        => 'WO-2026-008',
+                'line_id'         => null,
+                'product_type_id' => $pt['TSHIRT']->id,
+                'planned_qty'     => 75,
+                'status'          => WorkOrder::STATUS_PENDING,
+                'priority'        => 2,
+                'due_date'        => now()->addDays(6),
+                'description'     => 'Festival merch t-shirts — line not assigned yet, awaiting scheduling',
+            ],
+            [
+                'order_no'        => 'WO-2026-009',
+                'line_id'         => null,
+                'product_type_id' => $pt['HOODIE']->id,
+                'planned_qty'     => 40,
+                'status'          => WorkOrder::STATUS_PENDING,
+                'priority'        => 1,
+                'due_date'        => now()->addDays(10),
+                'description'     => 'Bulk hoodie order — unassigned, pending capacity planning',
+            ],
+            [
+                'order_no'        => 'WO-2026-010',
+                'line_id'         => null,
+                'product_type_id' => $pt['TOTE']->id,
+                'planned_qty'     => 150,
+                'status'          => WorkOrder::STATUS_PENDING,
+                'priority'        => 0,
+                'due_date'        => now()->addDays(14),
+                'description'     => 'Promo tote bags — no line assigned, backlog',
+            ],
         ];
 
         foreach ($orders as $orderData) {

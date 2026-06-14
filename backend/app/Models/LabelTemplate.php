@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class LabelTemplate extends Model
 {
     use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     const TYPE_WORK_ORDER = 'work_order';
 
@@ -16,10 +18,13 @@ class LabelTemplate extends Model
 
     const TYPE_WORKSTATION_STEP = 'workstation_step';
 
+    const TYPE_PALLET = 'pallet';
+
     const TYPES = [
         self::TYPE_WORK_ORDER => 'Work Order',
         self::TYPE_FINISHED_GOODS => 'Finished Goods',
         self::TYPE_WORKSTATION_STEP => 'Workstation Step',
+        self::TYPE_PALLET => 'Pallet',
     ];
 
     const SIZES = [
@@ -38,12 +43,14 @@ class LabelTemplate extends Model
 
     const AVAILABLE_FIELDS = [
         'wo_number' => 'Work order number',
+        'pallet_no' => 'Pallet number',
         'product' => 'Product name',
         'quantity' => 'Quantity',
         'barcode' => 'Barcode (1D)',
         'qr' => 'QR code',
         'logo' => 'Logo',
         'lot' => 'Lot number',
+        'location' => 'Location',
         'prod_date' => 'Production date',
     ];
 
@@ -101,6 +108,18 @@ class LabelTemplate extends Model
                 'logo' => false,
                 'lot' => false,
                 'prod_date' => false,
+            ],
+            self::TYPE_PALLET => [
+                'pallet_no' => true,
+                'wo_number' => true,
+                'product' => true,
+                'quantity' => true,
+                'barcode' => true,
+                'qr' => true,
+                'logo' => false,
+                'lot' => false,
+                'location' => true,
+                'prod_date' => true,
             ],
             default => array_fill_keys(array_keys(self::AVAILABLE_FIELDS), false),
         };

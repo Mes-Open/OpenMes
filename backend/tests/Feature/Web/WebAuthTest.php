@@ -4,6 +4,7 @@ namespace Tests\Feature\Web;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -81,6 +82,13 @@ class WebAuthTest extends TestCase
 
     public function test_admin_is_redirected_to_admin_dashboard_after_login(): void
     {
+        // Once onboarding is complete, an admin lands on the dashboard. (A fresh
+        // install with onboarding pending intentionally routes to the wizard —
+        // covered separately below.)
+        DB::table('system_settings')
+            ->where('key', 'onboarding_completed')
+            ->update(['value' => json_encode(true)]);
+
         $user = User::factory()->create([
             'username' => 'admin',
             'password' => Hash::make('password123'),
@@ -93,6 +101,24 @@ class WebAuthTest extends TestCase
         ]);
 
         $response->assertRedirect(route('admin.dashboard'));
+    }
+
+    public function test_admin_is_redirected_to_onboarding_when_not_completed(): void
+    {
+        // Fresh install: onboarding_completed=false and no production lines yet
+        // (both default in a clean DB) → admin is steered into the wizard.
+        $user = User::factory()->create([
+            'username' => 'freshadmin',
+            'password' => Hash::make('password123'),
+        ]);
+        $user->assignRole('Admin');
+
+        $response = $this->post('/login', [
+            'username' => 'freshadmin',
+            'password' => 'password123',
+        ]);
+
+        $response->assertRedirect(route('onboarding.index'));
     }
 
     public function test_supervisor_is_redirected_to_supervisor_dashboard_after_login(): void
@@ -127,6 +153,26 @@ class WebAuthTest extends TestCase
         $response->assertRedirect(route('operator.select-line'));
     }
 
+    public function test_operator_with_a_granted_admin_tab_still_lands_on_line_selection(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'operator-with-tab',
+            'password' => Hash::make('password123'),
+        ]);
+        $user->assignRole('Operator');
+        \Spatie\Permission\Models\Role::findByName('Operator', 'web')->givePermissionTo('tab:orders');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $response = $this->post('/login', [
+            'username' => 'operator-with-tab',
+            'password' => 'password123',
+        ]);
+
+        // Line selection is the operator's primary screen — a granted admin tab
+        // does not change the landing; the tab is reached via the "Panel" link.
+        $response->assertRedirect(route('operator.select-line'));
+    }
+
     // ── Logout ───────────────────────────────────────────────────────────────
 
     public function test_user_can_logout(): void
@@ -155,9 +201,9 @@ class WebAuthTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)->post('/settings/change-password', [
-            'current_password'          => 'oldpassword',
-            'password'                  => 'newpassword123',
-            'password_confirmation'     => 'newpassword123',
+            'current_password' => 'oldpassword',
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
         ]);
 
         $response->assertRedirect();
@@ -171,8 +217,8 @@ class WebAuthTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)->post('/settings/change-password', [
-            'current_password'      => 'wrongpassword',
-            'password'              => 'newpassword123',
+            'current_password' => 'wrongpassword',
+            'password' => 'newpassword123',
             'password_confirmation' => 'newpassword123',
         ]);
 
@@ -186,8 +232,8 @@ class WebAuthTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)->post('/settings/change-password', [
-            'current_password'      => 'oldpassword',
-            'password'              => 'newpassword123',
+            'current_password' => 'oldpassword',
+            'password' => 'newpassword123',
             'password_confirmation' => 'differentpassword',
         ]);
 

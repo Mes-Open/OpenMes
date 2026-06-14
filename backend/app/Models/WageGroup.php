@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class WageGroup extends Model
 {
     use HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'code',
@@ -22,7 +24,7 @@ class WageGroup extends Model
     protected function casts(): array
     {
         return [
-            'is_active'        => 'boolean',
+            'is_active' => 'boolean',
             'base_hourly_rate' => 'decimal:4',
         ];
     }

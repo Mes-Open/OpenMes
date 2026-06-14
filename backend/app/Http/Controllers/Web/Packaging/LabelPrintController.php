@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Web\Packaging;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PrintMultipleLabelsRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\LabelTemplate;
+use App\Models\Pallet;
 use App\Models\WorkOrder;
 use App\Services\Packaging\LabelGenerator;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class LabelPrintController extends Controller
 {
@@ -74,15 +75,28 @@ class LabelPrintController extends Controller
         ]);
     }
 
-    public function printMultiple(Request $request)
+    public function palletPdf(Request $request, Pallet $pallet)
     {
-        $validated = $request->validate([
-            'type' => ['required', Rule::in(array_keys(LabelTemplate::TYPES))],
-            'format' => ['required', Rule::in(['pdf', 'zpl'])],
-            'template_id' => 'nullable|integer|exists:label_templates,id',
-            'ids' => 'required|array|min:1',
-            'ids.*' => 'integer',
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_PALLET);
+        $pdf = $this->generator->pdfForPallets(collect([$pallet]), $template);
+
+        return $pdf->stream("label-pallet-{$pallet->pallet_no}.pdf");
+    }
+
+    public function palletZpl(Request $request, Pallet $pallet)
+    {
+        $template = $this->resolveTemplate($request, LabelTemplate::TYPE_PALLET);
+        $zpl = $this->generator->zplForPallets(collect([$pallet]), $template);
+
+        return response($zpl, 200, [
+            'Content-Type' => 'application/zpl',
+            'Content-Disposition' => "attachment; filename=label-pallet-{$pallet->pallet_no}.zpl",
         ]);
+    }
+
+    public function printMultiple(PrintMultipleLabelsRequest $request)
+    {
+        $validated = $request->validated();
 
         $template = $validated['template_id']
             ? LabelTemplate::findOrFail($validated['template_id'])
@@ -94,7 +108,23 @@ class LabelPrintController extends Controller
             LabelTemplate::TYPE_WORK_ORDER => $this->multiWorkOrders($validated['ids'], $template, $validated['format']),
             LabelTemplate::TYPE_FINISHED_GOODS => $this->multiFinishedGoods($validated['ids'], $template, $validated['format']),
             LabelTemplate::TYPE_WORKSTATION_STEP => $this->multiBatchSteps($validated['ids'], $template, $validated['format']),
+            LabelTemplate::TYPE_PALLET => $this->multiPallets($validated['ids'], $template, $validated['format']),
         };
+    }
+
+    private function multiPallets(array $ids, LabelTemplate $template, string $format)
+    {
+        $pallets = Pallet::whereIn('id', $ids)->get();
+        $filename = 'labels-pallets-'.date('Ymd-His');
+
+        if ($format === 'zpl') {
+            return response($this->generator->zplForPallets($pallets, $template), 200, [
+                'Content-Type' => 'application/zpl',
+                'Content-Disposition' => "attachment; filename={$filename}.zpl",
+            ]);
+        }
+
+        return $this->generator->pdfForPallets($pallets, $template)->stream("{$filename}.pdf");
     }
 
     private function multiWorkOrders(array $ids, LabelTemplate $template, string $format)

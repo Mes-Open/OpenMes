@@ -27,6 +27,10 @@ class LabelTemplatesSeeder extends Seeder
                 'name' => 'Standard Workstation Step',
                 'size' => '80x40',
             ],
+            LabelTemplate::TYPE_PALLET => [
+                'name' => 'Standard Pallet',
+                'size' => '100x100',
+            ],
         ];
 
         $tenants = Tenant::query()->get();

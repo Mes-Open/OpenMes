@@ -1,21 +1,23 @@
+import { __ } from '../../../lib/i18n';
+
 export function siteFields(companies) {
     return [
         {
             name: 'company_id',
-            label: 'Company',
+            label: __('Company'),
             type: 'select',
             options: [
-                { value: '', label: '— None —' },
+                { value: '', label: __('— None —') },
                 ...companies.map((c) => ({ value: String(c.id), label: c.name })),
             ],
         },
-        { name: 'code', label: 'Code', required: true },
-        { name: 'name', label: 'Name', required: true },
-        { name: 'description', label: 'Description', type: 'textarea' },
-        { name: 'address', label: 'Address', type: 'textarea' },
-        { name: 'city', label: 'City' },
-        { name: 'country', label: 'Country (2-letter)' },
-        { name: 'timezone', label: 'Timezone' },
-        { name: 'is_active', label: 'Active', type: 'checkbox' },
+        { name: 'code', label: __('Code'), required: true },
+        { name: 'name', label: __('Name'), required: true },
+        { name: 'description', label: __('Description'), type: 'textarea' },
+        { name: 'address', label: __('Address'), type: 'textarea' },
+        { name: 'city', label: __('City') },
+        { name: 'country', label: __('Country (2-letter)') },
+        { name: 'timezone', label: __('Timezone') },
+        { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
 }

@@ -13,6 +13,7 @@ use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -264,9 +265,10 @@ class LotTrackingTest extends TestCase
 
     public function test_admin_can_list_sequences(): void
     {
-        $response = $this->actingAs($this->admin)->get(route('admin.lot-sequences.index'));
-        $response->assertStatus(200);
-        $response->assertSee('Filter LOT');
+        // Row data is delivered client-side via Electric SQL, not in server HTML.
+        $this->actingAs($this->admin)->get(route('admin.lot-sequences.index'))
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/lot-sequences/Index'));
     }
 
     public function test_admin_can_create_sequence(): void

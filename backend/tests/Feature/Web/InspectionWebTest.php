@@ -7,6 +7,7 @@ use App\Models\Material;
 use App\Models\MaterialType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class InspectionWebTest extends TestCase
@@ -83,10 +84,16 @@ class InspectionWebTest extends TestCase
             'is_active' => true,
         ]);
 
+        // The plan list is a React/Inertia page; plan rows arrive in the browser
+        // via Electric SQL, not server-rendered HTML. XSS is prevented by React's
+        // default escaping at render time. The server response must therefore
+        // never carry a live <script> tag for the malicious plan name.
         $response = $this->actingAs($this->admin)->get(route('admin.inspection-plans.index'));
         $response->assertOk();
+        $response->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('admin/inspection-plans/Index')
+        );
         $response->assertDontSee('<script>alert(1)</script>', false);
-        $response->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false);
     }
 
     public function test_inspector_full_flow_via_web(): void
@@ -98,15 +105,17 @@ class InspectionWebTest extends TestCase
             'is_active' => true,
         ]);
 
-        // Start
+        // Start — the scanned source container is stored on the inspection.
         $start = $this->actingAs($this->supervisor)->post(route('inspections.store'), [
             'material_id' => $this->material->id,
             'lot_number' => 'WEB-LOT-1',
+            'source_container_no' => 'CONT-WEB-1',
             'inspection_plan_id' => $plan->id,
         ]);
         $start->assertRedirect();
         $inspection = \App\Models\Inspection::firstWhere('lot_number', 'WEB-LOT-1');
         $this->assertNotNull($inspection);
+        $this->assertSame('CONT-WEB-1', $inspection->source_container_no);
 
         // Record results
         $resultId = $inspection->results->first()->id;

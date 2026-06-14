@@ -12,6 +12,7 @@ class PackagingScanLog extends Model
     protected $fillable = [
         'user_id',
         'work_order_id',
+        'pallet_id',
         'ean',
         'product_name',
         'scanned_at',
@@ -29,5 +30,10 @@ class PackagingScanLog extends Model
     public function workOrder(): BelongsTo
     {
         return $this->belongsTo(WorkOrder::class);
+    }
+
+    public function pallet(): BelongsTo
+    {
+        return $this->belongsTo(Pallet::class);
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\TestControl\TenantController as E2eTenantController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
 use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
@@ -13,10 +14,11 @@ use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
 use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
-use App\Http\Controllers\Web\Admin\ImportExampleController;
+use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\DivisionController;
 use App\Http\Controllers\Web\Admin\FactoryController;
+use App\Http\Controllers\Web\Admin\ImportExampleController;
 use App\Http\Controllers\Web\Admin\IntegrationConfigController;
 use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTypeController;
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
@@ -28,6 +30,7 @@ use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotCont
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
+use App\Http\Controllers\Web\Admin\PalletController as AdminPalletController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
 use App\Http\Controllers\Web\Admin\ProductionCostReportController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
@@ -42,6 +45,7 @@ use App\Http\Controllers\Web\Admin\SkillController;
 use App\Http\Controllers\Web\Admin\SubassemblyController;
 use App\Http\Controllers\Web\Admin\ToolController;
 use App\Http\Controllers\Web\Admin\WageGroupController;
+use App\Http\Controllers\Web\Admin\WorkerAbsenceController;
 use App\Http\Controllers\Web\Admin\WorkerController;
 // Gate 5 — Tracking advanced
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
@@ -54,9 +58,9 @@ use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController
 // Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
+use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\ScrapController as OperatorScrapController;
 use App\Http\Controllers\Web\Operator\WorkOrderController as OperatorWorkOrderController;
-use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\WorkstationController as OperatorWorkstationController;
 use App\Http\Controllers\Web\Packaging\LabelPrintController;
 use App\Http\Controllers\Web\Packaging\LabelTemplateController;
@@ -101,6 +105,8 @@ Route::get('/', function () {
             return redirect()->route('operator.queue', ['line' => $user->workstation->line_id]);
         }
 
+        // Operators land on line selection (their primary screen); granted admin
+        // tabs are reached from there via the OperatorLayout "Panel" link.
         return redirect()->route('operator.select-line');
     }
 
@@ -146,6 +152,7 @@ Route::middleware('auth')->group(function () {
             ->where('scheduled_at', '>=', now())
             ->where('scheduled_at', '<=', now()->addHours(2))
             ->count();
+
         return response()->json(['count' => $count]);
     })->name('maintenance.upcoming-count');
 
@@ -182,6 +189,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'showApiTokens'])->name('api-tokens')->middleware('role:Admin');
         Route::post('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'createApiToken'])->name('api-tokens.create')->middleware('role:Admin');
         Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Web\SettingsController::class, 'revokeApiToken'])->name('api-tokens.revoke')->middleware('role:Admin');
+        // Admin-only role × tab access matrix
+        Route::get('/access', [\App\Http\Controllers\Web\SettingsController::class, 'showAccess'])->name('access')->middleware('role:Admin');
+        Route::post('/access', [\App\Http\Controllers\Web\SettingsController::class, 'updateAccess'])->name('update-access')->middleware('role:Admin');
     });
 
     // Legacy change password route (redirect to settings)
@@ -222,6 +232,8 @@ Route::middleware('auth')->group(function () {
         // OperatorBatchController::startStep/completeStep delegating to BatchService).
         Route::post('/batch-step/{batchStep}/start', [OperatorBatchController::class, 'startStep'])->name('batch-step.start');
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
+        Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
+        Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
         Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');
@@ -257,6 +269,11 @@ Route::middleware('auth')->group(function () {
     Route::prefix('supervisor')->name('supervisor.')->middleware('role:Supervisor|Admin')->group(function () {
         Route::get('/dashboard', [SupervisorDashboardController::class, 'index'])->name('dashboard');
 
+        // Shift handover — produced/packed/WIP/shipped balance + close shift (audit snapshot)
+        Route::get('/shift-handover', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'index'])->name('shift-handover.index');
+        Route::get('/shift-handover/preview', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'preview'])->name('shift-handover.preview');
+        Route::post('/shift-handover', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'store'])->name('shift-handover.store');
+
         // Work Orders (supervisor can manage status)
         Route::get('/work-orders', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'index'])->name('work-orders.index');
         Route::get('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'show'])->name('work-orders.show');
@@ -279,7 +296,9 @@ Route::middleware('auth')->group(function () {
     });
 
     // Admin routes
-    Route::prefix('admin')->name('admin.')->middleware('role:Admin')->group(function () {
+    // Per-tab access (Settings → Access matrix) replaces the blanket role:Admin;
+    // TabAccessMiddleware maps each /admin path to a tab and checks tab:<key>.
+    Route::prefix('admin')->name('admin.')->middleware('tab.access')->group(function () {
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
@@ -425,6 +444,9 @@ Route::middleware('auth')->group(function () {
         Route::post('lot-sequences/preview', [AdminLotSequenceController::class, 'preview'])->name('lot-sequences.preview');
         Route::resource('lot-sequences', AdminLotSequenceController::class)->except(['show']);
 
+        // Pallets
+        Route::resource('pallets', AdminPalletController::class)->except(['show']);
+
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
 
@@ -459,6 +481,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/csv-import/upload', [AdminCsvImportController::class, 'upload'])->name('csv-import.upload');
         Route::post('/csv-import/process', [AdminCsvImportController::class, 'process'])->name('csv-import.process');
         Route::delete('/csv-import/mappings/{mapping}', [AdminCsvImportController::class, 'destroyMapping'])->name('csv-import.mappings.destroy');
+
+        // Trash — soft-deleted rows across all domain entities, with restore.
+        Route::get('/trash', [\App\Http\Controllers\Web\Admin\TrashController::class, 'index'])->name('trash.index');
+        Route::post('/trash/{type}/{id}/restore', [\App\Http\Controllers\Web\Admin\TrashController::class, 'restore'])
+            ->whereNumber('id')->name('trash.restore');
 
         // Audit Logs
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');
@@ -516,6 +543,12 @@ Route::middleware('auth')->group(function () {
         Route::resource('anomaly-reasons', AnomalyReasonController::class)->except(['show']);
         Route::post('/anomaly-reasons/{anomalyReason}/toggle-active', [AnomalyReasonController::class, 'toggleActive'])->name('anomaly-reasons.toggle-active');
 
+        // Custom Fields (admin-defined fields on registered entities)
+        Route::resource('custom-fields', CustomFieldDefinitionController::class)
+            ->parameters(['custom-fields' => 'customField'])->except(['show']);
+        Route::post('/custom-fields/{customField}/toggle-active', [CustomFieldDefinitionController::class, 'toggleActive'])->name('custom-fields.toggle-active');
+        Route::get('/custom-field-files/{file}', [CustomFieldDefinitionController::class, 'downloadFile'])->name('custom-field-files.show');
+
         // Scrap Reasons
         Route::resource('scrap-reasons', ScrapReasonController::class)->except(['show']);
         Route::post('/scrap-reasons/{scrapReason}/toggle-active', [ScrapReasonController::class, 'toggleActive'])->name('scrap-reasons.toggle-active');
@@ -538,6 +571,12 @@ Route::middleware('auth')->group(function () {
         // Worker certifications (ISA-95 Personnel Capability — pivot management)
         Route::post('/workers/{worker}/skills', [WorkerController::class, 'attachSkill'])->name('workers.skills.attach');
         Route::delete('/workers/{worker}/skills/{skill}', [WorkerController::class, 'detachSkill'])->name('workers.skills.detach');
+
+        // Worker absences (vacation / sick / …) — availability source.
+        Route::resource('worker-absences', WorkerAbsenceController::class)->except(['show']);
+
+        // Crew break windows (recurring lunch / tea breaks) — availability source.
+        Route::resource('crew-break-windows', \App\Http\Controllers\Web\Admin\CrewBreakWindowController::class)->except(['show']);
 
         // ISA-95 Personnel Classes (competency templates)
         Route::resource('personnel-classes', \App\Http\Controllers\Web\Admin\PersonnelClassController::class);
@@ -633,6 +672,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/history', [PackagingController::class, 'history'])->name('history');
             Route::get('/history/poll', [PackagingController::class, 'historyAfter'])->name('history.poll');
             Route::get('/stats', [PackagingController::class, 'stats'])->name('stats');
+            Route::get('/pallets', [PackagingController::class, 'openPallets'])->name('pallets.open');
+            Route::post('/pallets', [PackagingController::class, 'createPallet'])->name('pallets.create');
+            Route::post('/pallets/{pallet}/close', [PackagingController::class, 'closePallet'])->name('pallets.close');
         });
 
         Route::middleware('role:Supervisor|Admin')->group(function () {
@@ -649,6 +691,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/finished-goods/{batch}/zpl', [LabelPrintController::class, 'finishedGoodsZpl'])->name('finished-goods.zpl');
             Route::get('/workstation-step/{batchStep}/pdf', [LabelPrintController::class, 'batchStepPdf'])->name('workstation-step.pdf');
             Route::get('/workstation-step/{batchStep}/zpl', [LabelPrintController::class, 'batchStepZpl'])->name('workstation-step.zpl');
+            Route::get('/pallet/{pallet}/pdf', [LabelPrintController::class, 'palletPdf'])->name('pallet.pdf');
+            Route::get('/pallet/{pallet}/zpl', [LabelPrintController::class, 'palletZpl'])->name('pallet.zpl');
             Route::post('/print-multiple', [LabelPrintController::class, 'printMultiple'])->name('print-multiple');
         });
 
@@ -658,3 +702,18 @@ Route::middleware('auth')->group(function () {
         });
     });
 });
+
+/*
+ * E2E test-control surface — isolated-tenant lifecycle for the Playwright suite
+ * (../../e2e). Hard-gated by EnsureE2eEnabled: 404 unless config('e2e.enabled')
+ * AND non-production. Called by the test runner without a session, so these are
+ * CSRF-exempt (see bootstrap/app.php validateCsrfTokens except).
+ */
+Route::prefix('__e2e__')
+    ->middleware(\App\Http\Middleware\EnsureE2eEnabled::class)
+    ->group(function () {
+        Route::post('/tenant', [E2eTenantController::class, 'store']);
+        Route::post('/tenant/{tenant}/reset', [E2eTenantController::class, 'reset']);
+        Route::post('/tenant/{tenant}/bump-work-order', [E2eTenantController::class, 'bumpWorkOrder']);
+        Route::delete('/tenant/{tenant}', [E2eTenantController::class, 'destroy']);
+    });

@@ -164,7 +164,7 @@ class AdminWorkOrderWebTest extends TestCase
         $response = $this->actingAs($this->admin)->delete("/admin/work-orders/{$wo->id}");
 
         $response->assertRedirect();
-        $this->assertDatabaseMissing('work_orders', ['id' => $wo->id]);
+        $this->assertSoftDeleted('work_orders', ['id' => $wo->id]);
     }
 
     // ── Status transitions ───────────────────────────────────────────────────

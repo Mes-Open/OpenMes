@@ -2,8 +2,8 @@
 
 namespace App\Sync;
 
-use App\Sync\Shapes\IssueTypesShape;
 use App\Sync\Shapes\IssuesOpenShape;
+use App\Sync\Shapes\IssueTypesShape;
 use App\Sync\Shapes\LinesActiveShape;
 use App\Sync\Shapes\OeeRecordsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
@@ -54,6 +54,14 @@ class ShapeRegistry
             'table' => 'wage_groups',
             'columns' => ['id', 'code', 'name', 'description', 'base_hourly_rate', 'currency', 'is_active', 'created_at', 'updated_at'],
         ],
+        'worker_absences' => [
+            'table' => 'worker_absences',
+            'columns' => ['id', 'worker_id', 'type', 'starts_on', 'ends_on', 'all_day', 'start_time', 'end_time', 'status', 'reason', 'created_by_id', 'created_at', 'updated_at'],
+        ],
+        'crew_break_windows' => [
+            'table' => 'crew_break_windows',
+            'columns' => ['id', 'crew_id', 'name', 'start_time', 'end_time', 'days_of_week', 'is_active', 'created_at', 'updated_at'],
+        ],
         'factories' => [
             'table' => 'factories',
             'columns' => ['id', 'code', 'name', 'description', 'is_active', 'created_at', 'updated_at'],
@@ -64,11 +72,11 @@ class ShapeRegistry
         ],
         'areas' => [
             'table' => 'areas',
-            'columns' => ['id', 'site_id', 'code', 'name', 'description', 'is_active', 'created_at', 'updated_at'],
+            'columns' => ['id', 'site_id', 'code', 'name', 'description', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'sites' => [
             'table' => 'sites',
-            'columns' => ['id', 'company_id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active', 'created_at', 'updated_at'],
+            'columns' => ['id', 'company_id', 'code', 'name', 'description', 'address', 'city', 'country', 'timezone', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'crews' => [
             'table' => 'crews',
@@ -76,7 +84,7 @@ class ShapeRegistry
         ],
         'tools' => [
             'table' => 'tools',
-            'columns' => ['id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'next_service_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'next_service_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // Global line statuses only (per-line statuses are managed elsewhere).
         'line_statuses_global' => [
@@ -98,7 +106,7 @@ class ShapeRegistry
         ],
         'shifts' => [
             'table' => 'shifts',
-            'columns' => ['id', 'code', 'name', 'start_time', 'end_time', 'sort_order', 'line_id', 'is_active', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'start_time', 'end_time', 'sort_order', 'line_id', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'issue_types_all' => [
             'table' => 'issue_types',
@@ -106,7 +114,18 @@ class ShapeRegistry
         ],
         'materials' => [
             'table' => 'materials',
-            'columns' => ['id', 'code', 'name', 'description', 'material_type_id', 'unit_of_measure', 'tracking_type', 'default_scrap_percentage', 'external_code', 'external_system', 'stock_quantity', 'is_active', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'description', 'material_type_id', 'unit_of_measure', 'tracking_type', 'default_scrap_percentage', 'external_code', 'external_system', 'stock_quantity', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
+        ],
+
+        // Admin-defined custom-field schema. Tenant-scoped (global defs on "g").
+        // NOTE: `config` is a JSON column — the snapshot (DB::table, no Eloquent
+        // casts) serves it as a raw JSON string while live deltas send a decoded
+        // array, so a client consuming this collection must JSON.parse the
+        // snapshot value. The same caveat applies to every `custom_fields`
+        // column added to the entity shapes below.
+        'custom_field_definitions' => [
+            'table' => 'custom_field_definitions',
+            'columns' => ['id', 'entity_type', 'key', 'label', 'type', 'config', 'required', 'position', 'is_active', 'tenant_id', 'created_at', 'updated_at'],
         ],
         // Users: SAFE columns only — never sync password/pin/remember_token.
         'users' => [
@@ -117,6 +136,10 @@ class ShapeRegistry
             'table' => 'lot_sequences',
             'columns' => ['id', 'name', 'product_type_id', 'prefix', 'suffix', 'pattern', 'next_number', 'pad_size', 'year_prefix', 'reset_period', 'created_at', 'updated_at'],
         ],
+        'pallets' => [
+            'table' => 'pallets',
+            'columns' => ['id', 'pallet_no', 'work_order_id', 'qty', 'status', 'location', 'erp_reference', 'created_at', 'updated_at'],
+        ],
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
             'table' => 'integration_configs',
@@ -124,7 +147,7 @@ class ShapeRegistry
         ],
         'workers' => [
             'table' => 'workers',
-            'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'process_segments' => [
             'table' => 'process_segments',
@@ -134,12 +157,12 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [
             'table' => 'lines',
-            'columns' => ['id', 'code', 'name', 'description', 'is_active', 'area_id', 'division_id', 'view_template_id', 'default_operator_view', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'description', 'is_active', 'area_id', 'division_id', 'view_template_id', 'default_operator_view', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'maintenance_events' => [
             'table' => 'maintenance_events',
@@ -151,7 +174,7 @@ class ShapeRegistry
         ],
         'material_lots' => [
             'table' => 'material_lots',
-            'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'created_at', 'updated_at'],
+            'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'source_container_no', 'created_at', 'updated_at'],
         ],
         'view_templates' => [
             'table' => 'view_templates',
@@ -168,7 +191,7 @@ class ShapeRegistry
         // All issues (any status) for the supervisor/admin issue management page.
         'issues_all' => [
             'table' => 'issues',
-            'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'created_at', 'updated_at'],
+            'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
         ],
     ];
 

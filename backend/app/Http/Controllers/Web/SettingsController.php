@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateRoleTabAccessRequest;
+use App\Support\TabRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -556,5 +558,68 @@ class SettingsController extends Controller
 
             return back()->with('error', __('Failed to import settings. Please check the file and try again.'));
         }
+    }
+
+    /**
+     * Show the role × tab access matrix. Rows are tabs, columns are roles;
+     * Admin is locked to full access (handled in the UI + Gate::before).
+     */
+    public function showAccess()
+    {
+        $roles = \Spatie\Permission\Models\Role::with('permissions')->orderBy('name')->get();
+
+        $matrix = [];
+        foreach ($roles as $role) {
+            $matrix[$role->name] = $role->permissions
+                ->pluck('name')
+                ->filter(fn ($p) => str_starts_with($p, 'tab:'))
+                ->map(fn ($p) => substr($p, 4))
+                ->values()
+                ->all();
+        }
+
+        return Inertia::render('settings/Access', [
+            'tabs' => collect(TabRegistry::labels())
+                ->map(fn ($label, $key) => ['key' => $key, 'label' => $label])
+                ->values(),
+            'roles' => $roles->pluck('name')->values(),
+            'matrix' => $matrix,
+            'lockedRole' => 'Admin',
+        ]);
+    }
+
+    /**
+     * Persist the matrix: for each role (except the always-full Admin) replace
+     * its tab:* permissions with the submitted set, preserving non-tab perms.
+     */
+    public function updateAccess(UpdateRoleTabAccessRequest $request)
+    {
+        $access = $request->validated()['access'] ?? [];
+
+        foreach ($access as $roleName => $tabKeys) {
+            if ($roleName === 'Admin') {
+                continue; // Admin always keeps full access
+            }
+
+            $role = \Spatie\Permission\Models\Role::with('permissions')
+                ->where('name', $roleName)->where('guard_name', 'web')->first();
+
+            if (! $role) {
+                continue;
+            }
+
+            $nonTab = $role->permissions->pluck('name')
+                ->reject(fn ($p) => str_starts_with($p, 'tab:'));
+
+            $tabPerms = collect($tabKeys)
+                ->filter(fn ($k) => TabRegistry::exists($k))
+                ->map(fn ($k) => TabRegistry::permission($k));
+
+            $role->syncPermissions($nonTab->merge($tabPerms)->unique()->all());
+        }
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        return back()->with('success', __('Tab access updated successfully.'));
     }
 }

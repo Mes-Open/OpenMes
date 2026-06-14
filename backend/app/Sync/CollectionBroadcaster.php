@@ -52,6 +52,8 @@ class CollectionBroadcaster
             'companies' => [Models\Company::class, null],
             'cost_sources' => [Models\CostSource::class, null],
             'wage_groups' => [Models\WageGroup::class, null],
+            'worker_absences' => [Models\WorkerAbsence::class, null],
+            'crew_break_windows' => [Models\CrewBreakWindow::class, null],
             'factories' => [Models\Factory::class, null],
             'divisions' => [Models\Division::class, null],
             'areas' => [Models\Area::class, null],
@@ -67,6 +69,7 @@ class CollectionBroadcaster
             'materials' => [Models\Material::class, null],
             'material_lots' => [Models\MaterialLot::class, null],
             'lot_sequences' => [Models\LotSequence::class, null],
+            'pallets' => [Models\Pallet::class, null],
             'process_segments' => [Models\ProcessSegment::class, null],
             'view_templates' => [Models\ViewTemplate::class, null],
             'inspection_plans' => [Models\InspectionPlan::class, null],
@@ -74,6 +77,7 @@ class CollectionBroadcaster
             'label_templates' => [Models\LabelTemplate::class, null],
             'maintenance_events' => [Models\MaintenanceEvent::class, null],
             'maintenance_schedules' => [Models\MaintenanceSchedule::class, null],
+            'custom_field_definitions' => [Models\CustomFieldDefinition::class, null],
         ];
     }
 
@@ -124,7 +128,14 @@ class CollectionBroadcaster
         }
 
         foreach ($byModel as $model => $collections) {
-            foreach (['created', 'updated', 'deleted'] as $event) {
+            // `deleted` also fires on soft delete, broadcasting the row's removal.
+            // `restored` (SoftDeletes models only) re-broadcasts it as an upsert.
+            $events = ['created', 'updated', 'deleted'];
+            if (method_exists($model, 'restored')) {
+                $events[] = 'restored';
+            }
+
+            foreach ($events as $event) {
                 $model::{$event}(function ($m) use ($collections, $event) {
                     $row = $m->attributesToArray();
                     $tenant = $m->getAttribute('tenant_id');

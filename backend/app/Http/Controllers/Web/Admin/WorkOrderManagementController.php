@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
+use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
 use App\Models\LabelTemplate;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
+use App\Services\CustomFieldService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -32,25 +35,23 @@ class WorkOrderManagementController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(CustomFieldService $customFields)
     {
         return Inertia::render('admin/work-orders/Create', [
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customFields' => $customFields->clientConfig('work_order'),
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreWorkOrderRequest $request, CustomFieldService $cf)
     {
-        $validated = $request->validate([
-            'order_no' => 'required|string|max:100|unique:work_orders,order_no',
-            'line_id' => 'nullable|exists:lines,id',
-            'product_type_id' => 'nullable|exists:product_types,id',
-            'planned_qty' => 'required|numeric|min:0.01|max:99999999',
-            'priority' => 'nullable|integer|min:0|max:100',
-            'due_date' => 'nullable|date',
-            'description' => 'nullable|string|max:2000',
-        ]);
+        $validated = $request->validated();
+        unset($validated['custom_field_files']);
+
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'work_order') ?: null;
+        }
 
         try {
             $workOrder = $this->workOrderService->createWorkOrder($validated);
@@ -65,7 +66,7 @@ class WorkOrderManagementController extends Controller
             ->with('success', "Work order {$workOrder->order_no} created.");
     }
 
-    public function show(WorkOrder $workOrder)
+    public function show(WorkOrder $workOrder, CustomFieldService $customFields)
     {
         $workOrder->load(['line', 'productType', 'batches.steps', 'issues.issueType', 'issues.reportedBy']);
 
@@ -109,6 +110,7 @@ class WorkOrderManagementController extends Controller
                 'due_date'         => $workOrder->due_date?->toDateString(),
                 'description'      => $workOrder->description,
                 'extra_data'       => $workOrder->extra_data,
+                'custom_fields'    => $workOrder->custom_fields,
                 'process_snapshot' => $workOrder->process_snapshot,
                 'created_at'       => $workOrder->created_at->toISOString(),
                 'line_name'        => $workOrder->line?->name,
@@ -116,39 +118,42 @@ class WorkOrderManagementController extends Controller
                 'batches'          => $batches,
                 'issues'           => $issues,
             ],
+            'customFields' => $customFields->clientConfig('work_order'),
         ]);
     }
 
-    public function edit(WorkOrder $workOrder)
+    public function edit(WorkOrder $workOrder, CustomFieldService $customFields)
     {
         return Inertia::render('admin/work-orders/Edit', [
             'workOrder' => [
-                ...$workOrder->only('id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status'),
+                ...$workOrder->only('id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
             ],
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customFields' => $customFields->clientConfig('work_order'),
         ]);
     }
 
-    public function update(Request $request, WorkOrder $workOrder)
+    public function update(UpdateWorkOrderRequest $request, WorkOrder $workOrder, CustomFieldService $cf)
     {
-        $validated = $request->validate([
-            'order_no' => 'required|string|max:100|unique:work_orders,order_no,'.$workOrder->id,
-            'line_id' => 'nullable|exists:lines,id',
-            'product_type_id' => 'nullable|exists:product_types,id',
-            'planned_qty' => 'required|numeric|min:0.01|max:99999999',
-            'priority' => 'nullable|integer|min:0|max:100',
-            'due_date' => 'nullable|date',
-            'description' => 'nullable|string|max:2000',
-            'status' => 'required|in:PENDING,ACCEPTED,IN_PROGRESS,PAUSED,BLOCKED,DONE,REJECTED,CANCELLED',
-        ]);
+        $validated = $request->validated();
+        unset($validated['custom_field_files']);
 
         // Warn when marking as DONE with zero produced quantity
         if (($validated['status'] ?? '') === 'DONE' && (float) $workOrder->produced_qty <= 0) {
             return redirect()->back()->withInput()
                 ->with('error', 'Cannot mark as DONE — produced quantity is 0. Register production first or adjust the quantity.');
         }
+
+        if ($cf->touched($request)) {
+            $validated['custom_fields'] = $cf->fromRequest($request, 'work_order', $workOrder->custom_fields) ?: null;
+        }
+
+        // priority is NOT NULL DEFAULT 0; a cleared field arrives as null. The
+        // store path coerces via WorkOrderService — preserve the existing value
+        // here rather than passing an explicit null.
+        $validated['priority'] ??= $workOrder->priority;
 
         $workOrder->update($validated);
 

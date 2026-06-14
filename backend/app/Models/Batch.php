@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Batch extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasCustomFields, HasFactory;
+    use SoftDeletesWithAudit;
 
     const STATUS_PENDING = 'PENDING';
 
@@ -79,13 +82,29 @@ class Batch extends Model
     }
 
     /**
-     * Check if all steps are complete.
+     * Check if all steps are complete. Every step must be DONE or SKIPPED, and
+     * each variant group must have one executed (DONE) step — a fully-skipped
+     * group means no variant was chosen, so the batch isn't finished.
      */
     public function allStepsComplete(): bool
     {
-        return $this->steps()
+        $pending = $this->steps()
             ->whereNotIn('status', [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED])
-            ->count() === 0;
+            ->exists();
+
+        if ($pending) {
+            return false;
+        }
+
+        $variantSteps = $this->steps()->whereNotNull('variant_group')->get(['variant_group', 'status']);
+
+        foreach ($variantSteps->groupBy('variant_group') as $rows) {
+            if (! $rows->contains(fn ($s) => $s->status === BatchStep::STATUS_DONE)) {
+                return false; // a variant group with nothing executed
+            }
+        }
+
+        return true;
     }
 
     public function processConfirmations(): HasMany
@@ -185,5 +204,13 @@ class Batch extends Model
     public function scopeActive($query)
     {
         return $query->whereIn('status', [self::STATUS_PENDING, self::STATUS_IN_PROGRESS]);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\BatchStep::class, 'batch_id'],
+        ];
     }
 }

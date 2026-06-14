@@ -185,7 +185,7 @@ class WorkOrderTransitionsTest extends TestCase
         $batch = Batch::factory()->create(['work_order_id' => $wo->id, 'status' => Batch::STATUS_PENDING]);
 
         $this->authAdmin()->deleteJson("/api/v1/batches/{$batch->id}")->assertStatus(200);
-        $this->assertDatabaseMissing('batches', ['id' => $batch->id]);
+        $this->assertSoftDeleted('batches', ['id' => $batch->id]);
     }
 
     public function test_cannot_delete_batch_with_started_steps(): void
@@ -210,7 +210,7 @@ class WorkOrderTransitionsTest extends TestCase
         ]);
 
         $this->authAdmin()->deleteJson("/api/v1/issues/{$issue->id}")->assertStatus(200);
-        $this->assertDatabaseMissing('issues', ['id' => $issue->id]);
+        $this->assertSoftDeleted('issues', ['id' => $issue->id]);
     }
 
     public function test_supervisor_cannot_delete_issue(): void

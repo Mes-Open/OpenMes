@@ -6,18 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Issue;
 use App\Models\IssueType;
 use App\Models\WorkOrder;
+use App\Services\CustomFieldService;
 use Illuminate\Http\Request;
 
 class IssueController extends Controller
 {
-    public function store(Request $request)
+    public function store(Request $request, CustomFieldService $cf)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'work_order_id'  => 'required|exists:work_orders,id',
             'issue_type_id'  => 'required|exists:issue_types,id',
             'title'          => 'required|string|max:255',
             'description'    => 'nullable|string|max:2000',
-        ]);
+        ], $cf->rules('issue')), [], $cf->attributeNames('issue'));
 
         $workOrder = WorkOrder::findOrFail($validated['work_order_id']);
 
@@ -36,6 +37,7 @@ class IssueController extends Controller
             'status'        => Issue::STATUS_OPEN,
             'reported_by_id' => auth()->id(),
             'reported_at'   => now(),
+            'custom_fields' => $cf->touched($request) ? ($cf->fromRequest($request, 'issue') ?: null) : null,
         ]);
 
         // If the issue type is blocking, block the work order

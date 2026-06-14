@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkOrder extends Model
 {
-    use Auditable, HasFactory, HasTenant;
+    use Auditable, HasCustomFields, HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     const STATUS_PENDING = 'PENDING';
 
@@ -289,5 +292,19 @@ class WorkOrder extends Model
         return $query->orderBy('priority', 'desc')
             ->orderBy('due_date', 'asc')
             ->orderBy('created_at', 'asc');
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\Batch::class, 'work_order_id'],
+            [\App\Models\WorkOrderEan::class, 'work_order_id'],
+            [\App\Models\AdditionalCost::class, 'work_order_id'],
+            [\App\Models\ScrapEntry::class, 'work_order_id'],
+            [\App\Models\WorkOrderShiftEntry::class, 'work_order_id'],
+            [\App\Models\Issue::class, 'work_order_id'],
+            [\App\Models\Pallet::class, 'work_order_id'],
+        ];
     }
 }

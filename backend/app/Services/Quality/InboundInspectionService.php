@@ -27,8 +27,9 @@ class InboundInspectionService
         ?InspectionPlan $plan,
         User $inspector,
         ?string $supplierLotRef = null,
+        ?string $sourceContainerNo = null,
     ): Inspection {
-        return DB::transaction(function () use ($material, $lotNumber, $quantity, $plan, $inspector, $supplierLotRef) {
+        return DB::transaction(function () use ($material, $lotNumber, $quantity, $plan, $inspector, $supplierLotRef, $sourceContainerNo) {
             $inspection = Inspection::create([
                 'inspection_plan_id' => $plan?->id,
                 // Pin the exact plan version used so the inspection stays
@@ -37,6 +38,7 @@ class InboundInspectionService
                 'material_id' => $material->id,
                 'lot_number' => $lotNumber,
                 'supplier_lot_ref' => $supplierLotRef,
+                'source_container_no' => $sourceContainerNo,
                 'quantity_received' => $quantity,
                 'inspector_id' => $inspector->id,
                 'started_at' => now(),
@@ -151,6 +153,7 @@ class InboundInspectionService
             'lot_number' => $inspection->lot_number,
             'unit_of_measure' => $inspection->material?->unit_of_measure ?? 'pcs',
             'supplier_lot_no' => $inspection->supplier_lot_ref,
+            'source_container_no' => $inspection->source_container_no,
             'quantity_received' => $qty,
             'quantity_available' => $status === \App\Models\MaterialLot::STATUS_RELEASED ? $qty : 0,
             'received_at' => $inspection->started_at ?? now(),

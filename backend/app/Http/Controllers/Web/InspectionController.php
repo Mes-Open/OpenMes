@@ -69,6 +69,7 @@ class InspectionController extends Controller
             'lot_number' => 'required|string|max:100',
             'quantity_received' => 'nullable|numeric|min:0',
             'supplier_lot_ref' => 'nullable|string|max:100',
+            'source_container_no' => 'nullable|string|max:100',
             'inspection_plan_id' => 'nullable|integer|exists:inspection_plans,id',
         ]);
 
@@ -84,6 +85,7 @@ class InspectionController extends Controller
             $plan,
             $request->user(),
             $validated['supplier_lot_ref'] ?? null,
+            $validated['source_container_no'] ?? null,
         );
 
         return redirect()->route('inspections.show', $inspection)

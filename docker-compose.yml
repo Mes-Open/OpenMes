@@ -44,6 +44,11 @@ services:
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost}
+      # Sanctum SPA stateful hosts. Empty by default (production derives them
+      # from APP_URL). Set this when serving on a host:port the app URL doesn't
+      # cover — e.g. localhost:8084 or a LAN IP — or the live-sync /api
+      # collection requests 401 and lists render empty.
+      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432

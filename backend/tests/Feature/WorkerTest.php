@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\WageGroup;
 use App\Models\Worker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -67,11 +68,10 @@ class WorkerTest extends TestCase
             'is_active' => false,
         ]);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.workers.index'));
-
-        $response->assertStatus(200);
-        $response->assertSee('John Doe');
-        $response->assertSee('Jane Smith');
+        // Row data is delivered client-side via Electric SQL, not in server HTML.
+        $this->actingAs($this->admin)->get(route('admin.workers.index'))
+            ->assertStatus(200)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/workers/Index'));
     }
 
     public function test_admin_can_create_worker(): void
@@ -175,7 +175,7 @@ class WorkerTest extends TestCase
             ->delete(route('admin.workers.destroy', $worker));
 
         $response->assertRedirect(route('admin.workers.index'));
-        $this->assertDatabaseMissing('workers', ['id' => $worker->id]);
+        $this->assertSoftDeleted('workers', ['id' => $worker->id]);
     }
 
     public function test_worker_code_must_be_unique(): void

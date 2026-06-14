@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Crypt;
 class MqttConnection extends Model
 {
     use HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $hidden = [
         'password_encrypted',
@@ -34,13 +36,13 @@ class MqttConnection extends Model
     protected function casts(): array
     {
         return [
-            'use_tls'                  => 'boolean',
-            'clean_session'            => 'boolean',
-            'broker_port'              => 'integer',
-            'qos_default'              => 'integer',
-            'keep_alive_seconds'       => 'integer',
-            'connect_timeout'          => 'integer',
-            'reconnect_delay_seconds'  => 'integer',
+            'use_tls' => 'boolean',
+            'clean_session' => 'boolean',
+            'broker_port' => 'integer',
+            'qos_default' => 'integer',
+            'keep_alive_seconds' => 'integer',
+            'connect_timeout' => 'integer',
+            'reconnect_delay_seconds' => 'integer',
         ];
     }
 
@@ -71,6 +73,6 @@ class MqttConnection extends Model
 
     public function getEffectiveClientId(): string
     {
-        return $this->client_id ?: 'openmmes-' . $this->machine_connection_id . '-' . substr(md5(config('app.key')), 0, 8);
+        return $this->client_id ?: 'openmmes-'.$this->machine_connection_id.'-'.substr(md5(config('app.key')), 0, 8);
     }
 }

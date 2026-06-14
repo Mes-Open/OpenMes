@@ -3,7 +3,12 @@
     "name": "mes-open/openmes",
     "type": "project",
     "description": "OpenMES — open-source Manufacturing Execution System.",
-    "keywords": ["openmes", "mes", "manufacturing", "laravel"],
+    "keywords": [
+        "openmes",
+        "mes",
+        "manufacturing",
+        "laravel"
+    ],
     "license": "AGPL-3.0-only",
     "require": {
         "php": "^8.2",
@@ -71,7 +76,8 @@
             "@php artisan package:discover --ansi"
         ],
         "post-update-cmd": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
+            "git -C .. config core.hooksPath .githooks 2>/dev/null || true"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
@@ -83,6 +89,9 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "post-install-cmd": [
+            "git -C .. config core.hooksPath .githooks 2>/dev/null || true"
         ]
     },
     "extra": {

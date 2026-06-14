@@ -1,8 +1,9 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 
 export default function AreaShow() {
-    const { area } = usePage().props;
+    const { area, customFields = [] } = usePage().props;
     const { site, lines = [] } = area;
 
     return (
@@ -64,6 +65,10 @@ export default function AreaShow() {
                         <p className="text-xs uppercase tracking-wide text-gray-500">Description</p>
                         <p className="text-gray-700 mt-1 text-sm">{area.description || '—'}</p>
                     </div>
+                </div>
+
+                <div className="mb-6">
+                    <CustomFieldsDisplay definitions={customFields} values={area.custom_fields ?? {}} />
                 </div>
 
                 {/* Lines table */}

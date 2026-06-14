@@ -64,6 +64,46 @@ class BatchController extends Controller
         }
     }
 
+    /**
+     * Skip an optional or variant step. Reason is optional and stored for audit.
+     */
+    public function skipStep(Request $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', 'This step does not belong to the selected line.');
+        }
+
+        $validated = $request->validate([
+            'skip_reason' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $this->batchService->skipStep($batchStep, $request->user(), $validated['skip_reason'] ?? null);
+
+            return back()->with('success', 'Step skipped.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Choose a variant within its group (activates this step, skips siblings).
+     */
+    public function chooseVariant(Request $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', 'This step does not belong to the selected line.');
+        }
+
+        try {
+            $this->batchService->chooseVariant($batchStep, $request->user());
+
+            return back()->with('success', 'Variant selected.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
     /** Guard: the step's work order must be on the operator's selected line. */
     private function stepBelongsToSelectedLine(Request $request, BatchStep $batchStep): bool
     {

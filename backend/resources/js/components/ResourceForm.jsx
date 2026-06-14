@@ -1,5 +1,7 @@
 import { Fragment, useEffect } from 'react';
-import { Link, useForm } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
+import CustomFields from './CustomFields';
+import { customFieldProps, submitForm } from '../lib/customFieldForm';
 
 /**
  * Config-driven create/edit form — the non-optimistic write-through pattern.
@@ -23,6 +25,8 @@ import { Link, useForm } from '@inertiajs/react';
  *   backHref    — optional "‹ Back" link target rendered above the form
  *   backLabel   — text for the back link (default 'Back')
  *   title       — optional page heading rendered between the back link and form
+ *   customFields — optional admin-defined custom-field definitions (clientConfig);
+ *                  rendered after the static fields, bound to data.custom_fields
  */
 export default function ResourceForm({
     action,
@@ -35,6 +39,7 @@ export default function ResourceForm({
     backHref,
     backLabel = 'Back',
     title,
+    customFields,
 }) {
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
@@ -51,9 +56,15 @@ export default function ResourceForm({
         }
     }, [errors]);
 
+    // Custom-field definitions: explicit prop wins, else fall back to the page's
+    // `customFields` prop so any ResourceForm-based page whose controller passes
+    // it renders custom fields without per-page wiring.
+    const pageCustomFields = usePage().props.customFields;
+    const customFieldDefs = customFields ?? pageCustomFields ?? [];
+
     const submit = (e) => {
         e.preventDefault();
-        form.submit(method, action);
+        submitForm(form, method, action);
     };
 
     return (
@@ -100,6 +111,10 @@ export default function ResourceForm({
                     <Field key={f.name} field={f} value={data[f.name]} error={errors[f.name]} setData={setData} />
                 ))}
 
+                {customFieldDefs.length > 0 && (
+                    <CustomFields {...customFieldProps(form, customFieldDefs)} />
+                )}
+
                 <div className="flex items-center gap-3 pt-2">
                     <button
                         type="submit"
@@ -131,6 +146,43 @@ function Field({ field, value, error, setData }) {
                     {label}
                 </label>
                 {help && <p className="text-sm text-gray-500 mt-1">{help}</p>}
+            </div>
+        );
+    }
+
+    // A row of toggleable options whose value is an array of the selected option
+    // values (e.g. weekdays). Keeps value types as given in options.
+    if (type === 'checkbox-group') {
+        const selected = Array.isArray(value) ? value : [];
+        const toggle = (v) =>
+            set(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
+
+        return (
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {label} {required && <span className="text-red-500">*</span>}
+                </label>
+                <div name={name} className="flex flex-wrap gap-2">
+                    {(options ?? []).map((o) => {
+                        const active = selected.includes(o.value);
+                        return (
+                            <button
+                                type="button"
+                                key={String(o.value)}
+                                onClick={() => toggle(o.value)}
+                                className={`px-3 py-1.5 rounded-lg text-sm border ${
+                                    active
+                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                                {o.label}
+                            </button>
+                        );
+                    })}
+                </div>
+                {help && <p className="text-sm text-gray-500 mt-1">{help}</p>}
+                {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
             </div>
         );
     }

@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +14,8 @@ use Illuminate\Support\Collection;
 
 class Line extends Model
 {
-    use HasFactory, HasTenant;
+    use HasCustomFields, HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'area_id',
@@ -105,7 +108,8 @@ class Line extends Model
         if ($this->viewTemplate) {
             return collect($this->viewTemplate->columns ?? []);
         }
-        return $this->viewColumns->map(fn($c) => ['label' => $c->label, 'key' => $c->key, 'source' => $c->source]);
+
+        return $this->viewColumns->map(fn ($c) => ['label' => $c->label, 'key' => $c->key, 'source' => $c->source]);
     }
 
     /**
@@ -126,16 +130,17 @@ class Line extends Model
 
         if ($ws->isEmpty()) {
             return collect([(object) [
-                'id'             => null,
-                'name'           => $this->name,
-                'code'           => $this->code,
-                'is_active'      => true,
+                'id' => null,
+                'name' => $this->name,
+                'code' => $this->code,
+                'is_active' => true,
                 'is_line_itself' => true,
             ]]);
         }
 
         return $ws->map(function ($w) {
             $w->is_line_itself = false;
+
             return $w;
         });
     }
@@ -146,5 +151,14 @@ class Line extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\Workstation::class, 'line_id'],
+            [\App\Models\LineViewColumn::class, 'line_id'],
+        ];
     }
 }

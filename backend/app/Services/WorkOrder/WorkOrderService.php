@@ -42,6 +42,7 @@ class WorkOrderService
                 'due_date' => $data['due_date'] ?? null,
                 'description' => $data['description'] ?? null,
                 'extra_data' => $data['extra_data'] ?? null,
+                'custom_fields' => $data['custom_fields'] ?? null,
             ]);
 
             return $workOrder;
@@ -106,14 +107,43 @@ class WorkOrderService
     {
         $steps = $processSnapshot['steps'] ?? [];
 
+        // Resolve the pre-selected step per variant group: the one flagged as
+        // default, else the lowest step_number in the group. Siblings start
+        // SKIPPED so the operator sees only the chosen path (and can switch).
+        $chosen = [];
+        $explicit = [];
+        foreach ($steps as $s) {
+            $group = $s['variant_group'] ?? null;
+            if ($group === null) {
+                continue;
+            }
+            $num = $s['step_number'];
+            if (! empty($s['is_default_variant'])) {
+                if (empty($explicit[$group])) {
+                    $chosen[$group] = $num;
+                    $explicit[$group] = true;
+                }
+            } elseif (empty($explicit[$group])) {
+                $chosen[$group] = isset($chosen[$group]) ? min($chosen[$group], $num) : $num;
+            }
+        }
+
         foreach ($steps as $stepData) {
+            $group = $stepData['variant_group'] ?? null;
+            $status = BatchStep::STATUS_PENDING;
+            if ($group !== null && isset($chosen[$group]) && $stepData['step_number'] !== $chosen[$group]) {
+                $status = BatchStep::STATUS_SKIPPED;
+            }
+
             BatchStep::create([
                 'batch_id' => $batch->id,
                 'step_number' => $stepData['step_number'],
                 'name' => $stepData['name'],
                 'instruction' => $stepData['instruction'] ?? null,
                 'workstation_id' => $stepData['workstation_id'] ?? null,
-                'status' => BatchStep::STATUS_PENDING,
+                'status' => $status,
+                'is_optional' => $stepData['is_optional'] ?? false,
+                'variant_group' => $group,
             ]);
         }
     }

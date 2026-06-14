@@ -67,6 +67,7 @@ class AuthController extends Controller
             Auth::logout();
             $request->session()->put('2fa_user_id', $user->id);
             $request->session()->put('2fa_remember', $request->filled('remember'));
+
             return redirect()->route('two-factor.challenge');
         }
 
@@ -115,6 +116,7 @@ class AuthController extends Controller
         if ($user->two_factor_enabled) {
             $request->session()->put('2fa_user_id', $user->id);
             $request->session()->put('2fa_remember', false);
+
             return redirect()->route('two-factor.challenge');
         }
 
@@ -209,7 +211,10 @@ class AuthController extends Controller
             }
         }
 
-        // Default to operator workflow
+        // Operators always land on line selection — their primary screen. Any
+        // admin tabs they've been granted are reached from there via the "Panel"
+        // link (OperatorLayout), and the panel sidebar lists "Lines" first so
+        // they can always get back.
         return redirect()->route('operator.select-line');
     }
 }

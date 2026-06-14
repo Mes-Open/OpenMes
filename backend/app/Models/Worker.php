@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Worker extends Model
 {
-    use Auditable, HasFactory;
+    use Auditable, HasCustomFields, HasFactory;
+    use SoftDeletesWithAudit;
 
     /** Supported compensation modes for per-worker pay. */
     public const PAY_TYPES = ['hourly', 'weekly', 'piece_rate'];
@@ -100,6 +103,25 @@ class Worker extends Model
     }
 
     /**
+     * Recorded absences (vacation / sick / …). See WorkerAvailabilityService
+     * for the availability logic that consumes these.
+     */
+    public function absences(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(WorkerAbsence::class);
+    }
+
+    /** True if an approved absence covers the given date. */
+    public function isAbsentOn(\Carbon\CarbonInterface $date): bool
+    {
+        return $this->absences()
+            ->approved()
+            ->whereDate('starts_on', '<=', $date)
+            ->whereDate('ends_on', '>=', $date)
+            ->exists();
+    }
+
+    /**
      * Skills whose certification expires within `$daysAhead` days but is not yet
      * expired. Skills with no certified_until are treated as never-expiring and
      * are excluded.
@@ -135,5 +157,14 @@ class Worker extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\WorkerAbsence::class, 'worker_id'],
+            [\App\Models\EmployeeActivity::class, 'worker_id'],
+        ];
     }
 }

@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreWageGroupRequest;
+use App\Http\Requests\Web\Admin\UpdateWageGroupRequest;
 use App\Models\WageGroup;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class WageGroupController extends Controller
@@ -35,20 +36,9 @@ class WageGroupController extends Controller
     /**
      * Store a newly created wage group.
      */
-    public function store(Request $request)
+    public function store(StoreWageGroupRequest $request)
     {
-        $validated = $request->validate([
-            'code'             => 'required|string|max:50|unique:wage_groups',
-            'name'             => 'required|string|max:255',
-            'description'      => 'nullable|string|max:2000',
-            'base_hourly_rate' => 'nullable|numeric|min:0',
-            'currency'         => 'nullable|string|max:10',
-            'is_active'        => 'boolean',
-        ]);
-
-        $validated['is_active'] = $request->boolean('is_active', true);
-
-        WageGroup::create($validated);
+        WageGroup::create($request->validated());
 
         return redirect()->route('admin.wage-groups.index')
             ->with('success', 'Wage group created successfully.');
@@ -67,20 +57,9 @@ class WageGroupController extends Controller
     /**
      * Update the specified wage group.
      */
-    public function update(Request $request, WageGroup $wageGroup)
+    public function update(UpdateWageGroupRequest $request, WageGroup $wageGroup)
     {
-        $validated = $request->validate([
-            'code'             => 'required|string|max:50|unique:wage_groups,code,' . $wageGroup->id,
-            'name'             => 'required|string|max:255',
-            'description'      => 'nullable|string|max:2000',
-            'base_hourly_rate' => 'nullable|numeric|min:0',
-            'currency'         => 'nullable|string|max:10',
-            'is_active'        => 'boolean',
-        ]);
-
-        $validated['is_active'] = $request->boolean('is_active');
-
-        $wageGroup->update($validated);
+        $wageGroup->update($request->validated());
 
         return redirect()->route('admin.wage-groups.index')
             ->with('success', 'Wage group updated successfully.');

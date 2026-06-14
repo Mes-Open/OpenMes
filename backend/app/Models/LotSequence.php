@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Services\Lot\LotPatternFormatter;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 class LotSequence extends Model
 {
     use HasFactory, HasTenant;
+    use SoftDeletesWithAudit;
 
     public const RESET_PERIODS = ['none', 'yearly', 'monthly', 'daily', 'hourly'];
 

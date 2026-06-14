@@ -1,7 +1,24 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
-import { formatTime } from '../../lib/i18n';
+import { __, formatTime } from '../../lib/i18n';
+import LabelPrintMenu from '../../components/LabelPrintMenu';
+
+function csrf() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.content : '';
+}
+
+/** Group open pallets by their work order's line, for the per-line list. */
+function groupByLine(pallets) {
+    const groups = new Map();
+    for (const p of pallets) {
+        const key = p.line_name || __('No line');
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(p);
+    }
+    return Array.from(groups.entries());
+}
 
 function ProgressBar({ pct, done }) {
     const color = done ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-indigo-500';
@@ -21,16 +38,22 @@ function ShiftLabel() {
 }
 
 export default function Station() {
-    const { auth } = usePage().props;
+    const { auth, labelTemplates = [], currentShift = null } = usePage().props;
 
     const [items, setItems] = useState([]);
     const [history, setHistory] = useState([]);
     const [stats, setStats] = useState({ today_packed: 0, plan: 0, backlog: 0 });
     const [lastScan, setLastScan] = useState(null);
     const [flash, setFlash] = useState(null); // 'success' | 'error' | null
+    const [activePallet, setActivePallet] = useState(null); // { id, pallet_no, work_order_id, order_no, qty }
+    const [openPallets, setOpenPallets] = useState([]); // all currently open pallets (persist across shifts)
+    const [palletWoId, setPalletWoId] = useState(''); // selected work order for a new pallet
+    const [palletBusy, setPalletBusy] = useState(false);
     const lastHistoryIdRef = useRef(0);
     const bufferRef = useRef('');
     const bufferTimerRef = useRef(null);
+    const activePalletRef = useRef(null);
+    useEffect(() => { activePalletRef.current = activePallet; }, [activePallet]);
 
     const realizacja =
         stats.plan > 0 ? Math.min(100, Math.round((stats.today_packed / stats.plan) * 100)) : 0;
@@ -68,6 +91,24 @@ export default function Station() {
         } catch {}
     }, []);
 
+    const fetchOpenPallets = useCallback(async () => {
+        try {
+            const res = await fetch('/packaging/pallets', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) return;
+            const data = await res.json();
+            const list = data.pallets ?? [];
+            setOpenPallets(list);
+            // Keep the active pallet's qty in sync if another shift/device changed it,
+            // and drop it if it was closed elsewhere.
+            const active = activePalletRef.current;
+            if (active) {
+                const fresh = list.find((p) => p.id === active.id);
+                if (fresh) setActivePallet((p) => ({ ...p, ...fresh }));
+                else setActivePallet(null);
+            }
+        } catch {}
+    }, []);
+
     const poll = useCallback(async () => {
         try {
             const res = await fetch(`/packaging/history/poll?after_id=${lastHistoryIdRef.current}`, {
@@ -89,20 +130,21 @@ export default function Station() {
 
     const handleScan = useCallback(async (ean) => {
         try {
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const palletId = activePalletRef.current?.id ?? null;
             const res = await fetch('/packaging/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfMeta ? csrfMeta.content : '',
+                    'X-CSRF-TOKEN': csrf(),
                     'X-Requested-With': 'XMLHttpRequest',
                 },
-                body: JSON.stringify({ ean }),
+                body: JSON.stringify({ ean, pallet_id: palletId }),
             });
             const data = await res.json();
 
             if (res.ok) {
                 const wo = data.work_order;
+                if (data.pallet) setActivePallet((p) => (p && p.id === data.pallet.id ? { ...p, ...data.pallet } : p));
                 const packedQty = wo.packed_qty;
                 const plannedQty = wo.planned_qty;
                 const pct = plannedQty > 0 ? Math.min(100, Math.round((packedQty / plannedQty) * 100)) : 0;
@@ -116,7 +158,7 @@ export default function Station() {
                     scanned_at: formatTime(new Date()),
                 });
                 setFlash('success');
-                await Promise.all([fetchItems(), fetchStats()]);
+                await Promise.all([fetchItems(), fetchStats(), fetchOpenPallets()]);
                 setHistory((prev) => [
                     { id: Date.now(), ean, product_name: wo.product, scanned_at: formatTime(new Date()) },
                     ...prev,
@@ -126,12 +168,72 @@ export default function Station() {
                 setFlash('error');
             }
         } catch {
-            setLastScan({ success: false, ean, error: 'Błąd połączenia', scanned_at: formatTime(new Date()) });
+            setLastScan({ success: false, ean, error: __('Connection error'), scanned_at: formatTime(new Date()) });
             setFlash('error');
         }
 
         setTimeout(() => setFlash(null), 2000);
-    }, [fetchItems, fetchStats]);
+    }, [fetchItems, fetchStats, fetchOpenPallets]);
+
+    const createPallet = useCallback(async () => {
+        if (!palletWoId || palletBusy) return;
+        setPalletBusy(true);
+        try {
+            const res = await fetch('/packaging/pallets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ work_order_id: Number(palletWoId) }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setActivePallet(data.pallet);
+                setPalletWoId('');
+                fetchOpenPallets();
+            } else {
+                setLastScan({ success: false, ean: '—', error: data.message, scanned_at: formatTime(new Date()) });
+                setFlash('error');
+                setTimeout(() => setFlash(null), 2000);
+            }
+        } catch {
+            /* ignore — best effort */
+        } finally {
+            setPalletBusy(false);
+        }
+    }, [palletWoId, palletBusy, fetchOpenPallets]);
+
+    // Resume an already-open pallet (e.g. one started on a previous shift) so the
+    // next scans keep filling it instead of creating a new pallet.
+    const resumePallet = useCallback((pallet) => {
+        setActivePallet(pallet);
+    }, []);
+
+    const closePallet = useCallback(async () => {
+        const pallet = activePalletRef.current;
+        if (!pallet || palletBusy) return;
+        setPalletBusy(true);
+        try {
+            const res = await fetch(`/packaging/pallets/${pallet.id}/close`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            if (res.ok) {
+                setActivePallet(null);
+                setPalletWoId('');
+                fetchOpenPallets();
+            }
+        } catch {
+            /* ignore — best effort */
+        } finally {
+            setPalletBusy(false);
+        }
+    }, [palletBusy, fetchOpenPallets]);
 
     const onKey = useCallback((e) => {
         const tag = e.target.tagName;
@@ -149,14 +251,18 @@ export default function Station() {
     }, [handleScan]);
 
     useEffect(() => {
-        Promise.all([fetchItems(), fetchHistory(), fetchStats()]);
+        Promise.all([fetchItems(), fetchHistory(), fetchStats(), fetchOpenPallets()]);
         const interval = setInterval(poll, 3000);
+        // Refresh the open-pallets list on a slower cadence so a pallet opened on
+        // another device/shift shows up here too.
+        const palletInterval = setInterval(fetchOpenPallets, 5000);
         document.addEventListener('keydown', onKey);
         return () => {
             clearInterval(interval);
+            clearInterval(palletInterval);
             document.removeEventListener('keydown', onKey);
         };
-    }, [fetchItems, fetchHistory, fetchStats, poll, onKey]);
+    }, [fetchItems, fetchHistory, fetchStats, fetchOpenPallets, poll, onKey]);
 
     const flashBg =
         flash === 'success'
@@ -167,7 +273,7 @@ export default function Station() {
 
     return (
         <>
-            <Head title="Stanowisko Pakowania" />
+            <Head title={__('Packing Station')} />
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
@@ -177,17 +283,22 @@ export default function Station() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
                             </svg>
-                            Stanowisko Pakowania
+                            {__('Packing Station')}
                         </h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Zmiana: <span className="font-semibold"><ShiftLabel /></span>
-                            &nbsp;&middot;&nbsp; Zalogowany: <span className="font-semibold">{auth?.user?.name}</span>
+                            {__('Shift')}:{' '}
+                            <span className="font-semibold">
+                                {currentShift
+                                    ? `${currentShift.name} (${currentShift.start}–${currentShift.end})`
+                                    : <ShiftLabel />}
+                            </span>
+                            &nbsp;&middot;&nbsp; {__('Logged in')}: <span className="font-semibold">{auth?.user?.name}</span>
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-3 py-1.5 rounded-full">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            Skanowanie aktywne
+                            {__('Scanning active')}
                         </span>
                     </div>
                 </div>
@@ -196,35 +307,148 @@ export default function Station() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                     <div className="card text-center">
                         <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">{stats.today_packed ?? '—'}</p>
-                        <p className="text-xs text-gray-500 mt-1">Spakowano (zmiana)</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Packed (shift)')}</p>
                     </div>
                     <div className="card text-center">
                         <p className="text-3xl font-extrabold text-gray-700 dark:text-gray-200">{stats.plan ?? '—'}</p>
-                        <p className="text-xs text-gray-500 mt-1">Plan łącznie</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Total plan')}</p>
                     </div>
                     <div className="card text-center">
                         <p className={`text-3xl font-extrabold ${(stats.backlog ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                             {stats.backlog ?? '—'}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">Backlog</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Station backlog')}</p>
                     </div>
                     <div className="card text-center">
                         <p className={`text-3xl font-extrabold ${realizacja >= 100 ? 'text-green-600' : realizacja >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
                             {realizacja}%
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">Realizacja</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Completion')}</p>
                     </div>
+                </div>
+
+                {/* Active pallet */}
+                <div className="card mb-6">
+                    {!activePallet ? (
+                        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                            <div className="flex-1">
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                                    {__('Create pallet for order')}
+                                </label>
+                                <select
+                                    value={palletWoId}
+                                    onChange={(e) => setPalletWoId(e.target.value)}
+                                    className="form-input w-full"
+                                >
+                                    <option value="">{__('— Select order —')}</option>
+                                    {items.map((it) => (
+                                        <option key={it.id} value={String(it.id)}>
+                                            {it.order_no} — {it.product}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={createPallet}
+                                disabled={!palletWoId || palletBusy}
+                                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                                {__('+ Create pallet')}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{__('Active pallet')}</p>
+                                <p className="text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                                    {activePallet.pallet_no}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    {__('Order')} <span className="font-semibold">{activePallet.order_no}</span>
+                                    &nbsp;&middot;&nbsp; {__('Pieces on pallet:')} <span className="font-semibold">{activePallet.qty ?? 0}</span>
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <LabelPrintMenu kind="pallet" id={activePallet.id} templates={labelTemplates} label={__('Label')} />
+                                <button
+                                    type="button"
+                                    onClick={closePallet}
+                                    disabled={palletBusy}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 text-white hover:bg-gray-800 disabled:opacity-50"
+                                >
+                                    {__('Close pallet')}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Open pallets (persist across shifts) — grouped by line, resumable */}
+                <div className="card overflow-hidden p-0 mb-6">
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <h2 className="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
+                            {__('Open pallets')}
+                        </h2>
+                        <span className="text-xs text-gray-400">{__(':count open', { count: openPallets.length })}</span>
+                    </div>
+                    {openPallets.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-gray-400 text-sm">
+                            {__('No open pallets — create one above')}
+                        </div>
+                    ) : (
+                        groupByLine(openPallets).map(([lineName, pallets]) => (
+                            <div key={lineName}>
+                                <div className="px-4 py-1.5 bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    {lineName}
+                                </div>
+                                {pallets.map((p) => {
+                                    const isActive = activePallet?.id === p.id;
+                                    return (
+                                        <div
+                                            key={p.id}
+                                            className={`px-4 py-2.5 flex items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700/50 ${isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+                                        >
+                                            <div className="min-w-0">
+                                                <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{p.pallet_no}</span>
+                                                <span className="text-sm text-gray-500">
+                                                    &nbsp;&middot;&nbsp; {p.order_no}
+                                                    &nbsp;&middot;&nbsp; <span className="font-semibold text-gray-700 dark:text-gray-300">{p.qty} {__('pcs')}</span>
+                                                    {p.location ? <>&nbsp;&middot;&nbsp; {p.location}</> : null}
+                                                </span>
+                                            </div>
+                                            <div className="shrink-0">
+                                                {isActive ? (
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                                        {__('Pallet active')}
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => resumePallet(p)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+                                                    >
+                                                        {__('Resume')}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                     {/* Last scan */}
                     <div className="card">
                         <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">
-                            Ostatnie skanowanie
+                            {__('Last scan')}
                         </h2>
                         {!lastScan ? (
                             <div className="py-8 text-center text-gray-400 dark:text-gray-600 text-sm">
-                                Przyłóż kod EAN do skanera&hellip;
+                                {__('Scan an EAN code…')}
                             </div>
                         ) : (
                             <div>
@@ -237,7 +461,7 @@ export default function Station() {
                                         </p>
                                     </div>
                                     <span className={`shrink-0 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${lastScan.success ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'}`}>
-                                        {lastScan.success ? 'OK' : 'Błąd'}
+                                        {lastScan.success ? __('OK') : __('Error')}
                                     </span>
                                 </div>
                                 {lastScan.success && (
@@ -249,7 +473,7 @@ export default function Station() {
                                             />
                                         </div>
                                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                            {lastScan.packed_qty} / {lastScan.planned_qty} szt.
+                                            {lastScan.packed_qty} / {lastScan.planned_qty} {__('pcs')}
                                         </span>
                                     </div>
                                 )}
@@ -268,7 +492,7 @@ export default function Station() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
                                         d="M12 4v1m6.364 1.636l-.707.707M20 12h-1M17.657 17.657l-.707-.707M12 20v-1M6.343 17.657l-.707.707M4 12H3M6.343 6.343l.707.707" />
                                 </svg>
-                                Czekam na skan&hellip;
+                                {__('Waiting for scan…')}
                             </div>
                         )}
                         {flash === 'success' && (
@@ -276,7 +500,7 @@ export default function Station() {
                                 <svg className="mx-auto w-14 h-14 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                                 </svg>
-                                <p className="text-green-700 dark:text-green-300 font-bold mt-2">Zeskanowano!</p>
+                                <p className="text-green-700 dark:text-green-300 font-bold mt-2">{__('Scanned!')}</p>
                             </div>
                         )}
                         {flash === 'error' && (
@@ -284,7 +508,7 @@ export default function Station() {
                                 <svg className="mx-auto w-14 h-14 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
-                                <p className="text-red-700 dark:text-red-300 font-bold mt-2">Błąd skanowania</p>
+                                <p className="text-red-700 dark:text-red-300 font-bold mt-2">{__('Scan error')}</p>
                             </div>
                         )}
                     </div>
@@ -294,27 +518,27 @@ export default function Station() {
                 <div className="card overflow-hidden p-0 mb-6">
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                         <h2 className="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
-                            Zlecenia do spakowania
+                            {__('Orders to pack')}
                         </h2>
-                        <span className="text-xs text-gray-400">{items.length} pozycji</span>
+                        <span className="text-xs text-gray-400">{__(':count items', { count: items.length })}</span>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                             <thead className="bg-gray-50 dark:bg-gray-800">
                                 <tr>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Zlecenie</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Produkt</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{__('Order')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{__('Product')}</th>
                                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EAN</th>
-                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Spakowano</th>
-                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Plan</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Postęp</th>
+                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{__('Packed')}</th>
+                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{__('Plan')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">{__('Progress')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                                 {items.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
-                                            Brak zleceń z przypisanymi kodami EAN
+                                            {__('No orders with assigned EAN codes')}
                                         </td>
                                     </tr>
                                 ) : items.map((item) => (
@@ -344,15 +568,15 @@ export default function Station() {
                 <div className="card overflow-hidden p-0">
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                         <h2 className="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
-                            Historia skanowań (zmiana)
+                            {__('Scan history (shift)')}
                         </h2>
                     </div>
                     <div className="overflow-x-auto max-h-64 overflow-y-auto">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                             <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                                 <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Czas</th>
-                                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Produkt</th>
+                                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{__('Time')}</th>
+                                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">{__('Product')}</th>
                                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">EAN</th>
                                 </tr>
                             </thead>
@@ -360,7 +584,7 @@ export default function Station() {
                                 {history.length === 0 ? (
                                     <tr>
                                         <td colSpan={3} className="px-4 py-6 text-center text-gray-400 text-sm">
-                                            Brak skanowań w tej zmianie
+                                            {__('No scans this shift')}
                                         </td>
                                     </tr>
                                 ) : history.map((entry) => (

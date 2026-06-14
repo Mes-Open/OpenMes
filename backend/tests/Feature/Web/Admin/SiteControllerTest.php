@@ -6,6 +6,7 @@ use App\Models\Area;
 use App\Models\Site;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -14,6 +15,7 @@ class SiteControllerTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $user;
 
     protected function setUp(): void
@@ -34,10 +36,11 @@ class SiteControllerTest extends TestCase
     {
         Site::factory()->create(['name' => 'Krakow Plant', 'code' => 'SITE-KRK']);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.sites.index'));
-
-        $response->assertOk();
-        $response->assertSee('Krakow Plant');
+        // Rows live-sync to the browser via the Electric `sites` shape, so the
+        // names are not in the server HTML — assert the Inertia page renders.
+        $this->actingAs($this->admin)->get(route('admin.sites.index'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/sites/Index'));
     }
 
     public function test_guest_cannot_list_sites(): void
@@ -48,19 +51,19 @@ class SiteControllerTest extends TestCase
     public function test_admin_can_create_site(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.sites.store'), [
-            'name'      => 'Warsaw Plant',
-            'code'      => 'SITE-WAW-01',
-            'city'      => 'Warsaw',
-            'country'   => 'PL',
-            'timezone'  => 'Europe/Warsaw',
+            'name' => 'Warsaw Plant',
+            'code' => 'SITE-WAW-01',
+            'city' => 'Warsaw',
+            'country' => 'PL',
+            'timezone' => 'Europe/Warsaw',
             'is_active' => '1',
         ]);
 
         $response->assertRedirect(route('admin.sites.index'));
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('sites', [
-            'name'    => 'Warsaw Plant',
-            'code'    => 'SITE-WAW-01',
+            'name' => 'Warsaw Plant',
+            'code' => 'SITE-WAW-01',
             'country' => 'PL',
         ]);
     }
@@ -107,6 +110,6 @@ class SiteControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->delete(route('admin.sites.destroy', $site));
 
         $response->assertRedirect(route('admin.sites.index'));
-        $this->assertDatabaseMissing('sites', ['id' => $site->id]);
+        $this->assertSoftDeleted('sites', ['id' => $site->id]);
     }
 }
