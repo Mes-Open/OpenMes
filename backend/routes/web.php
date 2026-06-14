@@ -105,12 +105,8 @@ Route::get('/', function () {
             return redirect()->route('operator.queue', ['line' => $user->workstation->line_id]);
         }
 
-        // Non-admins granted admin-panel tabs land in the panel (sidebar shows
-        // their tabs) instead of the operator line-selection screen.
-        if ($url = \App\Support\TabRegistry::firstAccessibleUrl($user)) {
-            return redirect($url);
-        }
-
+        // Operators land on line selection (their primary screen); granted admin
+        // tabs are reached from there via the OperatorLayout "Panel" link.
         return redirect()->route('operator.select-line');
     }
 

@@ -153,7 +153,7 @@ class WebAuthTest extends TestCase
         $response->assertRedirect(route('operator.select-line'));
     }
 
-    public function test_operator_with_a_granted_admin_tab_lands_in_the_panel_after_login(): void
+    public function test_operator_with_a_granted_admin_tab_still_lands_on_line_selection(): void
     {
         $user = User::factory()->create([
             'username' => 'operator-with-tab',
@@ -168,9 +168,9 @@ class WebAuthTest extends TestCase
             'password' => 'password123',
         ]);
 
-        // First accessible tab (Orders) — they enter the admin panel and see the
-        // sidebar instead of the operator line-selection screen.
-        $response->assertRedirect('/admin/work-orders');
+        // Line selection is the operator's primary screen — a granted admin tab
+        // does not change the landing; the tab is reached via the "Panel" link.
+        $response->assertRedirect(route('operator.select-line'));
     }
 
     // ── Logout ───────────────────────────────────────────────────────────────

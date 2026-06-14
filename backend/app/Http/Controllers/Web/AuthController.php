@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Auth\AuthService;
-use App\Support\TabRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -212,13 +211,10 @@ class AuthController extends Controller
             }
         }
 
-        // Non-admins granted admin-panel tabs land in the panel (the sidebar
-        // then shows their tabs) instead of the operator line-selection screen.
-        if ($url = TabRegistry::firstAccessibleUrl($user)) {
-            return redirect($url);
-        }
-
-        // Default to operator workflow
+        // Operators always land on line selection — their primary screen. Any
+        // admin tabs they've been granted are reached from there via the "Panel"
+        // link (OperatorLayout), and the panel sidebar lists "Lines" first so
+        // they can always get back.
         return redirect()->route('operator.select-line');
     }
 }

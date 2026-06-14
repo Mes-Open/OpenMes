@@ -118,6 +118,24 @@ class TabAccessTest extends TestCase
         $this->actingAs($this->operator)->get('/admin/work-orders')->assertOk();
     }
 
+    public function test_operator_select_line_exposes_panel_url_when_a_tab_is_granted(): void
+    {
+        // No grant → no panel link, but still flagged as an operator.
+        $this->actingAs($this->operator)->get(route('operator.select-line'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('auth.user.isOperator', true)
+                ->where('auth.user.panelUrl', null));
+
+        Role::findByName('Operator', 'web')->givePermissionTo('tab:orders');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        // Granted → the "Panel" link points at the first accessible tab.
+        $this->actingAs($this->operator)->get(route('operator.select-line'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('auth.user.panelUrl', '/admin/work-orders'));
+    }
+
     public function test_reseeding_preserves_matrix_tab_grants(): void
     {
         // An admin grants Operator a tab via the matrix.

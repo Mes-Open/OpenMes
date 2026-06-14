@@ -190,6 +190,11 @@ function flattenNavItems(links = ADMIN_LINKS, groups = ADMIN_GROUPS) {
 const GROUP_TAB_OVERRIDES = { adminGroup: 'admin', modulesGroup: 'modules' };
 const LINK_TAB = { '/admin/dashboard': 'dashboard', '/admin/alerts': 'alerts', '/admin/schedule': 'schedule' };
 
+// Operator line selection — their primary screen. Listed first in the sidebar
+// for operators so they can always get back to the production floor from any
+// granted admin tab. Links into OperatorLayout (its own touch chrome).
+const OPERATOR_LINES_LINK = { label: 'Lines', href: '/operator/select-line', icon: 'office', match: ['/operator'] };
+
 function Sidebar({
     auth, alertCount, csrfToken, appVersion, path, collapsed, mobileOpen, showLabels,
     dark, onToggleCollapsed, onToggleDark, onCloseMobile,
@@ -300,6 +305,16 @@ function Sidebar({
                     )
                 ) : (
                     <>
+                        {auth?.user?.isOperator && (
+                            <NavLink
+                                link={OPERATOR_LINES_LINK}
+                                path={path}
+                                collapsed={collapsed}
+                                showLabels={showLabels}
+                                alertCount={0}
+                            />
+                        )}
+
                         {visibleLinks.map((link) => (
                             <NavLink
                                 key={link.href}

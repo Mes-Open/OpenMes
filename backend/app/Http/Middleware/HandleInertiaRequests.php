@@ -28,6 +28,12 @@ class HandleInertiaRequests extends Middleware
                     // Admin-panel tabs this user may access — drives nav filtering.
                     // Backend enforcement is in TabAccessMiddleware; this is UX only.
                     'accessibleTabs' => $this->accessibleTabs($user),
+                    // Operators get the line-selection workflow; the admin sidebar
+                    // lists "Lines" first for them.
+                    'isOperator' => $user->hasRole('Operator') || $user->account_type === 'workstation',
+                    // First admin tab the user may open, or null. Powers the
+                    // "Panel" link on operator screens (OperatorLayout).
+                    'panelUrl' => \App\Support\TabRegistry::firstAccessibleUrl($user),
                 ] : null,
             ],
             // Nav chrome needs the alert badge and a CSRF token for the

@@ -15,6 +15,9 @@ export default function OperatorLayout({ children }) {
     const { auth, line, selectedWorkstation, csrf_token } = usePage().props;
     const path = typeof window !== 'undefined' ? window.location.pathname : '';
     const isActive = (prefix) => path === prefix || path.startsWith(prefix);
+    // Operators granted admin tabs (Settings → Access) get a way into the panel;
+    // the panel sidebar lists "Lines" first so they can come back here.
+    const panelUrl = auth?.user?.panelUrl;
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
@@ -52,6 +55,15 @@ export default function OperatorLayout({ children }) {
                     )}
 
                     <div className={`flex items-center gap-3 ${line ? '' : 'ml-auto'}`}>
+                        {panelUrl && (
+                            <Link
+                                href={panelUrl}
+                                title="Panel"
+                                className="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                            >
+                                Panel
+                            </Link>
+                        )}
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
                                 {auth?.user?.initial ?? '?'}
