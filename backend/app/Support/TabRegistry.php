@@ -58,6 +58,12 @@ class TabRegistry
         return array_map(fn ($t) => $t['label'], self::TABS);
     }
 
+    /** The primary landing path for a tab (its first prefix), or null. */
+    public static function url(string $key): ?string
+    {
+        return self::TABS[$key]['prefixes'][0] ?? null;
+    }
+
     /** The Spatie permission name backing a tab. */
     public static function permission(string $key): string
     {

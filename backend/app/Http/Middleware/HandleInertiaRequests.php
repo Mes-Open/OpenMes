@@ -31,9 +31,10 @@ class HandleInertiaRequests extends Middleware
                     // Operators get the line-selection workflow; the admin sidebar
                     // lists "Lines" first for them.
                     'isOperator' => $user->hasRole('Operator') || $user->account_type === 'workstation',
-                    // First admin tab the user may open, or null. Powers the
-                    // "Panel" link on operator screens (OperatorLayout).
-                    'panelUrl' => \App\Support\TabRegistry::firstAccessibleUrl($user),
+                    // Granted admin tabs as {key,label,url} — drives the operator
+                    // screen's sidebar (OperatorLayout) so operators can reach the
+                    // panel pages they've been given. Empty when none granted.
+                    'accessibleTabLinks' => $this->accessibleTabLinks($user),
                 ] : null,
             ],
             // Nav chrome needs the alert badge and a CSRF token for the
@@ -74,6 +75,26 @@ class HandleInertiaRequests extends Middleware
             \App\Support\TabRegistry::keys(),
             fn (string $key) => $user->can(\App\Support\TabRegistry::permission($key)),
         ));
+    }
+
+    /**
+     * Accessible tabs as {key, label, url}, in registry order — for the operator
+     * screen's sidebar. Labels are English keys; the frontend translates them.
+     *
+     * @return array<int, array{key: string, label: string, url: string|null}>
+     */
+    private function accessibleTabLinks($user): array
+    {
+        $labels = \App\Support\TabRegistry::labels();
+
+        return array_map(
+            fn (string $key) => [
+                'key' => $key,
+                'label' => $labels[$key] ?? $key,
+                'url' => \App\Support\TabRegistry::url($key),
+            ],
+            $this->accessibleTabs($user),
+        );
     }
 
     private function alertCount($user): int

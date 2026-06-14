@@ -1,4 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import { __ } from '../lib/i18n';
 
 /**
  * Full-screen tablet chrome for operator screens — the React port of the
@@ -15,12 +16,15 @@ export default function OperatorLayout({ children }) {
     const { auth, line, selectedWorkstation, csrf_token } = usePage().props;
     const path = typeof window !== 'undefined' ? window.location.pathname : '';
     const isActive = (prefix) => path === prefix || path.startsWith(prefix);
-    // Operators granted admin tabs (Settings → Access) get a way into the panel;
-    // the panel sidebar lists "Lines" first so they can come back here.
-    const panelUrl = auth?.user?.panelUrl;
+    // Admin tabs granted to this operator via Settings → Access. When present,
+    // a sidebar lists them (with "Lines" first) so the operator can reach those
+    // panel pages without leaving line selection.
+    const tabLinks = auth?.user?.accessibleTabLinks ?? [];
 
     return (
-        <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+        <div className="min-h-screen flex bg-gray-100 dark:bg-gray-900">
+            {tabLinks.length > 0 && <OperatorSidebar tabLinks={tabLinks} isActive={isActive} />}
+            <div className="flex flex-col flex-1 min-w-0">
             <header className="shrink-0 bg-slate-900 text-slate-100 shadow">
                 <div className="flex items-center gap-4 px-4 h-16">
                     <Link href="/operator/select-line" className="flex items-center gap-2 shrink-0">
@@ -55,15 +59,6 @@ export default function OperatorLayout({ children }) {
                     )}
 
                     <div className={`flex items-center gap-3 ${line ? '' : 'ml-auto'}`}>
-                        {panelUrl && (
-                            <Link
-                                href={panelUrl}
-                                title="Panel"
-                                className="px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-                            >
-                                Panel
-                            </Link>
-                        )}
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
                                 {auth?.user?.initial ?? '?'}
@@ -91,7 +86,41 @@ export default function OperatorLayout({ children }) {
                 <FlashMessages />
                 {children}
             </main>
+            </div>
         </div>
+    );
+}
+
+/**
+ * Left sidebar shown on operator screens when the operator has been granted
+ * admin tabs (Settings → Access). Lists "Lines" (back to line selection) first,
+ * then each granted tab — mirroring the panel's sidebar so navigation is
+ * consistent both ways.
+ */
+function OperatorSidebar({ tabLinks, isActive }) {
+    const onLines = isActive('/operator');
+    return (
+        <aside className="shrink-0 w-44 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-700/60">
+            <nav className="flex-1 overflow-y-auto py-3 space-y-1 px-2">
+                <SideLink href="/operator/select-line" active={onLines}>{__('Lines')}</SideLink>
+                {tabLinks.map((tab) => (
+                    <SideLink key={tab.key} href={tab.url}>{__(tab.label)}</SideLink>
+                ))}
+            </nav>
+        </aside>
+    );
+}
+
+function SideLink({ href, active, children }) {
+    return (
+        <Link
+            href={href}
+            className={`block px-3 py-3 rounded-lg text-sm font-semibold transition-colors ${
+                active ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+            }`}
+        >
+            {children}
+        </Link>
     );
 }
 
