@@ -84,9 +84,19 @@ class RolesAndPermissionsSeeder extends Seeder
         $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions(Permission::all());
 
+        // This seeder runs on every container start (docker-entrypoint.sh), so
+        // syncPermissions() must not clobber the per-role tab:* grants an admin
+        // configured through Settings → Access. Capture them and merge them back
+        // into the canonical operational set below. Admin keeps all tabs anyway
+        // (Permission::all()); fresh installs have none, so nothing leaks.
+        $keepTabs = fn (Role $role) => $role->permissions
+            ->pluck('name')
+            ->filter(fn ($name) => str_starts_with($name, 'tab:'))
+            ->all();
+
         // Supervisor — operational read + production management
         $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'web']);
-        $supervisorRole->syncPermissions([
+        $supervisorRole->syncPermissions(array_merge($keepTabs($supervisorRole), [
             'view work orders', 'create work orders', 'edit work orders',
             'start batch step', 'complete batch step',
             'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
@@ -105,14 +115,14 @@ class RolesAndPermissionsSeeder extends Seeder
             'view cost sources',
             // Gate 7
             'view tools', 'view maintenance events',
-        ]);
+        ]));
 
         // Operator — minimal: view queue + execute steps + report issues
         $operatorRole = Role::firstOrCreate(['name' => 'Operator', 'guard_name' => 'web']);
-        $operatorRole->syncPermissions([
+        $operatorRole->syncPermissions(array_merge($keepTabs($operatorRole), [
             'view work orders',
             'start batch step', 'complete batch step',
             'view issues', 'create issues',
-        ]);
+        ]));
     }
 }

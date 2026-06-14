@@ -118,6 +118,27 @@ class TabAccessTest extends TestCase
         $this->actingAs($this->operator)->get('/admin/work-orders')->assertOk();
     }
 
+    public function test_reseeding_preserves_matrix_tab_grants(): void
+    {
+        // An admin grants Operator a tab via the matrix.
+        Role::findByName('Operator', 'web')->givePermissionTo('tab:orders');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        // The entrypoint reseeds RolesAndPermissionsSeeder on every deploy/boot.
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $operator = Role::findByName('Operator', 'web');
+        // The matrix grant survives the reseed...
+        $this->assertTrue($operator->hasPermissionTo('tab:orders'));
+        // ...and the canonical operational set is still applied.
+        $this->assertTrue($operator->hasPermissionTo('view work orders'));
+        // A tab that was never granted stays absent.
+        $this->assertFalse($operator->hasPermissionTo('tab:hr'));
+
+        $this->actingAs($this->operator)->get('/admin/work-orders')->assertOk();
+    }
+
     public function test_invalid_tab_key_is_rejected(): void
     {
         $this->actingAs($this->admin)->post('/settings/access', [
