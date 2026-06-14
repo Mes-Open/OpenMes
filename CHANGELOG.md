@@ -30,6 +30,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 - **Demo seeder crash (#73)**: `OeeAndDowntimeDemoSeeder` still inserted downtime reasons with the removed `is_planned` column (replaced by `kind`), so `DemoDataSeeder` aborted with a PostgreSQL "undefined column" error and demo OEE/downtime data was never created. It now writes `kind` (`planned` / `unplanned` / `changeover`). Regression test added.
 
+### Security
+- **Patched dependency advisories**: updated `laravel/framework`, `phpoffice/phpspreadsheet`, `guzzlehttp/psr7`, and several Symfony components (`routing`, `http-foundation`, `http-kernel`, `mailer`, `mime`, `polyfill-intl-idn`) to their fixed releases, clearing 17 advisories — including two critical PhpSpreadsheet SSRF/RCE issues (CVE-2026-34084, CVE-2026-45034) and high-severity email-header/SMTP injection in `symfony/mime`. `composer audit` is now clean; no version constraints changed (lockfile-only update).
+
 ---
 
 ## [0.14.5] - 2026-06-12
