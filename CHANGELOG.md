@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+---
+
+## [0.15.0] - 2026-06-14
+
 ### Added
 - **Per-role tab access (Settings → Access)**: a new admin-only settings page with a **role × tab matrix** of checkboxes that grants each role access to individual admin-panel tabs (Orders, Production, HR, Maintenance, …). Enforced server-side by a single `TabAccessMiddleware` on the `/admin` group (each path resolves to a tab via `TabRegistry` and checks a `tab:<key>` permission), and reflected in the sidebar (tabs a role can't access are hidden). The **Admin** role is locked to full access and can never be revoked (`Gate::before` safety net), so you can't lock yourself out. Backed by Spatie permissions — no new tables; existing installs get the `tab:*` permissions (and Admin grant) via migration.
 - **Optional & variant steps in process templates**: a template step can be marked **Optional** (operators may skip it during a batch) or assigned to a **variant group** — steps sharing a group are mutually-exclusive alternatives (e.g. *Matte* vs *Gloss finish*). One step per group is the **default variant** for that product (the template is product-type specific); it is pre-selected when a batch is created and its siblings start skipped, but the operator can switch with **Choose**, or skip an optional step with an optional reason. A batch can't be completed while a variant group has nothing executed (exactly one variant must run). Authored from the process-template step editor; runtime actions on the operator work-order screen.
