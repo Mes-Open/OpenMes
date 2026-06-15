@@ -43,7 +43,10 @@ class DivisionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'factory_id' => 'nullable|exists:factories,id',
+            // divisions.factory_id is NOT NULL (a division always belongs to a
+            // factory) — must be required, or the insert 500s on a fresh install
+            // with no factory selected.
+            'factory_id' => 'required|exists:factories,id',
             'code' => 'required|string|max:50|unique:divisions',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
@@ -77,7 +80,7 @@ class DivisionController extends Controller
     public function update(Request $request, Division $division)
     {
         $validated = $request->validate([
-            'factory_id' => 'nullable|exists:factories,id',
+            'factory_id' => 'required|exists:factories,id',
             'code' => 'required|string|max:50|unique:divisions,code,'.$division->id,
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',

@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Fixed
+- **Sidecar containers raced the database migrations**: the `reverb` (and `queue`/`mqtt`/`modbus`) containers share the app image and ran the full entrypoint, so on a fresh `docker compose up` every sidecar ran `migrate`/`db:seed` concurrently with the backend — flooding the logs with `duplicate key "pg_type_typname_nsp_index"`, `relation … already exists` and `column "deleted_at" … already exists`, and crash-looping reverb. The entrypoint now runs migrations/seeders/admin-creation/scheduler **only on the primary (Octane) container**; sidecars log "skipping migrations/seeders" and start straight away.
+- **Creating a division without a factory returned a 500**: `divisions.factory_id` is `NOT NULL`, but the controller validated it as `nullable`, so submitting the form without a factory (e.g. on a fresh install with none created yet) hit a Postgres NOT NULL violation. It's now `required`, returning a normal 422. Regression test added.
 - **Stale caches surviving a Docker upgrade**: `bootstrap/cache` is a persisted volume, so after `git pull` + rebuild the previous release's compiled **route cache** could keep serving old middleware (e.g. the pre-0.15 `role:Admin` `/admin` group instead of `tab.access`), surfacing as a bogus **403 "user does not have the right roles"** — even for the admin. The entrypoint now wipes the route cache alongside the config/package caches before rebuilding, and resets the Spatie permission cache after seeding so the freshly-seeded roles/permissions are authoritative on every boot.
 
 ---
