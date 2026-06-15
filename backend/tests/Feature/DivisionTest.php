@@ -224,6 +224,40 @@ class DivisionTest extends TestCase
         $response->assertSessionHasErrors('factory_id');
     }
 
+    public function test_factory_id_is_required(): void
+    {
+        // divisions.factory_id is NOT NULL — omitting it must 422, not 500 on a
+        // NOT NULL violation (e.g. a fresh install with no factory selected).
+        $response = $this->actingAs($this->admin)->post(route('admin.divisions.store'), [
+            'code' => 'DIV01',
+            'name' => 'No Factory Division',
+            'is_active' => true,
+        ]);
+
+        $response->assertSessionHasErrors('factory_id');
+        $this->assertDatabaseMissing('divisions', ['code' => 'DIV01']);
+    }
+
+    public function test_factory_id_is_required_on_update(): void
+    {
+        $division = Division::create([
+            'factory_id' => $this->factory->id,
+            'code' => 'DIV01',
+            'name' => 'Original Name',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.divisions.update', $division), [
+            'code' => 'DIV01',
+            'name' => 'Renamed Without Factory',
+            'is_active' => true,
+        ]);
+
+        $response->assertSessionHasErrors('factory_id');
+        // Unchanged — the update must not partially apply.
+        $this->assertDatabaseHas('divisions', ['id' => $division->id, 'name' => 'Original Name']);
+    }
+
     public function test_update_allows_same_code_for_same_division(): void
     {
         $division = Division::create([
