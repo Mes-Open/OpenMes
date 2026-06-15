@@ -238,6 +238,26 @@ class DivisionTest extends TestCase
         $this->assertDatabaseMissing('divisions', ['code' => 'DIV01']);
     }
 
+    public function test_factory_id_is_required_on_update(): void
+    {
+        $division = Division::create([
+            'factory_id' => $this->factory->id,
+            'code' => 'DIV01',
+            'name' => 'Original Name',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.divisions.update', $division), [
+            'code' => 'DIV01',
+            'name' => 'Renamed Without Factory',
+            'is_active' => true,
+        ]);
+
+        $response->assertSessionHasErrors('factory_id');
+        // Unchanged — the update must not partially apply.
+        $this->assertDatabaseHas('divisions', ['id' => $division->id, 'name' => 'Original Name']);
+    }
+
     public function test_update_allows_same_code_for_same_division(): void
     {
         $division = Division::create([

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreDivisionRequest;
+use App\Http\Requests\UpdateDivisionRequest;
 use App\Models\Division;
 use App\Models\Factory;
 use Illuminate\Http\Request;
@@ -40,19 +42,9 @@ class DivisionController extends Controller
     /**
      * Store a newly created division.
      */
-    public function store(Request $request)
+    public function store(StoreDivisionRequest $request)
     {
-        $validated = $request->validate([
-            // divisions.factory_id is NOT NULL (a division always belongs to a
-            // factory) — must be required, or the insert 500s on a fresh install
-            // with no factory selected.
-            'factory_id' => 'required|exists:factories,id',
-            'code' => 'required|string|max:50|unique:divisions',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:2000',
-            'is_active' => 'boolean',
-        ]);
-
+        $validated = $request->validated();
         $validated['is_active'] = $request->boolean('is_active', true);
 
         Division::create($validated);
@@ -77,16 +69,9 @@ class DivisionController extends Controller
     /**
      * Update the specified division.
      */
-    public function update(Request $request, Division $division)
+    public function update(UpdateDivisionRequest $request, Division $division)
     {
-        $validated = $request->validate([
-            'factory_id' => 'required|exists:factories,id',
-            'code' => 'required|string|max:50|unique:divisions,code,'.$division->id,
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:2000',
-            'is_active' => 'boolean',
-        ]);
-
+        $validated = $request->validated();
         $validated['is_active'] = $request->boolean('is_active');
 
         $division->update($validated);

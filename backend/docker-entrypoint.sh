@@ -71,9 +71,13 @@ if [ "$IS_PRIMARY" = "1" ]; then
     php artisan permission:cache-reset 2>/dev/null || true
 
     # ── Default admin (only if no users exist) ───────────────────────────────
-    ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
-    ADMIN_EMAIL="${ADMIN_EMAIL:-admin@openmmes.local}"
-    ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin1234!}"
+    # Export so the tinker subprocess can read them with getenv() — values are
+    # NOT interpolated into the PHP string (a password with quotes/backslashes
+    # would otherwise break the --execute snippet), and the password is never
+    # echoed to the logs.
+    export ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+    export ADMIN_EMAIL="${ADMIN_EMAIL:-admin@openmmes.local}"
+    export ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin1234!}"
 
     USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null | tail -n1 | tr -d '[:space:]')
 
@@ -82,9 +86,9 @@ if [ "$IS_PRIMARY" = "1" ]; then
         php artisan tinker --execute="
             \$u = \App\Models\User::create([
                 'name'                  => 'Administrator',
-                'username'              => '${ADMIN_USERNAME}',
-                'email'                 => '${ADMIN_EMAIL}',
-                'password'              => bcrypt('${ADMIN_PASSWORD}'),
+                'username'              => getenv('ADMIN_USERNAME'),
+                'email'                 => getenv('ADMIN_EMAIL'),
+                'password'              => bcrypt(getenv('ADMIN_PASSWORD')),
                 'force_password_change' => false,
                 'email_verified_at'     => now(),
             ]);
@@ -96,7 +100,7 @@ if [ "$IS_PRIMARY" = "1" ]; then
         echo "║                                          ║"
         echo "║  URL:      ${APP_URL:-http://localhost}"
         echo "║  Login:    ${ADMIN_USERNAME}"
-        echo "║  Hasło:    ${ADMIN_PASSWORD}"
+        echo "║  Password: (the ADMIN_PASSWORD you configured)"
         echo "║                                          ║"
         echo "╚══════════════════════════════════════════╝"
         echo ""
