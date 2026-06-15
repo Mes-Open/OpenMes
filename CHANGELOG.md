@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+---
+
+## [0.15.1] - 2026-06-15
+
 ### Fixed
 - **Sidecar containers raced the database migrations**: the `reverb` (and `queue`/`mqtt`/`modbus`) containers share the app image and ran the full entrypoint, so on a fresh `docker compose up` every sidecar ran `migrate`/`db:seed` concurrently with the backend — flooding the logs with `duplicate key "pg_type_typname_nsp_index"`, `relation … already exists` and `column "deleted_at" … already exists`, and crash-looping reverb. The entrypoint now runs migrations/seeders/admin-creation/scheduler **only on the primary (Octane) container**; sidecars log "skipping migrations/seeders" and start straight away.
 - **Creating a division without a factory returned a 500**: `divisions.factory_id` is `NOT NULL`, but the controller validated it as `nullable`, so submitting the form without a factory (e.g. on a fresh install with none created yet) hit a Postgres NOT NULL violation. It's now `required`, returning a normal 422. Regression test added.
