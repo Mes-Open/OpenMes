@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **Stale caches surviving a Docker upgrade**: `bootstrap/cache` is a persisted volume, so after `git pull` + rebuild the previous release's compiled **route cache** could keep serving old middleware (e.g. the pre-0.15 `role:Admin` `/admin` group instead of `tab.access`), surfacing as a bogus **403 "user does not have the right roles"** — even for the admin. The entrypoint now wipes the route cache alongside the config/package caches before rebuilding, and resets the Spatie permission cache after seeding so the freshly-seeded roles/permissions are authoritative on every boot.
+
 ---
 
 ## [0.15.0] - 2026-06-14

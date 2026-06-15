@@ -34,7 +34,13 @@ if ! grep -q "APP_KEY=base64:" .env; then
 fi
 
 # ── Clear stale bootstrap cache ─────────────────────────────────────────────
-rm -f bootstrap/cache/packages.php bootstrap/cache/services.php bootstrap/cache/config.php
+# bootstrap/cache is a persisted volume, so on an upgrade (git pull + rebuild)
+# the OLD compiled config/route caches survive into the NEW image. Wipe them by
+# file (no DB/artisan needed yet) before anything reads them — including the
+# route cache, so a stale route map can't keep serving the previous release's
+# middleware (e.g. the old role:Admin /admin group instead of tab.access).
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php \
+      bootstrap/cache/config.php bootstrap/cache/routes-v7.php bootstrap/cache/route.php
 php artisan package:discover --ansi 2>/dev/null || true
 
 # ── Migrations ───────────────────────────────────────────────────────────────
@@ -46,6 +52,12 @@ echo "[OpenMES] Running seeders..."
 php artisan db:seed --class=RolesAndPermissionsSeeder --force
 php artisan db:seed --class=IssueTypesSeeder --force
 php artisan db:seed --class=LineStatusSeeder --force
+
+# Reset the Spatie permission cache so the freshly-seeded roles/permissions are
+# authoritative. Without this an upgrade can keep serving a stale cached map
+# (the cache store lives in the persisted DB), which surfaces as bogus 403
+# "user does not have the right roles" even for the admin.
+php artisan permission:cache-reset 2>/dev/null || true
 
 # ── Default admin (only if no users exist) ───────────────────────────────────
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
