@@ -250,6 +250,14 @@ cd OpenMes
 
 `install.sh` generates secure credentials into `.env`, **auto-selects a free host port** (80 if it's available, otherwise the next free one — e.g. 8080), builds the app from the cloned source, and starts it in **production**. When it finishes it prints your URL and admin login. Use `./install.sh --yes` to accept all defaults non-interactively.
 
+**Windows?** In **PowerShell** (Docker Desktop) run the equivalent installer — same behaviour as `install.sh`:
+
+```powershell
+.\install.ps1
+```
+
+(Under WSL2 just use `./install.sh`.)
+
 **Prefer plain Compose?** `docker compose up -d --build` also works — it builds from source and serves on port 80 (override with `HTTP_PORT`/`HTTPS_PORT` in `.env` if 80 is taken).
 
 ### First boot
