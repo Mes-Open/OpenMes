@@ -2,11 +2,11 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\Line;
-use App\Models\ProductType;
-use App\Models\ProcessTemplate;
-use App\Models\WorkOrder;
 use App\Models\Batch;
+use App\Models\Line;
+use App\Models\ProcessTemplate;
+use App\Models\ProductType;
+use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -100,7 +100,9 @@ class WorkOrderServiceTest extends TestCase
             $this->assertEquals($snapshotStep['step_number'], $step->step_number);
             $this->assertEquals($snapshotStep['name'], $step->name);
             $this->assertEquals($snapshotStep['instruction'], $step->instruction);
-            $this->assertEquals('PENDING', $step->status);
+            // First step is promoted to READY ("ready to start"); the rest stay
+            // PENDING until their predecessor completes.
+            $this->assertEquals($index === 0 ? 'READY' : 'PENDING', $step->status);
         }
     }
 
@@ -211,13 +213,13 @@ class WorkOrderServiceTest extends TestCase
 
         WorkOrder::factory()->create([
             'line_id' => $line->id,
-            'status' => WorkOrder::STATUS_PENDING
+            'status' => WorkOrder::STATUS_PENDING,
         ]);
         WorkOrder::factory()->inProgress()->create(['line_id' => $line->id]);
         WorkOrder::factory()->done()->create(['line_id' => $line->id]);
 
         $result = $this->service->getWorkOrdersForUser($user, [
-            'status' => WorkOrder::STATUS_PENDING
+            'status' => WorkOrder::STATUS_PENDING,
         ]);
 
         $this->assertCount(1, $result);

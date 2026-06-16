@@ -79,7 +79,9 @@ class OptionalVariantStepExecutionTest extends TestCase
             ->post("/operator/batch-step/{$required->id}/skip")
             ->assertSessionHas('error');
 
-        $this->assertSame(BatchStep::STATUS_PENDING, $required->fresh()->status);
+        // First step is READY ("ready to start") and skipping it failed, so it
+        // is left untouched.
+        $this->assertSame(BatchStep::STATUS_READY, $required->fresh()->status);
     }
 
     public function test_default_variant_is_active_and_sibling_skipped(): void
@@ -87,7 +89,9 @@ class OptionalVariantStepExecutionTest extends TestCase
         $batch = $this->makeBatch();
 
         $this->assertSame(BatchStep::STATUS_SKIPPED, $this->step($batch, 3)->status); // matte
-        $this->assertSame(BatchStep::STATUS_PENDING, $this->step($batch, 4)->status);  // gloss (default)
+        // Gloss (default variant) is active; its sibling is skipped so it's the
+        // next actionable step → READY.
+        $this->assertSame(BatchStep::STATUS_READY, $this->step($batch, 4)->status);  // gloss (default)
     }
 
     public function test_operator_can_switch_variant(): void

@@ -19,6 +19,7 @@ function fmtQty(n, decimals = 2) {
 function statusBadge(status) {
     const map = {
         PENDING:     'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+        READY:       'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
         IN_PROGRESS: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
         DONE:        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
         BLOCKED:     'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
@@ -28,6 +29,7 @@ function statusBadge(status) {
 
 function statusLabel(status) {
     if (status === 'PENDING') return 'Not Started';
+    if (status === 'READY') return 'Ready to Start';
     return (status ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -756,6 +758,10 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                                     In progress{step.started_by ? ` by ${step.started_by.name}` : ''}
                                 </span>
                             )}
+                            {/* Blocked: waiting on the previous step */}
+                            {step.status === 'PENDING' && (
+                                <span className="text-xs text-gray-400 whitespace-nowrap">Pending</span>
+                            )}
                             {/* Fallback for older data without explicit status field */}
                             {!step.status && step.completed_at && (
                                 <span className="text-xs text-green-600 whitespace-nowrap">
@@ -768,8 +774,8 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                                 </span>
                             )}
 
-                            {/* Action buttons */}
-                            {step.status === 'PENDING' && (
+                            {/* Action buttons — Start only when the step is READY */}
+                            {step.status === 'READY' && (
                                 <button
                                     type="button"
                                     disabled={isInflight}
