@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- **Smoother first-run install**: `install.sh` now **auto-selects a free host port** — it prefers 80/443 and falls back to the next free port (e.g. 8080/8443) when those are taken, then wires `APP_URL` and `SANCTUM_STATEFUL_DOMAINS` to match, so `git clone && ./install.sh` works even when port 80 is occupied. It runs a **real production build** by default (Octane + the frontend baked into the image) instead of the vite-watch dev overlay (use `./install.sh --dev` for that), supports `--yes` for a non-interactive run, and **reuses the existing DB/admin passwords on re-run** so they keep matching the already-initialised postgres volume (previously a re-run regenerated the password and broke DB auth). `docker-compose.yml` now defaults to `pull_policy: build`, so a plain `docker compose up` builds from the cloned source (layer-cached → instant when unchanged) rather than failing on the private image or serving a stale one; deployers pulling a published tag can set `OPENMES_PULL_POLICY=missing`.
+
 ---
 
 ## [0.15.1] - 2026-06-15

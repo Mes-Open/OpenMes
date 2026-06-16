@@ -35,6 +35,12 @@ services:
 
   backend:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -90,6 +96,12 @@ services:
   # it; clients connect through Caddy (/app/*). NOT exposed publicly.
   reverb:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -126,6 +138,12 @@ services:
   # Example: MQTT_CONNECTION_ID=1 docker compose up -d mqtt-listener
   mqtt-listener:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -159,6 +177,12 @@ services:
   # Example: MODBUS_CONNECTION_ID=1 docker compose --profile connectivity up -d modbus-poller
   modbus-poller:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -215,6 +239,12 @@ services:
   # Example: docker compose --profile workers up -d queue-worker
   queue-worker:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
