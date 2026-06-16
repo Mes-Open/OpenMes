@@ -36,11 +36,26 @@ for arg in "$@"; do
     esac
 done
 
-ask() { # ask <prompt> <default> <var>; honours --yes
-    local prompt="$1" default="$2" __var="$3" reply
-    if [ "$ASSUME_YES" = "1" ]; then printf -v "$__var" '%s' "$default"; return; fi
-    read -rp "  ${prompt} [${default}]: " reply
+# Interactive only when stdin is a real terminal and --yes wasn't passed.
+# Piped / no-TTY runs (and --yes) use defaults and never block or abort — a
+# `read` under `set -e` would otherwise kill the script on EOF (exit 1, nothing
+# installed).
+INTERACTIVE=1
+{ [ "$ASSUME_YES" = "1" ] || [ ! -t 0 ]; } && INTERACTIVE=0
+
+ask() { # ask <prompt> <default> <var>
+    local prompt="$1" default="$2" __var="$3" reply=""
+    if [ "$INTERACTIVE" = "1" ]; then
+        read -rp "  ${prompt} [${default}]: " reply || reply=""
+    fi
     printf -v "$__var" '%s' "${reply:-$default}"
+}
+
+confirm() { # confirm <prompt>; default = proceed (Enter / y / yes). Only "n"/"no" aborts.
+    local reply=""
+    [ "$INTERACTIVE" = "1" ] || return 0
+    read -rp "  $1 [Y/n]: " reply || reply=""
+    case "${reply:-y}" in [Nn] | [Nn][Oo]) return 1 ;; *) return 0 ;; esac
 }
 
 echo ""
@@ -76,10 +91,7 @@ echo ""
 REUSE_ENV=0
 if [ -f ".env" ]; then
     warn ".env already exists — keeping existing passwords (data is preserved)."
-    if [ "$ASSUME_YES" != "1" ]; then
-        read -rp "  Re-run setup? This will NOT delete existing data. (yes/no): " CONFIRM
-        [ "$CONFIRM" = "yes" ] || { echo "Aborted."; exit 0; }
-    fi
+    confirm "Re-run setup? (existing data is preserved)" || { echo "Aborted."; exit 0; }
     REUSE_ENV=1
     echo ""
 fi
@@ -158,11 +170,8 @@ echo "  │  DB password:    ${DB_PASSWORD}"
 echo "  └─────────────────────────────────────────┘"
 echo ""
 
-if [ "$ASSUME_YES" != "1" ]; then
-    read -rp "  Proceed with installation? (yes/no): " CONFIRM
-    [ "$CONFIRM" = "yes" ] || { echo "Aborted."; exit 0; }
-    echo ""
-fi
+confirm "Proceed with installation?" || { echo "Aborted."; exit 0; }
+echo ""
 
 # ── Write .env ────────────────────────────────────────────────────────────────
 
