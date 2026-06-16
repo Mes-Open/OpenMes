@@ -27,12 +27,15 @@ $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
 \\Illuminate\\Support\\Facades\\Cache::forget('update_check_result');
 `;
 
+// Container name follows the compose prefix (default "openmmes").
+const BACKEND = `${process.env.OPENMES_NAME_PREFIX || 'openmmes'}-backend`;
+
 function runInContainer(php: string): boolean {
   const tmp = `/tmp/pw-update-banner-${Date.now()}-${Math.random().toString(36).slice(2)}.php`;
   try {
     fs.writeFileSync(tmp, php);
-    childProc.execSync(`docker cp ${tmp} openmmes-backend:/tmp/seed.php`, { stdio: 'ignore' });
-    childProc.execSync(`docker exec openmmes-backend php /tmp/seed.php`, { stdio: 'ignore' });
+    childProc.execSync(`docker cp ${tmp} ${BACKEND}:/tmp/seed.php`, { stdio: 'ignore' });
+    childProc.execSync(`docker exec ${BACKEND} php /tmp/seed.php`, { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -46,7 +49,7 @@ test.beforeAll(() => { seeded = runInContainer(SEED_PHP); });
 test.afterAll(() => { if (seeded) runInContainer(CLEAR_PHP); });
 
 test('updater banner: shows update available when remote is newer', async ({ page, context }) => {
-  test.skip(!seeded, 'docker exec seed failed — requires openmmes-backend running');
+  test.skip(!seeded, `docker exec seed failed — requires ${BACKEND} running`);
   await context.clearCookies();
   await page.goto('/login');
   await page.fill('input[name="username"]', ADMIN);

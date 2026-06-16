@@ -99,10 +99,12 @@ fi
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 gen_pass() {
-    # 24 chars from a shell/env-safe set, read from the kernel CSPRNG.
-    # LC_ALL=C so BSD/macOS `tr` doesn't bail with "Illegal byte sequence" on
-    # the non-UTF-8 bytes from /dev/urandom.
-    LC_ALL=C tr -dc 'A-Za-z0-9@#%^&*_+=' </dev/urandom 2>/dev/null | head -c24
+    # 24 alphanumeric chars from the kernel CSPRNG (~143 bits). Intentionally no
+    # symbols: the value is written unquoted to .env and passed through compose +
+    # the entrypoint's sed env-sync, where '#' starts a comment, '$' interpolates,
+    # '&' is sed's match-replacement, etc. Alphanumeric sidesteps all of that.
+    # LC_ALL=C so BSD/macOS `tr` doesn't bail on the raw bytes ("Illegal byte sequence").
+    LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c24
 }
 
 port_in_use() {
