@@ -59,15 +59,17 @@ class ProcessOptionalVariantStepTest extends TestCase
         $batch = app(WorkOrderService::class)->createBatch($wo, 10);
         $steps = $batch->steps()->orderBy('step_number')->get()->keyBy('step_number');
 
-        // Required + optional both start pending; optional flag copied.
-        $this->assertSame(BatchStep::STATUS_PENDING, $steps[1]->status);
+        // Step 1 is the first step → READY ("ready to start"); the optional
+        // step 2 is still blocked behind it → PENDING. Flags copied through.
+        $this->assertSame(BatchStep::STATUS_READY, $steps[1]->status);
         $this->assertFalse($steps[1]->is_optional);
         $this->assertSame(BatchStep::STATUS_PENDING, $steps[2]->status);
         $this->assertTrue($steps[2]->is_optional);
 
-        // Variant group: default (step 4) active, sibling (step 3) auto-skipped.
+        // Variant group: default (step 4) active; sibling (step 3) auto-skipped,
+        // which makes the default the next actionable step → READY.
         $this->assertSame(BatchStep::STATUS_SKIPPED, $steps[3]->status);
-        $this->assertSame(BatchStep::STATUS_PENDING, $steps[4]->status);
+        $this->assertSame(BatchStep::STATUS_READY, $steps[4]->status);
         $this->assertSame('finish', $steps[3]->variant_group);
         $this->assertSame('finish', $steps[4]->variant_group);
     }
@@ -83,7 +85,7 @@ class ProcessOptionalVariantStepTest extends TestCase
         $batch = app(WorkOrderService::class)->createBatch($wo, 10);
         $steps = $batch->steps()->orderBy('step_number')->get()->keyBy('step_number');
 
-        $this->assertSame(BatchStep::STATUS_PENDING, $steps[1]->status); // lowest = default
+        $this->assertSame(BatchStep::STATUS_READY, $steps[1]->status); // lowest = default, first step → ready
         $this->assertSame(BatchStep::STATUS_SKIPPED, $steps[2]->status);
     }
 

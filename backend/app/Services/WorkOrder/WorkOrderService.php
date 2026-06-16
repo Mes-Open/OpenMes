@@ -146,6 +146,10 @@ class WorkOrderService
                 'variant_group' => $group,
             ]);
         }
+
+        // Mark the first eligible step(s) READY ("next in line") so the operator
+        // can start straight away; the rest stay PENDING until their turn.
+        $batch->promoteReadySteps();
     }
 
     /**

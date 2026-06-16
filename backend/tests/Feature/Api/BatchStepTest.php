@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
-use App\Models\WorkOrder;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\User;
+use App\Models\WorkOrder;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -24,6 +24,7 @@ class BatchStepTest extends TestCase
     {
         $user = User::factory()->create();
         $user->assignRole($role);
+
         return $user;
     }
 
@@ -45,7 +46,8 @@ class BatchStepTest extends TestCase
         $user->lines()->attach($workOrder->line_id);
 
         $firstStep = $batch->steps()->orderBy('step_number')->first();
-        $this->assertEquals(BatchStep::STATUS_PENDING, $firstStep->status);
+        // First step is promoted to READY ("ready to start") on creation.
+        $this->assertEquals(BatchStep::STATUS_READY, $firstStep->status);
 
         $token = $user->createToken('test')->plainTextToken;
 
@@ -143,7 +145,8 @@ class BatchStepTest extends TestCase
         $user->lines()->attach($workOrder->line_id);
 
         $firstStep = $batch->steps()->orderBy('step_number')->first();
-        $this->assertEquals(BatchStep::STATUS_PENDING, $firstStep->status);
+        // READY (not IN_PROGRESS) — completing it must still be rejected.
+        $this->assertEquals(BatchStep::STATUS_READY, $firstStep->status);
 
         $token = $user->createToken('test')->plainTextToken;
 
@@ -245,7 +248,7 @@ class BatchStepTest extends TestCase
 
         // Start first step
         $this->postJson("/api/v1/batch-steps/{$firstStep->id}/start", [], [
-            'Authorization' => "Bearer $token"
+            'Authorization' => "Bearer $token",
         ]);
 
         $batch->refresh();
@@ -275,7 +278,7 @@ class BatchStepTest extends TestCase
         $token = $user->createToken('test')->plainTextToken;
 
         $this->postJson("/api/v1/batch-steps/{$firstStep->id}/complete", [], [
-            'Authorization' => "Bearer $token"
+            'Authorization' => "Bearer $token",
         ]);
 
         $firstStep->refresh();
