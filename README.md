@@ -393,7 +393,7 @@ That overlay (`docker-compose.dev.yml`):
 Workflow:
 
 1. Edit `backend/resources/js/Pages/Foo.jsx` (or any source file).
-2. The watcher rebuilds automatically — check `docker logs -f openmmes-frontend` if you want to see it.
+2. The watcher rebuilds automatically — check `docker compose logs -f frontend` if you want to see it.
 3. Refresh the browser.
 
 ### Adding a new React page

@@ -66,7 +66,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: openmmes-frontend
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-frontend
     working_dir: /var/www/html
     # Bypass the image ENTRYPOINT (docker-entrypoint.sh runs migrations/seeders
     # and needs DB creds) — the watcher only builds assets, no DB, no app boot.

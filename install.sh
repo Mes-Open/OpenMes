@@ -161,9 +161,19 @@ fi
 if [ "$REUSE_ENV" = "1" ]; then
     DB_PASSWORD="$(env_get POSTGRES_PASSWORD)"
     ADMIN_PASSWORD="$(env_get ADMIN_PASSWORD)"
+    NAME_PREFIX="$(env_get OPENMES_NAME_PREFIX)"
 fi
 DB_PASSWORD="${DB_PASSWORD:-$(gen_pass)}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(gen_pass)}"
+
+# Unique container-name prefix per install directory, so several local
+# instances can run at once (container_name must be globally unique). Derived
+# from the folder name and stable across re-runs.
+if [ -z "$NAME_PREFIX" ]; then
+    NAME_PREFIX="$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_.-' '-' | sed 's/^[^a-z0-9]*//; s/-*$//')"
+    [ -z "$NAME_PREFIX" ] && NAME_PREFIX="openmmes"
+fi
+ok "Container name prefix: ${NAME_PREFIX} (containers: ${NAME_PREFIX}-backend, …)"
 
 echo ""
 echo "  Credentials (saved in .env — keep them safe):"
@@ -191,6 +201,10 @@ APP_URL=${APP_URL}
 # ── Host ports (auto-selected; 80/443 preferred) ─────────────────────────────
 HTTP_PORT=${HTTP_PORT}
 HTTPS_PORT=${HTTPS_PORT}
+
+# Container-name prefix — unique per install dir so multiple local instances
+# don't clash on container names (default is "openmmes" when unset).
+OPENMES_NAME_PREFIX=${NAME_PREFIX}
 
 # ── Mode ──────────────────────────────────────────────────────────────────────
 APP_ENV=production
