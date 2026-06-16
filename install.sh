@@ -21,27 +21,27 @@ err()  { echo -e "${RED}✗ $*${NC}"; exit 1; }
 info() { echo -e "${CYAN}→ $*${NC}"; }
 
 # ── Flags ─────────────────────────────────────────────────────────────────────
-ASSUME_YES=0
+# Unattended by default: `./install.sh` just works (sensible defaults, secure
+# random passwords, no questions). Pass --interactive to customise domain/admin.
 DEV_MODE=0
+INTERACTIVE=0
 for arg in "$@"; do
     case "$arg" in
-        -y|--yes)  ASSUME_YES=1 ;;
-        --dev)     DEV_MODE=1 ;;
+        -i|--interactive) INTERACTIVE=1 ;;
+        -y|--yes)         INTERACTIVE=0 ;; # default; kept for compatibility
+        --dev)            DEV_MODE=1 ;;
         -h|--help)
-            echo "Usage: ./install.sh [--yes] [--dev]"
-            echo "  --yes  accept defaults, no prompts"
-            echo "  --dev  run the vite-watch dev overlay instead of production"
+            echo "Usage: ./install.sh [--interactive] [--dev]"
+            echo "  (default)         unattended — sensible defaults, just works"
+            echo "  -i, --interactive prompt for domain / admin user / email"
+            echo "  --dev             run the vite-watch dev overlay instead of production"
             exit 0 ;;
         *) err "Unknown option: $arg" ;;
     esac
 done
 
-# Interactive only when stdin is a real terminal and --yes wasn't passed.
-# Piped / no-TTY runs (and --yes) use defaults and never block or abort — a
-# `read` under `set -e` would otherwise kill the script on EOF (exit 1, nothing
-# installed).
-INTERACTIVE=1
-{ [ "$ASSUME_YES" = "1" ] || [ ! -t 0 ]; } && INTERACTIVE=0
+# Can't prompt without a real terminal — fall back to unattended.
+[ "$INTERACTIVE" = "1" ] && [ ! -t 0 ] && INTERACTIVE=0
 
 ask() { # ask <prompt> <default> <var>
     local prompt="$1" default="$2" __var="$3" reply=""
@@ -128,8 +128,12 @@ env_get() { grep -E "^$1=" .env 2>/dev/null | head -n1 | cut -d= -f2-; }
 
 # ── Collect configuration ─────────────────────────────────────────────────────
 
-info "Configure your installation (Enter accepts defaults):"
-echo ""
+if [ "$INTERACTIVE" = "1" ]; then
+    info "Configure your installation (Enter accepts defaults):"
+    echo ""
+else
+    info "Unattended setup (run with --interactive to customise)."
+fi
 
 ask "Domain (e.g. demo.example.com)" "localhost" DOMAIN
 ask "Admin username" "admin" ADMIN_USERNAME
@@ -224,18 +228,33 @@ docker compose $COMPOSE_FILES up -d --build
 
 echo ""
 ok "Containers started"
-info "Waiting for the application to respond..."
+info "Waiting for the application to come up (first boot builds the DB)..."
 
+# Poll the login page for a real 200 — that means Octane is serving, the
+# entrypoint finished migrating/seeding, and Caddy is proxying. Only then is the
+# link actually clickable. Up to ~3 minutes for a cold first boot.
+READY_URL="${APP_URL%/}/login"
+READY=0
+CODE=""
 ATTEMPTS=0
-until curl -skf -o /dev/null "${APP_URL}" 2>/dev/null || curl -skf -o /dev/null "http://localhost:${HTTP_PORT}" 2>/dev/null; do
+while [ $ATTEMPTS -le 90 ]; do
+    CODE="$(curl -sk -o /dev/null -w '%{http_code}' "$READY_URL" 2>/dev/null || true)"
+    [ "$CODE" = "200" ] && { READY=1; break; }
     ATTEMPTS=$((ATTEMPTS + 1))
-    [ $ATTEMPTS -gt 45 ] && { warn "App not responding yet — check: docker compose logs -f backend"; break; }
+    printf '.'
     sleep 2
 done
+echo ""
 
+if [ "$READY" = "1" ]; then
+    ok "Application is up — ${APP_URL} is live."
+else
+    warn "App not serving yet (last status: ${CODE:-none}). It may still be building/migrating."
+    warn "Watch it finish with:  docker compose logs -f backend"
+fi
 echo ""
 echo "  ╔══════════════════════════════════════════════════════════╗"
-echo "  ║            OpenMES is ready!                             ║"
+printf  "  ║  %-56s║\n" "$([ "$READY" = "1" ] && echo 'OpenMES is ready!' || echo 'OpenMES is starting — give it a moment…')"
 echo "  ║                                                          ║"
 printf  "  ║  URL:      %-46s║\n" "${APP_URL}"
 printf  "  ║  Login:    %-46s║\n" "${ADMIN_USERNAME}"
