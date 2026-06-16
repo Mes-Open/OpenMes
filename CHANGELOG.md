@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **"Ready to start" batch-step status**: a new step state between **Pending** and **In Progress**. A step is **Pending** while it's still blocked (its predecessor isn't done), becomes **Ready to start** once its prerequisites are met (first step, predecessor done/skipped, or non-sequential mode) — i.e. it's next in line and waiting for an operator — and then **In Progress** once started. Operators only see the **Start** button on Ready steps; Pending steps show as blocked. The next step is promoted to Ready automatically when the current one is completed or skipped. No schema change (the status column is a free string); existing in-flight batches are backfilled by migration, and the value syncs to live views like any other status. _(Refs [discussion #69](https://github.com/orgs/Mes-Open/discussions/69))_
+
 ---
 
 ## [0.15.2] - 2026-06-16

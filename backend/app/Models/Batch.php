@@ -132,7 +132,25 @@ class Batch extends Model
     }
 
     /**
-     * Get the current (in progress or next pending) step.
+     * Promote every PENDING step whose sequence prerequisites are now met to
+     * READY ("next in line"). Idempotent — safe to call after any step
+     * transition or right after a batch's steps are created.
+     */
+    public function promoteReadySteps(): void
+    {
+        $this->steps()
+            ->where('status', BatchStep::STATUS_PENDING)
+            ->orderBy('step_number')
+            ->get()
+            ->each(function (BatchStep $step) {
+                if ($step->prerequisitesMet()) {
+                    $step->update(['status' => BatchStep::STATUS_READY]);
+                }
+            });
+    }
+
+    /**
+     * Get the current (in progress or next ready/pending) step.
      */
     public function currentStep()
     {
@@ -145,9 +163,10 @@ class Batch extends Model
             return $inProgress;
         }
 
-        // Otherwise return first pending step
+        // Otherwise the next actionable step — READY first, then PENDING.
         return $this->steps()
-            ->where('status', BatchStep::STATUS_PENDING)
+            ->whereIn('status', [BatchStep::STATUS_READY, BatchStep::STATUS_PENDING])
+            ->orderByRaw("CASE status WHEN '".BatchStep::STATUS_READY."' THEN 0 ELSE 1 END")
             ->orderBy('step_number')
             ->first();
     }

@@ -16,8 +16,11 @@ class BatchServiceTest extends TestCase
     use RefreshDatabase;
 
     protected BatchService $service;
+
     protected WorkOrder $workOrder;
+
     protected Batch $batch;
+
     protected User $user;
 
     protected function setUp(): void
@@ -96,8 +99,8 @@ class BatchServiceTest extends TestCase
     {
         $firstStep = $this->batch->steps()->where('step_number', 1)->first();
         $firstStep->update([
-            'status'       => BatchStep::STATUS_DONE,
-            'started_at'   => now()->subMinutes(30),
+            'status' => BatchStep::STATUS_DONE,
+            'started_at' => now()->subMinutes(30),
             'completed_at' => now(),
         ]);
 
@@ -114,7 +117,7 @@ class BatchServiceTest extends TestCase
     {
         $step = $this->batch->steps()->orderBy('step_number')->first();
         $step->update([
-            'status'     => BatchStep::STATUS_IN_PROGRESS,
+            'status' => BatchStep::STATUS_IN_PROGRESS,
             'started_at' => now()->subMinutes(15),
         ]);
 
@@ -127,7 +130,7 @@ class BatchServiceTest extends TestCase
     {
         $step = $this->batch->steps()->orderBy('step_number')->first();
         $step->update([
-            'status'     => BatchStep::STATUS_IN_PROGRESS,
+            'status' => BatchStep::STATUS_IN_PROGRESS,
             'started_at' => now()->subMinutes(10),
         ]);
 
@@ -142,7 +145,7 @@ class BatchServiceTest extends TestCase
     {
         $step = $this->batch->steps()->orderBy('step_number')->first();
         $step->update([
-            'status'     => BatchStep::STATUS_IN_PROGRESS,
+            'status' => BatchStep::STATUS_IN_PROGRESS,
             'started_at' => now()->subMinutes(30),
         ]);
 
@@ -157,7 +160,8 @@ class BatchServiceTest extends TestCase
     public function test_complete_pending_step_throws(): void
     {
         $step = $this->batch->steps()->orderBy('step_number')->first();
-        $this->assertEquals(BatchStep::STATUS_PENDING, $step->status);
+        // First step is READY (not IN_PROGRESS) — completing it must still throw.
+        $this->assertEquals(BatchStep::STATUS_READY, $step->status);
 
         $this->expectException(\Exception::class);
 
@@ -171,8 +175,8 @@ class BatchServiceTest extends TestCase
         // Complete all but last manually
         foreach ($steps->slice(0, -1) as $step) {
             $step->update([
-                'status'       => BatchStep::STATUS_DONE,
-                'started_at'   => now()->subHour(),
+                'status' => BatchStep::STATUS_DONE,
+                'started_at' => now()->subHour(),
                 'completed_at' => now()->subMinutes(30),
             ]);
         }
@@ -180,7 +184,7 @@ class BatchServiceTest extends TestCase
         // Complete last step through service
         $lastStep = $steps->last();
         $lastStep->update([
-            'status'     => BatchStep::STATUS_IN_PROGRESS,
+            'status' => BatchStep::STATUS_IN_PROGRESS,
             'started_at' => now()->subMinutes(10),
         ]);
 
@@ -196,15 +200,15 @@ class BatchServiceTest extends TestCase
 
         foreach ($steps->slice(0, -1) as $step) {
             $step->update([
-                'status'       => BatchStep::STATUS_DONE,
-                'started_at'   => now()->subHour(),
+                'status' => BatchStep::STATUS_DONE,
+                'started_at' => now()->subHour(),
                 'completed_at' => now()->subMinutes(30),
             ]);
         }
 
         $lastStep = $steps->last();
         $lastStep->update([
-            'status'     => BatchStep::STATUS_IN_PROGRESS,
+            'status' => BatchStep::STATUS_IN_PROGRESS,
             'started_at' => now()->subMinutes(5),
         ]);
 
@@ -220,15 +224,15 @@ class BatchServiceTest extends TestCase
 
         foreach ($steps->slice(0, -1) as $step) {
             $step->update([
-                'status'       => BatchStep::STATUS_DONE,
-                'started_at'   => now()->subHour(),
+                'status' => BatchStep::STATUS_DONE,
+                'started_at' => now()->subHour(),
                 'completed_at' => now()->subMinutes(30),
             ]);
         }
 
         $lastStep = $steps->last();
         $lastStep->update([
-            'status'     => BatchStep::STATUS_IN_PROGRESS,
+            'status' => BatchStep::STATUS_IN_PROGRESS,
             'started_at' => now()->subMinutes(5),
         ]);
 
