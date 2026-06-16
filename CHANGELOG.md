@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+---
+
+## [0.15.3] - 2026-06-16
+
 ### Added
 - **Windows installer (`install.ps1`)**: a PowerShell port of `install.sh` with the same behaviour — auto-selects a free host port (80 → 8080/8443+), generates `.env` with secure random credentials (written LF/no-BOM so values aren't corrupted), builds + starts production, waits until the app actually serves, and prints the URL + login. Run `.\install.ps1` in PowerShell with Docker Desktop (`-Interactive` to customise, `-Dev` for the watch overlay). A `.gitattributes` keeps shell scripts LF-only so a Windows checkout doesn't break the `#!/bin/bash` shebang.
 - **"Ready to start" batch-step status**: a new step state between **Pending** and **In Progress**. A step is **Pending** while it's still blocked (its predecessor isn't done), becomes **Ready to start** once its prerequisites are met (first step, predecessor done/skipped, or non-sequential mode) — i.e. it's next in line and waiting for an operator — and then **In Progress** once started. Operators only see the **Start** button on Ready steps; Pending steps show as blocked. The next step is promoted to Ready automatically when the current one is completed or skipped. No schema change (the status column is a free string); existing in-flight batches are backfilled by migration, and the value syncs to live views like any other status. _(Refs [discussion #69](https://github.com/orgs/Mes-Open/discussions/69))_
@@ -325,7 +329,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.2...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.3...develop
+[0.15.3]: https://github.com/Mes-Open/OpenMes/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/Mes-Open/OpenMes/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/Mes-Open/OpenMes/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/Mes-Open/OpenMes/compare/v0.14.5...v0.15.0
