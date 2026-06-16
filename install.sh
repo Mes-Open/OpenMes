@@ -99,21 +99,17 @@ fi
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 gen_pass() {
-    # 24 chars, alphanumeric + symbols safe for shell/env files
-    tr -dc 'A-Za-z0-9@#%^&*_+=' </dev/urandom 2>/dev/null | head -c24 || \
-    python3 -c "import secrets,string; print(secrets.token_urlsafe(18))"
+    # 24 chars from a shell/env-safe set, read from the kernel CSPRNG.
+    # LC_ALL=C so BSD/macOS `tr` doesn't bail with "Illegal byte sequence" on
+    # the non-UTF-8 bytes from /dev/urandom.
+    LC_ALL=C tr -dc 'A-Za-z0-9@#%^&*_+=' </dev/urandom 2>/dev/null | head -c24
 }
 
 port_in_use() {
-    local p="$1"
-    if command -v ss &>/dev/null; then
-        ss -ltnH 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${p}\$"
-    elif command -v netstat &>/dev/null; then
-        netstat -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${p}\$"
-    else
-        # bash /dev/tcp: a successful connect means something is listening
-        (exec 3<>"/dev/tcp/127.0.0.1/${p}") 2>/dev/null
-    fi
+    # Portable check (macOS + Linux, no external tools, no privilege needed): a
+    # successful bash /dev/tcp connect to loopback means something is already
+    # listening on the port. Runs in a subshell so the fd is closed for us.
+    ( exec 3<>"/dev/tcp/127.0.0.1/$1" ) 2>/dev/null
 }
 
 pick_port() { # pick_port <preferred> <fallback-start>
@@ -170,7 +166,7 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(gen_pass)}"
 # instances can run at once (container_name must be globally unique). Derived
 # from the folder name and stable across re-runs.
 if [ -z "$NAME_PREFIX" ]; then
-    NAME_PREFIX="$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_.-' '-' | sed 's/^[^a-z0-9]*//; s/-*$//')"
+    NAME_PREFIX="$(basename "$PWD" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -c 'a-z0-9_.-' '-' | sed 's/^[^a-z0-9]*//; s/-*$//')"
     [ -z "$NAME_PREFIX" ] && NAME_PREFIX="openmmes"
 fi
 ok "Container name prefix: ${NAME_PREFIX} (containers: ${NAME_PREFIX}-backend, …)"
