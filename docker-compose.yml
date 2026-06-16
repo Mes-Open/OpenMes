@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: openmmes-postgres
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-postgres
     command:
       - "postgres"
       - "-c"
@@ -35,10 +35,16 @@ services:
 
   backend:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: openmmes-backend
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-backend
     environment:
       APP_NAME: ${APP_NAME:-OpenMES}
       APP_ENV: ${APP_ENV:-production}
@@ -90,10 +96,16 @@ services:
   # it; clients connect through Caddy (/app/*). NOT exposed publicly.
   reverb:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: openmmes-reverb
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-reverb
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
     environment:
       APP_NAME: ${APP_NAME:-OpenMES}
@@ -126,10 +138,16 @@ services:
   # Example: MQTT_CONNECTION_ID=1 docker compose up -d mqtt-listener
   mqtt-listener:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: openmmes-mqtt-listener
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-mqtt-listener
     command:
       ["php", "artisan", "mqtt:listen", "--connection=${MQTT_CONNECTION_ID:-1}"]
     environment:
@@ -159,10 +177,16 @@ services:
   # Example: MODBUS_CONNECTION_ID=1 docker compose --profile connectivity up -d modbus-poller
   modbus-poller:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: openmmes-modbus-poller
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-modbus-poller
     command:
       ["php", "artisan", "modbus:poll", "--connection=${MODBUS_CONNECTION_ID:-1}"]
     environment:
@@ -195,7 +219,7 @@ services:
     build:
       context: ./opcua-gateway
       dockerfile: Dockerfile
-    container_name: openmmes-opcua-gateway
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-opcua-gateway
     environment:
       OPENMES_API_URL: ${OPENMES_API_URL:-http://backend:8000}
       OPENMES_API_TOKEN: ${OPENMES_API_TOKEN}
@@ -215,10 +239,16 @@ services:
   # Example: docker compose --profile workers up -d queue-worker
   queue-worker:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
+    # Default to building from the cloned source so `docker compose up` always
+    # runs the current code (the published image is private; a plain pull would
+    # fail or serve a stale local image). Builds are layer-cached → instant when
+    # nothing changed. Deployers pulling a published tag can set
+    # OPENMES_PULL_POLICY=missing.
+    pull_policy: ${OPENMES_PULL_POLICY:-build}
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: openmmes-queue-worker
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-queue-worker
     command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=120"]
     environment:
       APP_ENV: ${APP_ENV:-production}
@@ -243,7 +273,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
-    container_name: openmmes-caddy
+    container_name: ${OPENMES_NAME_PREFIX:-openmmes}-caddy
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"

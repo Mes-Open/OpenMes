@@ -1,7 +1,11 @@
 #!/bin/bash
 # OpenMES — Installer
-# Generates .env with secure defaults and starts the stack.
-# Run once on a fresh server: bash install.sh
+# Generates .env with secure defaults, picks free host ports, and starts the
+# stack for real (production build, frontend baked into the image).
+#
+#   ./install.sh            # production, interactive
+#   ./install.sh --yes      # production, accept all defaults (non-interactive)
+#   ./install.sh --dev      # add the vite-watch dev overlay (bind-mounted source)
 
 set -e
 
@@ -15,6 +19,44 @@ ok()   { echo -e "${GREEN}✓ $*${NC}"; }
 warn() { echo -e "${YELLOW}! $*${NC}"; }
 err()  { echo -e "${RED}✗ $*${NC}"; exit 1; }
 info() { echo -e "${CYAN}→ $*${NC}"; }
+
+# ── Flags ─────────────────────────────────────────────────────────────────────
+# Unattended by default: `./install.sh` just works (sensible defaults, secure
+# random passwords, no questions). Pass --interactive to customise domain/admin.
+DEV_MODE=0
+INTERACTIVE=0
+for arg in "$@"; do
+    case "$arg" in
+        -i|--interactive) INTERACTIVE=1 ;;
+        -y|--yes)         INTERACTIVE=0 ;; # default; kept for compatibility
+        --dev)            DEV_MODE=1 ;;
+        -h|--help)
+            echo "Usage: ./install.sh [--interactive] [--dev]"
+            echo "  (default)         unattended — sensible defaults, just works"
+            echo "  -i, --interactive prompt for domain / admin user / email"
+            echo "  --dev             run the vite-watch dev overlay instead of production"
+            exit 0 ;;
+        *) err "Unknown option: $arg" ;;
+    esac
+done
+
+# Can't prompt without a real terminal — fall back to unattended.
+[ "$INTERACTIVE" = "1" ] && [ ! -t 0 ] && INTERACTIVE=0
+
+ask() { # ask <prompt> <default> <var>
+    local prompt="$1" default="$2" __var="$3" reply=""
+    if [ "$INTERACTIVE" = "1" ]; then
+        read -rp "  ${prompt} [${default}]: " reply || reply=""
+    fi
+    printf -v "$__var" '%s' "${reply:-$default}"
+}
+
+confirm() { # confirm <prompt>; default = proceed (Enter / y / yes). Only "n"/"no" aborts.
+    local reply=""
+    [ "$INTERACTIVE" = "1" ] || return 0
+    read -rp "  $1 [Y/n]: " reply || reply=""
+    case "${reply:-y}" in [Nn] | [Nn][Oo]) return 1 ;; *) return 0 ;; esac
+}
 
 echo ""
 echo "  ██████╗ ██████╗ ███████╗███╗   ██╗███╗   ███╗███████╗███████╗"
@@ -43,55 +85,96 @@ ok "Docker Compose $(docker compose version --short)"
 echo ""
 
 # ── Existing installation check ───────────────────────────────────────────────
+# Re-running keeps the existing DB password (regenerating it would no longer
+# match the already-initialised postgres volume → auth failures).
 
+REUSE_ENV=0
 if [ -f ".env" ]; then
-    warn ".env already exists — OpenMES may already be installed."
-    read -rp "  Re-run setup? This will NOT delete existing data. (yes/no): " CONFIRM
-    [ "$CONFIRM" = "yes" ] || { echo "Aborted."; exit 0; }
+    warn ".env already exists — keeping existing passwords (data is preserved)."
+    confirm "Re-run setup? (existing data is preserved)" || { echo "Aborted."; exit 0; }
+    REUSE_ENV=1
     echo ""
 fi
 
-# ── Helper: generate random password ─────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 gen_pass() {
-    # 24 chars, alphanumeric + symbols safe for shell/env files
-    tr -dc 'A-Za-z0-9@#%^&*_+=' </dev/urandom 2>/dev/null | head -c24 || \
-    python3 -c "import secrets,string; print(secrets.token_urlsafe(18))"
+    # 24 alphanumeric chars from the kernel CSPRNG (~143 bits). Intentionally no
+    # symbols: the value is written unquoted to .env and passed through compose +
+    # the entrypoint's sed env-sync, where '#' starts a comment, '$' interpolates,
+    # '&' is sed's match-replacement, etc. Alphanumeric sidesteps all of that.
+    # LC_ALL=C so BSD/macOS `tr` doesn't bail on the raw bytes ("Illegal byte sequence").
+    LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c24
 }
+
+port_in_use() {
+    # Portable check (macOS + Linux, no external tools, no privilege needed): a
+    # successful bash /dev/tcp connect to loopback means something is already
+    # listening on the port. Runs in a subshell so the fd is closed for us.
+    ( exec 3<>"/dev/tcp/127.0.0.1/$1" ) 2>/dev/null
+}
+
+pick_port() { # pick_port <preferred> <fallback-start>
+    local p="$1"
+    if ! port_in_use "$p"; then echo "$p"; return; fi
+    p="$2"
+    while port_in_use "$p"; do p=$((p + 1)); done
+    echo "$p"
+}
+
+env_get() { grep -E "^$1=" .env 2>/dev/null | head -n1 | cut -d= -f2-; }
 
 # ── Collect configuration ─────────────────────────────────────────────────────
 
-info "Configure your installation (press Enter to accept defaults):"
-echo ""
-
-read -rp "  Domain (e.g. demo.example.com) [localhost]: " DOMAIN
-DOMAIN="${DOMAIN:-localhost}"
-
-if [ "$DOMAIN" = "localhost" ]; then
-    APP_URL="http://localhost"
+if [ "$INTERACTIVE" = "1" ]; then
+    info "Configure your installation (Enter accepts defaults):"
+    echo ""
 else
-    APP_URL="https://${DOMAIN}"
+    info "Unattended setup (run with --interactive to customise)."
 fi
 
-read -rp "  Admin username [admin]: " ADMIN_USERNAME
-ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+ask "Domain (e.g. demo.example.com)" "localhost" DOMAIN
+ask "Admin username" "admin" ADMIN_USERNAME
+ask "Admin email" "admin@example.com" ADMIN_EMAIL
 
-read -rp "  Admin email [admin@example.com]: " ADMIN_EMAIL
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
+# ── Pick free host ports (80/443 preferred, auto-fallback if taken) ───────────
 
-# Always bring up the dev overlay: it adds the vite build --watch frontend
-# container and bind-mounts source, so .jsx edits on the server are rebuilt
-# automatically with no image rebuild.
-COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+info "Selecting host ports..."
+HTTP_PORT="$(pick_port 80 8080)"
+HTTPS_PORT="$(pick_port 443 8443)"
+[ "$HTTP_PORT" = "80" ]  && ok "HTTP  port 80"  || warn "HTTP  port 80 busy → using ${HTTP_PORT}"
+[ "$HTTPS_PORT" = "443" ] && ok "HTTPS port 443" || warn "HTTPS port 443 busy → using ${HTTPS_PORT}"
+
+# APP_URL / Sanctum stateful hosts reflect the chosen ports.
+if [ "$DOMAIN" = "localhost" ]; then
+    if [ "$HTTP_PORT" = "80" ]; then APP_URL="http://localhost"; else APP_URL="http://localhost:${HTTP_PORT}"; fi
+    SANCTUM_STATEFUL_DOMAINS="localhost,localhost:${HTTP_PORT},localhost:${HTTPS_PORT}"
+else
+    APP_URL="https://${DOMAIN}"
+    SANCTUM_STATEFUL_DOMAINS="${DOMAIN}"
+fi
+
+# ── Passwords (reuse on re-run so they keep matching the postgres volume) ─────
+
+if [ "$REUSE_ENV" = "1" ]; then
+    DB_PASSWORD="$(env_get POSTGRES_PASSWORD)"
+    ADMIN_PASSWORD="$(env_get ADMIN_PASSWORD)"
+    NAME_PREFIX="$(env_get OPENMES_NAME_PREFIX)"
+fi
+DB_PASSWORD="${DB_PASSWORD:-$(gen_pass)}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(gen_pass)}"
+
+# Unique container-name prefix per install directory, so several local
+# instances can run at once (container_name must be globally unique). Derived
+# from the folder name and stable across re-runs.
+if [ -z "$NAME_PREFIX" ]; then
+    NAME_PREFIX="$(basename "$PWD" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -c 'a-z0-9_.-' '-' | sed 's/^[^a-z0-9]*//; s/-*$//')"
+    [ -z "$NAME_PREFIX" ] && NAME_PREFIX="openmmes"
+fi
+ok "Container name prefix: ${NAME_PREFIX} (containers: ${NAME_PREFIX}-backend, …)"
 
 echo ""
-info "Generating secure passwords..."
-
-DB_PASSWORD="$(gen_pass)"
-ADMIN_PASSWORD="$(gen_pass)"
-
-echo ""
-echo "  Generated credentials (save these now):"
+echo "  Credentials (saved in .env — keep them safe):"
 echo "  ┌─────────────────────────────────────────┐"
 echo "  │  Admin login:    ${ADMIN_USERNAME}"
 echo "  │  Admin password: ${ADMIN_PASSWORD}"
@@ -99,8 +182,7 @@ echo "  │  DB password:    ${DB_PASSWORD}"
 echo "  └─────────────────────────────────────────┘"
 echo ""
 
-read -rp "  Saved? Proceed with installation? (yes/no): " CONFIRM
-[ "$CONFIRM" = "yes" ] || { echo "Aborted."; exit 0; }
+confirm "Proceed with installation?" || { echo "Aborted."; exit 0; }
 echo ""
 
 # ── Write .env ────────────────────────────────────────────────────────────────
@@ -110,13 +192,25 @@ cat > .env << EOF
 # Generated by install.sh on $(date '+%Y-%m-%d %H:%M:%S')
 # DO NOT commit this file to version control.
 
-# ── Domena i HTTPS ────────────────────────────────────────────────────────────
+# ── Domain / URL ──────────────────────────────────────────────────────────────
 DOMAIN=${DOMAIN}
 APP_URL=${APP_URL}
 
-# ── Tryb pracy ────────────────────────────────────────────────────────────────
+# ── Host ports (auto-selected; 80/443 preferred) ─────────────────────────────
+HTTP_PORT=${HTTP_PORT}
+HTTPS_PORT=${HTTPS_PORT}
+
+# Container-name prefix — unique per install dir so multiple local instances
+# don't clash on container names (default is "openmmes" when unset).
+OPENMES_NAME_PREFIX=${NAME_PREFIX}
+
+# ── Mode ──────────────────────────────────────────────────────────────────────
 APP_ENV=production
 APP_DEBUG=false
+
+# SPA stateful hosts (must cover the host:port the app is served on, or the
+# live-sync /api requests 401 and lists render empty).
+SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS}
 
 # ── Database ──────────────────────────────────────────────────────────────────
 POSTGRES_DB=openmmes
@@ -131,27 +225,48 @@ EOF
 
 ok ".env created"
 
-# ── Build and start ───────────────────────────────────────────────────────────
+# ── Build and start (real production unless --dev) ────────────────────────────
 
-info "Building and starting containers (first build may take a few minutes)..."
+if [ "$DEV_MODE" = "1" ]; then
+    COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+    info "Building and starting (DEV: vite-watch overlay)..."
+else
+    COMPOSE_FILES="-f docker-compose.yml"
+    info "Building and starting containers (production; first build takes a few minutes)..."
+fi
 echo ""
 
 docker compose $COMPOSE_FILES up -d --build
 
 echo ""
 ok "Containers started"
-info "Waiting for application to be ready..."
+info "Waiting for the application to come up (first boot builds the DB)..."
 
+# Poll the login page for a real 200 — that means Octane is serving, the
+# entrypoint finished migrating/seeding, and Caddy is proxying. Only then is the
+# link actually clickable. Up to ~3 minutes for a cold first boot.
+READY_URL="${APP_URL%/}/login"
+READY=0
+CODE=""
 ATTEMPTS=0
-until curl -sf -o /dev/null "${APP_URL}" 2>/dev/null || curl -sf -o /dev/null "http://localhost" 2>/dev/null; do
+while [ $ATTEMPTS -le 90 ]; do
+    CODE="$(curl -sk -o /dev/null -w '%{http_code}' "$READY_URL" 2>/dev/null || true)"
+    [ "$CODE" = "200" ] && { READY=1; break; }
     ATTEMPTS=$((ATTEMPTS + 1))
-    [ $ATTEMPTS -gt 30 ] && { warn "App not responding after 60s — check: docker compose logs"; break; }
+    printf '.'
     sleep 2
 done
+echo ""
 
+if [ "$READY" = "1" ]; then
+    ok "Application is up — ${APP_URL} is live."
+else
+    warn "App not serving yet (last status: ${CODE:-none}). It may still be building/migrating."
+    warn "Watch it finish with:  docker compose logs -f backend"
+fi
 echo ""
 echo "  ╔══════════════════════════════════════════════════════════╗"
-echo "  ║            OpenMES is ready!                             ║"
+printf  "  ║  %-56s║\n" "$([ "$READY" = "1" ] && echo 'OpenMES is ready!' || echo 'OpenMES is starting — give it a moment…')"
 echo "  ║                                                          ║"
 printf  "  ║  URL:      %-46s║\n" "${APP_URL}"
 printf  "  ║  Login:    %-46s║\n" "${ADMIN_USERNAME}"
@@ -161,7 +276,8 @@ echo "  ║  Credentials are saved in .env (do not share this file) ║"
 echo "  ╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo "  Useful commands:"
-echo "    docker compose logs -f backend       # Live logs"
-echo "    docker compose down                  # Stop"
-echo "    docker compose up -d                 # Start"
+echo "    docker compose logs -f backend          # Live logs"
+echo "    docker compose down                     # Stop"
+echo "    docker compose up -d                    # Start (same ports)"
+echo "    docker compose up -d --build            # Rebuild after a git pull"
 echo ""

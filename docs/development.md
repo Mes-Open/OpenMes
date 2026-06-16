@@ -113,7 +113,7 @@ npm run dev     # starts Vite dev server with HMR
 
 ```bash
 # Inside Docker
-docker exec openmmes-backend php artisan <command>
+docker compose exec backend php artisan <command>
 
 # Or if PHP is installed locally
 cd backend
