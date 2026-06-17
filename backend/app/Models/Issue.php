@@ -8,6 +8,7 @@ use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Issue extends Model
 {
@@ -106,12 +107,39 @@ class Issue extends Model
     }
 
     /**
+     * Corrective / preventive actions (CAPA) attached to this issue.
+     */
+    public function actions(): HasMany
+    {
+        return $this->hasMany(IssueAction::class);
+    }
+
+    /**
+     * Soft-deleting an issue also soft-deletes its CAPA actions (mirrors the
+     * cascadeOnDelete FK, which doesn't fire on a soft delete).
+     */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [IssueAction::class, 'issue_id'],
+        ];
+    }
+
+    /**
      * Check if this is a blocking issue.
      */
     public function isBlocking(): bool
     {
         return $this->issueType->is_blocking &&
             in_array($this->status, [self::STATUS_OPEN, self::STATUS_ACKNOWLEDGED]);
+    }
+
+    /**
+     * Whether the issue has any non-verified CAPA action (which blocks closure).
+     */
+    public function hasUnverifiedActions(): bool
+    {
+        return $this->actions()->unverified()->exists();
     }
 
     /**

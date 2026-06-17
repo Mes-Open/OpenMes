@@ -28,6 +28,7 @@ class SoftDeleteRegistry
         'workstation_types' => Models\WorkstationType::class,
         'subassemblies' => Models\Subassembly::class,
         'issue_types' => Models\IssueType::class,
+        'issue_actions' => Models\IssueAction::class,
         'line_statuses' => Models\LineStatus::class,
         'lot_sequences' => Models\LotSequence::class,
         'view_templates' => Models\ViewTemplate::class,
