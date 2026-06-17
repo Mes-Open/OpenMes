@@ -89,9 +89,12 @@ test('material lot can be put on quality hold and released (#107)', async ({ pag
   await expect(row.locator('[data-action="Hold"]')).toBeVisible();
   await expect(row.locator('[data-action="Release"]')).toHaveCount(0);
 
-  // Hold → prompt for a reason → POST → status flips to Quarantine.
-  page.once('dialog', (d) => d.accept('E2E suspected defect'));
+  // Hold → modal asks for a reason → submit → status flips to Quarantine.
   await row.locator('[data-action="Hold"]').click();
+  const holdModal = page.getByRole('dialog');
+  await expect(holdModal).toBeVisible();
+  await holdModal.locator('textarea').fill('E2E suspected defect');
+  await holdModal.getByRole('button', { name: 'Place on hold' }).click();
 
   const heldRow = page.locator('tr', { hasText: LOT });
   await expect(heldRow.getByText(/quarantine/i)).toBeVisible({ timeout: 15_000 });
@@ -99,8 +102,11 @@ test('material lot can be put on quality hold and released (#107)', async ({ pag
 
   await page.screenshot({ path: 'test-results/107-lot-on-hold.png', fullPage: true });
 
-  // Release → status flips back to Released, Hold offered again.
+  // Release → confirm dialog → status flips back to Released, Hold offered again.
   await heldRow.locator('[data-action="Release"]').click();
+  const releaseDialog = page.getByRole('alertdialog');
+  await expect(releaseDialog).toBeVisible();
+  await releaseDialog.getByRole('button', { name: /^Release$/ }).click();
 
   const releasedRow = page.locator('tr', { hasText: LOT });
   await expect(releasedRow.getByText(/released/i)).toBeVisible({ timeout: 15_000 });
