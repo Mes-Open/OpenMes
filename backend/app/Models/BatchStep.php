@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,9 +11,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BatchStep extends Model
 {
-    use HasFactory, Auditable;
+    use Auditable, HasFactory;
+    use SoftDeletesWithAudit;
 
     const STATUS_PENDING = 'PENDING';
+
+    // Prerequisites met (previous step done/skipped, or first step) but not yet
+    // started — the step is "next in line" and the operator may start it. Sits
+    // between PENDING (still blocked) and IN_PROGRESS.
+    const STATUS_READY = 'READY';
 
     const STATUS_IN_PROGRESS = 'IN_PROGRESS';
 
@@ -27,6 +34,9 @@ class BatchStep extends Model
         'instruction',
         'workstation_id',
         'status',
+        'is_optional',
+        'variant_group',
+        'skip_reason',
         'started_at',
         'completed_at',
         'confirmed_at',
@@ -40,6 +50,7 @@ class BatchStep extends Model
     {
         return [
             'step_number' => 'integer',
+            'is_optional' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'confirmed_at' => 'datetime',
@@ -96,28 +107,17 @@ class BatchStep extends Model
     }
 
     /**
-     * Check if this step can be started.
+     * Whether this step's sequence prerequisites are met (so it may move from
+     * PENDING to READY): the first step, any step when sequential enforcement is
+     * off, or a step whose immediate predecessor is DONE/SKIPPED. Does NOT factor
+     * in work-order blocking — that's re-checked at start time.
      */
-    public function canStart(): bool
+    public function prerequisitesMet(): bool
     {
-        if ($this->status !== self::STATUS_PENDING) {
-            return false;
-        }
-
-        // Check if work order is blocked
-        $workOrder = $this->batch->workOrder;
-        if ($workOrder->isBlocked()) {
-            return false;
-        }
-
-        // Check if sequential steps enforcement is enabled
-        $forceSequential = config('openmmes.force_sequential_steps', true);
-
-        if (! $forceSequential) {
+        if (! config('openmmes.force_sequential_steps', true)) {
             return true;
         }
 
-        // Check if previous step is complete
         if ($this->step_number === 1) {
             return true;
         }
@@ -126,7 +126,26 @@ class BatchStep extends Model
             ->where('step_number', $this->step_number - 1)
             ->first();
 
-        return $previousStep && in_array($previousStep->status, [self::STATUS_DONE, self::STATUS_SKIPPED]);
+        return $previousStep && in_array($previousStep->status, [self::STATUS_DONE, self::STATUS_SKIPPED], true);
+    }
+
+    /**
+     * Check if this step can be started: it must be READY (the normal case,
+     * after promotion) or a still-PENDING step whose prerequisites are already
+     * met (safety net for steps created outside the promotion path), the work
+     * order must not be blocked. The operator UI only offers Start on READY.
+     */
+    public function canStart(): bool
+    {
+        if (! in_array($this->status, [self::STATUS_READY, self::STATUS_PENDING], true)) {
+            return false;
+        }
+
+        if ($this->batch->workOrder->isBlocked()) {
+            return false;
+        }
+
+        return $this->prerequisitesMet();
     }
 
     /**
@@ -135,6 +154,24 @@ class BatchStep extends Model
     public function canComplete(): bool
     {
         return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    /**
+     * Can this step be skipped? Only optional steps or members of a variant
+     * group, and only while still pending/in progress.
+     */
+    public function canSkip(): bool
+    {
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_READY, self::STATUS_IN_PROGRESS], true)
+            && ($this->is_optional || $this->variant_group !== null);
+    }
+
+    /** Other steps in the same variant group within this batch (excludes self). */
+    public function variantSiblings()
+    {
+        return $this->batch->steps()
+            ->where('variant_group', $this->variant_group)
+            ->where('id', '!=', $this->id);
     }
 
     /**

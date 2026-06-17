@@ -23,6 +23,7 @@ class TraceabilityTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $operator;
 
     protected function setUp(): void
@@ -53,6 +54,7 @@ class TraceabilityTest extends TestCase
             'lot_number' => 'RAW-1',
             'material_id' => $material->id,
             'supplier_lot_no' => 'SUPP-9',
+            'source_container_no' => 'CONT-7',
         ]);
 
         $wo = WorkOrder::factory()->create(['order_no' => 'WO-TRACE-1', 'status' => WorkOrder::STATUS_DONE]);
@@ -127,6 +129,50 @@ class TraceabilityTest extends TestCase
         $this->assertEquals('material_lot', $svc->resolve('RAW-1')['type']);
         $this->assertEquals('material_lot', $svc->resolve('SUPP-9')['type']);
         $this->assertNull($svc->resolve('DOES-NOT-EXIST'));
+    }
+
+    public function test_resolve_matches_source_container_no(): void
+    {
+        $s = $this->scenario();
+
+        $resolved = app(TraceabilityService::class)->resolve('CONT-7');
+
+        $this->assertNotNull($resolved);
+        $this->assertEquals('material_lot', $resolved['type']);
+        $this->assertEquals($s['rawLot']->id, $resolved['model']->id);
+    }
+
+    public function test_resolve_does_not_match_soft_deleted_lots(): void
+    {
+        $s = $this->scenario();
+        $this->actingAs($this->admin);
+        $s['rawLot']->delete();
+
+        $svc = app(TraceabilityService::class);
+
+        // None of the alternate identifiers may leak the trashed lot — the
+        // orWhere chain is grouped so it can't escape the soft-delete scope.
+        $this->assertNull($svc->resolve('RAW-1'));
+        $this->assertNull($svc->resolve('SUPP-9'));
+        $this->assertNull($svc->resolve('CONT-7'));
+    }
+
+    public function test_genealogy_payloads_expose_source_container_no(): void
+    {
+        $s = $this->scenario();
+        $svc = app(TraceabilityService::class);
+
+        // Backward node of the raw lot carries the scanned container.
+        $node = $svc->backwardTraceLot($s['rawLot']);
+        $this->assertEquals('CONT-7', $node['source_container_no']);
+
+        // Forward trace exposes it on the lot summary.
+        $forward = $svc->forwardTrace($s['rawLot']);
+        $this->assertEquals('CONT-7', $forward['lot']['source_container_no']);
+
+        // Batch genealogy's distinct input lots include it too.
+        $gen = $svc->batchGenealogy($s['batch']);
+        $this->assertEquals('CONT-7', $gen['distinct_input_lots']->first()->source_container_no);
     }
 
     // ── Phase 2: Traceability console ────────────────────────────────────

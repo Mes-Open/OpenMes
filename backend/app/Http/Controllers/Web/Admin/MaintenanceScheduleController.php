@@ -51,7 +51,9 @@ class MaintenanceScheduleController extends Controller
         $validated = $this->validatePayload($request);
 
         $validated['created_by_id'] = $request->user()?->id;
-        $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['is_active']     = $request->boolean('is_active', true);
+        // lead_time_days is NOT NULL DEFAULT 0; a blank field arrives as null.
+        $validated['lead_time_days'] ??= 0;
 
         MaintenanceSchedule::create($validated);
 
@@ -90,6 +92,8 @@ class MaintenanceScheduleController extends Controller
     {
         $validated = $this->validatePayload($request);
         $validated['is_active'] = $request->boolean('is_active', false);
+        // lead_time_days is NOT NULL DEFAULT 0; preserve the existing value if cleared.
+        $validated['lead_time_days'] ??= $maintenanceSchedule->lead_time_days;
 
         $maintenanceSchedule->update($validated);
 
@@ -187,11 +191,8 @@ class MaintenanceScheduleController extends Controller
             'workstation_id.required_without_all' => __('Select at least one of: Tool, Line, or Workstation.'),
         ]);
 
-        // lead_time_days is NOT NULL (DB default 0); the form may submit it empty
-        // (null), which would override the default and break the insert. Fall
-        // back to 0 ("generate on the due date").
-        $validated['lead_time_days'] = $validated['lead_time_days'] ?? 0;
-
+        // lead_time_days normalization is left to store()/update(): create()
+        // defaults a cleared field to 0, update() preserves the existing value.
         return $validated;
     }
 }

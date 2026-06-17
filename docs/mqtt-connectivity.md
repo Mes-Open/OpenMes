@@ -68,7 +68,7 @@ docker network connect <your_project>_openmmes-network mosquitto-test
 ## Step 2 — Create a test machine connection
 
 ```bash
-docker exec openmmes-backend php artisan tinker --execute="
+docker compose exec backend php artisan tinker --execute="
 use App\Models\MachineConnection;
 use App\Models\MqttConnection;
 use App\Models\MachineTopic;
@@ -117,7 +117,7 @@ echo 'Created MachineConnection ID=' . \$mc->id;
 The `--dry-run` flag connects and logs received messages without persisting them to the database — safe for initial testing.
 
 ```bash
-docker exec openmmes-backend php artisan mqtt:listen --connection=1 --dry-run
+docker compose exec backend php artisan mqtt:listen --connection=1 --dry-run
 ```
 
 Expected output:
@@ -168,13 +168,13 @@ The listener outputs received messages to the console in real time:
 Run without `--dry-run` to process messages and store them in `machine_messages`:
 
 ```bash
-docker exec openmmes-backend php artisan mqtt:listen --connection=1
+docker compose exec backend php artisan mqtt:listen --connection=1
 ```
 
 Verify messages were stored:
 
 ```bash
-docker exec openmmes-backend php artisan tinker --execute="
+docker compose exec backend php artisan tinker --execute="
 use App\Models\MachineMessage;
 use App\Models\MachineConnection;
 

@@ -42,9 +42,6 @@ WORKDIR /var/www/html
 # Copy application files
 COPY backend/ .
 COPY modules/ ./modules/
-# Shared design-system source — @openmes/ui resolves as file:../packages/ui
-# from /var/www/html, so it must sit at /var/www/packages for npm ci below.
-COPY packages/ /var/www/packages/
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
@@ -57,8 +54,7 @@ RUN ./vendor/bin/rr get-binary --location /var/www/html \
 # Install Node dependencies and build assets
 RUN npm ci && npm run build
 
-# Clean up node_modules to reduce image size (packages/ stays — the dev
-# overlay's frontend watcher re-runs `npm ci`, which needs the file: target)
+# Clean up node_modules to reduce image size
 RUN rm -rf node_modules
 
 # Copy entrypoint script

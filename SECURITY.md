@@ -16,7 +16,7 @@
 Instead, report them privately via:
 
 - **Email**: [contact@getopenmes.com](mailto:contact@getopenmes.com)
-- **Founder**: [jakub.przepiora@nice-code.com](mailto:jakub.przepiora@nice-code.com)
+- **Founder**: [jakub.przepioraa@gmail.com](mailto:jakub.przepioraa@gmail.com)
 
 ### What to include
 

@@ -5,6 +5,7 @@ namespace Tests\Feature\Web;
 use App\Models\CustomFieldDefinition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class CustomFieldDefinitionWebTest extends TestCase
@@ -30,6 +31,33 @@ class CustomFieldDefinitionWebTest extends TestCase
     public function test_admin_can_view_index(): void
     {
         $this->actingAs($this->admin)->get('/admin/custom-fields')->assertOk();
+    }
+
+    /**
+     * The entities prop and each row's entity_label must be plain strings — the
+     * entities config value is an array (model/table/label/collection), and
+     * leaking that object to the page makes React render an object child and
+     * blank the whole page (error #31).
+     */
+    public function test_index_props_use_string_labels_not_objects(): void
+    {
+        CustomFieldDefinition::create([
+            'entity_type' => 'work_order',
+            'key' => 'rush',
+            'label' => 'Rush order',
+            'type' => 'text',
+            'required' => false,
+            'position' => 0,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->admin)->get('/admin/custom-fields')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('admin/custom-fields/Index')
+                ->where('entities.0.label', fn ($label) => is_string($label))
+                ->where('definitions.0.entity_label', fn ($label) => is_string($label))
+                ->where('definitions.0.entity_label', 'Work Order'));
     }
 
     public function test_operator_cannot_access(): void
@@ -146,6 +174,6 @@ class CustomFieldDefinitionWebTest extends TestCase
         $this->assertFalse($def->fresh()->is_active);
 
         $this->actingAs($this->admin)->delete("/admin/custom-fields/{$def->id}");
-        $this->assertDatabaseMissing('custom_field_definitions', ['id' => $def->id]);
+        $this->assertSoftDeleted('custom_field_definitions', ['id' => $def->id]);
     }
 }

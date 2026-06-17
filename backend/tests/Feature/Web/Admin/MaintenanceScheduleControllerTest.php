@@ -155,7 +155,7 @@ class MaintenanceScheduleControllerTest extends TestCase
             ->delete(route('admin.maintenance-schedules.destroy', $schedule));
 
         $response->assertRedirect(route('admin.maintenance-schedules.index'));
-        $this->assertDatabaseMissing('maintenance_schedules', ['id' => $schedule->id]);
+        $this->assertSoftDeleted('maintenance_schedules', ['id' => $schedule->id]);
     }
 
     public function test_generate_now_creates_event_for_active_schedule(): void

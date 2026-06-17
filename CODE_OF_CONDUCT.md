@@ -34,7 +34,7 @@ This Code of Conduct applies within project spaces (issues, pull requests, discu
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team via:
 
 - **Email**: [contact@getopenmes.com](mailto:contact@getopenmes.com)
-- **Founder**: [jakub.przepiora@nice-code.com](mailto:jakub.przepiora@nice-code.com)
+- **Founder**: [jakub.przepioraa@gmail.com](mailto:jakub.przepioraa@gmail.com)
 - **Discord**: [discord.gg/fw3fG78pZj](https://discord.gg/fw3fG78pZj)
 - **GitHub Issues**: [Mes-Open/OpenMes](https://github.com/Mes-Open/OpenMes/issues)
 

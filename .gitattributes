@@ -1,0 +1,11 @@
+# Keep shell scripts LF-only so they stay runnable after a Windows checkout
+# (autocrlf would otherwise add CRLF and break the `#!/bin/bash` shebang in
+# WSL / Git Bash and inside the Docker image).
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+Caddyfile text eol=lf
+*.bash text eol=lf
+
+# Windows-native scripts keep CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf

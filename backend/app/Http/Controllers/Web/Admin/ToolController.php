@@ -92,6 +92,10 @@ class ToolController extends Controller
             $validated['custom_fields'] = $cf->fromRequest($request, 'tool', $tool->custom_fields) ?: null;
         }
 
+        // status is NOT NULL DEFAULT 'available'; preserve the existing value if
+        // the field is cleared rather than passing an explicit null.
+        $validated['status'] ??= $tool->status;
+
         $tool->update($validated);
 
         return redirect()->route('admin.tools.index')

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasTenant;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,12 +21,18 @@ class MaterialLot extends Model
 {
     use HasFactory;
     use HasTenant;
+    use SoftDeletesWithAudit;
 
     public const STATUS_RECEIVED = 'received';
+
     public const STATUS_QUARANTINE = 'quarantine';
+
     public const STATUS_RELEASED = 'released';
+
     public const STATUS_CONSUMED = 'consumed';
+
     public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_REJECTED = 'rejected';
 
     public const STATUSES = [
@@ -50,11 +57,18 @@ class MaterialLot extends Model
         'status',
         'supplier_lot_no',
         'supplier_reference',
+        'source_container_no',
         'inspection_id',
+        'issue_id',
         'source_batch_id',
         'created_by_id',
         'tenant_id',
         'extra_data',
+        'hold_reason',
+        'held_at',
+        'held_by_id',
+        'released_at',
+        'released_by_id',
     ];
 
     protected function casts(): array
@@ -66,7 +80,14 @@ class MaterialLot extends Model
             'quantity_received' => 'decimal:4',
             'quantity_available' => 'decimal:4',
             'extra_data' => 'array',
+            'held_at' => 'datetime',
+            'released_at' => 'datetime',
         ];
+    }
+
+    public function isOnHold(): bool
+    {
+        return $this->status === self::STATUS_QUARANTINE;
     }
 
     // ── Relations ───────────────────────────────────────────────────────────
@@ -84,6 +105,22 @@ class MaterialLot extends Model
     public function inspection(): BelongsTo
     {
         return $this->belongsTo(Inspection::class);
+    }
+
+    /** The non-conformance (issue) this lot is held against, if any. */
+    public function issue(): BelongsTo
+    {
+        return $this->belongsTo(Issue::class);
+    }
+
+    public function heldBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'held_by_id');
+    }
+
+    public function releasedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'released_by_id');
     }
 
     /**
@@ -153,7 +190,7 @@ class MaterialLot extends Model
      * Consume a quantity from this lot, transitioning to 'consumed' when depleted.
      *
      * @throws \InvalidArgumentException when $quantity <= 0
-     * @throws \DomainException          when $quantity exceeds available
+     * @throws \DomainException when $quantity exceeds available
      */
     public function consume(float $quantity): void
     {
@@ -195,5 +232,13 @@ class MaterialLot extends Model
     {
         return $query->where('status', self::STATUS_RELEASED)
             ->where('quantity_available', '>', 0);
+    }
+
+    /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [\App\Models\MaterialSublot::class, 'parent_lot_id'],
+        ];
     }
 }

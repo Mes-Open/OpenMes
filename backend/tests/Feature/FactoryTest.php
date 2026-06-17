@@ -118,7 +118,7 @@ class FactoryTest extends TestCase
             ->delete(route('admin.factories.destroy', $factory));
 
         $response->assertRedirect(route('admin.factories.index'));
-        $this->assertDatabaseMissing('factories', ['id' => $factory->id]);
+        $this->assertSoftDeleted('factories', ['id' => $factory->id]);
     }
 
     public function test_cannot_delete_factory_with_divisions(): void

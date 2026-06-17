@@ -81,6 +81,3 @@ cloudflared.deb
 # (Packaging was promoted to core; remaining modules ship via private repos)
 modules/*
 !modules/README.md
-
-# Shared packages (monorepo)
-packages/*/node_modules/

@@ -87,6 +87,10 @@ class ShiftController extends Controller
             return back()->withInput()->with('error', __('This shift overlaps with an existing shift on this line. Adjust the times and try again.'));
         }
 
+        // sort_order is NOT NULL DEFAULT 0; preserve the existing value if the
+        // field is cleared rather than passing an explicit null.
+        $validated['sort_order'] ??= $shift->sort_order;
+
         $shift->update($validated);
 
         return redirect()->route('admin.shifts.index')->with('success', __('Shift updated.'));

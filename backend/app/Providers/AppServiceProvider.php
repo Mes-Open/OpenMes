@@ -50,8 +50,37 @@ class AppServiceProvider extends ServiceProvider
         // Reverb sync: register model → collection broadcast listeners.
         \App\Sync\CollectionBroadcaster::boot();
 
+        // unique:/exists: validation ignores soft-deleted rows on tables in
+        // SoftDeleteRegistry (one hook instead of per-rule whereNull clauses).
+        $this->app['validator']->setPresenceVerifier(
+            new \App\Validation\SoftDeleteAwarePresenceVerifier($this->app['db']),
+        );
+
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
+
+        // Admins always pass tab:* access checks — a safety net so they can
+        // never lock themselves out of the admin panel via the access matrix,
+        // even if a new tab's permission hasn't been granted yet.
+        Gate::before(function ($user, string $ability) {
+            if (str_starts_with($ability, 'tab:') && $user->hasRole('Admin')) {
+                return true;
+            }
+
+            return null;
+        });
+
+        // Octane keeps the Spatie PermissionRegistrar singleton (and its
+        // in-memory permission collection) alive across requests in a worker, so
+        // a runtime permission change — e.g. the Settings → Access matrix — isn't
+        // seen by other workers until they recycle, causing inconsistent 403s.
+        // Drop the singleton at the start of each Octane request so it reloads
+        // from the shared cache (no cache thrashing, just a per-request re-read).
+        if (class_exists(\Laravel\Octane\Events\RequestReceived::class)) {
+            Event::listen(\Laravel\Octane\Events\RequestReceived::class, function ($event) {
+                $event->sandbox->forgetInstance(\Spatie\Permission\PermissionRegistrar::class);
+            });
+        }
 
         // Register the authentication event subscriber so login / logout /
         // failed-login attempts are written to the audit_logs table.

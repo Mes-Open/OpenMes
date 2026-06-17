@@ -13,17 +13,27 @@ class StockMovement extends Model
     use HasTenant;
 
     public const TYPE_ALLOCATION = 'allocation';
+
     public const TYPE_CONSUME = 'consume';
+
     public const TYPE_RETURN = 'return';
+
     public const TYPE_RECEIPT = 'receipt';
+
     public const TYPE_ADJUSTMENT = 'adjustment';
+
     public const TYPE_SCRAP = 'scrap';
+
     public const TYPE_TRANSFER = 'transfer';
 
     public const SOURCE_BATCH = 'batch';
+
     public const SOURCE_BATCH_STEP = 'batch_step';
+
     public const SOURCE_INSPECTION = 'inspection';
+
     public const SOURCE_MANUAL_ADJUST = 'manual_adjust';
+
     public const SOURCE_RECEIPT = 'receipt';
 
     protected $fillable = [

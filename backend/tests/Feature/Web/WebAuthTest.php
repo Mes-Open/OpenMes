@@ -153,6 +153,26 @@ class WebAuthTest extends TestCase
         $response->assertRedirect(route('operator.select-line'));
     }
 
+    public function test_operator_with_a_granted_admin_tab_still_lands_on_line_selection(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'operator-with-tab',
+            'password' => Hash::make('password123'),
+        ]);
+        $user->assignRole('Operator');
+        \Spatie\Permission\Models\Role::findByName('Operator', 'web')->givePermissionTo('tab:orders');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $response = $this->post('/login', [
+            'username' => 'operator-with-tab',
+            'password' => 'password123',
+        ]);
+
+        // Line selection is the operator's primary screen — a granted admin tab
+        // does not change the landing; the tab is reached via the "Panel" link.
+        $response->assertRedirect(route('operator.select-line'));
+    }
+
     // ── Logout ───────────────────────────────────────────────────────────────
 
     public function test_user_can_logout(): void

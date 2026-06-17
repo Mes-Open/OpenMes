@@ -83,7 +83,7 @@ class PerStepProcessPhotoTest extends TestCase
 
         // Exactly one photo for the step; the old row and its file are gone.
         $this->assertSame(1, ProcessTemplatePhoto::where('template_step_id', $this->step->id)->count());
-        $this->assertDatabaseMissing('process_template_photos', ['id' => $first->id]);
+        $this->assertSoftDeleted('process_template_photos', ['id' => $first->id]);
         Storage::assertMissing($first->storage_path);
     }
 

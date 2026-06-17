@@ -84,6 +84,24 @@ class MaterialLotControllerTest extends TestCase
         $this->assertEqualsWithDelta(250.0, (float) $lot->quantity_available, 0.0001);
     }
 
+    public function test_store_persists_source_container_no(): void
+    {
+        $material = Material::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.material-lots.store'), $this->validPayload([
+                'material_id' => $material->id,
+                'lot_number' => 'CONT-LOT-001',
+                'source_container_no' => 'CONT-2026-0815',
+            ]))
+            ->assertRedirect(route('admin.material-lots.index'));
+
+        $this->assertDatabaseHas('material_lots', [
+            'lot_number' => 'CONT-LOT-001',
+            'source_container_no' => 'CONT-2026-0815',
+        ]);
+    }
+
     public function test_store_validates_required_fields(): void
     {
         $this->actingAs($this->admin)
@@ -169,7 +187,7 @@ class MaterialLotControllerTest extends TestCase
             ->delete(route('admin.material-lots.destroy', $lot))
             ->assertRedirect(route('admin.material-lots.index'));
 
-        $this->assertDatabaseMissing('material_lots', ['id' => $lot->id]);
+        $this->assertSoftDeleted('material_lots', ['id' => $lot->id]);
     }
 
     public function test_index_filters_by_status_and_material(): void

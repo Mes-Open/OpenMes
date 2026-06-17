@@ -141,7 +141,7 @@ class WorkerApiTest extends TestCase
     {
         $w = Worker::create(['code' => 'W', 'name' => 'X', 'is_active' => true]);
         $this->authAdmin()->deleteJson("/api/v1/workers/{$w->id}")->assertStatus(200);
-        $this->assertDatabaseMissing('workers', ['id' => $w->id]);
+        $this->assertSoftDeleted('workers', ['id' => $w->id]);
     }
 
     public function test_cannot_delete_worker_linked_to_user(): void

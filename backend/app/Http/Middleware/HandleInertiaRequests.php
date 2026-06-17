@@ -25,6 +25,16 @@ class HandleInertiaRequests extends Middleware
                     ...$user->only('id', 'name', 'username', 'email', 'tenant_id'),
                     'roles' => $user->getRoleNames(),
                     'initial' => mb_strtoupper(mb_substr($user->name, 0, 1)),
+                    // Admin-panel tabs this user may access — drives nav filtering.
+                    // Backend enforcement is in TabAccessMiddleware; this is UX only.
+                    'accessibleTabs' => $this->accessibleTabs($user),
+                    // Operators get the line-selection workflow; the admin sidebar
+                    // lists "Lines" first for them.
+                    'isOperator' => $user->hasRole('Operator') || $user->account_type === 'workstation',
+                    // Granted admin tabs as {key,label,url} — drives the operator
+                    // screen's sidebar (OperatorLayout) so operators can reach the
+                    // panel pages they've been given. Empty when none granted.
+                    'accessibleTabLinks' => $this->accessibleTabLinks($user),
                 ] : null,
             ],
             // Nav chrome needs the alert badge and a CSRF token for the
@@ -48,6 +58,43 @@ class HandleInertiaRequests extends Middleware
                 'info' => fn () => $request->session()->get('info'),
             ],
         ];
+    }
+
+    /**
+     * Tab keys the user can access (from TabRegistry), for nav filtering.
+     *
+     * @return array<int, string>
+     */
+    private function accessibleTabs($user): array
+    {
+        if (! $user) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            \App\Support\TabRegistry::keys(),
+            fn (string $key) => $user->can(\App\Support\TabRegistry::permission($key)),
+        ));
+    }
+
+    /**
+     * Accessible tabs as {key, label, url}, in registry order — for the operator
+     * screen's sidebar. Labels are English keys; the frontend translates them.
+     *
+     * @return array<int, array{key: string, label: string, url: string|null}>
+     */
+    private function accessibleTabLinks($user): array
+    {
+        $labels = \App\Support\TabRegistry::labels();
+
+        return array_map(
+            fn (string $key) => [
+                'key' => $key,
+                'label' => $labels[$key] ?? $key,
+                'url' => \App\Support\TabRegistry::url($key),
+            ],
+            $this->accessibleTabs($user),
+        );
     }
 
     private function alertCount($user): int

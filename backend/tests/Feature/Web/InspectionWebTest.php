@@ -105,15 +105,17 @@ class InspectionWebTest extends TestCase
             'is_active' => true,
         ]);
 
-        // Start
+        // Start — the scanned source container is stored on the inspection.
         $start = $this->actingAs($this->supervisor)->post(route('inspections.store'), [
             'material_id' => $this->material->id,
             'lot_number' => 'WEB-LOT-1',
+            'source_container_no' => 'CONT-WEB-1',
             'inspection_plan_id' => $plan->id,
         ]);
         $start->assertRedirect();
         $inspection = \App\Models\Inspection::firstWhere('lot_number', 'WEB-LOT-1');
         $this->assertNotNull($inspection);
+        $this->assertSame('CONT-WEB-1', $inspection->source_container_no);
 
         // Record results
         $resultId = $inspection->results->first()->id;

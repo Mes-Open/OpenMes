@@ -13,8 +13,11 @@ class AllocationLotPick extends Model
     use HasTenant;
 
     public const STRATEGY_FEFO = 'fefo';
+
     public const STRATEGY_FIFO = 'fifo';
+
     public const STRATEGY_LIFO = 'lifo';
+
     public const STRATEGY_MANUAL = 'manual';
 
     protected $fillable = [

@@ -105,6 +105,8 @@ Route::get('/', function () {
             return redirect()->route('operator.queue', ['line' => $user->workstation->line_id]);
         }
 
+        // Operators land on line selection (their primary screen); granted admin
+        // tabs are reached from there via the OperatorLayout "Panel" link.
         return redirect()->route('operator.select-line');
     }
 
@@ -114,14 +116,6 @@ Route::get('/', function () {
 Route::get('/offline', function () {
     return view('offline');
 })->name('offline');
-
-// Design-system gallery — local-only visual reference for @openmes/ui
-// (mirrors design/openmes-fable-remix "OpenMES Components" sheet).
-if (app()->environment('local')) {
-    Route::get('/dev/components', function () {
-        return \Inertia\Inertia::render('dev/ComponentGallery');
-    })->name('dev.components');
-}
 
 // Language switcher — persists the choice in the session; SetLocale applies it
 // on subsequent requests. Public so the login screen can switch too.
@@ -195,6 +189,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'showApiTokens'])->name('api-tokens')->middleware('role:Admin');
         Route::post('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'createApiToken'])->name('api-tokens.create')->middleware('role:Admin');
         Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Web\SettingsController::class, 'revokeApiToken'])->name('api-tokens.revoke')->middleware('role:Admin');
+        // Admin-only role × tab access matrix
+        Route::get('/access', [\App\Http\Controllers\Web\SettingsController::class, 'showAccess'])->name('access')->middleware('role:Admin');
+        Route::post('/access', [\App\Http\Controllers\Web\SettingsController::class, 'updateAccess'])->name('update-access')->middleware('role:Admin');
     });
 
     // Legacy change password route (redirect to settings)
@@ -235,6 +232,8 @@ Route::middleware('auth')->group(function () {
         // OperatorBatchController::startStep/completeStep delegating to BatchService).
         Route::post('/batch-step/{batchStep}/start', [OperatorBatchController::class, 'startStep'])->name('batch-step.start');
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
+        Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
+        Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
         Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');
@@ -293,11 +292,21 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+        // Corrective / preventive actions (CAPA)
+        Route::get('/issues/{issue}/actions', [IssueManagementController::class, 'actions'])->name('issues.actions');
+        Route::post('/issues/{issue}/actions', [IssueManagementController::class, 'storeAction'])->name('issues.actions.store');
+        Route::put('/issues/actions/{action}', [IssueManagementController::class, 'updateAction'])->name('issues.actions.update');
+        Route::post('/issues/actions/{action}/start', [IssueManagementController::class, 'startAction'])->name('issues.actions.start');
+        Route::post('/issues/actions/{action}/complete', [IssueManagementController::class, 'completeAction'])->name('issues.actions.complete');
+        Route::post('/issues/actions/{action}/verify', [IssueManagementController::class, 'verifyAction'])->name('issues.actions.verify');
+        Route::delete('/issues/actions/{action}', [IssueManagementController::class, 'destroyAction'])->name('issues.actions.destroy');
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
     });
 
     // Admin routes
-    Route::prefix('admin')->name('admin.')->middleware('role:Admin')->group(function () {
+    // Per-tab access (Settings → Access matrix) replaces the blanket role:Admin;
+    // TabAccessMiddleware maps each /admin path to a tab and checks tab:<key>.
+    Route::prefix('admin')->name('admin.')->middleware('tab.access')->group(function () {
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
@@ -367,6 +376,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+        // Corrective / preventive actions (CAPA)
+        Route::get('/issues/{issue}/actions', [IssueManagementController::class, 'actions'])->name('issues.actions');
+        Route::post('/issues/{issue}/actions', [IssueManagementController::class, 'storeAction'])->name('issues.actions.store');
+        Route::put('/issues/actions/{action}', [IssueManagementController::class, 'updateAction'])->name('issues.actions.update');
+        Route::post('/issues/actions/{action}/start', [IssueManagementController::class, 'startAction'])->name('issues.actions.start');
+        Route::post('/issues/actions/{action}/complete', [IssueManagementController::class, 'completeAction'])->name('issues.actions.complete');
+        Route::post('/issues/actions/{action}/verify', [IssueManagementController::class, 'verifyAction'])->name('issues.actions.verify');
+        Route::delete('/issues/actions/{action}', [IssueManagementController::class, 'destroyAction'])->name('issues.actions.destroy');
 
         // User Management
         Route::resource('users', \App\Http\Controllers\Web\Admin\UserManagementController::class);
@@ -448,6 +465,8 @@ Route::middleware('auth')->group(function () {
 
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
+        Route::post('/material-lots/{materialLot}/hold', [AdminMaterialLotController::class, 'hold'])->name('material-lots.hold');
+        Route::post('/material-lots/{materialLot}/release', [AdminMaterialLotController::class, 'release'])->name('material-lots.release');
 
         // ── Material Traceability / Genealogy (React/Inertia — ported from develop Blade) ──
         Route::get('/traceability', [\App\Http\Controllers\Web\Admin\TraceabilityController::class, 'index'])->name('traceability.index');
@@ -480,6 +499,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/csv-import/upload', [AdminCsvImportController::class, 'upload'])->name('csv-import.upload');
         Route::post('/csv-import/process', [AdminCsvImportController::class, 'process'])->name('csv-import.process');
         Route::delete('/csv-import/mappings/{mapping}', [AdminCsvImportController::class, 'destroyMapping'])->name('csv-import.mappings.destroy');
+
+        // Trash — soft-deleted rows across all domain entities, with restore.
+        Route::get('/trash', [\App\Http\Controllers\Web\Admin\TrashController::class, 'index'])->name('trash.index');
+        Route::post('/trash/{type}/{id}/restore', [\App\Http\Controllers\Web\Admin\TrashController::class, 'restore'])
+            ->whereNumber('id')->name('trash.restore');
 
         // Audit Logs
         Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit-logs');

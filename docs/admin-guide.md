@@ -339,5 +339,5 @@ The update process pulls the latest release ZIP and applies it. A changelog is s
 
 ```bash
 # Manual backup
-docker exec openmmes-postgres pg_dump -U openmmes_user openmmes > backup_$(date +%Y%m%d).sql
+docker compose exec postgres pg_dump -U openmmes_user openmmes > backup_$(date +%Y%m%d).sql
 ```

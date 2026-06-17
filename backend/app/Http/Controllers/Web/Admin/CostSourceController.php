@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Web\Admin\StoreCostSourceRequest;
+use App\Http\Requests\Web\Admin\UpdateCostSourceRequest;
 use App\Models\CostSource;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class CostSourceController extends Controller
@@ -35,21 +36,9 @@ class CostSourceController extends Controller
     /**
      * Store a newly created cost source.
      */
-    public function store(Request $request)
+    public function store(StoreCostSourceRequest $request)
     {
-        $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:cost_sources',
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string|max:2000',
-            'unit_cost'   => 'nullable|numeric|min:0',
-            'unit'        => 'nullable|string|max:50',
-            'currency'    => 'nullable|string|max:10',
-            'is_active'   => 'boolean',
-        ]);
-
-        $validated['is_active'] = $request->boolean('is_active', true);
-
-        CostSource::create($validated);
+        CostSource::create($request->validated());
 
         return redirect()->route('admin.cost-sources.index')
             ->with('success', 'Cost source created successfully.');
@@ -68,21 +57,9 @@ class CostSourceController extends Controller
     /**
      * Update the specified cost source.
      */
-    public function update(Request $request, CostSource $costSource)
+    public function update(UpdateCostSourceRequest $request, CostSource $costSource)
     {
-        $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:cost_sources,code,' . $costSource->id,
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string|max:2000',
-            'unit_cost'   => 'nullable|numeric|min:0',
-            'unit'        => 'nullable|string|max:50',
-            'currency'    => 'nullable|string|max:10',
-            'is_active'   => 'boolean',
-        ]);
-
-        $validated['is_active'] = $request->boolean('is_active');
-
-        $costSource->update($validated);
+        $costSource->update($request->validated());
 
         return redirect()->route('admin.cost-sources.index')
             ->with('success', 'Cost source updated successfully.');

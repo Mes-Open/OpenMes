@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Models\Issue;
 use App\Models\WorkOrder;
-use App\Models\BatchStep;
-use App\Models\IssueType;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -47,7 +45,7 @@ class IssueService
      */
     public function acknowledgeIssue(Issue $issue, int $userId): Issue
     {
-        if (!in_array($issue->status, [Issue::STATUS_OPEN])) {
+        if (! in_array($issue->status, [Issue::STATUS_OPEN])) {
             throw new \InvalidArgumentException('Only OPEN issues can be acknowledged');
         }
 
@@ -70,9 +68,9 @@ class IssueService
     /**
      * Resolve an issue (mark as fixed but not yet verified).
      */
-    public function resolveIssue(Issue $issue, string $resolutionNotes = null): Issue
+    public function resolveIssue(Issue $issue, ?string $resolutionNotes = null): Issue
     {
-        if (!in_array($issue->status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])) {
+        if (! in_array($issue->status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])) {
             throw new \InvalidArgumentException('Only OPEN or ACKNOWLEDGED issues can be resolved');
         }
 
@@ -106,6 +104,11 @@ class IssueService
             throw new \InvalidArgumentException('Only RESOLVED issues can be closed');
         }
 
+        // Closure gate: every corrective/preventive action must be verified.
+        if ($issue->hasUnverifiedActions()) {
+            throw new \DomainException('Cannot close: all corrective/preventive actions must be verified first.');
+        }
+
         return DB::transaction(function () use ($issue) {
             $issue->update([
                 'status' => Issue::STATUS_CLOSED,
@@ -128,7 +131,7 @@ class IssueService
         $workOrder = WorkOrder::findOrFail($workOrderId);
 
         // Only block if not already blocked or done
-        if (!in_array($workOrder->status, [WorkOrder::STATUS_BLOCKED, WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED])) {
+        if (! in_array($workOrder->status, [WorkOrder::STATUS_BLOCKED, WorkOrder::STATUS_DONE, WorkOrder::STATUS_CANCELLED])) {
             $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
 
             Log::info('Work order blocked due to issue', [
@@ -154,7 +157,7 @@ class IssueService
             ->blocking()
             ->exists();
 
-        if (!$hasBlockingIssues) {
+        if (! $hasBlockingIssues) {
             // Determine the appropriate status to restore
             // If there are in-progress batches, set to IN_PROGRESS, otherwise PENDING
             $hasBatchesInProgress = $workOrder->batches()
@@ -223,7 +226,7 @@ class IssueService
             'acknowledged' => $issues->where('status', Issue::STATUS_ACKNOWLEDGED)->count(),
             'resolved' => $issues->where('status', Issue::STATUS_RESOLVED)->count(),
             'closed' => $issues->where('status', Issue::STATUS_CLOSED)->count(),
-            'blocking' => $issues->filter(fn($i) => $i->isBlocking())->count(),
+            'blocking' => $issues->filter(fn ($i) => $i->isBlocking())->count(),
         ];
     }
 }

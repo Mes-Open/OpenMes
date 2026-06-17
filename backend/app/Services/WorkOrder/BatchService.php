@@ -94,6 +94,9 @@ class BatchService
             $batch = $step->batch;
             $this->updateBatchStatus($batch);
 
+            // The next step (prerequisites now met) becomes READY.
+            $batch->promoteReadySteps();
+
             // If batch is complete, update produced quantity and consume materials
             if ($batch->status === Batch::STATUS_DONE) {
                 // End-of-batch BOM rows (consumed_at='end') get allocated now,
@@ -105,6 +108,74 @@ class BatchService
 
             // Update work order status
             $this->workOrderService->updateWorkOrderStatus($batch->workOrder);
+
+            return $step->fresh();
+        });
+    }
+
+    /**
+     * Skip an optional step (or a variant-group member). Records who/when and an
+     * optional reason. Sequential enforcement already treats SKIPPED like DONE,
+     * so the next step unblocks.
+     *
+     * @throws \Exception
+     */
+    public function skipStep(BatchStep $step, User $user, ?string $reason = null): BatchStep
+    {
+        return DB::transaction(function () use ($step, $user, $reason) {
+            $this->guardWorkstationRouting($step, $user);
+
+            if (! $step->canSkip()) {
+                throw new \Exception('This step is required and cannot be skipped.');
+            }
+
+            $step->update([
+                'status' => BatchStep::STATUS_SKIPPED,
+                'skip_reason' => $reason,
+                'completed_at' => now(),
+                'completed_by_id' => $user->id,
+            ]);
+
+            $this->updateBatchStatus($step->batch);
+            // Skipping a step unblocks the next one (SKIPPED counts like DONE).
+            $step->batch->promoteReadySteps();
+            $this->workOrderService->updateWorkOrderStatus($step->batch->workOrder);
+
+            return $step->fresh();
+        });
+    }
+
+    /**
+     * Choose a variant within a group: activate this step and skip its siblings.
+     * Lets the operator override the template's default variant.
+     *
+     * @throws \Exception
+     */
+    public function chooseVariant(BatchStep $step, User $user): BatchStep
+    {
+        return DB::transaction(function () use ($step, $user) {
+            if ($step->variant_group === null) {
+                throw new \Exception('This step is not part of a variant group.');
+            }
+
+            if ($step->status === BatchStep::STATUS_DONE) {
+                throw new \Exception('This variant is already completed.');
+            }
+
+            // Activate the chosen variant, skip every sibling not already done.
+            $step->update(['status' => BatchStep::STATUS_PENDING, 'skip_reason' => null]);
+
+            $step->variantSiblings()
+                ->where('status', '!=', BatchStep::STATUS_DONE)
+                ->update([
+                    'status' => BatchStep::STATUS_SKIPPED,
+                    'completed_at' => now(),
+                    'completed_by_id' => $user->id,
+                ]);
+
+            $this->updateBatchStatus($step->batch);
+            // Promote the chosen variant to READY if it's next in line.
+            $step->batch->promoteReadySteps();
 
             return $step->fresh();
         });
@@ -218,7 +289,7 @@ class BatchService
      */
     protected function throwValidationError(BatchStep $step): void
     {
-        if ($step->status !== BatchStep::STATUS_PENDING) {
+        if (! in_array($step->status, [BatchStep::STATUS_PENDING, BatchStep::STATUS_READY], true)) {
             throw new \Exception("Step is already {$step->status}");
         }
 

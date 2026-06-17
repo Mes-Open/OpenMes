@@ -147,7 +147,11 @@ class LogRequestTest extends TestCase
 
     public function test_request_log_is_immutable(): void
     {
-        $log = RequestLog::factory()->create();
+        // Pin the starting status so the update below is always a real change.
+        // The factory otherwise randomises status (including 500), and an
+        // update to the same value isn't dirty — save() short-circuits and the
+        // immutability guard never fires, making this test flaky.
+        $log = RequestLog::factory()->create(['status' => 200]);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Request logs are immutable.');

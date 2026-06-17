@@ -23,21 +23,6 @@ export default defineConfig({
     build: process.env.WATCH_POLL
         ? { watch: { chokidar: { usePolling: true, interval: 300 } } }
         : {},
-    // @openmes/ui (symlinked from ../packages/ui) ships twin-platform source:
-    // index.web.jsx for the browser, index.native.tsx for React Native. Web
-    // extensions are listed first so `import '@openmes/ui/...'` picks the
-    // .web.* file; dedupe keeps the package's react import pointing at
-    // backend/node_modules (its real path lives outside backend/).
-    resolve: {
-        extensions: ['.web.jsx', '.web.tsx', '.web.js', '.web.ts', '.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
-        // react-table is listed too: @openmes/ui imports it, but the package's
-        // real path is outside backend/, where the upward node_modules walk
-        // would miss backend/node_modules. dedupe pins these to the app root.
-        dedupe: ['react', 'react-dom', '@tanstack/react-table'],
-    },
-    optimizeDeps: {
-        exclude: ['@openmes/ui'],
-    },
     server: {
         host: '0.0.0.0',
         port: 5173,
@@ -47,10 +32,6 @@ export default defineConfig({
         },
         watch: {
             ignored: ['**/storage/framework/views/**'],
-        },
-        // Let the dev server serve @openmes/ui source from outside backend/.
-        fs: {
-            allow: ['.', '../packages'],
         },
     },
 });

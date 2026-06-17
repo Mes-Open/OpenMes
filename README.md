@@ -240,59 +240,34 @@ OpenMES architecture maps onto the ISA-95 / IEC 62264 standard for Manufacturing
 
 ### Installation 🎯
 
-** Clone, open browser, configure!** No CLI commands required!
+**One command — clone and run the installer:**
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/Mes-Open/OpenMes.git
 cd OpenMes
-
-# 2. Start Docker containers
-docker-compose up -d
+./install.sh
 ```
 
-**That's it!** Now open **http://localhost** in your browser.
+`install.sh` generates secure credentials into `.env`, **auto-selects a free host port** (80 if it's available, otherwise the next free one — e.g. 8080), builds the app from the cloned source, and starts it in **production**. When it finishes it prints your URL and admin login. Use `./install.sh --yes` to accept all defaults non-interactively.
 
-### Web-Based Installation Wizard
+**Windows?** In **PowerShell** (Docker Desktop) run the equivalent installer — same behaviour as `install.sh`:
 
-You'll see a friendly 3-step installation wizard:
-
-**Step 1: Basic Configuration**
-- Site Name (e.g., "My Factory")
-- Site URL (e.g., http://localhost)
-
-**Step 2: Database Configuration**
-- Host: `postgres` (for Docker)
-- Port: `5432`
-- Database: `openmmes`
-- Username: `openmmes_user`
-- Password: `openmmes_secret` (from docker-compose.yml)
-
-**Step 3: Create Admin Account**
-- Username (your choice)
-- Email (your choice)
-- Password (your choice - secure it!)
-
-Click "Complete Installation" → **Done!** 🎉
-
-### Quick Setup Script (Optional)
-
-For even faster setup with default database credentials:
-
-```bash
-# Clone and run one-command setup
-git clone https://github.com/Mes-Open/OpenMes.git
-cd OpenMes
-./setup.sh
+```powershell
+.\install.ps1
 ```
 
-This automatically:
-- ✅ Creates .env file
-- ✅ Builds Docker containers
-- ✅ Generates encryption key
-- ✅ Opens http://localhost in your browser
+(Under WSL2 just use `./install.sh`.)
 
-Then just complete the 3-step wizard!
+**Prefer plain Compose?** `docker compose up -d --build` also works — it builds from source and serves on port 80 (override with `HTTP_PORT`/`HTTPS_PORT` in `.env` if 80 is taken).
+
+### First boot
+
+With Docker, the database is migrated and the admin account is created
+automatically on first boot (from the credentials in `.env`) — no manual wizard
+step is needed. Open the URL the installer printed and log in.
+
+> Running OpenMES outside Docker (bare PHP)? A web-based setup wizard guides you
+> through database and admin configuration the first time you open the site.
 
 ### First Steps After Installation
 
@@ -426,7 +401,7 @@ That overlay (`docker-compose.dev.yml`):
 Workflow:
 
 1. Edit `backend/resources/js/Pages/Foo.jsx` (or any source file).
-2. The watcher rebuilds automatically — check `docker logs -f openmmes-frontend` if you want to see it.
+2. The watcher rebuilds automatically — check `docker compose logs -f frontend` if you want to see it.
 3. Refresh the browser.
 
 ### Adding a new React page
@@ -594,7 +569,7 @@ See [LICENSE](LICENSE) for full details.
 
 ### Commercial Support
 Need help with deployment, customization, or training?
-Contact us at **jakub.przepiora@nice-code.com**
+Contact us at **jakub.przepioraa@gmail.com**
 
 ---
 

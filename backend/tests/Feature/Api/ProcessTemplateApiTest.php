@@ -138,7 +138,7 @@ class ProcessTemplateApiTest extends TestCase
 
         $this->authAdmin()->deleteJson("/api/v1/template-steps/{$step->id}")
             ->assertStatus(200);
-        $this->assertDatabaseMissing('template_steps', ['id' => $step->id]);
+        $this->assertSoftDeleted('template_steps', ['id' => $step->id]);
     }
 
     public function test_operator_cannot_create_template(): void
@@ -154,7 +154,7 @@ class ProcessTemplateApiTest extends TestCase
         $template = ProcessTemplate::factory()->create();
         $this->authAdmin()->deleteJson("/api/v1/process-templates/{$template->id}")
             ->assertStatus(200);
-        $this->assertDatabaseMissing('process_templates', ['id' => $template->id]);
+        $this->assertSoftDeleted('process_templates', ['id' => $template->id]);
     }
 
     public function test_admin_can_toggle_active(): void

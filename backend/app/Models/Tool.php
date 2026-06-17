@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasCustomFields;
+use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,11 +13,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Tool extends Model
 {
     use Auditable, HasCustomFields, HasFactory;
+    use SoftDeletesWithAudit;
 
-    const STATUS_AVAILABLE   = 'available';
-    const STATUS_IN_USE      = 'in_use';
+    const STATUS_AVAILABLE = 'available';
+
+    const STATUS_IN_USE = 'in_use';
+
     const STATUS_MAINTENANCE = 'maintenance';
-    const STATUS_RETIRED     = 'retired';
+
+    const STATUS_RETIRED = 'retired';
 
     protected $fillable = [
         'code',

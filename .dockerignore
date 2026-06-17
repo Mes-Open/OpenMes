@@ -8,5 +8,3 @@ backend/storage/logs/*
 backend/storage/framework/cache/*
 backend/storage/framework/sessions/*
 backend/storage/framework/views/*
-packages/*/node_modules
-mobile/
