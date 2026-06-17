@@ -1,4 +1,9 @@
 {
+    "Hold": "Hold",
+    "Release": "Release",
+    "Hold reason:": "Hold reason:",
+    "Lot placed on hold.": "Lot placed on hold.",
+    "Lot released.": "Lot released.",
     "% of Total": "% of Total",
     "(default)": "(default)",
     "(leave blank to keep)": "(leave blank to keep)",

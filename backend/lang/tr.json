@@ -1,4 +1,9 @@
 {
+    "Hold": "Beklet",
+    "Release": "Serbest bırak",
+    "Hold reason:": "Bekletme nedeni:",
+    "Lot placed on hold.": "Parti beklemeye alındı.",
+    "Lot released.": "Parti serbest bırakıldı.",
     "% of Total": "Toplamın %'si",
     "(default)": "(varsayılan)",
     "(leave blank to keep)": "(korumak için boş bırakın)",

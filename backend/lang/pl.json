@@ -1,4 +1,9 @@
 {
+    "Hold": "Wstrzymaj",
+    "Release": "Zwolnij",
+    "Hold reason:": "Powód wstrzymania:",
+    "Lot placed on hold.": "Partia wstrzymana.",
+    "Lot released.": "Partia zwolniona.",
     "% of Total": "% całości",
     "(default)": "(domyślnie)",
     "(leave blank to keep)": "(pozostaw puste, aby zachować)",

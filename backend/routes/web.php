@@ -465,6 +465,8 @@ Route::middleware('auth')->group(function () {
 
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
+        Route::post('/material-lots/{materialLot}/hold', [AdminMaterialLotController::class, 'hold'])->name('material-lots.hold');
+        Route::post('/material-lots/{materialLot}/release', [AdminMaterialLotController::class, 'release'])->name('material-lots.release');
 
         // ── Material Traceability / Genealogy (React/Inertia — ported from develop Blade) ──
         Route::get('/traceability', [\App\Http\Controllers\Web\Admin\TraceabilityController::class, 'index'])->name('traceability.index');
