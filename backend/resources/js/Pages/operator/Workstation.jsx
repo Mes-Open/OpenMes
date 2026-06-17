@@ -828,7 +828,7 @@ export default function Workstation() {
                                 >
                                     Queue
                                 </Link>
-                                <span className="px-3 py-1.5 rounded-[6px] text-sm font-semibold bg-om-ink text-white">
+                                <span className="px-3 py-1.5 rounded-[6px] text-sm font-semibold bg-om-ink text-om-on-ink">
                                     Workstation
                                 </span>
                             </div>

@@ -238,7 +238,7 @@ export default function ReportsIndex() {
                             onClick={() => setPreset(p)}
                             className={`px-3 py-1.5 rounded-om-sm text-sm font-medium border ${
                                 form.preset === p
-                                    ? 'bg-om-ink text-white border-om-accent'
+                                    ? 'bg-om-ink text-om-on-ink border-om-accent'
                                     : 'bg-om-card text-om-muted border-om-line2 hover:bg-om-bg'
                             }`}
                         >
@@ -339,7 +339,7 @@ export default function ReportsIndex() {
                                 onClick={() => link.url && goPage(new URL(link.url).searchParams.get('page'))}
                                 className={`px-3 py-1 text-sm rounded border ${
                                     link.active
-                                        ? 'bg-om-ink text-white border-om-accent'
+                                        ? 'bg-om-ink text-om-on-ink border-om-accent'
                                         : link.url
                                         ? 'border-om-line text-om-muted hover:bg-om-bg'
                                         : 'border-om-line2 text-om-faint cursor-default'

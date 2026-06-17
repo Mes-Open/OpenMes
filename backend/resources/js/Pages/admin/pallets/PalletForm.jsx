@@ -70,7 +70,7 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 <button
                     type="submit"
                     disabled={processing}
-                    className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
+                    className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover disabled:opacity-50"
                 >
                     {processing ? 'Saving…' : submitLabel}
                 </button>

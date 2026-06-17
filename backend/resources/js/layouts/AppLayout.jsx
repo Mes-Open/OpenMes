@@ -350,7 +350,7 @@ function Sidebar({
                         prefetch
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
                                     ${isActive(path, ['/settings'])
-                                        ? 'bg-om-ink text-white'
+                                        ? 'bg-om-ink text-om-on-ink'
                                         : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
@@ -370,7 +370,7 @@ function Sidebar({
                             className={`flex items-center gap-3 min-w-0 rounded-om-sm hover:bg-om-chip transition-colors
                                         ${collapsed && !mobileOpen ? '' : 'flex-1 -ml-1 pl-1 pr-2 py-0.5'}`}
                         >
-                            <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center shrink-0 text-white text-[12px] font-semibold">
+                            <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center shrink-0 text-om-on-ink text-[12px] font-semibold">
                                 {auth?.user?.initial ?? '?'}
                             </div>
                             {showLabels && (
@@ -482,7 +482,7 @@ function SearchResultLink({ item, path, onNavigate }) {
                 prefetch
                 onClick={onNavigate}
                 className={`flex flex-col gap-0.5 px-3 py-2 rounded-om-sm text-[13px] transition-colors
-                            ${active ? 'bg-om-ink text-white' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
+                            ${active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
             >
                 <span className="font-medium">{__(item.label)}</span>
                 {item.trail.length > 0 && (
@@ -497,7 +497,7 @@ function SearchResultLink({ item, path, onNavigate }) {
 
 function NavLink({ link, path, collapsed, showLabels, alertCount }) {
     const active = isActive(path, link.match, link.exact);
-    const activeClass = active ? 'bg-om-ink text-white' : 'text-om-muted hover:bg-om-chip hover:text-om-ink';
+    const activeClass = active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink';
     return (
         <div className="relative group px-2">
             <Link
@@ -654,7 +654,7 @@ function ChildLink({ child, path, dot }) {
             href={child.href}
             prefetch
             className={`flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
-                        ${active ? 'bg-om-ink text-white font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
+                        ${active ? 'bg-om-ink text-om-on-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
         >
             <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
             {__(child.label)}
@@ -664,7 +664,7 @@ function ChildLink({ child, path, dot }) {
 
 function Tooltip({ children }) {
     return (
-        <span className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-om-ink text-white text-xs rounded-om-sm whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] pointer-events-none">
+        <span className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-om-ink text-om-on-ink text-xs rounded-om-sm whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] pointer-events-none">
             {children}
         </span>
     );

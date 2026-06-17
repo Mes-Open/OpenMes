@@ -221,7 +221,7 @@ function AddTagForm({ connectionId, workstations, basePath, showRegisterType, ad
                         </MiniField>
                     </div>
                     <div className="flex gap-2">
-                        <button type="submit" disabled={processing} className="px-4 py-1.5 bg-om-ink text-white text-sm rounded-om-sm hover:bg-black transition-colors disabled:opacity-50">
+                        <button type="submit" disabled={processing} className="px-4 py-1.5 bg-om-ink text-om-on-ink text-sm rounded-om-sm hover:bg-om-ink-hover transition-colors disabled:opacity-50">
                             {processing ? __('Adding…') : __('Add Tag')}
                         </button>
                         <button type="button" onClick={() => setOpen(false)} className="px-4 py-1.5 bg-om-chip text-om-muted text-sm rounded-om-sm hover:bg-om-line2 transition-colors">

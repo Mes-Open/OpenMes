@@ -217,7 +217,7 @@ export default function AdminWorkOrderShow() {
                             <>
                                 <button
                                     onClick={() => post('accept')}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-om-ink rounded-md hover:bg-black"
+                                    className="px-4 py-2 text-sm font-medium text-om-on-ink bg-om-ink rounded-md hover:bg-om-ink-hover"
                                 >
                                     Accept
                                 </button>
@@ -256,7 +256,7 @@ export default function AdminWorkOrderShow() {
                         {status === 'PAUSED' && (
                             <button
                                 onClick={() => post('resume')}
-                                className="px-4 py-2 text-sm font-medium text-white bg-om-ink rounded-md hover:bg-black"
+                                className="px-4 py-2 text-sm font-medium text-om-on-ink bg-om-ink rounded-md hover:bg-om-ink-hover"
                             >
                                 Resume
                             </button>
@@ -266,7 +266,7 @@ export default function AdminWorkOrderShow() {
                             <>
                                 <button
                                     onClick={() => { if (confirm('Reopen this work order?')) post('reopen'); }}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-om-ink rounded-md hover:bg-black"
+                                    className="px-4 py-2 text-sm font-medium text-om-on-ink bg-om-ink rounded-md hover:bg-om-ink-hover"
                                 >
                                     Reopen
                                 </button>

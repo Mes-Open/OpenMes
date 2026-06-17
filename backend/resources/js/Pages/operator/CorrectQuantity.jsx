@@ -53,7 +53,7 @@ export default function CorrectQuantity() {
                             <Link href="/operator/workstation" className="flex-1 py-3 text-base text-center rounded-om-sm bg-om-line2 hover:bg-om-line text-om-ink font-medium">
                                 Cancel
                             </Link>
-                            <button type="submit" disabled={form.processing} className="flex-1 bg-om-ink hover:bg-black text-white font-bold rounded-om-sm py-3 text-base disabled:opacity-50">
+                            <button type="submit" disabled={form.processing} className="flex-1 bg-om-ink hover:bg-om-ink-hover text-om-on-ink font-bold rounded-om-sm py-3 text-base disabled:opacity-50">
                                 Save Correction
                             </button>
                         </div>

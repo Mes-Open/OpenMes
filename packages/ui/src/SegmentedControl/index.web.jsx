@@ -22,7 +22,7 @@ export function SegmentedControl({ options, value, onChange, className = '', ...
                         role="radio"
                         aria-checked={active}
                         onClick={() => onChange?.(option.value)}
-                        className={`flex-1 rounded-[6px] py-[7px] text-center text-[12.5px] font-medium transition-colors cursor-pointer ${active ? 'bg-om-ink text-white' : 'text-om-muted hover:text-om-ink'}`}
+                        className={`flex-1 rounded-[6px] py-[7px] text-center text-[12.5px] font-medium transition-colors cursor-pointer ${active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'}`}
                     >
                         {option.label}
                     </button>

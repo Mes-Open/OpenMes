@@ -58,7 +58,7 @@ export default function OperatorLayout({ children }) {
 
                     <div className={`flex items-center gap-3 ${line ? '' : 'ml-auto'}`}>
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center text-white text-sm font-semibold">
+                            <div className="w-8 h-8 rounded-full bg-om-ink flex items-center justify-center text-om-on-ink text-sm font-semibold">
                                 {auth?.user?.initial ?? '?'}
                             </div>
                             <span className="text-sm text-om-ink hidden md:block">{auth?.user?.name}</span>
@@ -93,7 +93,7 @@ function TopLink({ href, active, children }) {
         <Link
             href={href}
             className={`px-4 py-2.5 rounded-om-sm text-sm font-semibold transition-colors ${
-                active ? 'bg-om-ink text-white' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'
+                active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'
             }`}
         >
             {children}

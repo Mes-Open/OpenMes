@@ -73,7 +73,7 @@ function Pagination({ meta, links, onPage }) {
                     onClick={() => link.url && onPage(new URL(link.url).searchParams.get('page'))}
                     className={`px-3 py-1 text-sm rounded border transition-colors ${
                         link.active
-                            ? 'bg-om-ink text-white border-om-accent'
+                            ? 'bg-om-ink text-om-on-ink border-om-accent'
                             : link.url
                             ? 'border-om-line text-om-muted hover:bg-om-bg'
                             : 'border-om-line2 text-om-faint cursor-default'
@@ -268,7 +268,7 @@ export default function AuditLogs() {
                                 <button
                                     type="button"
                                     onClick={() => apply()}
-                                    className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-white hover:bg-black transition-colors"
+                                    className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                                 >
                                     Apply Filters
                                 </button>

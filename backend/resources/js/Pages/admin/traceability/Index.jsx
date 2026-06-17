@@ -42,7 +42,7 @@ export default function TraceabilityIndex() {
                             placeholder={__('Finished LOT, material lot, supplier LOT or serial number…')}
                             className="form-input flex-1"
                         />
-                        <button type="submit" className="px-5 py-2 bg-om-ink text-white text-sm font-medium rounded-om-sm hover:bg-black transition-colors whitespace-nowrap">
+                        <button type="submit" className="px-5 py-2 bg-om-ink text-om-on-ink text-sm font-medium rounded-om-sm hover:bg-om-ink-hover transition-colors whitespace-nowrap">
                             {__('Trace')}
                         </button>
                     </div>

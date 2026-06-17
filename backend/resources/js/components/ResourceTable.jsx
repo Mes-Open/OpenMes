@@ -59,7 +59,7 @@ const ICON_COLOR = {
  */
 const ACTION_BASE = 'inline-flex items-center justify-center rounded-om-sm px-3 py-1.5 text-[12.5px] font-semibold transition-colors';
 const ACTION_CLASS = {
-    primary: `${ACTION_BASE} bg-om-ink text-white hover:bg-black`,
+    primary: `${ACTION_BASE} bg-om-ink text-om-on-ink hover:bg-om-ink-hover`,
     secondary: `${ACTION_BASE} bg-om-chip text-om-ink hover:bg-om-line2`,
     danger: `${ACTION_BASE} bg-om-blocked-bg text-om-blocked hover:bg-[#f8ddd6]`,
     warning: `${ACTION_BASE} bg-om-downtime-bg text-om-downtime hover:brightness-95`,
@@ -185,7 +185,7 @@ export default function ResourceTable({
                 {createHref && (
                     <Link
                         href={createHref}
-                        className="inline-flex items-center justify-center rounded-om-sm bg-om-ink px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black"
+                        className="inline-flex items-center justify-center rounded-om-sm bg-om-ink px-4 py-2.5 text-[13px] font-semibold text-om-on-ink transition-colors hover:bg-om-ink-hover"
                     >
                         {__(createLabel)}
                     </Link>

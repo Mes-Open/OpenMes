@@ -391,7 +391,7 @@ export function DataTable({
                                 onClick={() => table.setPageIndex(i)}
                                 className={`${pagerBtnCls} font-mono text-[11px] ${
                                     i === pageIndex
-                                        ? 'bg-om-ink text-white'
+                                        ? 'bg-om-ink text-om-on-ink'
                                         : 'border border-om-line text-om-muted'
                                 }`}
                             >

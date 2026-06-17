@@ -717,7 +717,7 @@ export default function Queue() {
                     <div className="flex items-center gap-3">
                         {/* Mode toggle: Queue / Workstation */}
                         <div className="flex items-center gap-[3px] rounded-om-sm border border-om-line bg-om-bg p-[3px]">
-                            <span className="flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium bg-om-ink text-white">
+                            <span className="flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium bg-om-ink text-om-on-ink">
                                 Queue
                             </span>
                             <Link href="/operator/workstation"
@@ -730,7 +730,7 @@ export default function Queue() {
                         <div className="flex items-center gap-[3px] rounded-om-sm border border-om-line bg-om-bg p-[3px]">
                             <button type="button" onClick={() => setView('table')}
                                     className={`flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors cursor-pointer ${
-                                        view === 'table' ? 'bg-om-ink text-white' : 'text-om-muted hover:text-om-ink'
+                                        view === 'table' ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'
                                     }`}>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 6h18M3 14h18M3 18h18"/>
@@ -739,7 +739,7 @@ export default function Queue() {
                             </button>
                             <button type="button" onClick={() => setView('cards')}
                                     className={`flex items-center gap-1.5 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors cursor-pointer ${
-                                        view === 'cards' ? 'bg-om-ink text-white' : 'text-om-muted hover:text-om-ink'
+                                        view === 'cards' ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'
                                     }`}>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
@@ -805,7 +805,7 @@ export default function Queue() {
                         <button type="button"
                                 onClick={() => router.get('/operator/queue', {}, { preserveState: false })}
                                 className={`px-3.5 py-2 rounded-om-sm text-xs font-medium transition-colors cursor-pointer ${
-                                    !selectedWorkstation ? 'bg-om-ink text-white' : 'bg-om-chip text-om-muted hover:bg-om-line2'
+                                    !selectedWorkstation ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'
                                 }`}>
                             All
                         </button>
@@ -818,7 +818,7 @@ export default function Queue() {
                                         type="button"
                                         onClick={() => router.get('/operator/queue', { workstation: ws.id }, { preserveState: false })}
                                         className={`px-3.5 py-2 rounded-om-sm text-xs font-medium transition-colors cursor-pointer ${
-                                            isSelected ? 'bg-om-ink text-white' : 'bg-om-chip text-om-muted hover:bg-om-line2'
+                                            isSelected ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'
                                         }`}>
                                     {ws.name}
                                     {isSelected && queueCount > 0 && (

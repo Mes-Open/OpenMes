@@ -36,7 +36,7 @@ export default function WorkstationsIndex() {
                     </div>
                     <Link
                         href={`/admin/lines/${line.id}/workstations/create`}
-                        className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black"
+                        className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
                     >
                         + Add Workstation
                     </Link>
@@ -52,7 +52,7 @@ export default function WorkstationsIndex() {
                     <p className="text-sm text-om-muted mt-1 mb-4">Get started by creating your first workstation for this line.</p>
                     <Link
                         href={`/admin/lines/${line.id}/workstations/create`}
-                        className="inline-block bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black"
+                        className="inline-block bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
                     >
                         + Create Workstation
                     </Link>

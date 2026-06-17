@@ -45,7 +45,7 @@ export default function ErrorPage({ status }) {
                     <div className="mt-6 flex items-center justify-center gap-3">
                         <Link
                             href="/"
-                            className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black"
+                            className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
                         >
                             {__('Back to dashboard')}
                         </Link>

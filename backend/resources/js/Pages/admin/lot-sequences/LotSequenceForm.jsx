@@ -123,7 +123,7 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                         type="button"
                         onClick={() => switchMode(m)}
                         className={`px-4 py-1.5 font-medium ${
-                            mode === m ? 'bg-om-ink text-white' : 'bg-om-card text-om-muted hover:bg-om-bg'
+                            mode === m ? 'bg-om-ink text-om-on-ink' : 'bg-om-card text-om-muted hover:bg-om-bg'
                         }`}
                     >
                         {label}

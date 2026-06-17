@@ -230,7 +230,7 @@ export default function ProductionAnomaliesIndex() {
                                     <button
                                         key={i}
                                         onClick={() => router.get(link.url, {}, { preserveState: true })}
-                                        className={`px-3 py-1 rounded text-sm border ${link.active ? 'bg-om-ink text-white border-om-accent' : 'border-om-line text-om-muted hover:bg-om-bg'}`}
+                                        className={`px-3 py-1 rounded text-sm border ${link.active ? 'bg-om-ink text-om-on-ink border-om-accent' : 'border-om-line text-om-muted hover:bg-om-bg'}`}
                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                     />
                                 ) : (

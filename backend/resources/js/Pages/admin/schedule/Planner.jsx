@@ -604,7 +604,7 @@ export default function Planner() {
                             </div>
                             <div className="flex items-center gap-2 mt-3">
                                 <button onClick={saveSelectedDates}
-                                        className="flex-1 px-3 py-2 text-xs font-semibold rounded-om-sm bg-om-ink text-white hover:bg-black transition">
+                                        className="flex-1 px-3 py-2 text-xs font-semibold rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition">
                                     Save
                                 </button>
                                 <button onClick={() => setSelected(null)}
@@ -701,7 +701,7 @@ export default function Planner() {
 
                 {/* ─── TOOLTIP ─── */}
                 {tooltip && (
-                    <div className="fixed z-40 bg-om-ink text-white rounded-om-sm shadow-xl px-3 py-2 text-xs pointer-events-none max-w-xs"
+                    <div className="fixed z-40 bg-om-ink text-om-on-ink rounded-om-sm shadow-xl px-3 py-2 text-xs pointer-events-none max-w-xs"
                          style={{ left: tipPos.x, top: tipPos.y }}>
                         <div className="font-bold mb-1">{tooltip.order_no}</div>
                         <div className="opacity-80">{tooltip.product}</div>
@@ -1165,7 +1165,7 @@ function HourlyView({ data, slotMinutes, startDate, shiftsPerDay, maintenanceEve
                     <span className="text-sm font-bold text-om-ink">{data.label}</span>
                     {isToday && <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-om-chip text-om-accent">Today</span>}
                     <span className="text-[10px] text-om-faint">{slotMinutes} min snap</span>
-                    {statusText && <span className="text-[10px] font-mono bg-om-ink text-white px-2 py-0.5 rounded">{statusText}</span>}
+                    {statusText && <span className="text-[10px] font-mono bg-om-ink text-om-on-ink px-2 py-0.5 rounded">{statusText}</span>}
                 </div>
                 <div className="flex items-center gap-3 text-[10px] text-om-muted">
                     <span className="inline-flex items-center gap-1"><span className="w-3 h-2.5 rounded-sm bg-om-accent/40 border border-om-accent" /> Scheduled</span>
@@ -1291,7 +1291,7 @@ function HourlyView({ data, slotMinutes, startDate, shiftsPerDay, maintenanceEve
                                                         title="Remove from schedule">✕</button>
                                                 {/* Resize handle */}
                                                 {!order.is_legacy && (
-                                                    <div className="wo-resize-handle absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize bg-black/0 hover:bg-black/20 rounded-r pointer-events-auto"
+                                                    <div className="wo-resize-handle absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize bg-black/0 hover:bg-om-ink-hover/20 rounded-r pointer-events-auto"
                                                          onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, e.currentTarget.closest('[data-wo-id]'), 'resize'); }} />
                                                 )}
                                             </div>
@@ -1438,10 +1438,10 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
             <div className="px-3 py-2 border-b border-om-line2 space-y-2">
                 {/* Line filter */}
                 <div className="flex flex-wrap gap-1">
-                    <button onClick={() => onFilterLine('')} className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${filterLine === '' ? 'bg-om-ink text-white' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>All</button>
+                    <button onClick={() => onFilterLine('')} className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${filterLine === '' ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>All</button>
                     {allLines.map((l) => (
                         <button key={l.id} onClick={() => onFilterLine(filterLine === String(l.id) ? '' : String(l.id))}
-                                className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${filterLine === String(l.id) ? 'bg-om-ink text-white' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>
+                                className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${filterLine === String(l.id) ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>
                             {l.code ?? l.name}
                         </button>
                     ))}
@@ -1542,7 +1542,7 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                     </div>
                 </div>
                 <div className="flex gap-1.5">
-                    <Link href="/admin/work-orders/create" className="flex-1 text-center py-1.5 rounded-om-sm text-[10px] font-medium bg-om-ink text-white hover:bg-black transition">
+                    <Link href="/admin/work-orders/create" className="flex-1 text-center py-1.5 rounded-om-sm text-[10px] font-medium bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition">
                         + Add
                     </Link>
                     <Link href="/admin/csv-import" className="flex-1 text-center py-1.5 rounded-om-sm text-[10px] font-medium bg-om-chip text-om-muted hover:bg-om-line2 transition border border-om-line">

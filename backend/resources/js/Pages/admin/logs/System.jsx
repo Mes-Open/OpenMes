@@ -35,7 +35,7 @@ function Pagination({ meta, links, onPage }) {
                     onClick={() => link.url && onPage(new URL(link.url).searchParams.get('page'))}
                     className={`px-3 py-1 text-sm rounded border transition-colors ${
                         link.active
-                            ? 'bg-om-ink text-white border-om-accent'
+                            ? 'bg-om-ink text-om-on-ink border-om-accent'
                             : link.url
                             ? 'border-om-line text-om-muted hover:bg-om-bg'
                             : 'border-om-line2 text-om-faint cursor-default'
@@ -160,7 +160,7 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                     <button
                         type="button"
                         onClick={applyFilters}
-                        className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-white hover:bg-black transition-colors"
+                        className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                     >
                         Apply
                     </button>
@@ -314,7 +314,7 @@ function FailedJobsTab({ entries, missing }) {
                     <input type="hidden" name="_token" value={csrf_token} />
                     <button
                         type="submit"
-                        className="px-3 py-1 text-xs rounded bg-om-ink text-white hover:bg-black transition-colors"
+                        className="px-3 py-1 text-xs rounded bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                     >
                         Retry
                     </button>

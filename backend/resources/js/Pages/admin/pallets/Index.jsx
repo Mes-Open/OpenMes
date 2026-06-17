@@ -57,13 +57,13 @@ function LabelCell({ palletId, templates }) {
                 href={`${base}/pdf?template=${tpl.id}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-xs font-semibold bg-om-ink text-white hover:bg-black shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-xs font-semibold bg-om-ink text-om-on-ink hover:bg-om-ink-hover shadow-sm"
             >
                 {PRINTER_ICON} PDF
             </a>
             <a
                 href={`${base}/zpl?template=${tpl.id}`}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-om-sm text-xs font-medium bg-om-ink text-white hover:bg-black"
+                className="inline-flex items-center px-2.5 py-1.5 rounded-om-sm text-xs font-medium bg-om-ink text-om-on-ink hover:bg-om-ink-hover"
                 title="Download ZPL for a Zebra printer"
             >
                 ZPL

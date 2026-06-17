@@ -175,7 +175,7 @@ function Field({ field, value, error, setData }) {
                                 onClick={() => toggle(o.value)}
                                 className={`px-3 py-1.5 rounded-om-sm text-[13px] border transition-colors ${
                                     active
-                                        ? 'bg-om-ink text-white border-om-ink'
+                                        ? 'bg-om-ink text-om-on-ink border-om-ink'
                                         : 'bg-om-card text-om-ink border-om-line hover:bg-om-chip'
                                 }`}
                             >

@@ -240,7 +240,7 @@ export default function EansIndex() {
                                     onClick={() => link.url && router.get(link.url, {}, { preserveState: false })}
                                     className={`px-3 py-1 rounded-om-sm border text-[13px] transition-colors ${
                                         link.active
-                                            ? 'bg-om-ink text-white border-om-ink'
+                                            ? 'bg-om-ink text-om-on-ink border-om-ink'
                                             : link.url
                                             ? 'border-om-line text-om-ink hover:bg-om-chip'
                                             : 'border-om-line2 text-om-faintest cursor-not-allowed'

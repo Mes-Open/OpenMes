@@ -92,7 +92,7 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
+                <button type="submit" disabled={processing} className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover disabled:opacity-50">
                     {processing ? 'Saving…' : submitLabel}
                 </button>
                 <Link href="/admin/inspection-plans" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>

@@ -215,7 +215,7 @@ export default function OeeIndex() {
                                         <button
                                             key={key}
                                             onClick={() => apply({ granularity: key })}
-                                            className={`px-3 py-1 text-sm ${granularity === key ? 'bg-om-ink text-white' : 'bg-om-card text-om-muted hover:bg-om-bg'}`}
+                                            className={`px-3 py-1 text-sm ${granularity === key ? 'bg-om-ink text-om-on-ink' : 'bg-om-card text-om-muted hover:bg-om-bg'}`}
                                         >
                                             {label}
                                         </button>
@@ -330,7 +330,7 @@ function ModeBtn({ active, onClick, children }) {
         <button
             type="button"
             onClick={onClick}
-            className={`px-3 py-1 text-sm ${active ? 'bg-om-ink text-white' : 'bg-om-card text-om-muted hover:bg-om-bg'}`}
+            className={`px-3 py-1 text-sm ${active ? 'bg-om-ink text-om-on-ink' : 'bg-om-card text-om-muted hover:bg-om-bg'}`}
         >
             {children}
         </button>

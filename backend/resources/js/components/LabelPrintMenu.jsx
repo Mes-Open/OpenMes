@@ -81,9 +81,9 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
                                 </p>
                                 <div className="flex gap-2 mt-1">
                                     <a href={url(t.id, 'pdf')} target="_blank" rel="noreferrer"
-                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-om-ink text-white hover:bg-black">PDF</a>
+                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-om-ink text-om-on-ink hover:bg-om-ink-hover">PDF</a>
                                     <a href={url(t.id, 'zpl')}
-                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-om-ink text-white hover:bg-black">ZPL</a>
+                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-om-ink text-om-on-ink hover:bg-om-ink-hover">ZPL</a>
                                 </div>
                             </div>
                         ))}

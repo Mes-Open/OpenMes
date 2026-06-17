@@ -211,7 +211,7 @@ export default function CostReportShow() {
                 </Section>
 
                 {/* Grand total */}
-                <div className="bg-om-ink text-white rounded-om-sm p-4 flex items-center justify-between">
+                <div className="bg-om-ink text-om-on-ink rounded-om-sm p-4 flex items-center justify-between">
                     <span className="text-lg font-medium">{__('Total cost')}</span>
                     <span className="text-2xl font-bold font-mono">{money(b.total_cost, currency)}</span>
                 </div>
