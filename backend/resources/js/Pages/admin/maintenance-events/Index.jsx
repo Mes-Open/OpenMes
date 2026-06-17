@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { default as ResourceTable } from '../../../components/ResourceTable';
 import { EVENT_STATUS_STYLES } from './fields';
+import { __ } from '../../../lib/i18n';
 
 export default function MaintenanceEventsIndex() {
     const {
@@ -12,11 +13,11 @@ export default function MaintenanceEventsIndex() {
     } = usePage().props;
 
     const columns = [
-        { key: 'title', label: 'Title', className: 'font-medium text-om-ink' },
-        { key: 'event_type', label: 'Type', className: 'text-om-muted' },
+        { key: 'title', label: __('Title'), className: 'font-medium text-om-ink' },
+        { key: 'event_type', label: __('Type'), className: 'text-om-muted' },
         {
             key: 'target',
-            label: 'Target',
+            label: __('Target'),
             className: 'text-om-muted',
             render: (r) =>
                 toolNames[r.tool_id] ??
@@ -26,19 +27,19 @@ export default function MaintenanceEventsIndex() {
         },
         {
             key: 'assigned',
-            label: 'Assigned',
+            label: __('Assigned'),
             className: 'text-om-muted',
             render: (r) => userNames[r.assigned_to_id] ?? '—',
         },
         {
             key: 'scheduled_at',
-            label: 'Scheduled',
+            label: __('Scheduled'),
             className: 'text-om-muted',
             render: (r) => (r.scheduled_at ? r.scheduled_at.slice(0, 16).replace('T', ' ') : '—'),
         },
         {
             key: 'status',
-            label: 'Status',
+            label: __('Status'),
             render: (r) => (
                 <span
                     className={`text-xs px-2 py-0.5 rounded font-medium ${
@@ -52,13 +53,13 @@ export default function MaintenanceEventsIndex() {
     ];
 
     const actions = (r) => [
-        { label: 'Edit', icon: 'edit', href: `/admin/maintenance-events/${r.id}/edit` },
+        { label: __('Edit'), icon: 'edit', href: `/admin/maintenance-events/${r.id}/edit` },
         {
-            label: 'Delete',
+            label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
             onClick: () => {
-                if (confirm(`Delete maintenance event "${r.title}"?`)) {
+                if (confirm(__('Delete maintenance event ":name"?', { name: r.title }))) {
                     router.delete(`/admin/maintenance-events/${r.id}`, { preserveScroll: true });
                 }
             },
@@ -67,17 +68,17 @@ export default function MaintenanceEventsIndex() {
 
     return (
         <>
-            <Head title="Maintenance Events" />
+            <Head title={__('Maintenance Events')} />
             <ResourceTable
                 shape="maintenance_events"
-                title="Maintenance Events"
+                title={__('Maintenance Events')}
                 createHref="/admin/maintenance-events/create"
-                createLabel="+ New Event"
+                createLabel={__('+ New Event')}
                 columns={columns}
                 orderBy="scheduled_at"
                 orderDir="desc"
                 actions={actions}
-                emptyText="No maintenance events yet."
+                emptyText={__('No maintenance events yet.')}
             />
         </>
     );

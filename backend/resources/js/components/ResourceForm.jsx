@@ -3,6 +3,7 @@ import { Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, DatePicker, Dropdown } from '@openmes/ui';
 import CustomFields from './CustomFields';
 import { customFieldProps, submitForm } from '../lib/customFieldForm';
+import { __ } from '../lib/i18n';
 
 /**
  * Config-driven create/edit form — the non-optimistic write-through pattern.
@@ -147,8 +148,8 @@ function Field({ field, value, error, setData }) {
     if (type === 'checkbox') {
         return (
             <div>
-                <Checkbox checked={!!value} onChange={(next) => set(next)} label={label} />
-                {help && <p className="text-[12px] text-om-muted mt-1">{help}</p>}
+                <Checkbox checked={!!value} onChange={(next) => set(next)} label={__(label)} />
+                {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
             </div>
         );
     }
@@ -163,7 +164,7 @@ function Field({ field, value, error, setData }) {
         return (
             <div>
                 <label className={LABEL_CLASS}>
-                    {label} {required && <span className="text-om-accent">*</span>}
+                    {__(label)} {required && <span className="text-om-accent">*</span>}
                 </label>
                 <div name={name} className="flex flex-wrap gap-2">
                     {(options ?? []).map((o) => {
@@ -179,12 +180,12 @@ function Field({ field, value, error, setData }) {
                                         : 'bg-om-card text-om-ink border-om-line hover:bg-om-chip'
                                 }`}
                             >
-                                {o.label}
+                                {__(o.label)}
                             </button>
                         );
                     })}
                 </div>
-                {help && <p className="text-[12px] text-om-muted mt-1">{help}</p>}
+                {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
                 {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
             </div>
         );
@@ -193,7 +194,7 @@ function Field({ field, value, error, setData }) {
     return (
         <div>
             <label className={LABEL_CLASS}>
-                {label} {required && <span className="text-om-accent">*</span>}
+                {__(label)} {required && <span className="text-om-accent">*</span>}
             </label>
 
             {type === 'textarea' ? (
@@ -202,16 +203,16 @@ function Field({ field, value, error, setData }) {
                     value={value ?? ''}
                     onChange={(e) => set(e.target.value)}
                     rows={3}
-                    placeholder={placeholder}
+                    placeholder={placeholder ? __(placeholder) : undefined}
                     className={INPUT_CLASS}
                 />
             ) : type === 'select' ? (
                 <Dropdown
                     className="w-full"
-                    options={(options ?? []).map((o) => ({ value: String(o.value), label: o.label }))}
+                    options={(options ?? []).map((o) => ({ value: String(o.value), label: __(o.label) }))}
                     value={value == null ? '' : String(value)}
                     onChange={(v) => set(v)}
-                    placeholder={placeholder || `${label}…`}
+                    placeholder={placeholder ? __(placeholder) : `${__(label)}…`}
                 />
             ) : type === 'date' ? (
                 <DatePicker
@@ -234,7 +235,7 @@ function Field({ field, value, error, setData }) {
                     name={name}
                     value={value ?? ''}
                     onChange={(e) => set(e.target.value)}
-                    placeholder={placeholder}
+                    placeholder={placeholder ? __(placeholder) : undefined}
                     className={INPUT_CLASS}
                 />
             )}

@@ -1,20 +1,22 @@
+import { __ } from '../../../lib/i18n';
+
 export const COMPANY_FIELDS = [
-    { name: 'code', label: 'Code', required: true },
-    { name: 'name', label: 'Name', required: true },
-    { name: 'tax_id', label: 'Tax ID' },
+    { name: 'code', label: __('Code'), required: true },
+    { name: 'name', label: __('Name'), required: true },
+    { name: 'tax_id', label: __('Tax ID') },
     {
         name: 'type',
-        label: 'Type',
+        label: __('Type'),
         type: 'select',
         required: true,
         options: [
-            { value: 'supplier', label: 'Supplier' },
-            { value: 'customer', label: 'Customer' },
-            { value: 'both', label: 'Both' },
+            { value: 'supplier', label: __('Supplier') },
+            { value: 'customer', label: __('Customer') },
+            { value: 'both', label: __('Both') },
         ],
     },
-    { name: 'email', label: 'Email' },
-    { name: 'phone', label: 'Phone' },
-    { name: 'address', label: 'Address', type: 'textarea' },
-    { name: 'is_active', label: 'Active', type: 'checkbox' },
+    { name: 'email', label: __('Email') },
+    { name: 'phone', label: __('Phone') },
+    { name: 'address', label: __('Address'), type: 'textarea' },
+    { name: 'is_active', label: __('Active'), type: 'checkbox' },
 ];

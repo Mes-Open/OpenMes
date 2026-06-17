@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Button } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber } from '../../../lib/i18n';
@@ -24,9 +25,9 @@ export default function TraceabilityIndex() {
 
             <div className="p-6 max-w-5xl mx-auto space-y-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-om-ink">{__('Traceability')}</h1>
+                    <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Traceability')}</h1>
                     <p className="text-sm text-om-muted mt-1">
-                        {__('Trace a finished LOT, material lot, supplier LOT or serial number through its full genealogy.')}
+                        {__('Trace a finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.')}
                     </p>
                 </div>
 
@@ -39,12 +40,12 @@ export default function TraceabilityIndex() {
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
                             autoFocus
-                            placeholder={__('Finished LOT, material lot, supplier LOT or serial number…')}
+                            placeholder={__('Finished LOT, material lot, supplier LOT, source container or serial number…')}
                             className="form-input flex-1"
                         />
-                        <button type="submit" className="px-5 py-2 bg-om-ink text-om-on-ink text-sm font-medium rounded-om-sm hover:bg-om-ink-hover transition-colors whitespace-nowrap">
+                        <Button type="submit" variant="primary" className="whitespace-nowrap">
                             {__('Trace')}
-                        </button>
+                        </Button>
                     </div>
                 </form>
 
@@ -113,6 +114,12 @@ const INGREDIENT_LOT_COLUMNS = [
         cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.supplier_lot_no ?? '—'}</span>,
     },
     {
+        id: 'source_container_no',
+        accessorFn: (r) => r.source_container_no ?? '',
+        header: __('Source container'),
+        cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.source_container_no ?? '—'}</span>,
+    },
+    {
         id: 'status',
         accessorKey: 'status',
         header: __('Status'),
@@ -139,7 +146,7 @@ function BatchResult({ data }) {
                             {' · '}{__('Batch')} #{b.batch_number}
                         </p>
                     </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-om-running-bg text-om-running">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-om-done-bg text-om-done">
                         {__('Backward trace')}
                     </span>
                 </div>
@@ -164,7 +171,7 @@ function BatchResult({ data }) {
                 <h3 className="text-lg font-bold text-om-ink mb-3">{__('Process history')}</h3>
                 <div className="space-y-3">
                     {b.steps.map((step) => (
-                        <div key={step.id} className={`border-l-2 pl-4 py-1 ${step.status === 'DONE' ? 'border-green-400' : 'border-om-line2'}`}>
+                        <div key={step.id} className={`border-l-2 pl-4 py-1 ${step.status === 'DONE' ? 'border-om-done' : 'border-om-line2'}`}>
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-bold text-om-ink">{__('Step')} {step.step_number}: {step.name}</span>
                                 {step.workstation && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-accent">{step.workstation}</span>}
@@ -191,7 +198,7 @@ function BatchResult({ data }) {
                     <div className="mt-4 pt-4 border-t border-om-line2">
                         <h4 className="text-sm font-semibold text-om-muted mb-2">{__('Output lots')}</h4>
                         {b.output_lots.map((out, i) => (
-                            <Link key={i} href={traceLink(out.lot_number)} className="inline-block mr-2 mb-2 px-2 py-1 rounded bg-om-chip text-purple-700 text-xs font-mono hover:bg-om-chip">
+                            <Link key={i} href={traceLink(out.lot_number)} className="inline-block mr-2 mb-2 px-2 py-1 rounded bg-om-chip text-om-accent text-xs font-mono hover:bg-om-line2">
                                 {out.lot_number}
                             </Link>
                         ))}
@@ -212,6 +219,9 @@ function MaterialLotResult({ forward, backward }) {
                 <h2 className="text-2xl font-bold text-om-ink font-mono">{forward.lot.lot_number}</h2>
                 {backward.supplier_lot_no && (
                     <p className="text-sm text-om-muted mt-1">{__('Supplier LOT')}: <span className="font-mono">{backward.supplier_lot_no}</span></p>
+                )}
+                {backward.source_container_no && (
+                    <p className="text-sm text-om-muted mt-1">{__('Source container')}: <span className="font-mono">{backward.source_container_no}</span></p>
                 )}
             </Card>
 
@@ -284,8 +294,11 @@ function IngredientTree({ node }) {
                         {child.supplier_lot_no && (
                             <span className="text-xs text-om-faint">{__('Supplier LOT')}: <span className="font-mono">{child.supplier_lot_no}</span></span>
                         )}
+                        {child.source_container_no && (
+                            <span className="text-xs text-om-faint">{__('Source container')}: <span className="font-mono">{child.source_container_no}</span></span>
+                        )}
                         {child.source_batch_id && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-purple-700">{__('semi-finished')}</span>
+                            <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-accent">{__('semi-finished')}</span>
                         )}
                     </div>
                     {child.truncated ? (
@@ -303,7 +316,7 @@ function IngredientTree({ node }) {
 
 function SerialResult({ unit }) {
     const RESULT_BADGE = {
-        pass: 'bg-om-running-bg text-om-running',
+        pass: 'bg-om-done-bg text-om-done',
         fail: 'bg-om-blocked-bg text-om-blocked',
     };
 
@@ -326,7 +339,7 @@ function SerialResult({ unit }) {
                 ) : (
                     <div className="space-y-3">
                         {unit.history.map((h, i) => (
-                            <div key={i} className={`border-l-2 pl-4 py-1 ${h.result === 'fail' ? 'border-red-400' : 'border-green-400'}`}>
+                            <div key={i} className={`border-l-2 pl-4 py-1 ${h.result === 'fail' ? 'border-om-blocked' : 'border-om-done'}`}>
                                 <div className="flex items-center gap-2 flex-wrap text-sm">
                                     <span className="font-semibold text-om-ink">{h.workstation ?? __('Unknown')}</span>
                                     {h.step && <span className="text-xs text-om-muted">{h.step}</span>}

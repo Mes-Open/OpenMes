@@ -66,6 +66,12 @@ export default function Index() {
                         title={__('Custom Fields')}
                         description={__('Define extra fields on records across the system')}
                     />
+                    <NavCard
+                        href="/settings/access"
+                        iconPath="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        title={__('Tab Access')}
+                        description={__('Grant each role access to individual admin-panel tabs')}
+                    />
                 </div>
             )}
 

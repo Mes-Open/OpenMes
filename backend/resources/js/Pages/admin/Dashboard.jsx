@@ -36,6 +36,7 @@ function DashboardBody({
     widgetOrder = [],
     inboundQcStats,
     materialsStats,
+    scrapStats,
 }) {
     const { workOrders, lines, issues, issueTypes, oeeRecords, isLoading, error } =
         useDashboardShapes(hot);
@@ -121,6 +122,12 @@ function DashboardBody({
                     {showWidget('materials_overview') && materialsStats && (
                         <Section order={order.materials_overview}>
                             <MaterialsOverview stats={materialsStats} />
+                        </Section>
+                    )}
+
+                    {showWidget('scrap_overview') && scrapStats && (
+                        <Section order={order.scrap_overview}>
+                            <ScrapOverview stats={scrapStats} />
                         </Section>
                     )}
 
@@ -424,6 +431,26 @@ function MaterialsOverview({ stats }) {
     );
 }
 
+function ScrapOverview({ stats }) {
+    return (
+        <div className="bg-om-card border border-om-line rounded-om p-5">
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[14px] font-semibold text-om-ink">{__('Scrap (30 days)')}</h2>
+                <a href="/admin/scrap-reports" className="text-[12.5px] text-om-accent hover:underline">{__('Full report')} →</a>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                <Stat label={__('Total scrap')} value={Number(stats.total_qty_30d ?? 0).toFixed(0)} color="red" />
+                <Stat label={__('Scrap entries')} value={stats.entries_30d ?? 0} />
+                <Stat
+                    label={__('Top reason')}
+                    value={stats.top_reason ? `${stats.top_reason} (${Number(stats.top_reason_qty ?? 0).toFixed(0)})` : '—'}
+                    color="yellow"
+                />
+            </div>
+        </div>
+    );
+}
+
 function Stat({ label, value, color }) {
     // State-tinted tiles on om tokens (parity with the Blade dashboard widgets).
     const tile = {
@@ -640,6 +667,7 @@ function buildOrder(widgetOrder) {
         'oee_overview',
         'inbound_qc_overview',
         'materials_overview',
+        'scrap_overview',
         'recent_work_orders',
         'open_issues',
     ];

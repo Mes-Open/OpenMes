@@ -26,6 +26,7 @@ export default function MaterialLotCreate() {
                     status: 'received',
                     supplier_lot_no: '',
                     supplier_reference: '',
+                    source_container_no: '',
                 }}
                 submitLabel="Create"
                 cancelHref="/admin/material-lots"

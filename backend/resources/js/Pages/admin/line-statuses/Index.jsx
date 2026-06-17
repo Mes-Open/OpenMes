@@ -4,6 +4,7 @@ import { Button, Checkbox, IconButton } from '@openmes/ui';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Global line statuses — inline-managed (no separate create/edit pages; the
@@ -14,11 +15,13 @@ import { realtimeCollection } from '../../../lib/realtimeCollection';
 export default function LineStatusesIndex() {
     return (
         <>
-            <Head title="Line Statuses" />
+            <Head title={__('Line Statuses')} />
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold text-om-ink mb-2">Line Statuses</h1>
+                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-2">
+                    {__('Line Statuses')}
+                </h1>
                 <p className="text-om-muted text-sm mb-6">
-                    Global kanban statuses available to every production line.
+                    {__('Global kanban statuses available to every production line.')}
                 </p>
                 <Editor />
             </div>
@@ -38,12 +41,12 @@ function Editor() {
         <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
             <table className="w-full text-sm">
                 <thead>
-                    <tr className="text-left text-om-muted border-b bg-om-panel">
-                        <th className="px-4 py-3">Color</th>
-                        <th className="px-4 py-3">Name</th>
-                        <th className="px-4 py-3 w-24">Order</th>
-                        <th className="px-4 py-3 w-24">Default</th>
-                        <th className="px-4 py-3 text-right">Actions</th>
+                    <tr className="text-left text-om-muted border-b border-om-line bg-om-panel">
+                        <th className="px-4 py-3">{__('Color')}</th>
+                        <th className="px-4 py-3">{__('Name')}</th>
+                        <th className="px-4 py-3 w-24">{__('Order')}</th>
+                        <th className="px-4 py-3 w-24">{__('Default')}</th>
+                        <th className="px-4 py-3 text-right">{__('Actions')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -80,13 +83,13 @@ function StatusRow({ status }) {
     };
 
     const destroy = () => {
-        if (confirm(`Delete status "${status.name}"?`)) {
+        if (confirm(__('Delete status ":name"?', { name: status.name }))) {
             router.delete(`/admin/line-statuses/${status.id}`, { preserveScroll: true });
         }
     };
 
     return (
-        <tr className="border-b last:border-0">
+        <tr className="border-b border-om-line last:border-0">
             <td className="px-4 py-2">
                 <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-om-line p-0.5" />
             </td>
@@ -110,13 +113,13 @@ function StatusRow({ status }) {
                         disabled={!dirty || saving}
                         loading={saving}
                     >
-                        {saving ? 'Saving…' : 'Save'}
+                        {saving ? __('Saving…') : __('Save')}
                     </Button>
                     <IconButton
                         variant="danger"
                         onClick={destroy}
-                        title="Delete"
-                        aria-label="Delete"
+                        title={__('Delete')}
+                        aria-label={__('Delete')}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -153,7 +156,7 @@ function AddRow({ nextOrder }) {
                 <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-om-line p-0.5" />
             </td>
             <td className="px-4 py-2">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="New status name…" className="form-input w-full" />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={__('New status name…')} className="form-input w-full" />
             </td>
             <td className="px-4 py-2 text-om-faint">{nextOrder}</td>
             <td />
@@ -165,7 +168,7 @@ function AddRow({ nextOrder }) {
                     disabled={!name.trim() || adding}
                     loading={adding}
                 >
-                    {adding ? 'Adding…' : 'Add'}
+                    {adding ? __('Adding…') : __('Add')}
                 </Button>
             </td>
         </tr>
