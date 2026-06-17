@@ -193,6 +193,10 @@ class ShapeRegistry
             'table' => 'issues',
             'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
         ],
+        'issue_actions' => [
+            'table' => 'issue_actions',
+            'columns' => ['id', 'issue_id', 'type', 'title', 'description', 'status', 'assigned_to_id', 'due_date', 'completed_at', 'completed_by_id', 'verified_at', 'verified_by_id', 'notes', 'created_at', 'updated_at'],
+        ],
     ];
 
     public function find(string $name): ?Shape

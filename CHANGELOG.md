@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Non-conformity workflow — corrective/preventive actions (CAPA) on issues** *(part 1 of [#107](https://github.com/Mes-Open/OpenMes/issues/107))*: an issue (the non-conformance record) can now carry **corrective and preventive actions**, each with an assignee, due date and lifecycle **Open → In progress → Done → Verified**. The issue **can only be CLOSED once every action is Verified** (enforced server-side in `IssueService::closeIssue` for both the admin/supervisor UI and the API). Manage actions from a panel on the Issues page (Admin → Issues / Supervisor → Issues). New `issue_actions` table follows the soft-delete-with-audit pattern and cascades when its issue is deleted.
+
 ---
 
 ## [0.15.3] - 2026-06-16

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateIssueRequest;
-use App\Http\Requests\UpdateIssueRequest;
 use App\Http\Requests\ResolveIssueRequest;
+use App\Http\Requests\UpdateIssueRequest;
 use App\Models\Issue;
 use App\Services\IssueService;
 use Illuminate\Http\JsonResponse;
@@ -155,7 +155,8 @@ class IssueController extends Controller
                 'data' => $updatedIssue,
                 'message' => 'Issue closed successfully',
             ]);
-        } catch (\InvalidArgumentException $e) {
+        } catch (\InvalidArgumentException|\DomainException $e) {
+            // DomainException = closure gate (unverified corrective/preventive actions).
             return response()->json([
                 'message' => $e->getMessage(),
             ], 422);
@@ -183,10 +184,11 @@ class IssueController extends Controller
      */
     public function destroy(Request $request, Issue $issue): JsonResponse
     {
-        if (!$request->user()->hasRole('Admin')) {
+        if (! $request->user()->hasRole('Admin')) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
         $issue->delete();
+
         return response()->json(['message' => 'Issue deleted']);
     }
 }
