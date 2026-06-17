@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Dropdown } from '@openmes/ui';
+import { Dropdown, Checkbox, TextField } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 /* ------------------------------------------------------------------ */
 /* Small SVG helper                                                      */
@@ -15,6 +16,50 @@ function Icon({ d, className = 'w-5 h-5' }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Shared "optional / variant" controls for the add & edit step forms.   */
+/* ------------------------------------------------------------------ */
+function OptionalVariantFields({ data, setData, errors }) {
+    const inGroup = !!data.variant_group;
+    return (
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-om-panel rounded-om-sm p-3 border border-om-line">
+            <div className="flex items-center">
+                <Checkbox
+                    checked={!!data.is_optional}
+                    onChange={(next) => setData('is_optional', next)}
+                    label={__('Optional (can be skipped)')}
+                />
+            </div>
+
+            <div>
+                <TextField
+                    label={__('Variant group')}
+                    value={data.variant_group ?? ''}
+                    onChange={(v) => setData('variant_group', v)}
+                    placeholder={__('e.g. finish')}
+                    maxLength={50}
+                />
+                <p className="text-xs text-om-muted mt-1">
+                    {__('Steps sharing a group are alternatives — one is run, the rest skipped.')}
+                </p>
+            </div>
+
+            <div className="flex items-center">
+                <Checkbox
+                    checked={!!data.is_default_variant}
+                    disabled={!inGroup}
+                    onChange={(next) => setData('is_default_variant', next)}
+                    label={__('Default variant for this product')}
+                />
+            </div>
+
+            {errors.is_default_variant && (
+                <p className="md:col-span-3 text-om-blocked text-xs">{errors.is_default_variant}</p>
+            )}
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
 /* Add-step inline form                                                  */
 /* ------------------------------------------------------------------ */
 function AddStepForm({ productType, processTemplate, processSegments, workstations, onCancel }) {
@@ -24,6 +69,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         estimated_duration_minutes: '',
         workstation_id: '',
         process_segment_id: '',
+        is_optional: false,
+        variant_group: '',
+        is_default_variant: false,
     });
 
     const { data, setData, errors, processing } = form;
@@ -130,6 +178,8 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                             placeholder="e.g., 15"
                         />
                     </div>
+
+                    <OptionalVariantFields data={data} setData={setData} errors={errors} />
                 </div>
 
                 <div className="flex justify-end gap-3 mt-4">
@@ -155,6 +205,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         estimated_duration_minutes: step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
+        is_optional: !!step.is_optional,
+        variant_group: step.variant_group ?? '',
+        is_default_variant: !!step.is_default_variant,
     });
 
     const { data, setData, errors, processing } = form;
@@ -239,6 +292,8 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                         className="form-input w-full"
                     />
                 </div>
+
+                <OptionalVariantFields data={data} setData={setData} errors={errors} />
             </div>
 
             <div className="flex justify-end gap-3 mt-4">
@@ -366,7 +421,19 @@ function StepCard({
                         <div className="flex-1">
                             <div className="flex items-start justify-between mb-2">
                                 <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-om-ink">{step.name}</h3>
+                                    <h3 className="text-lg font-bold text-om-ink inline-flex items-center gap-2 flex-wrap">
+                                        {step.name}
+                                        {step.is_optional && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-downtime-bg text-om-downtime">
+                                                {__('Optional')}
+                                            </span>
+                                        )}
+                                        {step.variant_group && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-chip text-om-accent">
+                                                {__('Variant')}: {step.variant_group}{step.is_default_variant ? ` (${__('default')})` : ''}
+                                            </span>
+                                        )}
+                                    </h3>
 
                                     {step.process_segment && (
                                         <p className="mt-1">

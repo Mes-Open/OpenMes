@@ -1,22 +1,72 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { Button, ConfirmDialog, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatDateTime } from '../../../lib/i18n';
 
 /**
  * Admin Trash — soft-deleted rows across every domain entity, with who
  * deleted them and a one-click restore (restore cascades to the children
- * deleted together with the row).
+ * deleted together with the row). Geist White.
  */
 export default function TrashIndex() {
     const { items = [], counts = {}, selectedType = null } = usePage().props;
+    const [toRestore, setToRestore] = useState(null);
 
-    const typeLabel = (type) =>
-        type.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
+    const typeLabel = (type) => type.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
 
-    const restore = (item) => {
-        if (!window.confirm(__('Restore this item (and records deleted with it)?'))) return;
-        router.post(`/admin/trash/${item.type}/${item.id}/restore`, {}, { preserveScroll: true });
+    const restore = () => {
+        if (toRestore) {
+            router.post(`/admin/trash/${toRestore.type}/${toRestore.id}/restore`, {}, { preserveScroll: true });
+        }
+        setToRestore(null);
     };
+
+    const columns = useMemo(
+        () => [
+            {
+                id: 'type',
+                accessorFn: (r) => typeLabel(r.type),
+                header: __('Type'),
+                cell: ({ row }) => <span className="text-om-muted">{typeLabel(row.original.type)}</span>,
+            },
+            {
+                id: 'item',
+                accessorKey: 'label',
+                header: __('Item'),
+                cell: ({ row }) => <span className="font-mono font-medium text-om-ink">{row.original.label}</span>,
+            },
+            {
+                id: 'deleted_by',
+                accessorKey: 'deleted_by',
+                header: __('Deleted by'),
+                cell: ({ row }) => <span className="text-om-muted">{row.original.deleted_by ?? '—'}</span>,
+            },
+            {
+                id: 'deleted_at',
+                accessorFn: (r) => r.deleted_at,
+                header: __('Deleted at'),
+                cell: ({ row }) => (
+                    <span className="whitespace-nowrap text-om-muted">{formatDateTime(row.original.deleted_at)}</span>
+                ),
+            },
+            {
+                id: '_restore',
+                header: '',
+                enableSorting: false,
+                enableHiding: false,
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <Button variant="secondary" onClick={() => setToRestore(row.original)}>
+                        {__('Restore')}
+                    </Button>
+                ),
+            },
+        ],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [],
+    );
 
     return (
         <>
@@ -25,66 +75,47 @@ export default function TrashIndex() {
             <div className="max-w-5xl mx-auto space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{__('Trash')}</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Trash')}</h1>
+                        <p className="text-sm text-om-muted mt-1">
                             {__('Deleted items are kept here and can be restored. Restoring also brings back records deleted together with the item.')}
                         </p>
                     </div>
-                    <select
+                    <Dropdown
+                        className="w-full sm:w-72"
                         value={selectedType ?? ''}
-                        onChange={(e) => router.get('/admin/trash', e.target.value ? { type: e.target.value } : {}, { preserveState: true })}
-                        className="form-input w-full sm:w-72"
-                    >
-                        <option value="">{__('All types')}</option>
-                        {Object.entries(counts).map(([type, count]) => (
-                            <option key={type} value={type}>
-                                {typeLabel(type)} ({count})
-                            </option>
-                        ))}
-                    </select>
+                        onChange={(v) => router.get('/admin/trash', v ? { type: v } : {}, { preserveState: true })}
+                        options={[
+                            { value: '', label: __('All types') },
+                            ...Object.entries(counts).map(([type, count]) => ({
+                                value: type,
+                                label: `${typeLabel(type)} (${count})`,
+                            })),
+                        ]}
+                    />
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    {items.length === 0 ? (
-                        <div className="p-12 text-center text-gray-400 dark:text-gray-500 text-sm">
-                            {__('Trash is empty.')}
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-900/40">
-                                    <tr className="text-left text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                        <th className="px-4 py-3">{__('Type')}</th>
-                                        <th className="px-4 py-3">{__('Item')}</th>
-                                        <th className="px-4 py-3">{__('Deleted by')}</th>
-                                        <th className="px-4 py-3">{__('Deleted at')}</th>
-                                        <th className="px-4 py-3" />
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                                    {items.map((item) => (
-                                        <tr key={`${item.type}-${item.id}`}>
-                                            <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{typeLabel(item.type)}</td>
-                                            <td className="px-4 py-2.5 font-mono font-medium text-gray-800 dark:text-gray-100">{item.label}</td>
-                                            <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{item.deleted_by ?? '—'}</td>
-                                            <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">{formatDateTime(item.deleted_at)}</td>
-                                            <td className="px-4 py-2.5 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => restore(item)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700"
-                                                >
-                                                    {__('Restore')}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+                <DataTable
+                    data={items}
+                    columns={columns}
+                    searchPlaceholder={__('Search…')}
+                    columnsLabel={__('Columns')}
+                    columnsMenuLabel={__('Toggle columns')}
+                    emptyLabel={__('Trash is empty.')}
+                    rangeLabel={(start, end, total) => (total === 0 ? __('0 results') : `${start}–${end} / ${total}`)}
+                    pageSize={15}
+                />
             </div>
+
+            <ConfirmDialog
+                open={!!toRestore}
+                onClose={() => setToRestore(null)}
+                onConfirm={restore}
+                title={__('Restore this item?')}
+                confirmLabel={__('Restore')}
+                cancelLabel={__('Cancel')}
+            >
+                {__('Restoring also brings back records deleted together with it.')}
+            </ConfirmDialog>
         </>
     );
 }

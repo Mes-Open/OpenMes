@@ -1,3 +1,18 @@
+import { __ } from '../../../lib/i18n';
+
+/** Localized display label for a material-lot status enum value. */
+export function materialLotStatusLabel(status) {
+    const labels = {
+        received: __('Received'),
+        quarantine: __('Quarantine'),
+        released: __('Released'),
+        consumed: __('Consumed'),
+        expired: __('Expired'),
+        rejected: __('Rejected'),
+    };
+    return labels[status] ?? status;
+}
+
 export function materialLotFields(materials, sources, statuses) {
     return [
         { name: 'lot_number', label: 'Lot Number', required: true, placeholder: 'e.g. ACME-STEEL-2026-W24-001', help: 'Required. A unique identifier for this lot/batch.' },

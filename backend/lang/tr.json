@@ -1504,5 +1504,10 @@
     "full": "tam",
     "Grant each role access to individual admin-panel tabs": "Her role yönetici paneli sekmelerine erişim verin",
     "Grant each role access to individual admin-panel tabs. The Admin role always has full access.": "Her role yönetici paneli sekmelerine erişim verin. Admin rolü her zaman tam erişime sahiptir.",
-    "Tab access updated successfully.": "Sekme erişimi güncellendi."
+    "Tab access updated successfully.": "Sekme erişimi güncellendi.",
+    "Search…": "Ara…",
+    "Toggle columns": "Sütunları aç/kapat",
+    "0 results": "0 sonuç",
+    "Restore this item?": "Bu öğe geri yüklensin mi?",
+    "Restoring also brings back records deleted together with it.": "Geri yükleme, onunla birlikte silinen kayıtları da geri getirir."
 }
