@@ -24,9 +24,26 @@ export default function MaterialLotsIndex() {
         },
     ];
 
-    const actions = (r) => [
-        { label: __('Edit'), icon: 'edit', href: `/admin/material-lots/${r.id}/edit` },
-        {
+    const actions = (r) => {
+        const list = [{ label: __('Edit'), icon: 'edit', href: `/admin/material-lots/${r.id}/edit` }];
+
+        // Quality hold / release.
+        if (r.status === 'received' || r.status === 'released') {
+            list.push({
+                label: __('Hold'),
+                onClick: () => {
+                    const reason = prompt(__('Hold reason:'));
+                    if (reason) router.post(`/admin/material-lots/${r.id}/hold`, { reason }, { preserveScroll: true });
+                },
+            });
+        } else if (r.status === 'quarantine') {
+            list.push({
+                label: __('Release'),
+                onClick: () => router.post(`/admin/material-lots/${r.id}/release`, {}, { preserveScroll: true }),
+            });
+        }
+
+        list.push({
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
@@ -35,8 +52,9 @@ export default function MaterialLotsIndex() {
                     router.delete(`/admin/material-lots/${r.id}`, { preserveScroll: true });
                 }
             },
-        },
-    ];
+        });
+        return list;
+    };
 
     return (
         <>

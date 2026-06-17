@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Non-conformity workflow — material hold/release + batch-release quality gate** *(part 2 of [#107](https://github.com/Mes-Open/OpenMes/issues/107))*: quality can now put **any material lot on hold** (→ quarantine, with a reason and an optional link to the triggering issue) and **release** it later, straight from Admin → Material Lots — not just via an inbound-inspection disposition. Held lots stay out of the allocation engine. A new **quality gate on batch release** refuses to release a batch whose work order is blocked by an open non-conformance, or that consumed a held (quarantined/rejected) lot. Implemented in `MaterialHoldService` + `BatchReleaseService`.
 - **Non-conformity workflow — corrective/preventive actions (CAPA) on issues** *(part 1 of [#107](https://github.com/Mes-Open/OpenMes/issues/107))*: an issue (the non-conformance record) can now carry **corrective and preventive actions**, each with an assignee, due date and lifecycle **Open → In progress → Done → Verified**. The issue **can only be CLOSED once every action is Verified** (enforced server-side in `IssueService::closeIssue` for both the admin/supervisor UI and the API). Manage actions from a panel on the Issues page (Admin → Issues / Supervisor → Issues). New `issue_actions` table follows the soft-delete-with-audit pattern and cascades when its issue is deleted.
 
 ---
