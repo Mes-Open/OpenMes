@@ -1,9 +1,67 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
 export default function PersonnelClassShow() {
     const { personnelClass, workers = [], requiredSkills = [] } = usePage().props;
+
+    const requiredSkillsColumns = useMemo(() => [
+        {
+            id: 'name',
+            accessorKey: 'name',
+            header: __('Skill'),
+            cell: ({ row }) => <span className="text-om-ink">{row.original.name}</span>,
+        },
+        {
+            id: 'code',
+            accessorKey: 'code',
+            header: __('Code'),
+            cell: ({ row }) => <span className="font-mono text-xs text-om-muted">{row.original.code}</span>,
+        },
+        {
+            id: 'min_level',
+            accessorKey: 'min_level',
+            header: __('Minimum cert level'),
+            cell: ({ row }) => (
+                <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium">
+                    {capitalize(row.original.min_level)}
+                </span>
+            ),
+        },
+    ], []);
+
+    const workersColumns = useMemo(() => [
+        {
+            id: 'code',
+            accessorKey: 'code',
+            header: __('Code'),
+            cell: ({ row }) => <span className="font-mono text-xs text-om-muted">{row.original.code}</span>,
+        },
+        {
+            id: 'name',
+            accessorKey: 'name',
+            header: __('Name'),
+            cell: ({ row }) => (
+                <a href={`/admin/workers/${row.original.id}`} className="text-om-accent hover:underline">
+                    {row.original.name}
+                </a>
+            ),
+        },
+        {
+            id: 'qualified',
+            accessorKey: 'qualified',
+            header: __('Qualified'),
+            cell: ({ row }) => (
+                row.original.qualified ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-om-running-bg text-om-running">{__('Yes')}</span>
+                ) : (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-om-blocked-bg text-om-blocked">{__('Gap')}</span>
+                )
+            ),
+        },
+    ], []);
 
     const handleDelete = () => {
         if (!confirm(__('Delete this personnel class?'))) return;
@@ -53,28 +111,13 @@ export default function PersonnelClassShow() {
                             {requiredSkills.length === 0 ? (
                                 <p className="text-sm text-om-faint">{__('No required skills configured.')}</p>
                             ) : (
-                                <table className="min-w-full text-sm">
-                                    <thead>
-                                        <tr className="text-left text-xs uppercase tracking-wide text-om-muted border-b">
-                                            <th className="py-2 pr-3">{__('Skill')}</th>
-                                            <th className="py-2 pr-3">{__('Code')}</th>
-                                            <th className="py-2 pr-3">{__('Minimum cert level')}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-om-line2">
-                                        {requiredSkills.map((skill) => (
-                                            <tr key={skill.id}>
-                                                <td className="py-2 pr-3 text-om-ink">{skill.name}</td>
-                                                <td className="py-2 pr-3 font-mono text-xs text-om-muted">{skill.code}</td>
-                                                <td className="py-2 pr-3">
-                                                    <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium">
-                                                        {capitalize(skill.min_level)}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                <DataTable
+                                    data={requiredSkills}
+                                    columns={requiredSkillsColumns}
+                                    searchable={false}
+                                    columnToggle={false}
+                                    paginated={false}
+                                />
                             )}
                         </section>
 
@@ -84,34 +127,13 @@ export default function PersonnelClassShow() {
                             {workers.length === 0 ? (
                                 <p className="text-sm text-om-faint italic">{__('No workers assigned yet.')}</p>
                             ) : (
-                                <table className="min-w-full text-sm">
-                                    <thead>
-                                        <tr className="text-left text-xs uppercase tracking-wide text-om-muted border-b">
-                                            <th className="py-2 pr-3">{__('Code')}</th>
-                                            <th className="py-2 pr-3">{__('Name')}</th>
-                                            <th className="py-2 pr-3">{__('Qualified')}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-om-line2">
-                                        {workers.map((worker) => (
-                                            <tr key={worker.id}>
-                                                <td className="py-2 pr-3 font-mono text-xs text-om-muted">{worker.code}</td>
-                                                <td className="py-2 pr-3">
-                                                    <a href={`/admin/workers/${worker.id}`} className="text-om-accent hover:underline">
-                                                        {worker.name}
-                                                    </a>
-                                                </td>
-                                                <td className="py-2 pr-3">
-                                                    {worker.qualified ? (
-                                                        <span className="px-2 py-0.5 rounded-full text-xs bg-om-running-bg text-om-running">{__('Yes')}</span>
-                                                    ) : (
-                                                        <span className="px-2 py-0.5 rounded-full text-xs bg-om-blocked-bg text-om-blocked">{__('Gap')}</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                <DataTable
+                                    data={workers}
+                                    columns={workersColumns}
+                                    searchable={false}
+                                    columnToggle={false}
+                                    paginated={false}
+                                />
                             )}
                         </section>
                     </div>

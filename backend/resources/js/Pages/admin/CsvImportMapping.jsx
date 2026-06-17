@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 
 const AUTO_DETECT_MAP = {
@@ -202,24 +203,22 @@ export default function CsvImportMapping() {
 
                                             {/* Target field selector */}
                                             <div className="flex-1 min-w-0">
-                                                <select
-                                                    name={m.select !== '__custom__' ? `mapping[${h}]` : undefined}
-                                                    className="form-input w-full text-sm"
-                                                    value={m.select}
-                                                    onChange={(e) => setField(h, 'select', e.target.value)}
-                                                >
-                                                    <option value="_ignore">— Ignore this column —</option>
-                                                    <optgroup label="System Fields">
-                                                        {Object.entries(systemFields).map(([key, label]) => (
-                                                            <option key={key} value={key}>
-                                                                {label}{(key === 'order_no' || key === 'quantity') ? ' (required)' : ''}
-                                                            </option>
-                                                        ))}
-                                                    </optgroup>
-                                                    <optgroup label="Custom Field">
-                                                        <option value="__custom__">Custom key&hellip;</option>
-                                                    </optgroup>
-                                                </select>
+                                                {m.select !== '__custom__' && (
+                                                    <input type="hidden" name={`mapping[${h}]`} value={m.select} />
+                                                )}
+                                                <Dropdown
+                                                    className="w-full text-sm"
+                                                    value={m.select == null ? '' : String(m.select)}
+                                                    onChange={(v) => setField(h, 'select', v)}
+                                                    options={[
+                                                        { value: '_ignore', label: '— Ignore this column —' },
+                                                        ...Object.entries(systemFields).map(([key, label]) => ({
+                                                            value: String(key),
+                                                            label: `System Fields: ${label}${(key === 'order_no' || key === 'quantity') ? ' (required)' : ''}`,
+                                                        })),
+                                                        { value: '__custom__', label: 'Custom Field: Custom key…' },
+                                                    ]}
+                                                />
 
                                                 {/* Custom key input */}
                                                 {m.select === '__custom__' && (
@@ -319,15 +318,12 @@ export default function CsvImportMapping() {
                         {/* Save Mapping */}
                         <div className="card">
                             <h3 className="text-base font-bold text-om-ink mb-3">Save Mapping Profile</h3>
-                            <label className="flex items-center gap-2 cursor-pointer mb-3">
-                                <input
-                                    type="checkbox"
-                                    className="rounded border-om-line"
-                                    checked={saveMappingEnabled}
-                                    onChange={(e) => setSaveMappingEnabled(e.target.checked)}
-                                />
-                                <span className="text-sm text-om-muted">Save this mapping for later</span>
-                            </label>
+                            <Checkbox
+                                className="mb-3"
+                                checked={saveMappingEnabled}
+                                onChange={(next) => setSaveMappingEnabled(next)}
+                                label="Save this mapping for later"
+                            />
                             {saveMappingEnabled && (
                                 <input
                                     type="text"
@@ -363,10 +359,10 @@ export default function CsvImportMapping() {
                         </div>
 
                         {/* Submit */}
-                        <button type="submit" className="btn-touch btn-primary w-full">
+                        <Button type="submit" variant="primary" className="w-full">
                             <Icon d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" className="w-5 h-5 inline-block mr-2" />
                             Run Import ({totalRows} rows)
-                        </button>
+                        </Button>
                     </div>
 
                 </div>

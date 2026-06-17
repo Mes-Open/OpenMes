@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber, formatDateTime } from '../../../lib/i18n';
 import CostMethodology from './CostMethodology';
@@ -13,6 +14,126 @@ function money(value, currency) {
     if (value == null) return '—';
     return `${formatNumber(value)} ${currency}`;
 }
+
+const MATERIAL_COLUMNS = [
+    {
+        id: 'material',
+        accessorFn: (r) => r.material_name,
+        header: __('Material'),
+        cell: ({ row }) => {
+            const it = row.original;
+            return (
+                <>
+                    {it.material_name ?? '—'}
+                    {it.material_code && <span className="text-xs text-om-faint font-mono ml-1">{it.material_code}</span>}
+                </>
+            );
+        },
+    },
+    {
+        id: 'source',
+        accessorFn: (r) => r.source,
+        header: __('Source'),
+        cell: ({ row }) => {
+            const it = row.original;
+            return (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    it.source === 'actual' ? 'bg-om-running-bg text-om-running' : 'bg-om-chip text-om-accent'
+                }`}>
+                    {it.source === 'actual' ? __('Actual consumption') : __('BOM estimate')}
+                </span>
+            );
+        },
+    },
+    {
+        id: 'qty',
+        accessorFn: (r) => r.qty,
+        header: __('Qty'),
+        cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.qty)}</span>,
+        meta: { align: 'right' },
+    },
+    {
+        id: 'unit_price',
+        accessorFn: (r) => r.unit_price,
+        header: __('Unit price'),
+        cell: ({ row }) => <span className="font-mono">{money(row.original.unit_price, row.original.currency)}</span>,
+        meta: { align: 'right' },
+    },
+    {
+        id: 'line_total',
+        accessorFn: (r) => r.line_total,
+        header: __('Line total'),
+        cell: ({ row }) => <span className="font-mono">{money(row.original.line_total, row.original.currency)}</span>,
+        meta: { align: 'right' },
+    },
+];
+
+const LABOR_COLUMNS = [
+    {
+        id: 'worker',
+        accessorFn: (r) => r.worker_name,
+        header: __('Worker'),
+        cell: ({ row }) => {
+            const it = row.original;
+            return (
+                <>
+                    {it.worker_name ?? '—'}
+                    {it.worker_code && <span className="text-xs text-om-faint font-mono ml-1">{it.worker_code}</span>}
+                </>
+            );
+        },
+    },
+    {
+        id: 'pay_type',
+        accessorFn: (r) => __(PAY_TYPE_LABELS[r.pay_type] ?? r.pay_type),
+        header: __('Pay type'),
+        cell: ({ row }) => __(PAY_TYPE_LABELS[row.original.pay_type] ?? row.original.pay_type),
+    },
+    {
+        id: 'basis',
+        accessorFn: (r) => r.basis,
+        header: __('Basis'),
+        cell: ({ row }) => {
+            const it = row.original;
+            return (
+                <span className="font-mono">
+                    {formatNumber(it.basis)} {it.basis_unit === 'pcs' ? __('Pieces') : __('Hours')}
+                </span>
+            );
+        },
+        meta: { align: 'right' },
+    },
+    {
+        id: 'rate',
+        accessorFn: (r) => r.rate,
+        header: __('Rate'),
+        cell: ({ row }) => <span className="font-mono">{money(row.original.rate, row.original.currency)}</span>,
+        meta: { align: 'right' },
+    },
+    {
+        id: 'line_total',
+        accessorFn: (r) => r.line_total,
+        header: __('Line total'),
+        cell: ({ row }) => <span className="font-mono">{money(row.original.line_total, row.original.currency)}</span>,
+        meta: { align: 'right' },
+    },
+];
+
+const ADDITIONAL_COLUMNS = [
+    {
+        id: 'description',
+        accessorFn: (r) => r.description,
+        header: __('Description'),
+        cell: ({ row }) => row.original.description ?? '—',
+    },
+    {
+        id: 'line_total',
+        accessorFn: (r) => r.line_total,
+        header: __('Line total'),
+        cell: ({ row }) => <span className="font-mono">{money(row.original.line_total, row.original.currency)}</span>,
+        meta: { align: 'right' },
+    },
+];
 
 export default function CostReportShow() {
     const { breakdown, meta = {} } = usePage().props;
@@ -55,91 +176,38 @@ export default function CostReportShow() {
 
                 {/* Materials */}
                 <Section title={__('Materials')} total={money(b.materials.total, currency)}>
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
-                                <th className="px-4 py-2">{__('Material')}</th>
-                                <th className="px-4 py-2">{__('Source')}</th>
-                                <th className="px-4 py-2 text-right">{__('Qty')}</th>
-                                <th className="px-4 py-2 text-right">{__('Unit price')}</th>
-                                <th className="px-4 py-2 text-right">{__('Line total')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line2">
-                            {b.materials.items.map((it, i) => (
-                                <tr key={i}>
-                                    <td className="px-4 py-2">
-                                        {it.material_name ?? '—'}
-                                        {it.material_code && <span className="text-xs text-om-faint font-mono ml-1">{it.material_code}</span>}
-                                    </td>
-                                    <td className="px-4 py-2">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                            it.source === 'actual' ? 'bg-om-running-bg text-om-running' : 'bg-om-chip text-om-accent'
-                                        }`}>
-                                            {it.source === 'actual' ? __('Actual consumption') : __('BOM estimate')}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-mono">{formatNumber(it.qty)}</td>
-                                    <td className="px-4 py-2 text-right font-mono">{money(it.unit_price, it.currency)}</td>
-                                    <td className="px-4 py-2 text-right font-mono">{money(it.line_total, it.currency)}</td>
-                                </tr>
-                            ))}
-                            <EmptyRow items={b.materials.items} colSpan={5} />
-                        </tbody>
-                    </table>
+                    <DataTable
+                        data={b.materials.items}
+                        columns={MATERIAL_COLUMNS}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel={__('No cost data for this work order.')}
+                    />
                 </Section>
 
                 {/* Labor */}
                 <Section title={__('Labor')} total={money(b.labor.total, currency)}>
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
-                                <th className="px-4 py-2">{__('Worker')}</th>
-                                <th className="px-4 py-2">{__('Pay type')}</th>
-                                <th className="px-4 py-2 text-right">{__('Basis')}</th>
-                                <th className="px-4 py-2 text-right">{__('Rate')}</th>
-                                <th className="px-4 py-2 text-right">{__('Line total')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line2">
-                            {b.labor.items.map((it, i) => (
-                                <tr key={i}>
-                                    <td className="px-4 py-2">
-                                        {it.worker_name ?? '—'}
-                                        {it.worker_code && <span className="text-xs text-om-faint font-mono ml-1">{it.worker_code}</span>}
-                                    </td>
-                                    <td className="px-4 py-2">{__(PAY_TYPE_LABELS[it.pay_type] ?? it.pay_type)}</td>
-                                    <td className="px-4 py-2 text-right font-mono">
-                                        {formatNumber(it.basis)} {it.basis_unit === 'pcs' ? __('Pieces') : __('Hours')}
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-mono">{money(it.rate, it.currency)}</td>
-                                    <td className="px-4 py-2 text-right font-mono">{money(it.line_total, it.currency)}</td>
-                                </tr>
-                            ))}
-                            <EmptyRow items={b.labor.items} colSpan={5} />
-                        </tbody>
-                    </table>
+                    <DataTable
+                        data={b.labor.items}
+                        columns={LABOR_COLUMNS}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel={__('No cost data for this work order.')}
+                    />
                 </Section>
 
                 {/* Additional costs */}
                 <Section title={__('Additional costs')} total={money(b.additional.total, currency)}>
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
-                                <th className="px-4 py-2">{__('Description')}</th>
-                                <th className="px-4 py-2 text-right">{__('Line total')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line2">
-                            {b.additional.items.map((it, i) => (
-                                <tr key={i}>
-                                    <td className="px-4 py-2">{it.description ?? '—'}</td>
-                                    <td className="px-4 py-2 text-right font-mono">{money(it.line_total, it.currency)}</td>
-                                </tr>
-                            ))}
-                            <EmptyRow items={b.additional.items} colSpan={2} />
-                        </tbody>
-                    </table>
+                    <DataTable
+                        data={b.additional.items}
+                        columns={ADDITIONAL_COLUMNS}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel={__('No cost data for this work order.')}
+                    />
                 </Section>
 
                 {/* Grand total */}
@@ -172,17 +240,6 @@ function Card({ label, value, strong }) {
                 {value}
             </div>
         </div>
-    );
-}
-
-function EmptyRow({ items, colSpan }) {
-    if (items.length > 0) return null;
-    return (
-        <tr>
-            <td colSpan={colSpan} className="px-4 py-6 text-center text-om-faint text-sm">
-                {__('No cost data for this work order.')}
-            </td>
-        </tr>
     );
 }
 

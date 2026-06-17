@@ -11,8 +11,10 @@ import {
     ActionMenu,
     Badge,
     Button,
+    Calendar,
     Checkbox,
     ConfirmDialog,
+    DatePicker,
     Dropdown,
     IconButton,
     InlineAlert,
@@ -22,6 +24,7 @@ import {
     QuantityStepper,
     RadioGroup,
     SegmentedControl,
+    Skeleton,
     StatusPill,
     Switch,
     Tabs,
@@ -68,6 +71,8 @@ function GalleryBody() {
     const [status, setStatus] = useState('all');
     const [search, setSearch] = useState('');
     const [shift, setShift] = useState('z2');
+    const [due, setDue] = useState<string | null>('2026-05-26');
+    const [day, setDay] = useState<string | null>('2026-05-26');
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -105,6 +110,21 @@ function GalleryBody() {
                     <QuantityStepper value={qty} onChange={setQty} min={0} />
                     <SearchField value={search} onChange={setSearch} placeholder="Search work orders" />
                     <BigStepper value={big} onChange={setBig} min={0} />
+                </Section>
+
+                <Section label="14 — DATE PICKER">
+                    <DatePicker label="Due date" value={due} onChange={setDue} />
+                    <Calendar value={day} onChange={setDay} />
+                </Section>
+
+                <Section label="15 — SKELETON">
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <Skeleton circle height={40} />
+                        <View style={{ flex: 1, gap: 8 }}>
+                            <Skeleton width="70%" height={13} />
+                            <Skeleton width="45%" height={11} />
+                        </View>
+                    </View>
                 </Section>
 
                 <Section label="05 — SELECTION & TABS">

@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 
 /**
@@ -57,20 +58,13 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
                         const isOn = selected.has(id);
                         return (
                             <div key={skill.id} className="flex items-center gap-3 px-3 py-2">
-                                <label className="flex items-center gap-2 flex-1 text-sm text-om-muted">
-                                    <input type="checkbox" checked={isOn} onChange={(e) => toggleSkill(skill.id, e.target.checked)} />
-                                    {skill.name}
-                                </label>
+                                <Checkbox checked={isOn} onChange={(next) => toggleSkill(skill.id, next)} label={skill.name} className="flex-1" />
                                 {isOn && (
-                                    <select
-                                        value={(data.default_required_cert_level ?? {})[id] ?? levels[0]}
-                                        onChange={(e) => setLevel(skill.id, e.target.value)}
-                                        className="form-input text-sm py-1"
-                                    >
-                                        {levels.map((lvl) => (
-                                            <option key={lvl} value={lvl}>{lvl}</option>
-                                        ))}
-                                    </select>
+                                    <Dropdown
+                                        options={levels.map((lvl) => ({ value: String(lvl), label: lvl }))}
+                                        value={(data.default_required_cert_level ?? {})[id] == null ? String(levels[0]) : String((data.default_required_cert_level ?? {})[id])}
+                                        onChange={(v) => setLevel(skill.id, v)}
+                                    />
                                 )}
                             </div>
                         );
@@ -79,15 +73,12 @@ export default function PersonnelClassForm({ form, skills, levels, submitLabel, 
                 {errors.required_skill_ids && <p className="mt-1 text-xs text-om-blocked">{errors.required_skill_ids}</p>}
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-om-muted">
-                <input type="checkbox" checked={!!data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
-                {__('Active')}
-            </label>
+            <Checkbox checked={!!data.is_active} onChange={(next) => setData('is_active', next)} label={__('Active')} />
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
+                <Button type="submit" variant="primary" loading={processing}>
                     {processing ? __('Saving…') : submitLabel}
-                </button>
+                </Button>
                 <Link href="/admin/personnel-classes" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
             </div>
         </form>

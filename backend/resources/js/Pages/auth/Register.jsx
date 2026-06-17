@@ -1,5 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
-import { Button, TextField } from '@openmes/ui';
+import { Button, Checkbox, TextField } from '@openmes/ui';
 import AuthLayout from '../../layouts/AuthLayout';
 import { __ } from '../../lib/i18n';
 
@@ -135,12 +135,10 @@ export default function Register() {
                 {/* Marketing consent */}
                 <div className="mb-6">
                     <label className="flex items-start gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            name="marketing_consent"
+                        <Checkbox
                             checked={form.data.marketing_consent}
-                            onChange={(e) => form.setData('marketing_consent', e.target.checked)}
-                            className="mt-1 h-4 w-4 accent-om-accent rounded border-om-faintest"
+                            onChange={(next) => form.setData('marketing_consent', next)}
+                            className="mt-1"
                         />
                         <span className="text-xs text-om-muted leading-relaxed">
                             {__('I agree to receive product updates and marketing communications via email.')}{' '}

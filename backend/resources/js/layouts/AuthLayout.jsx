@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 
 /**
  * Centered card chrome for unauthenticated pages — the React port of
@@ -46,16 +47,13 @@ export default function AuthLayout({ children }) {
                 {/* Footer */}
                 <div className="text-center mt-6 text-sm text-om-muted space-y-3">
                     {locales && Object.keys(locales).length > 1 && (
-                        <select
-                            value={locale}
-                            onChange={(e) => { window.location.href = `/locale/${e.target.value}`; }}
+                        <Dropdown
+                            value={locale == null ? '' : String(locale)}
+                            onChange={(v) => { window.location.href = `/locale/${v}`; }}
+                            options={Object.entries(locales).map(([code, label]) => ({ value: String(code), label }))}
                             aria-label="Language"
-                            className="mx-auto block bg-om-card text-om-muted text-xs rounded-om-sm border border-om-line px-2 py-1.5 focus:outline-none focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,.12)]"
-                        >
-                            {Object.entries(locales).map(([code, label]) => (
-                                <option key={code} value={code}>{label}</option>
-                            ))}
-                        </select>
+                            className="mx-auto"
+                        />
                     )}
                     <p className="font-mono text-[11px] text-om-faint">&copy; {new Date().getFullYear()} All rights reserved.</p>
                 </div>

@@ -1,4 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatDate, formatNumber } from '../../../lib/i18n';
 
@@ -101,16 +104,15 @@ export default function ScheduleIndex() {
                             className="form-input text-sm py-2 min-h-0"
                         />
 
-                        <select
-                            value={lineId || ''}
-                            onChange={(e) => navigate({ week: weekStart ? fmtWeek(new Date(weekStart)) : '', line_id: e.target.value })}
-                            className="form-input text-sm py-2 min-h-0"
-                        >
-                            <option value="">All Lines</option>
-                            {lines.map((l) => (
-                                <option key={l.id} value={l.id}>{l.name}</option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={lineId == null ? '' : String(lineId)}
+                            onChange={(v) => navigate({ week: weekStart ? fmtWeek(new Date(weekStart)) : '', line_id: v })}
+                            options={[
+                                { value: '', label: 'All Lines' },
+                                ...lines.map((l) => ({ value: String(l.id), label: l.name })),
+                            ]}
+                            className="w-full"
+                        />
 
                         <button
                             onClick={() => navigate({ week: nextWeek, line_id: lineId || '' })}
@@ -182,63 +184,87 @@ export default function ScheduleIndex() {
 }
 
 function OrderTable({ orders }) {
+    const columns = useMemo(() => [
+        {
+            id: 'order',
+            accessorKey: 'order_no',
+            header: 'Order',
+            cell: ({ row }) => (
+                <span className="inline-flex items-center font-mono text-sm font-semibold text-om-accent bg-om-chip border border-om-line rounded px-2 py-0.5">
+                    {row.original.order_no}
+                </span>
+            ),
+        },
+        {
+            id: 'product',
+            accessorKey: 'product_name',
+            header: 'Product',
+            cell: ({ row }) => (
+                <span className="text-sm text-om-muted">{row.original.product_name ?? '—'}</span>
+            ),
+        },
+        {
+            id: 'due',
+            accessorFn: (wo) => wo.due_date,
+            header: 'Due',
+            cell: ({ row }) => {
+                const wo = row.original;
+                const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && !['DONE','REJECTED','CANCELLED'].includes(wo.status);
+                return wo.due_date ? (
+                    <span className={isOverdue ? 'text-om-blocked font-semibold text-sm' : 'text-om-muted text-sm'}>
+                        {formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}
+                        {isOverdue && ' ⚠'}
+                    </span>
+                ) : <span className="text-om-faint text-sm">—</span>;
+            },
+        },
+        {
+            id: 'qty',
+            accessorKey: 'planned_qty',
+            header: 'Qty',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="text-sm text-om-muted">
+                    {row.original.planned_qty != null ? formatNumber(Number(row.original.planned_qty)) : '—'}
+                </span>
+            ),
+        },
+        {
+            id: 'status',
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[row.original.status] ?? 'bg-om-chip text-om-muted'}`}>
+                    {STATUS_LABELS[row.original.status] ?? row.original.status}
+                </span>
+            ),
+        },
+        {
+            id: 'priority',
+            accessorKey: 'priority',
+            header: 'Priority',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                row.original.priority ? (
+                    <div className="flex items-center justify-end gap-1.5">
+                        <div className="h-1.5 rounded-full bg-om-ink" style={{ width: `${Math.min(row.original.priority, 100)}px`, maxWidth: '80px' }} />
+                        <span className="text-xs text-om-muted">{row.original.priority}</span>
+                    </div>
+                ) : <span className="text-om-faint text-xs">—</span>
+            ),
+        },
+    ], []);
+
     return (
-        <div className="overflow-hidden rounded-om-sm border border-om-line2 bg-om-card mb-1">
-            <table className="min-w-full divide-y divide-om-line2">
-                <thead>
-                    <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted">Order</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted">Product</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted hidden sm:table-cell">Due</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted hidden md:table-cell">Qty</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-om-muted hidden lg:table-cell">Priority</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-om-line2">
-                    {orders.map((wo) => {
-                        const isOverdue = wo.due_date && new Date(wo.due_date) < new Date() && !['DONE','REJECTED','CANCELLED'].includes(wo.status);
-                        return (
-                            <tr
-                                key={wo.id}
-                                className={`hover:bg-om-bg cursor-pointer ${isOverdue ? 'bg-om-blocked-bg' : ''}`}
-                                onClick={() => window.location.href = `/admin/work-orders/${wo.id}`}
-                            >
-                                <td className="px-4 py-3">
-                                    <span className="inline-flex items-center font-mono text-sm font-semibold text-om-accent bg-om-chip border border-om-line rounded px-2 py-0.5">
-                                        {wo.order_no}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 text-sm text-om-muted">{wo.product_name ?? '—'}</td>
-                                <td className="px-4 py-3 text-sm hidden sm:table-cell">
-                                    {wo.due_date ? (
-                                        <span className={isOverdue ? 'text-om-blocked font-semibold' : 'text-om-muted'}>
-                                            {formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}
-                                            {isOverdue && ' ⚠'}
-                                        </span>
-                                    ) : <span className="text-om-faint">—</span>}
-                                </td>
-                                <td className="px-4 py-3 text-sm text-om-muted hidden md:table-cell">
-                                    {wo.planned_qty != null ? formatNumber(Number(wo.planned_qty)) : '—'}
-                                </td>
-                                <td className="px-4 py-3">
-                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[wo.status] ?? 'bg-om-chip text-om-muted'}`}>
-                                        {STATUS_LABELS[wo.status] ?? wo.status}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-3 hidden lg:table-cell">
-                                    {wo.priority ? (
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="h-1.5 rounded-full bg-om-ink" style={{ width: `${Math.min(wo.priority, 100)}px`, maxWidth: '80px' }} />
-                                            <span className="text-xs text-om-muted">{wo.priority}</span>
-                                        </div>
-                                    ) : <span className="text-om-faint text-xs">—</span>}
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+        <div className="mb-1">
+            <DataTable
+                data={orders}
+                columns={columns}
+                searchable={false}
+                columnToggle={false}
+                paginated={false}
+                onRowClick={(wo) => { window.location.href = `/admin/work-orders/${wo.id}`; }}
+            />
         </div>
     );
 }

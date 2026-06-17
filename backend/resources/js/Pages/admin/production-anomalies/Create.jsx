@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function ProductionAnomalyCreate() {
@@ -22,8 +23,8 @@ export default function ProductionAnomalyCreate() {
         [batches, data.work_order_id],
     );
 
-    function handleWorkOrderChange(e) {
-        setData((prev) => ({ ...prev, work_order_id: e.target.value, batch_id: '' }));
+    function handleWorkOrderChange(v) {
+        setData((prev) => ({ ...prev, work_order_id: v, batch_id: '' }));
     }
 
     function submit(e) {
@@ -54,19 +55,16 @@ export default function ProductionAnomalyCreate() {
                                 <label className="form-label">
                                     Work Order <span className="text-om-blocked">*</span>
                                 </label>
-                                <select
-                                    value={data.work_order_id}
+                                <Dropdown
+                                    value={data.work_order_id == null ? '' : String(data.work_order_id)}
                                     onChange={handleWorkOrderChange}
-                                    className="form-input w-full"
-                                    required
-                                >
-                                    <option value="">— Select work order —</option>
-                                    {workOrders.map((wo) => (
-                                        <option key={wo.id} value={wo.id}>
-                                            {wo.order_no}{wo.product_name ? ` — ${wo.product_name}` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                    className="w-full"
+                                    placeholder="— Select work order —"
+                                    options={workOrders.map((wo) => ({
+                                        value: String(wo.id),
+                                        label: `${wo.order_no}${wo.product_name ? ` — ${wo.product_name}` : ''}`,
+                                    }))}
+                                />
                                 {errors.work_order_id && (
                                     <p className="text-om-blocked text-sm mt-1">{errors.work_order_id}</p>
                                 )}
@@ -77,17 +75,16 @@ export default function ProductionAnomalyCreate() {
                                 <label className="form-label">
                                     Batch <span className="text-om-faint text-xs">(optional)</span>
                                 </label>
-                                <select
-                                    value={data.batch_id}
-                                    onChange={(e) => setData('batch_id', e.target.value)}
-                                    className="form-input w-full"
+                                <Dropdown
+                                    value={data.batch_id == null ? '' : String(data.batch_id)}
+                                    onChange={(v) => setData('batch_id', v)}
+                                    className="w-full"
                                     disabled={filteredBatches.length === 0}
-                                >
-                                    <option value="">— No specific batch —</option>
-                                    {filteredBatches.map((b) => (
-                                        <option key={b.id} value={b.id}>{b.label}</option>
-                                    ))}
-                                </select>
+                                    options={[
+                                        { value: '', label: '— No specific batch —' },
+                                        ...filteredBatches.map((b) => ({ value: String(b.id), label: b.label })),
+                                    ]}
+                                />
                                 {data.work_order_id && filteredBatches.length === 0 && (
                                     <p className="text-sm text-om-faint mt-1">No batches available for this work order.</p>
                                 )}
@@ -101,19 +98,16 @@ export default function ProductionAnomalyCreate() {
                                 <label className="form-label">
                                     Anomaly Reason <span className="text-om-blocked">*</span>
                                 </label>
-                                <select
-                                    value={data.anomaly_reason_id}
-                                    onChange={(e) => setData('anomaly_reason_id', e.target.value)}
-                                    className="form-input w-full"
-                                    required
-                                >
-                                    <option value="">— Select reason —</option>
-                                    {anomalyReasons.map((r) => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.name}{r.category ? ` (${r.category})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                <Dropdown
+                                    value={data.anomaly_reason_id == null ? '' : String(data.anomaly_reason_id)}
+                                    onChange={(v) => setData('anomaly_reason_id', v)}
+                                    className="w-full"
+                                    placeholder="— Select reason —"
+                                    options={anomalyReasons.map((r) => ({
+                                        value: String(r.id),
+                                        label: `${r.name}${r.category ? ` (${r.category})` : ''}`,
+                                    }))}
+                                />
                                 {errors.anomaly_reason_id && (
                                     <p className="text-om-blocked text-sm mt-1">{errors.anomaly_reason_id}</p>
                                 )}

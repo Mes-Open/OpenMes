@@ -1,4 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 
 const CATEGORY_LABELS = {
@@ -12,6 +14,22 @@ const CATEGORY_LABELS = {
 
 const num = (v) => Number(v ?? 0);
 const fmt = (v) => num(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+const PARETO_COLUMNS = [
+    { id: 'code', accessorKey: 'code', header: 'Code', cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.code}</span> },
+    { id: 'name', accessorKey: 'name', header: 'Reason', cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.name}</span> },
+    { id: 'category', accessorFn: (r) => CATEGORY_LABELS[r.category] ?? r.category, header: 'Category', cell: ({ row }) => <span className="text-om-muted">{CATEGORY_LABELS[row.original.category] ?? row.original.category}</span> },
+    { id: 'qty', accessorFn: (r) => num(r.qty), header: 'Quantity', cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.qty)}</span>, meta: { align: 'right' } },
+    { id: 'pct', accessorFn: (r) => num(r.pct), header: '% of Total', cell: ({ row }) => <span className="tabular-nums">{num(row.original.pct).toFixed(1)}%</span>, meta: { align: 'right' } },
+    { id: 'cumulative_pct', accessorFn: (r) => num(r.cumulative_pct), header: 'Cumulative %', cell: ({ row }) => <span className="tabular-nums">{num(row.original.cumulative_pct).toFixed(1)}%</span>, meta: { align: 'right' } },
+];
+
+const RATE_COLUMNS = [
+    { id: 'line_name', accessorKey: 'line_name', header: 'Line', cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.line_name}</span> },
+    { id: 'scrap_qty', accessorFn: (r) => num(r.scrap_qty), header: 'Scrap', cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.scrap_qty)}</span>, meta: { align: 'right' } },
+    { id: 'produced_qty', accessorFn: (r) => num(r.produced_qty), header: 'Produced', cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.produced_qty)}</span>, meta: { align: 'right' } },
+    { id: 'scrap_rate_pct', accessorFn: (r) => num(r.scrap_rate_pct), header: 'Scrap rate', cell: ({ row }) => <span className="tabular-nums font-medium">{row.original.scrap_rate_pct != null ? num(row.original.scrap_rate_pct).toFixed(2) + '%' : '—'}</span>, meta: { align: 'right' } },
+];
 
 export default function ScrapReportsIndex() {
     const {
@@ -39,16 +57,18 @@ export default function ScrapReportsIndex() {
                 {/* Filters */}
                 <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-4">
                     <Filter label="Line">
-                        <select value={lineId ?? ''} onChange={(e) => apply({ line_id: e.target.value })} className="form-input py-1.5 text-sm min-w-[160px]">
-                            <option value="">All Lines</option>
-                            {lines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select>
+                        <Dropdown
+                            className="min-w-[160px]"
+                            options={[{ value: '', label: 'All Lines' }, ...lines.map((l) => ({ value: String(l.id), label: l.name }))]}
+                            value={lineId == null ? '' : String(lineId)}
+                            onChange={(v) => apply({ line_id: v })}
+                        />
                     </Filter>
                     <Filter label="From">
-                        <input type="date" value={dateFrom ?? ''} onChange={(e) => apply({ date_from: e.target.value })} className="form-input py-1.5 text-sm" />
+                        <DatePicker value={dateFrom || null} onChange={(iso) => apply({ date_from: iso ?? '' })} className="w-44" />
                     </Filter>
                     <Filter label="To">
-                        <input type="date" value={dateTo ?? ''} onChange={(e) => apply({ date_to: e.target.value })} className="form-input py-1.5 text-sm" />
+                        <DatePicker value={dateTo || null} onChange={(iso) => apply({ date_to: iso ?? '' })} className="w-44" />
                     </Filter>
                 </div>
 
@@ -77,29 +97,15 @@ export default function ScrapReportsIndex() {
                                     </div>
                                 ))}
                             </div>
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full text-sm divide-y divide-om-line2">
-                                    <thead>
-                                        <tr>
-                                            {['Code', 'Reason', 'Category', 'Quantity', '% of Total', 'Cumulative %'].map((h, i) => (
-                                                <th key={h} className={`px-3 py-2 text-xs font-medium text-om-muted uppercase ${i >= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-om-line2">
-                                        {reasons.map((r) => (
-                                            <tr key={r.scrap_reason_id}>
-                                                <td className="px-3 py-2 font-mono text-om-muted">{r.code}</td>
-                                                <td className="px-3 py-2 font-medium text-om-ink">{r.name}</td>
-                                                <td className="px-3 py-2 text-om-muted">{CATEGORY_LABELS[r.category] ?? r.category}</td>
-                                                <td className="px-3 py-2 text-right tabular-nums">{fmt(r.qty)}</td>
-                                                <td className="px-3 py-2 text-right tabular-nums">{num(r.pct).toFixed(1)}%</td>
-                                                <td className="px-3 py-2 text-right tabular-nums">{num(r.cumulative_pct).toFixed(1)}%</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <DataTable
+                                data={reasons}
+                                columns={PARETO_COLUMNS}
+                                searchable
+                                columnToggle
+                                paginated
+                                searchPlaceholder="Search reasons…"
+                                emptyLabel="No scrap reported in this period."
+                            />
                         </>
                     )}
                 </Card>
@@ -107,29 +113,14 @@ export default function ScrapReportsIndex() {
                 {/* Scrap rate per line: simple table */}
                 <Card title="Scrap rate per line">
                     {ratePerLine.length === 0 ? <Empty>No data.</Empty> : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-om-line2">
-                                <thead>
-                                    <tr>
-                                        {['Line', 'Scrap', 'Produced', 'Scrap rate'].map((h, i) => (
-                                            <th key={h} className={`px-3 py-2 text-xs font-medium text-om-muted uppercase ${i >= 1 ? 'text-right' : 'text-left'}`}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-om-line2">
-                                    {ratePerLine.map((r) => (
-                                        <tr key={r.line_id}>
-                                            <td className="px-3 py-2 font-medium text-om-ink">{r.line_name}</td>
-                                            <td className="px-3 py-2 text-right tabular-nums">{fmt(r.scrap_qty)}</td>
-                                            <td className="px-3 py-2 text-right tabular-nums">{fmt(r.produced_qty)}</td>
-                                            <td className="px-3 py-2 text-right tabular-nums font-medium">
-                                                {r.scrap_rate_pct != null ? num(r.scrap_rate_pct).toFixed(2) + '%' : '—'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            data={ratePerLine}
+                            columns={RATE_COLUMNS}
+                            searchable={false}
+                            columnToggle={false}
+                            paginated={false}
+                            emptyLabel="No data."
+                        />
                     )}
                 </Card>
             </div>

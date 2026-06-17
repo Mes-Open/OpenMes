@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import { formatDate } from '../../../../lib/i18n';
 
@@ -28,6 +29,7 @@ export default function EmployeeCreate() {
     const [selectedCustom, setSelectedCustom] = useState('');
     const [fromTime, setFromTime] = useState(defaultFrom ?? '08:00');
     const [toTime, setToTime] = useState(defaultTo ?? '09:00');
+    const [workOrderId, setWorkOrderId] = useState('');
 
     const dateObj = new Date(date);
 
@@ -37,6 +39,7 @@ export default function EmployeeCreate() {
         const data = new FormData(form);
         data.set('type', selectedType);
         data.set('custom_code', selectedCustom);
+        data.set('work_order_id', workOrderId);
         router.post('/admin/schedule/employees', Object.fromEntries(data));
     };
 
@@ -132,12 +135,15 @@ export default function EmployeeCreate() {
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">
                             Link to work order · optional
                         </div>
-                        <select name="work_order_id" className="form-input w-full bg-om-card border-om-line2">
-                            <option value="">— None —</option>
-                            {workOrders.map((wo) => (
-                                <option key={wo.id} value={wo.id}>{wo.order_no} — {wo.product_name ?? '—'}</option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            options={[
+                                { value: '', label: '— None —' },
+                                ...workOrders.map((wo) => ({ value: String(wo.id), label: `${wo.order_no} — ${wo.product_name ?? '—'}` })),
+                            ]}
+                            value={workOrderId}
+                            onChange={(v) => setWorkOrderId(v)}
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Label override */}

@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 
 const TYPE_COLORS = {
@@ -54,19 +56,16 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                         <label className="block text-sm font-medium text-om-muted mb-1">
                             Material <span className="text-om-blocked">*</span>
                         </label>
-                        <select
-                            value={data.material_id}
-                            onChange={(e) => onMaterialChange(e.target.value)}
-                            required
-                            className={`form-input w-full${errors.material_id ? ' border-om-blocked' : ''}`}
-                        >
-                            <option value="">Select material...</option>
-                            {materials.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                    {m.code} - {m.name} ({m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}{m.material_type_name})
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={data.material_id == null ? '' : String(data.material_id)}
+                            onChange={(v) => onMaterialChange(v)}
+                            placeholder="Select material..."
+                            options={materials.map((m) => ({
+                                value: String(m.id),
+                                label: `${m.code} - ${m.name} (${m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}${m.material_type_name})`,
+                            }))}
+                            className="w-full"
+                        />
                         {errors.material_id && (
                             <p className="mt-1 text-sm text-om-blocked">{errors.material_id}</p>
                         )}
@@ -97,18 +96,18 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                         <label className="block text-sm font-medium text-om-muted mb-1">
                             Step (optional)
                         </label>
-                        <select
-                            value={data.template_step_id}
-                            onChange={(e) => setData('template_step_id', e.target.value)}
-                            className="form-input w-full"
-                        >
-                            <option value="">All steps / general</option>
-                            {steps.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                    #{s.step_number} - {s.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={data.template_step_id == null ? '' : String(data.template_step_id)}
+                            onChange={(v) => setData('template_step_id', v)}
+                            options={[
+                                { value: '', label: 'All steps / general' },
+                                ...steps.map((s) => ({
+                                    value: String(s.id),
+                                    label: `#${s.step_number} - ${s.name}`,
+                                })),
+                            ]}
+                            className="w-full"
+                        />
                     </div>
 
                     <div>
@@ -131,15 +130,16 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
 
                     <div>
                         <label className="block text-sm font-medium text-om-muted mb-1">Consumed At</label>
-                        <select
-                            value={data.consumed_at}
-                            onChange={(e) => setData('consumed_at', e.target.value)}
-                            className="form-input w-full"
-                        >
-                            <option value="start">Start of step</option>
-                            <option value="during">During step</option>
-                            <option value="end">End of step</option>
-                        </select>
+                        <Dropdown
+                            value={data.consumed_at == null ? '' : String(data.consumed_at)}
+                            onChange={(v) => setData('consumed_at', v)}
+                            options={[
+                                { value: 'start', label: 'Start of step' },
+                                { value: 'during', label: 'During step' },
+                                { value: 'end', label: 'End of step' },
+                            ]}
+                            className="w-full"
+                        />
                     </div>
 
                     <div>
@@ -179,6 +179,101 @@ export default function ProcessTemplatesBom() {
             { preserveScroll: true },
         );
     };
+
+    const columns = useMemo(() => [
+        {
+            id: 'material',
+            accessorKey: 'material_name',
+            header: 'Material',
+            cell: ({ row }) => (
+                <>
+                    <div className="text-sm font-medium text-om-ink">
+                        {row.original.material_name}
+                    </div>
+                    <div className="text-xs text-om-muted font-mono">{row.original.material_code}</div>
+                </>
+            ),
+        },
+        {
+            id: 'type',
+            accessorKey: 'material_type_name',
+            header: 'Type',
+            cell: ({ row }) => (
+                <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${typeColorClass(
+                        row.original.material_type_code,
+                    )}`}
+                >
+                    {row.original.material_type_name}
+                </span>
+            ),
+        },
+        {
+            id: 'step',
+            accessorFn: (r) => (r.step_number != null ? `#${r.step_number} ${r.step_name}` : ''),
+            header: 'Step',
+            cell: ({ row }) => (
+                <span className="text-sm text-om-muted">
+                    {row.original.step_number != null ? (
+                        `#${row.original.step_number} ${row.original.step_name}`
+                    ) : (
+                        <span className="text-om-faint">General</span>
+                    )}
+                </span>
+            ),
+        },
+        {
+            id: 'qty_per_unit',
+            accessorKey: 'quantity_per_unit',
+            header: 'Qty/Unit',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="text-sm font-mono">
+                    {row.original.quantity_per_unit} {row.original.unit_of_measure}
+                </span>
+            ),
+        },
+        {
+            id: 'scrap',
+            accessorKey: 'scrap_percentage',
+            header: 'Scrap %',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="text-sm">{row.original.scrap_percentage}%</span>
+            ),
+        },
+        {
+            id: 'consumed',
+            accessorKey: 'consumed_at',
+            header: 'Consumed',
+            cell: ({ row }) => (
+                <span className="text-sm text-om-muted capitalize">{row.original.consumed_at}</span>
+            ),
+        },
+        {
+            id: 'tracking',
+            accessorKey: 'tracking_type',
+            header: 'Tracking',
+            cell: ({ row }) => (
+                <span className="text-sm text-om-muted capitalize">{row.original.tracking_type}</span>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            enableSorting: false,
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <button
+                    type="button"
+                    onClick={() => handleRemove(row.original)}
+                    className="text-om-blocked hover:text-om-blocked text-sm"
+                >
+                    Remove
+                </button>
+            ),
+        },
+    ], [productType.id, processTemplate.id]);
 
     return (
         <>
@@ -227,87 +322,13 @@ export default function ProcessTemplatesBom() {
                 )}
 
                 {bomItems.length > 0 ? (
-                    <div className="card overflow-hidden">
-                        <table className="min-w-full divide-y divide-om-line2">
-                            <thead className="bg-om-panel">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
-                                        Material
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
-                                        Type
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
-                                        Step
-                                    </th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-om-muted uppercase">
-                                        Qty/Unit
-                                    </th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-om-muted uppercase">
-                                        Scrap %
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
-                                        Consumed
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-om-muted uppercase">
-                                        Tracking
-                                    </th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-om-muted uppercase">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-om-card divide-y divide-om-line2">
-                                {bomItems.map((item) => (
-                                    <tr key={item.id}>
-                                        <td className="px-4 py-3">
-                                            <div className="text-sm font-medium text-om-ink">
-                                                {item.material_name}
-                                            </div>
-                                            <div className="text-xs text-om-muted font-mono">{item.material_code}</div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span
-                                                className={`px-2 py-1 rounded-full text-xs font-medium ${typeColorClass(
-                                                    item.material_type_code,
-                                                )}`}
-                                            >
-                                                {item.material_type_name}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-om-muted">
-                                            {item.step_number != null ? (
-                                                `#${item.step_number} ${item.step_name}`
-                                            ) : (
-                                                <span className="text-om-faint">General</span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-right font-mono">
-                                            {item.quantity_per_unit} {item.unit_of_measure}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-right">
-                                            {item.scrap_percentage}%
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-om-muted capitalize">
-                                            {item.consumed_at}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-om-muted capitalize">
-                                            {item.tracking_type}
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemove(item)}
-                                                className="text-om-blocked hover:text-om-blocked text-sm"
-                                            >
-                                                Remove
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={bomItems}
+                        columns={columns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                    />
                 ) : (
                     <div className="card text-center py-12">
                         <p className="text-om-muted text-lg mb-4">No materials in BOM yet.</p>

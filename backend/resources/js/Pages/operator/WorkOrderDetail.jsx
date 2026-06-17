@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Badge, Button, ProgressBar, StatusPill } from '@openmes/ui';
+import { Badge, Button, Checkbox, Dropdown, ProgressBar, StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
@@ -122,6 +123,78 @@ const modalFooterCls = 'flex justify-end gap-[9px] border-t border-om-line2 bg-o
 function BomSection({ workOrder }) {
     const [open, setOpen] = useState(false);
     const bom = workOrder.process_snapshot?.bom;
+
+    const columns = useMemo(() => [
+        {
+            id: 'material',
+            accessorFn: (r) => r.material_name,
+            header: 'Material',
+            meta: { align: 'left', flex: true },
+            cell: ({ row }) => (
+                <>
+                    <span className="font-medium text-om-ink">{row.original.material_name}</span>
+                    <span className="text-xs text-om-faint font-mono ml-1">{row.original.material_code}</span>
+                </>
+            ),
+        },
+        {
+            id: 'type',
+            accessorFn: (r) => r.material_type,
+            header: 'Type',
+            meta: { align: 'left' },
+            cell: ({ row }) => (
+                <span className={`px-2 py-0.5 rounded-[20px] font-mono text-[10px] uppercase tracking-[0.06em] ${bomTypeBadge(row.original.material_type)}`}>
+                    {row.original.material_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                </span>
+            ),
+        },
+        {
+            id: 'per_unit',
+            accessorFn: (r) => r.quantity_per_unit,
+            header: 'Per Unit',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="font-mono text-om-ink">
+                    {row.original.quantity_per_unit} {row.original.unit_of_measure}
+                </span>
+            ),
+        },
+        {
+            id: 'total',
+            accessorFn: (r) => {
+                const base = r.quantity_per_unit * workOrder.planned_qty;
+                return base + base * (r.scrap_percentage / 100);
+            },
+            header: `Total (${Math.round(workOrder.planned_qty)} pcs)`,
+            meta: { align: 'right' },
+            cell: ({ row }) => {
+                const item = row.original;
+                const base = item.quantity_per_unit * workOrder.planned_qty;
+                const scrap = base * (item.scrap_percentage / 100);
+                const total = base + scrap;
+                return (
+                    <span className="font-mono font-medium text-om-ink">
+                        {fmtQty(total)} {item.unit_of_measure}
+                        {item.scrap_percentage > 0 && (
+                            <span className="text-xs text-om-faint ml-1">(+{item.scrap_percentage}% scrap)</span>
+                        )}
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'step',
+            accessorFn: (r) => r.step_number,
+            header: 'Step',
+            meta: { align: 'left' },
+            cell: ({ row }) => (
+                <span className="font-mono text-[12px] text-om-muted">
+                    {row.original.step_number ? `#${row.original.step_number}` : 'General'}
+                </span>
+            ),
+        },
+    ], [workOrder.planned_qty]);
+
     if (!bom || bom.length === 0) return null;
 
     return (
@@ -139,52 +212,14 @@ function BomSection({ workOrder }) {
             </button>
 
             {open && (
-                <div className="mt-4 overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint">
-                                <th className="pb-2 font-normal">Material</th>
-                                <th className="pb-2 font-normal">Type</th>
-                                <th className="pb-2 font-normal text-right">Per Unit</th>
-                                <th className="pb-2 font-normal text-right">
-                                    Total ({Math.round(workOrder.planned_qty)} pcs)
-                                </th>
-                                <th className="pb-2 font-normal">Step</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line2">
-                            {bom.map((item, idx) => {
-                                const base = item.quantity_per_unit * workOrder.planned_qty;
-                                const scrap = base * (item.scrap_percentage / 100);
-                                const total = base + scrap;
-                                return (
-                                    <tr key={idx}>
-                                        <td className="py-2">
-                                            <span className="font-medium text-om-ink">{item.material_name}</span>
-                                            <span className="text-xs text-om-faint font-mono ml-1">{item.material_code}</span>
-                                        </td>
-                                        <td className="py-2">
-                                            <span className={`px-2 py-0.5 rounded-[20px] font-mono text-[10px] uppercase tracking-[0.06em] ${bomTypeBadge(item.material_type)}`}>
-                                                {item.material_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                                            </span>
-                                        </td>
-                                        <td className="py-2 text-right font-mono text-om-ink">
-                                            {item.quantity_per_unit} {item.unit_of_measure}
-                                        </td>
-                                        <td className="py-2 text-right font-mono font-medium text-om-ink">
-                                            {fmtQty(total)} {item.unit_of_measure}
-                                            {item.scrap_percentage > 0 && (
-                                                <span className="text-xs text-om-faint ml-1">(+{item.scrap_percentage}% scrap)</span>
-                                            )}
-                                        </td>
-                                        <td className="py-2 font-mono text-[12px] text-om-muted">
-                                            {item.step_number ? `#${item.step_number}` : 'General'}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                <div className="mt-4">
+                    <DataTable
+                        data={bom}
+                        columns={columns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                    />
                 </div>
             )}
         </div>
@@ -343,15 +378,15 @@ function QualityCheckForm({ batch, onClose }) {
                                     />
                                 </div>
                                 <div>
-                                    <select
-                                        value={samples[fitIdx].value_boolean}
-                                        onChange={(e) => updateSample(fitIdx, 'value_boolean', e.target.value)}
-                                        className={inputCls}
-                                        required
-                                    >
-                                        <option value="1">Pass</option>
-                                        <option value="0">Fail</option>
-                                    </select>
+                                    <Dropdown
+                                        options={[
+                                            { value: '1', label: 'Pass' },
+                                            { value: '0', label: 'Fail' },
+                                        ]}
+                                        value={samples[fitIdx].value_boolean == null ? '' : String(samples[fitIdx].value_boolean)}
+                                        onChange={(v) => updateSample(fitIdx, 'value_boolean', v)}
+                                        className="w-full"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -400,15 +435,13 @@ function PackagingChecklistForm({ batch, onClose }) {
         <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <form onSubmit={submit}>
                 {checks.map(([field, label]) => (
-                    <label key={field} className="flex items-center gap-2 mb-2 cursor-pointer">
-                        <input
-                            type="checkbox"
+                    <div key={field} className="mb-2">
+                        <Checkbox
                             checked={form.data[field]}
-                            onChange={(e) => form.setData(field, e.target.checked)}
-                            className="size-[18px] rounded-[5px] border-om-line accent-om-accent"
+                            onChange={(next) => form.setData(field, next)}
+                            label={label}
                         />
-                        <span className="text-[13px] text-om-ink">{label}</span>
-                    </label>
+                    </div>
                 ))}
                 <div className="flex gap-2 mt-2">
                     <Button type="submit" variant="accent" disabled={form.processing} className="px-5 py-3 text-[14px]">
@@ -880,18 +913,13 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                                     </p>
                                 </>
                             ) : (
-                                <select
-                                    value={form.data.workstation_id}
-                                    onChange={(e) => form.setData('workstation_id', e.target.value)}
-                                    className={inputCls}
-                                >
-                                    <option value="">— Select workstation —</option>
-                                    {workstations.map((ws) => (
-                                        <option key={ws.id} value={ws.id}>
-                                            {ws.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <Dropdown
+                                    options={workstations.map((ws) => ({ value: String(ws.id), label: ws.name }))}
+                                    value={form.data.workstation_id == null ? '' : String(form.data.workstation_id)}
+                                    onChange={(v) => form.setData('workstation_id', v)}
+                                    placeholder="— Select workstation —"
+                                    className="w-full"
+                                />
                             )}
                             {form.errors.workstation_id && (
                                 <p className={errorCls}>{form.errors.workstation_id}</p>
@@ -901,17 +929,11 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
 
                     {/* Auto-LOT */}
                     <div className="mb-4">
-                        <label className="inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={form.data.auto_lot}
-                                onChange={(e) => form.setData('auto_lot', e.target.checked)}
-                                className="size-[18px] rounded-[5px] border-om-line accent-om-accent"
-                            />
-                            <span className="ml-2 text-[13px] text-om-ink">
-                                Auto-generate LOT number
-                            </span>
-                        </label>
+                        <Checkbox
+                            checked={form.data.auto_lot}
+                            onChange={(next) => form.setData('auto_lot', next)}
+                            label="Auto-generate LOT number"
+                        />
                     </div>
 
                     {/* Manual LOT */}
@@ -982,20 +1004,16 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
                         <label className={fieldLabelCls}>
                             Issue Type <span className="text-om-blocked">*</span>
                         </label>
-                        <select
-                            value={form.data.issue_type_id}
-                            onChange={(e) => form.setData('issue_type_id', e.target.value)}
-                            className={inputCls}
-                            required
-                        >
-                            <option value="">— Select type —</option>
-                            {issueTypes.map((type) => (
-                                <option key={type.id} value={type.id}>
-                                    {type.name}
-                                    {type.is_blocking ? ' ⚠ Blocking' : ''}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            options={issueTypes.map((type) => ({
+                                value: String(type.id),
+                                label: `${type.name}${type.is_blocking ? ' ⚠ Blocking' : ''}`,
+                            }))}
+                            value={form.data.issue_type_id == null ? '' : String(form.data.issue_type_id)}
+                            onChange={(v) => form.setData('issue_type_id', v)}
+                            placeholder="— Select type —"
+                            className="w-full"
+                        />
                         {form.errors.issue_type_id && (
                             <p className={errorCls}>{form.errors.issue_type_id}</p>
                         )}
@@ -1082,19 +1100,16 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                         <label className={fieldLabelCls}>
                             Reason <span className="text-om-blocked">*</span>
                         </label>
-                        <select
-                            value={form.data.scrap_reason_id}
-                            onChange={(e) => form.setData('scrap_reason_id', e.target.value)}
-                            className={inputCls}
-                            required
-                        >
-                            <option value="">— Select reason —</option>
-                            {scrapReasons.map((reason) => (
-                                <option key={reason.id} value={reason.id}>
-                                    {reason.code} — {reason.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            options={scrapReasons.map((reason) => ({
+                                value: String(reason.id),
+                                label: `${reason.code} — ${reason.name}`,
+                            }))}
+                            value={form.data.scrap_reason_id == null ? '' : String(form.data.scrap_reason_id)}
+                            onChange={(v) => form.setData('scrap_reason_id', v)}
+                            placeholder="— Select reason —"
+                            className="w-full"
+                        />
                         {form.errors.scrap_reason_id && (
                             <p className={errorCls}>{form.errors.scrap_reason_id}</p>
                         )}

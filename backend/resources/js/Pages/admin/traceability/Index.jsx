@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber } from '../../../lib/i18n';
 
@@ -84,6 +85,43 @@ function traceLink(lotNumber) {
 
 /* ── Finished batch (backward genealogy) ─────────────────────────────── */
 
+const INGREDIENT_LOT_COLUMNS = [
+    {
+        id: 'material',
+        accessorFn: (r) => r.material ?? '',
+        header: __('Material'),
+        cell: ({ row }) => (
+            <span className="text-om-ink">
+                {row.original.material ?? '—'} <span className="text-xs text-om-faint font-mono">{row.original.material_code}</span>
+            </span>
+        ),
+    },
+    {
+        id: 'lot_number',
+        accessorKey: 'lot_number',
+        header: __('LOT'),
+        cell: ({ row }) => (
+            <span className="font-mono">
+                <Link href={traceLink(row.original.lot_number)} className="text-om-accent hover:underline">{row.original.lot_number}</Link>
+            </span>
+        ),
+    },
+    {
+        id: 'supplier_lot_no',
+        accessorFn: (r) => r.supplier_lot_no ?? '',
+        header: __('Supplier LOT'),
+        cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.supplier_lot_no ?? '—'}</span>,
+    },
+    {
+        id: 'status',
+        accessorKey: 'status',
+        header: __('Status'),
+        cell: ({ row }) => (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{row.original.status}</span>
+        ),
+    },
+];
+
 function BatchResult({ data }) {
     const b = data.batch;
     const lots = data.distinct_input_lots ?? [];
@@ -112,34 +150,13 @@ function BatchResult({ data }) {
                 {lots.length === 0 ? (
                     <p className="text-sm text-om-muted">{__('No material lots were recorded as consumed for this batch.')}</p>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm divide-y divide-om-line2">
-                            <thead>
-                                <tr className="text-left text-xs uppercase text-om-muted">
-                                    <th className="px-3 py-2">{__('Material')}</th>
-                                    <th className="px-3 py-2">{__('LOT')}</th>
-                                    <th className="px-3 py-2">{__('Supplier LOT')}</th>
-                                    <th className="px-3 py-2">{__('Status')}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line2">
-                                {lots.map((lot, i) => (
-                                    <tr key={i}>
-                                        <td className="px-3 py-2 text-om-ink">
-                                            {lot.material ?? '—'} <span className="text-xs text-om-faint font-mono">{lot.material_code}</span>
-                                        </td>
-                                        <td className="px-3 py-2 font-mono">
-                                            <Link href={traceLink(lot.lot_number)} className="text-om-accent hover:underline">{lot.lot_number}</Link>
-                                        </td>
-                                        <td className="px-3 py-2 font-mono text-om-muted">{lot.supplier_lot_no ?? '—'}</td>
-                                        <td className="px-3 py-2">
-                                            <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{lot.status}</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={lots}
+                        columns={INGREDIENT_LOT_COLUMNS}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                    />
                 )}
             </Card>
 

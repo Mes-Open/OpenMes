@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 
 const RESET_PERIODS = [
     { value: 'none', label: 'No reset' },
@@ -99,18 +100,15 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 
             <div>
                 <label className="block text-sm font-medium text-om-muted mb-1">Product Type</label>
-                <select
-                    value={data.product_type_id ?? ''}
-                    onChange={(e) => setData('product_type_id', e.target.value)}
-                    className="form-input w-full"
-                >
-                    <option value="">— None (default sequence) —</option>
-                    {productTypes.map((p) => (
-                        <option key={p.id} value={String(p.id)}>
-                            {p.name}
-                        </option>
-                    ))}
-                </select>
+                <Dropdown
+                    value={data.product_type_id == null ? '' : String(data.product_type_id)}
+                    onChange={(v) => setData('product_type_id', v)}
+                    options={[
+                        { value: '', label: '— None (default sequence) —' },
+                        ...productTypes.map((p) => ({ value: String(p.id), label: p.name })),
+                    ]}
+                    className="w-full"
+                />
                 {errors.product_type_id && <p className="mt-1 text-xs text-om-blocked">{errors.product_type_id}</p>}
             </div>
 
@@ -182,14 +180,11 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                 <>
                     <TextField label="Prefix" required value={data.prefix} error={errors.prefix} onChange={(v) => setData('prefix', v)} />
                     <TextField label="Suffix" value={data.suffix} error={errors.suffix} onChange={(v) => setData('suffix', v)} />
-                    <label className="flex items-center gap-2 text-sm text-om-muted">
-                        <input
-                            type="checkbox"
-                            checked={!!data.year_prefix}
-                            onChange={(e) => setData('year_prefix', e.target.checked)}
-                        />
-                        Year Prefix
-                    </label>
+                    <Checkbox
+                        checked={!!data.year_prefix}
+                        onChange={(next) => setData('year_prefix', next)}
+                        label="Year Prefix"
+                    />
                 </>
             )}
 
@@ -208,29 +203,20 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-om-muted mb-1">Counter Reset</label>
-                    <select
-                        value={data.reset_period ?? 'none'}
-                        onChange={(e) => setData('reset_period', e.target.value)}
-                        className="form-input w-full"
-                    >
-                        {RESET_PERIODS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                                {o.label}
-                            </option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        value={data.reset_period == null ? 'none' : String(data.reset_period)}
+                        onChange={(v) => setData('reset_period', v)}
+                        options={RESET_PERIODS.map((o) => ({ value: String(o.value), label: o.label }))}
+                        className="w-full"
+                    />
                     {errors.reset_period && <p className="mt-1 text-xs text-om-blocked">{errors.reset_period}</p>}
                 </div>
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-                <button
-                    type="submit"
-                    disabled={processing}
-                    className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
-                >
-                    {processing ? 'Saving…' : submitLabel}
-                </button>
+                <Button type="submit" variant="primary" loading={processing} disabled={processing}>
+                    {submitLabel}
+                </Button>
                 <Link href="/admin/lot-sequences" className="text-om-muted hover:text-om-ink text-sm">
                     Cancel
                 </Link>

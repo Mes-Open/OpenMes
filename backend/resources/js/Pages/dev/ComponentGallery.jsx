@@ -9,7 +9,9 @@ import {
     Badge,
     Button,
     Checkbox,
+    Calendar,
     ConfirmDialog,
+    DatePicker,
     Dropdown,
     IconButton,
     InlineAlert,
@@ -19,6 +21,7 @@ import {
     QuantityStepper,
     RadioGroup,
     SegmentedControl,
+    Skeleton,
     StatusPill,
     Switch,
     Tabs,
@@ -110,6 +113,8 @@ function GalleryBody() {
     const [modalOpen, setModalOpen] = useState(false);
     const [status, setStatus] = useState('all');
     const [lines, setLines] = useState(['WSZ-01', 'WSZ-02']);
+    const [due, setDue] = useState('2026-05-26');
+    const [day, setDay] = useState('2026-05-26');
 
     return (
         <div className="min-h-screen bg-[#E9E8E3] p-10 font-sans">
@@ -227,6 +232,21 @@ function GalleryBody() {
                     </div>
                 </Section>
 
+                <Section label="14 — Date picker" cols>
+                    <div className="w-60"><DatePicker label="Due date" value={due} onChange={setDue} /></div>
+                    <Calendar value={day} onChange={setDay} />
+                </Section>
+
+                <Section label="15 — Skeleton" cols>
+                    <div className="flex w-64 items-center gap-3">
+                        <Skeleton circle height={40} />
+                        <div className="flex-1 space-y-2">
+                            <Skeleton width="70%" height={13} />
+                            <Skeleton width="45%" height={11} />
+                        </div>
+                    </div>
+                </Section>
+
                 <Section label="08 — Inline alerts">
                     <div className="grid grid-cols-4 gap-3">
                         <InlineAlert severity="success" title="Batch #3 closed">108 pcs accepted · LOT printed.</InlineAlert>
@@ -254,6 +274,7 @@ function GalleryBody() {
                     <DataTable
                         data={SAMPLE_ROWS}
                         columns={TABLE_COLUMNS}
+                        fluid={false}
                         searchPlaceholder="Search all columns"
                         enableSelection
                         selectionLabel={(n, m) => `${n} of ${m} row(s) selected`}
@@ -269,6 +290,7 @@ function GalleryBody() {
                         emptyLabel="No rows match the filters."
                         rangeLabel={(start, end, total) => (total === 0 ? '0 results' : `${start}–${end} of ${total}`)}
                         pageSize={6}
+                        bodyMaxHeight={252}
                     />
                 </Section>
 

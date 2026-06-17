@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Button, StatusPill } from '@openmes/ui';
+import { Button, Checkbox, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
@@ -565,31 +565,27 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
 
                     <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-2">System fields</div>
                     {systemCols.map((col) => (
-                        <label key={col.key} className="flex items-center gap-2 py-1 px-1 rounded-[6px] hover:bg-om-chip cursor-pointer">
-                            <input
-                                type="checkbox"
+                        <div key={col.key} className="py-1 px-1 rounded-[6px] hover:bg-om-chip">
+                            <Checkbox
                                 checked={visibleKeys.includes(col.key)}
                                 onChange={() => toggleColumn(col.key)}
-                                className="size-[16px] rounded-[5px] border-om-line accent-om-accent"
+                                label={col.label}
                             />
-                            <span className="text-[13px] text-om-ink">{col.label}</span>
-                        </label>
+                        </div>
                     ))}
 
                     {extraCols.length > 0 && (
                         <>
                             <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-3">Import data</div>
                             {extraCols.map((col) => (
-                                <label key={col.key} className="flex items-center gap-2 py-1 px-1 rounded-[6px] hover:bg-om-chip cursor-pointer">
-                                    <input
-                                        type="checkbox"
+                                <div key={col.key} className="flex items-center gap-2 py-1 px-1 rounded-[6px] hover:bg-om-chip">
+                                    <Checkbox
                                         checked={visibleKeys.includes(col.key)}
                                         onChange={() => toggleColumn(col.key)}
-                                        className="size-[16px] rounded-[5px] border-om-line accent-om-accent"
+                                        label={col.label}
                                     />
-                                    <span className="text-[13px] text-om-ink">{col.label}</span>
                                     <span className="font-mono text-[10px] text-om-faint ml-auto">{col.key}</span>
-                                </label>
+                                </div>
                             ))}
                         </>
                     )}
@@ -708,8 +704,8 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
             <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-center gap-1">
                     {!isDone && (
-                        <button
-                            type="button"
+                        <IconButton
+                            variant="primary"
                             onClick={() =>
                                 onComplete({
                                     open: true,
@@ -720,22 +716,21 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                                     produced,
                                 })
                             }
-                            className="w-10 h-10 flex items-center justify-center rounded-om-sm bg-om-accent hover:brightness-95 text-white text-lg font-semibold transition-colors cursor-pointer"
+                            className="bg-om-accent hover:bg-om-accent hover:brightness-95"
                             title="Add produced quantity"
                         >
                             +
-                        </button>
+                        </IconButton>
                     )}
-                    <button
-                        type="button"
+                    <IconButton
+                        variant="danger"
                         onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })}
-                        className="w-10 h-10 flex items-center justify-center rounded-om-sm bg-om-blocked-bg hover:bg-[#f8ddd6] text-om-blocked text-lg font-semibold transition-colors cursor-pointer"
                         title="Report problem"
                     >
                         !
-                    </button>
-                    <button
-                        type="button"
+                    </IconButton>
+                    <IconButton
+                        variant="default"
                         onClick={() =>
                             onInfo({
                                 orderNo: wo.order_no,
@@ -750,11 +745,10 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                                 description: wo.description ?? '-',
                             })
                         }
-                        className="w-10 h-10 flex items-center justify-center rounded-om-sm bg-om-chip hover:bg-om-line2 text-om-muted text-sm font-semibold transition-colors cursor-pointer"
                         title="Details"
                     >
                         ?
-                    </button>
+                    </IconButton>
                     {labelTemplates.some((t) => t.type === 'work_order') && (
                         <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label="Label" />
                     )}

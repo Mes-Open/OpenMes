@@ -1,5 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { Button, StatusPill } from '@openmes/ui';
+import { Button, Dropdown, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 
 // Geist White restyle: light-only v1 — former `dark:` classes removed.
@@ -57,16 +57,15 @@ function LineCard({ line }) {
                             <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">
                                 Workstation <span className="text-om-faintest normal-case tracking-normal">(optional)</span>
                             </label>
-                            <select
-                                value={form.data.workstation_id}
-                                onChange={(e) => form.setData('workstation_id', e.target.value)}
-                                className="w-full rounded-om-sm border border-om-line bg-om-bg px-3 py-2.5 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/20"
-                            >
-                                <option value="">All workstations</option>
-                                {line.workstations.map((ws) => (
-                                    <option key={ws.id} value={ws.id}>{ws.name}{ws.code ? ` (${ws.code})` : ''}</option>
-                                ))}
-                            </select>
+                            <Dropdown
+                                value={form.data.workstation_id == null ? '' : String(form.data.workstation_id)}
+                                onChange={(v) => form.setData('workstation_id', v)}
+                                options={[
+                                    { value: '', label: 'All workstations' },
+                                    ...line.workstations.map((ws) => ({ value: String(ws.id), label: `${ws.name}${ws.code ? ` (${ws.code})` : ''}` })),
+                                ]}
+                                className="w-full"
+                            />
                         </>
                     ) : (
                         <div className="flex items-center text-sm text-om-faint">

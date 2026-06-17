@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatDateTime, formatNumber } from '../../../lib/i18n';
 
@@ -72,6 +74,133 @@ export default function ReportsIndex() {
     const links = orders?.links ?? [];
     const lastPage = orders?.last_page ?? 1;
 
+    const columns = useMemo(
+        () => [
+            {
+                id: 'order_no',
+                accessorKey: 'order_no',
+                header: __('Order'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="font-medium text-om-accent">
+                            <Link href={`/admin/reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
+                                {r.order_no}
+                            </Link>
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'product',
+                accessorFn: (r) => r.product_name ?? '',
+                header: __('Product'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="text-om-muted">
+                            {r.product_name ?? '—'}
+                            {r.product_code && (
+                                <span className="text-xs text-om-faint font-mono ml-1">{r.product_code}</span>
+                            )}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'line',
+                accessorFn: (r) => r.line_name ?? '',
+                header: __('Line'),
+                cell: ({ row }) => <span className="text-om-muted">{row.original.line_name ?? '—'}</span>,
+            },
+            {
+                id: 'status',
+                accessorKey: 'status',
+                header: __('Status'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                STATUS_BADGE[r.status] ?? 'bg-om-chip text-om-muted'
+                            }`}
+                        >
+                            {__(r.status)}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'completed',
+                accessorKey: 'completed_at',
+                header: __('Completed'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="text-om-muted whitespace-nowrap">
+                            {r.completed_at ? formatDateTime(r.completed_at) : '—'}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'produced_planned',
+                accessorFn: (r) => r.produced_qty,
+                header: `${__('Produced')} / ${__('Planned')}`,
+                meta: { align: 'right' },
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="font-mono">
+                            {formatNumber(r.produced_qty)} / {formatNumber(r.planned_qty)}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'execution',
+                accessorKey: 'execution_minutes',
+                header: __('Execution'),
+                cell: ({ row }) => (
+                    <span className="text-om-muted whitespace-nowrap">
+                        {fmtDuration(row.original.execution_minutes)}
+                    </span>
+                ),
+            },
+            {
+                id: 'lots',
+                accessorFn: (r) => (r.lots ? r.lots.join(', ') : ''),
+                header: __('LOTs'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="font-mono text-xs text-om-muted">
+                            {r.lots.length ? r.lots.slice(0, 2).join(', ') : '—'}
+                            {r.lots.length > 2 && <span className="text-om-faint"> +{r.lots.length - 2}</span>}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'issues',
+                accessorKey: 'issues_count',
+                header: __('Issues'),
+                meta: { align: 'right' },
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return r.issues_count > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-om-downtime-bg text-om-downtime">
+                            {r.issues_count}
+                        </span>
+                    ) : (
+                        <span className="text-om-faintest">0</span>
+                    );
+                },
+            },
+        ],
+        []
+    );
+
     return (
         <>
             <Head title={__('Work Order History')} />
@@ -123,64 +252,53 @@ export default function ReportsIndex() {
                     {form.preset === 'custom' && (
                         <>
                             <Field label={__('From')}>
-                                <input
-                                    type="date"
-                                    value={form.from}
-                                    onChange={(e) => setForm((f) => ({ ...f, from: e.target.value }))}
-                                    className="form-input py-1.5 text-sm"
+                                <DatePicker
+                                    value={form.from || null}
+                                    onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
+                                    className="w-44"
                                 />
                             </Field>
                             <Field label={__('To')}>
-                                <input
-                                    type="date"
-                                    value={form.to}
-                                    onChange={(e) => setForm((f) => ({ ...f, to: e.target.value }))}
-                                    className="form-input py-1.5 text-sm"
+                                <DatePicker
+                                    value={form.to || null}
+                                    onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
+                                    className="w-44"
                                 />
                             </Field>
                         </>
                     )}
                     <Field label={__('Status')}>
-                        <select
-                            value={form.status}
-                            onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {statusOptions.map((s) => (
-                                <option key={s} value={s}>
-                                    {__(s)}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.status == null ? '' : String(form.status)}
+                            onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...statusOptions.map((s) => ({ value: String(s), label: __(s) })),
+                            ]}
+                            className="w-44"
+                        />
                     </Field>
                     <Field label={__('Line')}>
-                        <select
-                            value={form.line_id}
-                            onChange={(e) => setForm((f) => ({ ...f, line_id: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {lines.map((l) => (
-                                <option key={l.id} value={l.id}>
-                                    {l.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.line_id == null ? '' : String(form.line_id)}
+                            onChange={(v) => setForm((f) => ({ ...f, line_id: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...lines.map((l) => ({ value: String(l.id), label: l.name })),
+                            ]}
+                            className="w-44"
+                        />
                     </Field>
                     <Field label={__('Product Type')}>
-                        <select
-                            value={form.product_type_id}
-                            onChange={(e) => setForm((f) => ({ ...f, product_type_id: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {productTypes.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.product_type_id == null ? '' : String(form.product_type_id)}
+                            onChange={(v) => setForm((f) => ({ ...f, product_type_id: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...productTypes.map((p) => ({ value: String(p.id), label: p.name })),
+                            ]}
+                            className="w-44"
+                        />
                     </Field>
                     <Field label={__('Search')}>
                         <input
@@ -201,85 +319,14 @@ export default function ReportsIndex() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-om-card rounded-om-sm shadow-sm overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
-                                <th className="px-4 py-3">{__('Order')}</th>
-                                <th className="px-4 py-3">{__('Product')}</th>
-                                <th className="px-4 py-3">{__('Line')}</th>
-                                <th className="px-4 py-3">{__('Status')}</th>
-                                <th className="px-4 py-3">{__('Completed')}</th>
-                                <th className="px-4 py-3 text-right">
-                                    {__('Produced')} / {__('Planned')}
-                                </th>
-                                <th className="px-4 py-3">{__('Execution')}</th>
-                                <th className="px-4 py-3">{__('LOTs')}</th>
-                                <th className="px-4 py-3 text-right">{__('Issues')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line2">
-                            {rows.map((r) => (
-                                <tr
-                                    key={r.id}
-                                    className="hover:bg-om-bg cursor-pointer"
-                                    onClick={() => router.visit(`/admin/reports/${r.id}`)}
-                                >
-                                    <td className="px-4 py-3 font-medium text-om-accent">
-                                        <Link href={`/admin/reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
-                                            {r.order_no}
-                                        </Link>
-                                    </td>
-                                    <td className="px-4 py-3 text-om-muted">
-                                        {r.product_name ?? '—'}
-                                        {r.product_code && (
-                                            <span className="text-xs text-om-faint font-mono ml-1">{r.product_code}</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-om-muted">{r.line_name ?? '—'}</td>
-                                    <td className="px-4 py-3">
-                                        <span
-                                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                STATUS_BADGE[r.status] ?? 'bg-om-chip text-om-muted'
-                                            }`}
-                                        >
-                                            {__(r.status)}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-om-muted whitespace-nowrap">
-                                        {r.completed_at ? formatDateTime(r.completed_at) : '—'}
-                                    </td>
-                                    <td className="px-4 py-3 text-right font-mono">
-                                        {formatNumber(r.produced_qty)} / {formatNumber(r.planned_qty)}
-                                    </td>
-                                    <td className="px-4 py-3 text-om-muted whitespace-nowrap">
-                                        {fmtDuration(r.execution_minutes)}
-                                    </td>
-                                    <td className="px-4 py-3 font-mono text-xs text-om-muted">
-                                        {r.lots.length ? r.lots.slice(0, 2).join(', ') : '—'}
-                                        {r.lots.length > 2 && <span className="text-om-faint"> +{r.lots.length - 2}</span>}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {r.issues_count > 0 ? (
-                                            <span className="px-2 py-0.5 rounded-full text-xs bg-om-downtime-bg text-om-downtime">
-                                                {r.issues_count}
-                                            </span>
-                                        ) : (
-                                            <span className="text-om-faintest">0</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {rows.length === 0 && (
-                                <tr>
-                                    <td colSpan={9} className="px-4 py-10 text-center text-om-muted">
-                                        {__('No orders match the current filters.')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={rows}
+                    columns={columns}
+                    paginated={false}
+                    searchPlaceholder={__('Order no. or LOT')}
+                    emptyLabel={__('No orders match the current filters.')}
+                    onRowClick={(r) => router.visit(`/admin/reports/${r.id}`)}
+                />
 
                 {/* Pagination */}
                 {lastPage > 1 && (

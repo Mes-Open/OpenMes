@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../../layouts/AppLayout';
 import { formatNumber } from '../../../../lib/i18n';
 
@@ -17,6 +19,127 @@ export default function MqttIndex() {
             router.delete(`/admin/connectivity/mqtt/${conn.id}`, { preserveScroll: true });
         }
     };
+
+    const columns = useMemo(() => [
+        {
+            id: 'status',
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => {
+                const conn = row.original;
+                const dot = STATUS_DOT[conn.status_color] ?? 'bg-slate-400';
+                return (
+                    <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${dot} ${conn.status === 'connected' ? 'animate-pulse' : ''}`} />
+                        <span className="text-xs text-om-muted capitalize">{conn.status}</span>
+                    </div>
+                );
+            },
+            meta: { align: 'left' },
+        },
+        {
+            id: 'name',
+            accessorKey: 'name',
+            header: 'Name',
+            cell: ({ row }) => {
+                const conn = row.original;
+                return (
+                    <span className="font-medium text-om-ink">
+                        <a href={`/admin/connectivity/mqtt/${conn.id}`} className="hover:text-om-accent">
+                            {conn.name}
+                        </a>
+                        {!conn.is_active && (
+                            <span className="ml-1.5 text-xs text-om-faint">(inactive)</span>
+                        )}
+                    </span>
+                );
+            },
+            meta: { align: 'left' },
+        },
+        {
+            id: 'broker',
+            accessorFn: (r) => (r.mqtt_host ? `${r.mqtt_host}:${r.mqtt_port}` : ''),
+            header: 'Broker',
+            cell: ({ row }) => {
+                const conn = row.original;
+                return (
+                    <span className="font-mono text-xs text-om-muted">
+                        {conn.mqtt_host ? (
+                            <>
+                                {conn.mqtt_host}:{conn.mqtt_port}
+                                {conn.mqtt_use_tls && (
+                                    <span className="ml-1 text-om-running">TLS</span>
+                                )}
+                            </>
+                        ) : (
+                            <span className="text-red-400">Not configured</span>
+                        )}
+                    </span>
+                );
+            },
+            meta: { align: 'left' },
+        },
+        {
+            id: 'topics',
+            accessorKey: 'topics_count',
+            header: 'Topics',
+            cell: ({ row }) => <span className="text-om-muted">{row.original.topics_count}</span>,
+            meta: { align: 'left' },
+        },
+        {
+            id: 'messages',
+            accessorKey: 'messages_received',
+            header: 'Messages',
+            cell: ({ row }) => (
+                <span className="text-om-muted">{formatNumber(Number(row.original.messages_received))}</span>
+            ),
+            meta: { align: 'left' },
+        },
+        {
+            id: 'last_connected',
+            accessorKey: 'last_connected_at',
+            header: 'Last connected',
+            cell: ({ row }) => (
+                <span className="text-xs text-om-muted">{row.original.last_connected_at ?? '—'}</span>
+            ),
+            meta: { align: 'left' },
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            enableSorting: false,
+            cell: ({ row }) => {
+                const conn = row.original;
+                return (
+                    <div className="flex items-center justify-end gap-2">
+                        <a href={`/admin/connectivity/mqtt/${conn.id}`} className="p-1.5 rounded-md transition-colors text-om-muted hover:text-om-ink" title="View" aria-label="View">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </a>
+                        <a href={`/admin/connectivity/mqtt/${conn.id}/edit`} className="p-1.5 rounded-md transition-colors text-om-accent hover:text-om-accent" title="Edit" aria-label="Edit">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </a>
+                        <button
+                            type="button"
+                            onClick={() => handleDelete(conn)}
+                            className="p-1.5 rounded-md transition-colors text-om-blocked hover:text-om-blocked"
+                            title="Delete"
+                            aria-label="Delete"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                );
+            },
+            meta: { align: 'right' },
+        },
+    ], []);
 
     return (
         <>
@@ -49,89 +172,14 @@ export default function MqttIndex() {
                         <p className="text-sm">No MQTT connections defined.</p>
                     </div>
                 ) : (
-                    <div className="bg-om-card rounded-om border border-om-line2 shadow-sm overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-om-panel text-xs uppercase tracking-wider text-om-muted">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Status</th>
-                                    <th className="px-4 py-3 text-left">Name</th>
-                                    <th className="px-4 py-3 text-left">Broker</th>
-                                    <th className="px-4 py-3 text-left">Topics</th>
-                                    <th className="px-4 py-3 text-left">Messages</th>
-                                    <th className="px-4 py-3 text-left">Last connected</th>
-                                    <th className="px-4 py-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line2">
-                                {connections.map((conn) => {
-                                    const dot = STATUS_DOT[conn.status_color] ?? 'bg-slate-400';
-                                    return (
-                                        <tr key={conn.id} className="hover:bg-om-bg transition-colors">
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`w-2 h-2 rounded-full ${dot} ${conn.status === 'connected' ? 'animate-pulse' : ''}`} />
-                                                    <span className="text-xs text-om-muted capitalize">{conn.status}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 font-medium text-om-ink">
-                                                <a href={`/admin/connectivity/mqtt/${conn.id}`} className="hover:text-om-accent">
-                                                    {conn.name}
-                                                </a>
-                                                {!conn.is_active && (
-                                                    <span className="ml-1.5 text-xs text-om-faint">(inactive)</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 font-mono text-xs text-om-muted">
-                                                {conn.mqtt_host ? (
-                                                    <>
-                                                        {conn.mqtt_host}:{conn.mqtt_port}
-                                                        {conn.mqtt_use_tls && (
-                                                            <span className="ml-1 text-om-running">TLS</span>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    <span className="text-red-400">Not configured</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-om-muted">{conn.topics_count}</td>
-                                            <td className="px-4 py-3 text-om-muted">
-                                                {formatNumber(Number(conn.messages_received))}
-                                            </td>
-                                            <td className="px-4 py-3 text-xs text-om-muted">
-                                                {conn.last_connected_at ?? '—'}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <a href={`/admin/connectivity/mqtt/${conn.id}`} className="p-1.5 rounded-md transition-colors text-om-muted hover:text-om-ink" title="View" aria-label="View">
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                        </svg>
-                                                    </a>
-                                                    <a href={`/admin/connectivity/mqtt/${conn.id}/edit`} className="p-1.5 rounded-md transition-colors text-om-accent hover:text-om-accent" title="Edit" aria-label="Edit">
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
-                                                    </a>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDelete(conn)}
-                                                        className="p-1.5 rounded-md transition-colors text-om-blocked hover:text-om-blocked"
-                                                        title="Delete"
-                                                        aria-label="Delete"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={connections}
+                        columns={columns}
+                        searchable
+                        columnToggle
+                        paginated
+                        searchPlaceholder="Search connections…"
+                    />
                 )}
             </div>
         </>

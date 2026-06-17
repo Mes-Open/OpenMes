@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Button, ProgressBar, StatusPill } from '@openmes/ui';
+import { Button, Dropdown, ProgressBar, StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import { formatDate, formatNumber, formatTime } from '../../lib/i18n';
@@ -337,15 +338,13 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                                 <label className={monoLabelCls}>
                                     Reason <span className="text-om-blocked">*</span>
                                 </label>
-                                <select value={form.data.reason_id}
-                                        onChange={(e) => form.setData('reason_id', e.target.value)}
-                                        className={inputCls}
-                                        required>
-                                    <option value="">— select reason —</option>
-                                    {downtimeReasons.map((r) => (
-                                        <option key={r.id} value={String(r.id)}>{r.name}</option>
-                                    ))}
-                                </select>
+                                <Dropdown
+                                    options={downtimeReasons.map((r) => ({ value: String(r.id), label: r.name }))}
+                                    value={form.data.reason_id == null ? '' : String(form.data.reason_id)}
+                                    onChange={(v) => form.setData('reason_id', v)}
+                                    placeholder="— select reason —"
+                                    className="w-full"
+                                />
                                 {form.errors.reason_id && (
                                     <p className="mt-1 text-xs text-om-blocked">{form.errors.reason_id}</p>
                                 )}
@@ -497,12 +496,11 @@ function ActiveWoTableRow({ wo, lineStatuses, workflowMode, doneStatusIds, onRep
 // ─── ACTIVE WORK ORDER CARD ───────────────────────────────────────────────────
 
 function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport, onDoneQty }) {
-    const handleSelectChange = (e) => {
-        const selectedId = e.target.value ? parseInt(e.target.value) : null;
+    const handleSelectChange = (v) => {
+        const selectedId = v ? parseInt(v) : null;
         if (workflowMode === 'board_status' && selectedId !== null && doneStatusIds.map(Number).includes(selectedId)) {
             onDoneQty({ woId: wo.id, woNo: wo.order_no, statusId: selectedId });
-            // revert — user will see the modal
-            e.target.value = String(wo.line_status_id ?? '');
+            // revert — user will see the modal (Dropdown reverts to current value below)
             return;
         }
         router.post(`/operator/work-order/${wo.id}/line-status`, { line_status_id: selectedId ?? '' });
@@ -524,14 +522,12 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
             {lineStatuses.length > 0 && (
                 <div className="mb-3" onClick={(e) => e.stopPropagation()}>
                     <p className={monoLabelCls}>Board Status</p>
-                    <select defaultValue={String(wo.line_status_id ?? '')}
-                            onChange={handleSelectChange}
-                            className={`${inputCls} cursor-pointer font-medium`}>
-                        <option value="">— none —</option>
-                        {lineStatuses.map((ls) => (
-                            <option key={ls.id} value={String(ls.id)}>{ls.name}</option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        options={[{ value: '', label: '— none —' }, ...lineStatuses.map((ls) => ({ value: String(ls.id), label: ls.name }))]}
+                        value={wo.line_status_id == null ? '' : String(wo.line_status_id)}
+                        onChange={handleSelectChange}
+                        className="w-full"
+                    />
                 </div>
             )}
 
@@ -588,6 +584,54 @@ function ActiveWoCard({ wo, lineStatuses, workflowMode, doneStatusIds, onReport,
         </div>
     );
 }
+
+// ─── COMPLETED WORK ORDER COLUMNS ────────────────────────────────────────────
+
+const completedColumns = [
+    {
+        id: 'order_no',
+        accessorKey: 'order_no',
+        header: 'Order No',
+        cell: ({ row }) => (
+            <span className="font-mono text-[13px] font-semibold text-om-muted whitespace-nowrap">{row.original.order_no}</span>
+        ),
+    },
+    {
+        id: 'product',
+        accessorFn: (r) => r.product_type?.name ?? '—',
+        header: 'Product',
+        cell: ({ row }) => (
+            <span className="text-[13.5px] text-om-muted">{row.original.product_type?.name ?? '—'}</span>
+        ),
+    },
+    {
+        id: 'produced',
+        accessorKey: 'produced_qty',
+        header: 'Produced',
+        cell: ({ row }) => (
+            <span className="font-mono text-[13px] font-medium text-om-ink">{fmtQty(row.original.produced_qty)}</span>
+        ),
+    },
+    {
+        id: 'completed_at',
+        accessorKey: 'completed_at',
+        header: 'Completed at',
+        cell: ({ row }) => (
+            <span className="font-mono text-[12px] text-om-faint whitespace-nowrap">{fmtDate(row.original.completed_at, 'long')}</span>
+        ),
+    },
+    {
+        id: 'arrow',
+        header: '',
+        enableSorting: false,
+        meta: { align: 'right' },
+        cell: () => (
+            <svg className="w-5 h-5 text-om-faintest inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        ),
+    },
+];
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 
@@ -942,38 +986,14 @@ export default function Queue() {
                         <>
                             {/* Table view */}
                             {view === 'table' && (
-                                <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-om-line2">
-                                            <thead className="bg-om-panel">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Order No</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Product</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Produced</th>
-                                                    <th className="px-4 py-3 text-left font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] text-om-faint">Completed at</th>
-                                                    <th className="px-4 py-3" />
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-om-card divide-y divide-om-line2">
-                                                {completedWorkOrders.map((wo) => (
-                                                    <tr key={wo.id}
-                                                        onClick={() => router.visit(`/operator/work-order/${wo.id}`)}
-                                                        className="hover:bg-om-panel transition-colors cursor-pointer opacity-70">
-                                                        <td className="px-4 py-3 font-mono text-[13px] font-semibold text-om-muted whitespace-nowrap">{wo.order_no}</td>
-                                                        <td className="px-4 py-3 text-[13.5px] text-om-muted">{wo.product_type?.name ?? '—'}</td>
-                                                        <td className="px-4 py-3 font-mono text-[13px] font-medium text-om-ink">{fmtQty(wo.produced_qty)}</td>
-                                                        <td className="px-4 py-3 font-mono text-[12px] text-om-faint whitespace-nowrap">{fmtDate(wo.completed_at, 'long')}</td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            <svg className="w-5 h-5 text-om-faintest inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
-                                                            </svg>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                <DataTable
+                                    data={completedWorkOrders}
+                                    columns={completedColumns}
+                                    searchable={false}
+                                    columnToggle={false}
+                                    paginated={false}
+                                    onRowClick={(wo) => router.visit(`/operator/work-order/${wo.id}`)}
+                                />
                             )}
 
                             {/* Card view */}

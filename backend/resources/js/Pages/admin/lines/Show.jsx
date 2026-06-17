@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 
@@ -126,14 +127,10 @@ function LineStatusesCard({ line, lineStatuses }) {
                         className="form-input py-1.5 text-sm"
                     />
                 </div>
-                <button
-                    type="submit"
-                    disabled={form.processing}
-                    className="px-3 py-2 border border-om-line rounded-om-sm text-sm font-medium text-om-muted hover:bg-om-bg disabled:opacity-50"
-                >
+                <Button type="submit" variant="ghost" loading={form.processing}>
                     <Icon d="M12 4v16m8-8H4" className="w-4 h-4 inline-block mr-1" />
                     Add to this line
-                </button>
+                </Button>
             </form>
         </div>
     );
@@ -211,11 +208,9 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
                                                         : 'border-om-line2 hover:border-om-line'
                                                 }`}
                                             >
-                                                <input
-                                                    type="checkbox"
+                                                <Checkbox
                                                     checked={checked}
                                                     onChange={() => toggleType(pt.id)}
-                                                    className="rounded border-om-line text-om-accent"
                                                 />
                                                 <div className="min-w-0">
                                                     <p className="text-sm font-medium text-om-ink truncate">{pt.name}</p>
@@ -228,13 +223,9 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
                                 <p className="text-xs text-om-faint mb-3">
                                     Leave all unchecked to allow all product types on this line.
                                 </p>
-                                <button
-                                    type="submit"
-                                    disabled={form.processing}
-                                    className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
-                                >
-                                    {form.processing ? 'Saving…' : 'Save Assignment'}
-                                </button>
+                                <Button type="submit" variant="primary" loading={form.processing}>
+                                    Save Assignment
+                                </Button>
                             </>
                         )}
                     </form>
@@ -362,27 +353,17 @@ function OperatorsCard({ line, availableOperators }) {
                 <form onSubmit={submit} className="border-t border-om-line2 pt-4">
                     <label className="block text-sm font-medium text-om-muted mb-1">Assign New Operator</label>
                     <div className="flex gap-2">
-                        <select
-                            value={form.data.user_id}
-                            onChange={(e) => form.setData('user_id', e.target.value)}
-                            className="form-input flex-1"
-                            required
-                        >
-                            <option value="">Select an operator...</option>
-                            {availableOperators.map((op) => (
-                                <option key={op.id} value={op.id}>
-                                    {op.name} ({op.username})
-                                </option>
-                            ))}
-                        </select>
-                        <button
-                            type="submit"
-                            disabled={form.processing}
-                            className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50 flex items-center gap-2"
-                        >
+                        <Dropdown
+                            options={availableOperators.map((op) => ({ value: String(op.id), label: `${op.name} (${op.username})` }))}
+                            value={form.data.user_id == null ? '' : String(form.data.user_id)}
+                            onChange={(v) => form.setData('user_id', v)}
+                            placeholder="Select an operator..."
+                            className="flex-1"
+                        />
+                        <Button type="submit" variant="primary" loading={form.processing}>
                             <Icon d="M12 4v16m8-8H4" />
                             Assign
-                        </button>
+                        </Button>
                     </div>
                     {form.errors.user_id && <p className="mt-1 text-xs text-om-blocked">{form.errors.user_id}</p>}
                 </form>
@@ -493,8 +474,14 @@ function DefaultViewCard({ line }) {
                             value={opt.value}
                             checked={current === opt.value}
                             onChange={() => handleChange(opt.value)}
-                            className="text-om-accent focus:ring-om-accent"
+                            className="sr-only"
                         />
+                        <span
+                            aria-hidden
+                            className={`flex size-[18px] shrink-0 items-center justify-center rounded-full border-2 ${current === opt.value ? 'border-om-accent' : 'border-om-faintest'}`}
+                        >
+                            {current === opt.value && <span className="size-2 rounded-full bg-om-accent" />}
+                        </span>
                         <div>
                             <span className="text-sm font-semibold text-om-ink">{opt.label}</span>
                             <p className="text-xs text-om-muted mt-0.5">{opt.desc}</p>
@@ -525,26 +512,19 @@ function ViewTemplateCard({ line, allViewTemplates }) {
             <form onSubmit={submit} className="flex items-end gap-3">
                 <div className="flex-1">
                     <label className="block text-sm font-medium text-om-muted mb-1">View Template</label>
-                    <select
-                        value={form.data.view_template_id}
-                        onChange={(e) => form.setData('view_template_id', e.target.value)}
-                        className="form-input w-full"
-                    >
-                        <option value="">— Default (no custom columns) —</option>
-                        {allViewTemplates.map((tpl) => (
-                            <option key={tpl.id} value={String(tpl.id)}>
-                                {tpl.name} ({tpl.columns_count} columns)
-                            </option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        options={[
+                            { value: '', label: '— Default (no custom columns) —' },
+                            ...allViewTemplates.map((tpl) => ({ value: String(tpl.id), label: `${tpl.name} (${tpl.columns_count} columns)` })),
+                        ]}
+                        value={form.data.view_template_id == null ? '' : String(form.data.view_template_id)}
+                        onChange={(v) => form.setData('view_template_id', v)}
+                        className="w-full"
+                    />
                 </div>
-                <button
-                    type="submit"
-                    disabled={form.processing}
-                    className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
-                >
-                    {form.processing ? 'Saving…' : 'Save'}
-                </button>
+                <Button type="submit" variant="primary" loading={form.processing}>
+                    Save
+                </Button>
             </form>
             {allViewTemplates.length === 0 && (
                 <p className="text-xs text-om-faint mt-3">
@@ -688,33 +668,30 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                     </div>
                     <div className="w-36">
                         <label className="text-xs text-om-muted block mb-1">Source</label>
-                        <select
-                            value={newSource}
-                            onChange={(e) => setNewSource(e.target.value)}
-                            className="form-input w-full text-sm"
-                        >
-                            <option value="extra_data">extra_data</option>
-                            <option value="field">field</option>
-                        </select>
+                        <Dropdown
+                            options={[
+                                { value: 'extra_data', label: 'extra_data' },
+                                { value: 'field', label: 'field' },
+                            ]}
+                            value={newSource == null ? '' : String(newSource)}
+                            onChange={(v) => setNewSource(v)}
+                            className="w-full"
+                        />
                     </div>
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
                         onClick={add}
                         disabled={!newLabel || !newKey}
-                        className="px-3 py-2 border border-om-line rounded-om-sm text-sm font-medium text-om-muted hover:bg-om-bg disabled:opacity-40"
                     >
                         + Add
-                    </button>
+                    </Button>
                 </div>
 
                 <div className="flex justify-end">
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
-                    >
-                        {processing ? 'Saving…' : 'Save View Columns'}
-                    </button>
+                    <Button type="submit" variant="primary" loading={processing}>
+                        Save View Columns
+                    </Button>
                 </div>
             </form>
         </div>
@@ -775,13 +752,10 @@ export default function LineShow() {
                             <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             Edit Line
                         </Link>
-                        <button
+                        <Button
+                            type="button"
+                            variant={line.is_active ? 'ghost' : 'primary'}
                             onClick={handleToggleActive}
-                            className={`px-4 py-2 rounded-om-sm text-sm font-medium flex items-center gap-2 ${
-                                line.is_active
-                                    ? 'border border-om-line text-om-muted hover:bg-om-bg'
-                                    : 'bg-om-ink text-white hover:bg-black'
-                            }`}
                         >
                             {line.is_active ? (
                                 <>
@@ -794,7 +768,7 @@ export default function LineShow() {
                                     Activate
                                 </>
                             )}
-                        </button>
+                        </Button>
                     </div>
                 </div>
                 <p className="text-sm text-om-muted font-mono mt-1">{line.code}</p>

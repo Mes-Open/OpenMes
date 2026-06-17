@@ -1,4 +1,5 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 
 export default function PalletForm({ action, method, initial, submitLabel }) {
     const { workOrders = [], statuses = [] } = usePage().props;
@@ -16,18 +17,13 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 <label className="block text-sm font-medium text-om-muted mb-1">
                     Work order <span className="text-om-blocked">*</span>
                 </label>
-                <select
-                    value={data.work_order_id ?? ''}
-                    onChange={(e) => setData('work_order_id', e.target.value)}
-                    className="form-input w-full"
-                >
-                    <option value="">— Select work order —</option>
-                    {workOrders.map((wo) => (
-                        <option key={wo.id} value={String(wo.id)}>
-                            {wo.order_no}
-                        </option>
-                    ))}
-                </select>
+                <Dropdown
+                    value={data.work_order_id == null ? '' : String(data.work_order_id)}
+                    onChange={(v) => setData('work_order_id', v)}
+                    placeholder="— Select work order —"
+                    options={workOrders.map((wo) => ({ value: String(wo.id), label: wo.order_no }))}
+                    className="w-full"
+                />
                 {errors.work_order_id && <p className="mt-1 text-xs text-om-blocked">{errors.work_order_id}</p>}
             </div>
 
@@ -47,17 +43,12 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                     <label className="block text-sm font-medium text-om-muted mb-1">
                         Status <span className="text-om-blocked">*</span>
                     </label>
-                    <select
-                        value={data.status ?? 'open'}
-                        onChange={(e) => setData('status', e.target.value)}
-                        className="form-input w-full"
-                    >
-                        {statuses.map((s) => (
-                            <option key={s.value} value={s.value}>
-                                {s.label}
-                            </option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        value={data.status == null ? '' : String(data.status)}
+                        onChange={(v) => setData('status', v)}
+                        options={statuses.map((s) => ({ value: String(s.value), label: s.label }))}
+                        className="w-full"
+                    />
                     {errors.status && <p className="mt-1 text-xs text-om-blocked">{errors.status}</p>}
                 </div>
             </div>

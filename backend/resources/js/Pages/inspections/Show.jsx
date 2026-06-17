@@ -1,7 +1,8 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Button, ConfirmDialog, StatusPill, TextField } from '@openmes/ui';
+import { Button, ConfirmDialog, Dropdown, StatusPill, TextField } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
 import { formatDateTime, formatNumber } from '../../lib/i18n';
 
@@ -153,8 +154,14 @@ function DispositionModal({ inspection, onClose }) {
                                     required
                                     checked={form.data.disposition === value}
                                     onChange={() => form.setData('disposition', value)}
-                                    className="mt-1 accent-om-accent"
+                                    className="sr-only"
                                 />
+                                <span
+                                    aria-hidden
+                                    className={`mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border-2 ${form.data.disposition === value ? 'border-om-accent' : 'border-om-faintest'}`}
+                                >
+                                    {form.data.disposition === value && <span className="size-2 rounded-full bg-om-accent" />}
+                                </span>
                                 <div>
                                     <div className="font-medium text-[13px] text-om-ink capitalize">{label}</div>
                                     <div className="text-[11.5px] text-om-muted">{desc}</div>
@@ -273,15 +280,16 @@ function ResultsEntryForm({ inspection }) {
                                             className={`${INPUT_CLASS} w-32 font-mono`}
                                         />
                                     ) : (
-                                        <select
-                                            value={row.value_boolean}
-                                            onChange={(e) => updateRow(idx, 'value_boolean', e.target.value)}
-                                            className={`${INPUT_CLASS} w-28`}
-                                        >
-                                            <option value="">—</option>
-                                            <option value="1">Pass</option>
-                                            <option value="0">Fail</option>
-                                        </select>
+                                        <Dropdown
+                                            value={row.value_boolean == null ? '' : String(row.value_boolean)}
+                                            onChange={(v) => updateRow(idx, 'value_boolean', v)}
+                                            options={[
+                                                { value: '', label: '—' },
+                                                { value: '1', label: 'Pass' },
+                                                { value: '0', label: 'Fail' },
+                                            ]}
+                                            className="w-28"
+                                        />
                                     )}
                                 </td>
                                 <td className="p-2">
@@ -379,40 +387,68 @@ function ResultsTable({ results, notes }) {
         return <StatusPill status="pending" label="—" />;
     }
 
+    const columns = useMemo(() => [
+        {
+            id: 'criterion_name',
+            accessorKey: 'criterion_name',
+            header: 'Criterion',
+            cell: ({ row }) => (
+                <span className="font-medium text-om-ink">{row.original.criterion_name}</span>
+            ),
+        },
+        {
+            id: 'criterion_type',
+            accessorKey: 'criterion_type',
+            header: 'Type',
+            cell: ({ row }) => (
+                <span className="text-om-muted">{row.original.criterion_type}</span>
+            ),
+        },
+        {
+            id: 'spec',
+            accessorFn: (r) =>
+                r.criterion_type === 'measurement'
+                    ? `${r.spec_min ?? '−∞'} … ${r.spec_max ?? '+∞'} ${r.unit ?? ''}`
+                    : '—',
+            header: 'Spec',
+            cell: ({ row }) => (
+                <span className="text-om-muted font-mono text-[12px]">
+                    {row.original.criterion_type === 'measurement'
+                        ? `${row.original.spec_min ?? '−∞'} … ${row.original.spec_max ?? '+∞'} ${row.original.unit ?? ''}`
+                        : '—'}
+                </span>
+            ),
+        },
+        {
+            id: 'value',
+            accessorFn: (r) => resultValue(r),
+            header: 'Value',
+            cell: ({ row }) => (
+                <span className="font-mono text-om-ink">{resultValue(row.original)}</span>
+            ),
+        },
+        {
+            id: 'result',
+            accessorKey: 'is_passed',
+            header: 'Result',
+            cell: ({ row }) => passBadge(row.original.is_passed),
+        },
+    ], []);
+
     return (
         <div className={CARD_CLASS}>
             <h2 className={SECTION_HEADING_CLASS}>Results</h2>
             {results.length === 0 ? (
                 <p className="text-[13px] text-om-muted">No results recorded.</p>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-[13px]">
-                        <thead>
-                            <tr className="border-b border-om-line">
-                                <th className={TH_CLASS}>Criterion</th>
-                                <th className={TH_CLASS}>Type</th>
-                                <th className={TH_CLASS}>Spec</th>
-                                <th className={TH_CLASS}>Value</th>
-                                <th className={TH_CLASS}>Result</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line">
-                            {results.map((r) => (
-                                <tr key={r.id}>
-                                    <td className="p-2 font-medium text-om-ink">{r.criterion_name}</td>
-                                    <td className="p-2 text-om-muted">{r.criterion_type}</td>
-                                    <td className="p-2 text-om-muted font-mono text-[12px]">
-                                        {r.criterion_type === 'measurement'
-                                            ? `${r.spec_min ?? '−∞'} … ${r.spec_max ?? '+∞'} ${r.unit ?? ''}`
-                                            : '—'}
-                                    </td>
-                                    <td className="p-2 font-mono text-om-ink">{resultValue(r)}</td>
-                                    <td className="p-2">{passBadge(r.is_passed)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={results}
+                    columns={columns}
+                    searchable={false}
+                    columnToggle={false}
+                    paginated={false}
+                    emptyLabel="No results recorded."
+                />
             )}
             {notes && (
                 <div className="mt-3 text-[12.5px] text-om-muted">

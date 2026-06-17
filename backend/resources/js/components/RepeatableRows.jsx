@@ -1,4 +1,4 @@
-import { Button } from '@openmes/ui';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 
 /**
  * Editable list of sub-rows for dynamic subforms (e.g. view-template columns,
@@ -37,16 +37,18 @@ export default function RepeatableRows({ value, onChange, fields, addLabel = '+ 
                     {fields.map((f) => (
                         <div key={f.name} className={`${f.width ?? 'flex-1'} ${f.type === 'checkbox' ? 'flex justify-center' : ''}`}>
                             {f.type === 'checkbox' ? (
-                                <input
-                                    type="checkbox"
+                                <Checkbox
                                     checked={!!row[f.name]}
-                                    onChange={(e) => update(i, f.name, e.target.checked)}
-                                    className="size-[18px] accent-om-accent"
+                                    onChange={(next) => update(i, f.name, next)}
                                 />
                             ) : f.type === 'select' ? (
-                                <select value={row[f.name] ?? ''} onChange={(e) => update(i, f.name, e.target.value)} className={INPUT_CLASS}>
-                                    {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
+                                <Dropdown
+                                    className="w-full"
+                                    options={(f.options ?? []).map((o) => ({ value: String(o.value), label: o.label }))}
+                                    value={row[f.name] == null ? '' : String(row[f.name])}
+                                    onChange={(v) => update(i, f.name, v)}
+                                    placeholder={f.placeholder || `${f.label ?? ''}…`}
+                                />
                             ) : (
                                 <input
                                     type={f.type === 'number' ? 'number' : 'text'}

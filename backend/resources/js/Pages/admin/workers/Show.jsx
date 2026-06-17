@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
@@ -30,6 +32,72 @@ export default function WorkerShow() {
         if (!confirm(__('Remove this certification?'))) return;
         router.delete(`/admin/workers/${worker.id}/skills/${skillId}`, { preserveScroll: true });
     };
+
+    const certColumns = useMemo(() => [
+        {
+            id: 'skill',
+            accessorFn: (r) => r.skill_name,
+            header: __('Skill'),
+            cell: ({ row }) => (
+                <>
+                    <div className="font-medium text-om-ink">{row.original.skill_name}</div>
+                    <div className="text-xs font-mono text-om-muted">{row.original.skill_code}</div>
+                </>
+            ),
+        },
+        {
+            id: 'cert_level',
+            accessorKey: 'cert_level',
+            header: __('Cert level'),
+            cell: ({ row }) => (
+                <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium">
+                    {capitalize(row.original.cert_level)}
+                </span>
+            ),
+        },
+        {
+            id: 'certified_from',
+            accessorKey: 'certified_from',
+            header: __('From'),
+            cell: ({ row }) => <span className="text-om-muted">{row.original.certified_from ?? '—'}</span>,
+        },
+        {
+            id: 'certified_until',
+            accessorKey: 'certified_until',
+            header: __('Until'),
+            cell: ({ row }) => <span className="text-om-muted">{row.original.certified_until ?? __('Never')}</span>,
+        },
+        {
+            id: 'status',
+            accessorKey: 'status',
+            header: __('Status'),
+            cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        },
+        {
+            id: 'cert_notes',
+            accessorKey: 'cert_notes',
+            header: __('Notes'),
+            cell: ({ row }) => <span className="text-xs text-om-muted">{row.original.cert_notes}</span>,
+        },
+        {
+            id: 'actions',
+            header: __('Actions'),
+            enableSorting: false,
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <button
+                    type="button"
+                    onClick={() => handleDetach(row.original.skill_id)}
+                    className="text-om-blocked hover:text-om-blocked p-1"
+                    title={__('Remove')}
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            ),
+        },
+    ], []);
 
     return (
         <>
@@ -87,58 +155,14 @@ export default function WorkerShow() {
                         </button>
                     </div>
 
-                    {certifications.length === 0 ? (
-                        <p className="text-sm text-om-muted italic">{__('No certifications recorded.')}</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm">
-                                <thead>
-                                    <tr className="text-left text-xs uppercase tracking-wide text-om-muted border-b">
-                                        <th className="py-2 pr-3">{__('Skill')}</th>
-                                        <th className="py-2 pr-3">{__('Cert level')}</th>
-                                        <th className="py-2 pr-3">{__('From')}</th>
-                                        <th className="py-2 pr-3">{__('Until')}</th>
-                                        <th className="py-2 pr-3">{__('Status')}</th>
-                                        <th className="py-2 pr-3">{__('Notes')}</th>
-                                        <th className="py-2 pr-3 text-right">{__('Actions')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-om-line2">
-                                    {certifications.map((cert) => (
-                                        <tr key={cert.skill_id}>
-                                            <td className="py-2 pr-3">
-                                                <div className="font-medium text-om-ink">{cert.skill_name}</div>
-                                                <div className="text-xs font-mono text-om-muted">{cert.skill_code}</div>
-                                            </td>
-                                            <td className="py-2 pr-3">
-                                                <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-medium">
-                                                    {capitalize(cert.cert_level)}
-                                                </span>
-                                            </td>
-                                            <td className="py-2 pr-3 text-om-muted">{cert.certified_from ?? '—'}</td>
-                                            <td className="py-2 pr-3 text-om-muted">{cert.certified_until ?? __('Never')}</td>
-                                            <td className="py-2 pr-3">
-                                                <StatusBadge status={cert.status} />
-                                            </td>
-                                            <td className="py-2 pr-3 text-xs text-om-muted">{cert.cert_notes}</td>
-                                            <td className="py-2 pr-3 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDetach(cert.skill_id)}
-                                                    className="text-om-blocked hover:text-om-blocked p-1"
-                                                    title={__('Remove')}
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                    <DataTable
+                        data={certifications}
+                        columns={certColumns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel={__('No certifications recorded.')}
+                    />
                 </section>
             </div>
 
@@ -160,52 +184,38 @@ export default function WorkerShow() {
                             <div className="p-5 space-y-4">
                                 <div>
                                     <label className="form-label">{__('Skill')} <span className="text-om-blocked">*</span></label>
-                                    <select
-                                        name="skill_id"
-                                        className="form-input w-full"
-                                        required
-                                        value={form.skill_id}
-                                        onChange={(e) => setForm({ ...form, skill_id: e.target.value })}
-                                    >
-                                        <option value="">{__('— Select —')}</option>
-                                        {skills.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
-                                        ))}
-                                    </select>
+                                    <Dropdown
+                                        className="w-full"
+                                        placeholder={__('— Select —')}
+                                        options={skills.map((s) => ({ value: String(s.id), label: `${s.name} (${s.code})` }))}
+                                        value={form.skill_id == null ? '' : String(form.skill_id)}
+                                        onChange={(v) => setForm({ ...form, skill_id: v })}
+                                    />
                                 </div>
                                 <div>
                                     <label className="form-label">{__('Cert level')} <span className="text-om-blocked">*</span></label>
-                                    <select
-                                        name="cert_level"
-                                        className="form-input w-full"
-                                        required
-                                        value={form.cert_level}
-                                        onChange={(e) => setForm({ ...form, cert_level: e.target.value })}
-                                    >
-                                        {levels.map((lvl) => (
-                                            <option key={lvl} value={lvl}>{capitalize(lvl)}</option>
-                                        ))}
-                                    </select>
+                                    <Dropdown
+                                        className="w-full"
+                                        options={levels.map((lvl) => ({ value: String(lvl), label: capitalize(lvl) }))}
+                                        value={form.cert_level == null ? '' : String(form.cert_level)}
+                                        onChange={(v) => setForm({ ...form, cert_level: v })}
+                                    />
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="form-label">{__('Certified from')}</label>
-                                        <input
-                                            type="date"
-                                            name="certified_from"
-                                            className="form-input w-full"
-                                            value={form.certified_from}
-                                            onChange={(e) => setForm({ ...form, certified_from: e.target.value })}
+                                        <DatePicker
+                                            className="w-full"
+                                            value={form.certified_from || null}
+                                            onChange={(iso) => setForm({ ...form, certified_from: iso ?? '' })}
                                         />
                                     </div>
                                     <div>
                                         <label className="form-label">{__('Certified until')}</label>
-                                        <input
-                                            type="date"
-                                            name="certified_until"
-                                            className="form-input w-full"
-                                            value={form.certified_until}
-                                            onChange={(e) => setForm({ ...form, certified_until: e.target.value })}
+                                        <DatePicker
+                                            className="w-full"
+                                            value={form.certified_until || null}
+                                            onChange={(iso) => setForm({ ...form, certified_until: iso ?? '' })}
                                         />
                                         <p className="text-xs text-om-faint mt-1">{__('Leave blank for no expiry.')}</p>
                                     </div>

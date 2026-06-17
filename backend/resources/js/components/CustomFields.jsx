@@ -1,3 +1,4 @@
+import { Checkbox, DatePicker, Dropdown } from '@openmes/ui';
 import { __ } from '../lib/i18n';
 
 /**
@@ -98,16 +99,7 @@ function CustomFieldInput({ def, value, error, onChange, file, onFileChange, rem
     if (type === 'boolean') {
         return (
             <div>
-                <label className="flex items-center gap-2.5 text-[13px] text-om-ink">
-                    {/* 18px accent checkbox idiom — native input kept for identical behavior */}
-                    <input
-                        type="checkbox"
-                        checked={!!value}
-                        onChange={(e) => onChange(e.target.checked)}
-                        className="size-[18px] accent-om-accent"
-                    />
-                    {label}
-                </label>
+                <Checkbox checked={!!value} onChange={(next) => onChange(next)} label={label} />
                 {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
             </div>
         );
@@ -119,14 +111,14 @@ function CustomFieldInput({ def, value, error, onChange, file, onFileChange, rem
             <textarea value={value ?? ''} onChange={(e) => onChange(e.target.value)} rows={3} className={INPUT_CLASS} />
         );
     } else if (type === 'select') {
-        // Native <select> kept for now — same input styling.
         control = (
-            <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={INPUT_CLASS}>
-                <option value="">{__('— Select —')}</option>
-                {options.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-            </select>
+            <Dropdown
+                className="w-full"
+                options={options.map((o) => ({ value: String(o.value), label: o.label }))}
+                value={value == null ? '' : String(value)}
+                onChange={(v) => onChange(v)}
+                placeholder={__('— Select —')}
+            />
         );
     } else if (type === 'multiselect') {
         const selected = Array.isArray(value) ? value : [];
@@ -135,20 +127,25 @@ function CustomFieldInput({ def, value, error, onChange, file, onFileChange, rem
         control = (
             <div className="space-y-1">
                 {options.map((o) => (
-                    <label key={o.value} className="flex items-center gap-2.5 text-[13px] text-om-ink">
-                        <input
-                            type="checkbox"
-                            checked={selected.includes(o.value)}
-                            onChange={() => toggle(o.value)}
-                            className="size-[18px] accent-om-accent"
-                        />
-                        {o.label}
-                    </label>
+                    <Checkbox
+                        key={o.value}
+                        checked={selected.includes(o.value)}
+                        onChange={() => toggle(o.value)}
+                        label={o.label}
+                    />
                 ))}
             </div>
         );
+    } else if (type === 'date') {
+        control = (
+            <DatePicker
+                className="w-full"
+                value={value || null}
+                onChange={(iso) => onChange(iso ?? '')}
+            />
+        );
     } else {
-        const inputType = { number: 'number', integer: 'number', date: 'date', datetime: 'datetime-local' }[type] ?? 'text';
+        const inputType = { number: 'number', integer: 'number', datetime: 'datetime-local' }[type] ?? 'text';
         control = (
             <input
                 type={inputType}

@@ -1,4 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
+import { Button, Checkbox } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function ProcessTemplatesEdit() {
@@ -58,17 +59,11 @@ export default function ProcessTemplatesEdit() {
                         </div>
 
                         <div className="mb-6">
-                            <label className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={data.is_active}
-                                    onChange={(e) => setData('is_active', e.target.checked)}
-                                    className="h-5 w-5 text-om-accent rounded border-om-line focus:ring-om-accent"
-                                />
-                                <span className="ml-2 text-sm text-om-muted">
-                                    Active (template is ready for use in work orders)
-                                </span>
-                            </label>
+                            <Checkbox
+                                checked={data.is_active}
+                                onChange={(next) => setData('is_active', next)}
+                                label="Active (template is ready for use in work orders)"
+                            />
                         </div>
 
                         <div className="flex justify-end gap-3">
@@ -78,9 +73,9 @@ export default function ProcessTemplatesEdit() {
                             >
                                 Cancel
                             </a>
-                            <button type="submit" disabled={processing} className="btn-touch btn-primary">
+                            <Button type="submit" variant="primary" loading={processing} disabled={processing}>
                                 {processing ? 'Saving…' : 'Update Template'}
-                            </button>
+                            </Button>
                         </div>
                     </form>
                 </div>

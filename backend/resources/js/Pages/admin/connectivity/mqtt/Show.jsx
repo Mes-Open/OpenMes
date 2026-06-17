@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import { formatNumber, formatTime } from '../../../../lib/i18n';
 
@@ -283,15 +284,11 @@ function EditTopicForm({ topic, connectionId, onClose }) {
                 </div>
                 <div>
                     <label className="block text-xs font-medium text-om-muted mb-1">Format</label>
-                    <select
+                    <Dropdown
                         value={form.data.payload_format}
-                        onChange={(e) => form.setData('payload_format', e.target.value)}
-                        className="px-2 py-1.5 text-sm border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent"
-                    >
-                        {['json', 'plain', 'csv', 'hex'].map((f) => (
-                            <option key={f} value={f}>{f.toUpperCase()}</option>
-                        ))}
-                    </select>
+                        onChange={(v) => form.setData('payload_format', v)}
+                        options={['json', 'plain', 'csv', 'hex'].map((f) => ({ value: f, label: f.toUpperCase() }))}
+                    />
                 </div>
                 <div className="flex-1 min-w-36">
                     <label className="block text-xs font-medium text-om-muted mb-1">Description</label>
@@ -303,12 +300,12 @@ function EditTopicForm({ topic, connectionId, onClose }) {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <button type="submit" disabled={form.processing} className="px-3 py-1.5 bg-om-ink text-white text-xs rounded-om-sm hover:bg-black transition-colors disabled:opacity-50">
+                    <Button variant="primary" type="submit" loading={form.processing}>
                         Save
-                    </button>
-                    <button type="button" onClick={onClose} className="px-3 py-1.5 bg-om-chip text-om-muted text-xs rounded-om-sm hover:bg-om-line2 transition-colors">
+                    </Button>
+                    <Button variant="secondary" type="button" onClick={onClose}>
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </form>
         </div>
@@ -416,11 +413,12 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
                         <input type="text" value={form.data.field_path} onChange={(e) => form.setData('field_path', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                     <MiniField label="Action type">
-                        <select value={form.data.action_type} onChange={(e) => form.setData('action_type', e.target.value)} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent">
-                            {Object.entries(ACTION_LABELS).map(([val, lbl]) => (
-                                <option key={val} value={val}>{lbl}</option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.data.action_type}
+                            onChange={(v) => form.setData('action_type', v)}
+                            options={Object.entries(ACTION_LABELS).map(([val, lbl]) => ({ value: val, label: lbl }))}
+                            className="w-full"
+                        />
                     </MiniField>
                     <MiniField label="Condition">
                         <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
@@ -436,8 +434,8 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
                     <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                 </MiniField>
                 <div className="flex gap-2">
-                    <button type="submit" disabled={form.processing} className="px-2 py-1 bg-om-ink text-white text-xs rounded hover:bg-black transition-colors disabled:opacity-50">Save</button>
-                    <button type="button" onClick={onClose} className="px-2 py-1 bg-om-chip text-om-muted text-xs rounded hover:bg-om-line2 transition-colors">Cancel</button>
+                    <Button variant="primary" type="submit" loading={form.processing}>Save</Button>
+                    <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
                 </div>
             </form>
         </div>
@@ -486,16 +484,17 @@ function AddTopicForm({ connectionId }) {
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-om-muted mb-1">Payload format</label>
-                            <select
+                            <Dropdown
                                 value={form.data.payload_format}
-                                onChange={(e) => form.setData('payload_format', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent"
-                            >
-                                <option value="json">JSON</option>
-                                <option value="plain">Plain text</option>
-                                <option value="csv">CSV</option>
-                                <option value="hex">Hex</option>
-                            </select>
+                                onChange={(v) => form.setData('payload_format', v)}
+                                options={[
+                                    { value: 'json', label: 'JSON' },
+                                    { value: 'plain', label: 'Plain text' },
+                                    { value: 'csv', label: 'CSV' },
+                                    { value: 'hex', label: 'Hex' },
+                                ]}
+                                className="w-full"
+                            />
                         </div>
                     </div>
                     <div>
@@ -509,12 +508,12 @@ function AddTopicForm({ connectionId }) {
                         />
                     </div>
                     <div className="flex gap-2">
-                        <button type="submit" disabled={form.processing} className="px-4 py-1.5 bg-om-ink text-white text-sm rounded-om-sm hover:bg-black transition-colors disabled:opacity-50">
+                        <Button variant="primary" type="submit" loading={form.processing}>
                             Add Topic
-                        </button>
-                        <button type="button" onClick={() => setOpen(false)} className="px-4 py-1.5 bg-om-chip text-om-muted text-sm rounded-om-sm hover:bg-om-line2 transition-colors">
+                        </Button>
+                        <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
                             Cancel
-                        </button>
+                        </Button>
                     </div>
                 </form>
             )}
@@ -547,11 +546,12 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                     <input type="text" value={form.data.field_path} onChange={(e) => form.setData('field_path', e.target.value)} placeholder="$.value" className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
                 <MiniField label="Action type *">
-                    <select value={form.data.action_type} onChange={(e) => form.setData('action_type', e.target.value)} required className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent">
-                        {Object.entries(ACTION_LABELS).map(([val, lbl]) => (
-                            <option key={val} value={val}>{lbl}</option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        value={form.data.action_type}
+                        onChange={(v) => form.setData('action_type', v)}
+                        options={Object.entries(ACTION_LABELS).map(([val, lbl]) => ({ value: val, label: lbl }))}
+                        className="w-full"
+                    />
                 </MiniField>
                 <MiniField label="Condition — e.g. value > 0">
                     <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} placeholder="value > 0" className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
@@ -567,8 +567,8 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                 <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} placeholder="e.g. Update produced qty from machine counter" className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
             </MiniField>
             <div className="flex gap-2">
-                <button type="submit" disabled={form.processing} className="px-3 py-1.5 bg-om-ink text-white text-xs rounded-om-sm hover:bg-black transition-colors disabled:opacity-50">Add Mapping</button>
-                <button type="button" onClick={onClose} className="px-3 py-1.5 bg-om-chip text-om-muted text-xs rounded-om-sm hover:bg-om-line2 transition-colors">Cancel</button>
+                <Button variant="primary" type="submit" loading={form.processing}>Add Mapping</Button>
+                <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
             </div>
         </form>
     );
@@ -638,15 +638,11 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
                         <span className="text-xs text-om-muted">{messages.length} new messages</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-1.5 text-xs text-om-faint cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={autoScroll}
-                                onChange={(e) => setAutoScroll(e.target.checked)}
-                                className="rounded border-gray-600 text-om-accent"
-                            />
-                            Auto-scroll
-                        </label>
+                        <Checkbox
+                            checked={autoScroll}
+                            onChange={(next) => setAutoScroll(next)}
+                            label="Auto-scroll"
+                        />
                         <button onClick={() => setMessages([])} className="text-xs text-om-muted hover:text-om-faintest transition-colors">
                             Clear
                         </button>

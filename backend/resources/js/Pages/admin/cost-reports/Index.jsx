@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber } from '../../../lib/i18n';
 import CostMethodology from './CostMethodology';
@@ -62,6 +64,96 @@ export default function CostReportsIndex() {
     const rows = orders?.data ?? [];
     const links = orders?.links ?? [];
     const lastPage = orders?.last_page ?? 1;
+
+    const columns = useMemo(
+        () => [
+            {
+                id: 'order',
+                accessorKey: 'order_no',
+                header: __('Order'),
+                cell: ({ row }) => (
+                    <Link
+                        href={`/admin/cost-reports/${row.original.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-om-accent"
+                    >
+                        {row.original.order_no}
+                    </Link>
+                ),
+            },
+            {
+                id: 'product',
+                accessorKey: 'product_name',
+                header: __('Product'),
+                cell: ({ row }) => <span className="text-om-muted">{row.original.product_name ?? '—'}</span>,
+            },
+            {
+                id: 'line',
+                accessorKey: 'line_name',
+                header: __('Line'),
+                cell: ({ row }) => <span className="text-om-muted">{row.original.line_name ?? '—'}</span>,
+            },
+            {
+                id: 'produced',
+                accessorKey: 'produced_qty',
+                header: __('Produced'),
+                meta: { align: 'right' },
+                cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.produced_qty)}</span>,
+            },
+            {
+                id: 'material_cost',
+                accessorKey: 'material_cost',
+                header: __('Material cost'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono">{money(row.original.material_cost, row.original.currency)}</span>
+                ),
+            },
+            {
+                id: 'labor_cost',
+                accessorKey: 'labor_cost',
+                header: __('Labor cost'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono">{money(row.original.labor_cost, row.original.currency)}</span>
+                ),
+            },
+            {
+                id: 'additional_cost',
+                accessorKey: 'additional_cost',
+                header: __('Additional costs'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono">{money(row.original.additional_cost, row.original.currency)}</span>
+                ),
+            },
+            {
+                id: 'total_cost',
+                accessorKey: 'total_cost',
+                header: __('Total cost'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono font-semibold text-om-ink">
+                        {money(row.original.total_cost, row.original.currency)}
+                    </span>
+                ),
+            },
+            {
+                id: 'cost_per_unit',
+                accessorKey: 'cost_per_unit',
+                header: __('Cost per unit'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono">
+                        {row.original.cost_per_unit == null
+                            ? '—'
+                            : money(row.original.cost_per_unit, row.original.currency)}
+                    </span>
+                ),
+            },
+        ],
+        [],
+    );
 
     return (
         <>
@@ -128,50 +220,42 @@ export default function CostReportsIndex() {
                     {form.preset === 'custom' && (
                         <>
                             <Field label={__('From')}>
-                                <input
-                                    type="date"
-                                    value={form.from}
-                                    onChange={(e) => setForm((f) => ({ ...f, from: e.target.value }))}
-                                    className="form-input py-1.5 text-sm"
+                                <DatePicker
+                                    value={form.from || null}
+                                    onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
+                                    className="w-44"
                                 />
                             </Field>
                             <Field label={__('To')}>
-                                <input
-                                    type="date"
-                                    value={form.to}
-                                    onChange={(e) => setForm((f) => ({ ...f, to: e.target.value }))}
-                                    className="form-input py-1.5 text-sm"
+                                <DatePicker
+                                    value={form.to || null}
+                                    onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
+                                    className="w-44"
                                 />
                             </Field>
                         </>
                     )}
                     <Field label={__('Line')}>
-                        <select
-                            value={form.line_id}
-                            onChange={(e) => setForm((f) => ({ ...f, line_id: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {lines.map((l) => (
-                                <option key={l.id} value={l.id}>
-                                    {l.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.line_id == null ? '' : String(form.line_id)}
+                            onChange={(v) => setForm((f) => ({ ...f, line_id: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...lines.map((l) => ({ value: String(l.id), label: l.name })),
+                            ]}
+                            className="w-full"
+                        />
                     </Field>
                     <Field label={__('Product Type')}>
-                        <select
-                            value={form.product_type_id}
-                            onChange={(e) => setForm((f) => ({ ...f, product_type_id: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {productTypes.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.product_type_id == null ? '' : String(form.product_type_id)}
+                            onChange={(v) => setForm((f) => ({ ...f, product_type_id: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...productTypes.map((p) => ({ value: String(p.id), label: p.name })),
+                            ]}
+                            className="w-full"
+                        />
                     </Field>
                     <Field label={__('Search')}>
                         <input
@@ -192,57 +276,14 @@ export default function CostReportsIndex() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-om-card rounded-om-sm shadow-sm overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
-                                <th className="px-4 py-3">{__('Order')}</th>
-                                <th className="px-4 py-3">{__('Product')}</th>
-                                <th className="px-4 py-3">{__('Line')}</th>
-                                <th className="px-4 py-3 text-right">{__('Produced')}</th>
-                                <th className="px-4 py-3 text-right">{__('Material cost')}</th>
-                                <th className="px-4 py-3 text-right">{__('Labor cost')}</th>
-                                <th className="px-4 py-3 text-right">{__('Additional costs')}</th>
-                                <th className="px-4 py-3 text-right">{__('Total cost')}</th>
-                                <th className="px-4 py-3 text-right">{__('Cost per unit')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line2">
-                            {rows.map((r) => (
-                                <tr
-                                    key={r.id}
-                                    className="hover:bg-om-bg cursor-pointer"
-                                    onClick={() => router.visit(`/admin/cost-reports/${r.id}`)}
-                                >
-                                    <td className="px-4 py-3 font-medium text-om-accent">
-                                        <Link href={`/admin/cost-reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
-                                            {r.order_no}
-                                        </Link>
-                                    </td>
-                                    <td className="px-4 py-3 text-om-muted">{r.product_name ?? '—'}</td>
-                                    <td className="px-4 py-3 text-om-muted">{r.line_name ?? '—'}</td>
-                                    <td className="px-4 py-3 text-right font-mono">{formatNumber(r.produced_qty)}</td>
-                                    <td className="px-4 py-3 text-right font-mono">{money(r.material_cost, r.currency)}</td>
-                                    <td className="px-4 py-3 text-right font-mono">{money(r.labor_cost, r.currency)}</td>
-                                    <td className="px-4 py-3 text-right font-mono">{money(r.additional_cost, r.currency)}</td>
-                                    <td className="px-4 py-3 text-right font-mono font-semibold text-om-ink">
-                                        {money(r.total_cost, r.currency)}
-                                    </td>
-                                    <td className="px-4 py-3 text-right font-mono">
-                                        {r.cost_per_unit == null ? '—' : money(r.cost_per_unit, r.currency)}
-                                    </td>
-                                </tr>
-                            ))}
-                            {rows.length === 0 && (
-                                <tr>
-                                    <td colSpan={9} className="px-4 py-10 text-center text-om-muted">
-                                        {__('No orders match the current filters.')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={rows}
+                    columns={columns}
+                    searchable={false}
+                    paginated={false}
+                    emptyLabel={__('No orders match the current filters.')}
+                    onRowClick={(r) => router.visit(`/admin/cost-reports/${r.id}`)}
+                />
 
                 {/* Pagination */}
                 {lastPage > 1 && (

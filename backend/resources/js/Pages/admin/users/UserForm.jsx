@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown, RadioGroup } from '@openmes/ui';
 import { useState } from 'react';
 
 /**
@@ -38,14 +39,14 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
             {/* Account type */}
             <div>
                 <label className="block text-sm font-medium text-om-muted mb-1">Account Type</label>
-                <div className="flex gap-4">
-                    {['user', 'workstation'].map((t) => (
-                        <label key={t} className="flex items-center gap-2 text-sm">
-                            <input type="radio" name="account_type" checked={data.account_type === t} onChange={() => setData('account_type', t)} />
-                            {t === 'user' ? 'Personal user' : 'Workstation'}
-                        </label>
-                    ))}
-                </div>
+                <RadioGroup
+                    options={[
+                        { value: 'user', label: 'Personal user' },
+                        { value: 'workstation', label: 'Workstation' },
+                    ]}
+                    value={data.account_type}
+                    onChange={(v) => setData('account_type', v)}
+                />
             </div>
 
             <Field label="Name" error={errors.name} required>
@@ -67,24 +68,31 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                 </Field>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-om-muted">
-                <input type="checkbox" checked={!!data.force_password_change} onChange={(e) => setData('force_password_change', e.target.checked)} />
-                Require password change at next login
-            </label>
+            <Checkbox
+                checked={!!data.force_password_change}
+                onChange={(next) => setData('force_password_change', next)}
+                label="Require password change at next login"
+            />
 
             {isUser ? (
                 <Field label="Role" error={errors.role} required>
-                    <select value={data.role ?? ''} onChange={(e) => setData('role', e.target.value)} className="form-input w-full">
-                        <option value="">— Select role —</option>
-                        {roles.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
+                    <Dropdown
+                        options={roles.map((r) => ({ value: String(r), label: r }))}
+                        value={data.role == null ? '' : String(data.role)}
+                        onChange={(v) => setData('role', v)}
+                        placeholder="— Select role —"
+                        className="w-full"
+                    />
                 </Field>
             ) : (
                 <Field label="Workstation" error={errors.workstation_id} required>
-                    <select value={data.workstation_id ?? ''} onChange={(e) => setData('workstation_id', e.target.value)} className="form-input w-full">
-                        <option value="">— Select workstation —</option>
-                        {workstations.map((w) => <option key={w.id} value={String(w.id)}>{w.name}</option>)}
-                    </select>
+                    <Dropdown
+                        options={workstations.map((w) => ({ value: String(w.id), label: w.name }))}
+                        value={data.workstation_id == null ? '' : String(data.workstation_id)}
+                        onChange={(v) => setData('workstation_id', v)}
+                        placeholder="— Select workstation —"
+                        className="w-full"
+                    />
                 </Field>
             )}
 
@@ -113,16 +121,20 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                             <input type="text" value={data.worker_phone} onChange={(e) => setData('worker_phone', e.target.value)} className="form-input w-full" />
                         </Field>
                         <Field label="Crew">
-                            <select value={data.worker_crew_id ?? ''} onChange={(e) => setData('worker_crew_id', e.target.value)} className="form-input w-full">
-                                <option value="">— None —</option>
-                                {crews.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-                            </select>
+                            <Dropdown
+                                options={[{ value: '', label: '— None —' }, ...crews.map((c) => ({ value: String(c.id), label: c.name }))]}
+                                value={data.worker_crew_id == null ? '' : String(data.worker_crew_id)}
+                                onChange={(v) => setData('worker_crew_id', v)}
+                                className="w-full"
+                            />
                         </Field>
                         <Field label="Wage Group">
-                            <select value={data.worker_wage_group_id ?? ''} onChange={(e) => setData('worker_wage_group_id', e.target.value)} className="form-input w-full">
-                                <option value="">— None —</option>
-                                {wageGroups.map((g) => <option key={g.id} value={String(g.id)}>{g.name}</option>)}
-                            </select>
+                            <Dropdown
+                                options={[{ value: '', label: '— None —' }, ...wageGroups.map((g) => ({ value: String(g.id), label: g.name }))]}
+                                value={data.worker_wage_group_id == null ? '' : String(data.worker_wage_group_id)}
+                                onChange={(v) => setData('worker_wage_group_id', v)}
+                                className="w-full"
+                            />
                         </Field>
                     </div>
 
@@ -135,14 +147,19 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                                 const on = selectedSkills.has(id);
                                 return (
                                     <div key={skill.id} className="flex items-center gap-3 px-3 py-2">
-                                        <label className="flex items-center gap-2 flex-1 text-sm text-om-muted">
-                                            <input type="checkbox" checked={on} onChange={(e) => toggleSkill(skill.id, e.target.checked)} />
-                                            {skill.name}
-                                        </label>
+                                        <Checkbox
+                                            checked={on}
+                                            onChange={(next) => toggleSkill(skill.id, next)}
+                                            label={skill.name}
+                                            className="flex-1"
+                                        />
                                         {on && (
-                                            <select value={selectedSkills.get(id)} onChange={(e) => setSkillLevel(skill.id, e.target.value)} className="form-input text-sm py-1">
-                                                {[1, 2, 3, 4, 5].map((l) => <option key={l} value={l}>{l}</option>)}
-                                            </select>
+                                            <Dropdown
+                                                options={[1, 2, 3, 4, 5].map((l) => ({ value: String(l), label: String(l) }))}
+                                                value={String(selectedSkills.get(id))}
+                                                onChange={(v) => setSkillLevel(skill.id, v)}
+                                                className="min-w-[64px]"
+                                            />
                                         )}
                                     </div>
                                 );
@@ -155,9 +172,9 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
             )}
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
+                <Button type="submit" variant="primary" loading={processing} disabled={processing}>
                     {processing ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Account'}
-                </button>
+                </Button>
                 <Link href="/admin/users" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
             </div>
         </form>

@@ -1,7 +1,8 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
-import { useState, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Button, ConfirmDialog, StatusPill, TextField } from '@openmes/ui';
+import { Button, ConfirmDialog, Dropdown, StatusPill, TextField } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 
 const STATUS_PILLS = {
@@ -65,6 +66,71 @@ export default function EansIndex() {
     const hasSearch = searchVal !== '' ||
         (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('search'));
 
+    const columns = useMemo(() => [
+        {
+            id: 'order_no',
+            accessorKey: 'order_no',
+            header: 'Zlecenie',
+            cell: ({ row }) => (
+                <span className="font-mono font-semibold text-om-ink">{row.original.order_no}</span>
+            ),
+        },
+        {
+            id: 'product',
+            accessorFn: (r) => r.product_type?.name ?? '—',
+            header: 'Produkt',
+            cell: ({ row }) => (
+                <span className="text-om-ink">{row.original.product_type?.name ?? '—'}</span>
+            ),
+        },
+        {
+            id: 'status',
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <StatusPill
+                    status={pillStatus(row.original.status)}
+                    label={(row.original.status ?? '').replace(/_/g, ' ')}
+                />
+            ),
+        },
+        {
+            id: 'eans',
+            header: 'Kody EAN',
+            enableSorting: false,
+            cell: ({ row }) => (
+                (row.original.eans ?? []).length === 0 ? (
+                    <span className="text-[11.5px] text-om-faint">Brak EAN</span>
+                ) : (row.original.eans ?? []).map((ean) => (
+                    <div key={ean.id} className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px]">
+                            {ean.ean}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setEanToDelete(ean)}
+                            className="text-[11.5px] text-om-blocked hover:underline transition-colors"
+                        >
+                            Usuń
+                        </button>
+                    </div>
+                ))
+            ),
+        },
+        {
+            id: 'packed',
+            accessorFn: (r) => r.packed_qty ?? 0,
+            header: 'Spakowano / Plan',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="font-mono text-om-muted">
+                    <span className="font-semibold text-om-ink">{row.original.packed_qty ?? 0}</span>
+                    <span className="text-om-faint"> / {parseInt(row.original.planned_qty ?? 0, 10)}</span>
+                </span>
+            ),
+        },
+    ], []);
+
     return (
         <>
             <Head title="Zarządzanie kodami EAN" />
@@ -98,20 +164,16 @@ export default function EansIndex() {
                     <form onSubmit={handleAddSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">Zlecenie produkcyjne</label>
-                            <select
-                                name="work_order_id"
-                                value={form.data.work_order_id}
-                                onChange={(e) => form.setData('work_order_id', e.target.value)}
-                                className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
-                                required
-                            >
-                                <option value="">— wybierz zlecenie —</option>
-                                {rows.map((wo) => (
-                                    <option key={wo.id} value={wo.id}>
-                                        {wo.order_no}{wo.product_type ? ` — ${wo.product_type.name}` : ''}
-                                    </option>
-                                ))}
-                            </select>
+                            <Dropdown
+                                value={form.data.work_order_id == null ? '' : String(form.data.work_order_id)}
+                                onChange={(v) => form.setData('work_order_id', v)}
+                                placeholder="— wybierz zlecenie —"
+                                options={rows.map((wo) => ({
+                                    value: String(wo.id),
+                                    label: `${wo.order_no}${wo.product_type ? ` — ${wo.product_type.name}` : ''}`,
+                                }))}
+                                className="w-full"
+                            />
                             {form.errors.work_order_id && (
                                 <p className="text-[11.5px] text-om-blocked mt-1">{form.errors.work_order_id}</p>
                             )}
@@ -158,64 +220,19 @@ export default function EansIndex() {
                 </form>
 
                 {/* Table */}
-                <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-om-line text-[13px]">
-                            <thead className="bg-om-panel">
-                                <tr>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Zlecenie</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Produkt</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Status</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Kody EAN</th>
-                                    <th className="px-4 py-2.5 text-right font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Spakowano / Plan</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line">
-                                {rows.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="px-4 py-10 text-center text-om-faint text-[12.5px]">Brak wyników</td>
-                                    </tr>
-                                ) : rows.map((wo) => (
-                                    <tr key={wo.id}>
-                                        <td className="px-4 py-3 font-mono font-semibold text-om-ink">{wo.order_no}</td>
-                                        <td className="px-4 py-3 text-om-ink">{wo.product_type?.name ?? '—'}</td>
-                                        <td className="px-4 py-3">
-                                            <StatusPill
-                                                status={pillStatus(wo.status)}
-                                                label={(wo.status ?? '').replace(/_/g, ' ')}
-                                            />
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            {(wo.eans ?? []).length === 0 ? (
-                                                <span className="text-[11.5px] text-om-faint">Brak EAN</span>
-                                            ) : (wo.eans ?? []).map((ean) => (
-                                                <div key={ean.id} className="flex items-center gap-2 mb-1">
-                                                    <span className="font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px]">
-                                                        {ean.ean}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEanToDelete(ean)}
-                                                        className="text-[11.5px] text-om-blocked hover:underline transition-colors"
-                                                    >
-                                                        Usuń
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono text-om-muted">
-                                            <span className="font-semibold text-om-ink">{wo.packed_qty ?? 0}</span>
-                                            <span className="text-om-faint"> / {parseInt(wo.planned_qty ?? 0, 10)}</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                <div>
+                    <DataTable
+                        data={rows}
+                        columns={columns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel="Brak wyników"
+                    />
 
                     {/* Pagination links */}
                     {pagination.last_page > 1 && (
-                        <div className="px-4 py-3 border-t border-om-line flex items-center gap-2 flex-wrap text-[13px]">
+                        <div className="mt-3 flex items-center gap-2 flex-wrap text-[13px]">
                             {(pagination.links ?? []).map((link, i) => (
                                 <button
                                     key={i}

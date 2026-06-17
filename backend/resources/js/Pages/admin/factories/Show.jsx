@@ -1,9 +1,68 @@
+import { useMemo } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function FactoryShow() {
     const { factory } = usePage().props;
     const { divisions = [] } = factory;
+
+    const divisionColumns = useMemo(() => [
+        {
+            id: 'code',
+            accessorKey: 'code',
+            header: 'Code',
+            cell: ({ row }) => (
+                <span className="font-mono text-om-muted">{row.original.code}</span>
+            ),
+        },
+        {
+            id: 'name',
+            accessorKey: 'name',
+            header: 'Name',
+            cell: ({ row }) => (
+                <span className="font-medium text-om-ink">{row.original.name}</span>
+            ),
+        },
+        {
+            id: 'crews',
+            accessorKey: 'crews_count',
+            header: 'Crews',
+            cell: ({ row }) => (
+                <span className="text-om-muted">{row.original.crews_count}</span>
+            ),
+        },
+        {
+            id: 'status',
+            accessorFn: (r) => r.is_active,
+            header: 'Status',
+            cell: ({ row }) => (
+                row.original.is_active ? (
+                    <span className="px-2 py-0.5 bg-om-running-bg text-om-running rounded-full text-xs">
+                        Active
+                    </span>
+                ) : (
+                    <span className="px-2 py-0.5 bg-om-chip text-om-muted rounded-full text-xs">
+                        Inactive
+                    </span>
+                )
+            ),
+        },
+        {
+            id: 'actions',
+            header: '',
+            enableSorting: false,
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <Link
+                    href={`/admin/divisions/${row.original.id}/edit`}
+                    className="text-sm text-om-accent hover:text-om-accent"
+                >
+                    Edit
+                </Link>
+            ),
+        },
+    ], []);
 
     return (
         <>
@@ -59,55 +118,14 @@ export default function FactoryShow() {
                             Divisions <span className="text-om-muted">({divisions.length})</span>
                         </h2>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-om-line2">
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Code</th>
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Name</th>
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Crews</th>
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Status</th>
-                                    <th className="text-right py-2 px-4"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line2">
-                                {divisions.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="py-6 text-center text-om-muted">
-                                            No divisions assigned to this factory yet.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    divisions.map((division) => (
-                                        <tr key={division.id} className="hover:bg-om-bg">
-                                            <td className="py-2 px-4 font-mono text-om-muted">{division.code}</td>
-                                            <td className="py-2 px-4 font-medium text-om-ink">{division.name}</td>
-                                            <td className="py-2 px-4 text-om-muted">{division.crews_count}</td>
-                                            <td className="py-2 px-4">
-                                                {division.is_active ? (
-                                                    <span className="px-2 py-0.5 bg-om-running-bg text-om-running rounded-full text-xs">
-                                                        Active
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-0.5 bg-om-chip text-om-muted rounded-full text-xs">
-                                                        Inactive
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="py-2 px-4 text-right">
-                                                <Link
-                                                    href={`/admin/divisions/${division.id}/edit`}
-                                                    className="text-sm text-om-accent hover:text-om-accent"
-                                                >
-                                                    Edit
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={divisions}
+                        columns={divisionColumns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel="No divisions assigned to this factory yet."
+                    />
                 </div>
             </div>
         </>

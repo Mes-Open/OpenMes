@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
 const AUTO_MAP_RULES = {
@@ -185,16 +186,17 @@ export default function MaterialsImportMapping() {
                                                 className="w-5 h-5 text-om-faint shrink-0"
                                             />
                                             <div className="flex-1">
-                                                <select
+                                                <input
+                                                    type="hidden"
                                                     name={`mapping[${h}]`}
-                                                    className="w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink focus:border-om-accent focus:ring-2 focus:ring-blue-200 outline-none transition"
                                                     value={mappings[h] ?? '_ignore'}
-                                                    onChange={(e) => setMapping(h, e.target.value)}
-                                                >
-                                                    {Object.entries(systemFields).map(([val, label]) => (
-                                                        <option key={val} value={val}>{label}</option>
-                                                    ))}
-                                                </select>
+                                                />
+                                                <Dropdown
+                                                    className="w-full"
+                                                    options={Object.entries(systemFields).map(([val, label]) => ({ value: String(val), label }))}
+                                                    value={mappings[h] == null ? '_ignore' : String(mappings[h])}
+                                                    onChange={(v) => setMapping(h, v)}
+                                                />
                                             </div>
                                         </div>
                                     );

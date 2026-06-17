@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Dropdown, RadioGroup } from '@openmes/ui';
 import RepeatableRows from '../../../components/RepeatableRows';
 
 const CRITERIA_FIELDS = [
@@ -40,33 +41,40 @@ export default function InspectionPlanForm({ form, materials, materialTypes, sub
 
             <div>
                 <label className="block text-sm font-medium text-om-muted mb-1">Scope <span className="text-om-blocked">*</span></label>
-                <div className="flex gap-4">
-                    {[['material', 'Specific material'], ['material_type', 'Material type'], ['generic', 'Generic']].map(([v, lbl]) => (
-                        <label key={v} className="flex items-center gap-2 text-sm">
-                            <input type="radio" checked={data.scope === v} onChange={() => setData('scope', v)} />
-                            {lbl}
-                        </label>
-                    ))}
-                </div>
+                <RadioGroup
+                    options={[
+                        { value: 'material', label: 'Specific material' },
+                        { value: 'material_type', label: 'Material type' },
+                        { value: 'generic', label: 'Generic' },
+                    ]}
+                    value={data.scope}
+                    onChange={(v) => setData('scope', v)}
+                />
             </div>
 
             {data.scope === 'material' && (
                 <div>
                     <label className="block text-sm font-medium text-om-muted mb-1">Material <span className="text-om-blocked">*</span></label>
-                    <select value={data.material_id ?? ''} onChange={(e) => setData('material_id', e.target.value)} className="form-input w-full">
-                        <option value="">— Select material —</option>
-                        {materials.map((m) => <option key={m.id} value={String(m.id)}>{m.name}</option>)}
-                    </select>
+                    <Dropdown
+                        value={data.material_id == null ? '' : String(data.material_id)}
+                        onChange={(v) => setData('material_id', v)}
+                        options={materials.map((m) => ({ value: String(m.id), label: m.name }))}
+                        placeholder="— Select material —"
+                        className="w-full"
+                    />
                     {errors.material_id && <p className="mt-1 text-xs text-om-blocked">{errors.material_id}</p>}
                 </div>
             )}
             {data.scope === 'material_type' && (
                 <div>
                     <label className="block text-sm font-medium text-om-muted mb-1">Material Type <span className="text-om-blocked">*</span></label>
-                    <select value={data.material_type_id ?? ''} onChange={(e) => setData('material_type_id', e.target.value)} className="form-input w-full">
-                        <option value="">— Select type —</option>
-                        {materialTypes.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
-                    </select>
+                    <Dropdown
+                        value={data.material_type_id == null ? '' : String(data.material_type_id)}
+                        onChange={(v) => setData('material_type_id', v)}
+                        options={materialTypes.map((t) => ({ value: String(t.id), label: t.name }))}
+                        placeholder="— Select type —"
+                        className="w-full"
+                    />
                     {errors.material_type_id && <p className="mt-1 text-xs text-om-blocked">{errors.material_type_id}</p>}
                 </div>
             )}

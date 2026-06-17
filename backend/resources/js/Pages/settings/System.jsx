@@ -1,7 +1,7 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Button, Checkbox, Switch, Tabs } from '@openmes/ui';
+import { Button, Checkbox, Dropdown, Switch, Tabs } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
@@ -127,15 +127,12 @@ export default function System() {
                         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Language')}</h2>
                         <div className="mb-2">
                             <label className={LABEL_CLASS}>{__('Select language')}</label>
-                            <select
-                                value={data.language}
-                                onChange={(e) => setData('language', e.target.value)}
-                                className={`${INPUT_BASE} w-full max-w-xs`}
-                            >
-                                {Object.entries(availableLocales ?? { en: 'English' }).map(([code, name]) => (
-                                    <option key={code} value={code}>{name}</option>
-                                ))}
-                            </select>
+                            <Dropdown
+                                options={Object.entries(availableLocales ?? { en: 'English' }).map(([code, name]) => ({ value: String(code), label: name }))}
+                                value={data.language == null ? '' : String(data.language)}
+                                onChange={(v) => setData('language', v)}
+                                className="w-full max-w-xs"
+                            />
                             <p className={`${HELP_CLASS} mt-2`}>
                                 {__('Want to add a new language? Create a JSON file in')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">lang/</code> {__('directory.')}
                                 {' '}{__('See')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">lang/en.json</code> {__('as reference.')}
@@ -145,18 +142,17 @@ export default function System() {
                         <div className="border-t border-om-line pt-4 mt-2">
                             <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Currency')}</h2>
                             <p className={`${HELP_CLASS} mb-2`}>{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
-                            <select
-                                value={data.default_currency}
-                                onChange={(e) => setData('default_currency', e.target.value)}
-                                className={`${INPUT_BASE} w-64 max-w-full`}
-                            >
-                                {!CURRENCIES.some(([code]) => code === data.default_currency) && data.default_currency && (
-                                    <option value={data.default_currency}>{data.default_currency}</option>
-                                )}
-                                {CURRENCIES.map(([code, name]) => (
-                                    <option key={code} value={code}>{code} - {__(name)}</option>
-                                ))}
-                            </select>
+                            <Dropdown
+                                options={[
+                                    ...(!CURRENCIES.some(([code]) => code === data.default_currency) && data.default_currency
+                                        ? [{ value: String(data.default_currency), label: data.default_currency }]
+                                        : []),
+                                    ...CURRENCIES.map(([code, name]) => ({ value: String(code), label: `${code} - ${__(name)}` })),
+                                ]}
+                                value={data.default_currency == null ? '' : String(data.default_currency)}
+                                onChange={(v) => setData('default_currency', v)}
+                                className="w-64 max-w-full"
+                            />
                             {errors.default_currency && <p className={ERROR_CLASS}>{errors.default_currency}</p>}
                         </div>
                     </div>
@@ -350,16 +346,16 @@ export default function System() {
                                 <div>
                                     <label className={LABEL_CLASS} htmlFor="default_pay_type">{__('Default pay type')}</label>
                                     <p className={`${HELP_CLASS} mb-2`}>{__('Fallback mode for workers with no pay type set.')}</p>
-                                    <select
-                                        id="default_pay_type"
-                                        value={data.default_pay_type}
-                                        onChange={(e) => setData('default_pay_type', e.target.value)}
-                                        className={`${INPUT_BASE} w-full`}
-                                    >
-                                        <option value="hourly">{__('Hourly')}</option>
-                                        <option value="weekly">{__('Weekly')}</option>
-                                        <option value="piece_rate">{__('Piece rate')}</option>
-                                    </select>
+                                    <Dropdown
+                                        options={[
+                                            { value: 'hourly', label: __('Hourly') },
+                                            { value: 'weekly', label: __('Weekly') },
+                                            { value: 'piece_rate', label: __('Piece rate') },
+                                        ]}
+                                        value={data.default_pay_type == null ? '' : String(data.default_pay_type)}
+                                        onChange={(v) => setData('default_pay_type', v)}
+                                        className="w-full"
+                                    />
                                     {errors.default_pay_type && <p className={ERROR_CLASS}>{errors.default_pay_type}</p>}
                                 </div>
                                 <div>

@@ -1,6 +1,8 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
+import { useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { StatusPill } from '@openmes/ui';
+import { Dropdown, StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
 import { formatNumber } from '../../lib/i18n';
 
@@ -80,6 +82,91 @@ export default function InspectionsIndex() {
         return `/inspections?${params.toString()}`;
     };
 
+    const columns = useMemo(() => [
+        {
+            id: 'started',
+            accessorFn: (r) => r.started_at_formatted ?? '',
+            header: 'Started',
+            cell: ({ row }) => (
+                <span className="font-mono text-[12px] text-om-muted">{row.original.started_at_formatted ?? '—'}</span>
+            ),
+        },
+        {
+            id: 'material',
+            accessorFn: (r) => r.material?.name ?? '',
+            header: 'Material',
+            cell: ({ row }) => <span className="text-om-ink">{row.original.material?.name ?? '—'}</span>,
+        },
+        {
+            id: 'lot',
+            accessorKey: 'lot_number',
+            header: 'Lot',
+            cell: ({ row }) => <span className="font-mono text-om-ink">{row.original.lot_number}</span>,
+        },
+        {
+            id: 'qty',
+            accessorKey: 'quantity_received',
+            header: 'Qty',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="font-mono text-om-ink">
+                    {row.original.quantity_received != null ? fmtNum(row.original.quantity_received) : '—'}
+                </span>
+            ),
+        },
+        {
+            id: 'inspector',
+            accessorFn: (r) => r.inspector?.name ?? '',
+            header: 'Inspector',
+            cell: ({ row }) => <span className="text-om-muted">{row.original.inspector?.name ?? '—'}</span>,
+        },
+        {
+            id: 'status',
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <>
+                    <StatusPill
+                        status={statusPill(row.original.status)}
+                        pulse={false}
+                        label={(row.original.status ?? '').replace(/_/g, ' ')}
+                    />
+                    {row.original.issue_id && (
+                        <span className="block font-mono text-[11px] text-om-blocked mt-1">
+                            NC #{row.original.issue_id}
+                        </span>
+                    )}
+                </>
+            ),
+        },
+        {
+            id: 'disposition',
+            accessorKey: 'disposition',
+            header: 'Disposition',
+            cell: ({ row }) => (
+                <StatusPill
+                    status={dispositionPill(row.original.disposition ?? 'pending')}
+                    pulse={false}
+                    label={(row.original.disposition ?? 'pending').replace(/_/g, ' ')}
+                />
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            enableSorting: false,
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <Link
+                    href={`/inspections/${row.original.id}`}
+                    className="text-om-accent hover:underline"
+                >
+                    {row.original.status === 'pending' ? 'Perform' : 'Open'}
+                </Link>
+            ),
+        },
+    ], []);
+
     return (
         <>
             <Head title="Inbound Inspections" />
@@ -137,17 +224,15 @@ export default function InspectionsIndex() {
                 {/* Disposition filter */}
                 <div className="flex items-center gap-2 mb-3">
                     <label htmlFor="disposition" className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Disposition:</label>
-                    <select
-                        id="disposition"
-                        value={selectedDisposition}
-                        onChange={(e) => router.visit(dispHref(e.target.value), { preserveScroll: true })}
-                        className="w-48 bg-om-bg border border-om-line rounded-om-sm px-3 py-2 text-[13px] text-om-ink outline-none focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
-                    >
-                        <option value="">All</option>
-                        {DISPOSITION_OPTIONS.map((d) => (
-                            <option key={d} value={d}>{DISPOSITION_LABELS[d] ?? d}</option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        value={selectedDisposition == null ? '' : String(selectedDisposition)}
+                        onChange={(v) => router.visit(dispHref(v), { preserveScroll: true })}
+                        options={[
+                            { value: '', label: 'All' },
+                            ...DISPOSITION_OPTIONS.map((d) => ({ value: String(d), label: DISPOSITION_LABELS[d] ?? d })),
+                        ]}
+                        className="w-48"
+                    />
                     {selectedDisposition && (
                         <a href={`/inspections?tab=${tab}`} className="text-[11.5px] text-om-muted hover:text-om-ink">
                             Clear
@@ -156,66 +241,15 @@ export default function InspectionsIndex() {
                 </div>
 
                 {/* Table */}
-                {inspections.length === 0 ? (
-                    <div className="bg-om-card border border-om-line rounded-om text-center py-8 text-[13px] text-om-muted">No inspections in this tab.</div>
-                ) : (
-                    <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
-                        <table className="min-w-full divide-y divide-om-line text-[13px]">
-                            <thead className="bg-om-bg">
-                                <tr>
-                                    <th className={`${TH_CLASS} text-left`}>Started</th>
-                                    <th className={`${TH_CLASS} text-left`}>Material</th>
-                                    <th className={`${TH_CLASS} text-left`}>Lot</th>
-                                    <th className={`${TH_CLASS} text-right`}>Qty</th>
-                                    <th className={`${TH_CLASS} text-left`}>Inspector</th>
-                                    <th className={`${TH_CLASS} text-center`}>Status</th>
-                                    <th className={`${TH_CLASS} text-center`}>Disposition</th>
-                                    <th className={`${TH_CLASS} text-right`}>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line">
-                                {inspections.map((insp) => (
-                                    <tr key={insp.id}>
-                                        <td className="px-3 py-2 font-mono text-[12px] text-om-muted">{insp.started_at_formatted ?? '—'}</td>
-                                        <td className="px-3 py-2 text-om-ink">{insp.material?.name ?? '—'}</td>
-                                        <td className="px-3 py-2 font-mono text-om-ink">{insp.lot_number}</td>
-                                        <td className="px-3 py-2 text-right font-mono text-om-ink">
-                                            {insp.quantity_received != null ? fmtNum(insp.quantity_received) : '—'}
-                                        </td>
-                                        <td className="px-3 py-2 text-om-muted">{insp.inspector?.name ?? '—'}</td>
-                                        <td className="px-3 py-2 text-center">
-                                            <StatusPill
-                                                status={statusPill(insp.status)}
-                                                pulse={false}
-                                                label={(insp.status ?? '').replace(/_/g, ' ')}
-                                            />
-                                            {insp.issue_id && (
-                                                <span className="block font-mono text-[11px] text-om-blocked mt-1">
-                                                    NC #{insp.issue_id}
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2 text-center">
-                                            <StatusPill
-                                                status={dispositionPill(insp.disposition ?? 'pending')}
-                                                pulse={false}
-                                                label={(insp.disposition ?? 'pending').replace(/_/g, ' ')}
-                                            />
-                                        </td>
-                                        <td className="px-3 py-2 text-right">
-                                            <Link
-                                                href={`/inspections/${insp.id}`}
-                                                className="text-om-accent hover:underline"
-                                            >
-                                                {insp.status === 'pending' ? 'Perform' : 'Open'}
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                <DataTable
+                    data={inspections}
+                    columns={columns}
+                    searchable
+                    columnToggle
+                    paginated
+                    searchPlaceholder="Search inspections…"
+                    emptyLabel="No inspections in this tab."
+                />
             </div>
         </>
     );

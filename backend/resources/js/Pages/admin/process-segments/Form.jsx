@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -36,20 +37,22 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
             </Field>
 
             <Field label="Segment Type" error={errors.segment_type} required>
-                <select value={data.segment_type} onChange={(e) => setData('segment_type', e.target.value)} className="form-input w-full">
-                    {segmentTypes.map((t) => (
-                        <option key={t} value={t}>{cap(t)}</option>
-                    ))}
-                </select>
+                <Dropdown
+                    options={segmentTypes.map((t) => ({ value: String(t), label: cap(t) }))}
+                    value={data.segment_type == null ? '' : String(data.segment_type)}
+                    onChange={(v) => setData('segment_type', v)}
+                    className="w-full"
+                />
             </Field>
 
             <Field label="Workstation Type" error={errors.workstation_type_id}>
-                <select value={data.workstation_type_id ?? ''} onChange={(e) => setData('workstation_type_id', e.target.value)} className="form-input w-full">
-                    <option value="">— None —</option>
-                    {workstationTypes.map((w) => (
-                        <option key={w.id} value={String(w.id)}>{w.name}</option>
-                    ))}
-                </select>
+                <Dropdown
+                    options={workstationTypes.map((w) => ({ value: String(w.id), label: w.name }))}
+                    value={data.workstation_type_id == null ? '' : String(data.workstation_type_id)}
+                    onChange={(v) => setData('workstation_type_id', v)}
+                    placeholder="— None —"
+                    className="w-full"
+                />
             </Field>
 
             <Field label="Estimated Duration (minutes)" error={errors.estimated_duration_minutes}>
@@ -69,10 +72,9 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
                 <div className="border border-om-line2 rounded-om-sm divide-y">
                     {skills.length === 0 && <p className="px-3 py-3 text-sm text-om-faint">No skills defined.</p>}
                     {skills.map((skill) => (
-                        <label key={skill.id} className="flex items-center gap-2 px-3 py-2 text-sm text-om-muted">
-                            <input type="checkbox" checked={selected.has(Number(skill.id))} onChange={(e) => toggleSkill(skill.id, e.target.checked)} />
-                            {skill.name}
-                        </label>
+                        <div key={skill.id} className="flex items-center gap-2 px-3 py-2 text-sm text-om-muted">
+                            <Checkbox checked={selected.has(Number(skill.id))} onChange={(next) => toggleSkill(skill.id, next)} label={skill.name} />
+                        </div>
                     ))}
                 </div>
                 {errors.required_skill_ids && <p className="mt-1 text-xs text-om-blocked">{errors.required_skill_ids}</p>}
@@ -88,9 +90,9 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
             </Field>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
+                <Button type="submit" variant="primary" loading={processing} disabled={processing}>
                     {processing ? 'Saving…' : submitLabel}
-                </button>
+                </Button>
                 <Link href="/admin/process-segments" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
             </div>
         </form>

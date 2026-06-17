@@ -1,6 +1,6 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { Button, TextField } from '@openmes/ui';
+import { Button, Dropdown, TextField } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 
 const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
@@ -36,19 +36,16 @@ export default function InspectionsCreate() {
                         <label className={LABEL_CLASS}>
                             Material <span className="text-om-accent">*</span>
                         </label>
-                        <select
-                            value={data.material_id}
-                            onChange={(e) => setData('material_id', e.target.value)}
-                            required
-                            className={INPUT_CLASS}
-                        >
-                            <option value="">-- choose --</option>
-                            {materials.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                    {m.code} — {m.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={data.material_id == null ? '' : String(data.material_id)}
+                            onChange={(v) => setData('material_id', v)}
+                            placeholder="-- choose --"
+                            options={materials.map((m) => ({
+                                value: String(m.id),
+                                label: `${m.code} — ${m.name}`,
+                            }))}
+                            className="w-full"
+                        />
                         {errors.material_id && (
                             <p className="text-[11.5px] text-om-blocked mt-1">{errors.material_id}</p>
                         )}
@@ -90,20 +87,18 @@ export default function InspectionsCreate() {
                     {/* Inspection plan */}
                     <div>
                         <label className={LABEL_CLASS}>Inspection plan</label>
-                        <select
-                            value={data.inspection_plan_id}
-                            onChange={(e) => setData('inspection_plan_id', e.target.value)}
-                            className={INPUT_CLASS}
-                        >
-                            <option value="">— no plan (ad-hoc) —</option>
-                            {plans.map((plan) => (
-                                <option key={plan.id} value={plan.id}>
-                                    {plan.name}
-                                    {plan.material ? ` (${plan.material.name})` : ''}
-                                    {plan.material_type ? ` (${plan.material_type.name})` : ''}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={data.inspection_plan_id == null ? '' : String(data.inspection_plan_id)}
+                            onChange={(v) => setData('inspection_plan_id', v)}
+                            placeholder="— no plan (ad-hoc) —"
+                            options={plans.map((plan) => ({
+                                value: String(plan.id),
+                                label: `${plan.name}${plan.material ? ` (${plan.material.name})` : ''}${
+                                    plan.material_type ? ` (${plan.material_type.name})` : ''
+                                }`,
+                            }))}
+                            className="w-full"
+                        />
                         <p className="text-[12.5px] text-om-muted mt-1">
                             If no plan is selected, you can still record results but no criteria will be pre-filled.
                         </p>

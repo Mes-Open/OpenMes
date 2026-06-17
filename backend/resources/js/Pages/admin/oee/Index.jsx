@@ -1,5 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+import { useMemo, useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatNumber } from '../../../lib/i18n';
 
@@ -28,6 +30,80 @@ export default function OeeIndex() {
     const coloredByLine = trendByLine.map((l, i) => ({ ...l, color: LINE_PALETTE[i % LINE_PALETTE.length] }));
 
     const maxTrend = Math.max(...trend.map((d) => d.oee ?? 0), 1);
+
+    const recordColumns = useMemo(() => [
+        {
+            id: 'record_date',
+            accessorKey: 'record_date',
+            header: 'Date',
+            cell: ({ row }) => <span className="font-mono">{row.original.record_date}</span>,
+        },
+        {
+            id: 'line',
+            accessorFn: (r) => r.line?.name,
+            header: 'Line',
+            cell: ({ row }) => <span className="font-medium">{row.original.line?.name}</span>,
+        },
+        {
+            id: 'shift',
+            accessorFn: (r) => r.shift?.name ?? 'All',
+            header: 'Shift',
+            cell: ({ row }) => <span className="text-om-muted">{row.original.shift?.name ?? 'All'}</span>,
+        },
+        {
+            id: 'availability_pct',
+            accessorKey: 'availability_pct',
+            header: 'A%',
+            meta: { align: 'right' },
+            cell: ({ row }) => (row.original.availability_pct != null ? Number(row.original.availability_pct).toFixed(1) + '%' : '—'),
+        },
+        {
+            id: 'performance_pct',
+            accessorKey: 'performance_pct',
+            header: 'P%',
+            meta: { align: 'right' },
+            cell: ({ row }) => (row.original.performance_pct != null ? Number(row.original.performance_pct).toFixed(1) + '%' : '—'),
+        },
+        {
+            id: 'quality_pct',
+            accessorKey: 'quality_pct',
+            header: 'Q%',
+            meta: { align: 'right' },
+            cell: ({ row }) => (row.original.quality_pct != null ? Number(row.original.quality_pct).toFixed(1) + '%' : '—'),
+        },
+        {
+            id: 'oee_pct',
+            accessorKey: 'oee_pct',
+            header: 'OEE%',
+            meta: { align: 'right' },
+            cell: ({ row }) => {
+                const r = row.original;
+                const band = oeeBand(r.oee_pct != null ? Number(r.oee_pct) : null);
+                return <span className={`font-bold ${band.text}`}>{r.oee_pct != null ? Number(r.oee_pct).toFixed(1) + '%' : '—'}</span>;
+            },
+        },
+        {
+            id: 'total_produced',
+            accessorKey: 'total_produced',
+            header: 'Produced',
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono">{formatNumber(Number(row.original.total_produced))}</span>,
+        },
+        {
+            id: 'scrap_qty',
+            accessorKey: 'scrap_qty',
+            header: 'Scrap',
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono text-om-blocked">{row.original.scrap_qty > 0 ? formatNumber(Number(row.original.scrap_qty)) : '—'}</span>,
+        },
+        {
+            id: 'downtime_minutes',
+            accessorKey: 'downtime_minutes',
+            header: 'Downtime',
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono">{row.original.downtime_minutes}min</span>,
+        },
+    ], []);
 
     return (
         <>
@@ -66,31 +142,25 @@ export default function OeeIndex() {
                 {/* Filters */}
                 <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-4">
                     <Filter label="Line">
-                        <select
-                            value={lineId ?? ''}
-                            onChange={(e) => apply({ line_id: e.target.value })}
-                            className="form-input py-1.5 text-sm min-w-[160px]"
-                        >
-                            <option value="">All Lines</option>
-                            {lines.map((l) => (
-                                <option key={l.id} value={l.id}>{l.name}</option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            className="min-w-[160px]"
+                            options={[{ value: '', label: 'All Lines' }, ...lines.map((l) => ({ value: String(l.id), label: l.name }))]}
+                            value={lineId == null ? '' : String(lineId)}
+                            onChange={(v) => apply({ line_id: v })}
+                        />
                     </Filter>
                     <Filter label="From">
-                        <input
-                            type="date"
-                            value={dateFrom ?? ''}
-                            onChange={(e) => apply({ date_from: e.target.value })}
-                            className="form-input py-1.5 text-sm"
+                        <DatePicker
+                            value={dateFrom || null}
+                            onChange={(iso) => apply({ date_from: iso ?? '' })}
+                            className="w-44"
                         />
                     </Filter>
                     <Filter label="To">
-                        <input
-                            type="date"
-                            value={dateTo ?? ''}
-                            onChange={(e) => apply({ date_to: e.target.value })}
-                            className="form-input py-1.5 text-sm"
+                        <DatePicker
+                            value={dateTo || null}
+                            onChange={(iso) => apply({ date_to: iso ?? '' })}
+                            className="w-44"
                         />
                     </Filter>
                 </div>
@@ -225,36 +295,11 @@ export default function OeeIndex() {
                 {records.length > 0 ? (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-5 overflow-hidden">
                         <h2 className="text-lg font-bold text-om-ink mb-4">Daily Records</h2>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-om-line2 text-sm">
-                                <thead className="bg-om-panel">
-                                    <tr>
-                                        {['Date', 'Line', 'Shift', 'A%', 'P%', 'Q%', 'OEE%', 'Produced', 'Scrap', 'Downtime'].map((h) => (
-                                            <th key={h} className={`px-3 py-2 text-xs font-medium text-om-muted uppercase ${['A%', 'P%', 'Q%', 'OEE%', 'Produced', 'Scrap', 'Downtime'].includes(h) ? 'text-right' : 'text-left'}`}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-om-line2">
-                                    {records.map((r, i) => {
-                                        const band = oeeBand(r.oee_pct != null ? Number(r.oee_pct) : null);
-                                        return (
-                                            <tr key={i}>
-                                                <td className="px-3 py-2 font-mono">{r.record_date}</td>
-                                                <td className="px-3 py-2 font-medium">{r.line?.name}</td>
-                                                <td className="px-3 py-2 text-om-muted">{r.shift?.name ?? 'All'}</td>
-                                                <td className="px-3 py-2 text-right">{r.availability_pct != null ? Number(r.availability_pct).toFixed(1) + '%' : '—'}</td>
-                                                <td className="px-3 py-2 text-right">{r.performance_pct != null ? Number(r.performance_pct).toFixed(1) + '%' : '—'}</td>
-                                                <td className="px-3 py-2 text-right">{r.quality_pct != null ? Number(r.quality_pct).toFixed(1) + '%' : '—'}</td>
-                                                <td className={`px-3 py-2 text-right font-bold ${band.text}`}>{r.oee_pct != null ? Number(r.oee_pct).toFixed(1) + '%' : '—'}</td>
-                                                <td className="px-3 py-2 text-right font-mono">{formatNumber(Number(r.total_produced))}</td>
-                                                <td className="px-3 py-2 text-right font-mono text-om-blocked">{r.scrap_qty > 0 ? formatNumber(Number(r.scrap_qty)) : '—'}</td>
-                                                <td className="px-3 py-2 text-right font-mono">{r.downtime_minutes}min</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            data={records}
+                            columns={recordColumns}
+                            searchPlaceholder="Search records…"
+                        />
                     </div>
                 ) : (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-12 text-center">

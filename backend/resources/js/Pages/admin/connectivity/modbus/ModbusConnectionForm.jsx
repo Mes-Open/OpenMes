@@ -1,4 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { Section, Field } from '../ui';
 import { __ } from '../../../../lib/i18n';
 
@@ -42,10 +43,7 @@ export default function ModbusConnectionForm({ action, method, submitLabel, canc
                 <Field label={__('Description')} error={errors.description}>
                     <textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
                 </Field>
-                <label className="flex items-center gap-3 text-sm font-medium text-om-muted">
-                    <input type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} className="w-4 h-4 rounded border-om-line text-om-accent focus:ring-om-accent" />
-                    {__('Active (start polling on daemon start)')}
-                </label>
+                <Checkbox checked={data.is_active} onChange={(next) => setData('is_active', next)} label={__('Active (start polling on daemon start)')} />
             </Section>
 
             <Section title={__('Device')}>
@@ -73,31 +71,41 @@ export default function ModbusConnectionForm({ action, method, submitLabel, canc
                         <input type="number" value={data.timeout_seconds} onChange={(e) => setData('timeout_seconds', e.target.value)} min="1" max="60" required className="form-input w-full" />
                     </Field>
                     <Field label={__('Byte order')} required error={errors.byte_order}>
-                        <select value={data.byte_order} onChange={(e) => setData('byte_order', e.target.value)} className="form-input w-full">
-                            <option value="big">{__('Big-endian')}</option>
-                            <option value="little">{__('Little-endian')}</option>
-                        </select>
+                        <Dropdown
+                            options={[
+                                { value: 'big', label: __('Big-endian') },
+                                { value: 'little', label: __('Little-endian') },
+                            ]}
+                            value={data.byte_order == null ? '' : String(data.byte_order)}
+                            onChange={(v) => setData('byte_order', v)}
+                            className="w-full"
+                        />
                     </Field>
                     <Field label={__('Word order')} required error={errors.word_order}>
-                        <select value={data.word_order} onChange={(e) => setData('word_order', e.target.value)} className="form-input w-full">
-                            <option value="big">{__('Big-endian (high word first)')}</option>
-                            <option value="little">{__('Little-endian (low word first)')}</option>
-                        </select>
+                        <Dropdown
+                            options={[
+                                { value: 'big', label: __('Big-endian (high word first)') },
+                                { value: 'little', label: __('Little-endian (low word first)') },
+                            ]}
+                            value={data.word_order == null ? '' : String(data.word_order)}
+                            onChange={(v) => setData('word_order', v)}
+                            className="w-full"
+                        />
                     </Field>
                 </div>
             </Section>
 
             <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={processing} className="px-5 py-2 bg-om-ink text-white text-sm font-medium rounded-om-sm hover:bg-black transition-colors disabled:opacity-50">
+                <Button variant="primary" type="submit" loading={processing}>
                     {processing ? __('Saving…') : submitLabel}
-                </button>
+                </Button>
                 <Link href={cancelHref} className="px-5 py-2 bg-om-chip text-om-muted text-sm font-medium rounded-om-sm hover:bg-om-line2 transition-colors">
                     {__('Cancel')}
                 </Link>
                 {onDelete && (
-                    <button type="button" onClick={onDelete} className="ml-auto px-5 py-2 bg-om-blocked-bg text-om-blocked text-sm font-medium rounded-om-sm hover:bg-om-blocked-bg transition-colors">
+                    <Button variant="danger" type="button" onClick={onDelete} className="ml-auto">
                         {__('Delete Connection')}
-                    </button>
+                    </Button>
                 )}
             </div>
         </form>

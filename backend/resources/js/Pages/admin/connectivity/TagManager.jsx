@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import { __ } from '../../../lib/i18n';
 
 /**
@@ -178,29 +179,39 @@ function AddTagForm({ connectionId, workstations, basePath, showRegisterType, ad
                             <input type="text" value={data.address} onChange={(e) => setData('address', e.target.value)} required className="form-input w-full text-sm font-mono" placeholder={addressPlaceholder} />
                         </MiniField>
                         <MiniField label={__('Signal type *')} error={errors.signal_type}>
-                            <select value={data.signal_type} onChange={(e) => setData('signal_type', e.target.value)} className="form-input w-full text-sm">
-                                {SIGNAL_TYPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                            </select>
+                            <Dropdown
+                                options={SIGNAL_TYPES.map((s) => ({ value: String(s.value), label: s.label }))}
+                                value={data.signal_type == null ? '' : String(data.signal_type)}
+                                onChange={(v) => setData('signal_type', v)}
+                                className="w-full"
+                            />
                         </MiniField>
                         <MiniField label={__('Data type *')} error={errors.data_type}>
-                            <select value={data.data_type} onChange={(e) => setData('data_type', e.target.value)} className="form-input w-full text-sm">
-                                {DATA_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
-                            </select>
+                            <Dropdown
+                                options={DATA_TYPES.map((d) => ({ value: String(d), label: d }))}
+                                value={data.data_type == null ? '' : String(data.data_type)}
+                                onChange={(v) => setData('data_type', v)}
+                                className="w-full"
+                            />
                         </MiniField>
                         {showRegisterType && (
                             <MiniField label={__('Register type *')} error={errors.register_type}>
-                                <select value={data.register_type} onChange={(e) => setData('register_type', e.target.value)} className="form-input w-full text-sm">
-                                    {REGISTER_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                                </select>
+                                <Dropdown
+                                    options={REGISTER_TYPES.map((r) => ({ value: String(r.value), label: r.label }))}
+                                    value={data.register_type == null ? '' : String(data.register_type)}
+                                    onChange={(v) => setData('register_type', v)}
+                                    className="w-full"
+                                />
                             </MiniField>
                         )}
                         <MiniField label={__('Workstation')} error={errors.workstation_id}>
-                            <select value={data.workstation_id} onChange={(e) => setData('workstation_id', e.target.value)} className="form-input w-full text-sm">
-                                <option value="">{__('— none —')}</option>
-                                {workstations.map((w) => (
-                                    <option key={w.id} value={w.id}>{w.line ? `${w.line} / ${w.name}` : w.name}</option>
-                                ))}
-                            </select>
+                            <Dropdown
+                                options={workstations.map((w) => ({ value: String(w.id), label: w.line ? `${w.line} / ${w.name}` : w.name }))}
+                                value={data.workstation_id == null ? '' : String(data.workstation_id)}
+                                onChange={(v) => setData('workstation_id', v)}
+                                placeholder={__('— none —')}
+                                className="w-full"
+                            />
                         </MiniField>
                         <MiniField label={__('Value map — e.g. 1=RUNNING,2=IDLE,3=FAULT')} error={errors.value_map}>
                             <input type="text" value={data.value_map} onChange={(e) => setData('value_map', e.target.value)} className="form-input w-full text-sm font-mono" placeholder="1=RUNNING,2=IDLE" />

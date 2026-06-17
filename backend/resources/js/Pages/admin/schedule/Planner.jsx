@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import LiveRefresh from '../../../components/LiveRefresh';
 import { formatDate, formatNumber } from '../../../lib/i18n';
@@ -393,11 +394,14 @@ export default function Planner() {
                     <div className="h-6 border-l border-om-line mx-1" />
 
                     {/* Line filter */}
-                    <select value={lineId} onChange={(e) => nav({ start_date: startDate, view_mode: viewMode, line_id: e.target.value })}
-                            className="text-xs border-om-line rounded-om-sm py-1.5 px-2">
-                        <option value="">All Lines</option>
-                        {allLines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                    </select>
+                    <Dropdown
+                        value={lineId == null ? '' : String(lineId)}
+                        onChange={(v) => nav({ start_date: startDate, view_mode: viewMode, line_id: v })}
+                        options={[
+                            { value: '', label: 'All Lines' },
+                            ...allLines.map((l) => ({ value: String(l.id), label: l.name })),
+                        ]}
+                    />
 
                     <div className="flex-1" />
 
@@ -567,35 +571,35 @@ export default function Planner() {
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-[10px] font-semibold text-om-muted uppercase mb-1">Start date</label>
-                                    <input type="date" value={selected.dueDate}
-                                           onChange={(e) => setSelected(s => ({ ...s, dueDate: e.target.value }))}
-                                           className="w-full text-xs border-om-line rounded-om-sm py-1.5 px-2" />
+                                    <DatePicker value={selected.dueDate || null}
+                                           onChange={(iso) => setSelected(s => ({ ...s, dueDate: iso ?? '' }))}
+                                           className="w-full" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-semibold text-om-muted uppercase mb-1">Start shift</label>
-                                    <select value={selected.shift} onChange={(e) => setSelected(s => ({ ...s, shift: e.target.value }))}
-                                            className="w-full text-xs border-om-line rounded-om-sm py-1.5 px-2">
-                                        <option value="">—</option>
-                                        {Array.from({ length: shiftsPerDay }, (_, i) => i + 1).map((s) => (
-                                            <option key={s} value={s}>{SHIFT_COLORS[s]?.label ?? `S${s}`} ({SHIFT_COLORS[s]?.hours ?? ''})</option>
-                                        ))}
-                                    </select>
+                                    <Dropdown
+                                        value={selected.shift == null ? '' : String(selected.shift)}
+                                        onChange={(v) => setSelected(s => ({ ...s, shift: v }))}
+                                        placeholder="—"
+                                        className="w-full"
+                                        options={Array.from({ length: shiftsPerDay }, (_, i) => i + 1).map((s) => ({ value: String(s), label: `${SHIFT_COLORS[s]?.label ?? `S${s}`} (${SHIFT_COLORS[s]?.hours ?? ''})` }))}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-semibold text-om-muted uppercase mb-1">End date</label>
-                                    <input type="date" value={selected.endDate}
-                                           onChange={(e) => setSelected(s => ({ ...s, endDate: e.target.value }))}
-                                           className="w-full text-xs border-om-line rounded-om-sm py-1.5 px-2" />
+                                    <DatePicker value={selected.endDate || null}
+                                           onChange={(iso) => setSelected(s => ({ ...s, endDate: iso ?? '' }))}
+                                           className="w-full" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-semibold text-om-muted uppercase mb-1">End shift</label>
-                                    <select value={selected.endShift} onChange={(e) => setSelected(s => ({ ...s, endShift: e.target.value }))}
-                                            className="w-full text-xs border-om-line rounded-om-sm py-1.5 px-2">
-                                        <option value="">—</option>
-                                        {Array.from({ length: shiftsPerDay }, (_, i) => i + 1).map((s) => (
-                                            <option key={s} value={s}>{SHIFT_COLORS[s]?.label ?? `S${s}`} ({SHIFT_COLORS[s]?.hours ?? ''})</option>
-                                        ))}
-                                    </select>
+                                    <Dropdown
+                                        value={selected.endShift == null ? '' : String(selected.endShift)}
+                                        onChange={(v) => setSelected(s => ({ ...s, endShift: v }))}
+                                        placeholder="—"
+                                        className="w-full"
+                                        options={Array.from({ length: shiftsPerDay }, (_, i) => i + 1).map((s) => ({ value: String(s), label: `${SHIFT_COLORS[s]?.label ?? `S${s}`} (${SHIFT_COLORS[s]?.hours ?? ''})` }))}
+                                    />
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 mt-3">
@@ -1454,11 +1458,15 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                 {/* Sort */}
                 <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-om-faint">Sort:</span>
-                    <select value={sort} onChange={(e) => onSort(e.target.value)} className="text-[10px] border-om-line rounded py-0.5 px-1.5">
-                        <option value="due_date">Due date</option>
-                        <option value="priority">Priority</option>
-                        <option value="planned_qty">Quantity</option>
-                    </select>
+                    <Dropdown
+                        value={sort == null ? '' : String(sort)}
+                        onChange={(v) => onSort(v)}
+                        options={[
+                            { value: 'due_date', label: 'Due date' },
+                            { value: 'priority', label: 'Priority' },
+                            { value: 'planned_qty', label: 'Quantity' },
+                        ]}
+                    />
                 </div>
             </div>
 

@@ -2,12 +2,15 @@ import { useMemo } from 'react';
 import { Link } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import { StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import { realtimeCollection } from '../lib/realtimeCollection';
 import { __ } from '../lib/i18n';
 
 /**
  * Generic admin list backed by a Reverb-synced collection + TanStack DB live
- * query.
+ * query, rendered through the shared `DataTable` (design §12): global search,
+ * click-to-sort headers (SHIFT for multi-sort), column-visibility menu and
+ * pagination come for free; optional per-column filters and row selection.
  *
  * Extracted from the Product Types pilot — the shared shape of every admin CRUD
  * list. Rows live-sync (create/edit/delete reflect without refresh); the page
@@ -17,14 +20,17 @@ import { __ } from '../lib/i18n';
  *   shape       — collection name (must be in ShapeRegistry)
  *   title       — heading
  *   createHref / createLabel — optional "new" button
- *   columns     — [{ key, label, render?(row), className?, align? }]
- *   orderBy     — row field to sort by (default 'name')
+ *   columns     — [{ key, label, render?(row), className?, align?, sortable?,
+ *                    filter?: 'text'|'select', options?, allLabel?, filterPlaceholder?, flex? }]
+ *   orderBy     — row field to sort by (default 'name') — initial live-query order
  *   orderDir    — 'asc' | 'desc' (default 'asc')
  *   getKey      — row → key (default row.id)
  *   actions     — row → [{ label, href?, onClick?, variant?, className? }]
  *                 variant: 'secondary' (default) | 'primary' | 'danger' | 'warning'
  *                 className overrides the variant when you need a one-off style.
  *   emptyText   — shown when no rows
+ *   pageSize    — rows per page (default 12)
+ *   enableSelection / bulkActions / selectionLabel — opt-in row selection toolbar
  */
 
 /**
@@ -59,6 +65,45 @@ const ACTION_CLASS = {
     warning: `${ACTION_BASE} bg-om-downtime-bg text-om-downtime hover:brightness-95`,
 };
 const actionClass = (a) => a.className ?? ACTION_CLASS[a.variant] ?? ACTION_CLASS.secondary;
+
+/** Render one row's action buttons (icon trio + labeled domain actions). */
+function RowActions({ actions, row }) {
+    return (
+        <div className="flex items-center justify-end gap-2">
+            {actions(row).map((a, i) => {
+                // Icon button (Edit / toggle / Delete) — the legacy look.
+                if (a.icon && ICON_PATH[a.icon]) {
+                    const cls = `p-1.5 rounded-om-sm transition-colors ${ICON_COLOR[a.icon]}`;
+                    const glyph = (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={ICON_PATH[a.icon]} />
+                        </svg>
+                    );
+                    return a.href ? (
+                        <Link key={i} href={a.href} className={cls} title={__(a.label)} aria-label={__(a.label)} data-action={a.label}>
+                            {glyph}
+                        </Link>
+                    ) : (
+                        <button key={i} onClick={a.onClick} className={cls} title={__(a.label)} aria-label={__(a.label)} data-action={a.label}>
+                            {glyph}
+                        </button>
+                    );
+                }
+                // Labeled button (domain actions without an icon).
+                return a.href ? (
+                    <Link key={i} href={a.href} className={actionClass(a)} data-action={a.label}>
+                        {__(a.label)}
+                    </Link>
+                ) : (
+                    <button key={i} onClick={a.onClick} className={actionClass(a)} data-action={a.label}>
+                        {__(a.label)}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function ResourceTable({
     shape,
     title,
@@ -72,6 +117,10 @@ export default function ResourceTable({
     emptyText = 'Nothing here yet.',
     filterFn,
     subtitle,
+    pageSize = 12,
+    enableSelection = false,
+    bulkActions,
+    selectionLabel,
 }) {
     const collection = useMemo(() => realtimeCollection(shape, getKey), [shape]);
 
@@ -81,7 +130,50 @@ export default function ResourceTable({
 
     // Optional client-side filter (e.g. a dashboard KPI deep-link like
     // ?status=IN_PROGRESS) — applied over the live rows so it stays reactive.
-    const visibleRows = filterFn ? (rows ?? []).filter(filterFn) : rows;
+    const visibleRows = filterFn ? (rows ?? []).filter(filterFn) : (rows ?? []);
+
+    // Map the declarative column config → TanStack column defs. Column ids stay
+    // stable (= c.key) so sort/page/filter state survives live data re-renders.
+    const tableColumns = useMemo(() => {
+        // Pick the column that absorbs horizontal slack so short count/status
+        // columns don't balloon: prefer the free-text column, else the first
+        // left-aligned one. Pages can override per-column with `flex: true`.
+        const flexKey =
+            ['description', 'name', 'title', 'label'].find((k) => columns.some((c) => c.key === k)) ??
+            columns.find((c) => c.align !== 'right')?.key;
+
+        const defs = columns.map((c) => ({
+            id: c.key,
+            accessorFn: (row) => row[c.key],
+            header: __(c.label),
+            enableSorting: c.sortable !== false,
+            cell: ({ row }) => {
+                const content = c.render ? c.render(row.original) : row.original[c.key];
+                return c.className ? <span className={c.className}>{content}</span> : content;
+            },
+            meta: {
+                align: c.align === 'right' ? 'right' : 'left',
+                flex: c.flex || c.key === flexKey,
+                filter: c.filter,
+                options: c.options,
+                allLabel: c.allLabel,
+                filterPlaceholder: c.filterPlaceholder,
+                menuLabel: __(c.label),
+            },
+        }));
+        if (actions) {
+            defs.push({
+                id: '_actions',
+                header: __('Actions'),
+                enableSorting: false,
+                enableHiding: false,
+                cell: ({ row }) => <RowActions actions={actions} row={row.original} />,
+                meta: { align: 'right', menuLabel: __('Actions') },
+            });
+        }
+        return defs;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [columns, actions]);
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -100,87 +192,19 @@ export default function ResourceTable({
                 )}
             </div>
 
-            <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
-                <table className="w-full text-[13.5px]">
-                    <thead>
-                        <tr className="text-left bg-om-panel border-b border-om-line2">
-                            {columns.map((c) => (
-                                <th
-                                    key={c.key}
-                                    className={`px-4 py-2.5 font-mono text-[9px] font-medium uppercase tracking-[0.1em] ${
-                                        c.key === orderBy ? 'text-om-ink' : 'text-om-faint'
-                                    } ${c.align === 'right' ? 'text-right' : ''}`}
-                                >
-                                    {__(c.label)}
-                                    {c.key === orderBy && (orderDir === 'desc' ? ' ↓' : ' ↑')}
-                                </th>
-                            ))}
-                            {actions && (
-                                <th className="px-4 py-2.5 font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-om-faint text-right">
-                                    {__('Actions')}
-                                </th>
-                            )}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {visibleRows.length === 0 && (
-                            <tr>
-                                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-8 text-center text-om-faint">
-                                    {__(emptyText)}
-                                </td>
-                            </tr>
-                        )}
-                        {visibleRows.map((row) => (
-                            <tr key={getKey(row)} className="border-b border-om-line2 last:border-0 hover:bg-om-bg transition-colors">
-                                {columns.map((c) => (
-                                    <td
-                                        key={c.key}
-                                        className={`px-4 py-3 ${c.className ?? 'text-om-ink'} ${c.align === 'right' ? 'text-right' : ''}`}
-                                    >
-                                        {c.render ? c.render(row) : row[c.key]}
-                                    </td>
-                                ))}
-                                {actions && (
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {actions(row).map((a, i) => {
-                                                // Icon button (Edit / toggle / Delete) — the legacy look.
-                                                if (a.icon && ICON_PATH[a.icon]) {
-                                                    const cls = `p-1.5 rounded-om-sm transition-colors ${ICON_COLOR[a.icon]}`;
-                                                    const glyph = (
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={ICON_PATH[a.icon]} />
-                                                        </svg>
-                                                    );
-                                                    return a.href ? (
-                                                        <Link key={i} href={a.href} className={cls} title={__(a.label)} aria-label={__(a.label)} data-action={a.label}>
-                                                            {glyph}
-                                                        </Link>
-                                                    ) : (
-                                                        <button key={i} onClick={a.onClick} className={cls} title={__(a.label)} aria-label={__(a.label)} data-action={a.label}>
-                                                            {glyph}
-                                                        </button>
-                                                    );
-                                                }
-                                                // Labeled button (domain actions without an icon).
-                                                return a.href ? (
-                                                    <Link key={i} href={a.href} className={actionClass(a)} data-action={a.label}>
-                                                        {__(a.label)}
-                                                    </Link>
-                                                ) : (
-                                                    <button key={i} onClick={a.onClick} className={actionClass(a)} data-action={a.label}>
-                                                        {__(a.label)}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </td>
-                                )}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <DataTable
+                data={visibleRows}
+                columns={tableColumns}
+                searchPlaceholder={__('Search…')}
+                columnsLabel={__('Columns')}
+                columnsMenuLabel={__('Toggle columns')}
+                emptyLabel={__(emptyText)}
+                rangeLabel={(start, end, total) => (total === 0 ? __('0 results') : `${start}–${end} / ${total}`)}
+                pageSize={pageSize}
+                enableSelection={enableSelection}
+                bulkActions={bulkActions}
+                selectionLabel={selectionLabel}
+            />
         </div>
     );
 }

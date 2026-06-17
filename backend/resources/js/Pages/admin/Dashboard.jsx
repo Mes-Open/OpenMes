@@ -1,7 +1,8 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (live-shape wiring and stats logic untouched).
 import { useMemo, useState } from 'react';
 import { Head, usePage } from '@inertiajs/react';
-import { Badge, StatusPill } from '@openmes/ui';
+import { Badge, Dropdown, StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import { useDashboardShapes } from '../../lib/useDashboardShapes';
 import { useHotShapes } from '../../components/LiveShapesProvider';
 import AppLayout from '../../layouts/AppLayout';
@@ -159,21 +160,19 @@ function Header({ selectedLineId, onLineChange, lines }) {
                 </p>
             </div>
             <div className="flex items-center gap-2">
-                <select
-                    value={selectedLineId}
-                    onChange={(e) => onLineChange(e.target.value)}
-                    className="h-9 min-w-[180px] rounded-om-sm border border-om-line bg-om-card px-3 pr-8 text-[13px] text-om-ink focus:border-om-accent focus:outline-none"
-                >
-                    <option value="">{__('All lines')}</option>
-                    {lines
-                        .slice()
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((line) => (
-                            <option key={line.id} value={line.id}>
-                                {line.name}
-                            </option>
-                        ))}
-                </select>
+                <Dropdown
+                    value={selectedLineId == null ? '' : String(selectedLineId)}
+                    onChange={(v) => onLineChange(v)}
+                    placeholder={__('All lines')}
+                    className="min-w-[180px]"
+                    options={[
+                        { value: '', label: __('All lines') },
+                        ...lines
+                            .slice()
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((line) => ({ value: String(line.id), label: line.name })),
+                    ]}
+                />
                 {selectedLineId && (
                     <button
                         onClick={() => onLineChange('')}
@@ -451,50 +450,72 @@ function Stat({ label, value, color }) {
 
 function RecentWorkOrders({ rows, lines }) {
     const lineById = useMemo(() => new Map(lines.map((l) => [String(l.id), l])), [lines]);
+    const columns = useMemo(
+        () => [
+            {
+                id: 'order',
+                accessorKey: 'order_no',
+                header: __('Order'),
+                cell: ({ row }) => {
+                    const wo = row.original;
+                    return (
+                        <a
+                            href={`/admin/work-orders/${wo.id}`}
+                            className="font-mono text-[12px] font-medium text-om-accent hover:underline"
+                        >
+                            {wo.order_no}
+                        </a>
+                    );
+                },
+            },
+            {
+                id: 'line',
+                accessorFn: (wo) => lineById.get(String(wo.line_id))?.name ?? '—',
+                header: __('Line'),
+                cell: ({ row }) => (
+                    <span className="text-om-muted">
+                        {lineById.get(String(row.original.line_id))?.name ?? '—'}
+                    </span>
+                ),
+            },
+            {
+                id: 'status',
+                accessorKey: 'status',
+                header: __('Status'),
+                cell: ({ row }) => <StatusBadge status={row.original.status} />,
+            },
+            {
+                id: 'produced_planned',
+                accessorFn: (wo) => Number(wo.produced_qty),
+                header: __('Produced / planned'),
+                meta: { align: 'right' },
+                cell: ({ row }) => {
+                    const wo = row.original;
+                    return (
+                        <span className="font-mono text-[13px] text-om-muted">
+                            {Number(wo.produced_qty).toFixed(0)} /{' '}
+                            {Number(wo.planned_qty).toFixed(0)}
+                        </span>
+                    );
+                },
+            },
+        ],
+        [lineById],
+    );
     return (
         <div className="bg-om-card border border-om-line rounded-om p-5">
             <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[14px] font-semibold text-om-ink">{__('Recent work orders')}</h2>
                 <a href="/admin/work-orders" className="text-[12.5px] text-om-accent hover:underline">{__('View all')} →</a>
             </div>
-            {rows.length === 0 ? (
-                <p className="text-om-muted text-sm">{__('No active work orders.')}</p>
-            ) : (
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="text-left bg-om-panel">
-                            <th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Order')}</th>
-                            <th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Line')}</th>
-                            <th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Status')}</th>
-                            <th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint text-right">{__('Produced / planned')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((wo) => (
-                            <tr key={wo.id} className="border-b border-om-line2 last:border-0 hover:bg-om-bg">
-                                <td className="py-2 px-2">
-                                    <a
-                                        href={`/admin/work-orders/${wo.id}`}
-                                        className="font-mono text-[12px] font-medium text-om-accent hover:underline"
-                                    >
-                                        {wo.order_no}
-                                    </a>
-                                </td>
-                                <td className="py-2 px-2 text-om-muted">
-                                    {lineById.get(String(wo.line_id))?.name ?? '—'}
-                                </td>
-                                <td className="py-2 px-2">
-                                    <StatusBadge status={wo.status} />
-                                </td>
-                                <td className="py-2 px-2 text-right font-mono text-[13px] text-om-muted">
-                                    {Number(wo.produced_qty).toFixed(0)} /{' '}
-                                    {Number(wo.planned_qty).toFixed(0)}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
+            <DataTable
+                data={rows}
+                columns={columns}
+                searchable={false}
+                columnToggle={false}
+                paginated={false}
+                emptyLabel={__('No active work orders.')}
+            />
         </div>
     );
 }

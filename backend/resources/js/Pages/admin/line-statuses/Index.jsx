@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
+import { Button, Checkbox, IconButton } from '@openmes/ui';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
@@ -95,28 +96,32 @@ function StatusRow({ status }) {
             <td className="px-4 py-2">
                 <input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="form-input w-full" />
             </td>
-            <td className="px-4 py-2 text-center">
-                <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
+            <td className="px-4 py-2">
+                <div className="flex justify-center">
+                    <Checkbox checked={isDefault} onChange={setIsDefault} />
+                </div>
             </td>
             <td className="px-4 py-2">
                 <div className="flex items-center justify-end gap-2">
-                    <button
+                    <Button
+                        type="button"
+                        variant="primary"
                         onClick={save}
                         disabled={!dirty || saving}
-                        className="btn-touch btn-primary text-sm disabled:opacity-50"
+                        loading={saving}
                     >
                         {saving ? 'Saving…' : 'Save'}
-                    </button>
-                    <button
+                    </Button>
+                    <IconButton
+                        variant="danger"
                         onClick={destroy}
-                        className="p-1.5 rounded-md transition-colors text-om-blocked hover:text-om-blocked"
                         title="Delete"
                         aria-label="Delete"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                    </button>
+                    </IconButton>
                 </div>
             </td>
         </tr>
@@ -153,13 +158,15 @@ function AddRow({ nextOrder }) {
             <td className="px-4 py-2 text-om-faint">{nextOrder}</td>
             <td />
             <td className="px-4 py-2 text-right">
-                <button
+                <Button
+                    type="button"
+                    variant="primary"
                     onClick={add}
                     disabled={!name.trim() || adding}
-                    className="bg-om-ink text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-black disabled:opacity-50"
+                    loading={adding}
                 >
                     {adding ? 'Adding…' : 'Add'}
-                </button>
+                </Button>
             </td>
         </tr>
     );

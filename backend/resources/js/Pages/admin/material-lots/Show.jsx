@@ -1,4 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 
 const STATUS_COLORS = {
@@ -40,6 +42,106 @@ export default function MaterialLotShow({ lot }) {
     const totalConsumed = (lot.consumptions ?? []).reduce((sum, c) => sum + Number(c.quantity_consumed ?? 0), 0);
     const expiryPast = lot.expiry_date && isExpired(lot.expiry_date);
     const sourceBatchId = lot.extra_data?.source_batch_id;
+
+    const sublotColumns = useMemo(() => [
+        {
+            id: 'sublot',
+            accessorKey: 'sublot_number',
+            header: 'Sublot',
+            cell: ({ row }) => <span className="font-mono">{row.original.sublot_number}</span>,
+        },
+        {
+            id: 'quantity',
+            accessorFn: (r) => Number(r.quantity ?? 0),
+            header: 'Quantity',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="font-mono">
+                    {trimQty(row.original.quantity)}{' '}
+                    <span className="text-xs text-om-muted">{row.original.unit_of_measure}</span>
+                </span>
+            ),
+        },
+        {
+            id: 'status',
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <span className="px-2 py-0.5 rounded text-xs bg-om-chip">{ucFirst(row.original.status)}</span>
+            ),
+        },
+        {
+            id: 'notes',
+            accessorKey: 'notes',
+            header: 'Notes',
+            cell: ({ row }) => <span className="text-om-muted">{row.original.notes ?? '—'}</span>,
+        },
+    ], []);
+
+    const consumptionColumns = useMemo(() => [
+        {
+            id: 'when',
+            accessorFn: (r) => r.consumed_at,
+            header: 'When',
+            cell: ({ row }) => <span className="text-om-muted">{fmtDateTime(row.original.consumed_at)}</span>,
+        },
+        {
+            id: 'work_order',
+            accessorFn: (r) => {
+                const wo = r.batch_step?.batch?.work_order;
+                return wo ? (wo.lot_number ?? `#${wo.id}`) : '—';
+            },
+            header: 'Work order',
+            cell: ({ row }) => {
+                const wo = row.original.batch_step?.batch?.work_order;
+                return (
+                    <span className="font-mono text-xs">
+                        {wo ? (wo.lot_number ?? `#${wo.id}`) : '—'}
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'batch',
+            accessorFn: (r) => {
+                const batch = r.batch_step?.batch;
+                return batch ? (batch.lot_number ?? `#${batch.id}`) : '—';
+            },
+            header: 'Batch',
+            cell: ({ row }) => {
+                const batch = row.original.batch_step?.batch;
+                return (
+                    <span className="font-mono text-xs">
+                        {batch ? (batch.lot_number ?? `#${batch.id}`) : '—'}
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'step',
+            accessorFn: (r) => r.batch_step?.name ?? '—',
+            header: 'Step',
+            cell: ({ row }) => row.original.batch_step?.name ?? '—',
+        },
+        {
+            id: 'quantity',
+            accessorFn: (r) => Number(r.quantity_consumed ?? 0),
+            header: 'Quantity',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="font-mono">
+                    {trimQty(row.original.quantity_consumed)}{' '}
+                    <span className="text-xs text-om-muted">{lot.unit_of_measure}</span>
+                </span>
+            ),
+        },
+        {
+            id: 'by',
+            accessorFn: (r) => r.recorded_by?.name ?? '—',
+            header: 'By',
+            cell: ({ row }) => <span className="text-om-muted">{row.original.recorded_by?.name ?? '—'}</span>,
+        },
+    ], [lot.unit_of_measure]);
 
     return (
         <>
@@ -130,33 +232,13 @@ export default function MaterialLotShow({ lot }) {
                         <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">
                             Sublots ({lot.sublots.length})
                         </h2>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-om-line2">
-                                <thead>
-                                    <tr className="text-xs text-om-muted uppercase">
-                                        <th className="px-3 py-2 text-left">Sublot</th>
-                                        <th className="px-3 py-2 text-right">Quantity</th>
-                                        <th className="px-3 py-2 text-left">Status</th>
-                                        <th className="px-3 py-2 text-left">Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-om-line2 text-sm">
-                                    {lot.sublots.map((sub) => (
-                                        <tr key={sub.id}>
-                                            <td className="px-3 py-2 font-mono">{sub.sublot_number}</td>
-                                            <td className="px-3 py-2 text-right font-mono">
-                                                {trimQty(sub.quantity)}{' '}
-                                                <span className="text-xs text-om-muted">{sub.unit_of_measure}</span>
-                                            </td>
-                                            <td className="px-3 py-2">
-                                                <span className="px-2 py-0.5 rounded text-xs bg-om-chip">{ucFirst(sub.status)}</span>
-                                            </td>
-                                            <td className="px-3 py-2 text-om-muted">{sub.notes ?? '—'}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            data={lot.sublots}
+                            columns={sublotColumns}
+                            searchable={false}
+                            columnToggle={false}
+                            paginated={false}
+                        />
                     </div>
                 )}
 
@@ -178,44 +260,13 @@ export default function MaterialLotShow({ lot }) {
                         {(!lot.consumptions || lot.consumptions.length === 0) ? (
                             <p className="text-sm text-om-muted italic">No consumption recorded yet.</p>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-om-line2 text-sm">
-                                    <thead>
-                                        <tr className="text-xs text-om-muted uppercase">
-                                            <th className="px-3 py-2 text-left">When</th>
-                                            <th className="px-3 py-2 text-left">Work order</th>
-                                            <th className="px-3 py-2 text-left">Batch</th>
-                                            <th className="px-3 py-2 text-left">Step</th>
-                                            <th className="px-3 py-2 text-right">Quantity</th>
-                                            <th className="px-3 py-2 text-left">By</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-om-line2">
-                                        {lot.consumptions.map((c, i) => {
-                                            const step = c.batch_step;
-                                            const batch = step?.batch;
-                                            const wo = batch?.work_order;
-                                            return (
-                                                <tr key={c.id ?? i}>
-                                                    <td className="px-3 py-2 text-om-muted">{fmtDateTime(c.consumed_at)}</td>
-                                                    <td className="px-3 py-2 font-mono text-xs">
-                                                        {wo ? (wo.lot_number ?? `#${wo.id}`) : '—'}
-                                                    </td>
-                                                    <td className="px-3 py-2 font-mono text-xs">
-                                                        {batch ? (batch.lot_number ?? `#${batch.id}`) : '—'}
-                                                    </td>
-                                                    <td className="px-3 py-2">{step?.name ?? '—'}</td>
-                                                    <td className="px-3 py-2 text-right font-mono">
-                                                        {trimQty(c.quantity_consumed)}{' '}
-                                                        <span className="text-xs text-om-muted">{lot.unit_of_measure}</span>
-                                                    </td>
-                                                    <td className="px-3 py-2 text-om-muted">{c.recorded_by?.name ?? '—'}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <DataTable
+                                data={lot.consumptions}
+                                columns={consumptionColumns}
+                                searchable={false}
+                                columnToggle={false}
+                                paginated={false}
+                            />
                         )}
                     </div>
 

@@ -1,4 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
+import { Checkbox, DatePicker, Dropdown } from '@openmes/ui';
 import { __ } from '../lib/i18n';
 
 /**
@@ -87,7 +88,11 @@ function TextField({ label, value, error, onChange, required, help, type = 'text
             <label className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
             </label>
-            <input type={type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
+            {type === 'date' ? (
+                <DatePicker className="w-full" value={value || null} onChange={(iso) => onChange(iso ?? '')} />
+            ) : (
+                <input type={type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
+            )}
             {help && <p className="text-sm text-om-muted mt-1">{help}</p>}
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
@@ -100,12 +105,13 @@ function SelectField({ label, value, error, onChange, required, placeholder, opt
             <label className="block text-sm font-medium text-om-muted mb-1">
                 {label} {required && <span className="text-om-blocked">*</span>}
             </label>
-            <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full">
-                {placeholder && <option value="">{placeholder}</option>}
-                {options.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-            </select>
+            <Dropdown
+                className="w-full"
+                options={options.map((o) => ({ value: String(o.value), label: o.label }))}
+                value={value == null ? '' : String(value)}
+                onChange={(v) => onChange(v)}
+                placeholder={placeholder}
+            />
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
@@ -113,10 +119,9 @@ function SelectField({ label, value, error, onChange, required, placeholder, opt
 
 function CheckboxField({ label, checked, onChange }) {
     return (
-        <label className="flex items-center gap-2 text-sm text-om-muted pb-2">
-            <input type="checkbox" checked={!!checked} onChange={(e) => onChange(e.target.checked)} />
-            {label}
-        </label>
+        <div className="pb-2">
+            <Checkbox checked={!!checked} onChange={(next) => onChange(next)} label={label} />
+        </div>
     );
 }
 

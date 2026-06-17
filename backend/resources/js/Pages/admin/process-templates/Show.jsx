@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
 /* ------------------------------------------------------------------ */
@@ -59,18 +60,18 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                 {processSegments.length > 0 && (
                     <div className="mb-4">
                         <label className="form-label">Use Process Segment (optional)</label>
-                        <select
-                            value={data.process_segment_id}
-                            onChange={(e) => applySegment(e.target.value)}
-                            className="form-input w-full"
-                        >
-                            <option value="">— Define ad-hoc step —</option>
-                            {processSegments.map((seg) => (
-                                <option key={seg.id} value={seg.id}>
-                                    [{capitalize(seg.segment_type)}] {seg.code} — {seg.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
+                            onChange={(v) => applySegment(v)}
+                            options={[
+                                { value: '', label: '— Define ad-hoc step —' },
+                                ...processSegments.map((seg) => ({
+                                    value: String(seg.id),
+                                    label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
+                                })),
+                            ]}
+                            className="w-full"
+                        />
                         <p className="text-xs text-om-muted mt-1">
                             Picking a segment pre-fills name, instruction and duration. You can still override after.
                         </p>
@@ -93,18 +94,18 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
 
                     <div>
                         <label className="form-label">Workstation (Optional)</label>
-                        <select
-                            value={data.workstation_id}
-                            onChange={(e) => setData('workstation_id', e.target.value)}
-                            className="form-input w-full"
-                        >
-                            <option value="">No specific workstation</option>
-                            {workstations.map((ws) => (
-                                <option key={ws.id} value={ws.id}>
-                                    {ws.name} ({ws.line_name ?? '-'})
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={data.workstation_id == null ? '' : String(data.workstation_id)}
+                            onChange={(v) => setData('workstation_id', v)}
+                            options={[
+                                { value: '', label: 'No specific workstation' },
+                                ...workstations.map((ws) => ({
+                                    value: String(ws.id),
+                                    label: `${ws.name} (${ws.line_name ?? '-'})`,
+                                })),
+                            ]}
+                            className="w-full"
+                        />
                     </div>
 
                     <div className="md:col-span-2">
@@ -171,18 +172,18 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
             {processSegments.length > 0 && (
                 <div className="mb-4">
                     <label className="form-label">Linked Process Segment</label>
-                    <select
-                        value={data.process_segment_id}
-                        onChange={(e) => setData('process_segment_id', e.target.value)}
-                        className="form-input w-full"
-                    >
-                        <option value="">— None (ad-hoc step) —</option>
-                        {processSegments.map((seg) => (
-                            <option key={seg.id} value={String(seg.id)}>
-                                [{capitalize(seg.segment_type)}] {seg.code} — {seg.name}
-                            </option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
+                        onChange={(v) => setData('process_segment_id', v)}
+                        options={[
+                            { value: '', label: '— None (ad-hoc step) —' },
+                            ...processSegments.map((seg) => ({
+                                value: String(seg.id),
+                                label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
+                            })),
+                        ]}
+                        className="w-full"
+                    />
                     <p className="text-xs text-om-muted mt-1">
                         Step-level values override segment defaults; if blank, segment values apply.
                     </p>
@@ -204,18 +205,18 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
 
                 <div>
                     <label className="form-label">Workstation (Optional)</label>
-                    <select
-                        value={data.workstation_id}
-                        onChange={(e) => setData('workstation_id', e.target.value)}
-                        className="form-input w-full"
-                    >
-                        <option value="">No specific workstation</option>
-                        {workstations.map((ws) => (
-                            <option key={ws.id} value={String(ws.id)}>
-                                {ws.name} ({ws.line_name ?? '-'})
-                            </option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        value={data.workstation_id == null ? '' : String(data.workstation_id)}
+                        onChange={(v) => setData('workstation_id', v)}
+                        options={[
+                            { value: '', label: 'No specific workstation' },
+                            ...workstations.map((ws) => ({
+                                value: String(ws.id),
+                                label: `${ws.name} (${ws.line_name ?? '-'})`,
+                            })),
+                        ]}
+                        className="w-full"
+                    />
                 </div>
 
                 <div className="md:col-span-2">

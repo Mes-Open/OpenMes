@@ -1,4 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Button, Checkbox } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFields from '../../../components/CustomFields';
 import { customFieldInitial, customFieldProps, submitForm } from '../../../lib/customFieldForm';
@@ -84,26 +85,18 @@ export default function WorkstationCreate() {
                     {form.errors.workstation_type && <p className="mt-1 text-xs text-om-blocked">{form.errors.workstation_type}</p>}
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-om-muted">
-                    <input
-                        type="checkbox"
-                        checked={form.data.is_active}
-                        onChange={(e) => form.setData('is_active', e.target.checked)}
-                        className="h-5 w-5 text-om-accent rounded border-om-line focus:ring-om-accent"
-                    />
-                    Active (workstation is ready for use)
-                </label>
+                <Checkbox
+                    checked={form.data.is_active}
+                    onChange={(next) => form.setData('is_active', next)}
+                    label="Active (workstation is ready for use)"
+                />
 
                 {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
 
                 <div className="flex items-center gap-3 pt-2">
-                    <button
-                        type="submit"
-                        disabled={form.processing}
-                        className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="primary" loading={form.processing} disabled={form.processing}>
                         {form.processing ? 'Creating…' : 'Create Workstation'}
-                    </button>
+                    </Button>
                     <Link
                         href={`/admin/lines/${line.id}/workstations`}
                         className="text-om-muted hover:text-om-ink text-sm"

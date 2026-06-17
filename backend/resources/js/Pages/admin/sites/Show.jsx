@@ -1,6 +1,101 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+
+const areaColumns = [
+    {
+        id: 'code',
+        accessorKey: 'code',
+        header: 'Code',
+        cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.code}</span>,
+    },
+    {
+        id: 'name',
+        accessorKey: 'name',
+        header: 'Name',
+        cell: ({ row }) => (
+            <Link
+                href={`/admin/areas/${row.original.id}`}
+                className="text-om-accent hover:text-om-accent"
+            >
+                {row.original.name}
+            </Link>
+        ),
+    },
+    {
+        id: 'lines',
+        accessorKey: 'lines_count',
+        header: 'Lines',
+        cell: ({ row }) => <span className="text-om-muted">{row.original.lines_count}</span>,
+    },
+    {
+        id: 'status',
+        accessorFn: (r) => r.is_active,
+        header: 'Status',
+        cell: ({ row }) =>
+            row.original.is_active ? (
+                <span className="px-2 py-0.5 bg-om-running-bg text-om-running rounded-full text-xs">
+                    Active
+                </span>
+            ) : (
+                <span className="px-2 py-0.5 bg-om-chip text-om-muted rounded-full text-xs">
+                    Inactive
+                </span>
+            ),
+    },
+    {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { align: 'right' },
+        cell: ({ row }) => (
+            <Link
+                href={`/admin/areas/${row.original.id}/edit`}
+                className="text-sm text-om-accent hover:text-om-accent"
+            >
+                Edit
+            </Link>
+        ),
+    },
+];
+
+const lineColumns = [
+    {
+        id: 'code',
+        accessorKey: 'code',
+        header: 'Code',
+        cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.code}</span>,
+    },
+    {
+        id: 'name',
+        accessorKey: 'name',
+        header: 'Name',
+        cell: ({ row }) => (
+            <Link
+                href={`/admin/lines/${row.original.id}`}
+                className="text-om-accent hover:text-om-accent"
+            >
+                {row.original.name}
+            </Link>
+        ),
+    },
+    {
+        id: 'status',
+        accessorFn: (r) => r.is_active,
+        header: 'Status',
+        cell: ({ row }) =>
+            row.original.is_active ? (
+                <span className="px-2 py-0.5 bg-om-running-bg text-om-running rounded-full text-xs">
+                    Active
+                </span>
+            ) : (
+                <span className="px-2 py-0.5 bg-om-chip text-om-muted rounded-full text-xs">
+                    Inactive
+                </span>
+            ),
+    },
+];
 
 export default function SiteShow() {
     const { site, customFields = [] } = usePage().props;
@@ -103,62 +198,14 @@ export default function SiteShow() {
                             + Add Area
                         </Link>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-om-line2">
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Code</th>
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Name</th>
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Lines</th>
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Status</th>
-                                    <th className="text-right py-2 px-4"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line2">
-                                {areas.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="py-6 text-center text-om-muted">
-                                            No areas defined yet.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    areas.map((area) => (
-                                        <tr key={area.id} className="hover:bg-om-bg">
-                                            <td className="py-2 px-4 font-mono text-om-muted">{area.code}</td>
-                                            <td className="py-2 px-4">
-                                                <Link
-                                                    href={`/admin/areas/${area.id}`}
-                                                    className="text-om-accent hover:text-om-accent"
-                                                >
-                                                    {area.name}
-                                                </Link>
-                                            </td>
-                                            <td className="py-2 px-4 text-om-muted">{area.lines_count}</td>
-                                            <td className="py-2 px-4">
-                                                {area.is_active ? (
-                                                    <span className="px-2 py-0.5 bg-om-running-bg text-om-running rounded-full text-xs">
-                                                        Active
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-0.5 bg-om-chip text-om-muted rounded-full text-xs">
-                                                        Inactive
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="py-2 px-4 text-right">
-                                                <Link
-                                                    href={`/admin/areas/${area.id}/edit`}
-                                                    className="text-sm text-om-accent hover:text-om-accent"
-                                                >
-                                                    Edit
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={areas}
+                        columns={areaColumns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel="No areas defined yet."
+                    />
                 </div>
 
                 {/* Lines table */}
@@ -168,51 +215,14 @@ export default function SiteShow() {
                             Lines under this Site <span className="text-om-muted">({lines.length})</span>
                         </h2>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-om-line2">
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Code</th>
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Name</th>
-                                    <th className="text-left py-2 px-4 font-semibold text-om-muted">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line2">
-                                {lines.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={3} className="py-6 text-center text-om-muted">
-                                            No lines mapped under this site yet.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    lines.map((line) => (
-                                        <tr key={line.id} className="hover:bg-om-bg">
-                                            <td className="py-2 px-4 font-mono text-om-muted">{line.code}</td>
-                                            <td className="py-2 px-4">
-                                                <Link
-                                                    href={`/admin/lines/${line.id}`}
-                                                    className="text-om-accent hover:text-om-accent"
-                                                >
-                                                    {line.name}
-                                                </Link>
-                                            </td>
-                                            <td className="py-2 px-4">
-                                                {line.is_active ? (
-                                                    <span className="px-2 py-0.5 bg-om-running-bg text-om-running rounded-full text-xs">
-                                                        Active
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-0.5 bg-om-chip text-om-muted rounded-full text-xs">
-                                                        Inactive
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={lines}
+                        columns={lineColumns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel="No lines mapped under this site yet."
+                    />
                 </div>
             </div>
         </>

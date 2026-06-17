@@ -1,6 +1,7 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { Head, Link, usePage } from '@inertiajs/react';
 import { StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
 import { formatNumber } from '../../lib/i18n';
 
@@ -25,6 +26,66 @@ function StatusBadge({ item }) {
     }
     return <StatusPill status="pending" label={item.status} />;
 }
+
+const itemColumns = [
+    {
+        id: 'order_no',
+        accessorKey: 'order_no',
+        header: 'Zlecenie',
+        cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.order_no}</span>,
+    },
+    {
+        id: 'product',
+        accessorKey: 'product',
+        header: 'Produkt',
+        cell: ({ row }) => <span className="text-om-ink">{row.original.product}</span>,
+    },
+    {
+        id: 'line',
+        accessorFn: (r) => r.line ?? '—',
+        header: 'Linia',
+        cell: ({ row }) => <span className="text-om-muted">{row.original.line ?? '—'}</span>,
+    },
+    {
+        id: 'eans',
+        accessorFn: (r) => (r.eans ?? []).join(' '),
+        header: 'EAN',
+        enableSorting: false,
+        cell: ({ row }) => (
+            (row.original.eans ?? []).map((ean) => (
+                <span key={ean} className="inline-block font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px] mr-1">
+                    {ean}
+                </span>
+            ))
+        ),
+    },
+    {
+        id: 'packed_qty',
+        accessorKey: 'packed_qty',
+        header: 'Spakowano',
+        meta: { align: 'right' },
+        cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.packed_qty}</span>,
+    },
+    {
+        id: 'planned_qty',
+        accessorKey: 'planned_qty',
+        header: 'Plan',
+        meta: { align: 'right' },
+        cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.planned_qty}</span>,
+    },
+    {
+        id: 'progress',
+        accessorKey: 'progress',
+        header: 'Postęp',
+        cell: ({ row }) => <ProgressBar pct={row.original.progress} done={row.original.done} />,
+    },
+    {
+        id: 'status',
+        accessorFn: (r) => (r.done ? 'Spakowane' : r.status === 'DONE' ? 'W trakcie' : r.status),
+        header: 'Status',
+        cell: ({ row }) => <StatusBadge item={row.original} />,
+    },
+];
 
 export default function Admin() {
     const { items = [], stats = {} } = usePage().props;
@@ -111,52 +172,15 @@ export default function Admin() {
                             Zlecenia do spakowania ({items.length})
                         </h2>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-om-line text-[13px]">
-                            <thead className="bg-om-panel">
-                                <tr>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Zlecenie</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Produkt</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Linia</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">EAN</th>
-                                    <th className="px-4 py-2.5 text-right font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Spakowano</th>
-                                    <th className="px-4 py-2.5 text-right font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Plan</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint w-32">Postęp</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line">
-                                {items.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={8} className="px-4 py-10 text-center text-om-faint text-[12.5px]">
-                                            Brak zleceń z przypisanymi kodami EAN
-                                        </td>
-                                    </tr>
-                                ) : items.map((item) => (
-                                    <tr key={item.id} className={item.done ? 'bg-om-running-bg/50' : ''}>
-                                        <td className="px-4 py-3 font-mono font-semibold text-om-ink">{item.order_no}</td>
-                                        <td className="px-4 py-3 text-om-ink">{item.product}</td>
-                                        <td className="px-4 py-3 text-om-muted">{item.line ?? '—'}</td>
-                                        <td className="px-4 py-3">
-                                            {(item.eans ?? []).map((ean) => (
-                                                <span key={ean} className="inline-block font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px] mr-1">
-                                                    {ean}
-                                                </span>
-                                            ))}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono font-semibold text-om-ink">{item.packed_qty}</td>
-                                        <td className="px-4 py-3 text-right font-mono text-om-muted">{item.planned_qty}</td>
-                                        <td className="px-4 py-3">
-                                            <ProgressBar pct={item.progress} done={item.done} />
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <StatusBadge item={item} />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={items}
+                        columns={itemColumns}
+                        searchable
+                        columnToggle
+                        paginated
+                        searchPlaceholder="Szukaj zleceń…"
+                        emptyLabel="Brak zleceń z przypisanymi kodami EAN"
+                    />
                 </div>
             </div>
         </>

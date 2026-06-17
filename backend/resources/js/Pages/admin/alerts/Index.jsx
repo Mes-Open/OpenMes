@@ -5,6 +5,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
 import { formatDate } from '../../../lib/i18n';
+import { DataTable } from '@openmes/ui/table';
 
 /**
  * Admin Alerts — joins five collections (issues, work orders, and the issue
@@ -74,6 +75,50 @@ export default function AlertsIndex() {
 
     const { blockingIssues, nonBlockingIssues, overdueOrders, blockedOrders } = derived;
     const total = blockingIssues.length + nonBlockingIssues.length + overdueOrders.length + blockedOrders.length;
+
+    const issueColumns = useMemo(() => [
+        {
+            id: 'issue',
+            accessorFn: (i) => i.title ?? i.description,
+            header: 'Issue',
+            cell: ({ row }) => {
+                const issue = row.original;
+                return <span className="font-medium text-om-ink">{issue.title ?? issue.description}</span>;
+            },
+        },
+        {
+            id: 'work_order',
+            accessorFn: (i) => i.order?.order_no ?? '',
+            header: 'Work Order',
+            cell: ({ row }) => {
+                const issue = row.original;
+                return issue.order
+                    ? <Link href={`/admin/work-orders/${issue.order.id}`} className="text-om-accent hover:underline font-mono text-xs">{issue.order.order_no}</Link>
+                    : <span className="text-om-faint">—</span>;
+            },
+        },
+        {
+            id: 'type',
+            accessorFn: (i) => i.type?.name ?? '',
+            header: 'Type',
+            cell: ({ row }) => <span className="text-xs text-om-muted">{row.original.type?.name ?? '—'}</span>,
+        },
+        {
+            id: 'reported',
+            accessorFn: (i) => i.created_at ?? '',
+            header: 'Reported',
+            cell: ({ row }) => <span className="text-xs text-om-muted">{timeAgo(row.original.created_at)}</span>,
+        },
+        {
+            id: 'status',
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => {
+                const issue = row.original;
+                return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${issue.status === 'OPEN' ? 'bg-om-downtime-bg text-om-downtime' : 'bg-om-chip text-om-accent'}`}>{issue.status}</span>;
+            },
+        },
+    ], []);
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -150,32 +195,14 @@ export default function AlertsIndex() {
                                 icon="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                                 Open Issues ({nonBlockingIssues.length})
                             </SectionTitle>
-                            <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden p-0">
-                                <table className="min-w-full text-sm">
-                                    <thead className="bg-om-downtime-bg">
-                                        <tr>
-                                            {['Issue', 'Work Order', 'Type', 'Reported', 'Status'].map((h) => (
-                                                <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-om-muted uppercase">{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-om-line2">
-                                        {nonBlockingIssues.map((issue) => (
-                                            <tr key={issue.id} className="hover:bg-om-downtime-bg/50">
-                                                <td className="px-4 py-3"><span className="font-medium text-om-ink">{issue.title ?? issue.description}</span></td>
-                                                <td className="px-4 py-3">{issue.order
-                                                    ? <Link href={`/admin/work-orders/${issue.order.id}`} className="text-om-accent hover:underline font-mono text-xs">{issue.order.order_no}</Link>
-                                                    : <span className="text-om-faint">—</span>}</td>
-                                                <td className="px-4 py-3 text-xs text-om-muted">{issue.type?.name ?? '—'}</td>
-                                                <td className="px-4 py-3 text-xs text-om-muted">{timeAgo(issue.created_at)}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${issue.status === 'OPEN' ? 'bg-om-downtime-bg text-om-downtime' : 'bg-om-chip text-om-accent'}`}>{issue.status}</span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <DataTable
+                                data={nonBlockingIssues}
+                                columns={issueColumns}
+                                searchable
+                                columnToggle
+                                paginated
+                                searchPlaceholder="Search issues..."
+                            />
                         </div>
                     )}
                 </>
@@ -210,42 +237,69 @@ function BlockingCard({ issue }) {
     );
 }
 
-function OrderTable({ rows, accent, showStatus, showDue, showBlockedSince }) {
-    const head = accent === 'orange' ? 'bg-orange-50' : 'bg-om-downtime-bg';
-    const border = accent === 'orange' ? 'border-orange-200' : 'border-om-line';
-    const hover = accent === 'orange' ? 'hover:bg-orange-50' : 'hover:bg-om-downtime-bg';
+function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
+    const columns = useMemo(() => {
+        const cols = [
+            {
+                id: 'order',
+                accessorKey: 'order_no',
+                header: 'Order',
+                cell: ({ row }) => {
+                    const wo = row.original;
+                    return (
+                        <>
+                            <span className="font-mono text-sm font-semibold text-om-accent">{wo.order_no}</span>
+                            {showDue && <div className="text-[10px] text-orange-700 font-medium">{fmtDate(wo.due_date)}</div>}
+                        </>
+                    );
+                },
+            },
+            {
+                id: 'line',
+                accessorFn: (wo) => wo.line?.name ?? '',
+                header: 'Line',
+                cell: ({ row }) => <span className="text-sm text-om-muted">{row.original.line?.name ?? '—'}</span>,
+            },
+        ];
+        if (showDue) {
+            cols.push({
+                id: 'overdue',
+                accessorFn: (wo) => wo.due_date ?? '',
+                header: 'Overdue',
+                cell: ({ row }) => <span className="text-sm text-om-blocked font-semibold">{timeAgo(row.original.due_date)}</span>,
+            });
+        }
+        if (showStatus) {
+            cols.push({
+                id: 'status',
+                accessorKey: 'status',
+                header: 'Status',
+                cell: ({ row }) => {
+                    const wo = row.original;
+                    return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-muted'}`}>{WO_STATUS_LABELS[wo.status] ?? wo.status}</span>;
+                },
+            });
+        }
+        if (showBlockedSince) {
+            cols.push({
+                id: 'blocked_since',
+                accessorFn: (wo) => wo.updated_at ?? '',
+                header: 'Blocked since',
+                cell: ({ row }) => <span className="text-sm text-om-muted">{timeAgo(row.original.updated_at)}</span>,
+            });
+        }
+        return cols;
+    }, [showStatus, showDue, showBlockedSince]);
+
     return (
-        <div className={`overflow-hidden rounded-om-sm border ${border} bg-om-card`}>
-            <table className="min-w-full divide-y divide-om-line2">
-                <thead>
-                    <tr className={head}>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-om-muted">Order</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-om-muted">Line</th>
-                        {showDue && <th className="px-3 py-2 text-left text-xs font-semibold text-om-muted">Overdue</th>}
-                        {showStatus && <th className="px-3 py-2 text-left text-xs font-semibold text-om-muted">Status</th>}
-                        {showBlockedSince && <th className="px-3 py-2 text-left text-xs font-semibold text-om-muted">Blocked since</th>}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-om-line2">
-                    {rows.map((wo) => (
-                        <tr key={wo.id} className={`${hover} cursor-pointer`} onClick={() => { window.location = `/admin/work-orders/${wo.id}`; }}>
-                            <td className="px-3 py-2">
-                                <span className="font-mono text-sm font-semibold text-om-accent">{wo.order_no}</span>
-                                {showDue && <div className="text-[10px] text-orange-700 font-medium">{fmtDate(wo.due_date)}</div>}
-                            </td>
-                            <td className="px-3 py-2 text-sm text-om-muted">{wo.line?.name ?? '—'}</td>
-                            {showDue && <td className="px-3 py-2 text-sm text-om-blocked font-semibold">{timeAgo(wo.due_date)}</td>}
-                            {showStatus && (
-                                <td className="px-3 py-2">
-                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-muted'}`}>{WO_STATUS_LABELS[wo.status] ?? wo.status}</span>
-                                </td>
-                            )}
-                            {showBlockedSince && <td className="px-3 py-2 text-sm text-om-muted">{timeAgo(wo.updated_at)}</td>}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+        <DataTable
+            data={rows}
+            columns={columns}
+            searchable={false}
+            columnToggle={false}
+            paginated={false}
+            onRowClick={(wo) => { window.location = `/admin/work-orders/${wo.id}`; }}
+        />
     );
 }
 

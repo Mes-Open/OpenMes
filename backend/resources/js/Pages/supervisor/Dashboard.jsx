@@ -1,6 +1,8 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (props shape, line switch and stats untouched).
 import { Head, router, usePage } from '@inertiajs/react';
-import { StatusPill } from '@openmes/ui';
+import { useMemo } from 'react';
+import { Dropdown, StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
@@ -17,15 +19,51 @@ export default function SupervisorDashboard() {
 
     const changeLine = (id) => router.get('/supervisor/dashboard', id ? { line_id: id } : {}, { preserveState: false });
 
+    const issueColumns = useMemo(() => [
+        {
+            id: 'title',
+            accessorKey: 'title',
+            header: __('Issue'),
+            cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.title}</span>,
+        },
+        {
+            id: 'type',
+            accessorFn: (r) => r.type ?? '—',
+            header: __('Type'),
+            cell: ({ row }) => <span className="text-om-muted">{row.original.type ?? '—'}</span>,
+        },
+        {
+            id: 'work_order',
+            accessorFn: (r) => r.work_order ?? '—',
+            header: __('WO'),
+            cell: ({ row }) => <span className="font-mono text-[12px] text-om-muted">{row.original.work_order ?? '—'}</span>,
+        },
+        {
+            id: 'reported_at',
+            accessorFn: (r) => r.reported_at ?? '—',
+            header: __('Reported'),
+            cell: ({ row }) => <span className="text-om-faint">{row.original.reported_at ?? '—'}</span>,
+        },
+        {
+            id: 'status',
+            accessorKey: 'status',
+            header: __('Status'),
+            cell: ({ row }) => <StatusPill status={ISSUE_PILL_STATUS[row.original.status] ?? 'pending'} label={__(row.original.status)} />,
+        },
+    ], []);
+
     return (
         <>
             <Head title={__('Supervisor Dashboard')} />
             <div className="max-w-7xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Supervisor Dashboard')}</h1>
-                    <select value={selectedLineId ?? ''} onChange={(e) => changeLine(e.target.value)} className="h-9 min-w-[180px] rounded-om-sm border border-om-line bg-om-card px-3 text-[13px] text-om-ink focus:border-om-accent focus:outline-none">
-                        {lines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                    </select>
+                    <Dropdown
+                        options={lines.map((l) => ({ value: String(l.id), label: l.name }))}
+                        value={selectedLineId == null ? '' : String(selectedLineId)}
+                        onChange={(v) => changeLine(v)}
+                        className="min-w-[180px]"
+                    />
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -47,29 +85,14 @@ export default function SupervisorDashboard() {
                 </div>
 
                 <Card title={__('Recent issues')}>
-                    {recentIssues.length === 0 ? (
-                        <p className="text-om-faint text-sm">{__('No issues.')} 🎉</p>
-                    ) : (
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-left bg-om-panel">
-                                    <th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Issue')}</th><th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Type')}</th><th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('WO')}</th>
-                                    <th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Reported')}</th><th className="py-2 px-2 font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Status')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentIssues.map((i) => (
-                                    <tr key={i.id} className="border-b border-om-line2 last:border-0 hover:bg-om-bg">
-                                        <td className="py-2 px-2 font-medium text-om-ink">{i.title}</td>
-                                        <td className="py-2 px-2 text-om-muted">{i.type ?? '—'}</td>
-                                        <td className="py-2 px-2 font-mono text-[12px] text-om-muted">{i.work_order ?? '—'}</td>
-                                        <td className="py-2 px-2 text-om-faint">{i.reported_at ?? '—'}</td>
-                                        <td className="py-2 px-2"><StatusPill status={ISSUE_PILL_STATUS[i.status] ?? 'pending'} label={__(i.status)} /></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
+                    <DataTable
+                        data={recentIssues}
+                        columns={issueColumns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel={`${__('No issues.')} 🎉`}
+                    />
                 </Card>
             </div>
         </>

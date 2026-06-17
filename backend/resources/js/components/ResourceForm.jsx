@@ -1,6 +1,6 @@
 import { Fragment, useEffect } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
-import { Button } from '@openmes/ui';
+import { Button, Checkbox, DatePicker, Dropdown } from '@openmes/ui';
 import CustomFields from './CustomFields';
 import { customFieldProps, submitForm } from '../lib/customFieldForm';
 
@@ -147,17 +147,7 @@ function Field({ field, value, error, setData }) {
     if (type === 'checkbox') {
         return (
             <div>
-                <label className="flex items-center gap-2.5 text-[13px] text-om-ink">
-                    {/* 18px accent checkbox idiom — native input kept for name/focus/e2e semantics */}
-                    <input
-                        type="checkbox"
-                        name={name}
-                        checked={!!value}
-                        onChange={(e) => set(e.target.checked)}
-                        className="size-[18px] accent-om-accent"
-                    />
-                    {label}
-                </label>
+                <Checkbox checked={!!value} onChange={(next) => set(next)} label={label} />
                 {help && <p className="text-[12px] text-om-muted mt-1">{help}</p>}
             </div>
         );
@@ -216,14 +206,20 @@ function Field({ field, value, error, setData }) {
                     className={INPUT_CLASS}
                 />
             ) : type === 'select' ? (
-                /* Native <select> kept for now — same input styling. */
-                <select name={name} value={value ?? ''} onChange={(e) => set(e.target.value)} className={INPUT_CLASS}>
-                    {(options ?? []).map((o) => (
-                        <option key={o.value} value={o.value}>
-                            {o.label}
-                        </option>
-                    ))}
-                </select>
+                <Dropdown
+                    className="w-full"
+                    options={(options ?? []).map((o) => ({ value: String(o.value), label: o.label }))}
+                    value={value == null ? '' : String(value)}
+                    onChange={(v) => set(v)}
+                    placeholder={placeholder || `${label}…`}
+                />
+            ) : type === 'date' ? (
+                <DatePicker
+                    className="w-full"
+                    value={value || null}
+                    onChange={(iso) => set(iso ?? '')}
+                    placeholder={placeholder}
+                />
             ) : type === 'color' ? (
                 <input
                     type="color"

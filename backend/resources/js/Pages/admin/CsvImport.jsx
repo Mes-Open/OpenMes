@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 
 function Icon({ d, className = 'w-5 h-5' }) {
@@ -24,6 +25,9 @@ export default function CsvImport() {
     const [dragging, setDragging] = useState(false);
     const [filename, setFilename] = useState('');
     const [fileInput, setFileInput] = useState(null);
+    const [importStrategy, setImportStrategy] = useState('update_or_create');
+    const [mappingId, setMappingId] = useState('');
+    const [targetLineId, setTargetLineId] = useState('');
 
     const handleDrop = (e) => {
         e.preventDefault();
@@ -167,34 +171,49 @@ export default function CsvImport() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label className="form-label">Duplicate Strategy</label>
-                                <select name="import_strategy" className="form-input w-full" required>
-                                    <option value="update_or_create">Update if exists, create if new</option>
-                                    <option value="skip_existing">Skip existing records</option>
-                                    <option value="error_on_duplicate">Error on duplicates</option>
-                                </select>
+                                <input type="hidden" name="import_strategy" value={importStrategy} />
+                                <Dropdown
+                                    options={[
+                                        { value: 'update_or_create', label: 'Update if exists, create if new' },
+                                        { value: 'skip_existing', label: 'Skip existing records' },
+                                        { value: 'error_on_duplicate', label: 'Error on duplicates' },
+                                    ]}
+                                    value={importStrategy}
+                                    onChange={(v) => setImportStrategy(v)}
+                                    className="w-full"
+                                />
                             </div>
                             <div>
                                 <label className="form-label">Load Mapping Profile (optional)</label>
-                                <select name="mapping_id" className="form-input w-full">
-                                    <option value="">— Map columns manually —</option>
-                                    {savedMappings.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                            {m.name}{m.is_default ? ' (default)' : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                <input type="hidden" name="mapping_id" value={mappingId} />
+                                <Dropdown
+                                    options={[
+                                        { value: '', label: '— Map columns manually —' },
+                                        ...savedMappings.map((m) => ({
+                                            value: String(m.id),
+                                            label: `${m.name}${m.is_default ? ' (default)' : ''}`,
+                                        })),
+                                    ]}
+                                    value={mappingId == null ? '' : String(mappingId)}
+                                    onChange={(v) => setMappingId(v)}
+                                    className="w-full"
+                                />
                             </div>
                         </div>
 
                         {/* Target line */}
                         <div className="mb-4">
                             <label className="form-label">Assign all rows to Production Line (optional)</label>
-                            <select name="target_line_id" className="form-input w-full">
-                                <option value="">— Use line_code column from file —</option>
-                                {lines.map((line) => (
-                                    <option key={line.id} value={line.id}>{line.name}</option>
-                                ))}
-                            </select>
+                            <input type="hidden" name="target_line_id" value={targetLineId} />
+                            <Dropdown
+                                options={[
+                                    { value: '', label: '— Use line_code column from file —' },
+                                    ...lines.map((line) => ({ value: String(line.id), label: line.name })),
+                                ]}
+                                value={targetLineId == null ? '' : String(targetLineId)}
+                                onChange={(v) => setTargetLineId(v)}
+                                className="w-full"
+                            />
                             <p className="text-xs text-om-faint mt-1">
                                 If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.
                             </p>

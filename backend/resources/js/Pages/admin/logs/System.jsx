@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 
 const LEVEL_BADGE = {
@@ -113,36 +115,34 @@ function AppTab({ entries: initialEntries, availableDates, date, level, search }
                     <div>
                         <label className="block text-xs font-medium text-om-muted mb-1">Date</label>
                         {availableDates && availableDates.length > 0 ? (
-                            <select
-                                value={form.date}
-                                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                                className="form-input w-full"
-                            >
-                                {availableDates.map((d) => (
-                                    <option key={d} value={d}>{d}</option>
-                                ))}
-                            </select>
+                            <Dropdown
+                                value={form.date == null ? '' : String(form.date)}
+                                onChange={(v) => setForm((f) => ({ ...f, date: v }))}
+                                options={availableDates.map((d) => ({ value: String(d), label: d }))}
+                                className="w-full"
+                            />
                         ) : (
-                            <input
-                                type="date"
-                                value={form.date}
-                                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                                className="form-input w-full"
+                            <DatePicker
+                                value={form.date || null}
+                                onChange={(iso) => setForm((f) => ({ ...f, date: iso ?? '' }))}
+                                className="w-full"
                             />
                         )}
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-om-muted mb-1">Level</label>
-                        <select
-                            value={form.level}
-                            onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
-                            className="form-input w-full"
-                        >
-                            <option value="">All levels</option>
-                            {['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'].map((lvl) => (
-                                <option key={lvl} value={lvl}>{lvl.charAt(0).toUpperCase() + lvl.slice(1)}</option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.level == null ? '' : String(form.level)}
+                            onChange={(v) => setForm((f) => ({ ...f, level: v }))}
+                            options={[
+                                { value: '', label: 'All levels' },
+                                ...['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'].map((lvl) => ({
+                                    value: lvl,
+                                    label: lvl.charAt(0).toUpperCase() + lvl.slice(1),
+                                })),
+                            ]}
+                            className="w-full"
+                        />
                     </div>
                     <div className="sm:col-span-2">
                         <label className="block text-xs font-medium text-om-muted mb-1">Search</label>
@@ -252,10 +252,76 @@ function FailedJobsTab({ entries, missing }) {
     const logItems = entries?.data ?? (Array.isArray(entries) ? entries : []);
     const meta = entries?.meta ?? null;
     const paginationLinks = entries?.links ?? [];
+    const { csrf_token } = usePage().props;
 
     const goPage = (page) => {
         router.get('/admin/logs/system', { tab: 'failed_jobs', page }, { preserveState: false });
     };
+
+    const columns = useMemo(() => [
+        {
+            id: 'id',
+            accessorKey: 'id',
+            header: 'ID',
+            cell: ({ row }) => (
+                <span className="text-xs font-mono text-om-muted whitespace-nowrap">{row.original.id}</span>
+            ),
+        },
+        {
+            id: 'connection',
+            accessorKey: 'connection',
+            header: 'Connection',
+            cell: ({ row }) => (
+                <span className="text-xs text-om-muted whitespace-nowrap">{row.original.connection}</span>
+            ),
+        },
+        {
+            id: 'queue',
+            accessorKey: 'queue',
+            header: 'Queue',
+            cell: ({ row }) => (
+                <span className="text-xs text-om-muted whitespace-nowrap">{row.original.queue}</span>
+            ),
+        },
+        {
+            id: 'payload',
+            header: 'Payload',
+            enableSorting: false,
+            cell: ({ row }) => <FailedJobPayloadCell job={row.original} />,
+        },
+        {
+            id: 'exception',
+            accessorFn: (r) => r.exception,
+            header: 'Exception',
+            enableSorting: false,
+            meta: { flex: true },
+            cell: ({ row }) => <FailedJobExceptionCell job={row.original} />,
+        },
+        {
+            id: 'failed_at',
+            accessorKey: 'failed_at',
+            header: 'Failed at',
+            cell: ({ row }) => (
+                <span className="text-xs text-om-muted whitespace-nowrap font-mono">{row.original.failed_at}</span>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            enableSorting: false,
+            cell: ({ row }) => (
+                <form method="POST" action={`/admin/logs/system/retry-failed-job/${row.original.uuid}`} className="inline">
+                    <input type="hidden" name="_token" value={csrf_token} />
+                    <button
+                        type="submit"
+                        className="px-3 py-1 text-xs rounded bg-om-ink text-white hover:bg-black transition-colors"
+                    >
+                        Retry
+                    </button>
+                </form>
+            ),
+        },
+    ], [csrf_token]);
 
     if (missing) {
         return (
@@ -267,33 +333,18 @@ function FailedJobsTab({ entries, missing }) {
     }
 
     return (
-        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="min-w-full text-sm divide-y divide-om-line2">
-                    <thead className="bg-om-panel text-xs uppercase text-om-muted">
-                        <tr>
-                            <th className="text-left px-4 py-2">ID</th>
-                            <th className="text-left px-4 py-2">Connection</th>
-                            <th className="text-left px-4 py-2">Queue</th>
-                            <th className="text-left px-4 py-2">Payload</th>
-                            <th className="text-left px-4 py-2">Exception</th>
-                            <th className="text-left px-4 py-2">Failed at</th>
-                            <th className="text-left px-4 py-2">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-om-line2 bg-om-card">
-                        {logItems.length === 0 ? (
-                            <tr>
-                                <td colSpan={7} className="px-4 py-16 text-center text-om-faint">No failed jobs.</td>
-                            </tr>
-                        ) : logItems.map((job) => (
-                            <FailedJobRow key={job.id} job={job} />
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+        <div>
+            <DataTable
+                data={logItems}
+                columns={columns}
+                paginated={false}
+                searchPlaceholder="Search failed jobs…"
+                columnsLabel="Columns"
+                columnsMenuLabel="Toggle columns"
+                emptyLabel="No failed jobs."
+            />
             {meta && meta.last_page > 1 && (
-                <div className="p-3 border-t">
+                <div className="mt-3">
                     <Pagination meta={meta} links={paginationLinks} onPage={goPage} />
                 </div>
             )}
@@ -301,52 +352,37 @@ function FailedJobsTab({ entries, missing }) {
     );
 }
 
-function FailedJobRow({ job }) {
+function FailedJobPayloadCell({ job }) {
     const [showPayload, setShowPayload] = useState(false);
-    const [showTrace, setShowTrace] = useState(false);
-    const { csrf_token } = usePage().props;
-
-    const firstLine = (job.exception ?? '').split('\n')[0].substring(0, 200);
-
     return (
-        <tr className="hover:bg-om-bg align-top">
-            <td className="px-4 py-3 text-xs font-mono text-om-muted whitespace-nowrap">{job.id}</td>
-            <td className="px-4 py-3 text-xs text-om-muted whitespace-nowrap">{job.connection}</td>
-            <td className="px-4 py-3 text-xs text-om-muted whitespace-nowrap">{job.queue}</td>
-            <td className="px-4 py-3 text-xs text-om-muted">
-                <button type="button" onClick={() => setShowPayload((v) => !v)} className="text-om-accent hover:underline">
-                    {showPayload ? 'Hide payload' : 'View payload'}
-                </button>
-                {showPayload && (
-                    <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
-                        {String(job.payload ?? '').substring(0, 4000)}
-                    </pre>
-                )}
-            </td>
-            <td className="px-4 py-3 text-xs text-om-muted max-w-md">
-                <div className="text-om-blocked break-words">{firstLine}</div>
-                <button type="button" onClick={() => setShowTrace((v) => !v)} className="mt-1 text-om-accent hover:underline text-xs">
-                    {showTrace ? 'Hide stack trace' : 'Show stack trace'}
-                </button>
-                {showTrace && (
-                    <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words text-om-muted">
-                        {String(job.exception ?? '').substring(0, 8000)}
-                    </pre>
-                )}
-            </td>
-            <td className="px-4 py-3 text-xs text-om-muted whitespace-nowrap font-mono">{job.failed_at}</td>
-            <td className="px-4 py-3 text-xs whitespace-nowrap">
-                <form method="POST" action={`/admin/logs/system/retry-failed-job/${job.uuid}`} className="inline">
-                    <input type="hidden" name="_token" value={csrf_token} />
-                    <button
-                        type="submit"
-                        className="px-3 py-1 text-xs rounded bg-om-ink text-white hover:bg-black transition-colors"
-                    >
-                        Retry
-                    </button>
-                </form>
-            </td>
-        </tr>
+        <div className="text-xs text-om-muted">
+            <button type="button" onClick={() => setShowPayload((v) => !v)} className="text-om-accent hover:underline">
+                {showPayload ? 'Hide payload' : 'View payload'}
+            </button>
+            {showPayload && (
+                <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
+                    {String(job.payload ?? '').substring(0, 4000)}
+                </pre>
+            )}
+        </div>
+    );
+}
+
+function FailedJobExceptionCell({ job }) {
+    const [showTrace, setShowTrace] = useState(false);
+    const firstLine = (job.exception ?? '').split('\n')[0].substring(0, 200);
+    return (
+        <div className="text-xs text-om-muted max-w-md">
+            <div className="text-om-blocked break-words">{firstLine}</div>
+            <button type="button" onClick={() => setShowTrace((v) => !v)} className="mt-1 text-om-accent hover:underline text-xs">
+                {showTrace ? 'Hide stack trace' : 'Show stack trace'}
+            </button>
+            {showTrace && (
+                <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words text-om-muted">
+                    {String(job.exception ?? '').substring(0, 8000)}
+                </pre>
+            )}
+        </div>
     );
 }
 
@@ -377,35 +413,77 @@ function DeploymentsTab({ entries, missing }) {
         );
     }
 
+    const columns = useMemo(() => [
+        {
+            id: 'started_at',
+            accessorKey: 'started_at',
+            header: 'Started',
+            cell: ({ row }) => (
+                <span className="text-xs font-mono text-om-muted whitespace-nowrap">{row.original.started_at ?? '—'}</span>
+            ),
+        },
+        {
+            id: 'finished_at',
+            accessorKey: 'finished_at',
+            header: 'Finished',
+            cell: ({ row }) => (
+                <span className="text-xs font-mono text-om-muted whitespace-nowrap">{row.original.finished_at ?? '—'}</span>
+            ),
+        },
+        {
+            id: 'version',
+            accessorFn: (r) => `${r.from_version ?? ''} ${r.to_version ?? ''}`,
+            header: 'Version',
+            cell: ({ row }) => (
+                <span className="text-xs text-om-ink whitespace-nowrap font-mono">
+                    {row.original.from_version ?? '—'} &rarr; {row.original.to_version ?? '—'}
+                </span>
+            ),
+        },
+        {
+            id: 'status',
+            accessorFn: (r) => r.state ?? 'unknown',
+            header: 'Status',
+            cell: ({ row }) => {
+                const state = row.original.state ?? 'unknown';
+                const badgeCls = DEPLOYMENT_STATE_BADGE[state] ?? 'bg-om-chip text-om-muted';
+                return (
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${badgeCls}`}>
+                        {state.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'triggered_by',
+            accessorKey: 'triggered_by',
+            header: 'Triggered by',
+            cell: ({ row }) => (
+                <span className="text-xs text-om-muted whitespace-nowrap">{row.original.triggered_by ?? '—'}</span>
+            ),
+        },
+        {
+            id: 'output',
+            header: 'Output',
+            enableSorting: false,
+            meta: { flex: true },
+            cell: ({ row }) => <DeploymentOutputCell row={row.original} />,
+        },
+    ], []);
+
     return (
-        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="min-w-full text-sm divide-y divide-om-line2">
-                    <thead className="bg-om-panel text-xs uppercase text-om-muted">
-                        <tr>
-                            <th className="text-left px-4 py-2">Started</th>
-                            <th className="text-left px-4 py-2">Finished</th>
-                            <th className="text-left px-4 py-2">Version</th>
-                            <th className="text-left px-4 py-2">Status</th>
-                            <th className="text-left px-4 py-2">Triggered by</th>
-                            <th className="text-left px-4 py-2">Output</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-om-line2 bg-om-card">
-                        {logItems.length === 0 ? (
-                            <tr>
-                                <td colSpan={6} className="px-4 py-16 text-center text-om-faint">
-                                    No deployments recorded.
-                                </td>
-                            </tr>
-                        ) : logItems.map((row, i) => (
-                            <DeploymentRow key={row.id ?? i} row={row} />
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+        <div>
+            <DataTable
+                data={logItems}
+                columns={columns}
+                paginated={false}
+                searchPlaceholder="Search deployments…"
+                columnsLabel="Columns"
+                columnsMenuLabel="Toggle columns"
+                emptyLabel="No deployments recorded."
+            />
             {meta && meta.last_page > 1 && (
-                <div className="p-3 border-t">
+                <div className="mt-3">
                     <Pagination meta={meta} links={paginationLinks} onPage={goPage} />
                 </div>
             )}
@@ -413,41 +491,25 @@ function DeploymentsTab({ entries, missing }) {
     );
 }
 
-function DeploymentRow({ row }) {
+function DeploymentOutputCell({ row }) {
     const [showOutput, setShowOutput] = useState(false);
-    const state = row.state ?? 'unknown';
-    const badgeCls = DEPLOYMENT_STATE_BADGE[state] ?? 'bg-om-chip text-om-muted';
-
     return (
-        <tr className="hover:bg-om-bg align-top">
-            <td className="px-4 py-3 text-xs font-mono text-om-muted whitespace-nowrap">{row.started_at ?? '—'}</td>
-            <td className="px-4 py-3 text-xs font-mono text-om-muted whitespace-nowrap">{row.finished_at ?? '—'}</td>
-            <td className="px-4 py-3 text-xs text-om-ink whitespace-nowrap font-mono">
-                {row.from_version ?? '—'} &rarr; {row.to_version ?? '—'}
-            </td>
-            <td className="px-4 py-3 text-xs whitespace-nowrap">
-                <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${badgeCls}`}>
-                    {state.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}
-                </span>
-            </td>
-            <td className="px-4 py-3 text-xs text-om-muted whitespace-nowrap">{row.triggered_by ?? '—'}</td>
-            <td className="px-4 py-3 text-xs text-om-muted">
-                {row.error ? (
-                    <>
-                        <button type="button" onClick={() => setShowOutput((v) => !v)} className="text-om-accent hover:underline">
-                            {showOutput ? 'Hide output' : 'View output'}
-                        </button>
-                        {showOutput && (
-                            <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
-                                {String(row.error).substring(0, 8000)}
-                            </pre>
-                        )}
-                    </>
-                ) : (
-                    <span className="text-om-faint">—</span>
-                )}
-            </td>
-        </tr>
+        <div className="text-xs text-om-muted">
+            {row.error ? (
+                <>
+                    <button type="button" onClick={() => setShowOutput((v) => !v)} className="text-om-accent hover:underline">
+                        {showOutput ? 'Hide output' : 'View output'}
+                    </button>
+                    {showOutput && (
+                        <pre className="mt-2 bg-om-panel p-2 rounded max-w-xl overflow-x-auto whitespace-pre-wrap break-words">
+                            {String(row.error).substring(0, 8000)}
+                        </pre>
+                    )}
+                </>
+            ) : (
+                <span className="text-om-faint">—</span>
+            )}
+        </div>
     );
 }
 

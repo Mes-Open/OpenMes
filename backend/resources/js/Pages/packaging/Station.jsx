@@ -1,7 +1,8 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls (scanning logic untouched).
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Head, usePage } from '@inertiajs/react';
-import { Badge, Button, StatusPill } from '@openmes/ui';
+import { Badge, Button, Dropdown, StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
 import { __, formatTime } from '../../lib/i18n';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
@@ -59,6 +60,74 @@ export default function Station() {
 
     const realizacja =
         stats.plan > 0 ? Math.min(100, Math.round((stats.today_packed / stats.plan) * 100)) : 0;
+
+    const itemColumns = useMemo(() => [
+        {
+            id: 'order_no',
+            accessorKey: 'order_no',
+            header: __('Order'),
+            cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.order_no}</span>,
+        },
+        {
+            id: 'product',
+            accessorKey: 'product',
+            header: __('Product'),
+            meta: { flex: true },
+            cell: ({ row }) => <span className="text-om-ink">{row.original.product}</span>,
+        },
+        {
+            id: 'ean',
+            accessorFn: (r) => (r.eans ?? []).join(' '),
+            header: 'EAN',
+            cell: ({ row }) => (row.original.eans ?? []).map((ean) => (
+                <span key={ean} className="inline-block font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px] mr-1 mb-0.5">
+                    {ean}
+                </span>
+            )),
+        },
+        {
+            id: 'packed_qty',
+            accessorKey: 'packed_qty',
+            header: __('Packed'),
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.packed_qty}</span>,
+        },
+        {
+            id: 'planned_qty',
+            accessorKey: 'planned_qty',
+            header: __('Plan'),
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.planned_qty}</span>,
+        },
+        {
+            id: 'progress',
+            accessorKey: 'progress',
+            header: __('Progress'),
+            cell: ({ row }) => <ProgressBar pct={row.original.progress} done={row.original.done} />,
+        },
+    ], []);
+
+    const historyColumns = useMemo(() => [
+        {
+            id: 'scanned_at',
+            accessorKey: 'scanned_at',
+            header: __('Time'),
+            cell: ({ row }) => <span className="font-mono text-om-muted text-[11px] whitespace-nowrap">{row.original.scanned_at}</span>,
+        },
+        {
+            id: 'product_name',
+            accessorKey: 'product_name',
+            header: __('Product'),
+            meta: { flex: true },
+            cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.product_name}</span>,
+        },
+        {
+            id: 'ean',
+            accessorKey: 'ean',
+            header: 'EAN',
+            cell: ({ row }) => <span className="font-mono text-[11px] text-om-muted">{row.original.ean}</span>,
+        },
+    ], []);
 
     const fetchItems = useCallback(async () => {
         try {
@@ -334,19 +403,16 @@ export default function Station() {
                                 <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
                                     {__('Create pallet for order')}
                                 </label>
-                                {/* Native <select> kept — onKey's SELECT-tag guard depends on it */}
-                                <select
-                                    value={palletWoId}
-                                    onChange={(e) => setPalletWoId(e.target.value)}
-                                    className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
-                                >
-                                    <option value="">{__('— Select order —')}</option>
-                                    {items.map((it) => (
-                                        <option key={it.id} value={String(it.id)}>
-                                            {it.order_no} — {it.product}
-                                        </option>
-                                    ))}
-                                </select>
+                                <Dropdown
+                                    value={palletWoId == null ? '' : String(palletWoId)}
+                                    onChange={(v) => setPalletWoId(v)}
+                                    placeholder={__('— Select order —')}
+                                    options={items.map((it) => ({
+                                        value: String(it.id),
+                                        label: `${it.order_no} — ${it.product}`,
+                                    }))}
+                                    className="w-full"
+                                />
                             </div>
                             <Button
                                 variant="accent"
@@ -522,46 +588,15 @@ export default function Station() {
                         </h2>
                         <Badge variant="neutral">{__(':count items', { count: items.length })}</Badge>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-om-line text-[13px]">
-                            <thead className="bg-om-panel">
-                                <tr>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Order')}</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Product')}</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">EAN</th>
-                                    <th className="px-4 py-2.5 text-right font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Packed')}</th>
-                                    <th className="px-4 py-2.5 text-right font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Plan')}</th>
-                                    <th className="px-4 py-2.5 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint w-32">{__('Progress')}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line">
-                                {items.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="px-4 py-8 text-center text-om-faint text-[12.5px]">
-                                            {__('No orders with assigned EAN codes')}
-                                        </td>
-                                    </tr>
-                                ) : items.map((item) => (
-                                    <tr key={item.id} className={item.done ? 'bg-om-running-bg/50' : ''}>
-                                        <td className="px-4 py-3 font-mono font-semibold text-om-ink">{item.order_no}</td>
-                                        <td className="px-4 py-3 text-om-ink">{item.product}</td>
-                                        <td className="px-4 py-3">
-                                            {(item.eans ?? []).map((ean) => (
-                                                <span key={ean} className="inline-block font-mono text-[11px] bg-om-chip text-om-muted px-2 py-0.5 rounded-[5px] mr-1 mb-0.5">
-                                                    {ean}
-                                                </span>
-                                            ))}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-mono font-semibold text-om-ink">{item.packed_qty}</td>
-                                        <td className="px-4 py-3 text-right font-mono text-om-muted">{item.planned_qty}</td>
-                                        <td className="px-4 py-3">
-                                            <ProgressBar pct={item.progress} done={item.done} />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={items}
+                        columns={itemColumns}
+                        searchable
+                        columnToggle
+                        paginated
+                        searchPlaceholder={__('Search orders…')}
+                        emptyLabel={__('No orders with assigned EAN codes')}
+                    />
                 </div>
 
                 {/* Scan log */}
@@ -571,32 +606,15 @@ export default function Station() {
                             {__('Scan history (shift)')}
                         </h2>
                     </div>
-                    <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                        <table className="min-w-full divide-y divide-om-line text-[13px]">
-                            <thead className="bg-om-panel sticky top-0">
-                                <tr>
-                                    <th className="px-4 py-2 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Time')}</th>
-                                    <th className="px-4 py-2 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">{__('Product')}</th>
-                                    <th className="px-4 py-2 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] text-om-faint">EAN</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-om-line">
-                                {history.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={3} className="px-4 py-6 text-center text-om-faint text-[12.5px]">
-                                            {__('No scans this shift')}
-                                        </td>
-                                    </tr>
-                                ) : history.map((entry) => (
-                                    <tr key={entry.id}>
-                                        <td className="px-4 py-2.5 font-mono text-om-muted text-[11px] whitespace-nowrap">{entry.scanned_at}</td>
-                                        <td className="px-4 py-2.5 font-medium text-om-ink">{entry.product_name}</td>
-                                        <td className="px-4 py-2.5 font-mono text-[11px] text-om-muted">{entry.ean}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        data={history}
+                        columns={historyColumns}
+                        searchable
+                        columnToggle
+                        paginated
+                        searchPlaceholder={__('Search scans…')}
+                        emptyLabel={__('No scans this shift')}
+                    />
                 </div>
             </div>
         </>

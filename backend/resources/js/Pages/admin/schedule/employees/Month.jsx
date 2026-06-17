@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import { Tacho, EmployeeTabs } from './Day';
 import { formatDate } from '../../../../lib/i18n';
@@ -72,13 +73,12 @@ export default function EmployeeMonth() {
             {/* Worker switcher + month nav */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
                 <span className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase">Worker:</span>
-                <select value={selectedWorkerId ?? ''}
-                        onChange={(e) => navTo({ view: 'month', date, worker_id: e.target.value })}
-                        className="form-input text-sm py-1.5 min-h-0 bg-om-card border-om-line2">
-                    {workers.map((w) => (
-                        <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
-                    ))}
-                </select>
+                <Dropdown
+                    options={workers.map((w) => ({ value: String(w.id), label: `${w.name} (${w.code})` }))}
+                    value={selectedWorkerId == null ? '' : String(selectedWorkerId)}
+                    onChange={(v) => navTo({ view: 'month', date, worker_id: v })}
+                    className="min-w-[180px]"
+                />
 
                 <div className="flex items-center gap-1 ml-auto">
                     <button onClick={() => {

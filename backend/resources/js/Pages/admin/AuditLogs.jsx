@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
 
 const ACTION_STYLES = {
@@ -123,6 +125,59 @@ export default function AuditLogs() {
     const meta = auditLogs?.meta ?? null;
     const paginationLinks = auditLogs?.links ?? [];
 
+    const columns = useMemo(() => [
+        {
+            id: 'timestamp',
+            accessorFn: (log) => log.created_at ?? '',
+            header: 'Timestamp',
+            cell: ({ row }) => {
+                const log = row.original;
+                return log.created_at
+                    ? String(log.created_at).replace('T', ' ').replace(/\.\d+Z?$/, '')
+                    : '—';
+            },
+            meta: { align: 'left' },
+        },
+        {
+            id: 'user',
+            accessorFn: (log) => log.user?.name ?? 'System',
+            header: 'User',
+            cell: ({ row }) => row.original.user?.name ?? 'System',
+            meta: { align: 'left' },
+        },
+        {
+            id: 'entity',
+            accessorFn: (log) =>
+                (log.entity_type ? String(log.entity_type).split('\\').pop() : '—') +
+                (log.entity_id ? ` #${log.entity_id}` : ''),
+            header: 'Entity',
+            cell: ({ row }) => {
+                const log = row.original;
+                return (
+                    <>
+                        {log.entity_type ? String(log.entity_type).split('\\').pop() : '—'}
+                        {log.entity_id ? ` #${log.entity_id}` : ''}
+                    </>
+                );
+            },
+            meta: { align: 'left' },
+        },
+        {
+            id: 'action',
+            accessorFn: (log) => log.action ?? '',
+            header: 'Action',
+            cell: ({ row }) => <ActionBadge action={row.original.action} />,
+            meta: { align: 'left' },
+        },
+        {
+            id: 'details',
+            header: 'Details',
+            enableSorting: false,
+            cell: ({ row }) => <ExpandableChanges log={row.original} />,
+            meta: { align: 'left' },
+        },
+    ], []);
+
     return (
         <>
             <Head title="Audit Logs" />
@@ -151,65 +206,60 @@ export default function AuditLogs() {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                                 <div>
                                     <label className="block text-sm font-medium text-om-muted mb-1">Entity Type</label>
-                                    <select
-                                        value={form.entity_type}
-                                        onChange={(e) => setForm((f) => ({ ...f, entity_type: e.target.value }))}
-                                        className="form-input w-full"
-                                    >
-                                        <option value="">All Types</option>
-                                        {entityTypes.map((t) => (
-                                            <option key={t} value={t}>{t}</option>
-                                        ))}
-                                    </select>
+                                    <Dropdown
+                                        options={[
+                                            { value: '', label: 'All Types' },
+                                            ...entityTypes.map((t) => ({ value: String(t), label: t })),
+                                        ]}
+                                        value={form.entity_type == null ? '' : String(form.entity_type)}
+                                        onChange={(v) => setForm((f) => ({ ...f, entity_type: v }))}
+                                        className="w-full"
+                                    />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-om-muted mb-1">User</label>
-                                    <select
-                                        value={form.user_id}
-                                        onChange={(e) => setForm((f) => ({ ...f, user_id: e.target.value }))}
-                                        className="form-input w-full"
-                                    >
-                                        <option value="">All Users</option>
-                                        {users.map((u) => (
-                                            <option key={u.id} value={u.id}>
-                                                {u.name} ({u.username})
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <Dropdown
+                                        options={[
+                                            { value: '', label: 'All Users' },
+                                            ...users.map((u) => ({ value: String(u.id), label: `${u.name} (${u.username})` })),
+                                        ]}
+                                        value={form.user_id == null ? '' : String(form.user_id)}
+                                        onChange={(v) => setForm((f) => ({ ...f, user_id: v }))}
+                                        className="w-full"
+                                    />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-om-muted mb-1">Action</label>
-                                    <select
-                                        value={form.action}
-                                        onChange={(e) => setForm((f) => ({ ...f, action: e.target.value }))}
-                                        className="form-input w-full"
-                                    >
-                                        <option value="">All Actions</option>
-                                        <option value="created">Created</option>
-                                        <option value="updated">Updated</option>
-                                        <option value="deleted">Deleted</option>
-                                    </select>
+                                    <Dropdown
+                                        options={[
+                                            { value: '', label: 'All Actions' },
+                                            { value: 'created', label: 'Created' },
+                                            { value: 'updated', label: 'Updated' },
+                                            { value: 'deleted', label: 'Deleted' },
+                                        ]}
+                                        value={form.action == null ? '' : String(form.action)}
+                                        onChange={(v) => setForm((f) => ({ ...f, action: v }))}
+                                        className="w-full"
+                                    />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-om-muted mb-1">Start Date</label>
-                                    <input
-                                        type="date"
-                                        value={form.start_date}
-                                        onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-                                        className="form-input w-full"
+                                    <DatePicker
+                                        value={form.start_date || null}
+                                        onChange={(iso) => setForm((f) => ({ ...f, start_date: iso ?? '' }))}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-om-muted mb-1">End Date</label>
-                                    <input
-                                        type="date"
-                                        value={form.end_date}
-                                        onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
-                                        className="form-input w-full"
+                                    <DatePicker
+                                        value={form.end_date || null}
+                                        onChange={(iso) => setForm((f) => ({ ...f, end_date: iso ?? '' }))}
+                                        className="w-full"
                                     />
                                 </div>
                             </div>
@@ -241,59 +291,23 @@ export default function AuditLogs() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-om-card rounded-om-sm shadow-sm">
-                    {logs.length === 0 ? (
-                        <div className="text-center py-12 text-om-muted">No audit logs found</div>
-                    ) : (
-                        <>
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-om-line2">
-                                    <thead className="bg-om-panel">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-om-muted uppercase tracking-wider">Timestamp</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-om-muted uppercase tracking-wider">User</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-om-muted uppercase tracking-wider">Entity</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-om-muted uppercase tracking-wider">Action</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-om-muted uppercase tracking-wider">Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-om-card divide-y divide-om-line2">
-                                        {logs.map((log) => (
-                                            <tr key={log.id} className="hover:bg-om-bg">
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-om-muted">
-                                                    {log.created_at
-                                                        ? String(log.created_at).replace('T', ' ').replace(/\.\d+Z?$/, '')
-                                                        : '—'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-om-ink">
-                                                    {log.user?.name ?? 'System'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-om-muted">
-                                                    {log.entity_type
-                                                        ? String(log.entity_type).split('\\').pop()
-                                                        : '—'}
-                                                    {log.entity_id ? ` #${log.entity_id}` : ''}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <ActionBadge action={log.action} />
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-om-muted">
-                                                    <ExpandableChanges log={log} />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                <DataTable
+                    data={logs}
+                    columns={columns}
+                    searchable
+                    columnToggle
+                    paginated={false}
+                    searchPlaceholder="Search audit logs…"
+                    columnsLabel="Columns"
+                    columnsMenuLabel="Toggle columns"
+                    emptyLabel="No audit logs found"
+                />
 
-                            {meta && (
-                                <div className="mt-4 mb-2 px-6">
-                                    <Pagination meta={meta} links={paginationLinks} onPage={goPage} />
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
+                {meta && (
+                    <div className="mt-4">
+                        <Pagination meta={meta} links={paginationLinks} onPage={goPage} />
+                    </div>
+                )}
             </div>
         </>
     );

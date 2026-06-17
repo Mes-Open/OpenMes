@@ -1,4 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 
 const TYPE_COLORS = {
@@ -21,6 +23,48 @@ export default function ProcessSegmentShow() {
         if (!confirm('Delete this process segment?')) return;
         router.delete(`/admin/process-segments/${segment.id}`, { preserveScroll: false });
     };
+
+    const usageColumns = useMemo(() => [
+        {
+            id: 'product',
+            accessorFn: (r) => r.product_type_name,
+            header: 'Product',
+            cell: ({ row }) => <span className="text-om-muted">{row.original.product_type_name ?? '—'}</span>,
+        },
+        {
+            id: 'template',
+            accessorFn: (r) => r.template_name,
+            header: 'Template',
+            cell: ({ row }) => (
+                row.original.template_url ? (
+                    <a href={row.original.template_url} className="text-om-accent hover:underline">
+                        {row.original.template_name}
+                    </a>
+                ) : (
+                    <span className="text-om-muted">{row.original.template_name ?? '—'}</span>
+                )
+            ),
+        },
+        {
+            id: 'step_number',
+            accessorKey: 'step_number',
+            header: 'Step #',
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="text-om-muted">{row.original.step_number}</span>,
+        },
+        {
+            id: 'name',
+            accessorKey: 'name',
+            header: 'Step name',
+            cell: ({ row }) => <span className="text-om-ink">{row.original.name}</span>,
+        },
+        {
+            id: 'workstation',
+            accessorFn: (r) => r.workstation_name,
+            header: 'Workstation',
+            cell: ({ row }) => <span className="text-om-muted">{row.original.workstation_name ?? '—'}</span>,
+        },
+    ], []);
 
     return (
         <>
@@ -154,42 +198,14 @@ export default function ProcessSegmentShow() {
                         <section className="card">
                             <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-1">Usage</h2>
                             <p className="text-xs text-om-muted mb-3">Template steps that reference this segment.</p>
-                            {usingSteps.length === 0 ? (
-                                <p className="text-sm text-om-muted italic">Not used by any process template yet.</p>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full text-sm">
-                                        <thead>
-                                            <tr className="text-left text-xs uppercase tracking-wide text-om-muted border-b">
-                                                <th className="py-2 pr-3">Product</th>
-                                                <th className="py-2 pr-3">Template</th>
-                                                <th className="py-2 pr-3 text-right">Step #</th>
-                                                <th className="py-2 pr-3">Step name</th>
-                                                <th className="py-2 pr-3">Workstation</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-om-line2">
-                                            {usingSteps.map((step) => (
-                                                <tr key={step.id} className="hover:bg-om-bg">
-                                                    <td className="py-2 pr-3 text-om-muted">{step.product_type_name ?? '—'}</td>
-                                                    <td className="py-2 pr-3">
-                                                        {step.template_url ? (
-                                                            <a href={step.template_url} className="text-om-accent hover:underline">
-                                                                {step.template_name}
-                                                            </a>
-                                                        ) : (
-                                                            <span className="text-om-muted">{step.template_name ?? '—'}</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-2 pr-3 text-right text-om-muted">{step.step_number}</td>
-                                                    <td className="py-2 pr-3 text-om-ink">{step.name}</td>
-                                                    <td className="py-2 pr-3 text-om-muted">{step.workstation_name ?? '—'}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                            <DataTable
+                                data={usingSteps}
+                                columns={usageColumns}
+                                searchable={false}
+                                columnToggle={false}
+                                paginated={false}
+                                emptyLabel="Not used by any process template yet."
+                            />
                         </section>
                     </div>
 

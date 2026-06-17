@@ -76,7 +76,7 @@ export function Dropdown({
                 <div
                     role="listbox"
                     aria-multiselectable={multiple || undefined}
-                    className="absolute left-0 right-0 top-full z-50 mt-1 rounded-om border border-om-line bg-om-card p-[6px] shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)]"
+                    className="absolute left-0 top-full z-50 mt-1 max-h-[320px] w-max min-w-full max-w-[min(22rem,calc(100vw-2rem))] overflow-auto rounded-om border border-om-line bg-om-card p-[6px] shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)]"
                 >
                     {options.map((o) => {
                         if (multiple) {
@@ -94,7 +94,7 @@ export function Dropdown({
                                     >
                                         {on && <span className="text-[10px] font-bold leading-none text-white">✓</span>}
                                     </span>
-                                    <span className="text-[13px] text-om-ink">{o.label}</span>
+                                    <span className="whitespace-nowrap text-[13px] text-om-ink">{o.label}</span>
                                 </div>
                             );
                         }
@@ -107,7 +107,7 @@ export function Dropdown({
                                 onClick={() => pick(o)}
                                 className={`flex cursor-pointer items-center justify-between gap-[10px] rounded-[6px] px-[11px] py-[9px] ${selected ? 'bg-om-chip' : 'hover:bg-om-chip'}`}
                             >
-                                <span className={`text-[13px] ${selected ? 'font-semibold text-om-ink' : 'text-om-muted'}`}>
+                                <span className={`whitespace-nowrap text-[13px] ${selected ? 'font-semibold text-om-ink' : 'text-om-muted'}`}>
                                     {o.label}
                                 </span>
                                 <span className="w-[14px] text-right text-[13px] font-bold text-om-accent">

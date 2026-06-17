@@ -1,6 +1,8 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (balance/discrepancy data and close-shift post untouched).
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Badge, Button, InlineAlert } from '@openmes/ui';
+import { Badge, Button, Dropdown, InlineAlert } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+import { useMemo } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
@@ -42,6 +44,61 @@ export default function ShiftHandoverIndex() {
     const shift = balance?.shift;
     const discrepancies = balance?.discrepancies ? Object.values(balance.discrepancies) : [];
 
+    const recentColumns = useMemo(() => [
+        {
+            id: 'shift_start',
+            accessorKey: 'shift_start',
+            header: __('Shift'),
+            cell: ({ row }) => <span className="whitespace-nowrap text-om-muted">{row.original.shift_start}</span>,
+        },
+        {
+            id: 'line_name',
+            accessorKey: 'line_name',
+            header: __('Line'),
+            cell: ({ row }) => <span className="text-om-ink">{row.original.line_name ?? '—'}</span>,
+        },
+        {
+            id: 'produced_qty',
+            accessorKey: 'produced_qty',
+            header: __('Produced'),
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono text-[13px] text-om-ink">{row.original.produced_qty}</span>,
+        },
+        {
+            id: 'good_qty',
+            accessorKey: 'good_qty',
+            header: __('Good'),
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono text-[13px] text-om-ink">{row.original.good_qty}</span>,
+        },
+        {
+            id: 'packed_qty',
+            accessorKey: 'packed_qty',
+            header: __('Packed'),
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono text-[13px] text-om-ink">{row.original.packed_qty}</span>,
+        },
+        {
+            id: 'shipped_qty',
+            accessorKey: 'shipped_qty',
+            header: __('Shipped'),
+            meta: { align: 'right' },
+            cell: ({ row }) => <span className="font-mono text-[13px] text-om-ink">{row.original.shipped_qty}</span>,
+        },
+        {
+            id: 'confirmed_by',
+            accessorKey: 'confirmed_by',
+            header: __('Confirmed by'),
+            cell: ({ row }) => <span className="text-om-muted">{row.original.confirmed_by ?? '—'}</span>,
+        },
+        {
+            id: 'confirmed_at',
+            accessorKey: 'confirmed_at',
+            header: __('Confirmed at'),
+            cell: ({ row }) => <span className="whitespace-nowrap text-om-faint">{row.original.confirmed_at}</span>,
+        },
+    ], []);
+
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="Shift Handover" />
@@ -61,16 +118,15 @@ export default function ShiftHandoverIndex() {
                     <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">
                         {__('Line')}
                     </label>
-                    <select
-                        value={selectedLineId ?? ''}
-                        onChange={(e) => onLineChange(e.target.value)}
-                        className="h-9 min-w-[180px] rounded-om-sm border border-om-line bg-om-card px-3 text-[13px] text-om-ink focus:border-om-accent focus:outline-none"
-                    >
-                        <option value="">{__('All lines')}</option>
-                        {lines.map((l) => (
-                            <option key={l.id} value={String(l.id)}>{l.name}</option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        value={selectedLineId == null ? '' : String(selectedLineId)}
+                        onChange={(v) => onLineChange(v)}
+                        options={[
+                            { value: '', label: __('All lines') },
+                            ...lines.map((l) => ({ value: String(l.id), label: l.name })),
+                        ]}
+                        className="min-w-[180px]"
+                    />
                 </div>
             </div>
 
@@ -152,32 +208,16 @@ export default function ShiftHandoverIndex() {
                 <div className="px-4 py-3 border-b border-om-line2">
                     <h2 className="text-[14px] font-semibold text-om-ink">{__('Recent handovers')}</h2>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-om-panel">
-                            <tr>
-                                {['Shift', 'Line', 'Produced', 'Good', 'Packed', 'Shipped', 'Confirmed by', 'Confirmed at'].map((h) => (
-                                    <th key={h} className="px-4 py-2 text-left font-mono text-[9px] font-normal uppercase tracking-[0.08em] text-om-faint">{__(h)}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-om-line2">
-                            {recent.length === 0 ? (
-                                <tr><td colSpan={8} className="px-4 py-6 text-center text-om-faint">{__('No handovers yet')}</td></tr>
-                            ) : recent.map((h) => (
-                                <tr key={h.id} className="hover:bg-om-bg">
-                                    <td className="px-4 py-2.5 whitespace-nowrap text-om-muted">{h.shift_start}</td>
-                                    <td className="px-4 py-2.5 text-om-ink">{h.line_name ?? '—'}</td>
-                                    <td className="px-4 py-2.5 font-mono text-[13px] text-om-ink">{h.produced_qty}</td>
-                                    <td className="px-4 py-2.5 font-mono text-[13px] text-om-ink">{h.good_qty}</td>
-                                    <td className="px-4 py-2.5 font-mono text-[13px] text-om-ink">{h.packed_qty}</td>
-                                    <td className="px-4 py-2.5 font-mono text-[13px] text-om-ink">{h.shipped_qty}</td>
-                                    <td className="px-4 py-2.5 text-om-muted">{h.confirmed_by ?? '—'}</td>
-                                    <td className="px-4 py-2.5 whitespace-nowrap text-om-faint">{h.confirmed_at}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="p-4">
+                    <DataTable
+                        data={recent}
+                        columns={recentColumns}
+                        searchable
+                        columnToggle
+                        paginated
+                        searchPlaceholder={__('Search handovers…')}
+                        emptyLabel={__('No handovers yet')}
+                    />
                 </div>
             </div>
         </div>

@@ -1,4 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
 function Icon({ d, className = 'w-5 h-5' }) {
@@ -15,6 +17,9 @@ export default function MaterialsImport() {
         flash = {},
         csrf_token: csrfToken,
     } = usePage().props;
+
+    const [importStrategy, setImportStrategy] = useState('update_or_create');
+    const [externalSystem, setExternalSystem] = useState('');
 
     return (
         <div className="max-w-5xl mx-auto">
@@ -118,34 +123,40 @@ export default function MaterialsImport() {
                                 <label className="block text-sm font-medium text-om-muted mb-1">
                                     Import Strategy
                                 </label>
-                                <select
-                                    name="import_strategy"
-                                    required
-                                    className="w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-om-ink focus:border-om-accent focus:ring-2 focus:ring-blue-200 outline-none transition"
-                                >
-                                    <option value="update_or_create">Create new &amp; update existing</option>
-                                    <option value="create_only">Create new only (skip existing)</option>
-                                    <option value="skip_existing">Update existing only (skip new)</option>
-                                </select>
+                                <input type="hidden" name="import_strategy" value={importStrategy} />
+                                <Dropdown
+                                    options={[
+                                        { value: 'update_or_create', label: 'Create new & update existing' },
+                                        { value: 'create_only', label: 'Create new only (skip existing)' },
+                                        { value: 'skip_existing', label: 'Update existing only (skip new)' },
+                                    ]}
+                                    value={importStrategy}
+                                    onChange={(v) => setImportStrategy(v)}
+                                    className="w-full"
+                                />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-om-muted mb-1">
                                     Source System <span className="text-om-faint font-normal">(optional)</span>
                                 </label>
-                                <select
-                                    name="external_system"
-                                    className="w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-om-ink focus:border-om-accent focus:ring-2 focus:ring-blue-200 outline-none transition"
-                                >
-                                    <option value="">-- None --</option>
-                                    <option value="subiekt_gt">Subiekt GT</option>
-                                    <option value="subiekt_nexo">Subiekt nexo</option>
-                                    <option value="optima">Comarch Optima</option>
-                                    <option value="wf_mag">WF-Mag</option>
-                                    <option value="enova">Enova365</option>
-                                    <option value="sap">SAP</option>
-                                    <option value="custom">Other (custom)</option>
-                                </select>
+                                <input type="hidden" name="external_system" value={externalSystem} />
+                                <Dropdown
+                                    options={[
+                                        { value: '', label: '-- None --' },
+                                        { value: 'subiekt_gt', label: 'Subiekt GT' },
+                                        { value: 'subiekt_nexo', label: 'Subiekt nexo' },
+                                        { value: 'optima', label: 'Comarch Optima' },
+                                        { value: 'wf_mag', label: 'WF-Mag' },
+                                        { value: 'enova', label: 'Enova365' },
+                                        { value: 'sap', label: 'SAP' },
+                                        { value: 'custom', label: 'Other (custom)' },
+                                    ]}
+                                    value={externalSystem}
+                                    onChange={(v) => setExternalSystem(v)}
+                                    placeholder="-- None --"
+                                    className="w-full"
+                                />
                             </div>
 
                             <div className="pt-2">

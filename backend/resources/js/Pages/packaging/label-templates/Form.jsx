@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 
 /**
  * Label template form. Beyond the scalar selects (type/size/barcode), it has a
@@ -12,9 +13,12 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
     const sel = (label, name, map, error) => (
         <div>
             <label className="block text-sm font-medium text-om-muted mb-1">{label} <span className="text-om-blocked">*</span></label>
-            <select value={data[name] ?? ''} onChange={(e) => setData(name, e.target.value)} className="form-input w-full">
-                {Object.entries(map).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            <Dropdown
+                options={Object.entries(map).map(([v, l]) => ({ value: String(v), label: l }))}
+                value={data[name] == null ? '' : String(data[name])}
+                onChange={(v) => setData(name, v)}
+                className="w-full"
+            />
             {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
@@ -35,33 +39,33 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
                 <label className="block text-sm font-medium text-om-muted mb-2">Fields on label</label>
                 <div className="grid grid-cols-2 gap-2 border border-om-line2 rounded-om-sm p-3">
                     {Object.entries(availableFields).map(([key, label]) => (
-                        <label key={key} className="flex items-center gap-2 text-sm text-om-muted">
-                            <input
-                                type="checkbox"
-                                checked={!!data.fields?.[key]}
-                                onChange={(e) => setData('fields', { ...data.fields, [key]: e.target.checked })}
-                            />
-                            {label}
-                        </label>
+                        <Checkbox
+                            key={key}
+                            checked={!!data.fields?.[key]}
+                            onChange={(next) => setData('fields', { ...data.fields, [key]: next })}
+                            label={label}
+                        />
                     ))}
                 </div>
             </div>
 
             <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 text-sm text-om-muted">
-                    <input type="checkbox" checked={!!data.is_default} onChange={(e) => setData('is_default', e.target.checked)} />
-                    Default template for this type
-                </label>
-                <label className="flex items-center gap-2 text-sm text-om-muted">
-                    <input type="checkbox" checked={!!data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
-                    Active
-                </label>
+                <Checkbox
+                    checked={!!data.is_default}
+                    onChange={(next) => setData('is_default', next)}
+                    label="Default template for this type"
+                />
+                <Checkbox
+                    checked={!!data.is_active}
+                    onChange={(next) => setData('is_active', next)}
+                    label="Active"
+                />
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-om-ink text-white px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-black disabled:opacity-50">
+                <Button type="submit" variant="primary" loading={processing} disabled={processing}>
                     {processing ? 'Saving…' : submitLabel}
-                </button>
+                </Button>
                 <Link href="/packaging/label-templates" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
             </div>
         </form>

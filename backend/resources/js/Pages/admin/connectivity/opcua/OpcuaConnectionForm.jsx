@@ -1,4 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { Section, Field } from '../ui';
 import { __ } from '../../../../lib/i18n';
 
@@ -42,10 +43,7 @@ export default function OpcuaConnectionForm({ action, method, submitLabel, cance
                 <Field label={__('Description')} error={errors.description}>
                     <textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
                 </Field>
-                <label className="flex items-center gap-3 text-sm font-medium text-om-muted">
-                    <input type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} className="w-4 h-4 rounded border-om-line text-om-accent focus:ring-om-accent" />
-                    {__('Active (gateway subscribes on start)')}
-                </label>
+                <Checkbox checked={data.is_active} onChange={(next) => setData('is_active', next)} label={__('Active (gateway subscribes on start)')} />
             </Section>
 
             <Section title={__('Endpoint')}>
@@ -60,25 +58,40 @@ export default function OpcuaConnectionForm({ action, method, submitLabel, cance
             <Section title={__('Security')}>
                 <div className="grid grid-cols-2 gap-4">
                     <Field label={__('Security policy')} required error={errors.security_policy}>
-                        <select value={data.security_policy} onChange={(e) => setData('security_policy', e.target.value)} className="form-input w-full">
-                            <option value="None">{__('None')}</option>
-                            <option value="Basic256Sha256">Basic256Sha256</option>
-                        </select>
+                        <Dropdown
+                            value={data.security_policy == null ? '' : String(data.security_policy)}
+                            onChange={(v) => setData('security_policy', v)}
+                            options={[
+                                { value: 'None', label: __('None') },
+                                { value: 'Basic256Sha256', label: 'Basic256Sha256' },
+                            ]}
+                            className="w-full"
+                        />
                     </Field>
                     <Field label={__('Security mode')} required error={errors.security_mode}>
-                        <select value={data.security_mode} onChange={(e) => setData('security_mode', e.target.value)} className="form-input w-full">
-                            <option value="None">{__('None')}</option>
-                            <option value="Sign">{__('Sign')}</option>
-                            <option value="SignAndEncrypt">{__('Sign & Encrypt')}</option>
-                        </select>
+                        <Dropdown
+                            value={data.security_mode == null ? '' : String(data.security_mode)}
+                            onChange={(v) => setData('security_mode', v)}
+                            options={[
+                                { value: 'None', label: __('None') },
+                                { value: 'Sign', label: __('Sign') },
+                                { value: 'SignAndEncrypt', label: __('Sign & Encrypt') },
+                            ]}
+                            className="w-full"
+                        />
                     </Field>
                 </div>
                 <Field label={__('Authentication')} required error={errors.auth_mode}>
-                    <select value={data.auth_mode} onChange={(e) => setData('auth_mode', e.target.value)} className="form-input w-full">
-                        <option value="anonymous">{__('Anonymous')}</option>
-                        <option value="username">{__('Username / password')}</option>
-                        <option value="certificate">{__('Certificate')}</option>
-                    </select>
+                    <Dropdown
+                        value={data.auth_mode == null ? '' : String(data.auth_mode)}
+                        onChange={(v) => setData('auth_mode', v)}
+                        options={[
+                            { value: 'anonymous', label: __('Anonymous') },
+                            { value: 'username', label: __('Username / password') },
+                            { value: 'certificate', label: __('Certificate') },
+                        ]}
+                        className="w-full"
+                    />
                 </Field>
                 {data.auth_mode === 'username' && (
                     <div className="grid grid-cols-2 gap-4">
@@ -103,16 +116,16 @@ export default function OpcuaConnectionForm({ action, method, submitLabel, cance
             </Section>
 
             <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={processing} className="px-5 py-2 bg-om-ink text-white text-sm font-medium rounded-om-sm hover:bg-black transition-colors disabled:opacity-50">
+                <Button type="submit" variant="primary" loading={processing} disabled={processing}>
                     {processing ? __('Saving…') : submitLabel}
-                </button>
+                </Button>
                 <Link href={cancelHref} className="px-5 py-2 bg-om-chip text-om-muted text-sm font-medium rounded-om-sm hover:bg-om-line2 transition-colors">
                     {__('Cancel')}
                 </Link>
                 {onDelete && (
-                    <button type="button" onClick={onDelete} className="ml-auto px-5 py-2 bg-om-blocked-bg text-om-blocked text-sm font-medium rounded-om-sm hover:bg-om-blocked-bg transition-colors">
+                    <Button type="button" variant="danger" onClick={onDelete} className="ml-auto">
                         {__('Delete Connection')}
-                    </button>
+                    </Button>
                 )}
             </div>
         </form>
