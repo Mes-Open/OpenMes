@@ -1,6 +1,6 @@
 import { __ } from '../../../lib/i18n';
 
-export const anomalyReasonFields = () => [
+export const ANOMALY_REASON_FIELDS = [
     { name: 'code', label: __('Code'), required: true },
     { name: 'name', label: __('Name'), required: true },
     { name: 'category', label: __('Category') },

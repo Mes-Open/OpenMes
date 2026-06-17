@@ -1,23 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import { formatNumber, formatTime } from '../../../../lib/i18n';
 
 const STATUS_DOT = {
-    green:  'bg-green-500',
-    yellow: 'bg-yellow-400',
-    red:    'bg-red-500',
+    green:  'bg-om-running',
+    yellow: 'bg-om-downtime',
+    red:    'bg-om-blocked',
     slate:  'bg-slate-400',
 };
 
 const ACTION_COLORS = {
-    update_batch_step:     'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
-    update_work_order_qty: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
-    create_issue:          'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
-    update_line_status:    'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-    set_work_order_status: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
-    log_event:             'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
-    webhook_forward:       'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
+    update_batch_step:     'bg-om-chip text-purple-700',
+    update_work_order_qty: 'bg-om-chip text-om-accent',
+    create_issue:          'bg-om-blocked-bg text-om-blocked',
+    update_line_status:    'bg-om-downtime-bg text-orange-700',
+    set_work_order_status: 'bg-om-chip text-indigo-700',
+    log_event:             'bg-om-chip text-om-muted',
+    webhook_forward:       'bg-teal-100 text-teal-700',
 };
 
 const ACTION_LABELS = {
@@ -49,7 +50,7 @@ export default function MqttShow() {
                     <div>
                         <a
                             href="/admin/connectivity/mqtt"
-                            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 mb-2"
+                            className="text-sm text-om-muted hover:text-om-ink flex items-center gap-1 mb-2"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -58,17 +59,17 @@ export default function MqttShow() {
                         </a>
                         <div className="flex items-center gap-3">
                             <span className={`w-3 h-3 rounded-full ${dot} ${connection.status === 'connected' ? 'animate-pulse' : ''}`} />
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{connection.name}</h1>
+                            <h1 className="text-2xl font-bold text-om-ink">{connection.name}</h1>
                             {!connection.is_active && (
-                                <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-full">
+                                <span className="text-xs px-2 py-0.5 bg-om-chip text-om-muted rounded-full">
                                     Inactive
                                 </span>
                             )}
                         </div>
                         {mqtt && (
-                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 font-mono">
+                            <p className="mt-1 text-sm text-om-muted font-mono">
                                 {mqtt.broker_host}:{mqtt.broker_port}
-                                {mqtt.use_tls && <span className="ml-2 text-green-600 dark:text-green-400">TLS</span>}
+                                {mqtt.use_tls && <span className="ml-2 text-om-running">TLS</span>}
                                 {' · '}QoS {mqtt.qos_default}
                             </p>
                         )}
@@ -76,17 +77,17 @@ export default function MqttShow() {
                     <div className="flex gap-2">
                         <a
                             href={`/admin/connectivity/mqtt/${connection.id}/edit`}
-                            className="px-4 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            className="px-4 py-2 text-sm font-medium bg-om-chip text-om-muted rounded-om-sm hover:bg-om-line2 transition-colors"
                         >
                             Edit
                         </a>
                         <button
                             type="button"
                             onClick={handleToggle}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            className={`px-4 py-2 text-sm font-medium rounded-om-sm transition-colors ${
                                 connection.is_active
-                                    ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100'
-                                    : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-100'
+                                    ? 'bg-om-downtime-bg text-om-downtime hover:bg-om-downtime-bg'
+                                    : 'bg-om-running-bg text-om-running hover:bg-om-running-bg'
                             }`}
                         >
                             {connection.is_active ? 'Disable' : 'Enable'}
@@ -104,12 +105,12 @@ export default function MqttShow() {
                 {/* Topics & Mappings */}
                 <div>
                     <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Topics &amp; Mappings</h2>
+                        <h2 className="text-lg font-semibold text-om-ink">Topics &amp; Mappings</h2>
                     </div>
 
                     <div className="space-y-4">
                         {connection.topics.length === 0 ? (
-                            <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-8 text-center text-gray-400 dark:text-gray-500">
+                            <div className="bg-om-card rounded-om border border-dashed border-om-line p-8 text-center text-om-faint">
                                 <svg className="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
                                 </svg>
@@ -149,11 +150,11 @@ MqttShow.layout = (page) => <AppLayout>{page}</AppLayout>;
 
 function StatCard({ value, label, capitalize }) {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
-            <p className={`text-2xl font-bold text-gray-900 dark:text-white ${capitalize ? 'capitalize' : ''}`}>
+        <div className="bg-om-card rounded-om border border-om-line2 p-4 text-center">
+            <p className={`text-2xl font-bold text-om-ink ${capitalize ? 'capitalize' : ''}`}>
                 {value}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{label}</p>
+            <p className="text-xs text-om-muted mt-1">{label}</p>
         </div>
     );
 }
@@ -169,22 +170,22 @@ function TopicCard({ topic, connectionId }) {
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-om-card rounded-om border border-om-line2 overflow-hidden">
             {/* Topic header */}
-            <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${topic.is_active ? 'bg-green-500' : 'bg-slate-400'}`} />
-                <span className="font-mono text-sm font-medium text-gray-900 dark:text-white flex-1">{topic.topic_pattern}</span>
-                <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-full uppercase">
+            <div className="flex items-center gap-3 px-4 py-3 bg-om-panel border-b border-om-line2">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${topic.is_active ? 'bg-om-running' : 'bg-slate-400'}`} />
+                <span className="font-mono text-sm font-medium text-om-ink flex-1">{topic.topic_pattern}</span>
+                <span className="text-xs px-2 py-0.5 bg-om-line2 text-om-muted rounded-full uppercase">
                     {topic.payload_format}
                 </span>
                 {topic.description && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500 max-w-xs truncate">{topic.description}</span>
+                    <span className="text-xs text-om-faint max-w-xs truncate">{topic.description}</span>
                 )}
                 <div className="flex items-center gap-1 shrink-0">
                     <button
                         type="button"
                         onClick={() => setEditOpen((o) => !o)}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="p-1.5 text-om-faint hover:text-om-ink rounded-md hover:bg-om-chip transition-colors"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -193,7 +194,7 @@ function TopicCard({ topic, connectionId }) {
                     <button
                         type="button"
                         onClick={handleDeleteTopic}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="p-1.5 text-om-faint hover:text-om-blocked rounded-md hover:bg-om-chip transition-colors"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -212,9 +213,9 @@ function TopicCard({ topic, connectionId }) {
             )}
 
             {/* Mappings list */}
-            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+            <div className="divide-y divide-om-line2">
                 {topic.mappings.length === 0 ? (
-                    <p className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 italic">
+                    <p className="px-4 py-3 text-xs text-om-faint italic">
                         No mappings defined — messages will be logged only.
                     </p>
                 ) : (
@@ -230,11 +231,11 @@ function TopicCard({ topic, connectionId }) {
             </div>
 
             {/* Add mapping */}
-            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+            <div className="px-4 py-3 border-t border-om-line2">
                 <button
                     type="button"
                     onClick={() => setAddMappingOpen((o) => !o)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700"
+                    className="flex items-center gap-1.5 text-xs font-medium text-om-accent hover:text-om-accent"
                 >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -269,46 +270,42 @@ function EditTopicForm({ topic, connectionId, onClose }) {
     };
 
     return (
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-blue-50/40 dark:bg-blue-900/10">
+        <div className="px-4 py-3 border-b border-om-line2 bg-om-chip/40">
             <form onSubmit={submit} className="flex gap-3 items-end flex-wrap">
                 <div className="flex-1 min-w-48">
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Pattern</label>
+                    <label className="block text-xs font-medium text-om-muted mb-1">Pattern</label>
                     <input
                         type="text"
                         value={form.data.topic_pattern}
                         onChange={(e) => form.setData('topic_pattern', e.target.value)}
                         required
-                        className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-2 py-1.5 text-sm font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent"
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Format</label>
-                    <select
+                    <label className="block text-xs font-medium text-om-muted mb-1">Format</label>
+                    <Dropdown
                         value={form.data.payload_format}
-                        onChange={(e) => form.setData('payload_format', e.target.value)}
-                        className="px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                        {['json', 'plain', 'csv', 'hex'].map((f) => (
-                            <option key={f} value={f}>{f.toUpperCase()}</option>
-                        ))}
-                    </select>
+                        onChange={(v) => form.setData('payload_format', v)}
+                        options={['json', 'plain', 'csv', 'hex'].map((f) => ({ value: f, label: f.toUpperCase() }))}
+                    />
                 </div>
                 <div className="flex-1 min-w-36">
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Description</label>
+                    <label className="block text-xs font-medium text-om-muted mb-1">Description</label>
                     <input
                         type="text"
                         value={form.data.description}
                         onChange={(e) => form.setData('description', e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-2 py-1.5 text-sm border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent"
                     />
                 </div>
                 <div className="flex gap-2">
-                    <button type="submit" disabled={form.processing} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    <Button variant="primary" type="submit" loading={form.processing}>
                         Save
-                    </button>
-                    <button type="button" onClick={onClose} className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg hover:bg-gray-200 transition-colors">
+                    </Button>
+                    <Button variant="secondary" type="button" onClick={onClose}>
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </form>
         </div>
@@ -317,7 +314,7 @@ function EditTopicForm({ topic, connectionId, onClose }) {
 
 function MappingRow({ mapping, topic, connectionId }) {
     const [editOpen, setEditOpen] = useState(false);
-    const color = ACTION_COLORS[mapping.action_type] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
+    const color = ACTION_COLORS[mapping.action_type] ?? 'bg-om-chip text-om-muted';
     const label = ACTION_LABELS[mapping.action_type] ?? mapping.action_type;
     const priority = String(mapping.priority).padStart(3, '0');
 
@@ -332,26 +329,26 @@ function MappingRow({ mapping, topic, connectionId }) {
 
     return (
         <div className={`px-4 py-3 flex items-start gap-3 text-xs ${!mapping.is_active ? 'opacity-50' : ''}`}>
-            <span className="shrink-0 text-gray-400 dark:text-gray-500 tabular-nums mt-0.5">{priority}</span>
+            <span className="shrink-0 text-om-faint tabular-nums mt-0.5">{priority}</span>
 
             <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                     {mapping.field_path && (
                         <>
-                            <span className="font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                            <span className="font-mono text-om-muted bg-om-chip px-1.5 py-0.5 rounded">
                                 {mapping.field_path}
                             </span>
-                            <span className="text-gray-400">→</span>
+                            <span className="text-om-faint">→</span>
                         </>
                     )}
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>{label}</span>
                     {mapping.condition_expr && (
-                        <span className="font-mono text-gray-400 dark:text-gray-500 text-xs">if: {mapping.condition_expr}</span>
+                        <span className="font-mono text-om-faint text-xs">if: {mapping.condition_expr}</span>
                     )}
                 </div>
-                {mapping.description && <p className="text-gray-400 dark:text-gray-500">{mapping.description}</p>}
+                {mapping.description && <p className="text-om-faint">{mapping.description}</p>}
                 {mapping.action_params && (
-                    <p className="font-mono text-gray-400 dark:text-gray-500 break-all">
+                    <p className="font-mono text-om-faint break-all">
                         {JSON.stringify(mapping.action_params).substring(0, 120)}
                     </p>
                 )}
@@ -370,7 +367,7 @@ function MappingRow({ mapping, topic, connectionId }) {
                 <button
                     type="button"
                     onClick={() => setEditOpen((o) => !o)}
-                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className="p-1 text-om-faint hover:text-om-ink rounded hover:bg-om-chip transition-colors"
                 >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -379,7 +376,7 @@ function MappingRow({ mapping, topic, connectionId }) {
                 <button
                     type="button"
                     onClick={handleDelete}
-                    className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    className="p-1 text-om-faint hover:text-om-blocked rounded hover:bg-om-chip transition-colors"
                 >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -409,35 +406,36 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
     };
 
     return (
-        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <div className="mt-2 pt-2 border-t border-om-line2">
             <form onSubmit={submit} className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                     <MiniField label="Field path">
-                        <input type="text" value={form.data.field_path} onChange={(e) => form.setData('field_path', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500" />
+                        <input type="text" value={form.data.field_path} onChange={(e) => form.setData('field_path', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                     <MiniField label="Action type">
-                        <select value={form.data.action_type} onChange={(e) => form.setData('action_type', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">
-                            {Object.entries(ACTION_LABELS).map(([val, lbl]) => (
-                                <option key={val} value={val}>{lbl}</option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.data.action_type}
+                            onChange={(v) => form.setData('action_type', v)}
+                            options={Object.entries(ACTION_LABELS).map(([val, lbl]) => ({ value: val, label: lbl }))}
+                            className="w-full"
+                        />
                     </MiniField>
                     <MiniField label="Condition">
-                        <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500" />
+                        <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                     <MiniField label="Priority">
-                        <input type="number" value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)} min="1" max="9999" className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500" />
+                        <input type="number" value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)} min="1" max="9999" className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                 </div>
                 <MiniField label="Action params (JSON)">
-                    <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={2} className="w-full px-2 py-1 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500" />
+                    <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={2} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                 </MiniField>
                 <MiniField label="Description">
-                    <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500" />
+                    <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                 </MiniField>
                 <div className="flex gap-2">
-                    <button type="submit" disabled={form.processing} className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors disabled:opacity-50">Save</button>
-                    <button type="button" onClick={onClose} className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-200 transition-colors">Cancel</button>
+                    <Button variant="primary" type="submit" loading={form.processing}>Save</Button>
+                    <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
                 </div>
             </form>
         </div>
@@ -457,11 +455,11 @@ function AddTopicForm({ connectionId }) {
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-om-card rounded-om border border-om-line2 p-4">
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700"
+                className="flex items-center gap-2 text-sm font-medium text-om-accent hover:text-om-accent"
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -472,8 +470,8 @@ function AddTopicForm({ connectionId }) {
                 <form onSubmit={submit} className="mt-4 space-y-3">
                     <div className="grid grid-cols-3 gap-3">
                         <div className="col-span-2">
-                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                Topic pattern <span className="text-gray-400 font-normal">(supports + and # wildcards)</span>
+                            <label className="block text-xs font-medium text-om-muted mb-1">
+                                Topic pattern <span className="text-om-faint font-normal">(supports + and # wildcards)</span>
                             </label>
                             <input
                                 type="text"
@@ -481,40 +479,41 @@ function AddTopicForm({ connectionId }) {
                                 onChange={(e) => form.setData('topic_pattern', e.target.value)}
                                 placeholder="factory/line1/+/status"
                                 required
-                                className="w-full px-3 py-2 text-sm font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 text-sm font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payload format</label>
-                            <select
+                            <label className="block text-xs font-medium text-om-muted mb-1">Payload format</label>
+                            <Dropdown
                                 value={form.data.payload_format}
-                                onChange={(e) => form.setData('payload_format', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            >
-                                <option value="json">JSON</option>
-                                <option value="plain">Plain text</option>
-                                <option value="csv">CSV</option>
-                                <option value="hex">Hex</option>
-                            </select>
+                                onChange={(v) => form.setData('payload_format', v)}
+                                options={[
+                                    { value: 'json', label: 'JSON' },
+                                    { value: 'plain', label: 'Plain text' },
+                                    { value: 'csv', label: 'CSV' },
+                                    { value: 'hex', label: 'Hex' },
+                                ]}
+                                className="w-full"
+                            />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Description (optional)</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">Description (optional)</label>
                         <input
                             type="text"
                             value={form.data.description}
                             onChange={(e) => form.setData('description', e.target.value)}
                             placeholder="e.g. Production count from Line 1"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent"
                         />
                     </div>
                     <div className="flex gap-2">
-                        <button type="submit" disabled={form.processing} className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                        <Button variant="primary" type="submit" loading={form.processing}>
                             Add Topic
-                        </button>
-                        <button type="button" onClick={() => setOpen(false)} className="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 transition-colors">
+                        </Button>
+                        <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
                             Cancel
-                        </button>
+                        </Button>
                     </div>
                 </form>
             )}
@@ -544,31 +543,32 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
         <form onSubmit={submit} className="mt-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
                 <MiniField label="Field path — e.g. $.qty or $.data.value">
-                    <input type="text" value={form.data.field_path} onChange={(e) => form.setData('field_path', e.target.value)} placeholder="$.value" className="w-full px-2 py-1.5 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <input type="text" value={form.data.field_path} onChange={(e) => form.setData('field_path', e.target.value)} placeholder="$.value" className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
                 <MiniField label="Action type *">
-                    <select value={form.data.action_type} onChange={(e) => form.setData('action_type', e.target.value)} required className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        {Object.entries(ACTION_LABELS).map(([val, lbl]) => (
-                            <option key={val} value={val}>{lbl}</option>
-                        ))}
-                    </select>
+                    <Dropdown
+                        value={form.data.action_type}
+                        onChange={(v) => form.setData('action_type', v)}
+                        options={Object.entries(ACTION_LABELS).map(([val, lbl]) => ({ value: val, label: lbl }))}
+                        className="w-full"
+                    />
                 </MiniField>
                 <MiniField label="Condition — e.g. value > 0">
-                    <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} placeholder="value > 0" className="w-full px-2 py-1.5 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} placeholder="value > 0" className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
                 <MiniField label="Priority">
-                    <input type="number" value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)} min="1" max="9999" className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <input type="number" value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)} min="1" max="9999" className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
             </div>
             <MiniField label='Action params (JSON) — e.g. {"order_no_path":"$.order_no"}'>
-                <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={3} placeholder='{"order_no_path": "$.order_no", "qty_path": "$.qty"}' className="w-full px-2 py-1.5 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={3} placeholder='{"order_no_path": "$.order_no", "qty_path": "$.qty"}' className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
             </MiniField>
             <MiniField label="Description">
-                <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} placeholder="e.g. Update produced qty from machine counter" className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} placeholder="e.g. Update produced qty from machine counter" className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
             </MiniField>
             <div className="flex gap-2">
-                <button type="submit" disabled={form.processing} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">Add Mapping</button>
-                <button type="button" onClick={onClose} className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-lg hover:bg-gray-200 transition-colors">Cancel</button>
+                <Button variant="primary" type="submit" loading={form.processing}>Add Mapping</Button>
+                <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
             </div>
         </form>
     );
@@ -577,7 +577,7 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
 function MiniField({ label, children }) {
     return (
         <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">{label}</label>
+            <label className="block text-xs text-om-muted mb-0.5">{label}</label>
             {children}
         </div>
     );
@@ -619,35 +619,31 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
     };
 
     const statusDot = (status) => {
-        if (status === 'ok') return 'bg-green-500';
-        if (status === 'error') return 'bg-red-500';
-        return 'bg-yellow-500';
+        if (status === 'ok') return 'bg-om-running';
+        if (status === 'error') return 'bg-om-blocked';
+        return 'bg-om-downtime';
     };
 
     return (
         <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Live Message Log</h2>
-            <div className="bg-gray-900 dark:bg-gray-950 rounded-xl border border-gray-700 overflow-hidden">
+            <h2 className="text-lg font-semibold text-om-ink mb-3">Live Message Log</h2>
+            <div className="bg-om-ink rounded-om border border-gray-700 overflow-hidden">
                 {/* Toolbar */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 bg-gray-800/60">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700 bg-om-ink/60">
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-xs text-gray-400">Live (polling)</span>
+                            <span className="w-2 h-2 rounded-full bg-om-running animate-pulse" />
+                            <span className="text-xs text-om-faint">Live (polling)</span>
                         </div>
-                        <span className="text-xs text-gray-500">{messages.length} new messages</span>
+                        <span className="text-xs text-om-muted">{messages.length} new messages</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={autoScroll}
-                                onChange={(e) => setAutoScroll(e.target.checked)}
-                                className="rounded border-gray-600 text-blue-500"
-                            />
-                            Auto-scroll
-                        </label>
-                        <button onClick={() => setMessages([])} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                        <Checkbox
+                            checked={autoScroll}
+                            onChange={(next) => setAutoScroll(next)}
+                            label="Auto-scroll"
+                        />
+                        <button onClick={() => setMessages([])} className="text-xs text-om-muted hover:text-om-faintest transition-colors">
                             Clear
                         </button>
                     </div>
@@ -658,20 +654,20 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
                     {/* Historic messages (server-side, dimmed) */}
                     {[...initialMessages].reverse().map((msg) => (
                         <div key={`init-${msg.id}`} className="flex gap-3 items-start opacity-60">
-                            <span className="text-gray-500 shrink-0 tabular-nums">{formatTime(msg.received_at)}</span>
+                            <span className="text-om-muted shrink-0 tabular-nums">{formatTime(msg.received_at)}</span>
                             <span className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${statusDot(msg.processing_status)}`} />
                             <span className="text-blue-300 shrink-0 max-w-xs truncate">{msg.topic}</span>
-                            <span className="text-gray-300 break-all">{String(msg.raw_payload ?? '').substring(0, 200)}</span>
+                            <span className="text-om-faintest break-all">{String(msg.raw_payload ?? '').substring(0, 200)}</span>
                         </div>
                     ))}
 
                     {/* Live messages */}
                     {messages.map((msg) => (
                         <div key={msg.id} className="flex gap-3 items-start">
-                            <span className="text-gray-500 shrink-0 tabular-nums">{formatTime(msg.received_at)}</span>
+                            <span className="text-om-muted shrink-0 tabular-nums">{formatTime(msg.received_at)}</span>
                             <span className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${statusDot(msg.processing_status)}`} />
                             <span className="text-blue-300 shrink-0 max-w-xs truncate">{msg.topic}</span>
-                            <span className="text-gray-300 break-all">{String(msg.raw_payload ?? '').substring(0, 200)}</span>
+                            <span className="text-om-faintest break-all">{String(msg.raw_payload ?? '').substring(0, 200)}</span>
                             {msg.processing_error && (
                                 <span className="text-red-400 ml-1">⚠ {msg.processing_error}</span>
                             )}
@@ -679,7 +675,7 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
                     ))}
 
                     {initialMessages.length === 0 && messages.length === 0 && (
-                        <div className="text-gray-600 text-center py-8">Waiting for messages...</div>
+                        <div className="text-om-muted text-center py-8">Waiting for messages...</div>
                     )}
                 </div>
             </div>

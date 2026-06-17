@@ -1,6 +1,6 @@
 import { __ } from '../../../lib/i18n';
 
-export const issueTypeFields = () => [
+export const ISSUE_TYPE_FIELDS = [
     { name: 'code', label: __('Code'), required: true },
     { name: 'name', label: __('Name'), required: true },
     {

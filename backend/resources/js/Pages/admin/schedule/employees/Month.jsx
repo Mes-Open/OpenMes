@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
 import { Tacho, EmployeeTabs } from './Day';
 import { formatDate } from '../../../../lib/i18n';
@@ -71,28 +72,27 @@ export default function EmployeeMonth() {
 
             {/* Worker switcher + month nav */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="font-mono text-[10.5px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">Worker:</span>
-                <select value={selectedWorkerId ?? ''}
-                        onChange={(e) => navTo({ view: 'month', date, worker_id: e.target.value })}
-                        className="form-input text-sm py-1.5 min-h-0 bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700">
-                    {workers.map((w) => (
-                        <option key={w.id} value={w.id}>{w.name} ({w.code})</option>
-                    ))}
-                </select>
+                <span className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase">Worker:</span>
+                <Dropdown
+                    options={workers.map((w) => ({ value: String(w.id), label: `${w.name} (${w.code})` }))}
+                    value={selectedWorkerId == null ? '' : String(selectedWorkerId)}
+                    onChange={(v) => navTo({ view: 'month', date, worker_id: v })}
+                    className="min-w-[180px]"
+                />
 
                 <div className="flex items-center gap-1 ml-auto">
                     <button onClick={() => {
                         const d = new Date(date);
                         d.setMonth(d.getMonth() - 1);
                         navTo({ view: 'month', date: d.toISOString().slice(0, 10), worker_id: selectedWorkerId });
-                    }} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                    }} className="w-9 h-9 flex items-center justify-center rounded-om-sm bg-om-card border border-om-line2 hover:bg-om-bg">
                         &larr;
                     </button>
                     <button onClick={() => {
                         const d = new Date(date);
                         d.setMonth(d.getMonth() + 1);
                         navTo({ view: 'month', date: d.toISOString().slice(0, 10), worker_id: selectedWorkerId });
-                    }} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                    }} className="w-9 h-9 flex items-center justify-center rounded-om-sm bg-om-card border border-om-line2 hover:bg-om-bg">
                         &rarr;
                     </button>
                 </div>
@@ -100,11 +100,11 @@ export default function EmployeeMonth() {
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
                 {/* Calendar */}
-                <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl p-3 md:p-4">
+                <div className="bg-om-card border border-om-line2 rounded-2xl p-3 md:p-4">
                     {/* Weekday headers */}
                     <div className="grid grid-cols-7 gap-1.5 mb-2">
                         {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((wd) => (
-                            <div key={wd} className="font-mono text-[10px] tracking-wider text-gray-500 dark:text-gray-400 uppercase text-center">{wd}</div>
+                            <div key={wd} className="font-mono text-[10px] tracking-wider text-om-muted uppercase text-center">{wd}</div>
                         ))}
                     </div>
 
@@ -121,9 +121,9 @@ export default function EmployeeMonth() {
                             return (
                                 <button key={cellDate}
                                         onClick={() => navTo({ view: 'month', date: cellDate, worker_id: selectedWorkerId })}
-                                        className={`min-h-[88px] flex flex-col p-1.5 rounded-lg border transition-colors text-left ${isSelected ? 'border-amber-500 ring-2 ring-amber-300 dark:ring-amber-600/40' : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600'} ${!inMonth ? 'opacity-40' : ''} ${isTodayCell && !isSelected ? 'bg-amber-50/50 dark:bg-amber-500/5' : 'bg-white dark:bg-zinc-900'}`}>
+                                        className={`min-h-[88px] flex flex-col p-1.5 rounded-om-sm border transition-colors text-left ${isSelected ? 'border-amber-500 ring-2 ring-amber-300' : 'border-om-line2 hover:border-om-line'} ${!inMonth ? 'opacity-40' : ''} ${isTodayCell && !isSelected ? 'bg-om-downtime-bg/50' : 'bg-om-card'}`}>
                                     <div className="flex items-start justify-between">
-                                        <span className={`font-mono text-xs font-bold ${isSelected ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-100'}`}>
+                                        <span className={`font-mono text-xs font-bold ${isSelected ? 'text-om-downtime' : 'text-om-ink'}`}>
                                             {cellObj.getDate()}
                                         </span>
                                         {hasActivity && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
@@ -131,7 +131,7 @@ export default function EmployeeMonth() {
                                     <div className="flex-1" />
                                     {strip.length > 0 && (
                                         <>
-                                            <div className="relative h-3 rounded-sm overflow-hidden bg-gray-100 dark:bg-zinc-800">
+                                            <div className="relative h-3 rounded-sm overflow-hidden bg-om-chip">
                                                 {strip.map((seg, si) => {
                                                     const left = (toMin(seg.from) / 1440) * 100;
                                                     const endMin = seg.to === '24:00' ? 1440 : toMin(seg.to);
@@ -140,10 +140,10 @@ export default function EmployeeMonth() {
                                                     return <div key={si} className="absolute top-0 bottom-0" style={{ left: `${left}%`, width: `${width}%`, background: color }} />;
                                                 })}
                                                 {nowFrac !== null && (
-                                                    <div className="absolute top-0 bottom-0 w-px bg-white" style={{ left: `${nowFrac}%` }} />
+                                                    <div className="absolute top-0 bottom-0 w-px bg-om-card" style={{ left: `${nowFrac}%` }} />
                                                 )}
                                             </div>
-                                            <div className="flex justify-between mt-0.5 font-mono text-[7.5px] tracking-wider text-gray-400 dark:text-gray-500">
+                                            <div className="flex justify-between mt-0.5 font-mono text-[7.5px] tracking-wider text-om-faint">
                                                 <span>00</span><span>12</span><span>24</span>
                                             </div>
                                         </>
@@ -154,7 +154,7 @@ export default function EmployeeMonth() {
                     </div>
 
                     {/* Legend */}
-                    <div className="flex flex-wrap gap-3 mt-3 px-1 font-mono text-[9.5px] tracking-wider text-gray-600 dark:text-gray-300 uppercase">
+                    <div className="flex flex-wrap gap-3 mt-3 px-1 font-mono text-[9.5px] tracking-wider text-om-muted uppercase">
                         {['work','break','rest','maint','meeting','off'].map((k) => {
                             const def = typeMeta[k];
                             if (!def) return null;
@@ -169,47 +169,47 @@ export default function EmployeeMonth() {
                 </div>
 
                 {/* Selected-day detail */}
-                <aside className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl p-4 flex flex-col gap-3">
+                <aside className="bg-om-card border border-om-line2 rounded-2xl p-4 flex flex-col gap-3">
                     <div>
-                        <div className="font-mono text-[10.5px] tracking-wider font-bold uppercase text-amber-600 dark:text-amber-400">
+                        <div className="font-mono text-[10.5px] tracking-wider font-bold uppercase text-om-downtime">
                             Selected · {date ? formatDate(new Date(date), { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
                         </div>
-                        <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-1">{selectedDayActivities.length} activities</h2>
+                        <h2 className="text-xl font-bold text-om-ink mt-1">{selectedDayActivities.length} activities</h2>
                         {selectedWorker && (
-                            <div className="font-mono text-[10.5px] text-gray-500 dark:text-gray-400 mt-1">{selectedWorker.name} · {selectedWorker.code}</div>
+                            <div className="font-mono text-[10.5px] text-om-muted mt-1">{selectedWorker.name} · {selectedWorker.code}</div>
                         )}
                     </div>
 
                     {/* 24h strip */}
-                    <div className="rounded-xl bg-gray-50 dark:bg-zinc-800 p-3">
-                        <div className="font-mono text-[9.5px] tracking-wider text-gray-500 dark:text-gray-400 uppercase mb-2">24h activity</div>
+                    <div className="rounded-om bg-om-panel p-3">
+                        <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase mb-2">24h activity</div>
                         <Tacho activities={selectedDayActivities} typeMeta={typeMeta} height={40} isToday={isToday} nowMinutes={nowMin} />
                     </div>
 
                     {/* Stats grid */}
                     <div className="grid grid-cols-2 gap-2">
-                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800">
-                            <div className="font-mono text-[9px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">On duty</div>
-                            <div className="font-mono text-lg font-bold mt-1 text-emerald-600 dark:text-emerald-400">{fmtMins(selOnDuty)}</div>
+                        <div className="p-2.5 rounded-om-sm bg-om-panel">
+                            <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">On duty</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-emerald-600">{fmtMins(selOnDuty)}</div>
                         </div>
-                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800">
-                            <div className="font-mono text-[9px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">Productive</div>
-                            <div className="font-mono text-lg font-bold mt-1 text-gray-800 dark:text-gray-100">{fmtMins(selTotalWork)}</div>
+                        <div className="p-2.5 rounded-om-sm bg-om-panel">
+                            <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">Productive</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-om-ink">{fmtMins(selTotalWork)}</div>
                         </div>
-                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800">
-                            <div className="font-mono text-[9px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">Breaks</div>
-                            <div className="font-mono text-lg font-bold mt-1 text-amber-600 dark:text-amber-400">{fmtMins(selBreaks)}</div>
+                        <div className="p-2.5 rounded-om-sm bg-om-panel">
+                            <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">Breaks</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-om-downtime">{fmtMins(selBreaks)}</div>
                         </div>
-                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-800">
-                            <div className="font-mono text-[9px] tracking-wider text-gray-500 dark:text-gray-400 uppercase">Maint</div>
-                            <div className="font-mono text-lg font-bold mt-1 text-rose-600 dark:text-rose-400">{fmtMins(selSums.maint ?? 0)}</div>
+                        <div className="p-2.5 rounded-om-sm bg-om-panel">
+                            <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">Maint</div>
+                            <div className="font-mono text-lg font-bold mt-1 text-rose-600">{fmtMins(selSums.maint ?? 0)}</div>
                         </div>
                     </div>
 
                     <div className="flex-1" />
 
                     <button onClick={() => navTo({ view: 'day', date, worker_id: selectedWorkerId })}
-                            className="h-11 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-mono text-xs font-bold tracking-wider uppercase flex items-center justify-center">
+                            className="h-11 rounded-om bg-om-downtime hover:brightness-95 text-white font-mono text-xs font-bold tracking-wider uppercase flex items-center justify-center">
                         Open day plan
                     </button>
                 </aside>

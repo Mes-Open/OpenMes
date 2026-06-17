@@ -22,7 +22,7 @@ export default function PersonnelClassCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('New Personnel Class')} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('New Personnel Class')}</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('New Personnel Class')}</h1>
             <PersonnelClassForm form={form} skills={skills} levels={levels} submitLabel={__('Create')} onSubmit={submit} />
         </div>
     );

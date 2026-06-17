@@ -1,19 +1,74 @@
 import { Head, usePage } from '@inertiajs/react';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+
+const bomColumns = [
+    { id: 'material_name', accessorKey: 'material_name', header: 'Material', cell: ({ row }) => <span className="font-medium">{row.original.material_name}</span> },
+    { id: 'material_code', accessorKey: 'material_code', header: 'Code', cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.material_code}</span> },
+    { id: 'material_type', accessorKey: 'material_type', header: 'Type', cell: ({ row }) => <span className="text-om-muted">{row.original.material_type?.replace(/_/g, ' ')}</span> },
+    { id: 'quantity_per_unit', accessorKey: 'quantity_per_unit', header: 'Qty/Unit', meta: { align: 'right' }, cell: ({ row }) => <span className="font-mono">{row.original.quantity_per_unit}</span> },
+    {
+        id: 'total_qty', accessorKey: 'total_qty', header: 'Total', meta: { align: 'right' },
+        cell: ({ row }) => (
+            <span className="font-mono font-bold">
+                {row.original.total_qty}
+                {row.original.scrap_percentage > 0 && (
+                    <span className="text-xs text-om-faint ml-1">(+{row.original.scrap_percentage}%)</span>
+                )}
+            </span>
+        ),
+    },
+    { id: 'unit_of_measure', accessorKey: 'unit_of_measure', header: 'Unit', cell: ({ row }) => <span className="text-om-muted">{row.original.unit_of_measure}</span> },
+    { id: 'external_code', accessorKey: 'external_code', header: 'Supplier LOT', cell: ({ row }) => <span className="text-om-faint font-mono">{row.original.external_code ?? '—'}</span> },
+];
+
+const stepColumns = [
+    { id: 'step_number', accessorKey: 'step_number', header: '#', cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.step_number}</span> },
+    { id: 'name', accessorKey: 'name', header: 'Step', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+    { id: 'started_at', accessorKey: 'started_at', header: 'Started', cell: ({ row }) => <span className="text-om-muted font-mono text-xs">{row.original.started_at ?? '—'}</span> },
+    { id: 'started_by', accessorFn: (r) => r.started_by?.name ?? '—', header: 'Started By', cell: ({ row }) => <span className="text-om-muted">{row.original.started_by?.name ?? '—'}</span> },
+    { id: 'completed_at', accessorKey: 'completed_at', header: 'Completed', cell: ({ row }) => <span className="text-om-muted font-mono text-xs">{row.original.completed_at ?? '—'}</span> },
+    { id: 'completed_by', accessorFn: (r) => r.completed_by?.name ?? '—', header: 'Completed By', cell: ({ row }) => <span className="text-om-muted">{row.original.completed_by?.name ?? '—'}</span> },
+    { id: 'duration_minutes', accessorKey: 'duration_minutes', header: 'Duration', meta: { align: 'right' }, cell: ({ row }) => <span className="font-mono">{row.original.duration_minutes ? `${row.original.duration_minutes} min` : '—'}</span> },
+    { id: 'status', accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
+];
+
+const confirmationColumns = [
+    { id: 'confirmed_at', accessorKey: 'confirmed_at', header: 'Date & Time', cell: ({ row }) => <span className="font-mono text-xs">{row.original.confirmed_at}</span> },
+    { id: 'confirmation_type', accessorKey: 'confirmation_type', header: 'Type', cell: ({ row }) => <span className="capitalize">{row.original.confirmation_type}</span> },
+    { id: 'value', accessorKey: 'value', header: 'Value', cell: ({ row }) => <span className="font-mono">{row.original.value ?? '—'}</span> },
+    { id: 'confirmed_by', accessorFn: (r) => r.confirmed_by?.name ?? '—', header: 'Confirmed By', cell: ({ row }) => row.original.confirmed_by?.name ?? '—' },
+    { id: 'notes', accessorKey: 'notes', header: 'Notes', cell: ({ row }) => <span className="text-om-muted">{row.original.notes ?? '—'}</span> },
+];
+
+const sampleColumns = [
+    { id: 'sample_number', accessorKey: 'sample_number', header: 'Sample #', cell: ({ row }) => <span className="font-mono">{row.original.sample_number}</span> },
+    { id: 'parameter_name', accessorKey: 'parameter_name', header: 'Parameter', cell: ({ row }) => row.original.parameter_name },
+    {
+        id: 'value', header: 'Value',
+        accessorFn: (s) => (s.parameter_type === 'measurement' ? s.value_numeric : (s.value_boolean ? 'Yes' : 'No')),
+        cell: ({ row }) => (
+            <span className="font-mono">
+                {row.original.parameter_type === 'measurement' ? row.original.value_numeric : (row.original.value_boolean ? 'Yes' : 'No')}
+            </span>
+        ),
+    },
+    { id: 'result', accessorKey: 'is_passed', header: 'Result', cell: ({ row }) => <PassBadge pass={row.original.is_passed} /> },
+];
 
 function PassBadge({ pass }) {
     return pass
-        ? <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">PASS</span>
-        : <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700">FAIL</span>;
+        ? <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-om-running-bg text-om-running">PASS</span>
+        : <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-om-blocked-bg text-om-blocked">FAIL</span>;
 }
 
 function StatusBadge({ status }) {
     const styles = {
-        DONE: 'bg-green-100 text-green-700',
-        IN_PROGRESS: 'bg-blue-100 text-blue-700',
+        DONE: 'bg-om-running-bg text-om-running',
+        IN_PROGRESS: 'bg-om-chip text-om-accent',
     };
     return (
-        <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${styles[status] ?? 'bg-gray-100 text-gray-600'}`}>
+        <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${styles[status] ?? 'bg-om-chip text-om-muted'}`}>
             {status}
         </span>
     );
@@ -33,7 +88,7 @@ export default function BatchReport() {
                     <button
                         type="button"
                         onClick={() => window.history.back()}
-                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        className="inline-flex items-center gap-2 text-om-accent hover:text-om-accent text-sm font-medium"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -78,96 +133,38 @@ export default function BatchReport() {
                 {/* BOM */}
                 {bom.length > 0 && (
                     <Section title="Materials (BOM)">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-slate-700">
-                                    <tr>
-                                        {['Material', 'Code', 'Type', 'Qty/Unit', 'Total', 'Unit', 'Supplier LOT'].map((h) => (
-                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {bom.map((item, i) => (
-                                        <tr key={i}>
-                                            <td className="px-3 py-2 font-medium">{item.material_name}</td>
-                                            <td className="px-3 py-2 font-mono text-gray-600">{item.material_code}</td>
-                                            <td className="px-3 py-2 text-gray-600">{item.material_type?.replace(/_/g, ' ')}</td>
-                                            <td className="px-3 py-2 text-right font-mono">{item.quantity_per_unit}</td>
-                                            <td className="px-3 py-2 text-right font-mono font-bold">
-                                                {item.total_qty}
-                                                {item.scrap_percentage > 0 && (
-                                                    <span className="text-xs text-gray-400 ml-1">(+{item.scrap_percentage}%)</span>
-                                                )}
-                                            </td>
-                                            <td className="px-3 py-2 text-gray-600">{item.unit_of_measure}</td>
-                                            <td className="px-3 py-2 text-gray-400 font-mono">{item.external_code ?? '—'}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            data={bom}
+                            columns={bomColumns}
+                            searchable={false}
+                            columnToggle={false}
+                            paginated={false}
+                        />
                     </Section>
                 )}
 
                 {/* Production Steps */}
                 <Section title="Production Steps">
-                    {steps.length === 0 ? (
-                        <p className="text-gray-400 text-sm">No steps recorded.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-slate-700">
-                                    <tr>
-                                        {['#', 'Step', 'Started', 'Started By', 'Completed', 'Completed By', 'Duration', 'Status'].map((h) => (
-                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {steps.map((step, i) => (
-                                        <tr key={step.id ?? i}>
-                                            <td className="px-3 py-2 font-mono text-gray-500">{step.step_number}</td>
-                                            <td className="px-3 py-2 font-medium">{step.name}</td>
-                                            <td className="px-3 py-2 text-gray-500 font-mono text-xs">{step.started_at ?? '—'}</td>
-                                            <td className="px-3 py-2 text-gray-600">{step.started_by?.name ?? '—'}</td>
-                                            <td className="px-3 py-2 text-gray-500 font-mono text-xs">{step.completed_at ?? '—'}</td>
-                                            <td className="px-3 py-2 text-gray-600">{step.completed_by?.name ?? '—'}</td>
-                                            <td className="px-3 py-2 text-right font-mono">{step.duration_minutes ? `${step.duration_minutes} min` : '—'}</td>
-                                            <td className="px-3 py-2"><StatusBadge status={step.status} /></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                    <DataTable
+                        data={steps}
+                        columns={stepColumns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel="No steps recorded."
+                    />
                 </Section>
 
                 {/* Process Confirmations */}
                 {confirmations.length > 0 && (
                     <Section title="Process Confirmations">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-slate-700">
-                                    <tr>
-                                        {['Date & Time', 'Type', 'Value', 'Confirmed By', 'Notes'].map((h) => (
-                                            <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {confirmations.map((c, i) => (
-                                        <tr key={c.id ?? i}>
-                                            <td className="px-3 py-2 font-mono text-xs">{c.confirmed_at}</td>
-                                            <td className="px-3 py-2 capitalize">{c.confirmation_type}</td>
-                                            <td className="px-3 py-2 font-mono">{c.value ?? '—'}</td>
-                                            <td className="px-3 py-2">{c.confirmed_by?.name ?? '—'}</td>
-                                            <td className="px-3 py-2 text-gray-500">{c.notes ?? '—'}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <DataTable
+                            data={confirmations}
+                            columns={confirmationColumns}
+                            searchable={false}
+                            columnToggle={false}
+                            paginated={false}
+                        />
                     </Section>
                 )}
 
@@ -176,37 +173,23 @@ export default function BatchReport() {
                     <Section title={`Quality Checks (${qualityChecks.length})`}>
                         <div className="space-y-4">
                             {qualityChecks.map((qc, qi) => (
-                                <div key={qc.id ?? qi} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                                    <div className="bg-gray-50 dark:bg-slate-700 px-4 py-2 flex flex-wrap gap-3 items-center text-sm">
+                                <div key={qc.id ?? qi} className="border border-om-line2 rounded-om-sm overflow-hidden">
+                                    <div className="bg-om-panel px-4 py-2 flex flex-wrap gap-3 items-center text-sm">
                                         <span className="font-bold">Check #{qi + 1}</span>
-                                        <span className="text-gray-500 font-mono text-xs">{qc.checked_at}</span>
-                                        <span className="text-gray-600">By: {qc.checked_by?.name ?? '—'}</span>
+                                        <span className="text-om-muted font-mono text-xs">{qc.checked_at}</span>
+                                        <span className="text-om-muted">By: {qc.checked_by?.name ?? '—'}</span>
                                         {qc.production_quantity != null && (
-                                            <span className="text-gray-600">Production: {Number(qc.production_quantity).toFixed(0)} pcs</span>
+                                            <span className="text-om-muted">Production: {Number(qc.production_quantity).toFixed(0)} pcs</span>
                                         )}
                                         <PassBadge pass={qc.all_passed} />
                                     </div>
-                                    <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
-                                        <thead className="bg-gray-50 dark:bg-slate-700">
-                                            <tr>
-                                                {['Sample #', 'Parameter', 'Value', 'Result'].map((h) => (
-                                                    <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                            {(qc.samples ?? []).map((s, si) => (
-                                                <tr key={s.id ?? si}>
-                                                    <td className="px-3 py-2 font-mono">{s.sample_number}</td>
-                                                    <td className="px-3 py-2">{s.parameter_name}</td>
-                                                    <td className="px-3 py-2 font-mono">
-                                                        {s.parameter_type === 'measurement' ? s.value_numeric : (s.value_boolean ? 'Yes' : 'No')}
-                                                    </td>
-                                                    <td className="px-3 py-2"><PassBadge pass={s.is_passed} /></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                    <DataTable
+                                        data={qc.samples ?? []}
+                                        columns={sampleColumns}
+                                        searchable={false}
+                                        columnToggle={false}
+                                        paginated={false}
+                                    />
                                 </div>
                             ))}
                         </div>
@@ -222,11 +205,11 @@ export default function BatchReport() {
                             ['Labels readable', <PassBadge key="lbl" pass={checklist.labels_readable} />],
                             ['Label matches product', <PassBadge key="match" pass={checklist.label_matches_product} />],
                             ['Overall', checklist.all_passed
-                                ? <span key="overall" className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">ALL PASS</span>
-                                : <span key="overall" className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700">FAILED</span>
+                                ? <span key="overall" className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-om-running-bg text-om-running">ALL PASS</span>
+                                : <span key="overall" className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-om-blocked-bg text-om-blocked">FAILED</span>
                             ],
                         ]} />
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-xs text-om-faint mt-2">
                             Checked by: {checklist.checked_by?.name ?? '—'} | {checklist.checked_at ?? '—'}
                         </p>
                     </Section>
@@ -242,9 +225,9 @@ BatchReport.layout = (page) => <AppLayout>{page}</AppLayout>;
 
 function Section({ title, children }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700">
-                <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{title}</h2>
+        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-om-line2">
+                <h2 className="text-base font-bold text-om-ink">{title}</h2>
             </div>
             <div className="p-5">{children}</div>
         </div>
@@ -256,9 +239,9 @@ function InfoTable({ rows }) {
         <table className="w-full text-sm">
             <tbody>
                 {rows.map(([label, value], i) => (
-                    <tr key={i} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
-                        <td className="py-2 pr-4 text-gray-500 font-medium w-2/5">{label}</td>
-                        <td className="py-2 text-gray-800 dark:text-gray-200">{value}</td>
+                    <tr key={i} className="border-b border-om-line2 last:border-0">
+                        <td className="py-2 pr-4 text-om-muted font-medium w-2/5">{label}</td>
+                        <td className="py-2 text-om-ink">{value}</td>
                     </tr>
                 ))}
             </tbody>

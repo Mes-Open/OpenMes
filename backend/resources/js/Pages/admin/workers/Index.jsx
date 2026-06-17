@@ -7,11 +7,11 @@ export default function WorkersIndex() {
     const { crewNames = {}, wageGroupNames = {}, personnelClassNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
-        { key: 'email', label: __('Email'), className: 'text-gray-600' },
-        { key: 'crew', label: __('Crew'), className: 'text-gray-600', render: (r) => crewNames[r.crew_id] ?? '—' },
-        { key: 'class', label: __('Class'), className: 'text-gray-600', render: (r) => personnelClassNames[r.personnel_class_id] ?? '—' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'email', label: __('Email'), className: 'text-om-muted' },
+        { key: 'crew', label: __('Crew'), className: 'text-om-muted', render: (r) => crewNames[r.crew_id] ?? '—' },
+        { key: 'class', label: __('Class'), className: 'text-om-muted', render: (r) => personnelClassNames[r.personnel_class_id] ?? '—' },
         { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 

@@ -7,10 +7,121 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+/* Shared design-system package (symlinked via file: dep) — outside backend/,
+   so Tailwind's auto content detection won't find it on its own. Path works
+   both on the host and under the container mount (/var/www/packages). */
+@source '../../../packages/ui/src';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+@theme inline {
+    --font-sans: 'Geist', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* OpenMES design tokens — "Geist White". Colours indirect through the --om-*
+       value vars (defined in :root / html.dark below) so the `om-*` utilities can
+       switch light/dark at runtime. `inline` makes Tailwind emit the var() ref
+       rather than baking the hex (which would freeze the value to light). */
+    --color-om-page: var(--om-page);
+    --color-om-bg: var(--om-bg);
+    --color-om-panel: var(--om-panel);
+    --color-om-card: var(--om-card);
+    --color-om-chip: var(--om-chip);
+    --color-om-selected: var(--om-selected);
+    --color-om-on-ink: var(--om-on-ink);
+    --color-om-ink-hover: var(--om-ink-hover);
+    --color-om-line: var(--om-line);
+    --color-om-line2: var(--om-line2);
+    --color-om-ink: var(--om-ink);
+    --color-om-muted: var(--om-muted);
+    --color-om-faint: var(--om-faint);
+    --color-om-faintest: var(--om-faintest);
+    --color-om-accent: var(--om-accent);
+    --color-om-running: var(--om-running);
+    --color-om-running-bg: var(--om-running-bg);
+    --color-om-pending: var(--om-pending);
+    --color-om-pending-bg: var(--om-pending-bg);
+    --color-om-blocked: var(--om-blocked);
+    --color-om-blocked-bg: var(--om-blocked-bg);
+    --color-om-downtime: var(--om-downtime);
+    --color-om-downtime-bg: var(--om-downtime-bg);
+    --color-om-done: var(--om-done);
+    --color-om-done-bg: var(--om-done-bg);
+
+    --radius-om: 12px;
+    --radius-om-sm: 8px;
+
+    /* Pulsing live-status dot (StatusPill RUNNING, OnlineDot) */
+    --animate-om-pulse: om-pulse 2s infinite;
+    @keyframes om-pulse {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.3;
+        }
+    }
+}
+
+/* Light (default) token values — keep in sync with packages/ui/src/tokens/index.ts. */
+:root {
+    --om-page: #e9e8e3;
+    --om-bg: #f6f5f1;
+    --om-panel: #fbfaf8;
+    --om-card: #ffffff;
+    --om-chip: #f1efea;
+    --om-selected: #fcf6f3;
+    /* Foreground on ink-coloured surfaces (primary buttons, active nav) —
+       flips in dark mode since `ink` itself flips light. */
+    --om-on-ink: #ffffff;
+    --om-ink-hover: #000000;
+    --om-line: #e6e4de;
+    --om-line2: #edebe6;
+    --om-ink: #1a1917;
+    --om-muted: #6f6c66;
+    --om-faint: #9b9892;
+    --om-faintest: #c4c0b8;
+    --om-accent: #ea5a2b;
+    --om-running: #1c9a55;
+    --om-running-bg: #e6f4ea;
+    --om-pending: #6f6c66;
+    --om-pending-bg: #f1efea;
+    --om-blocked: #d6442f;
+    --om-blocked-bg: #fbeae6;
+    --om-downtime: #c9821e;
+    --om-downtime-bg: #faf0dd;
+    --om-done: #54514b;
+    --om-done-bg: #ecebe7;
+}
+
+/* Dark token values (design ref: OpenMES Components.dc.html — themes.dark). */
+html.dark {
+    color-scheme: dark;
+    --om-page: #0d0c0b;
+    --om-bg: #131211;
+    --om-panel: #161513;
+    --om-card: #1c1b19;
+    --om-chip: #242220;
+    --om-selected: #231c18;
+    --om-on-ink: #131211;
+    --om-ink-hover: #ffffff;
+    --om-line: #2c2a27;
+    --om-line2: #242220;
+    --om-ink: #f4f2ed;
+    --om-muted: #a6a29b;
+    --om-faint: #6e6a63;
+    --om-faintest: #3a3833;
+    --om-accent: #f2632f;
+    --om-running: #2bbe6e;
+    --om-running-bg: rgba(43, 190, 110, 0.16);
+    --om-pending: #a6a29b;
+    --om-pending-bg: #242220;
+    --om-blocked: #f2604a;
+    --om-blocked-bg: rgba(242, 96, 74, 0.15);
+    --om-downtime: #e0a53c;
+    --om-downtime-bg: rgba(224, 165, 60, 0.16);
+    --om-done: #a6a29b;
+    --om-done-bg: #242220;
 }
 
 /* Custom styles for touch-optimized UI */
@@ -63,13 +174,15 @@
         @apply bg-white rounded-lg shadow-md p-4 dark:bg-gray-800 dark:shadow-gray-900/50 dark:text-gray-100;
     }
 
+    /* Geist White input — om tokens auto-theme light/dark (no dark: needed). */
     .form-input {
-        @apply min-h-[48px] px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-               dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-400;
+        @apply min-h-[48px] px-4 py-3 rounded-om-sm border border-om-line bg-om-bg text-om-ink
+               placeholder:text-om-faint outline-none transition-colors
+               focus:border-om-accent focus:ring-[3px] focus:ring-om-accent/15;
     }
 
     .form-label {
-        @apply block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300;
+        @apply block text-sm font-medium text-om-muted mb-2;
     }
 }
 
@@ -99,35 +212,31 @@
 
 html.dark { color-scheme: dark; }
 
-/* Backgrounds */
-html.dark .bg-white       { background-color: rgb(31 41 55)  !important; }
-html.dark .bg-gray-50     { background-color: rgb(17 24 39)  !important; }
-html.dark .bg-gray-100    { background-color: rgb(31 41 55)  !important; }
-html.dark .bg-gray-200    { background-color: rgb(55 65 81)  !important; }
+/* Backgrounds — warm Geist White dark palette (not blue-gray) */
+html.dark .bg-white       { background-color: #1c1b19 !important; }
+html.dark .bg-gray-50     { background-color: #131211 !important; }
+html.dark .bg-gray-100    { background-color: #1c1b19 !important; }
+html.dark .bg-gray-200    { background-color: #242220 !important; }
 
 /* Text */
-html.dark .text-gray-900  { color: rgb(243 244 246) !important; }
-html.dark .text-gray-800  { color: rgb(229 231 235) !important; }
-html.dark .text-gray-700  { color: rgb(209 213 219) !important; }
-html.dark .text-gray-600  { color: rgb(156 163 175) !important; }
-html.dark .text-gray-500  { color: rgb(107 114 128) !important; }
+html.dark .text-gray-900  { color: #f4f2ed !important; }
+html.dark .text-gray-800  { color: #e7e4de !important; }
+html.dark .text-gray-700  { color: #d2cfc8 !important; }
+html.dark .text-gray-600  { color: #a6a29b !important; }
+html.dark .text-gray-500  { color: #6e6a63 !important; }
 
 /* Borders */
-html.dark .border-gray-100 { border-color: rgb(55 65 81)  !important; }
-html.dark .border-gray-200 { border-color: rgb(75 85 99)  !important; }
-html.dark .border-gray-300 { border-color: rgb(75 85 99)  !important; }
+html.dark .border-gray-100 { border-color: #242220 !important; }
+html.dark .border-gray-200 { border-color: #2c2a27 !important; }
+html.dark .border-gray-300 { border-color: #2c2a27 !important; }
 
 /* Dividers (table rows, list separators) */
-html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(55 65 81) !important; }
-html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(55 65 81) !important; }
-
-/* Table header */
-html.dark thead,
-html.dark thead th { background-color: rgb(17 24 39) !important; color: rgb(209 213 219) !important; }
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #242220 !important; }
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #242220 !important; }
 
 /* Hover states */
-html.dark .hover\:bg-gray-50:hover  { background-color: rgb(55 65 81) !important; }
-html.dark .hover\:bg-gray-100:hover { background-color: rgb(55 65 81) !important; }
+html.dark .hover\:bg-gray-50:hover  { background-color: #242220 !important; }
+html.dark .hover\:bg-gray-100:hover { background-color: #242220 !important; }
 
 /* Blue (order number badges, links) */
 html.dark .bg-blue-50        { background-color: rgb(30 58 138 / 0.25) !important; }

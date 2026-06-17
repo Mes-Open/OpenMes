@@ -1,17 +1,17 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { issueTypeFields } from './fields';
+import { ISSUE_TYPE_FIELDS } from './fields';
 
 export default function IssueTypeEdit({ issueType }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${issueType.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Issue Type</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Issue Type</h1>
             <ResourceForm
                 action={`/admin/issue-types/${issueType.id}`}
                 method="put"
-                fields={issueTypeFields()}
+                fields={ISSUE_TYPE_FIELDS}
                 initial={{
                     code: issueType.code ?? '',
                     name: issueType.name ?? '',

@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Badge, Button, Checkbox, Dropdown, ProgressBar, StatusPill } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 import { formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
+
+// Geist White restyle: light-only v1 — former `dark:` variants removed.
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -16,49 +20,48 @@ function fmtQty(n, decimals = 2) {
     return formatNumber(Number(n), { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function statusBadge(status) {
+/** Map domain statuses onto the design system's StatusPill states. */
+function pillStatus(status) {
     const map = {
-        PENDING:     'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-        READY:       'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-        IN_PROGRESS: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-        DONE:        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-        BLOCKED:     'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+        PENDING: 'pending',
+        IN_PROGRESS: 'running',
+        DONE: 'done',
+        BLOCKED: 'blocked',
+        CANCELLED: 'done',
     };
-    return map[status] ?? 'bg-gray-100 text-gray-500';
+    return map[status] ?? 'pending';
+}
+
+function issuePillStatus(status) {
+    const map = {
+        OPEN: 'blocked',
+        ACKNOWLEDGED: 'downtime',
+        RESOLVED: 'running',
+    };
+    return map[status] ?? 'pending';
 }
 
 function statusLabel(status) {
     if (status === 'PENDING') return 'Not Started';
-    if (status === 'READY') return 'Ready to Start';
     return (status ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function batchStatusBadge(status) {
-    const map = {
-        PENDING:     'bg-gray-100 text-gray-700',
-        IN_PROGRESS: 'bg-blue-100 text-blue-700',
-        DONE:        'bg-green-100 text-green-700',
-    };
-    return map[status] ?? 'bg-gray-100 text-gray-400';
-}
-
-function issueBadge(status) {
-    const map = {
-        OPEN:         'bg-red-100 text-red-700',
-        ACKNOWLEDGED: 'bg-yellow-100 text-yellow-700',
-        RESOLVED:     'bg-green-100 text-green-700',
-    };
-    return map[status] ?? 'bg-gray-100 text-gray-400';
 }
 
 function bomTypeBadge(type) {
     const map = {
-        raw_material:  'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-        semi_finished: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-        packaging:     'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+        raw_material:  'text-om-downtime bg-om-downtime-bg',
+        semi_finished: 'text-om-accent bg-om-selected',
+        packaging:     'text-om-muted bg-om-chip',
     };
-    return map[type] ?? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+    return map[type] ?? 'text-om-muted bg-om-chip';
 }
+
+// Shared Geist White idiom classes
+const cardCls = 'bg-om-card border border-om-line rounded-om p-6';
+const sectionLabelCls = 'font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint';
+const fieldLabelCls = 'block mb-[7px] font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint';
+const inputCls =
+    'w-full text-[13px] text-om-ink placeholder:text-om-faint bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 outline-none transition-colors focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)]';
+const errorCls = 'mt-[5px] text-[11.5px] text-om-blocked';
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -67,7 +70,7 @@ function bomTypeBadge(type) {
 function ChevronIcon({ open }) {
     return (
         <svg
-            className={`w-5 h-5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+            className={`w-5 h-5 text-om-faint transition-transform ${open ? 'rotate-180' : ''}`}
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
         >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -76,75 +79,147 @@ function ChevronIcon({ open }) {
 }
 
 // ---------------------------------------------------------------------------
+// Modal shell — §09 idiom (radius 12, deep shadow, header hairline + mono
+// subtitle, panel footer supplied by callers inside their <form>).
+// ---------------------------------------------------------------------------
+
+function ModalShell({ title, subtitle, onClose, children }) {
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
+            <div className="flex min-h-full items-center justify-center p-4">
+                <div
+                    className="relative w-full max-w-md overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="flex items-center justify-between border-b border-om-line2 px-[18px] py-4">
+                        <div>
+                            <div className="text-[15px] font-semibold text-om-ink">{title}</div>
+                            {subtitle != null && (
+                                <div className="mt-[3px] font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{subtitle}</div>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="cursor-pointer text-[18px] leading-none text-om-faint hover:text-om-muted"
+                        >
+                            ×
+                        </button>
+                    </div>
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const modalFooterCls = 'flex justify-end gap-[9px] border-t border-om-line2 bg-om-panel px-[18px] py-[14px]';
+
+// ---------------------------------------------------------------------------
 // BOM accordion
 // ---------------------------------------------------------------------------
 
 function BomSection({ workOrder }) {
     const [open, setOpen] = useState(false);
     const bom = workOrder.process_snapshot?.bom;
+
+    const columns = useMemo(() => [
+        {
+            id: 'material',
+            accessorFn: (r) => r.material_name,
+            header: 'Material',
+            meta: { align: 'left', flex: true },
+            cell: ({ row }) => (
+                <>
+                    <span className="font-medium text-om-ink">{row.original.material_name}</span>
+                    <span className="text-xs text-om-faint font-mono ml-1">{row.original.material_code}</span>
+                </>
+            ),
+        },
+        {
+            id: 'type',
+            accessorFn: (r) => r.material_type,
+            header: 'Type',
+            meta: { align: 'left' },
+            cell: ({ row }) => (
+                <span className={`px-2 py-0.5 rounded-[20px] font-mono text-[10px] uppercase tracking-[0.06em] ${bomTypeBadge(row.original.material_type)}`}>
+                    {row.original.material_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                </span>
+            ),
+        },
+        {
+            id: 'per_unit',
+            accessorFn: (r) => r.quantity_per_unit,
+            header: 'Per Unit',
+            meta: { align: 'right' },
+            cell: ({ row }) => (
+                <span className="font-mono text-om-ink">
+                    {row.original.quantity_per_unit} {row.original.unit_of_measure}
+                </span>
+            ),
+        },
+        {
+            id: 'total',
+            accessorFn: (r) => {
+                const base = r.quantity_per_unit * workOrder.planned_qty;
+                return base + base * (r.scrap_percentage / 100);
+            },
+            header: `Total (${Math.round(workOrder.planned_qty)} pcs)`,
+            meta: { align: 'right' },
+            cell: ({ row }) => {
+                const item = row.original;
+                const base = item.quantity_per_unit * workOrder.planned_qty;
+                const scrap = base * (item.scrap_percentage / 100);
+                const total = base + scrap;
+                return (
+                    <span className="font-mono font-medium text-om-ink">
+                        {fmtQty(total)} {item.unit_of_measure}
+                        {item.scrap_percentage > 0 && (
+                            <span className="text-xs text-om-faint ml-1">(+{item.scrap_percentage}% scrap)</span>
+                        )}
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'step',
+            accessorFn: (r) => r.step_number,
+            header: 'Step',
+            meta: { align: 'left' },
+            cell: ({ row }) => (
+                <span className="font-mono text-[12px] text-om-muted">
+                    {row.original.step_number ? `#${row.original.step_number}` : 'General'}
+                </span>
+            ),
+        },
+    ], [workOrder.planned_qty]);
+
     if (!bom || bom.length === 0) return null;
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+        <div className={cardCls}>
             <button
                 type="button"
-                className="flex justify-between items-center w-full text-left"
+                className="flex justify-between items-center w-full text-left cursor-pointer"
                 onClick={() => setOpen((v) => !v)}
             >
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Recipe / Materials</h2>
+                <h2 className={sectionLabelCls}>Recipe / Materials</h2>
                 <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">{bom.length} items</span>
+                    <Badge variant="neutral">{bom.length} items</Badge>
                     <ChevronIcon open={open} />
                 </div>
             </button>
 
             {open && (
-                <div className="mt-4 overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs text-gray-500 uppercase">
-                                <th className="pb-2">Material</th>
-                                <th className="pb-2">Type</th>
-                                <th className="pb-2 text-right">Per Unit</th>
-                                <th className="pb-2 text-right">
-                                    Total ({Math.round(workOrder.planned_qty)} pcs)
-                                </th>
-                                <th className="pb-2">Step</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {bom.map((item, idx) => {
-                                const base = item.quantity_per_unit * workOrder.planned_qty;
-                                const scrap = base * (item.scrap_percentage / 100);
-                                const total = base + scrap;
-                                return (
-                                    <tr key={idx}>
-                                        <td className="py-2">
-                                            <span className="font-medium">{item.material_name}</span>
-                                            <span className="text-xs text-gray-500 font-mono ml-1">{item.material_code}</span>
-                                        </td>
-                                        <td className="py-2">
-                                            <span className={`px-2 py-0.5 rounded-full text-xs ${bomTypeBadge(item.material_type)}`}>
-                                                {item.material_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                                            </span>
-                                        </td>
-                                        <td className="py-2 text-right font-mono">
-                                            {item.quantity_per_unit} {item.unit_of_measure}
-                                        </td>
-                                        <td className="py-2 text-right font-mono font-medium">
-                                            {fmtQty(total)} {item.unit_of_measure}
-                                            {item.scrap_percentage > 0 && (
-                                                <span className="text-xs text-gray-500 ml-1">(+{item.scrap_percentage}% scrap)</span>
-                                            )}
-                                        </td>
-                                        <td className="py-2 text-gray-500">
-                                            {item.step_number ? `#${item.step_number}` : 'General'}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                <div className="mt-4">
+                    <DataTable
+                        data={bom}
+                        columns={columns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                    />
                 </div>
             )}
         </div>
@@ -162,15 +237,15 @@ function ProcessPhotosSection({ photos = [] }) {
     if (!photos || photos.length === 0) return null;
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+        <div className={cardCls}>
             <button
                 type="button"
-                className="flex justify-between items-center w-full text-left"
+                className="flex justify-between items-center w-full text-left cursor-pointer"
                 onClick={() => setOpen((v) => !v)}
             >
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Work Instructions</h2>
+                <h2 className={sectionLabelCls}>Work Instructions</h2>
                 <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">{photos.length} photos</span>
+                    <Badge variant="neutral">{photos.length} photos</Badge>
                     <ChevronIcon open={open} />
                 </div>
             </button>
@@ -182,18 +257,18 @@ function ProcessPhotosSection({ photos = [] }) {
                             <button
                                 type="button"
                                 onClick={() => setLightbox(photo)}
-                                className="block w-full"
+                                className="block w-full cursor-pointer"
                                 title={photo.caption || ''}
                             >
                                 <img
                                     src={photo.url}
                                     alt={photo.caption || 'Work instruction'}
                                     loading="lazy"
-                                    className="w-full h-32 object-cover rounded-lg bg-gray-100 dark:bg-slate-700"
+                                    className="w-full h-32 object-cover rounded-om-sm border border-om-line bg-om-chip"
                                 />
                             </button>
                             {photo.caption && (
-                                <figcaption className="mt-1 text-xs text-gray-600 dark:text-gray-300 truncate">
+                                <figcaption className="mt-1 text-xs text-om-muted truncate">
                                     {photo.caption}
                                 </figcaption>
                             )}
@@ -211,7 +286,7 @@ function ProcessPhotosSection({ photos = [] }) {
                         <img
                             src={lightbox.url}
                             alt={lightbox.caption || 'Work instruction'}
-                            className="max-w-full max-h-[80vh] rounded-lg shadow-2xl"
+                            className="max-w-full max-h-[80vh] rounded-om shadow-2xl"
                         />
                         {lightbox.caption && (
                             <figcaption className="text-white/90 text-sm mt-3 text-center">{lightbox.caption}</figcaption>
@@ -220,7 +295,7 @@ function ProcessPhotosSection({ photos = [] }) {
                     <button
                         type="button"
                         onClick={() => setLightbox(null)}
-                        className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none"
+                        className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none cursor-pointer"
                         title="Close"
                     >
                         ×
@@ -270,16 +345,16 @@ function QualityCheckForm({ batch, onClose }) {
     };
 
     return (
-        <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+        <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <form onSubmit={submit}>
                 <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Production Quantity</label>
+                    <label className={fieldLabelCls}>Production Quantity</label>
                     <input
                         type="number"
                         step="0.01"
                         value={productionQty}
                         onChange={(e) => setProductionQty(e.target.value)}
-                        className="form-input w-full"
+                        className={`${inputCls} font-mono`}
                         placeholder="Current production qty"
                     />
                 </div>
@@ -288,8 +363,8 @@ function QualityCheckForm({ batch, onClose }) {
                     const dimIdx = (s - 1) * 2;
                     const fitIdx = (s - 1) * 2 + 1;
                     return (
-                        <div key={s} className="mb-2 p-2 bg-white dark:bg-slate-700 rounded">
-                            <p className="text-xs font-bold text-gray-500 mb-1">Sample #{s}</p>
+                        <div key={s} className="mb-2 p-2 bg-om-card border border-om-line2 rounded-om-sm">
+                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Sample #{s}</p>
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <input
@@ -297,21 +372,21 @@ function QualityCheckForm({ batch, onClose }) {
                                         step="0.01"
                                         value={samples[dimIdx].value_numeric}
                                         onChange={(e) => updateSample(dimIdx, 'value_numeric', e.target.value)}
-                                        className="form-input w-full text-sm"
+                                        className={`${inputCls} font-mono`}
                                         placeholder="Dimension"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <select
-                                        value={samples[fitIdx].value_boolean}
-                                        onChange={(e) => updateSample(fitIdx, 'value_boolean', e.target.value)}
-                                        className="form-input w-full text-sm"
-                                        required
-                                    >
-                                        <option value="1">Pass</option>
-                                        <option value="0">Fail</option>
-                                    </select>
+                                    <Dropdown
+                                        options={[
+                                            { value: '1', label: 'Pass' },
+                                            { value: '0', label: 'Fail' },
+                                        ]}
+                                        value={samples[fitIdx].value_boolean == null ? '' : String(samples[fitIdx].value_boolean)}
+                                        onChange={(v) => updateSample(fitIdx, 'value_boolean', v)}
+                                        className="w-full"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -319,12 +394,12 @@ function QualityCheckForm({ batch, onClose }) {
                 })}
 
                 <div className="flex gap-2 mt-2">
-                    <button type="submit" disabled={processing} className="btn-touch btn-primary text-sm disabled:opacity-50">
+                    <Button type="submit" variant="accent" disabled={processing} className="px-5 py-3 text-[14px]">
                         Submit QC
-                    </button>
-                    <button type="button" onClick={onClose} className="btn-touch btn-secondary text-sm">
+                    </Button>
+                    <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </form>
         </div>
@@ -357,26 +432,24 @@ function PackagingChecklistForm({ batch, onClose }) {
     ];
 
     return (
-        <div className="mt-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+        <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <form onSubmit={submit}>
                 {checks.map(([field, label]) => (
-                    <label key={field} className="flex items-center gap-2 mb-2 cursor-pointer">
-                        <input
-                            type="checkbox"
+                    <div key={field} className="mb-2">
+                        <Checkbox
                             checked={form.data[field]}
-                            onChange={(e) => form.setData(field, e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600"
+                            onChange={(next) => form.setData(field, next)}
+                            label={label}
                         />
-                        <span className="text-sm">{label}</span>
-                    </label>
+                    </div>
                 ))}
                 <div className="flex gap-2 mt-2">
-                    <button type="submit" disabled={form.processing} className="btn-touch btn-primary text-sm disabled:opacity-50">
+                    <Button type="submit" variant="accent" disabled={form.processing} className="px-5 py-3 text-[14px]">
                         Submit Checklist
-                    </button>
-                    <button type="button" onClick={onClose} className="btn-touch btn-secondary text-sm">
+                    </Button>
+                    <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </form>
         </div>
@@ -398,9 +471,9 @@ function ReleaseForm({ batch, onClose }) {
     };
 
     return (
-        <div className="mt-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+        <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className={fieldLabelCls}>
                     Scrap quantity (optional)
                 </label>
                 <input
@@ -409,31 +482,31 @@ function ReleaseForm({ batch, onClose }) {
                     min="0"
                     value={form.data.scrap_qty}
                     onChange={(e) => form.setData('scrap_qty', e.target.value)}
-                    className="form-input w-32 text-sm"
+                    className={`${inputCls} w-32 font-mono`}
                     placeholder="0"
                 />
             </div>
-            <p className="text-sm mb-3 text-gray-700 dark:text-gray-300">Release this batch?</p>
+            <p className="text-sm mb-3 text-om-muted">Release this batch?</p>
             <div className="flex gap-3 flex-wrap">
-                <button
-                    type="button"
+                <Button
+                    variant="secondary"
                     disabled={form.processing}
                     onClick={() => submitWith('for_production')}
-                    className="btn-touch btn-secondary text-sm disabled:opacity-50"
+                    className="px-5 py-3 text-[14px]"
                 >
                     For Production
-                </button>
-                <button
-                    type="button"
+                </Button>
+                <Button
+                    variant="accent"
                     disabled={form.processing}
                     onClick={() => submitWith('for_sale')}
-                    className="btn-touch btn-primary text-sm disabled:opacity-50"
+                    className="px-5 py-3 text-[14px]"
                 >
                     For Sale
-                </button>
-                <button type="button" onClick={onClose} className="btn-touch btn-secondary text-sm">
+                </Button>
+                <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                     Cancel
-                </button>
+                </Button>
             </div>
         </div>
     );
@@ -461,16 +534,16 @@ function ConfirmParametersRow({ batch }) {
 
     return (
         <div className="flex items-center gap-3">
-            <button
-                type="button"
+            <Button
+                variant="secondary"
                 disabled={processing}
                 onClick={handleClick}
-                className="btn-touch btn-secondary text-sm disabled:opacity-50"
+                className="px-5 py-3 text-[14px]"
             >
                 Confirm Parameters
-            </button>
+            </Button>
             {lastConfirm && (
-                <span className="text-xs text-green-600">
+                <span className="font-mono text-[11px] text-om-running">
                     Last: {formatDateTime(new Date(lastConfirm.confirmed_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
             )}
@@ -492,8 +565,8 @@ function ProductionControls({ batch }) {
     const isReleased = !!(batch.released_at);
 
     return (
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
-            <h4 className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+        <div className="border-t border-om-line2 pt-4 space-y-3">
+            <h4 className={sectionLabelCls}>
                 Production Controls
             </h4>
 
@@ -503,17 +576,17 @@ function ProductionControls({ batch }) {
             {/* Quality Check */}
             <div>
                 <div className="flex items-center gap-3">
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
                         onClick={() => setShowQc((v) => !v)}
-                        className="btn-touch btn-secondary text-sm"
+                        className="px-5 py-3 text-[14px]"
                     >
                         Quality Check ({qcCount})
-                    </button>
+                    </Button>
                     {qcCount < 3 ? (
-                        <span className="text-xs text-orange-600">{3 - qcCount} more needed</span>
+                        <span className="font-mono text-[11px] text-om-downtime">{3 - qcCount} more needed</span>
                     ) : (
-                        <span className="text-xs text-green-600">Min. requirement met</span>
+                        <span className="font-mono text-[11px] text-om-running">Min. requirement met</span>
                     )}
                 </div>
                 {showQc && <QualityCheckForm batch={batch} onClose={() => setShowQc(false)} />}
@@ -522,20 +595,20 @@ function ProductionControls({ batch }) {
             {/* Packaging Checklist */}
             {!hasChecklist ? (
                 <div>
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
                         onClick={() => setShowChecklist((v) => !v)}
-                        className="btn-touch btn-secondary text-sm"
+                        className="px-5 py-3 text-[14px]"
                     >
                         Packaging Checklist
-                    </button>
+                    </Button>
                     {showChecklist && (
                         <PackagingChecklistForm batch={batch} onClose={() => setShowChecklist(false)} />
                     )}
                 </div>
             ) : (
                 <div className="text-sm">
-                    <span className={batch.packaging_checklist.all_passed ? 'text-green-600' : 'text-red-600'}>
+                    <span className={batch.packaging_checklist.all_passed ? 'text-om-running' : 'text-om-blocked'}>
                         Packaging: {batch.packaging_checklist.all_passed ? 'All passed' : 'Some items failed'}
                     </span>
                 </div>
@@ -544,13 +617,13 @@ function ProductionControls({ batch }) {
             {/* Release */}
             {batch.status === 'DONE' && !isReleased && (
                 <div>
-                    <button
-                        type="button"
+                    <Button
+                        variant="accent"
                         onClick={() => setShowRelease((v) => !v)}
-                        className="btn-touch bg-green-600 text-white hover:bg-green-700 text-sm"
+                        className="px-6 py-3.5 text-[15px]"
                     >
                         Release Batch
-                    </button>
+                    </Button>
                     {showRelease && <ReleaseForm batch={batch} onClose={() => setShowRelease(false)} />}
                 </div>
             )}
@@ -561,7 +634,7 @@ function ProductionControls({ batch }) {
                     href={`/admin/batches/${batch.id}/report`}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn-touch btn-secondary text-sm inline-block"
+                    className="inline-flex items-center justify-center rounded-om-sm border border-om-line bg-transparent px-5 py-3 text-[14px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
                 >
                     Series Report
                 </a>
@@ -583,27 +656,25 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {} })
     const isReleased = !!(batch.released_at || batch.released);
 
     return (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="border border-om-line rounded-om p-4 bg-om-card">
             {/* Header row */}
             <div className="flex items-center gap-3">
                 <button
                     type="button"
-                    className="flex flex-1 justify-between items-center text-left"
+                    className="flex flex-1 justify-between items-center text-left cursor-pointer"
                     onClick={() => setExpanded((v) => !v)}
                 >
                     <div className="flex items-center gap-4">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                        <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-om-ink">
                             Batch #{batch.batch_number}
                         </h3>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${batchStatusBadge(batch.status)}`}>
-                            {statusLabel(batch.status)}
-                        </span>
-                        <span className="text-sm text-gray-500">
+                        <StatusPill status={pillStatus(batch.status)} label={statusLabel(batch.status)} />
+                        <span className="font-mono text-[13px] text-om-muted">
                             {fmtQty(batch.produced_qty)} / {fmtQty(batch.target_qty)}
                         </span>
                     </div>
                     <svg
-                        className={`w-6 h-6 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                        className={`w-6 h-6 text-om-faint transition-transform ${expanded ? 'rotate-180' : ''}`}
                         fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -626,22 +697,22 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {} })
             {expanded && (
                 <div className="mt-4 space-y-4">
                     {/* Info bar */}
-                    <div className="flex flex-wrap gap-4 text-sm bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg">
+                    <div className="flex flex-wrap gap-4 text-sm bg-om-panel border border-om-line2 p-3 rounded-om-sm">
                         {batch.lot_number && (
-                            <span className="font-medium">
-                                LOT: <span className="font-mono text-blue-600">{batch.lot_number}</span>
+                            <span className="font-medium text-om-ink">
+                                LOT: <span className="font-mono text-om-accent">{batch.lot_number}</span>
                             </span>
                         )}
                         {batch.workstation && (
-                            <span className="font-medium">Workstation: {batch.workstation.name}</span>
+                            <span className="font-medium text-om-ink">Workstation: {batch.workstation.name}</span>
                         )}
                         {isReleased && (
-                            <span className="text-green-600 font-medium">
+                            <span className="text-om-running font-medium">
                                 Released ({releaseLabel})
                             </span>
                         )}
                         {batch.expiry_date && (
-                            <span>Expiry: {batch.expiry_date}</span>
+                            <span className="font-mono text-[13px] text-om-muted">Expiry: {batch.expiry_date}</span>
                         )}
                     </div>
 
@@ -678,134 +749,83 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
         );
     };
 
-    const handleSkip = (step) => {
-        const reason = window.prompt('Reason for skipping this step (optional):');
-        if (reason === null) return; // cancelled
-        setInflightStepId(step.id);
-        router.post(
-            `/operator/batch-step/${step.id}/skip`,
-            { skip_reason: reason },
-            {
-                preserveScroll: true,
-                onFinish: () => setInflightStepId(null),
-            }
-        );
-    };
-
-    const canSkip = (step) =>
-        (step.is_optional || step.variant_group) &&
-        (step.status === 'PENDING' || step.status === 'IN_PROGRESS');
-
     return (
         <div>
-            <h4 className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Steps</h4>
+            <h4 className={`${sectionLabelCls} mb-2`}>Steps</h4>
             <div className="space-y-2">
                 {steps.map((step) => {
                     const isInflight = inflightStepId === step.id;
                     const photo = stepPhotos[step.step_number];
                     return (
-                        <div key={step.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                            <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                        <div key={step.id} className="flex items-center gap-3 p-3 bg-om-panel border border-om-line2 rounded-om-sm">
+                            <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full font-mono text-[11px] bg-om-chip text-om-muted">
                                 {step.step_number}
                             </span>
                             {photo && (
                                 <button
                                     type="button"
                                     onClick={() => setPhotoZoom(photo)}
-                                    className="flex-shrink-0"
+                                    className="flex-shrink-0 cursor-pointer"
                                     title={photo.caption || 'Step photo'}
                                 >
                                     <img
                                         src={photo.url}
                                         alt={photo.caption || 'Step photo'}
                                         loading="lazy"
-                                        className="w-12 h-12 object-cover rounded-md border border-gray-200 dark:border-gray-700 bg-gray-100"
+                                        className="w-12 h-12 object-cover rounded-om-sm border border-om-line bg-om-chip"
                                     />
                                 </button>
                             )}
-                            <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <span className="flex-1 text-sm font-medium text-om-ink">
                                 {step.name}
-                                {step.is_optional && (
-                                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 align-middle">Optional</span>
-                                )}
-                                {step.variant_group && (
-                                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700 align-middle">{step.variant_group}</span>
-                                )}
                             </span>
 
                             {/* Status label for terminal states */}
                             {step.status === 'DONE' && (
-                                <span className="text-xs text-green-600 whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
                                     Done{step.completed_by ? ` by ${step.completed_by.name}` : ''}
                                 </span>
                             )}
                             {step.status === 'SKIPPED' && (
-                                <span className="text-xs text-gray-400 whitespace-nowrap">Skipped</span>
-                            )}
-                            {/* Re-select a skipped variant */}
-                            {step.status === 'SKIPPED' && step.variant_group && (
-                                <button
-                                    type="button"
-                                    disabled={isInflight}
-                                    onClick={() => handleStepAction(step, 'choose-variant')}
-                                    className="btn-touch bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-2 rounded-lg font-medium disabled:opacity-50 whitespace-nowrap"
-                                >
-                                    {isInflight ? '…' : 'Choose'}
-                                </button>
+                                <span className="font-mono text-[11px] text-om-faint whitespace-nowrap">Skipped</span>
                             )}
                             {step.status === 'IN_PROGRESS' && !inflightStepId && (
-                                <span className="text-xs text-blue-600 whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-running whitespace-nowrap">
                                     In progress{step.started_by ? ` by ${step.started_by.name}` : ''}
                                 </span>
                             )}
-                            {/* Blocked: waiting on the previous step */}
-                            {step.status === 'PENDING' && (
-                                <span className="text-xs text-gray-400 whitespace-nowrap">Pending</span>
-                            )}
                             {/* Fallback for older data without explicit status field */}
                             {!step.status && step.completed_at && (
-                                <span className="text-xs text-green-600 whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
                                     Done{step.completed_by ? ` by ${step.completed_by.name}` : ''}
                                 </span>
                             )}
                             {!step.status && !step.completed_at && step.started_at && (
-                                <span className="text-xs text-blue-600 whitespace-nowrap">
+                                <span className="font-mono text-[11px] text-om-running whitespace-nowrap">
                                     In progress{step.started_by ? ` by ${step.started_by.name}` : ''}
                                 </span>
                             )}
 
-                            {/* Action buttons — Start only when the step is READY */}
-                            {step.status === 'READY' && (
-                                <button
-                                    type="button"
+                            {/* Action buttons */}
+                            {step.status === 'PENDING' && (
+                                <Button
+                                    variant="accent"
                                     disabled={isInflight}
                                     onClick={() => handleStepAction(step, 'start')}
-                                    className="btn-touch bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg font-medium disabled:opacity-50 whitespace-nowrap"
+                                    className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
                                     {isInflight ? '…' : 'Start'}
-                                </button>
+                                </Button>
                             )}
                             {step.status === 'IN_PROGRESS' && (
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="primary"
                                     disabled={isInflight}
                                     onClick={() => handleStepAction(step, 'complete')}
-                                    className="btn-touch bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-lg font-medium disabled:opacity-50 whitespace-nowrap"
+                                    className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
                                     {isInflight ? '…' : 'Complete'}
-                                </button>
-                            )}
-
-                            {/* Skip — optional steps and variant alternatives */}
-                            {canSkip(step) && (
-                                <button
-                                    type="button"
-                                    disabled={isInflight}
-                                    onClick={() => handleSkip(step)}
-                                    className="btn-touch bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-200 text-sm px-3 py-2 rounded-lg font-medium disabled:opacity-50 whitespace-nowrap"
-                                >
-                                    {isInflight ? '…' : 'Skip'}
-                                </button>
+                                </Button>
                             )}
 
                             {/* Per-step label print (compact) */}
@@ -823,7 +843,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
             {photoZoom && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onClick={() => setPhotoZoom(null)}>
                     <figure className="max-w-3xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
-                        <img src={photoZoom.url} alt={photoZoom.caption || 'Step photo'} className="max-w-full max-h-[80vh] rounded-lg shadow-2xl" />
+                        <img src={photoZoom.url} alt={photoZoom.caption || 'Step photo'} className="max-w-full max-h-[80vh] rounded-om shadow-2xl" />
                         {photoZoom.caption && (
                             <figcaption className="text-white/90 text-sm mt-3 text-center">{photoZoom.caption}</figcaption>
                         )}
@@ -855,124 +875,106 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
     };
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
-            <div className="flex min-h-full items-center justify-center p-4">
-                <div
-                    className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Create New Batch</h3>
+        <ModalShell title="Create New Batch" subtitle={workOrder.order_no} onClose={onClose}>
+            <form onSubmit={submit}>
+                <div className="px-[18px] py-4">
+                    {/* Quantity */}
+                    <div className="mb-4">
+                        <label className={fieldLabelCls}>
+                            Quantity
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max={remaining}
+                            value={form.data.target_qty}
+                            onChange={(e) => form.setData('target_qty', e.target.value)}
+                            className={`${inputCls} font-mono text-[15px]`}
+                            required
+                        />
+                        <p className="mt-1 font-mono text-[11px] text-om-faint">Remaining: {fmtQty(remaining)}</p>
+                        {form.errors.target_qty && (
+                            <p className={errorCls}>{form.errors.target_qty}</p>
+                        )}
+                    </div>
 
-                    <form onSubmit={submit}>
-                        {/* Quantity */}
+                    {/* Workstation */}
+                    {workstations.length > 0 && (
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Quantity
+                            <label className={fieldLabelCls}>
+                                Workstation
                             </label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                min="0.01"
-                                max={remaining}
-                                value={form.data.target_qty}
-                                onChange={(e) => form.setData('target_qty', e.target.value)}
-                                className="form-input w-full"
-                                required
-                            />
-                            <p className="mt-1 text-sm text-gray-500">Remaining: {fmtQty(remaining)}</p>
-                            {form.errors.target_qty && (
-                                <p className="text-red-600 text-sm mt-1">{form.errors.target_qty}</p>
+                            {workstations.length === 1 ? (
+                                <>
+                                    <input type="hidden" value={workstations[0].id} />
+                                    <p className="text-sm text-om-muted py-2">
+                                        {workstations[0].name}
+                                    </p>
+                                </>
+                            ) : (
+                                <Dropdown
+                                    options={workstations.map((ws) => ({ value: String(ws.id), label: ws.name }))}
+                                    value={form.data.workstation_id == null ? '' : String(form.data.workstation_id)}
+                                    onChange={(v) => form.setData('workstation_id', v)}
+                                    placeholder="— Select workstation —"
+                                    className="w-full"
+                                />
+                            )}
+                            {form.errors.workstation_id && (
+                                <p className={errorCls}>{form.errors.workstation_id}</p>
                             )}
                         </div>
+                    )}
 
-                        {/* Workstation */}
-                        {workstations.length > 0 && (
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Workstation
-                                </label>
-                                {workstations.length === 1 ? (
-                                    <>
-                                        <input type="hidden" value={workstations[0].id} />
-                                        <p className="text-sm text-gray-600 dark:text-gray-400 py-2">
-                                            {workstations[0].name}
-                                        </p>
-                                    </>
-                                ) : (
-                                    <select
-                                        value={form.data.workstation_id}
-                                        onChange={(e) => form.setData('workstation_id', e.target.value)}
-                                        className="form-input w-full"
-                                    >
-                                        <option value="">— Select workstation —</option>
-                                        {workstations.map((ws) => (
-                                            <option key={ws.id} value={ws.id}>
-                                                {ws.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
-                                {form.errors.workstation_id && (
-                                    <p className="text-red-600 text-sm mt-1">{form.errors.workstation_id}</p>
-                                )}
-                            </div>
-                        )}
+                    {/* Auto-LOT */}
+                    <div className="mb-4">
+                        <Checkbox
+                            checked={form.data.auto_lot}
+                            onChange={(next) => form.setData('auto_lot', next)}
+                            label="Auto-generate LOT number"
+                        />
+                    </div>
 
-                        {/* Auto-LOT */}
+                    {/* Manual LOT */}
+                    {!form.data.auto_lot && (
                         <div className="mb-4">
-                            <label className="inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={form.data.auto_lot}
-                                    onChange={(e) => form.setData('auto_lot', e.target.checked)}
-                                    className="rounded border-gray-300 text-blue-600"
-                                />
-                                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                                    Auto-generate LOT number
-                                </span>
+                            <label className={fieldLabelCls}>
+                                LOT Number (manual)
                             </label>
+                            <input
+                                type="text"
+                                value={form.data.lot_number}
+                                onChange={(e) => form.setData('lot_number', e.target.value)}
+                                className={`${inputCls} font-mono`}
+                                placeholder="Leave empty for no LOT"
+                            />
+                            {form.errors.lot_number && (
+                                <p className={errorCls}>{form.errors.lot_number}</p>
+                            )}
                         </div>
-
-                        {/* Manual LOT */}
-                        {!form.data.auto_lot && (
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    LOT Number (manual)
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.data.lot_number}
-                                    onChange={(e) => form.setData('lot_number', e.target.value)}
-                                    className="form-input w-full"
-                                    placeholder="Leave empty for no LOT"
-                                />
-                                {form.errors.lot_number && (
-                                    <p className="text-red-600 text-sm mt-1">{form.errors.lot_number}</p>
-                                )}
-                            </div>
-                        )}
-
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="btn-touch btn-secondary"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={form.processing}
-                                className="btn-touch btn-primary disabled:opacity-50"
-                            >
-                                Create Batch
-                            </button>
-                        </div>
-                    </form>
+                    )}
                 </div>
-            </div>
-        </div>
+
+                <div className={modalFooterCls}>
+                    <Button
+                        variant="secondary"
+                        onClick={onClose}
+                        className="px-6 py-4 text-[15px] font-semibold"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        type="submit"
+                        variant="accent"
+                        disabled={form.processing}
+                        className="px-6 py-4 text-[15px] font-semibold"
+                    >
+                        Create Batch
+                    </Button>
+                </div>
+            </form>
+        </ModalShell>
     );
 }
 
@@ -995,94 +997,81 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
     };
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
-            <div className="flex min-h-full items-center justify-center p-4">
-                <div
-                    className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Report Issue</h3>
+        <ModalShell title="Report Issue" subtitle={workOrder.order_no} onClose={onClose}>
+            <form onSubmit={submit}>
+                <div className="px-[18px] py-4 space-y-4">
+                    <div>
+                        <label className={fieldLabelCls}>
+                            Issue Type <span className="text-om-blocked">*</span>
+                        </label>
+                        <Dropdown
+                            options={issueTypes.map((type) => ({
+                                value: String(type.id),
+                                label: `${type.name}${type.is_blocking ? ' ⚠ Blocking' : ''}`,
+                            }))}
+                            value={form.data.issue_type_id == null ? '' : String(form.data.issue_type_id)}
+                            onChange={(v) => form.setData('issue_type_id', v)}
+                            placeholder="— Select type —"
+                            className="w-full"
+                        />
+                        {form.errors.issue_type_id && (
+                            <p className={errorCls}>{form.errors.issue_type_id}</p>
+                        )}
+                    </div>
 
-                    <form onSubmit={submit}>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Issue Type <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={form.data.issue_type_id}
-                                    onChange={(e) => form.setData('issue_type_id', e.target.value)}
-                                    className="form-input w-full"
-                                    required
-                                >
-                                    <option value="">— Select type —</option>
-                                    {issueTypes.map((type) => (
-                                        <option key={type.id} value={type.id}>
-                                            {type.name}
-                                            {type.is_blocking ? ' ⚠ Blocking' : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                                {form.errors.issue_type_id && (
-                                    <p className="text-red-600 text-sm mt-1">{form.errors.issue_type_id}</p>
-                                )}
-                            </div>
+                    <div>
+                        <label className={fieldLabelCls}>
+                            Title <span className="text-om-blocked">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={form.data.title}
+                            onChange={(e) => form.setData('title', e.target.value)}
+                            className={inputCls}
+                            placeholder="Brief summary of the issue"
+                            required
+                            maxLength={255}
+                        />
+                        {form.errors.title && (
+                            <p className={errorCls}>{form.errors.title}</p>
+                        )}
+                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Title <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.data.title}
-                                    onChange={(e) => form.setData('title', e.target.value)}
-                                    className="form-input w-full"
-                                    placeholder="Brief summary of the issue"
-                                    required
-                                    maxLength={255}
-                                />
-                                {form.errors.title && (
-                                    <p className="text-red-600 text-sm mt-1">{form.errors.title}</p>
-                                )}
-                            </div>
+                    <div>
+                        <label className={fieldLabelCls}>
+                            Description
+                        </label>
+                        <textarea
+                            value={form.data.description}
+                            onChange={(e) => form.setData('description', e.target.value)}
+                            rows={3}
+                            className={`${inputCls} resize-none`}
+                            placeholder="Additional details…"
+                            maxLength={2000}
+                        />
+                        {form.errors.description && (
+                            <p className={errorCls}>{form.errors.description}</p>
+                        )}
+                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Description
-                                </label>
-                                <textarea
-                                    value={form.data.description}
-                                    onChange={(e) => form.setData('description', e.target.value)}
-                                    rows={3}
-                                    className="form-input w-full"
-                                    placeholder="Additional details…"
-                                    maxLength={2000}
-                                />
-                                {form.errors.description && (
-                                    <p className="text-red-600 text-sm mt-1">{form.errors.description}</p>
-                                )}
-                            </div>
-
-                            {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
-                        </div>
-
-                        <div className="flex gap-3 justify-end mt-6">
-                            <button type="button" onClick={onClose} className="btn-touch btn-secondary">
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={form.processing}
-                                className="btn-touch btn-primary bg-red-600 hover:bg-red-700 disabled:opacity-50"
-                            >
-                                Report Issue
-                            </button>
-                        </div>
-                    </form>
+                    {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
                 </div>
-            </div>
-        </div>
+
+                <div className={modalFooterCls}>
+                    <Button variant="secondary" onClick={onClose} className="px-6 py-4 text-[15px] font-semibold">
+                        Cancel
+                    </Button>
+                    <Button
+                        type="submit"
+                        variant="danger"
+                        disabled={form.processing}
+                        className="px-6 py-4 text-[15px] font-semibold"
+                    >
+                        Report Issue
+                    </Button>
+                </div>
+            </form>
+        </ModalShell>
     );
 }
 
@@ -1104,92 +1093,80 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className="flex min-h-full items-center justify-center p-4">
-                <div
-                    className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Report Scrap</h3>
+        <ModalShell title="Report Scrap" subtitle={workOrder.order_no} onClose={onClose}>
+            <form onSubmit={submit}>
+                <div className="px-[18px] py-4 space-y-4">
+                    <div>
+                        <label className={fieldLabelCls}>
+                            Reason <span className="text-om-blocked">*</span>
+                        </label>
+                        <Dropdown
+                            options={scrapReasons.map((reason) => ({
+                                value: String(reason.id),
+                                label: `${reason.code} — ${reason.name}`,
+                            }))}
+                            value={form.data.scrap_reason_id == null ? '' : String(form.data.scrap_reason_id)}
+                            onChange={(v) => form.setData('scrap_reason_id', v)}
+                            placeholder="— Select reason —"
+                            className="w-full"
+                        />
+                        {form.errors.scrap_reason_id && (
+                            <p className={errorCls}>{form.errors.scrap_reason_id}</p>
+                        )}
+                    </div>
 
-                    <form onSubmit={submit}>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Reason <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    value={form.data.scrap_reason_id}
-                                    onChange={(e) => form.setData('scrap_reason_id', e.target.value)}
-                                    className="form-input w-full"
-                                    required
-                                >
-                                    <option value="">— Select reason —</option>
-                                    {scrapReasons.map((reason) => (
-                                        <option key={reason.id} value={reason.id}>
-                                            {reason.code} — {reason.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                {form.errors.scrap_reason_id && (
-                                    <p className="text-red-600 text-sm mt-1">{form.errors.scrap_reason_id}</p>
-                                )}
-                            </div>
+                    <div>
+                        <label className={fieldLabelCls}>
+                            Quantity <span className="text-om-blocked">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={form.data.quantity}
+                            onChange={(e) => form.setData('quantity', e.target.value)}
+                            className={`${inputCls} font-mono text-[15px]`}
+                            placeholder="0"
+                            required
+                        />
+                        {form.errors.quantity && (
+                            <p className={errorCls}>{form.errors.quantity}</p>
+                        )}
+                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Quantity <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    value={form.data.quantity}
-                                    onChange={(e) => form.setData('quantity', e.target.value)}
-                                    className="form-input w-full"
-                                    placeholder="0"
-                                    required
-                                />
-                                {form.errors.quantity && (
-                                    <p className="text-red-600 text-sm mt-1">{form.errors.quantity}</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Notes
-                                </label>
-                                <textarea
-                                    value={form.data.notes}
-                                    onChange={(e) => form.setData('notes', e.target.value)}
-                                    rows={3}
-                                    className="form-input w-full"
-                                    placeholder="Additional details…"
-                                    maxLength={2000}
-                                />
-                                {form.errors.notes && (
-                                    <p className="text-red-600 text-sm mt-1">{form.errors.notes}</p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 justify-end mt-6">
-                            <button type="button" onClick={onClose} className="btn-touch btn-secondary">
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={form.processing}
-                                className="btn-touch btn-primary bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
-                            >
-                                Report Scrap
-                            </button>
-                        </div>
-                    </form>
+                    <div>
+                        <label className={fieldLabelCls}>
+                            Notes
+                        </label>
+                        <textarea
+                            value={form.data.notes}
+                            onChange={(e) => form.setData('notes', e.target.value)}
+                            rows={3}
+                            className={`${inputCls} resize-none`}
+                            placeholder="Additional details…"
+                            maxLength={2000}
+                        />
+                        {form.errors.notes && (
+                            <p className={errorCls}>{form.errors.notes}</p>
+                        )}
+                    </div>
                 </div>
-            </div>
-        </div>
+
+                <div className={modalFooterCls}>
+                    <Button variant="secondary" onClick={onClose} className="px-6 py-4 text-[15px] font-semibold">
+                        Cancel
+                    </Button>
+                    <Button
+                        type="submit"
+                        variant="danger"
+                        disabled={form.processing}
+                        className="px-6 py-4 text-[15px] font-semibold"
+                    >
+                        Report Scrap
+                    </Button>
+                </div>
+            </form>
+        </ModalShell>
     );
 }
 
@@ -1228,19 +1205,17 @@ export default function WorkOrderDetail() {
             {line && <LineSync lineId={line.id} reloadOnly={['workOrder']} />}
 
             <div className="max-w-7xl mx-auto">
-                {/* Header */}
+                {/* Header — active-WO hero idiom: mono order code + status pill */}
                 <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
+                            <h1 className="font-mono text-[28px] font-semibold tracking-[-0.02em] text-om-ink">
                                 {workOrder.order_no}
                             </h1>
-                            <span className={`px-4 py-2 rounded-full text-sm font-medium ${statusBadge(workOrder.status)}`}>
-                                {statusLabel(workOrder.status)}
-                            </span>
+                            <StatusPill status={pillStatus(workOrder.status)} label={statusLabel(workOrder.status)} />
                         </div>
                         {workOrder.product_type && (
-                            <p className="text-gray-600 dark:text-gray-400 mt-2">{workOrder.product_type.name}</p>
+                            <p className="text-om-muted mt-2 text-[15px]">{workOrder.product_type.name}</p>
                         )}
                     </div>
                     <div className="flex items-center gap-3">
@@ -1250,7 +1225,10 @@ export default function WorkOrderDetail() {
                             templates={labelTemplates}
                             label="Print WO Label"
                         />
-                        <Link href="/operator/queue" className="btn-touch btn-secondary">
+                        <Link
+                            href="/operator/queue"
+                            className="inline-flex items-center justify-center rounded-om-sm border border-om-line bg-om-card px-5 py-3 text-sm font-semibold text-om-ink hover:bg-om-chip transition-colors"
+                        >
                             ← Back to Queue
                         </Link>
                     </div>
@@ -1260,44 +1238,44 @@ export default function WorkOrderDetail() {
                     {/* Main content */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Work Order Details card */}
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
-                            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Work Order Details</h2>
+                        <div className={cardCls}>
+                            <h2 className={`${sectionLabelCls} mb-4`}>Work Order Details</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm text-gray-500">Order Number</p>
-                                    <p className="font-medium text-gray-800 dark:text-gray-100 font-mono">{workOrder.order_no}</p>
+                                    <p className={fieldLabelCls}>Order Number</p>
+                                    <p className="font-mono text-[15px] font-medium text-om-ink">{workOrder.order_no}</p>
                                 </div>
 
                                 {workOrder.product_type && (
                                     <div>
-                                        <p className="text-sm text-gray-500">Product Type</p>
-                                        <p className="font-medium text-gray-800 dark:text-gray-100">{workOrder.product_type.name}</p>
+                                        <p className={fieldLabelCls}>Product Type</p>
+                                        <p className="font-medium text-om-ink">{workOrder.product_type.name}</p>
                                     </div>
                                 )}
 
                                 {workOrder.line && (
                                     <div>
-                                        <p className="text-sm text-gray-500">Line</p>
-                                        <p className="font-medium text-gray-800 dark:text-gray-100">{workOrder.line.name}</p>
+                                        <p className={fieldLabelCls}>Line</p>
+                                        <p className="font-medium text-om-ink">{workOrder.line.name}</p>
                                     </div>
                                 )}
 
                                 <div>
-                                    <p className="text-sm text-gray-500">Priority</p>
-                                    <p className="font-medium text-gray-800 dark:text-gray-100">{workOrder.priority}</p>
+                                    <p className={fieldLabelCls}>Priority</p>
+                                    <p className="font-mono text-[15px] font-medium text-om-ink">{workOrder.priority}</p>
                                 </div>
 
                                 <div>
-                                    <p className="text-sm text-gray-500">Planned Quantity</p>
-                                    <p className="font-medium text-gray-800 dark:text-gray-100">{fmtQty(plannedQty)}</p>
+                                    <p className={fieldLabelCls}>Planned Quantity</p>
+                                    <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(plannedQty)}</p>
                                 </div>
 
                                 <div>
-                                    <p className="text-sm text-gray-500">Produced Quantity</p>
-                                    <p className="font-medium text-gray-800 dark:text-gray-100">
+                                    <p className={fieldLabelCls}>Produced Quantity</p>
+                                    <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">
                                         {fmtQty(producedQty)}
                                         {plannedQty > 0 && (
-                                            <span className="text-sm text-gray-500 ml-1">
+                                            <span className="font-mono text-[13px] text-om-faint ml-1">
                                                 ({fmtQty((producedQty / plannedQty) * 100, 1)}%)
                                             </span>
                                         )}
@@ -1306,8 +1284,8 @@ export default function WorkOrderDetail() {
 
                                 {dueDateStr && (
                                     <div>
-                                        <p className="text-sm text-gray-500">Due Date</p>
-                                        <p className={`font-medium ${dueDatePast ? 'text-red-600' : 'text-gray-800 dark:text-gray-100'}`}>
+                                        <p className={fieldLabelCls}>Due Date</p>
+                                        <p className={`font-mono text-[15px] font-medium ${dueDatePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {formatDate(new Date(dueDateStr), { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </p>
                                     </div>
@@ -1315,8 +1293,8 @@ export default function WorkOrderDetail() {
 
                                 {workOrder.description && (
                                     <div className="md:col-span-2">
-                                        <p className="text-sm text-gray-500">Description</p>
-                                        <p className="font-medium text-gray-800 dark:text-gray-100">{workOrder.description}</p>
+                                        <p className={fieldLabelCls}>Description</p>
+                                        <p className="font-medium text-om-ink">{workOrder.description}</p>
                                     </div>
                                 )}
                             </div>
@@ -1329,23 +1307,23 @@ export default function WorkOrderDetail() {
                         <ProcessPhotosSection photos={processPhotos} />
 
                         {/* Batches */}
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+                        <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Batches</h2>
+                                <h2 className={sectionLabelCls}>Batches</h2>
                                 {canCreateBatch && (
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="accent"
                                         onClick={() => setCreateBatchOpen(true)}
-                                        className="btn-touch btn-primary text-sm"
+                                        className="px-5 py-3 text-[14px]"
                                     >
                                         + Create Batch
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
 
                             {(!workOrder.batches || workOrder.batches.length === 0) ? (
-                                <div className="text-center py-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                    <p className="text-gray-500">No batches created yet.</p>
+                                <div className="text-center py-8 bg-om-panel border border-om-line2 rounded-om-sm">
+                                    <p className="text-sm text-om-faint">No batches created yet.</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -1366,77 +1344,70 @@ export default function WorkOrderDetail() {
                     {/* Sidebar */}
                     <div className="space-y-6">
                         {/* Progress */}
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
-                            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Progress</h3>
+                        <div className={cardCls}>
+                            <h3 className={`${sectionLabelCls} mb-4`}>Progress</h3>
                             <div className="mb-4">
-                                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                    <span>Completion</span>
-                                    <span>{fmtQty(pct, 1)}%</span>
+                                <div className="flex justify-between items-baseline mb-2">
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Completion</span>
+                                    <span className="font-mono text-[13px] text-om-ink">{fmtQty(pct, 1)}%</span>
                                 </div>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                                    <div
-                                        className={`${pct >= 100 ? 'bg-green-500' : 'bg-blue-600'} h-4 rounded-full transition-all`}
-                                        style={{ width: `${pct}%` }}
-                                    />
-                                </div>
+                                <ProgressBar value={pct} color={pct >= 100 ? 'var(--color-om-running)' : undefined} />
                             </div>
                             <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">Planned:</span>
-                                    <span className="font-medium">{fmtQty(plannedQty)}</span>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Planned:</span>
+                                    <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(plannedQty)}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">Produced:</span>
-                                    <span className="font-medium">{fmtQty(producedQty)}</span>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Produced:</span>
+                                    <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(producedQty)}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-500">Remaining:</span>
-                                    <span className="font-medium">{fmtQty(remaining)}</span>
+                                <div className="flex justify-between items-baseline">
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Remaining:</span>
+                                    <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-accent">{fmtQty(remaining)}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Issues */}
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+                        <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Issues</h3>
+                                <h3 className={sectionLabelCls}>Issues</h3>
                                 {canReportIssue && (
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="danger"
                                         onClick={() => setReportIssueOpen(true)}
-                                        className="text-sm text-red-600 hover:text-red-800 font-medium border border-red-200 hover:border-red-400 px-3 py-1 rounded-lg transition-colors"
+                                        className="px-4 py-2.5 text-[13px]"
                                     >
                                         + Report
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
 
                             {(!workOrder.issues || workOrder.issues.length === 0) ? (
-                                <p className="text-sm text-gray-400 text-center py-4">No issues reported.</p>
+                                <p className="text-sm text-om-faint text-center py-4">No issues reported.</p>
                             ) : (
                                 <div className="space-y-3">
                                     {workOrder.issues.slice(0, 5).map((issue) => (
                                         <div
                                             key={issue.id}
-                                            className={`p-3 rounded-lg ${issue.issue_type?.is_blocking ? 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800' : 'bg-gray-50 dark:bg-gray-800/50'}`}
+                                            className={`p-3 rounded-om-sm border ${issue.issue_type?.is_blocking ? 'bg-om-blocked-bg/60 border-om-blocked/20' : 'bg-om-panel border-om-line2'}`}
                                         >
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                                                <span className="text-xs font-semibold text-om-ink">
                                                     {issue.issue_type?.name}
                                                 </span>
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${issueBadge(issue.status)}`}>
-                                                    {issue.status}
-                                                </span>
+                                                <StatusPill status={issuePillStatus(issue.status)} label={issue.status} />
                                             </div>
-                                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{issue.title}</p>
+                                            <p className="text-sm font-medium text-om-ink">{issue.title}</p>
                                             {issue.description && (
-                                                <p className="text-xs text-gray-500 mt-1">
+                                                <p className="text-xs text-om-muted mt-1">
                                                     {issue.description.length > 80
                                                         ? `${issue.description.slice(0, 80)}…`
                                                         : issue.description}
                                                 </p>
                                             )}
-                                            <p className="text-xs text-gray-400 mt-1">
+                                            <p className="font-mono text-[10px] text-om-faint mt-1">
                                                 {issue.reported_at
                                                     ? formatDateTime(new Date(issue.reported_at))
                                                     : ''}
@@ -1445,7 +1416,7 @@ export default function WorkOrderDetail() {
                                         </div>
                                     ))}
                                     {workOrder.issues.length > 5 && (
-                                        <p className="text-xs text-gray-400 text-center">
+                                        <p className="font-mono text-[10px] text-om-faint text-center">
                                             +{workOrder.issues.length - 5} more issues
                                         </p>
                                     )}
@@ -1454,58 +1425,58 @@ export default function WorkOrderDetail() {
                         </div>
 
                         {/* Scrap */}
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+                        <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">Scrap</h3>
+                                <h3 className={sectionLabelCls}>Scrap</h3>
                                 {canReportScrap && (
                                     <button
                                         type="button"
                                         onClick={() => setReportScrapOpen(true)}
-                                        className="text-sm text-amber-600 hover:text-amber-800 font-medium border border-amber-200 hover:border-amber-400 px-3 py-1 rounded-lg transition-colors"
+                                        className="inline-flex items-center justify-center rounded-om-sm bg-om-downtime-bg px-4 py-2.5 text-[13px] font-semibold text-om-downtime hover:bg-[#f5e7c8] transition-colors cursor-pointer"
                                     >
                                         + Report
                                     </button>
                                 )}
                             </div>
 
-                            <div className="flex justify-between text-sm mb-2">
-                                <span className="text-gray-500">Total scrap:</span>
-                                <span className="font-medium">{fmtQty(totalScrap)}</span>
+                            <div className="flex justify-between items-baseline text-sm mb-2">
+                                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Total scrap:</span>
+                                <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(totalScrap)}</span>
                             </div>
                             {qualityPct !== null && (
-                                <div className="flex justify-between text-sm mb-3">
-                                    <span className="text-gray-500">Quality:</span>
-                                    <span className={`font-medium ${qualityPct < 100 ? 'text-amber-600' : 'text-green-600'}`}>
+                                <div className="flex justify-between items-baseline text-sm mb-3">
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Quality:</span>
+                                    <span className={`font-mono text-[15px] font-medium ${qualityPct < 100 ? 'text-om-downtime' : 'text-om-running'}`}>
                                         {qualityPct.toFixed(1)}%
                                     </span>
                                 </div>
                             )}
 
                             {scrapEntries.length === 0 ? (
-                                <p className="text-sm text-gray-400 text-center py-4">No scrap reported.</p>
+                                <p className="text-sm text-om-faint text-center py-4">No scrap reported.</p>
                             ) : (
                                 <div className="space-y-2">
                                     {scrapEntries.slice(0, 5).map((entry) => (
-                                        <div key={entry.id} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                        <div key={entry.id} className="p-3 rounded-om-sm bg-om-panel border border-om-line2">
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                                                <span className="text-xs font-semibold text-om-ink">
                                                     {entry.scrap_reason?.name ?? 'Unknown'}
                                                 </span>
-                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fmtQty(entry.quantity)}</span>
+                                                <span className="font-mono text-[13px] font-medium text-om-ink">{fmtQty(entry.quantity)}</span>
                                             </div>
                                             {entry.notes && (
-                                                <p className="text-xs text-gray-500">
+                                                <p className="text-xs text-om-muted">
                                                     {entry.notes.length > 80 ? `${entry.notes.slice(0, 80)}…` : entry.notes}
                                                 </p>
                                             )}
-                                            <p className="text-xs text-gray-400 mt-1">
+                                            <p className="font-mono text-[10px] text-om-faint mt-1">
                                                 {entry.reported_at ? new Date(entry.reported_at).toLocaleString() : ''}
                                                 {entry.reported_by ? ` by ${entry.reported_by.name}` : ''}
                                             </p>
                                         </div>
                                     ))}
                                     {scrapEntries.length > 5 && (
-                                        <p className="text-xs text-gray-400 text-center">+{scrapEntries.length - 5} more</p>
+                                        <p className="font-mono text-[10px] text-om-faint text-center">+{scrapEntries.length - 5} more</p>
                                     )}
                                 </div>
                             )}

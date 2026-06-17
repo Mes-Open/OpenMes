@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
+import { Button, Checkbox, IconButton } from '@openmes/ui';
 import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
@@ -16,8 +17,10 @@ export default function LineStatusesIndex() {
         <>
             <Head title={__('Line Statuses')} />
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">{__('Line Statuses')}</h1>
-                <p className="text-gray-500 text-sm mb-6">
+                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-2">
+                    {__('Line Statuses')}
+                </h1>
+                <p className="text-om-muted text-sm mb-6">
                     {__('Global kanban statuses available to every production line.')}
                 </p>
                 <Editor />
@@ -35,10 +38,10 @@ function Editor() {
     );
 
     return (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-om-card rounded-om-sm shadow-sm overflow-hidden">
             <table className="w-full text-sm">
                 <thead>
-                    <tr className="text-left text-gray-500 border-b bg-gray-50">
+                    <tr className="text-left text-om-muted border-b border-om-line bg-om-panel">
                         <th className="px-4 py-3">{__('Color')}</th>
                         <th className="px-4 py-3">{__('Name')}</th>
                         <th className="px-4 py-3 w-24">{__('Order')}</th>
@@ -86,9 +89,9 @@ function StatusRow({ status }) {
     };
 
     return (
-        <tr className="border-b last:border-0">
+        <tr className="border-b border-om-line last:border-0">
             <td className="px-4 py-2">
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-gray-300 p-0.5" />
+                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-om-line p-0.5" />
             </td>
             <td className="px-4 py-2">
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="form-input w-full" />
@@ -96,28 +99,32 @@ function StatusRow({ status }) {
             <td className="px-4 py-2">
                 <input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="form-input w-full" />
             </td>
-            <td className="px-4 py-2 text-center">
-                <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
+            <td className="px-4 py-2">
+                <div className="flex justify-center">
+                    <Checkbox checked={isDefault} onChange={setIsDefault} />
+                </div>
             </td>
             <td className="px-4 py-2">
                 <div className="flex items-center justify-end gap-2">
-                    <button
+                    <Button
+                        type="button"
+                        variant="primary"
                         onClick={save}
                         disabled={!dirty || saving}
-                        className="btn-touch btn-primary text-sm disabled:opacity-50"
+                        loading={saving}
                     >
                         {saving ? __('Saving…') : __('Save')}
-                    </button>
-                    <button
+                    </Button>
+                    <IconButton
+                        variant="danger"
                         onClick={destroy}
-                        className="p-1.5 rounded-md transition-colors text-red-600 hover:text-red-800"
                         title={__('Delete')}
                         aria-label={__('Delete')}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                    </button>
+                    </IconButton>
                 </div>
             </td>
         </tr>
@@ -144,23 +151,25 @@ function AddRow({ nextOrder }) {
     };
 
     return (
-        <tr className="bg-gray-50/50">
+        <tr className="bg-om-panel/50">
             <td className="px-4 py-2">
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-gray-300 p-0.5" />
+                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-12 rounded border border-om-line p-0.5" />
             </td>
             <td className="px-4 py-2">
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={__('New status name…')} className="form-input w-full" />
             </td>
-            <td className="px-4 py-2 text-gray-400">{nextOrder}</td>
+            <td className="px-4 py-2 text-om-faint">{nextOrder}</td>
             <td />
             <td className="px-4 py-2 text-right">
-                <button
+                <Button
+                    type="button"
+                    variant="primary"
                     onClick={add}
                     disabled={!name.trim() || adding}
-                    className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    loading={adding}
                 >
                     {adding ? __('Adding…') : __('Add')}
-                </button>
+                </Button>
             </td>
         </tr>
     );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
 const AUTO_MAP_RULES = {
@@ -106,22 +107,22 @@ export default function MaterialsImportMapping() {
             <Head title="Map Material Columns" />
 
             {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-                <Link href="/admin/dashboard" className="hover:text-gray-700">Dashboard</Link>
+            <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
+                <Link href="/admin/dashboard" className="hover:text-om-ink">Dashboard</Link>
                 <span>/</span>
-                <Link href="/admin/materials" className="hover:text-gray-700">Materials</Link>
+                <Link href="/admin/materials" className="hover:text-om-ink">Materials</Link>
                 <span>/</span>
-                <Link href="/admin/materials/import" className="hover:text-gray-700">Import</Link>
+                <Link href="/admin/materials/import" className="hover:text-om-ink">Import</Link>
                 <span>/</span>
-                <span className="text-gray-800 font-medium">Map Columns</span>
+                <span className="text-om-ink font-medium">Map Columns</span>
             </nav>
 
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Map Columns</h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    <h1 className="text-3xl font-bold text-om-ink">Map Columns</h1>
+                    <p className="text-om-muted mt-1">
                         Assign each column to a material field.{' '}
-                        <span className="font-medium text-blue-700">{totalRows} rows</span> to import
+                        <span className="font-medium text-om-accent">{totalRows} rows</span> to import
                         {externalSystem && (
                             <> &middot; Source: <span className="font-medium">{externalSystem}</span></>
                         )}
@@ -142,20 +143,20 @@ export default function MaterialsImportMapping() {
                     <div className="lg:col-span-2 space-y-4">
                         <div className="card">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Column Mapping</h2>
+                                <h2 className="text-xl font-bold text-om-ink">Column Mapping</h2>
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
                                         onClick={handleAutoMap}
-                                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                        className="text-xs text-om-accent hover:text-om-accent underline"
                                     >
                                         Auto-detect
                                     </button>
-                                    <span className="text-gray-300">|</span>
+                                    <span className="text-om-faintest">|</span>
                                     <button
                                         type="button"
                                         onClick={handleClearAll}
-                                        className="text-xs text-red-500 hover:text-red-700 underline"
+                                        className="text-xs text-om-blocked hover:text-om-blocked underline"
                                     >
                                         Clear all
                                     </button>
@@ -166,35 +167,36 @@ export default function MaterialsImportMapping() {
                                 {headers.map((h) => {
                                     const sampleVal = previewRows[0]?.[h] ?? '';
                                     return (
-                                        <div key={h} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                        <div key={h} className="flex items-center gap-3 p-3 bg-om-panel rounded-om-sm">
                                             <div className="w-1/3 min-w-0">
                                                 <span
-                                                    className="text-sm font-mono font-medium text-gray-800 dark:text-gray-200 truncate block"
+                                                    className="text-sm font-mono font-medium text-om-ink truncate block"
                                                     title={h}
                                                 >
                                                     {h}
                                                 </span>
                                                 {sampleVal && (
-                                                    <span className="text-xs text-gray-400 truncate block">
+                                                    <span className="text-xs text-om-faint truncate block">
                                                         e.g. {sampleVal.length > 40 ? sampleVal.slice(0, 40) + '…' : sampleVal}
                                                     </span>
                                                 )}
                                             </div>
                                             <Icon
                                                 d="M14 5l7 7m0 0l-7 7m7-7H3"
-                                                className="w-5 h-5 text-gray-400 shrink-0"
+                                                className="w-5 h-5 text-om-faint shrink-0"
                                             />
                                             <div className="flex-1">
-                                                <select
+                                                <input
+                                                    type="hidden"
                                                     name={`mapping[${h}]`}
-                                                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                                                     value={mappings[h] ?? '_ignore'}
-                                                    onChange={(e) => setMapping(h, e.target.value)}
-                                                >
-                                                    {Object.entries(systemFields).map(([val, label]) => (
-                                                        <option key={val} value={val}>{label}</option>
-                                                    ))}
-                                                </select>
+                                                />
+                                                <Dropdown
+                                                    className="w-full"
+                                                    options={Object.entries(systemFields).map(([val, label]) => ({ value: String(val), label }))}
+                                                    value={mappings[h] == null ? '_ignore' : String(mappings[h])}
+                                                    onChange={(v) => setMapping(h, v)}
+                                                />
                                             </div>
                                         </div>
                                     );
@@ -204,7 +206,7 @@ export default function MaterialsImportMapping() {
 
                         {/* Data preview */}
                         <div className="card">
-                            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-3">
+                            <h2 className="text-lg font-semibold text-om-ink mb-3">
                                 Data Preview (first {previewRows.length} rows)
                             </h2>
                             <div className="overflow-x-auto">
@@ -214,20 +216,20 @@ export default function MaterialsImportMapping() {
                                             {headers.map((h) => (
                                                 <th
                                                     key={h}
-                                                    className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase bg-gray-50 dark:bg-slate-700 whitespace-nowrap"
+                                                    className="px-3 py-2 text-left text-xs font-medium text-om-muted uppercase bg-om-panel whitespace-nowrap"
                                                 >
                                                     {h}
                                                 </th>
                                             ))}
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+                                    <tbody className="divide-y divide-om-line2">
                                         {previewRows.map((row, ri) => (
                                             <tr key={ri}>
                                                 {headers.map((h) => (
                                                     <td
                                                         key={h}
-                                                        className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300 max-w-[200px] truncate"
+                                                        className="px-3 py-2 whitespace-nowrap text-om-muted max-w-[200px] truncate"
                                                     >
                                                         {row[h] ?? ''}
                                                     </td>
@@ -243,16 +245,16 @@ export default function MaterialsImportMapping() {
                     {/* Sidebar */}
                     <div className="lg:col-span-1 space-y-4">
                         <div className="card">
-                            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">Required Fields</h3>
-                            <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                                <li><span className="text-red-500">*</span> <strong>Name</strong> — material name</li>
-                                <li><span className="text-red-500">*</span> <strong>Code</strong> or <strong>External Code</strong> — for identification</li>
+                            <h3 className="text-sm font-semibold text-om-ink mb-3">Required Fields</h3>
+                            <ul className="text-sm text-om-muted space-y-1">
+                                <li><span className="text-om-blocked">*</span> <strong>Name</strong> — material name</li>
+                                <li><span className="text-om-blocked">*</span> <strong>Code</strong> or <strong>External Code</strong> — for identification</li>
                             </ul>
                         </div>
 
                         <div className="card">
-                            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">Strategy</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <h3 className="text-sm font-semibold text-om-ink mb-3">Strategy</h3>
+                            <p className="text-sm text-om-muted">
                                 {strategyDescription[importStrategy] ?? importStrategy}
                             </p>
                         </div>

@@ -14,15 +14,15 @@ const WO_STATUS_LABELS = {
 };
 
 const WO_STATUS_STYLES = {
-    PENDING:     'bg-yellow-100 text-yellow-800',
-    IN_PROGRESS: 'bg-blue-100 text-blue-800',
-    COMPLETED:   'bg-green-100 text-green-800',
-    BLOCKED:     'bg-red-100 text-red-800',
-    DONE:        'bg-green-100 text-green-800',
-    REJECTED:    'bg-red-200 text-red-800',
-    CANCELLED:   'bg-gray-200 text-gray-600',
-    ACCEPTED:    'bg-blue-100 text-blue-800',
-    PAUSED:      'bg-orange-100 text-orange-800',
+    PENDING:     'bg-om-downtime-bg text-om-downtime',
+    IN_PROGRESS: 'bg-om-chip text-om-accent',
+    COMPLETED:   'bg-om-running-bg text-om-running',
+    BLOCKED:     'bg-om-blocked-bg text-om-blocked',
+    DONE:        'bg-om-running-bg text-om-running',
+    REJECTED:    'bg-om-blocked-bg text-om-blocked',
+    CANCELLED:   'bg-om-line2 text-om-muted',
+    ACCEPTED:    'bg-om-chip text-om-accent',
+    PAUSED:      'bg-om-downtime-bg text-om-downtime',
 };
 
 export default function ProductTypeShow({ productType, recentWorkOrders = [], customFields = [] }) {
@@ -39,18 +39,18 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
             <Head title="Product Type Details" />
 
             {/* Breadcrumbs */}
-            <nav className="text-sm text-gray-500 mb-4 flex items-center gap-1">
+            <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
                 <Link href="/admin/dashboard" className="hover:underline">Dashboard</Link>
                 <span>/</span>
                 <Link href="/admin/product-types" className="hover:underline">Product Types</Link>
                 <span>/</span>
-                <span className="text-gray-800">{productType.name}</span>
+                <span className="text-om-ink">{productType.name}</span>
             </nav>
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
-                    <Link href="/admin/product-types" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">
+                    <Link href="/admin/product-types" className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
@@ -58,11 +58,11 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                     </Link>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <h1 className="text-3xl font-bold text-gray-800">{productType.name}</h1>
+                            <h1 className="text-3xl font-bold text-om-ink">{productType.name}</h1>
                             {productType.is_active ? (
-                                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Active</span>
+                                <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">Active</span>
                             ) : (
-                                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">Inactive</span>
+                                <span className="px-3 py-1 bg-om-chip text-om-muted rounded-full text-sm font-medium">Inactive</span>
                             )}
                         </div>
                         <div className="flex gap-2">
@@ -98,12 +98,12 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                             </button>
                         </div>
                     </div>
-                    <p className="text-sm text-gray-500 font-mono mt-1">{productType.code}</p>
+                    <p className="text-sm text-om-muted font-mono mt-1">{productType.code}</p>
                     {productType.description && (
-                        <p className="text-gray-600 mt-2">{productType.description}</p>
+                        <p className="text-om-muted mt-2">{productType.description}</p>
                     )}
                     {productType.unit_of_measure && (
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-om-muted mt-1">
                             Unit: <span className="font-medium">{productType.unit_of_measure}</span>
                         </p>
                     )}
@@ -114,11 +114,11 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                     <div className="card">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-gray-600">Process Templates</p>
-                                <p className="text-3xl font-bold text-blue-600">{templateCount}</p>
+                                <p className="text-sm text-om-muted">Process Templates</p>
+                                <p className="text-3xl font-bold text-om-accent">{templateCount}</p>
                             </div>
-                            <div className="bg-blue-100 rounded-full p-3">
-                                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="bg-om-chip rounded-full p-3">
+                                <svg className="w-8 h-8 text-om-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                             </div>
@@ -127,11 +127,11 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                     <div className="card">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-gray-600">Work Orders</p>
-                                <p className="text-3xl font-bold text-purple-600">{totalWorkOrders}</p>
+                                <p className="text-sm text-om-muted">Work Orders</p>
+                                <p className="text-3xl font-bold text-om-ink">{totalWorkOrders}</p>
                             </div>
-                            <div className="bg-purple-100 rounded-full p-3">
-                                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="bg-om-chip rounded-full p-3">
+                                <svg className="w-8 h-8 text-om-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>
                             </div>
@@ -147,7 +147,7 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                     {/* Process Templates */}
                     <div className="card">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-gray-800">Process Templates</h2>
+                            <h2 className="text-xl font-bold text-om-ink">Process Templates</h2>
                             <div className="flex gap-2">
                                 <Link
                                     href={`/admin/product-types/${productType.id}/process-templates`}
@@ -173,23 +173,23 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                                     <Link
                                         key={template.id}
                                         href={`/admin/product-types/${productType.id}/process-templates/${template.id}`}
-                                        className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                                        className="block p-3 bg-om-panel rounded-om-sm hover:bg-om-chip transition-colors"
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <p className="font-medium text-gray-800">{template.name}</p>
+                                                    <p className="font-medium text-om-ink">{template.name}</p>
                                                     {template.is_active ? (
-                                                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Active</span>
+                                                        <span className="px-2 py-1 bg-om-running-bg text-om-running rounded-full text-xs font-medium">Active</span>
                                                     ) : (
-                                                        <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Inactive</span>
+                                                        <span className="px-2 py-1 bg-om-chip text-om-muted rounded-full text-xs font-medium">Inactive</span>
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-gray-600">
+                                                <p className="text-xs text-om-muted">
                                                     Version {template.version} &bull; {template.steps?.length ?? 0} steps
                                                 </p>
                                             </div>
-                                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-5 h-5 text-om-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
                                         </div>
@@ -197,33 +197,33 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-8 bg-gray-50 rounded-lg">
-                                <svg className="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="text-center py-8 bg-om-panel rounded-om-sm">
+                                <svg className="mx-auto h-12 w-12 text-om-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <p className="text-gray-600 mb-2">No process templates yet</p>
-                                <p className="text-sm text-gray-500">Process templates define how this product is manufactured.</p>
+                                <p className="text-om-muted mb-2">No process templates yet</p>
+                                <p className="text-sm text-om-muted">Process templates define how this product is manufactured.</p>
                             </div>
                         )}
                     </div>
 
                     {/* Recent Work Orders */}
                     <div className="card">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">Recent Work Orders</h2>
+                        <h2 className="text-xl font-bold text-om-ink mb-4">Recent Work Orders</h2>
                         {recentWorkOrders.length > 0 ? (
                             <>
                                 <div className="space-y-2">
                                     {recentWorkOrders.map((wo) => (
-                                        <div key={wo.id} className="p-3 bg-gray-50 rounded-lg">
+                                        <div key={wo.id} className="p-3 bg-om-panel rounded-om-sm">
                                             <div className="flex items-start justify-between">
                                                 <div className="flex-1">
-                                                    <p className="font-medium text-gray-800">{wo.work_order_number}</p>
-                                                    <p className="text-sm text-gray-600">{wo.product_name}</p>
-                                                    <p className="text-xs text-gray-500 mt-1">
+                                                    <p className="font-medium text-om-ink">{wo.work_order_number}</p>
+                                                    <p className="text-sm text-om-muted">{wo.product_name}</p>
+                                                    <p className="text-xs text-om-muted mt-1">
                                                         Quantity: {wo.planned_qty} | {wo.created_at ? wo.created_at.substring(0, 16).replace('T', ' ') : '—'}
                                                     </p>
                                                 </div>
-                                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${WO_STATUS_STYLES[wo.status] ?? 'bg-gray-100 text-gray-800'}`}>
+                                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-ink'}`}>
                                                     {WO_STATUS_LABELS[wo.status] ?? wo.status}
                                                 </span>
                                             </div>
@@ -231,17 +231,17 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                                     ))}
                                 </div>
                                 {totalWorkOrders > 10 && (
-                                    <p className="text-sm text-gray-500 text-center mt-4">
+                                    <p className="text-sm text-om-muted text-center mt-4">
                                         Showing 10 most recent of {totalWorkOrders} total work orders
                                     </p>
                                 )}
                             </>
                         ) : (
-                            <div className="text-center py-8 bg-gray-50 rounded-lg">
-                                <svg className="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="text-center py-8 bg-om-panel rounded-om-sm">
+                                <svg className="mx-auto h-12 w-12 text-om-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                                 </svg>
-                                <p className="text-gray-600">No work orders yet</p>
+                                <p className="text-om-muted">No work orders yet</p>
                             </div>
                         )}
                     </div>

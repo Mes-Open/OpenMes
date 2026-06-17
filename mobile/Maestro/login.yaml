@@ -1,0 +1,9 @@
+appId: com.openmes.mobile
+---
+- launchApp:
+    clearState: true
+- tapOn: "admin"
+- inputText: "admin"
+- tapOn: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+- inputText: "admin"
+- tapOn: "Sign in"

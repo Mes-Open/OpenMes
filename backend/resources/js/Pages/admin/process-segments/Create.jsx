@@ -25,7 +25,7 @@ export default function ProcessSegmentCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Process Segment" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New Process Segment</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">New Process Segment</h1>
             <ProcessSegmentForm
                 form={form}
                 workstationTypes={workstationTypes}

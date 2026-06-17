@@ -38,21 +38,21 @@ export default function ErrorPage({ status }) {
         <>
             <Head title={`${status} — ${__(title)}`} />
             <div className="flex items-center justify-center py-20 px-4">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 max-w-md w-full text-center">
+                <div className="bg-om-card rounded-om shadow-sm border border-om-line2 p-10 max-w-md w-full text-center">
                     <p className="text-6xl font-extrabold text-gray-200 leading-none">{status}</p>
-                    <h1 className="mt-4 text-xl font-bold text-gray-800">{__(title)}</h1>
-                    <p className="mt-2 text-sm text-gray-500">{__(message)}</p>
+                    <h1 className="mt-4 text-xl font-bold text-om-ink">{__(title)}</h1>
+                    <p className="mt-2 text-sm text-om-muted">{__(message)}</p>
                     <div className="mt-6 flex items-center justify-center gap-3">
                         <Link
                             href="/"
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+                            className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover"
                         >
                             {__('Back to dashboard')}
                         </Link>
                         <button
                             type="button"
                             onClick={() => window.location.reload()}
-                            className="text-gray-500 hover:text-gray-800 text-sm"
+                            className="text-om-muted hover:text-om-ink text-sm"
                         >
                             {__('Try again')}
                         </button>

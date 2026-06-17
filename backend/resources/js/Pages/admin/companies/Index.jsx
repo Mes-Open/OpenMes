@@ -5,10 +5,10 @@ import { __ } from '../../../lib/i18n';
 
 export default function CompaniesIndex() {
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
-        { key: 'type', label: __('Type'), className: 'text-gray-600' },
-        { key: 'email', label: __('Email'), className: 'text-gray-600' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'type', label: __('Type'), className: 'text-om-muted' },
+        { key: 'email', label: __('Email'), className: 'text-om-muted' },
         { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 

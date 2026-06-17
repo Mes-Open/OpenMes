@@ -6,10 +6,10 @@ export default function LabelTemplatesIndex() {
     const { typeLabels = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: 'Name', className: 'font-medium text-gray-800' },
-        { key: 'type', label: 'Type', className: 'text-gray-600', render: (r) => typeLabels[r.type] ?? r.type },
-        { key: 'size', label: 'Size', className: 'text-gray-600' },
-        { key: 'barcode_format', label: 'Barcode', className: 'font-mono text-gray-600' },
+        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
+        { key: 'type', label: 'Type', className: 'text-om-muted', render: (r) => typeLabels[r.type] ?? r.type },
+        { key: 'size', label: 'Size', className: 'text-om-muted' },
+        { key: 'barcode_format', label: 'Barcode', className: 'font-mono text-om-muted' },
         { key: 'is_default', label: 'Default', render: (r) => (r.is_default ? '★' : '') },
         { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
     ];

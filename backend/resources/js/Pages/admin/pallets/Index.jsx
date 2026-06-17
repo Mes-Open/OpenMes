@@ -4,9 +4,9 @@ import ResourceTable from '../../../components/ResourceTable';
 import { __ } from '../../../lib/i18n';
 
 const STATUS_BADGE = {
-    open: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    closed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-    shipped: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+    open: 'bg-om-running-bg text-om-running',
+    closed: 'bg-om-chip text-om-accent',
+    shipped: 'bg-om-chip text-om-muted',
 };
 
 const PRINTER_ICON = (
@@ -19,21 +19,21 @@ const PRINTER_ICON = (
 function NoTemplateBanner() {
     return (
         <div className="max-w-7xl mx-auto mb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 px-4 py-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-om-sm border border-om-line bg-om-downtime-bg px-4 py-3">
                 <div className="flex items-center gap-3">
-                    <span className="text-amber-600 dark:text-amber-400">{PRINTER_ICON}</span>
+                    <span className="text-om-downtime">{PRINTER_ICON}</span>
                     <div>
-                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                        <p className="text-sm font-semibold text-om-downtime">
                             {__('No pallet label template configured')}
                         </p>
-                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                        <p className="text-xs text-om-downtime">
                             {__('Prepare a label template to print pallet labels.')}
                         </p>
                     </div>
                 </div>
                 <Link
                     href="/packaging/label-templates/create"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white hover:bg-amber-700 shrink-0"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-om-sm text-sm font-semibold bg-om-accent text-white hover:brightness-95 shrink-0"
                 >
                     {PRINTER_ICON} {__('Prepare label')}
                 </Link>
@@ -47,7 +47,7 @@ function LabelCell({ palletId, templates }) {
     // No template configured → a muted dash; the page-level banner drives the
     // "prepare a label" call to action instead of repeating it on every row.
     if (!templates.length) {
-        return <span className="text-gray-400">—</span>;
+        return <span className="text-om-faint">—</span>;
     }
     const tpl = templates.find((t) => t.is_default) ?? templates[0];
     const base = `/packaging/labels/pallet/${palletId}`;
@@ -57,13 +57,13 @@ function LabelCell({ palletId, templates }) {
                 href={`${base}/pdf?template=${tpl.id}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-xs font-semibold bg-om-ink text-om-on-ink hover:bg-om-ink-hover shadow-sm"
             >
                 {PRINTER_ICON} PDF
             </a>
             <a
                 href={`${base}/zpl?template=${tpl.id}`}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-700 text-white hover:bg-gray-800"
+                className="inline-flex items-center px-2.5 py-1.5 rounded-om-sm text-xs font-medium bg-om-ink text-om-on-ink hover:bg-om-ink-hover"
                 title="Download ZPL for a Zebra printer"
             >
                 ZPL
@@ -76,7 +76,7 @@ export default function PalletsIndex() {
     const { workOrderNumbers = {}, statusLabels = {}, labelTemplates = [] } = usePage().props;
 
     const columns = [
-        { key: 'pallet_no', label: 'Pallet number', className: 'font-mono font-medium text-gray-800' },
+        { key: 'pallet_no', label: 'Pallet number', className: 'font-mono font-medium text-om-ink' },
         {
             key: 'work_order',
             label: 'Work order',

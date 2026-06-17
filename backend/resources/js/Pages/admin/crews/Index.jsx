@@ -7,10 +7,10 @@ export default function CrewsIndex() {
     const { counts = {}, divisionNames = {}, leaderNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
-        { key: 'division', label: __('Division'), className: 'text-gray-600', render: (r) => divisionNames[r.division_id] ?? '—' },
-        { key: 'leader', label: __('Leader'), className: 'text-gray-600', render: (r) => leaderNames[r.leader_id] ?? '—' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'division', label: __('Division'), className: 'text-om-muted', render: (r) => divisionNames[r.division_id] ?? '—' },
+        { key: 'leader', label: __('Leader'), className: 'text-om-muted', render: (r) => leaderNames[r.leader_id] ?? '—' },
         { key: 'workers', label: __('Workers'), render: (r) => counts[r.id] ?? 0 },
         { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];

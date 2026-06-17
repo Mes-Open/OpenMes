@@ -1,4 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
+import { Button, Checkbox, TextField } from '@openmes/ui';
 import AuthLayout from '../../layouts/AuthLayout';
 import { __ } from '../../lib/i18n';
 
@@ -11,6 +12,8 @@ import { __ } from '../../lib/i18n';
  * POST /register → RegisterController::store
  *
  * Validation errors are surfaced from form.errors.
+ *
+ * Geist White restyle: light-only v1 — former `dark:` classes removed.
  */
 export default function Register() {
     const form = useForm({
@@ -28,7 +31,6 @@ export default function Register() {
     };
 
     const isDisabled =
-        form.processing ||
         !form.data.name ||
         !form.data.username ||
         !form.data.email ||
@@ -37,10 +39,10 @@ export default function Register() {
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 text-center">{__('Create account')}</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-4 text-center">{__('Create account')}</h2>
 
             {/* Demo notice */}
-            <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800">
+            <div className="mb-5 flex items-start gap-3 rounded-om-sm border border-om-downtime/30 bg-om-downtime-bg px-4 py-3 text-sm text-om-downtime">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="mt-0.5 h-4 w-4 shrink-0"
@@ -62,119 +64,85 @@ export default function Register() {
 
             <form onSubmit={submit}>
                 {/* Full Name */}
-                <div className="mb-4">
-                    <label htmlFor="name" className="form-label">
-                        {__('Full name')}
-                    </label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={form.data.name}
-                        onChange={(e) => form.setData('name', e.target.value)}
-                        className={`form-input w-full${form.errors.name ? ' border-red-500' : ''}`}
-                        autoComplete="name"
-                        autoFocus
-                        required
-                    />
-                    {form.errors.name && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.name}</p>
-                    )}
-                </div>
+                <TextField
+                    className="mb-4"
+                    label={__('Full name')}
+                    id="name"
+                    name="name"
+                    value={form.data.name}
+                    onChange={(v) => form.setData('name', v)}
+                    error={form.errors.name}
+                    autoComplete="name"
+                    autoFocus
+                    required
+                />
 
                 {/* Username */}
-                <div className="mb-4">
-                    <label htmlFor="username" className="form-label">
-                        {__('Username')}
-                    </label>
-                    <input
-                        type="text"
-                        id="username"
-                        name="username"
-                        value={form.data.username}
-                        onChange={(e) => form.setData('username', e.target.value)}
-                        className={`form-input w-full${form.errors.username ? ' border-red-500' : ''}`}
-                        autoComplete="username"
-                        required
-                    />
-                    {form.errors.username && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.username}</p>
-                    )}
-                </div>
+                <TextField
+                    className="mb-4"
+                    label={__('Username')}
+                    id="username"
+                    name="username"
+                    value={form.data.username}
+                    onChange={(v) => form.setData('username', v)}
+                    error={form.errors.username}
+                    autoComplete="username"
+                    required
+                />
 
                 {/* Email */}
-                <div className="mb-4">
-                    <label htmlFor="email" className="form-label">
-                        {__('Email')}
-                    </label>
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={form.data.email}
-                        onChange={(e) => form.setData('email', e.target.value)}
-                        className={`form-input w-full${form.errors.email ? ' border-red-500' : ''}`}
-                        autoComplete="email"
-                        required
-                    />
-                    {form.errors.email && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.email}</p>
-                    )}
-                </div>
+                <TextField
+                    className="mb-4"
+                    label={__('Email')}
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={form.data.email}
+                    onChange={(v) => form.setData('email', v)}
+                    error={form.errors.email}
+                    autoComplete="email"
+                    required
+                />
 
                 {/* Password */}
-                <div className="mb-4">
-                    <label htmlFor="password" className="form-label">
-                        {__('Password')}
-                    </label>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        value={form.data.password}
-                        onChange={(e) => form.setData('password', e.target.value)}
-                        className={`form-input w-full${form.errors.password ? ' border-red-500' : ''}`}
-                        autoComplete="new-password"
-                        required
-                    />
-                    {form.errors.password && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.password}</p>
-                    )}
-                </div>
+                <TextField
+                    className="mb-4"
+                    label={__('Password')}
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={form.data.password}
+                    onChange={(v) => form.setData('password', v)}
+                    error={form.errors.password}
+                    autoComplete="new-password"
+                    required
+                />
 
                 {/* Confirm Password */}
-                <div className="mb-4">
-                    <label htmlFor="password_confirmation" className="form-label">
-                        {__('Confirm password')}
-                    </label>
-                    <input
-                        type="password"
-                        id="password_confirmation"
-                        name="password_confirmation"
-                        value={form.data.password_confirmation}
-                        onChange={(e) => form.setData('password_confirmation', e.target.value)}
-                        className={`form-input w-full${form.errors.password_confirmation ? ' border-red-500' : ''}`}
-                        autoComplete="new-password"
-                        required
-                    />
-                    {form.errors.password_confirmation && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-300">{form.errors.password_confirmation}</p>
-                    )}
-                </div>
+                <TextField
+                    className="mb-4"
+                    label={__('Confirm password')}
+                    type="password"
+                    id="password_confirmation"
+                    name="password_confirmation"
+                    value={form.data.password_confirmation}
+                    onChange={(v) => form.setData('password_confirmation', v)}
+                    error={form.errors.password_confirmation}
+                    autoComplete="new-password"
+                    required
+                />
 
                 {/* Marketing consent */}
                 <div className="mb-6">
                     <label className="flex items-start gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            name="marketing_consent"
+                        <Checkbox
                             checked={form.data.marketing_consent}
-                            onChange={(e) => form.setData('marketing_consent', e.target.checked)}
-                            className="mt-1 h-4 w-4 text-blue-600 dark:text-blue-300 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                            onChange={(next) => form.setData('marketing_consent', next)}
+                            className="mt-1"
                         />
-                        <span className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                        <span className="text-xs text-om-muted leading-relaxed">
                             {__('I agree to receive product updates and marketing communications via email.')}{' '}
-                            <span className="text-gray-400 dark:text-gray-500">
+                            <span className="text-om-faint">
                                 / {__('I agree to receive product updates and marketing communications via email.')}
                             </span>
                         </span>
@@ -182,28 +150,20 @@ export default function Register() {
                 </div>
 
                 {/* Submit */}
-                <button
+                <Button
                     type="submit"
+                    variant="accent"
+                    className="w-full"
+                    loading={form.processing}
                     disabled={isDisabled}
-                    className={`w-full btn-touch btn-primary${isDisabled ? ' opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    {form.processing ? (
-                        <span className="flex items-center justify-center">
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            {__('Creating account...')}
-                        </span>
-                    ) : (
-                        __('Create account')
-                    )}
-                </button>
+                    {form.processing ? __('Creating account...') : __('Create account')}
+                </Button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-300">
+            <p className="mt-6 text-center text-sm text-om-muted">
                 {__('Already have an account?')}{' '}
-                <Link href="/login" className="text-blue-600 dark:text-blue-300 hover:underline font-medium">
+                <Link href="/login" className="text-om-accent hover:underline font-medium">
                     {__('Sign in')}
                 </Link>
             </p>

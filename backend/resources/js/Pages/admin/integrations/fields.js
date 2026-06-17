@@ -1,6 +1,6 @@
 import { __ } from '../../../lib/i18n';
 
-export const integrationFields = () => [
+export const INTEGRATION_FIELDS = [
     {
         name: 'system_type',
         label: __('System Type'),

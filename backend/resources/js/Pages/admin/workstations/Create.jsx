@@ -1,4 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Button, Checkbox } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFields from '../../../components/CustomFields';
 import { customFieldInitial, customFieldProps, submitForm } from '../../../lib/customFieldForm';
@@ -25,21 +26,21 @@ export default function WorkstationCreate() {
             <div className="mb-6">
                 <Link
                     href={`/admin/lines/${line.id}/workstations`}
-                    className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4 text-sm"
+                    className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4 text-sm"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                     </svg>
                     Back to Workstations
                 </Link>
-                <h1 className="text-3xl font-bold text-gray-800">Create Workstation</h1>
-                <p className="text-sm text-gray-600 mt-1">{line.name}</p>
+                <h1 className="text-3xl font-bold text-om-ink">Create Workstation</h1>
+                <p className="text-sm text-om-muted mt-1">{line.name}</p>
             </div>
 
-            <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6 space-y-5">
+            <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 space-y-5">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Workstation Code <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-om-muted mb-1">
+                        Workstation Code <span className="text-om-blocked">*</span>
                     </label>
                     <input
                         type="text"
@@ -50,13 +51,13 @@ export default function WorkstationCreate() {
                         required
                         autoFocus
                     />
-                    <p className="text-sm text-gray-500 mt-1">Unique identifier for this workstation</p>
-                    {form.errors.code && <p className="mt-1 text-xs text-red-600">{form.errors.code}</p>}
+                    <p className="text-sm text-om-muted mt-1">Unique identifier for this workstation</p>
+                    {form.errors.code && <p className="mt-1 text-xs text-om-blocked">{form.errors.code}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Workstation Name <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-om-muted mb-1">
+                        Workstation Name <span className="text-om-blocked">*</span>
                     </label>
                     <input
                         type="text"
@@ -66,11 +67,11 @@ export default function WorkstationCreate() {
                         className="form-input w-full"
                         required
                     />
-                    {form.errors.name && <p className="mt-1 text-xs text-red-600">{form.errors.name}</p>}
+                    {form.errors.name && <p className="mt-1 text-xs text-om-blocked">{form.errors.name}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-om-muted mb-1">
                         Workstation Type
                     </label>
                     <input
@@ -80,33 +81,25 @@ export default function WorkstationCreate() {
                         placeholder="e.g., Assembly, Quality Control, Packaging (optional)"
                         className="form-input w-full"
                     />
-                    <p className="text-sm text-gray-500 mt-1">Optional classification for this workstation</p>
-                    {form.errors.workstation_type && <p className="mt-1 text-xs text-red-600">{form.errors.workstation_type}</p>}
+                    <p className="text-sm text-om-muted mt-1">Optional classification for this workstation</p>
+                    {form.errors.workstation_type && <p className="mt-1 text-xs text-om-blocked">{form.errors.workstation_type}</p>}
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input
-                        type="checkbox"
-                        checked={form.data.is_active}
-                        onChange={(e) => form.setData('is_active', e.target.checked)}
-                        className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                    />
-                    Active (workstation is ready for use)
-                </label>
+                <Checkbox
+                    checked={form.data.is_active}
+                    onChange={(next) => form.setData('is_active', next)}
+                    label="Active (workstation is ready for use)"
+                />
 
                 {customFields.length > 0 && <CustomFields {...customFieldProps(form, customFields)} />}
 
                 <div className="flex items-center gap-3 pt-2">
-                    <button
-                        type="submit"
-                        disabled={form.processing}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="primary" loading={form.processing} disabled={form.processing}>
                         {form.processing ? 'Creating…' : 'Create Workstation'}
-                    </button>
+                    </Button>
                     <Link
                         href={`/admin/lines/${line.id}/workstations`}
-                        className="text-gray-500 hover:text-gray-800 text-sm"
+                        className="text-om-muted hover:text-om-ink text-sm"
                     >
                         Cancel
                     </Link>

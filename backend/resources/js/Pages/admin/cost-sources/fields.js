@@ -1,6 +1,6 @@
 import { __ } from '../../../lib/i18n';
 
-export const costSourceFields = () => [
+export const COST_SOURCE_FIELDS = [
     { name: 'code', label: __('Code'), required: true },
     { name: 'name', label: __('Name'), required: true },
     { name: 'description', label: __('Description'), type: 'textarea' },

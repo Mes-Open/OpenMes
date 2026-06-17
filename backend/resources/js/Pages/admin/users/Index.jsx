@@ -7,14 +7,14 @@ export default function UsersIndex() {
     const { userRoles = {}, workstationNames = {}, currentUserId } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
-        { key: 'username', label: __('Username'), className: 'font-mono text-gray-700' },
-        { key: 'email', label: __('Email'), className: 'text-gray-600' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'username', label: __('Username'), className: 'font-mono text-om-muted' },
+        { key: 'email', label: __('Email'), className: 'text-om-muted' },
         {
             key: 'account_type',
             label: __('Type'),
             render: (r) => (
-                <span className={`text-xs px-2 py-0.5 rounded font-medium ${r.account_type === 'workstation' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${r.account_type === 'workstation' ? 'bg-om-chip text-om-ink' : 'bg-om-chip text-om-accent'}`}>
                     {r.account_type === 'workstation' ? __('Workstation') : __('User')}
                 </span>
             ),
@@ -22,12 +22,12 @@ export default function UsersIndex() {
         {
             key: 'role',
             label: __('Role / Station'),
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) => r.account_type === 'workstation'
                 ? (workstationNames[r.workstation_id] ?? '—')
                 : (userRoles[r.id] ?? '—'),
         },
-        { key: 'last_login_at', label: __('Last Login'), className: 'text-gray-500', render: (r) => (r.last_login_at ? r.last_login_at.slice(0, 16).replace('T', ' ') : __('never')) },
+        { key: 'last_login_at', label: __('Last Login'), className: 'text-om-muted', render: (r) => (r.last_login_at ? r.last_login_at.slice(0, 16).replace('T', ' ') : __('never')) },
     ];
 
     const actions = (r) => {

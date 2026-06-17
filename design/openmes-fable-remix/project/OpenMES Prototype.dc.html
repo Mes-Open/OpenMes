@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #E9E8E3; -webkit-font-smoothing: antialiased; }
+  @keyframes omPulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  @keyframes omSpin { to { transform: rotate(360deg); } }
+  @keyframes omToast { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes omFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes omPop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .om-main::-webkit-scrollbar { width: 10px; }
+  .om-main::-webkit-scrollbar-thumb { background: var(--faintest); border-radius: 10px; border: 3px solid var(--bg); }
+  .om-row:hover { filter: brightness(0.985); }
+</style>
+</helmet>
+
+<!-- outer = static white fallback vars so it paints instantly while streaming -->
+<div style="--bg:#F6F5F1;--panel:#FBFAF8;--card:#FFFFFF;--line:#E6E4DE;--line2:#EDEBE6;--ink:#1A1917;--muted:#6F6C66;--faint:#9B9892;--faintest:#C4C0B8;--chip:#F1EFEA;--accent:#EA5A2B;--accentInk:#FFFFFF;--running:#1C9A55;--runningBg:#E6F4EA;--pending:#6F6C66;--pendingBg:#F1EFEA;--blocked:#D6442F;--blockedBg:#FBEAE6;--downtime:#C9821E;--downtimeBg:#FAF0DD;--done:#54514B;--doneBg:#ECEBE7;--radius:12px;--radiusSm:8px;--activeNav:#1A1917;--activeNavInk:#FFFFFF;--topbar:#FBFAF8; font-family:'Geist',system-ui,sans-serif; background:#E9E8E3; min-height:100vh; padding:28px;">
+
+  <div style="{{ rootStyle }}">
+    <!-- ░░ WINDOW ░░ -->
+    <div style="max-width:1480px; margin:0 auto; background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 26px 64px -34px rgba(26,25,23,.34); display:flex; flex-direction:column; height:932px; position:relative;">
+
+      <!-- chrome -->
+      <div style="height:44px; flex-shrink:0; display:flex; align-items:center; gap:14px; padding:0 16px; border-bottom:1px solid var(--line2); background:var(--topbar);">
+        <div style="display:flex; gap:7px;">
+          <span style="width:11px;height:11px;border-radius:50%;background:var(--faintest);"></span>
+          <span style="width:11px;height:11px;border-radius:50%;background:var(--faintest);"></span>
+          <span style="width:11px;height:11px;border-radius:50%;background:var(--faintest);"></span>
+        </div>
+        <div style="flex:1; max-width:400px; margin:0 auto; height:25px; border-radius:7px; background:var(--chip); display:flex; align-items:center; gap:7px; padding:0 11px;">
+          <span style="width:10px;height:10px;border-radius:50%;border:1.5px solid var(--faint);"></span>
+          <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted);">openmes.local/{{ urlPath }}</span>
+        </div>
+        <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--faint);">{{ clock }}</span>
+      </div>
+
+      <div style="flex:1; min-height:0; display:flex;">
+        <!-- ░░ SIDEBAR ░░ -->
+        <div style="width:240px; flex-shrink:0; border-right:1px solid var(--line2); background:var(--panel); padding:18px 14px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:center; gap:9px; padding:4px 6px 16px;">
+            <div style="width:23px; height:23px; border-radius:5px; background:linear-gradient(135deg,var(--accent) 0 50%,var(--ink) 50% 100%);"></div>
+            <span style="font-size:15px; font-weight:600; color:var(--ink); letter-spacing:-0.01em;">openmes</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; color:var(--faint); border:1px solid var(--line); border-radius:4px; padding:1px 5px;">v1.0</span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px; margin:0 6px 16px; padding:9px 11px; border:1px solid var(--line2); border-radius:var(--radiusSm); background:var(--card);">
+            <span style="width:7px;height:7px;border-radius:50%;background:var(--running);animation:omPulse 2.4s infinite;"></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; color:var(--running);">ONLINE</span>
+            <span style="margin-left:auto; font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint);">sync 2s</span>
+          </div>
+
+          <div style="flex:1; overflow-y:auto;">
+            <sc-for list="{{ nav }}" as="grp" hint-placeholder-count="3">
+              <div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.13em; text-transform:uppercase; color:var(--faint); padding:0 8px; margin:14px 0 6px;">{{ grp.group }}</div>
+              <sc-for list="{{ grp.items }}" as="it" hint-placeholder-count="3">
+                <div onClick="{{ it.go }}" style="{{ it.style }}">
+                  <span style="{{ it.icon }}"></span>
+                  <span style="font-size:13px; font-weight:500;">{{ it.label }}</span>
+                  <sc-if value="{{ it.badge }}" hint-placeholder-val="{{ false }}"><span style="{{ it.badgeStyle }}">{{ it.badge }}</span></sc-if>
+                </div>
+              </sc-for>
+            </sc-for>
+          </div>
+
+          <div style="margin-top:12px; padding-top:14px; border-top:1px solid var(--line2); display:flex; align-items:center; gap:10px;">
+            <div style="width:30px; height:30px; border-radius:50%; background:var(--ink); color:var(--card); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;">AK</div>
+            <div style="line-height:1.3;">
+              <div style="font-size:12.5px; font-weight:500; color:var(--ink);">A. Kovač</div>
+              <div style="font-family:'Geist Mono',monospace; font-size:9.5px; color:var(--faint);">OPERATOR · WSZ-01</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ░░ MAIN ░░ -->
+        <div class="om-main" style="flex:1; min-width:0; overflow-y:auto; background:var(--bg);">
+
+          <!-- topbar -->
+          <div style="position:sticky; top:0; z-index:4; padding:22px 32px 18px; background:var(--bg); border-bottom:1px solid var(--line2); display:flex; align-items:flex-start; justify-content:space-between; gap:24px;">
+            <div>
+              <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">{{ dateStr }}</div>
+              <h2 style="margin:0; font-size:25px; font-weight:600; letter-spacing:-0.022em; color:var(--ink);">{{ pageTitle }}</h2>
+              <p style="margin:7px 0 0; font-size:13.5px; color:var(--muted);">{{ pageSub }}</p>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:11px;">
+              <div style="display:flex; align-items:center; gap:9px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.13em; text-transform:uppercase; color:var(--faint);">Style</span>
+                <div style="display:flex; gap:3px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:3px;">
+                  <sc-for list="{{ themePills }}" as="p" hint-placeholder-count="3">
+                    <span onClick="{{ p.go }}" style="{{ p.style }}">{{ p.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:4px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted); padding:5px 11px; border-radius:6px;">W21</span>
+                <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--ink); background:var(--chip); padding:5px 11px; border-radius:6px;">W22</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:24px 32px 60px;">
+
+            <!-- ═══════════ FLOOR ═══════════ -->
+            <sc-if value="{{ isFloor }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:18px;">
+                <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="5">
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:15px 16px;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">{{ k.label }}</div>
+                    <div style="display:flex; align-items:baseline; gap:6px;">
+                      <span style="font-family:'Geist Mono',monospace; font-size:27px; font-weight:500; letter-spacing:-0.02em; color:{{ k.valClr }};">{{ k.val }}</span>
+                      <span style="font-size:11.5px; color:{{ k.subClr }};">{{ k.sub }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <!-- active WO hero -->
+              <div onClick="{{ activeWo.open }}" style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-bottom:18px; display:flex; gap:26px; align-items:center; cursor:pointer;">
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:11px; margin-bottom:9px;">
+                    <span style="font-family:'Geist Mono',monospace; font-size:12px; color:var(--muted);">{{ activeWo.id }}</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; color:{{ activeWo.stClr }}; background:{{ activeWo.stBg }}; border-radius:20px; padding:3px 9px;"><span style="width:6px;height:6px;border-radius:50%;background:{{ activeWo.stClr }};animation:omPulse 2s infinite;"></span>{{ activeWo.stLabel }}</span>
+                  </div>
+                  <div style="font-size:21px; font-weight:600; letter-spacing:-0.015em; color:var(--ink); margin-bottom:4px;">{{ activeWo.product }}</div>
+                  <div style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--faint);">{{ activeWo.metaLine }}</div>
+                </div>
+                <div style="width:260px; flex-shrink:0;">
+                  <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px;">
+                    <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint);">Progress</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:12px; color:var(--ink);">{{ activeWo.progLine }}</span>
+                  </div>
+                  <div style="height:6px; border-radius:20px; background:var(--chip); overflow:hidden;"><div style="width:{{ activeWo.pctStr }}; height:100%; background:var(--accent); border-radius:20px;"></div></div>
+                </div>
+                <div style="display:flex; gap:24px; flex-shrink:0; padding-left:10px; border-left:1px solid var(--line2);">
+                  <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">Elapsed</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:var(--ink);">{{ activeWo.elapsed }}</div></div>
+                  <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">Cycle</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:var(--ink);">{{ activeWo.cycle }}</div></div>
+                  <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">ETA</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:var(--ink);">{{ activeWo.eta }}</div></div>
+                </div>
+                <span style="flex-shrink:0; font-family:'Geist',sans-serif; font-size:13.5px; font-weight:600; color:var(--accentInk); background:var(--ink); border-radius:var(--radiusSm); padding:11px 20px;">Open ↗</span>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1.15fr 1fr; gap:18px;">
+                <!-- lines overview -->
+                <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+                  <div style="padding:14px 18px; border-bottom:1px solid var(--line2); display:flex; align-items:center; justify-content:space-between;">
+                    <span style="font-size:14px; font-weight:600; color:var(--ink);">Lines</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint);">3 RUNNING · 2 IDLE</span>
+                  </div>
+                  <sc-for list="{{ lines }}" as="ln" hint-placeholder-count="5">
+                    <div class="om-row" onClick="{{ gotoLines }}" style="display:flex; align-items:center; gap:14px; padding:13px 18px; border-bottom:1px solid var(--line2); cursor:pointer;">
+                      <span style="width:8px;height:8px;border-radius:50%;background:{{ ln.stClr }};flex-shrink:0;"></span>
+                      <div style="width:74px; flex-shrink:0;"><div style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500; color:var(--ink);">{{ ln.id }}</div></div>
+                      <div style="flex:1; min-width:0;"><div style="font-size:13.5px; color:var(--ink);">{{ ln.name }}</div></div>
+                      <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted);">{{ ln.woStr }}</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:500; color:var(--ink); width:48px; text-align:right;">{{ ln.oeeStr }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <!-- open issues -->
+                <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+                  <div style="padding:14px 18px; border-bottom:1px solid var(--line2); display:flex; align-items:center; justify-content:space-between;">
+                    <span style="font-size:14px; font-weight:600; color:var(--ink);">Open issues</span>
+                    <span onClick="{{ gotoIssues }}" style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--accent); cursor:pointer;">view all →</span>
+                  </div>
+                  <sc-for list="{{ openIssues }}" as="is" hint-placeholder-count="3">
+                    <div style="display:flex; align-items:flex-start; gap:12px; padding:13px 18px; border-bottom:1px solid var(--line2);">
+                      <span style="margin-top:3px; width:8px;height:8px;border-radius:2px;background:{{ is.sevClr }};flex-shrink:0;"></span>
+                      <div style="flex:1; min-width:0;">
+                        <div style="font-size:13.5px; color:var(--ink); margin-bottom:3px;">{{ is.title }}</div>
+                        <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint);">{{ is.metaLine }}</div>
+                      </div>
+                      <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:{{ is.sevClr }}; background:{{ is.sevBg }}; border-radius:20px; padding:3px 8px; flex-shrink:0;">{{ is.sev }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ WORK ORDERS ═══════════ -->
+            <sc-if value="{{ isOrders }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                <div style="flex:1; max-width:320px; display:flex; align-items:center; gap:9px; background:var(--card); border:1px solid var(--line); border-radius:var(--radiusSm); padding:9px 13px;">
+                  <span style="width:13px;height:13px;border-radius:50%;border:2px solid var(--faint);flex-shrink:0;"></span>
+                  <input value="{{ ordersQuery }}" onInput="{{ onOrdersSearch }}" placeholder="Search orders or products" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font-family:'Geist',sans-serif; font-size:13px; color:var(--ink);" />
+                </div>
+                <sc-if value="{{ showSelBar }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
+                    <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted);">{{ selCountLabel }}</span>
+                    <span onClick="{{ bulkPrint }}" style="font-size:12.5px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:8px 13px; cursor:pointer;">Print labels</span>
+                    <span onClick="{{ bulkBlock }}" style="font-size:12.5px; font-weight:600; color:var(--blocked); background:var(--blockedBg); border-radius:var(--radiusSm); padding:8px 13px; cursor:pointer;">Mark blocked</span>
+                    <span onClick="{{ clearSel }}" style="font-size:12.5px; color:var(--muted); cursor:pointer;">Clear</span>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+                <div style="display:grid; grid-template-columns:38px 132px 1fr 108px 46px 78px 60px 60px 72px 44px; align-items:center; padding:11px 18px; border-bottom:1px solid var(--line2); background:var(--panel);">
+                  <span onClick="{{ toggleAll }}" style="{{ headerCheckStyle }}"><span style="color:#fff;font-size:11px;font-weight:700;line-height:1;">{{ headerCheckMark }}</span></span>
+                  <span onClick="{{ th.id.go }}" style="{{ th.id.style }}">{{ th.id.label }}{{ th.id.arrow }}</span>
+                  <span onClick="{{ th.product.go }}" style="{{ th.product.style }}">{{ th.product.label }}{{ th.product.arrow }}</span>
+                  <span onClick="{{ th.status.go }}" style="{{ th.status.style }}">{{ th.status.label }}{{ th.status.arrow }}</span>
+                  <span onClick="{{ th.prio.go }}" style="{{ th.prio.style }}">{{ th.prio.label }}{{ th.prio.arrow }}</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint);">Due</span>
+                  <span onClick="{{ th.plan.go }}" style="{{ th.plan.style }}">{{ th.plan.label }}{{ th.plan.arrow }}</span>
+                  <span onClick="{{ th.made.go }}" style="{{ th.made.style }}">{{ th.made.label }}{{ th.made.arrow }}</span>
+                  <span onClick="{{ th.remain.go }}" style="{{ th.remain.style }}">{{ th.remain.label }}{{ th.remain.arrow }}</span>
+                  <span></span>
+                </div>
+                <sc-for list="{{ tableRows }}" as="wo" hint-placeholder-count="6">
+                  <div class="om-row" style="display:grid; grid-template-columns:38px 132px 1fr 108px 46px 78px 60px 60px 72px 44px; align-items:center; padding:13px 18px; border-bottom:1px solid var(--line2); border-left:3px solid {{ wo.bdr }}; background:{{ wo.rowBg }}; opacity:{{ wo.op }};">
+                    <span onClick="{{ wo.toggleSel }}" style="{{ wo.checkStyle }}"><span style="color:#fff;font-size:11px;font-weight:700;line-height:1;">{{ wo.checkMark }}</span></span>
+                    <span onClick="{{ wo.open }}" style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500; color:var(--ink); cursor:pointer;">{{ wo.id }}</span>
+                    <span onClick="{{ wo.open }}" style="font-size:13.5px; font-weight:500; color:var(--ink); cursor:pointer;">{{ wo.product }}</span>
+                    <span><span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.05em; color:{{ wo.stClr }}; background:{{ wo.stBg }}; border-radius:20px; padding:3px 8px;">{{ wo.stLabel }}</span></span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:12px; color:{{ wo.prioClr }};">{{ wo.prio }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:12px; color:{{ wo.dueClr }};">{{ wo.due }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:var(--ink);">{{ wo.planStr }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:var(--muted);">{{ wo.madeStr }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:{{ wo.remainClr }};">{{ wo.remainStr }}</span>
+                    <span onClick="{{ wo.open }}" style="text-align:right; font-family:'Geist Mono',monospace; color:var(--faint); font-size:15px; cursor:pointer;">›</span>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ ordersEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="text-align:center; padding:36px; color:var(--faint); font-size:13.5px;">No orders match the search.</div>
+                </sc-if>
+              </div>
+              <div style="margin-top:14px; font-family:'Geist Mono',monospace; font-size:11px; color:var(--faint);">$ openmes orders --line WSZ-01 · click a column to sort · select rows for bulk actions</div>
+            </sc-if>
+
+            <!-- ═══════════ WO DETAIL ═══════════ -->
+            <sc-if value="{{ isWoDetail }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ back }}" style="display:inline-flex; align-items:center; gap:7px; font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted); cursor:pointer; margin-bottom:16px;">← Work orders</div>
+
+              <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:18px; margin-bottom:18px;">
+                <!-- left: progress + steps -->
+                <div style="display:flex; flex-direction:column; gap:18px;">
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                      <span style="display:inline-flex; align-items:center; gap:6px; font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; color:{{ selectedWo.stClr }}; background:{{ selectedWo.stBg }}; border-radius:20px; padding:4px 11px;"><span style="width:6px;height:6px;border-radius:50%;background:{{ selectedWo.stClr }};"></span>{{ selectedWo.stLabel }}</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--faint);">{{ selectedWo.metaLine }}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:9px;">
+                      <span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint);">Progress</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:15px; color:var(--ink);">{{ selectedWo.progLine }}</span>
+                    </div>
+                    <div style="height:9px; border-radius:20px; background:var(--chip); overflow:hidden; margin-bottom:22px;"><div style="width:{{ selectedWo.pctStr }}; height:100%; background:var(--accent); border-radius:20px;"></div></div>
+                    <div style="display:flex; border:1px solid var(--line2); border-radius:var(--radius); overflow:hidden;">
+                      <div style="flex:1; padding:14px 16px; border-right:1px solid var(--line2);"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:6px;">Elapsed</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500; color:var(--ink);">{{ selectedWo.elapsed }}</div></div>
+                      <div style="flex:1; padding:14px 16px; border-right:1px solid var(--line2);"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:6px;">Cycle</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500; color:var(--ink);">{{ selectedWo.cycle }}</div></div>
+                      <div style="flex:1; padding:14px 16px;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:6px;">ETA</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500; color:var(--ink);">{{ selectedWo.eta }}</div></div>
+                    </div>
+                  </div>
+
+                  <!-- steps -->
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+                    <div style="padding:14px 18px; border-bottom:1px solid var(--line2); font-size:14px; font-weight:600; color:var(--ink);">Routing — 6 steps</div>
+                    <sc-for list="{{ steps }}" as="st" hint-placeholder-count="6">
+                      <div style="display:flex; align-items:center; gap:14px; padding:13px 18px; border-bottom:1px solid var(--line2);">
+                        <span style="width:24px;height:24px;border-radius:7px;background:{{ st.bg }};color:{{ st.clr }};display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;flex-shrink:0;">{{ st.num }}</span>
+                        <span style="flex:1; font-size:13.5px; color:var(--ink);">{{ st.name }}</span>
+                        <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:{{ st.clr }};">{{ st.label }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <!-- right: meta + shift + actions -->
+                <div style="display:flex; flex-direction:column; gap:18px;">
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px;">
+                    <div style="font-size:14px; font-weight:600; color:var(--ink); margin-bottom:14px;">Order details</div>
+                    <sc-for list="{{ selectedWo.detailRows }}" as="d" hint-placeholder-count="6">
+                      <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line2);">
+                        <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--faint);">{{ d.k }}</span>
+                        <span style="font-family:'Geist Mono',monospace; font-size:12.5px; color:var(--ink);">{{ d.v }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+
+                  <div style="display:flex; gap:12px;">
+                    <div style="flex:1; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:15px 16px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;"><span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint);">Z1 · 06–14</span></div>
+                      <div style="font-family:'Geist Mono',monospace; font-size:28px; font-weight:500; color:var(--ink);">{{ selectedWo.z1disp }}</div>
+                    </div>
+                    <div style="flex:1; background:var(--card); border:1px dashed var(--faintest); border-radius:var(--radius); padding:15px 16px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;"><span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint);">Z2 · 14–22</span></div>
+                      <div style="font-family:'Geist Mono',monospace; font-size:28px; font-weight:500; color:var(--faintest);">{{ selectedWo.z2disp }}</div>
+                    </div>
+                  </div>
+
+                  <div style="display:flex; flex-direction:column; gap:10px;">
+                    <span style="font-family:'Geist',sans-serif; text-align:center; font-size:15px; font-weight:600; color:var(--accentInk); background:var(--ink); border-radius:var(--radius); padding:15px; cursor:pointer;">+ Add output</span>
+                    <div style="display:flex; gap:10px;">
+                      <span style="flex:1; text-align:center; font-family:'Geist',sans-serif; font-size:14px; font-weight:600; color:var(--blocked); background:var(--blockedBg); border-radius:var(--radius); padding:13px; cursor:pointer;">Report issue</span>
+                      <span style="flex:1; text-align:center; font-family:'Geist',sans-serif; font-size:14px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radius); padding:13px; cursor:pointer;">Print label</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ QUEUE ═══════════ -->
+            <sc-if value="{{ isQueue }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; gap:11px;">
+                <sc-for list="{{ queue }}" as="q" hint-placeholder-count="5">
+                  <div class="om-row" onClick="{{ q.open }}" style="display:flex; align-items:center; gap:18px; background:var(--card); border:1px solid var(--line); border-left:3px solid {{ q.bdr }}; border-radius:var(--radius); padding:16px 20px; cursor:pointer;">
+                    <span style="font-family:'Geist Mono',monospace; font-size:13px; color:var(--faint); width:22px;">{{ q.pos }}</span>
+                    <div style="display:flex; flex-direction:column; gap:3px; cursor:grab;">
+                      <span style="width:16px;height:2px;background:var(--faintest);border-radius:2px;"></span>
+                      <span style="width:16px;height:2px;background:var(--faintest);border-radius:2px;"></span>
+                      <span style="width:16px;height:2px;background:var(--faintest);border-radius:2px;"></span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:16px; font-weight:600; color:var(--ink);">{{ q.product }}</span>
+                        <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.05em; color:{{ q.stClr }}; background:{{ q.stBg }}; border-radius:20px; padding:3px 8px;">{{ q.stLabel }}</span>
+                      </div>
+                      <div style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--faint); margin-top:4px;">{{ q.id }} · {{ q.planStr }} PCS</div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:4px;">Due</div>
+                      <div style="font-family:'Geist Mono',monospace; font-size:14px; font-weight:600; color:{{ q.dueClr }};">{{ q.due }}</div>
+                    </div>
+                    <span style="font-family:'Geist Mono',monospace; color:var(--faint); font-size:16px;">›</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ ISSUES ═══════════ -->
+            <sc-if value="{{ isIssues }}" hint-placeholder-val="{{ false }}">
+              <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+                <sc-for list="{{ allIssues }}" as="is" hint-placeholder-count="4">
+                  <div style="display:flex; align-items:center; gap:16px; padding:16px 20px; border-bottom:1px solid var(--line2); border-left:3px solid {{ is.bdr }}; opacity:{{ is.op }};">
+                    <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--faint); width:64px; flex-shrink:0;">{{ is.id }}</span>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:14.5px; font-weight:500; color:var(--ink); margin-bottom:3px;">{{ is.title }}</div>
+                      <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--faint);">{{ is.metaLine }}</div>
+                    </div>
+                    <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:{{ is.sevClr }}; background:{{ is.sevBg }}; border-radius:20px; padding:4px 10px; flex-shrink:0;">{{ is.sev }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; color:{{ is.stateClr }}; width:74px; text-align:right; flex-shrink:0;">{{ is.state }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ DOWNTIME ═══════════ -->
+            <sc-if value="{{ isDowntime }}" hint-placeholder-val="{{ false }}">
+              <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+                <div style="display:grid; grid-template-columns:220px 70px 1fr 96px 110px; align-items:center; padding:11px 20px; border-bottom:1px solid var(--line2); background:var(--panel);">
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint);">Window</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); text-align:right;">Dur</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); padding-left:24px;">Reason</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint);">Line</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); text-align:right;">Type</span>
+                </div>
+                <sc-for list="{{ downtime }}" as="d" hint-placeholder-count="4">
+                  <div style="display:grid; grid-template-columns:220px 70px 1fr 96px 110px; align-items:center; padding:14px 20px; border-bottom:1px solid var(--line2);">
+                    <span style="font-family:'Geist Mono',monospace; font-size:12px; color:var(--ink);">{{ d.time }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:var(--ink);">{{ d.dur }}</span>
+                    <span style="font-size:13.5px; color:var(--ink); padding-left:24px;">{{ d.reason }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:12px; color:var(--muted);">{{ d.line }}</span>
+                    <span style="text-align:right;"><span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:{{ d.clr }}; background:{{ d.bg }}; border-radius:20px; padding:3px 9px;">{{ d.type }}</span></span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ REPORTS / OEE ═══════════ -->
+            <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+              <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px;">
+                <sc-for list="{{ oeeCards }}" as="o" hint-placeholder-count="4">
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:12px;">{{ o.label }}</div>
+                    <div style="font-family:'Geist Mono',monospace; font-size:34px; font-weight:500; letter-spacing:-0.02em; color:{{ o.clr }}; margin-bottom:12px;">{{ o.val }}</div>
+                    <div style="height:5px; border-radius:20px; background:var(--chip); overflow:hidden;"><div style="width:{{ o.val }}; height:100%; background:{{ o.clr }}; border-radius:20px;"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:18px;">
+                <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                  <div style="font-size:14px; font-weight:600; color:var(--ink); margin-bottom:4px;">Throughput</div>
+                  <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--faint); margin-bottom:22px;">UNITS / SHIFT · LAST 7</div>
+                  <div style="display:flex; align-items:flex-end; gap:14px; height:170px;">
+                    <sc-for list="{{ throughput }}" as="b" hint-placeholder-count="7">
+                      <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; height:100%; justify-content:flex-end;">
+                        <span style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--muted);">{{ b.v }}</span>
+                        <div style="width:100%; height:{{ b.h }}; background:{{ b.clr }}; border-radius:6px 6px 0 0;"></div>
+                        <span style="font-family:'Geist Mono',monospace; font-size:9px; color:var(--faint);">{{ b.label }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                  <div style="font-size:14px; font-weight:600; color:var(--ink); margin-bottom:4px;">Downtime by reason</div>
+                  <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--faint); margin-bottom:20px;">MINUTES · THIS WEEK</div>
+                  <div style="display:flex; flex-direction:column; gap:15px;">
+                    <sc-for list="{{ pareto }}" as="p" hint-placeholder-count="5">
+                      <div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                          <span style="font-size:12.5px; color:var(--ink);">{{ p.reason }}</span>
+                          <span style="font-family:'Geist Mono',monospace; font-size:12px; color:var(--muted);">{{ p.min }}m</span>
+                        </div>
+                        <div style="height:7px; border-radius:20px; background:var(--chip); overflow:hidden;"><div style="width:{{ p.pct }}; height:100%; background:{{ p.clr }}; border-radius:20px;"></div></div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ LINES ═══════════ -->
+            <sc-if value="{{ isLines }}" hint-placeholder-val="{{ false }}">
+              <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:14px;">
+                <sc-for list="{{ lines }}" as="ln" hint-placeholder-count="5">
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                      <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="width:9px;height:9px;border-radius:50%;background:{{ ln.stClr }};"></span>
+                        <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; color:var(--ink);">{{ ln.id }}</span>
+                        <span style="font-size:14px; color:var(--muted);">{{ ln.name }}</span>
+                      </div>
+                      <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:{{ ln.stClr }}; background:{{ ln.stBg }}; border-radius:20px; padding:3px 9px;">{{ ln.status }}</span>
+                    </div>
+                    <div style="display:flex; gap:28px;">
+                      <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">OEE</div><div style="font-family:'Geist Mono',monospace; font-size:20px; font-weight:500; color:var(--ink);">{{ ln.oeeStr }}</div></div>
+                      <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">Active WO</div><div style="font-family:'Geist Mono',monospace; font-size:20px; font-weight:500; color:var(--ink);">{{ ln.wos }}</div></div>
+                      <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">Operator</div><div style="font-size:14px; color:var(--ink); margin-top:2px;">{{ ln.operator }}</div></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ PRODUCTS ═══════════ -->
+            <sc-if value="{{ isProducts }}" hint-placeholder-val="{{ false }}">
+              <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+                <div style="display:grid; grid-template-columns:150px 1fr 120px 90px 90px; align-items:center; padding:11px 20px; border-bottom:1px solid var(--line2); background:var(--panel);">
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint);">SKU</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint);">Product</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint);">Category</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); text-align:right;">Cycle</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); text-align:right;">State</span>
+                </div>
+                <sc-for list="{{ products }}" as="p" hint-placeholder-count="4">
+                  <div style="display:grid; grid-template-columns:150px 1fr 120px 90px 90px; align-items:center; padding:14px 20px; border-bottom:1px solid var(--line2);">
+                    <span style="font-family:'Geist Mono',monospace; font-size:12px; color:var(--ink);">{{ p.sku }}</span>
+                    <span style="font-size:14px; font-weight:500; color:var(--ink);">{{ p.name }}</span>
+                    <span style="font-size:13px; color:var(--muted);">{{ p.cat }}</span>
+                    <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:var(--ink);">{{ p.cycle }}</span>
+                    <span style="text-align:right;"><span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:{{ p.clr }}; background:{{ p.bg }}; border-radius:20px; padding:3px 9px;">{{ p.state }}</span></span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ USERS ═══════════ -->
+            <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+              <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+                <sc-for list="{{ users }}" as="u" hint-placeholder-count="5">
+                  <div style="display:flex; align-items:center; gap:16px; padding:15px 20px; border-bottom:1px solid var(--line2);">
+                    <div style="width:36px; height:36px; border-radius:50%; background:var(--ink); color:var(--card); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; flex-shrink:0;">{{ u.init }}</div>
+                    <div style="flex:1;">
+                      <div style="font-size:14.5px; font-weight:500; color:var(--ink);">{{ u.name }}</div>
+                      <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--faint); margin-top:2px;">{{ u.line }}</div>
+                    </div>
+                    <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.07em; color:{{ u.roleClr }}; background:{{ u.roleBg }}; border-radius:20px; padding:4px 11px;">{{ u.role }}</span>
+                    <span style="font-size:12.5px; color:var(--muted); width:90px; text-align:right;">{{ u.status }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- ═══════════ COMPONENTS ═══════════ -->
+            <sc-if value="{{ isComponents }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; gap:16px;">
+
+                <!-- row: buttons + switches -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">Buttons</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                      <span onClick="{{ fireSuccess }}" style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--accentInk); background:var(--ink); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">Primary</span>
+                      <span onClick="{{ openForm }}" style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:#fff; background:var(--accent); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">Accent</span>
+                      <span style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">Secondary</span>
+                      <span style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:var(--radiusSm); padding:9px 16px; cursor:pointer;">Ghost</span>
+                      <span onClick="{{ openConfirm }}" style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--blocked); background:var(--blockedBg); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">Danger</span>
+                      <span style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--faint); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px; cursor:not-allowed; opacity:.6;">Disabled</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <span style="width:38px;height:38px;border-radius:var(--radiusSm);background:var(--ink);color:var(--accentInk);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;cursor:pointer;">+</span>
+                      <span style="width:38px;height:38px;border-radius:var(--radiusSm);background:var(--blockedBg);color:var(--blocked);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;cursor:pointer;">!</span>
+                      <span style="width:38px;height:38px;border-radius:var(--radiusSm);background:var(--chip);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;">⋯</span>
+                      <span style="display:inline-flex; align-items:center; gap:8px; font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--muted); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px;"><span style="width:11px;height:11px;border-radius:50%;border:2px solid var(--faintest);border-top-color:var(--accent);animation:omSpin 0.7s linear infinite;display:inline-block;"></span>Saving…</span>
+                    </div>
+                  </div>
+
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">Switches</div>
+                    <div style="display:flex; flex-direction:column; gap:14px;">
+                      <sc-for list="{{ switches }}" as="sw" hint-placeholder-count="3">
+                        <div style="display:flex; align-items:center; gap:14px;">
+                          <div style="flex:1; min-width:0;">
+                            <div style="font-size:13.5px; color:var(--ink);">{{ sw.label }}</div>
+                            <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint); margin-top:2px;">{{ sw.desc }}</div>
+                          </div>
+                          <div onClick="{{ sw.toggle }}" style="{{ sw.track }}"><span style="{{ sw.knob }}"></span></div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- row: inputs + selection -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">Inputs</div>
+                    <div style="display:flex; flex-direction:column; gap:14px;">
+                      <div>
+                        <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Lot number</div>
+                        <input type="text" placeholder="26-0512-A" style="width:100%; font-family:'Geist Mono',monospace; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 12px; outline:none;" />
+                      </div>
+                      <div style="display:flex; gap:12px;">
+                        <div style="flex:1;">
+                          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Product</div>
+                          <select style="width:100%; font-family:'Geist',sans-serif; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 12px; outline:none; cursor:pointer;"><option>HEPA-13 Standard</option><option>HEPA Slim</option><option>Carbon Pre-Filter</option></select>
+                        </div>
+                        <div style="width:120px;">
+                          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Quantity</div>
+                          <div style="display:flex; align-items:center; border:1px solid var(--line); border-radius:var(--radiusSm); overflow:hidden; background:var(--bg);">
+                            <span style="padding:9px 12px; color:var(--muted); cursor:pointer; font-size:16px;">−</span>
+                            <span style="flex:1; text-align:center; font-family:'Geist Mono',monospace; font-size:13px; color:var(--ink);">250</span>
+                            <span style="padding:9px 12px; color:var(--muted); cursor:pointer; font-size:16px;">+</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Note</div>
+                        <textarea placeholder="Optional note for the next shift…" style="width:100%; height:62px; resize:none; font-family:'Geist',sans-serif; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 12px; outline:none;"></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">Selection</div>
+                    <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Segmented control</div>
+                    <div style="display:flex; gap:3px; background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:3px; margin-bottom:18px;">
+                      <sc-for list="{{ sizeOpts }}" as="o" hint-placeholder-count="3"><span onClick="{{ o.go }}" style="{{ o.style }}">{{ o.label }}</span></sc-for>
+                    </div>
+                    <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Count output by</div>
+                    <div style="display:flex; flex-direction:column; gap:11px;">
+                      <sc-for list="{{ radioDefs }}" as="r" hint-placeholder-count="3">
+                        <div onClick="{{ r.go }}" style="display:flex; align-items:center; gap:11px; cursor:pointer;">
+                          <span style="{{ r.ring }}"><span style="{{ r.dot }}"></span></span>
+                          <span style="font-size:13.5px; color:var(--ink);">{{ r.label }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- row: tabs + status -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Tabs</div>
+                    <div style="display:flex; gap:22px; border-bottom:1px solid var(--line2); margin-bottom:16px;">
+                      <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="3"><span onClick="{{ tb.go }}" style="{{ tb.style }}">{{ tb.label }}</span></sc-for>
+                    </div>
+                    <p style="margin:0; font-size:13.5px; color:var(--muted); line-height:1.55;">{{ tabBody }}</p>
+                  </div>
+
+                  <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">Status &amp; badges</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                      <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--running); background:var(--runningBg); border-radius:20px; padding:4px 10px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--running);"></span>RUNNING</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--pending); background:var(--pendingBg); border-radius:20px; padding:4px 10px;">PENDING</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--blocked); background:var(--blockedBg); border-radius:20px; padding:4px 10px;">BLOCKED</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--done); background:var(--doneBg); border-radius:20px; padding:4px 10px;">DONE</span>
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                      <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--blocked); background:var(--blockedBg); border-radius:20px; padding:4px 10px;">BLOCKING</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--downtime); background:var(--downtimeBg); border-radius:20px; padding:4px 10px;">MINOR</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#fff; background:var(--blocked); border-radius:20px; padding:2px 9px;">3</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted); background:var(--chip); border-radius:20px; padding:2px 9px;">12</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--accent); border:1px solid var(--accent); border-radius:20px; padding:2px 9px;">HIGH</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- alerts -->
+                <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                  <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">Inline alerts</div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <sc-for list="{{ alerts }}" as="al" hint-placeholder-count="4">
+                      <div style="display:flex; align-items:flex-start; gap:12px; background:{{ al.bg }}; border-radius:var(--radius); padding:14px 16px;">
+                        <span style="margin-top:3px; width:9px;height:9px;border-radius:50%;background:{{ al.clr }};flex-shrink:0;"></span>
+                        <div style="flex:1; min-width:0;">
+                          <div style="font-size:13.5px; font-weight:600; color:var(--ink);">{{ al.title }}</div>
+                          <div style="font-size:12px; color:var(--muted); margin-top:3px; line-height:1.45;">{{ al.body }}</div>
+                        </div>
+                        <span style="color:var(--faint); font-size:15px; cursor:pointer; flex-shrink:0;">×</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <!-- overlays -->
+                <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+                  <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">Overlays — toasts, modals, menus</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                    <span onClick="{{ fireSuccess }}" style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--running); background:var(--runningBg); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">Success toast</span>
+                    <span onClick="{{ fireWarn }}" style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--downtime); background:var(--downtimeBg); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">Warning toast</span>
+                    <span onClick="{{ fireError }}" style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--blocked); background:var(--blockedBg); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">Error toast</span>
+                    <span style="width:1px; height:24px; background:var(--line2);"></span>
+                    <span onClick="{{ openConfirm }}" style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">Confirm dialog</span>
+                    <span onClick="{{ openForm }}" style="font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--accentInk); background:var(--ink); border-radius:var(--radiusSm); padding:10px 16px; cursor:pointer;">New work order ↗</span>
+                    <span style="width:1px; height:24px; background:var(--line2);"></span>
+                    <div style="position:relative;">
+                      <span onClick="{{ toggleMenu }}" style="display:inline-flex; align-items:center; gap:8px; font-family:'Geist',sans-serif; font-size:13px; font-weight:600; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:var(--radiusSm); padding:9px 16px; cursor:pointer;">Actions ⋯</span>
+                      <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute; top:46px; left:0; width:180px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 18px 44px -18px rgba(0,0,0,.35); padding:6px; z-index:30;">
+                          <div style="font-size:13px; color:var(--ink); padding:9px 11px; border-radius:var(--radiusSm); cursor:pointer;">Edit order</div>
+                          <div style="font-size:13px; color:var(--ink); padding:9px 11px; border-radius:var(--radiusSm); cursor:pointer;">Duplicate</div>
+                          <div style="font-size:13px; color:var(--ink); padding:9px 11px; border-radius:var(--radiusSm); cursor:pointer;">Print label</div>
+                          <div style="height:1px; background:var(--line2); margin:5px 0;"></div>
+                          <div onClick="{{ openConfirm }}" style="font-size:13px; color:var(--blocked); padding:9px 11px; border-radius:var(--radiusSm); cursor:pointer;">Delete</div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </sc-if>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ░░ TOAST ░░ -->
+      <sc-if value="{{ toastShow }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; top:56px; right:24px; z-index:60; width:308px; background:var(--card); border:1px solid var(--line); border-left:3px solid {{ toastClr }}; border-radius:var(--radius); padding:14px 16px; box-shadow:0 18px 44px -18px rgba(0,0,0,.4); display:flex; gap:12px; align-items:flex-start;">
+          <span style="margin-top:2px; width:10px;height:10px;border-radius:50%;background:{{ toastClr }};flex-shrink:0;"></span>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13.5px; font-weight:600; color:var(--ink);">{{ toastTitle }}</div>
+            <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--muted); margin-top:3px;">{{ toastBody }}</div>
+          </div>
+          <span onClick="{{ closeToast }}" style="color:var(--faint); font-size:16px; cursor:pointer; flex-shrink:0; line-height:1;">×</span>
+        </div>
+      </sc-if>
+
+      <!-- ░░ CONFIRM MODAL ░░ -->
+      <sc-if value="{{ modalConfirm }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeModal }}" style="position:absolute; inset:0; z-index:50; background:rgba(10,9,8,.45); display:flex; align-items:center; justify-content:center; padding:40px;">
+          <div onClick="{{ stopProp }}" style="width:430px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:26px; box-shadow:0 34px 80px -22px rgba(0,0,0,.55);">
+            <div style="width:42px;height:42px;border-radius:11px;background:var(--blockedBg);color:var(--blocked);display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700;margin-bottom:16px;">!</div>
+            <div style="font-size:18px; font-weight:600; color:var(--ink); letter-spacing:-0.01em; margin-bottom:8px;">Delete WO-2026-007?</div>
+            <p style="margin:0 0 22px; font-size:13.5px; color:var(--muted); line-height:1.55;">This permanently removes the work order and its routing. Output already logged stays in reports. This action cannot be undone.</p>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+              <span onClick="{{ closeModal }}" style="font-family:'Geist',sans-serif; font-size:13.5px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:11px 18px; cursor:pointer;">Cancel</span>
+              <span onClick="{{ closeModal }}" style="font-family:'Geist',sans-serif; font-size:13.5px; font-weight:600; color:#fff; background:var(--blocked); border-radius:var(--radiusSm); padding:11px 18px; cursor:pointer;">Delete order</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ░░ FORM MODAL ░░ -->
+      <sc-if value="{{ modalForm }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeModal }}" style="position:absolute; inset:0; z-index:50; background:rgba(10,9,8,.45); display:flex; align-items:center; justify-content:center; padding:40px;">
+          <div onClick="{{ stopProp }}" style="width:480px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 34px 80px -22px rgba(0,0,0,.55); overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--line2);">
+              <div>
+                <div style="font-size:17px; font-weight:600; color:var(--ink); letter-spacing:-0.01em;">New work order</div>
+                <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--faint); margin-top:3px;">LINE WSZ-01 · PLEAT ASSEMBLY</div>
+              </div>
+              <span onClick="{{ closeModal }}" style="color:var(--faint); font-size:20px; cursor:pointer; line-height:1;">×</span>
+            </div>
+            <div style="padding:22px 24px; display:flex; flex-direction:column; gap:16px;">
+              <div>
+                <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Product</div>
+                <select style="width:100%; font-family:'Geist',sans-serif; font-size:13.5px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:11px 12px; outline:none; cursor:pointer;"><option>HEPA-13 Standard</option><option>HEPA Slim</option><option>Carbon Pre-Filter</option><option>Polo Logo</option></select>
+              </div>
+              <div style="display:flex; gap:14px;">
+                <div style="flex:1;">
+                  <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Planned qty</div>
+                  <input type="text" placeholder="250" style="width:100%; font-family:'Geist Mono',monospace; font-size:13.5px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:11px 12px; outline:none;" />
+                </div>
+                <div style="flex:1;">
+                  <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Due date</div>
+                  <input type="text" placeholder="26 May 2026" style="width:100%; font-family:'Geist Mono',monospace; font-size:13.5px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:11px 12px; outline:none;" />
+                </div>
+              </div>
+              <div>
+                <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Priority</div>
+                <div style="display:flex; gap:8px;">
+                  <span style="flex:1; text-align:center; font-family:'Geist',sans-serif; font-size:13px; font-weight:500; color:var(--accentInk); background:var(--ink); border-radius:var(--radiusSm); padding:9px; cursor:pointer;">High</span>
+                  <span style="flex:1; text-align:center; font-family:'Geist',sans-serif; font-size:13px; font-weight:500; color:var(--muted); background:var(--chip); border-radius:var(--radiusSm); padding:9px; cursor:pointer;">Medium</span>
+                  <span style="flex:1; text-align:center; font-family:'Geist',sans-serif; font-size:13px; font-weight:500; color:var(--muted); background:var(--chip); border-radius:var(--radiusSm); padding:9px; cursor:pointer;">Low</span>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:12px; padding-top:4px;">
+                <div style="width:42px;height:24px;border-radius:20px;background:var(--accent);position:relative;flex-shrink:0;cursor:pointer;"><span style="position:absolute;top:3px;left:21px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);"></span></div>
+                <span style="font-size:13.5px; color:var(--ink);">Auto-print LOT label when batch closes</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; padding:18px 24px; border-top:1px solid var(--line2); background:var(--panel);">
+              <span onClick="{{ closeModal }}" style="font-family:'Geist',sans-serif; font-size:13.5px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:11px 18px; cursor:pointer;">Cancel</span>
+              <span onClick="{{ closeModal }}" style="font-family:'Geist',sans-serif; font-size:13.5px; font-weight:600; color:var(--accentInk); background:var(--ink); border-radius:var(--radiusSm); padding:11px 20px; cursor:pointer;">Create order</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { theme: 'white', screen: 'floor', wo: 'WO-2026-001', modal: null, toast: null, menu: false, tab: 'details', radio: 'medium', sw: { autoPrint: true, soundAlerts: false, autoAdvance: true }, ordersQuery: '', sortKey: 'id', sortDir: 'asc', selected: {} };
+
+  themes = {
+    white: { bg:'#F6F5F1', panel:'#FBFAF8', card:'#FFFFFF', line:'#E6E4DE', line2:'#EDEBE6', ink:'#1A1917', muted:'#6F6C66', faint:'#9B9892', faintest:'#C4C0B8', chip:'#F1EFEA', accent:'#EA5A2B', accentInk:'#FFFFFF', running:'#1C9A55', runningBg:'#E6F4EA', runningTint:'#FBFDFB', pending:'#6F6C66', pendingBg:'#F1EFEA', blocked:'#D6442F', blockedBg:'#FBEAE6', blockedTint:'#FDF6F4', downtime:'#C9821E', downtimeBg:'#FAF0DD', done:'#54514B', doneBg:'#ECEBE7', radius:'12px', radiusSm:'8px', activeNav:'#1A1917', activeNavInk:'#FFFFFF', topbar:'#FBFAF8' },
+    dark: { bg:'#131211', panel:'#161513', card:'#1C1B19', line:'#2C2A27', line2:'#242220', ink:'#F4F2ED', muted:'#A6A29B', faint:'#6E6A63', faintest:'#3A3833', chip:'#242220', accent:'#F2632F', accentInk:'#131211', running:'#2BBE6E', runningBg:'rgba(43,190,110,.15)', runningTint:'rgba(43,190,110,.05)', pending:'#A6A29B', pendingBg:'#242220', blocked:'#F2604A', blockedBg:'rgba(242,96,74,.14)', blockedTint:'rgba(242,96,74,.06)', downtime:'#E0A53C', downtimeBg:'rgba(224,165,60,.15)', done:'#A6A29B', doneBg:'#242220', radius:'14px', radiusSm:'9px', activeNav:'#F4F2ED', activeNavInk:'#131211', topbar:'#161513' },
+    blueprint: { bg:'#EEF1F5', panel:'#F6F8FB', card:'#FFFFFF', line:'#D5DBE4', line2:'#E4E8EF', ink:'#16202E', muted:'#5A6577', faint:'#8A94A3', faintest:'#B7BFCB', chip:'#E8ECF2', accent:'#2F6FED', accentInk:'#FFFFFF', running:'#1E8E5A', runningBg:'#DEF1E7', runningTint:'#F5FBF7', pending:'#5A6577', pendingBg:'#E8ECF2', blocked:'#D23B3B', blockedBg:'#FBE6E6', blockedTint:'#FDF5F5', downtime:'#C07A14', downtimeBg:'#F7EBD3', done:'#5A6577', doneBg:'#E4E8EF', radius:'6px', radiusSm:'5px', activeNav:'#16202E', activeNavInk:'#FFFFFF', topbar:'#F6F8FB' }
+  };
+
+  stepNames = ['Material stage','Frame prep','Media load','Pleating','Bonding','QA & pack'];
+
+  baseWOs = [
+    { id:'WO-2026-001', product:'HEPA-13 Standard', status:'RUNNING', prio:'H', due:'26 May', plan:250, made:108, z1:108, z2:null, step:4, lot:'26-0512-A', batch:3, cycle:'2.94s', elapsed:'01:24', eta:'13:42' },
+    { id:'WO-2026-002', product:'Carbon Pre-Filter', status:'RUNNING', prio:'M', due:'26 May', plan:400, made:320, z1:200, z2:120, step:5, lot:'26-0510-C', batch:2, cycle:'1.80s', elapsed:'03:10', eta:'11:05' },
+    { id:'WO-2026-006', product:'Carbon Pre-Filter', status:'BLOCKED', prio:'H', due:'27 May', plan:300, made:60, z1:60, z2:null, step:2, lot:'26-0514-B', batch:1, cycle:'—', elapsed:'00:42', eta:'—' },
+    { id:'WO-2026-005', product:'HEPA Slim', status:'PENDING', prio:'H', due:'17:00', plan:120, made:0, z1:null, z2:null, step:0, lot:'—', batch:0, cycle:'—', elapsed:'—', eta:'—' },
+    { id:'WO-2026-007', product:'Polo Logo', status:'PENDING', prio:'L', due:'28 May', plan:140, made:0, z1:null, z2:null, step:0, lot:'—', batch:0, cycle:'—', elapsed:'—', eta:'—' },
+    { id:'WO-2026-003', product:'HEPA-13 Standard', status:'DONE', prio:'M', due:'25 May', plan:150, made:150, z1:150, z2:null, step:6, lot:'26-0508-A', batch:4, cycle:'2.88s', elapsed:'07:55', eta:'done' }
+  ];
+
+  baseIssues = [
+    { id:'ISS-014', title:'Media tear on infeed roll', wo:'WO-2026-006', line:'WSZ-01', sev:'BLOCKING', time:'06:18', state:'OPEN' },
+    { id:'ISS-013', title:'Pleat depth drift +0.4mm', wo:'WO-2026-001', line:'WSZ-01', sev:'MINOR', time:'05:52', state:'OPEN' },
+    { id:'ISS-012', title:'Glue temperature below setpoint', wo:'—', line:'WSZ-01', sev:'MINOR', time:'04:30', state:'ACK' },
+    { id:'ISS-011', title:'Frame misalignment caught at QA', wo:'WO-2026-002', line:'WSZ-02', sev:'MINOR', time:'Yest.', state:'RESOLVED' }
+  ];
+
+  baseLines = [
+    { id:'WSZ-01', name:'Pleat Assembly', status:'RUNNING', oee:78, wos:2, operator:'A. Kovač' },
+    { id:'WSZ-02', name:'Frame Bonding', status:'RUNNING', oee:82, wos:1, operator:'I. Babić' },
+    { id:'WSP-01', name:'Packaging', status:'RUNNING', oee:91, wos:1, operator:'D. Novak' },
+    { id:'WSZ-03', name:'Carbon Fill', status:'IDLE', oee:0, wos:0, operator:'—' },
+    { id:'QA-01', name:'Inspection', status:'IDLE', oee:0, wos:0, operator:'—' }
+  ];
+
+  baseProducts = [
+    { sku:'FLT-H13-STD', name:'HEPA-13 Standard', cat:'HEPA', cycle:'2.9s', active:true },
+    { sku:'FLT-H13-SLM', name:'HEPA Slim', cat:'HEPA', cycle:'2.4s', active:true },
+    { sku:'FLT-CRB-PRE', name:'Carbon Pre-Filter', cat:'Carbon', cycle:'1.8s', active:true },
+    { sku:'FLT-PL-LOGO', name:'Polo Logo', cat:'Specialty', cycle:'3.2s', active:false }
+  ];
+
+  baseUsers = [
+    { name:'A. Kovač', role:'OPERATOR', line:'Line WSZ-01', init:'AK', status:'On shift' },
+    { name:'I. Babić', role:'OPERATOR', line:'Line WSZ-02', init:'IB', status:'On shift' },
+    { name:'M. Horvat', role:'SUPERVISOR', line:'All lines', init:'MH', status:'On shift' },
+    { name:'D. Novak', role:'OPERATOR', line:'Line WSP-01', init:'DN', status:'Off shift' },
+    { name:'System Admin', role:'ADMIN', line:'—', init:'SA', status:'—' }
+  ];
+
+  baseDowntime = [
+    { time:'04:30 – 04:42', dur:'12m', reason:'Glue station warm-up', type:'PLANNED', line:'WSZ-01' },
+    { time:'02:15 – 02:23', dur:'8m', reason:'Material changeover', type:'PLANNED', line:'WSZ-01' },
+    { time:'Yest. 21:40 – 22:05', dur:'25m', reason:'Sensor fault', type:'UNPLANNED', line:'WSZ-02' },
+    { time:'Yest. 14:10 – 14:18', dur:'8m', reason:'Scheduled break', type:'PLANNED', line:'WSZ-03' }
+  ];
+
+  go(screen) { this.setState({ screen, wo: this.state.wo }); }
+  openWo(id) { this.setState({ screen:'wo-detail', wo:id }); }
+  back() { this.setState({ screen:'orders' }); }
+  setTheme(theme) { this.setState({ theme }); }
+  openModal(m) { this.setState({ modal: m, menu: false }); }
+  closeModal() { this.setState({ modal: null }); }
+  toggleMenu() { this.setState({ menu: !this.state.menu }); }
+  setTab(tab) { this.setState({ tab }); }
+  setRadio(radio) { this.setState({ radio }); }
+  toggleSw(key) { const sw = { ...this.state.sw }; sw[key] = !sw[key]; this.setState({ sw }); }
+  fireToast(kind) { clearTimeout(this._tt); this.setState({ toast: kind, menu: false }); this._tt = setTimeout(() => this.setState({ toast: null }), 3400); }
+  stopProp(e) { e.stopPropagation(); }
+  onOrdersSearch(e) { this.setState({ ordersQuery: e.target.value }); }
+  setSort(key) { this.setState(st => ({ sortKey: key, sortDir: st.sortKey === key && st.sortDir === 'asc' ? 'desc' : 'asc' })); }
+  toggleSel(id) { const sel = { ...this.state.selected }; if (sel[id]) delete sel[id]; else sel[id] = true; this.setState({ selected: sel }); }
+  toggleAllSel(ids) { const allSel = ids.length > 0 && ids.every(i => this.state.selected[i]); const sel = {}; if (!allSel) ids.forEach(i => sel[i] = true); this.setState({ selected: sel }); }
+  clearSel() { this.setState({ selected: {} }); }
+
+  statusDisp(t, status) {
+    const m = {
+      RUNNING: { clr:t.running, bg:t.runningBg, label:'RUNNING', tint:t.runningTint, bdr:t.running },
+      PENDING: { clr:t.pending, bg:t.pendingBg, label:'PENDING', tint:'transparent', bdr:'transparent' },
+      BLOCKED: { clr:t.blocked, bg:t.blockedBg, label:'BLOCKED', tint:t.blockedTint, bdr:t.blocked },
+      DONE:    { clr:t.done,    bg:t.doneBg,    label:'DONE',    tint:'transparent', bdr:'transparent' }
+    };
+    return m[status];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const t = this.themes[s.theme];
+    const screen = s.screen;
+
+    const vk = ['bg','panel','card','line','line2','ink','muted','faint','faintest','chip','accent','accentInk','running','runningBg','pending','pendingBg','blocked','blockedBg','downtime','downtimeBg','done','doneBg','radius','radiusSm','activeNav','activeNavInk','topbar'];
+    const camelToVar = { runningBg:'runningBg', pendingBg:'pendingBg', blockedBg:'blockedBg', downtimeBg:'downtimeBg', doneBg:'doneBg', accentInk:'accentInk', radiusSm:'radiusSm', activeNav:'activeNav', activeNavInk:'activeNavInk' };
+    let varStr = '';
+    vk.forEach(k => { varStr += `--${k}:${t[k]};`; });
+    const rootStyle = varStr + `font-family:'Geist',system-ui,sans-serif; background:var(--bg); min-height:100%;`;
+
+    // ----- work orders -----
+    const workOrders = this.baseWOs.map(w => {
+      const d = this.statusDisp(t, w.status);
+      const pct = w.plan ? Math.round(w.made / w.plan * 100) : 0;
+      const remain = w.plan - w.made;
+      return {
+        ...w, pct, pctStr: pct + '%', planStr: String(w.plan), madeStr: String(w.made), remainStr: String(remain),
+        stClr: d.clr, stBg: d.bg, stLabel: d.label, bdr: d.bdr,
+        rowBg: d.tint === 'transparent' ? 'var(--card)' : d.tint,
+        op: w.status === 'DONE' ? '0.6' : '1',
+        z1disp: w.z1 == null ? '—' : String(w.z1),
+        z2disp: w.z2 == null ? '—' : String(w.z2),
+        remainClr: remain === 0 ? t.running : t.accent,
+        prioClr: w.prio === 'H' ? t.blocked : (w.prio === 'M' ? t.muted : t.faint),
+        dueClr: String(w.due).includes(':') ? t.blocked : t.muted,
+        progLine: w.made + ' / ' + w.plan + ' · ' + pct + '%',
+        metaLine: w.lot === '—' ? ('LINE WSZ-01 · NOT STARTED') : ('LOT ' + w.lot + ' · BATCH #' + w.batch + ' · STEP ' + w.step + '/6'),
+        open: () => this.openWo(w.id)
+      };
+    });
+    const activeWo = workOrders[0];
+    const selectedWo = workOrders.find(w => w.id === s.wo) || workOrders[0];
+
+    // ---- orders table: search + sort + select ----
+    const oq = s.ordersQuery.trim().toLowerCase();
+    let tableRows = workOrders.slice();
+    if (oq) tableRows = tableRows.filter(w => (w.id + ' ' + w.product).toLowerCase().includes(oq));
+    const statusRank = { RUNNING: 0, BLOCKED: 1, PENDING: 2, DONE: 3 };
+    const prioRank = { H: 0, M: 1, L: 2 };
+    const dir = s.sortDir === 'asc' ? 1 : -1;
+    const sk = s.sortKey;
+    tableRows.sort((a, b) => {
+      let av, bv;
+      if (sk === 'product') { av = a.product; bv = b.product; }
+      else if (sk === 'status') { av = statusRank[a.status]; bv = statusRank[b.status]; }
+      else if (sk === 'prio') { av = prioRank[a.prio]; bv = prioRank[b.prio]; }
+      else if (sk === 'plan') { av = a.plan; bv = b.plan; }
+      else if (sk === 'made') { av = a.made; bv = b.made; }
+      else if (sk === 'remain') { av = a.plan - a.made; bv = b.plan - b.made; }
+      else { av = a.id; bv = b.id; }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    const visibleIds = tableRows.map(w => w.id);
+    tableRows = tableRows.map(w => ({ ...w,
+      checkMark: s.selected[w.id] ? '✓' : '',
+      checkStyle: `width:18px;height:18px;border-radius:5px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;` + (s.selected[w.id] ? `background:${t.accent};` : `border:2px solid ${t.faintest};`),
+      toggleSel: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleSel(w.id); }
+    }));
+    const cols = [ {key:'id',label:'Order',align:'left'}, {key:'product',label:'Product',align:'left'}, {key:'status',label:'Status',align:'left'}, {key:'prio',label:'Pri',align:'left'}, {key:'plan',label:'Plan',align:'right'}, {key:'made',label:'Made',align:'right'}, {key:'remain',label:'Remain',align:'right'} ];
+    const th = {};
+    cols.forEach(c => { th[c.key] = { label: c.label, arrow: sk === c.key ? (s.sortDir === 'asc' ? ' ↑' : ' ↓') : '', go: () => this.setSort(c.key), style: `font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:${sk === c.key ? t.ink : t.faint}; cursor:pointer; text-align:${c.align}; user-select:none;` }; });
+    const selCount = Object.keys(s.selected).length;
+    const allChecked = visibleIds.length > 0 && visibleIds.every(i => s.selected[i]);
+
+    // detail rows
+    selectedWo.detailRows = [
+      { k:'Line', v:'WSZ-01' }, { k:'Product', v:selectedWo.product }, { k:'Priority', v:selectedWo.prio === 'H' ? 'High' : selectedWo.prio === 'M' ? 'Medium' : 'Low' },
+      { k:'Due', v:selectedWo.due }, { k:'Lot', v:selectedWo.lot }, { k:'Batch', v:selectedWo.batch ? ('#' + selectedWo.batch) : '—' },
+      { k:'Planned', v:selectedWo.planStr + ' pcs' }, { k:'Remaining', v:selectedWo.remainStr + ' pcs' }
+    ];
+
+    // steps for selected WO
+    const cur = selectedWo.step;
+    const stMap = {
+      done:    { clr:t.running, bg:t.runningBg, label:'DONE' },
+      active:  { clr:t.accent,  bg:t.chip,      label:'ACTIVE' },
+      blocked: { clr:t.blocked, bg:t.blockedBg, label:'BLOCKED' },
+      pending: { clr:t.faint,   bg:'transparent', label:'PENDING' }
+    };
+    const steps = this.stepNames.map((name, i) => {
+      let st;
+      if (selectedWo.status === 'DONE') st = 'done';
+      else if (i < cur - 1) st = 'done';
+      else if (i === cur - 1) st = selectedWo.status === 'BLOCKED' ? 'blocked' : 'active';
+      else st = 'pending';
+      const m = stMap[st];
+      return { name, num: String(i + 1), clr: m.clr, bg: m.bg, label: m.label };
+    });
+
+    // queue = non-done, running first
+    const queue = workOrders.filter(w => w.status !== 'DONE')
+      .sort((a, b) => (a.status === 'RUNNING' ? -1 : 0) - (b.status === 'RUNNING' ? -1 : 0))
+      .map((w, i) => ({ ...w, pos: String(i + 1).padStart(2, '0') }));
+
+    // issues
+    const sevMap = { BLOCKING: { clr:t.blocked, bg:t.blockedBg }, MINOR: { clr:t.downtime, bg:t.downtimeBg } };
+    const stateMap = { OPEN: t.accent, ACK: t.muted, RESOLVED: t.running };
+    const allIssues = this.baseIssues.map(is => {
+      const sv = sevMap[is.sev];
+      return { ...is, sevClr: sv.clr, sevBg: sv.bg, stateClr: stateMap[is.state],
+        bdr: is.state === 'RESOLVED' ? 'transparent' : sv.clr,
+        op: is.state === 'RESOLVED' ? '0.55' : '1',
+        metaLine: is.id + ' · ' + (is.wo === '—' ? is.line : is.wo) + ' · ' + is.time };
+    });
+    const openIssues = allIssues.filter(i => i.state !== 'RESOLVED').slice(0, 3);
+
+    // downtime
+    const downtime = this.baseDowntime.map(d => ({ ...d,
+      clr: d.type === 'PLANNED' ? t.muted : t.blocked,
+      bg: d.type === 'PLANNED' ? t.chip : t.blockedBg }));
+
+    // lines
+    const lines = this.baseLines.map(ln => {
+      const d = this.statusDisp(t, ln.status === 'IDLE' ? 'PENDING' : 'RUNNING');
+      return { ...ln, stClr: ln.status === 'RUNNING' ? t.running : t.faint,
+        stBg: ln.status === 'RUNNING' ? t.runningBg : t.pendingBg,
+        oeeStr: ln.oee ? ln.oee + '%' : '—', woStr: ln.wos + ' WO' };
+    });
+
+    // products
+    const products = this.baseProducts.map(p => ({ ...p,
+      state: p.active ? 'ACTIVE' : 'ARCHIVED',
+      clr: p.active ? t.running : t.faint, bg: p.active ? t.runningBg : t.pendingBg }));
+
+    // users
+    const roleMap = { ADMIN: { clr:t.accent, bg:t.chip }, SUPERVISOR: { clr:t.downtime, bg:t.downtimeBg }, OPERATOR: { clr:t.muted, bg:t.chip } };
+    const users = this.baseUsers.map(u => ({ ...u, roleClr: roleMap[u.role].clr, roleBg: roleMap[u.role].bg }));
+
+    // KPIs (floor)
+    const kpis = [
+      { label:'OEE', val:'78%', sub:'↑ 2.1', valClr:'var(--ink)', subClr:t.running },
+      { label:'Active WOs', val:'2', sub:'', valClr:'var(--ink)', subClr:t.faint },
+      { label:'Done today', val:'14', sub:'/ 18', valClr:'var(--ink)', subClr:t.faint },
+      { label:'Open issues', val:'3', sub:'1 blocking', valClr:t.blocked, subClr:t.blocked },
+      { label:'Downtime', val:'20', sub:'min', valClr:'var(--ink)', subClr:t.faint }
+    ];
+
+    // reports
+    const oeeCards = [
+      { label:'OEE', val:'78%', clr:t.accent },
+      { label:'Availability', val:'91%', clr:t.running },
+      { label:'Performance', val:'88%', clr:t.running },
+      { label:'Quality', val:'97%', clr:t.running }
+    ];
+    const tputRaw = [{l:'M·Z1',v:142},{l:'M·Z2',v:128},{l:'T·Z1',v:150},{l:'T·Z2',v:118},{l:'W·Z1',v:160},{l:'W·Z2',v:134},{l:'T·Z1',v:108}];
+    const tmax = 160;
+    const throughput = tputRaw.map((b, i) => ({ label:b.l, v:String(b.v), h: Math.round(b.v / tmax * 100) + '%', clr: i === tputRaw.length - 1 ? t.accent : 'var(--ink)' }));
+    const pRaw = [{r:'Material changeover',m:64},{r:'Sensor fault',m:48},{r:'Glue warm-up',m:32},{r:'Scheduled break',m:24},{r:'Cleaning',m:16}];
+    const pmax = 64;
+    const pareto = pRaw.map((p, i) => ({ reason:p.r, min:String(p.m), pct: Math.round(p.m / pmax * 100) + '%', clr: i === 0 ? t.accent : t.faintest }));
+
+    // ----- nav -----
+    const navDef = [
+      { group:'Operations', items:[
+        { key:'floor', label:'Floor' },
+        { key:'queue', label:'Queue', badge:'6' },
+        { key:'orders', label:'Work orders' },
+        { key:'issues', label:'Issues', badge:'3', danger:true },
+        { key:'downtime', label:'Downtime' }
+      ]},
+      { group:'Insights', items:[ { key:'reports', label:'Reports & OEE' } ]},
+      { group:'Configuration', items:[
+        { key:'lines', label:'Lines & stations' },
+        { key:'products', label:'Products' },
+        { key:'users', label:'Users & roles' }
+      ]},
+      { group:'Design system', items:[ { key:'components', label:'Components' } ]}
+    ];
+    const activeKey = screen === 'wo-detail' ? 'orders' : screen;
+    const nav = navDef.map(g => ({
+      group: g.group,
+      items: g.items.map(it => {
+        const active = it.key === activeKey;
+        const base = `display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radiusSm);cursor:pointer;margin-bottom:2px;`;
+        const style = base + (active ? `background:var(--activeNav);color:var(--activeNavInk);` : `background:transparent;color:var(--muted);`);
+        const icon = active
+          ? `width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,var(--accent) 0 50%,var(--activeNavInk) 50% 100%);flex-shrink:0;`
+          : `width:15px;height:15px;border-radius:3px;border:1.5px solid var(--faintest);flex-shrink:0;`;
+        const badgeStyle = it.danger
+          ? `margin-left:auto;font-family:'Geist Mono',monospace;font-size:10px;color:#fff;background:var(--blocked);border-radius:20px;padding:1px 7px;`
+          : `margin-left:auto;font-family:'Geist Mono',monospace;font-size:10px;color:var(--faint);`;
+        return { label: it.label, badge: it.badge || null, badgeStyle, style, icon, go: () => this.go(it.key) };
+      })
+    }));
+
+    // theme pills
+    const themePills = [
+      { key:'white', label:'White' }, { key:'dark', label:'Dark' }, { key:'blueprint', label:'Blueprint' }
+    ].map(p => {
+      const active = p.key === s.theme;
+      const style = `font-family:'Geist',sans-serif;font-size:11.5px;font-weight:500;padding:5px 11px;border-radius:6px;cursor:pointer;` +
+        (active ? `background:var(--activeNav);color:var(--activeNavInk);` : `background:transparent;color:var(--muted);`);
+      return { label: p.label, style, go: () => this.setTheme(p.key) };
+    });
+
+    // page header
+    const pageMap = {
+      floor: { t:'Operator Floor', s:'WSZ-01 · Pleat Assembly — live production', u:'operator/floor' },
+      queue: { t:'Production Queue', s:'WSZ-01 · drag to reorder · 5 scheduled', u:'operator/queue' },
+      orders: { t:'Work Orders', s:'WSZ-01 · click any row to open detail', u:'operator/orders' },
+      'wo-detail': { t:selectedWo.id, s:selectedWo.product, u:'operator/orders/' + selectedWo.id },
+      issues: { t:'Issues & Anomalies', s:'3 open · 1 blocking production', u:'operator/issues' },
+      downtime: { t:'Downtime Log', s:'A-Shift · 20 min recorded today', u:'operator/downtime' },
+      reports: { t:'Reports & OEE', s:'WSZ-01 · trailing 7 shifts', u:'reports/oee' },
+      lines: { t:'Lines & Stations', s:'5 stations · 3 running · 2 idle', u:'config/lines' },
+      products: { t:'Products', s:'4 SKUs · 3 active', u:'config/products' },
+      users: { t:'Users & Roles', s:'5 people · 1 supervisor · 1 admin', u:'config/users' },
+      components: { t:'Components', s:'OpenMES design system — CRUD building blocks', u:'system/components' }
+    };
+    const pg = pageMap[screen] || pageMap.floor;
+
+    // ===== COMPONENTS gallery =====
+    const switchDefs = [
+      { key:'autoPrint', label:'Auto-print LOT label on batch close', desc:'Send label to WSZ-01 printer' },
+      { key:'soundAlerts', label:'Audible alert on blocking issue', desc:'Play tone when a WO is blocked' },
+      { key:'autoAdvance', label:'Auto-advance routing step', desc:'Move on when target count is hit' }
+    ];
+    const switches = switchDefs.map(d => {
+      const on = s.sw[d.key];
+      return { label:d.label, desc:d.desc, ariaOn: on ? 'on' : 'off',
+        track:`width:42px;height:24px;border-radius:20px;flex-shrink:0;cursor:pointer;background:${on ? t.accent : t.faintest};position:relative;transition:background .15s;`,
+        knob:`position:absolute;top:3px;left:${on ? '21px' : '3px'};width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s;`,
+        toggle:() => this.toggleSw(d.key) };
+    });
+
+    const sizeOpts = [{v:'small',l:'Small'},{v:'medium',l:'Medium'},{v:'large',l:'Large'}].map(o => ({
+      label:o.l,
+      style:`flex:1;text-align:center;font-family:'Geist',sans-serif;font-size:12.5px;font-weight:500;padding:7px 12px;border-radius:var(--radiusSm);cursor:pointer;` +
+        (s.radio === o.v ? `background:var(--activeNav);color:var(--activeNavInk);` : `background:transparent;color:var(--muted);`),
+      go:() => this.setRadio(o.v)
+    }));
+
+    const radioDefs = [{v:'small',l:'Per piece'},{v:'medium',l:'Per batch'},{v:'large',l:'Per shift'}].map(o => ({
+      label:o.l, on: s.radio === o.v,
+      ring:`width:18px;height:18px;border-radius:50%;border:2px solid ${s.radio===o.v ? t.accent : t.faintest};display:flex;align-items:center;justify-content:center;flex-shrink:0;`,
+      dot:`width:8px;height:8px;border-radius:50%;background:${s.radio===o.v ? t.accent : 'transparent'};`,
+      go:() => this.setRadio(o.v)
+    }));
+
+    const tabDefs = [{k:'details',l:'Details'},{k:'routing',l:'Routing'},{k:'history',l:'History'}];
+    const tabs = tabDefs.map(d => ({ label:d.l,
+      style:`padding:10px 2px;font-size:13.5px;font-weight:500;cursor:pointer;border-bottom:2px solid ${s.tab===d.k ? t.accent : 'transparent'};color:${s.tab===d.k ? t.ink : t.muted};`,
+      go:() => this.setTab(d.k) }));
+    const tabBody = { details:'Order details — product, lot, quantities and due date.', routing:'Routing — the six-step process flow for this product.', history:'History — full audit trail of output, issues and downtime.' }[s.tab];
+
+    const toastMap = {
+      success:{ clr:t.running, bg:t.runningBg, title:'Output saved', body:'+12 pcs logged to WO-2026-001' },
+      warn:{ clr:t.downtime, bg:t.downtimeBg, title:'Downtime started', body:'Reason — glue station warm-up' },
+      error:{ clr:t.blocked, bg:t.blockedBg, title:'Sync failed', body:'Offline — retrying in 5s…' }
+    };
+    const tk = s.toast ? toastMap[s.toast] : null;
+
+    const alerts = [
+      { clr:t.running, bg:t.runningBg, title:'Batch #3 closed', body:'108 pcs accepted · LOT 26-0512-A printed.' },
+      { clr:t.accent, bg:t.runningBg && t.chip, title:'New work order assigned', body:'WO-2026-008 added to the WSZ-01 queue.' },
+      { clr:t.downtime, bg:t.downtimeBg, title:'Material running low', body:'Filter media at 12% — reorder recommended.' },
+      { clr:t.blocked, bg:t.blockedBg, title:'Production blocked', body:'Media tear on infeed roll — WO-2026-006 halted.' }
+    ];
+
+    return {
+      rootStyle, clock:'06:42', dateStr:'TUE, MAY 26 · A-SHIFT 06:00–14:00',
+      urlPath: pg.u, pageTitle: pg.t, pageSub: pg.s,
+      nav, themePills,
+      isFloor: screen === 'floor', isOrders: screen === 'orders', isWoDetail: screen === 'wo-detail',
+      isQueue: screen === 'queue', isIssues: screen === 'issues', isDowntime: screen === 'downtime',
+      isReports: screen === 'reports', isLines: screen === 'lines', isProducts: screen === 'products', isUsers: screen === 'users',
+      isComponents: screen === 'components',
+      workOrders, activeWo, selectedWo, steps, queue, allIssues, openIssues, downtime, lines, products, users, kpis, oeeCards, throughput, pareto,
+      tableRows, th, ordersQuery: s.ordersQuery, onOrdersSearch: (e) => this.onOrdersSearch(e),
+      selCount, selCountLabel: selCount + ' selected', showSelBar: selCount > 0, ordersEmpty: screen === 'orders' && tableRows.length === 0,
+      headerCheckStyle: `width:18px;height:18px;border-radius:5px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;` + (allChecked ? `background:${t.accent};` : `border:2px solid ${t.faintest};`),
+      headerCheckMark: allChecked ? '✓' : '',
+      toggleAll: () => this.toggleAllSel(visibleIds), clearSel: () => this.clearSel(),
+      bulkPrint: () => this.fireToast('success'), bulkBlock: () => this.fireToast('error'),
+      switches, sizeOpts, radioDefs, tabs, tabBody, alerts,
+      menuOpen: s.menu, modalConfirm: s.modal === 'confirm', modalForm: s.modal === 'form',
+      toastShow: !!s.toast, toastClr: tk ? tk.clr : t.ink, toastBg: tk ? tk.bg : t.card, toastTitle: tk ? tk.title : '', toastBody: tk ? tk.body : '',
+      openConfirm: () => this.openModal('confirm'), openForm: () => this.openModal('form'), closeModal: () => this.closeModal(),
+      toggleMenu: () => this.toggleMenu(), stopProp: (e) => this.stopProp(e),
+      fireSuccess: () => this.fireToast('success'), fireWarn: () => this.fireToast('warn'), fireError: () => this.fireToast('error'),
+      closeToast: () => { clearTimeout(this._tt); this.setState({ toast: null }); },
+      back: () => this.back(), gotoIssues: () => this.go('issues'), gotoLines: () => this.go('lines')
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -12,14 +12,14 @@ export default function ModulesInstall() {
             <Head title="Install Module" />
             <div className="max-w-3xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Install Module</h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">Upload a module from a ZIP file or place the folder manually</p>
+                    <h1 className="text-3xl font-bold text-om-ink">Install Module</h1>
+                    <p className="text-om-muted mt-1">Upload a module from a ZIP file or place the folder manually</p>
                 </div>
 
                 {/* Upload ZIP */}
                 <div className="card mb-6">
-                    <h2 className="text-base font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <h2 className="text-base font-bold text-om-ink mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-om-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
@@ -30,17 +30,17 @@ export default function ModulesInstall() {
                         <input type="hidden" name="_token" value={csrf_token} />
 
                         <div
-                            className="border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 rounded-xl p-8 cursor-pointer text-center transition-colors mb-4"
+                            className="border-2 border-dashed border-om-line hover:border-blue-400 rounded-om p-8 cursor-pointer text-center transition-colors mb-4"
                             onClick={() => fileRef.current?.click()}
                         >
-                            <svg className="mx-auto h-10 w-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="mx-auto h-10 w-10 text-om-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
                                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                             </svg>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                            <p className="text-sm text-om-muted">
                                 {filename || 'Click to select a .zip file'}
                             </p>
-                            <p className="text-xs text-gray-400 mt-1">Max 20 MB</p>
+                            <p className="text-xs text-om-faint mt-1">Max 20 MB</p>
                             <input
                                 type="file"
                                 name="module_zip"
@@ -61,24 +61,24 @@ export default function ModulesInstall() {
                         </button>
                     </form>
 
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
+                    <p className="text-xs text-om-faint mt-4">
                         The ZIP must contain a{' '}
-                        <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">module.json</code>
+                        <code className="bg-om-chip px-1 rounded">module.json</code>
                         {' '}file in the root directory or inside a single subfolder.
                     </p>
                 </div>
 
                 {/* Manual install guide */}
-                <div className="card bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                    <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-2">Manual Installation</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                <div className="card bg-om-panel border border-om-line2">
+                    <h3 className="font-bold text-om-muted mb-2">Manual Installation</h3>
+                    <p className="text-sm text-om-muted mb-3">
                         Place the module folder directly in{' '}
-                        <code className="bg-white dark:bg-gray-700 border rounded px-1 text-xs">modules/</code>,
+                        <code className="bg-om-card border rounded px-1 text-xs">modules/</code>,
                         {' '}then go to{' '}
-                        <Link href="/admin/modules" className="text-blue-600 hover:underline">Installed Modules</Link>
+                        <Link href="/admin/modules" className="text-om-accent hover:underline">Installed Modules</Link>
                         {' '}and enable it.
                     </p>
-                    <div className="text-xs font-mono bg-white dark:bg-gray-900 border dark:border-gray-700 rounded p-3 text-gray-700 dark:text-gray-300 space-y-0.5 mb-4">
+                    <div className="text-xs font-mono bg-om-card border rounded p-3 text-om-muted space-y-0.5 mb-4">
                         <p>modules/YourModule/</p>
                         <p className="pl-4">├── module.json</p>
                         <p className="pl-4">├── Providers/</p>
@@ -93,7 +93,7 @@ export default function ModulesInstall() {
                         href="https://github.com/Mes-Open/OpenMes/blob/main/HOOKS.md"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline"
+                        className="text-sm text-om-accent hover:underline"
                     >
                         Available hooks and events (HOOKS.md) ↗
                     </a>

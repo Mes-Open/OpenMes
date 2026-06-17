@@ -10,8 +10,8 @@ export default function Complete() {
         <>
             <Head title="Setup Complete" />
             <div className="text-center py-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-om-running-bg rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-om-running" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -20,8 +20,8 @@ export default function Complete() {
                         />
                     </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Setup Complete!</h2>
-                <p className="text-gray-600 mb-6">
+                <h2 className="text-2xl font-bold text-om-ink mb-2">Setup Complete!</h2>
+                <p className="text-om-muted mb-6">
                     Your production line, product type, process template, and first work order have been created.
                 </p>
 

@@ -8,7 +8,7 @@ export default function ToolEdit() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${tool.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Tool</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Tool</h1>
             <ResourceForm
                 action={`/admin/tools/${tool.id}`}
                 method="put"

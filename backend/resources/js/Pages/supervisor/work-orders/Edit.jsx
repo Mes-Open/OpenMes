@@ -8,7 +8,7 @@ export default function SupervisorWorkOrderEdit() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${workOrder.order_no}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Work Order</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Work Order</h1>
             <ResourceForm
                 action={`/supervisor/work-orders/${workOrder.id}`}
                 method="put"

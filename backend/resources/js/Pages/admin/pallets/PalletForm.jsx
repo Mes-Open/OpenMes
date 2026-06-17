@@ -1,4 +1,5 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 
 export default function PalletForm({ action, method, initial, submitLabel }) {
     const { workOrders = [], statuses = [] } = usePage().props;
@@ -11,29 +12,24 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
     };
 
     return (
-        <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Work order <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-om-muted mb-1">
+                    Work order <span className="text-om-blocked">*</span>
                 </label>
-                <select
-                    value={data.work_order_id ?? ''}
-                    onChange={(e) => setData('work_order_id', e.target.value)}
-                    className="form-input w-full"
-                >
-                    <option value="">— Select work order —</option>
-                    {workOrders.map((wo) => (
-                        <option key={wo.id} value={String(wo.id)}>
-                            {wo.order_no}
-                        </option>
-                    ))}
-                </select>
-                {errors.work_order_id && <p className="mt-1 text-xs text-red-600">{errors.work_order_id}</p>}
+                <Dropdown
+                    value={data.work_order_id == null ? '' : String(data.work_order_id)}
+                    onChange={(v) => setData('work_order_id', v)}
+                    placeholder="— Select work order —"
+                    options={workOrders.map((wo) => ({ value: String(wo.id), label: wo.order_no }))}
+                    className="w-full"
+                />
+                {errors.work_order_id && <p className="mt-1 text-xs text-om-blocked">{errors.work_order_id}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">Quantity</label>
                     <input
                         type="number"
                         min={0}
@@ -41,24 +37,19 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                         onChange={(e) => setData('qty', e.target.value)}
                         className="form-input w-full"
                     />
-                    {errors.qty && <p className="mt-1 text-xs text-red-600">{errors.qty}</p>}
+                    {errors.qty && <p className="mt-1 text-xs text-om-blocked">{errors.qty}</p>}
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Status <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-om-muted mb-1">
+                        Status <span className="text-om-blocked">*</span>
                     </label>
-                    <select
-                        value={data.status ?? 'open'}
-                        onChange={(e) => setData('status', e.target.value)}
-                        className="form-input w-full"
-                    >
-                        {statuses.map((s) => (
-                            <option key={s.value} value={s.value}>
-                                {s.label}
-                            </option>
-                        ))}
-                    </select>
-                    {errors.status && <p className="mt-1 text-xs text-red-600">{errors.status}</p>}
+                    <Dropdown
+                        value={data.status == null ? '' : String(data.status)}
+                        onChange={(v) => setData('status', v)}
+                        options={statuses.map((s) => ({ value: String(s.value), label: s.label }))}
+                        className="w-full"
+                    />
+                    {errors.status && <p className="mt-1 text-xs text-om-blocked">{errors.status}</p>}
                 </div>
             </div>
 
@@ -79,11 +70,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 <button
                     type="submit"
                     disabled={processing}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover disabled:opacity-50"
                 >
                     {processing ? 'Saving…' : submitLabel}
                 </button>
-                <Link href="/admin/pallets" className="text-gray-500 hover:text-gray-800 text-sm">
+                <Link href="/admin/pallets" className="text-om-muted hover:text-om-ink text-sm">
                     Cancel
                 </Link>
             </div>
@@ -94,14 +85,14 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 function TextField({ label, value, error, onChange }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+            <label className="block text-sm font-medium text-om-muted mb-1">{label}</label>
             <input
                 type="text"
                 value={value ?? ''}
                 onChange={(e) => onChange(e.target.value)}
                 className="form-input w-full"
             />
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

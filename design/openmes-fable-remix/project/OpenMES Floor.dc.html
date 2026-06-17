@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #E9E8E3; font-family: 'Geist', system-ui, sans-serif; -webkit-font-smoothing: antialiased; color: #1A1917; }
+  @keyframes omPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+</style>
+</helmet>
+
+<div style="min-width: 1520px; padding: 56px 56px 96px; display: flex; flex-direction: column; gap: 12px;">
+
+  <!-- ░░ BOARD HEADER ░░ -->
+  <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:32px; max-width:1440px; margin:0 auto 24px; width:100%;">
+    <div>
+      <div style="display:flex; align-items:center; gap:11px; margin-bottom:18px;">
+        <div style="width:26px; height:26px; border-radius:6px; background:linear-gradient(135deg,#EA5A2B 0 50%,#1A1917 50% 100%);"></div>
+        <span style="font-size:17px; font-weight:600; letter-spacing:-0.01em;">openmes</span>
+        <span style="font-family:'Geist Mono',monospace; font-size:10px; color:#6F6C66; border:1px solid #DCDAD3; border-radius:5px; padding:2px 6px; white-space:nowrap;">design · v13</span>
+      </div>
+      <h1 style="margin:0; font-size:38px; font-weight:600; letter-spacing:-0.025em; line-height:1.02;">Operator Floor</h1>
+      <p style="margin:10px 0 0; font-size:15px; color:#6F6C66; max-width:560px; line-height:1.5;">One responsive system across web, tablet and mobile — built on the real MES data model. Geist White, hairlines, warm accent, evolved with color-coded production states.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:9px; padding:16px 18px; background:#FFFFFF; border:1px solid #E6E4DE; border-radius:12px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:1px;">State legend</span>
+      <div style="display:flex; gap:14px;">
+        <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:#3A3834;"><span style="width:8px;height:8px;border-radius:50%;background:#1C9A55;"></span>Running</span>
+        <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:#3A3834;"><span style="width:8px;height:8px;border-radius:50%;background:#B6B2AA;"></span>Pending</span>
+      </div>
+      <div style="display:flex; gap:14px;">
+        <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:#3A3834;"><span style="width:8px;height:8px;border-radius:50%;background:#D6442F;"></span>Blocked</span>
+        <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:#3A3834;"><span style="width:8px;height:8px;border-radius:50%;background:#C9821E;"></span>Downtime</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░░░░░░░░░░░░░░░░░░░ WEB ░░░░░░░░░░░░░░░░░░░░ -->
+  <div style="display:flex; align-items:center; gap:12px; max-width:1440px; margin:24px auto 0; width:100%;">
+    <span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#6F6C66;">Web · Operator floor</span>
+    <span style="font-size:12px; color:#9B9892;">1440 — supervisor-grade density, full work-order table</span>
+    <div style="flex:1; height:1px; background:#DCDAD3;"></div>
+  </div>
+
+  <div style="max-width:1440px; width:100%; margin:0 auto; background:#FFFFFF; border:1px solid #DCDAD3; border-radius:14px; overflow:hidden; box-shadow:0 20px 50px -28px rgba(26,25,23,.28);">
+    <!-- browser chrome -->
+    <div style="height:42px; display:flex; align-items:center; gap:14px; padding:0 16px; border-bottom:1px solid #EAE8E2; background:#FBFAF8;">
+      <div style="display:flex; gap:7px;">
+        <span style="width:11px;height:11px;border-radius:50%;background:#E0DDD6;"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#E0DDD6;"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#E0DDD6;"></span>
+      </div>
+      <div style="flex:1; max-width:380px; margin:0 auto; height:24px; border-radius:7px; background:#F1EFEA; display:flex; align-items:center; gap:7px; padding:0 11px;">
+        <span style="width:10px;height:10px;border-radius:50%;border:1.5px solid #B6B2AA;"></span>
+        <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#8A8782;">openmes.local/operator/floor</span>
+      </div>
+      <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#A8A49D;">06:42</span>
+    </div>
+
+    <div style="display:flex;">
+      <!-- sidebar -->
+      <div style="width:236px; flex-shrink:0; border-right:1px solid #EAE8E2; background:#FBFAF8; padding:20px 16px; display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; gap:9px; padding:4px 6px 18px;">
+          <div style="width:22px; height:22px; border-radius:5px; background:linear-gradient(135deg,#EA5A2B 0 50%,#1A1917 50% 100%);"></div>
+          <span style="font-size:14.5px; font-weight:600;">openmes</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:9px; color:#9B9892; border:1px solid #E0DDD6; border-radius:4px; padding:1px 5px;">v1.0</span>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:7px; margin:0 6px 16px; padding:8px 10px; border:1px solid #EAE8E2; border-radius:8px; background:#FFFFFF;">
+          <span style="width:7px;height:7px;border-radius:50%;background:#1C9A55;animation:omPulse 2.4s infinite;"></span>
+          <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; color:#1C9A55;">ONLINE</span>
+          <span style="margin-left:auto; font-family:'Geist Mono',monospace; font-size:10px; color:#9B9892;">2s</span>
+        </div>
+
+        <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:#A8A49D; padding:0 8px; margin-bottom:6px;">Workspace</span>
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:#1A1917; color:#FFFFFF;">
+            <span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,#EA5A2B 0 50%,#FFFFFF 50% 100%);opacity:.95;"></span>
+            <span style="font-size:13px; font-weight:500;">Floor</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; color:#54514B;">
+            <span style="width:15px;height:15px;border:1.5px solid #C4C0B8;border-radius:3px;"></span>
+            <span style="font-size:13px;">Queue</span>
+            <span style="margin-left:auto; font-family:'Geist Mono',monospace; font-size:10px; color:#9B9892;">6</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; color:#54514B;">
+            <span style="width:15px;height:15px;border:1.5px solid #C4C0B8;border-radius:3px;"></span>
+            <span style="font-size:13px;">Work orders</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; color:#54514B;">
+            <span style="width:15px;height:15px;border:1.5px solid #C4C0B8;border-radius:3px;"></span>
+            <span style="font-size:13px;">Issues</span>
+            <span style="margin-left:auto; font-family:'Geist Mono',monospace; font-size:10px; color:#FFFFFF; background:#D6442F; border-radius:20px; padding:1px 7px;">3</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; color:#54514B;">
+            <span style="width:15px;height:15px;border:1.5px solid #C4C0B8;border-radius:3px;"></span>
+            <span style="font-size:13px;">Materials</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; color:#54514B;">
+            <span style="width:15px;height:15px;border:1.5px solid #C4C0B8;border-radius:3px;"></span>
+            <span style="font-size:13px;">Reports</span>
+          </div>
+        </div>
+
+        <div style="margin-top:auto; padding-top:16px; border-top:1px solid #EAE8E2; display:flex; align-items:center; gap:10px;">
+          <div style="width:30px; height:30px; border-radius:50%; background:#1A1917; color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;">AK</div>
+          <div style="line-height:1.3;">
+            <div style="font-size:12.5px; font-weight:500;">A. Kovač</div>
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; color:#9B9892;">OPERATOR · WSZ-01</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- main -->
+      <div style="flex:1; min-width:0; padding:26px 30px 22px; background:#F6F5F1;">
+        <!-- topbar -->
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:22px;">
+          <div>
+            <div style="font-family:'Geist Mono',monospace; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:8px;">Tue, May 26 — A-Shift · 06:00–14:00</div>
+            <h2 style="margin:0; font-size:25px; font-weight:600; letter-spacing:-0.02em;">WSZ-01 · Pleat Assembly</h2>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="display:flex; gap:4px; background:#FFFFFF; border:1px solid #E6E4DE; border-radius:9px; padding:4px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6F6C66; padding:5px 11px; border-radius:6px;">W21</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#1A1917; background:#F1EFEA; padding:5px 11px; border-radius:6px;">W22</span>
+            </div>
+            <button style="font-family:'Geist',sans-serif; font-size:13px; font-weight:500; color:#3A3834; background:#FFFFFF; border:1px solid #E6E4DE; border-radius:9px; padding:9px 15px; cursor:pointer;">Change line</button>
+          </div>
+        </div>
+
+        <!-- KPI strip -->
+        <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px;">
+          <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:11px; padding:15px 16px;">
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:9px;">OEE</div>
+            <div style="display:flex; align-items:baseline; gap:7px;"><span style="font-family:'Geist Mono',monospace; font-size:28px; font-weight:500; letter-spacing:-0.02em;">78%</span><span style="font-size:11.5px; color:#1C9A55; font-weight:500;">↑ 2.1</span></div>
+          </div>
+          <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:11px; padding:15px 16px;">
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:9px;">Active</div>
+            <div style="font-family:'Geist Mono',monospace; font-size:28px; font-weight:500; letter-spacing:-0.02em;">2</div>
+          </div>
+          <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:11px; padding:15px 16px;">
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:9px;">Done today</div>
+            <div style="display:flex; align-items:baseline; gap:5px;"><span style="font-family:'Geist Mono',monospace; font-size:28px; font-weight:500; letter-spacing:-0.02em;">14</span><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#9B9892;">/ 18</span></div>
+          </div>
+          <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:11px; padding:15px 16px;">
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:9px;">Open issues</div>
+            <div style="display:flex; align-items:baseline; gap:7px;"><span style="font-family:'Geist Mono',monospace; font-size:28px; font-weight:500; letter-spacing:-0.02em; color:#D6442F;">3</span><span style="font-size:11.5px; color:#D6442F;">1 blocking</span></div>
+          </div>
+          <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:11px; padding:15px 16px;">
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:9px;">Downtime</div>
+            <div style="display:flex; align-items:baseline; gap:5px;"><span style="font-family:'Geist Mono',monospace; font-size:28px; font-weight:500; letter-spacing:-0.02em;">0</span><span style="font-family:'Geist Mono',monospace; font-size:13px; color:#9B9892;">min</span></div>
+          </div>
+        </div>
+
+        <!-- active WO hero -->
+        <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:12px; padding:20px 22px; margin-bottom:20px; display:flex; gap:28px; align-items:center;">
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:11px; margin-bottom:9px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">WO-2026-001</span>
+              <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; color:#1C9A55; background:#E6F4EA; border-radius:20px; padding:3px 9px;"><span style="width:6px;height:6px;border-radius:50%;background:#1C9A55;animation:omPulse 2s infinite;"></span>RUNNING</span>
+            </div>
+            <div style="font-size:21px; font-weight:600; letter-spacing:-0.015em; margin-bottom:4px;">HEPA-13 Standard</div>
+            <div style="font-family:'Geist Mono',monospace; font-size:11px; color:#9B9892;">LOT 26-0512-A · BATCH #3 · STEP 4/6 PLEATING</div>
+          </div>
+          <div style="width:280px; flex-shrink:0;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#9B9892;">Progress</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#1A1917;">108 / 250 · 43%</span>
+            </div>
+            <div style="height:6px; border-radius:20px; background:#EFEDE8; overflow:hidden;"><div style="width:43%; height:100%; background:#EA5A2B; border-radius:20px;"></div></div>
+          </div>
+          <div style="display:flex; gap:26px; flex-shrink:0; padding-left:8px; border-left:1px solid #EDEBE6;">
+            <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:5px;">Elapsed</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500;">01:24</div></div>
+            <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:5px;">Cycle</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500;">2.94s</div></div>
+            <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:5px;">ETA</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500;">13:42</div></div>
+          </div>
+          <button style="flex-shrink:0; font-family:'Geist',sans-serif; font-size:13.5px; font-weight:600; color:#FFFFFF; background:#1A1917; border:none; border-radius:9px; padding:11px 20px; cursor:pointer;">Open ↗</button>
+        </div>
+
+        <!-- WO table -->
+        <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:12px; overflow:hidden;">
+          <div style="display:grid; grid-template-columns:130px 1fr 110px 70px 80px 86px 86px 92px 64px 64px 96px; align-items:center; padding:11px 18px; border-bottom:1px solid #EDEBE6; background:#FBFAF8;">
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Order</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Product</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Status</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Prio</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Due</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; text-align:right;">Plan</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; text-align:right;">Made</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; text-align:right;">Remain</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; text-align:center;">Z1</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; text-align:center;">Z2</span>
+            <span></span>
+          </div>
+
+          <!-- row: running -->
+          <div style="display:grid; grid-template-columns:130px 1fr 110px 70px 80px 86px 86px 92px 64px 64px 96px; align-items:center; padding:13px 18px; border-bottom:1px solid #F0EEE9; border-left:3px solid #1C9A55; background:#FBFDFB;">
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500;">WO-2026-001</span>
+            <span style="font-size:13.5px; font-weight:500;">HEPA-13 Standard</span>
+            <span><span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#1C9A55; background:#E6F4EA; border-radius:20px; padding:3px 8px;"><span style="width:5px;height:5px;border-radius:50%;background:#1C9A55;"></span>RUNNING</span></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#C9821E;">H</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">26 May</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right;">250</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:#6F6C66;">108</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:#EA5A2B;">142</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#1A1917;">108</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#C4C0B8;">—</span>
+            <span style="display:flex; gap:6px; justify-content:flex-end;"><span style="width:26px;height:26px;border-radius:7px;background:#1A1917;color:#FFF;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;">+</span><span style="width:26px;height:26px;border-radius:7px;background:#FBEAE6;color:#D6442F;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">!</span></span>
+          </div>
+
+          <!-- row: running 2 -->
+          <div style="display:grid; grid-template-columns:130px 1fr 110px 70px 80px 86px 86px 92px 64px 64px 96px; align-items:center; padding:13px 18px; border-bottom:1px solid #F0EEE9; border-left:3px solid #1C9A55; background:#FBFDFB;">
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500;">WO-2026-002</span>
+            <span style="font-size:13.5px; font-weight:500;">Carbon Pre-Filter</span>
+            <span><span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#1C9A55; background:#E6F4EA; border-radius:20px; padding:3px 8px;"><span style="width:5px;height:5px;border-radius:50%;background:#1C9A55;"></span>RUNNING</span></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">M</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">26 May</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right;">400</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:#6F6C66;">320</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:#EA5A2B;">80</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#1A1917;">200</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#1A1917;">120</span>
+            <span style="display:flex; gap:6px; justify-content:flex-end;"><span style="width:26px;height:26px;border-radius:7px;background:#1A1917;color:#FFF;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;">+</span><span style="width:26px;height:26px;border-radius:7px;background:#FBEAE6;color:#D6442F;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">!</span></span>
+          </div>
+
+          <!-- row: blocked -->
+          <div style="display:grid; grid-template-columns:130px 1fr 110px 70px 80px 86px 86px 92px 64px 64px 96px; align-items:center; padding:13px 18px; border-bottom:1px solid #F0EEE9; border-left:3px solid #D6442F; background:#FDF6F4;">
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500;">WO-2026-006</span>
+            <span style="font-size:13.5px; font-weight:500;">Carbon Pre-Filter <span style="font-family:'Geist Mono',monospace; font-size:10px; color:#D6442F;">· media tear</span></span>
+            <span><span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#D6442F; background:#FBEAE6; border-radius:20px; padding:3px 8px;">BLOCKED</span></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#D6442F;">H</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">27 May</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right;">300</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:#6F6C66;">60</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:#EA5A2B;">240</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#1A1917;">60</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#C4C0B8;">—</span>
+            <span style="display:flex; gap:6px; justify-content:flex-end;"><span style="width:26px;height:26px;border-radius:7px;background:#1A1917;color:#FFF;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;">+</span><span style="width:26px;height:26px;border-radius:7px;background:#D6442F;color:#FFF;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">!</span></span>
+          </div>
+
+          <!-- row: pending -->
+          <div style="display:grid; grid-template-columns:130px 1fr 110px 70px 80px 86px 86px 92px 64px 64px 96px; align-items:center; padding:13px 18px; border-bottom:1px solid #F0EEE9; border-left:3px solid transparent;">
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500;">WO-2026-005</span>
+            <span style="font-size:13.5px; font-weight:500;">HEPA Slim</span>
+            <span><span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#6F6C66; background:#F1EFEA; border-radius:20px; padding:3px 8px;">PENDING</span></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#D6442F;">H</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#D6442F;">17:00</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right;">120</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:#C4C0B8;">0</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:#EA5A2B;">120</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#C4C0B8;">—</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#C4C0B8;">—</span>
+            <span style="display:flex; gap:6px; justify-content:flex-end;"><span style="width:26px;height:26px;border-radius:7px;background:#1A1917;color:#FFF;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;">+</span><span style="width:26px;height:26px;border-radius:7px;background:#FBEAE6;color:#D6442F;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">!</span></span>
+          </div>
+
+          <!-- row: pending 2 -->
+          <div style="display:grid; grid-template-columns:130px 1fr 110px 70px 80px 86px 86px 92px 64px 64px 96px; align-items:center; padding:13px 18px; border-bottom:1px solid #F0EEE9; border-left:3px solid transparent;">
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500;">WO-2026-007</span>
+            <span style="font-size:13.5px; font-weight:500;">Polo Logo</span>
+            <span><span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#6F6C66; background:#F1EFEA; border-radius:20px; padding:3px 8px;">PENDING</span></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">L</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">28 May</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right;">140</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:#C4C0B8;">0</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:#EA5A2B;">140</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#C4C0B8;">—</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#C4C0B8;">—</span>
+            <span style="display:flex; gap:6px; justify-content:flex-end;"><span style="width:26px;height:26px;border-radius:7px;background:#1A1917;color:#FFF;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;">+</span><span style="width:26px;height:26px;border-radius:7px;background:#FBEAE6;color:#D6442F;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">!</span></span>
+          </div>
+
+          <!-- row: done -->
+          <div style="display:grid; grid-template-columns:130px 1fr 110px 70px 80px 86px 86px 92px 64px 64px 96px; align-items:center; padding:13px 18px; border-left:3px solid transparent; opacity:.62;">
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500;">WO-2026-003</span>
+            <span style="font-size:13.5px; font-weight:500;">HEPA-13 Standard</span>
+            <span><span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#54514B; background:#ECEBE7; border-radius:20px; padding:3px 8px;">DONE</span></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">M</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6F6C66;">25 May</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right;">150</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:#6F6C66;">150</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:#1C9A55;">0</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#1A1917;">150</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:12.5px; text-align:center; color:#C4C0B8;">—</span>
+            <span style="display:flex; gap:6px; justify-content:flex-end;"><span style="width:26px;height:26px;border-radius:7px;background:#ECEBE7;color:#9B9892;display:flex;align-items:center;justify-content:center;font-size:13px;">✓</span></span>
+          </div>
+        </div>
+
+        <!-- terminal footer -->
+        <div style="margin-top:16px; font-family:'Geist Mono',monospace; font-size:11px; color:#A8A49D;">$ openmes sync · last pull 2s ago · 2 lines live · 0 conflicts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░░░░░░░░░░░░░░░░░░░ TABLET ░░░░░░░░░░░░░░░░░░░░ -->
+  <div style="display:flex; align-items:center; gap:12px; max-width:1440px; margin:44px auto 0; width:100%;">
+    <span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#6F6C66;">Tablet · Station</span>
+    <span style="font-size:12px; color:#9B9892;">834 — wall-mounted at the line, touch-first, glove-friendly targets</span>
+    <div style="flex:1; height:1px; background:#DCDAD3;"></div>
+  </div>
+
+  <div style="display:flex; justify-content:center; width:100%;">
+    <!-- tablet bezel -->
+    <div style="width:834px; background:#1A1917; border-radius:34px; padding:14px; box-shadow:0 26px 60px -30px rgba(26,25,23,.45);">
+      <div style="background:#F6F5F1; border-radius:22px; overflow:hidden;">
+        <!-- status bar -->
+        <div style="height:34px; display:flex; align-items:center; justify-content:space-between; padding:0 22px; background:#F6F5F1;">
+          <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:500;">06:42</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#1C9A55;"></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; color:#1C9A55;">ONLINE</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#9B9892; margin-left:6px;">100%</span>
+          </div>
+        </div>
+
+        <div style="padding:22px 24px 26px;">
+          <!-- header -->
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px;">
+            <div>
+              <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:7px;">Tue, May 26 — A-Shift · 06:00–14:00</div>
+              <h2 style="margin:0; font-size:24px; font-weight:600; letter-spacing:-0.02em;">WSZ-01 · Pleat Assembly</h2>
+            </div>
+            <div style="display:flex; align-items:center; gap:9px; padding:8px 13px; background:#FFFFFF; border:1px solid #E6E4DE; border-radius:10px;">
+              <div style="width:26px; height:26px; border-radius:50%; background:#1A1917; color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:600;">AK</div>
+              <span style="font-size:13px; font-weight:500;">A. Kovač</span>
+            </div>
+          </div>
+
+          <!-- big active WO card -->
+          <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:16px; padding:22px; margin-bottom:16px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#6F6C66;">WO-2026-001</span>
+                <span style="display:inline-flex; align-items:center; gap:6px; font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; color:#1C9A55; background:#E6F4EA; border-radius:20px; padding:4px 11px;"><span style="width:7px;height:7px;border-radius:50%;background:#1C9A55;animation:omPulse 2s infinite;"></span>RUNNING</span>
+              </div>
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#9B9892;">BATCH #3 · LOT 26-0512-A</span>
+            </div>
+            <div style="font-size:28px; font-weight:600; letter-spacing:-0.02em; margin-bottom:18px;">HEPA-13 Standard</div>
+
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:9px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#9B9892;">Progress · Step 4/6 Pleating</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:15px;">108 / 250 · 43%</span>
+            </div>
+            <div style="height:9px; border-radius:20px; background:#EFEDE8; overflow:hidden; margin-bottom:20px;"><div style="width:43%; height:100%; background:#EA5A2B; border-radius:20px;"></div></div>
+
+            <div style="display:flex; gap:0; margin-bottom:22px; border:1px solid #EDEBE6; border-radius:12px; overflow:hidden;">
+              <div style="flex:1; padding:14px 16px; border-right:1px solid #EDEBE6;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:6px;">Elapsed</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500;">01:24</div></div>
+              <div style="flex:1; padding:14px 16px; border-right:1px solid #EDEBE6;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:6px;">Cycle</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500;">2.94s</div></div>
+              <div style="flex:1; padding:14px 16px;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:6px;">ETA</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500;">13:42</div></div>
+            </div>
+
+            <div style="display:flex; gap:12px;">
+              <button style="flex:1; font-family:'Geist',sans-serif; font-size:16px; font-weight:600; color:#FFFFFF; background:#1A1917; border:none; border-radius:12px; padding:16px; cursor:pointer;">+ Add output</button>
+              <button style="font-family:'Geist',sans-serif; font-size:16px; font-weight:600; color:#D6442F; background:#FBEAE6; border:none; border-radius:12px; padding:16px 22px; cursor:pointer;">Report issue</button>
+            </div>
+          </div>
+
+          <!-- shift entry -->
+          <div style="display:flex; gap:12px; margin-bottom:16px;">
+            <div style="flex:1; background:#FFFFFF; border:1px solid #E6E4DE; border-radius:14px; padding:16px 18px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#9B9892;">Z1 · 06–14</span><span style="font-family:'Geist Mono',monospace; font-size:10px; color:#1C9A55;">logged</span></div>
+              <div style="font-family:'Geist Mono',monospace; font-size:34px; font-weight:500; letter-spacing:-0.02em;">108</div>
+            </div>
+            <div style="flex:1; background:#FFFFFF; border:1px dashed #CFCBC3; border-radius:14px; padding:16px 18px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#9B9892;">Z2 · 14–22</span><span style="font-family:'Geist Mono',monospace; font-size:10px; color:#C4C0B8;">open</span></div>
+              <div style="font-family:'Geist Mono',monospace; font-size:34px; font-weight:500; letter-spacing:-0.02em; color:#C4C0B8;">—</div>
+            </div>
+          </div>
+
+          <!-- quick actions -->
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px;">
+            <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:14px; padding:16px 14px; text-align:center;"><div style="width:32px;height:32px;border-radius:9px;background:#FAF0DD;display:flex;align-items:center;justify-content:center;margin:0 auto 9px;"><span style="width:14px;height:14px;border-radius:4px;background:#C9821E;"></span></div><span style="font-size:13px; font-weight:500;">Cleaning</span></div>
+            <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:14px; padding:16px 14px; text-align:center;"><div style="width:32px;height:32px;border-radius:9px;background:#FBEAE6;display:flex;align-items:center;justify-content:center;margin:0 auto 9px;"><span style="width:14px;height:14px;border-radius:4px;background:#D6442F;"></span></div><span style="font-size:13px; font-weight:500;">Downtime</span></div>
+            <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:14px; padding:16px 14px; text-align:center;"><div style="width:32px;height:32px;border-radius:9px;background:#E6F4EA;display:flex;align-items:center;justify-content:center;margin:0 auto 9px;"><span style="width:14px;height:14px;border-radius:4px;background:#1C9A55;"></span></div><span style="font-size:13px; font-weight:500;">Quality</span></div>
+            <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:14px; padding:16px 14px; text-align:center;"><div style="width:32px;height:32px;border-radius:9px;background:#F1EFEA;display:flex;align-items:center;justify-content:center;margin:0 auto 9px;"><span style="width:14px;height:14px;border-radius:4px;background:#1A1917;"></span></div><span style="font-size:13px; font-weight:500;">Print label</span></div>
+          </div>
+
+          <!-- up next -->
+          <div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:11px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Up next</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6F6C66;">2 orders →</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; gap:16px; background:#FFFFFF; border:1px solid #E6E4DE; border-left:3px solid #D6442F; border-radius:12px; padding:14px 18px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9B9892;">01</span>
+                <div style="flex:1;"><div style="font-size:15px; font-weight:600;">HEPA Slim</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#9B9892; margin-top:2px;">WO-2026-005 · 120 PCS</div></div>
+                <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; color:#D6442F;">17:00</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:16px; background:#FFFFFF; border:1px solid #E6E4DE; border-left:3px solid transparent; border-radius:12px; padding:14px 18px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9B9892;">02</span>
+                <div style="flex:1;"><div style="font-size:15px; font-weight:600;">Polo Logo</div><div style="font-family:'Geist Mono',monospace; font-size:11px; color:#9B9892; margin-top:2px;">WO-2026-007 · 140 PCS</div></div>
+                <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#9B9892;">Tomorrow</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░░░░░░░░░░░░░░░░░░░ MOBILE PAIR ░░░░░░░░░░░░░░░░░░░░ -->
+  <div style="display:flex; align-items:center; gap:12px; max-width:1440px; margin:44px auto 0; width:100%;">
+    <span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:#6F6C66;">Mobile · Light & Shop-floor dark</span>
+    <span style="font-size:12px; color:#9B9892;">390 — operator on the move; dark for low-light floor &amp; glance reading</span>
+    <div style="flex:1; height:1px; background:#DCDAD3;"></div>
+  </div>
+
+  <div style="display:flex; justify-content:center; gap:48px; width:100%; flex-wrap:wrap;">
+
+    <!-- ═══ MOBILE LIGHT ═══ -->
+    <div style="display:flex; flex-direction:column; align-items:center; gap:14px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Light</span>
+      <div style="width:390px; background:#1A1917; border-radius:46px; padding:11px; box-shadow:0 26px 60px -30px rgba(26,25,23,.5);">
+        <div style="background:#F6F5F1; border-radius:36px; overflow:hidden; position:relative;">
+          <!-- notch -->
+          <div style="position:absolute; top:0; left:50%; transform:translateX(-50%); width:128px; height:30px; background:#1A1917; border-bottom-left-radius:16px; border-bottom-right-radius:16px; z-index:5;"></div>
+          <!-- status bar -->
+          <div style="height:48px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 26px 8px;">
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:500;">06:42</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#1A1917;">▰▰▰▰</span>
+          </div>
+
+          <div style="padding:8px 22px 26px;">
+            <!-- app header -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:22px;">
+              <div style="display:flex; align-items:center; gap:9px;">
+                <div style="width:22px; height:22px; border-radius:5px; background:linear-gradient(135deg,#EA5A2B 0 50%,#1A1917 50% 100%);"></div>
+                <span style="font-size:15px; font-weight:600;">openmes</span>
+                <span style="font-family:'Geist Mono',monospace; font-size:9px; color:#9B9892; border:1px solid #DCDAD3; border-radius:4px; padding:1px 5px;">v1.0</span>
+              </div>
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:#1C9A55;"></span><span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; color:#1C9A55;">ONLINE</span></span>
+            </div>
+
+            <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#9B9892; margin-bottom:14px;">Tue, May 26 — A-Shift · 06:00–14:00</div>
+            <h2 style="margin:0 0 5px; font-size:28px; font-weight:600; letter-spacing:-0.025em;">Today's floor</h2>
+            <p style="margin:0 0 20px; font-size:14px; color:#6F6C66;">3 work orders on your line. 1 active.</p>
+
+            <!-- active WO card -->
+            <div style="background:#FFFFFF; border:1px solid #E6E4DE; border-radius:16px; padding:18px; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6F6C66;">WO-2026-001</span>
+                  <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#1C9A55; background:#E6F4EA; border-radius:20px; padding:3px 8px;"><span style="width:5px;height:5px;border-radius:50%;background:#1C9A55;animation:omPulse 2s infinite;"></span>RUNNING</span>
+                </div>
+                <span style="font-family:'Geist',sans-serif; font-size:12px; font-weight:600; color:#FFFFFF; background:#1A1917; border-radius:8px; padding:7px 13px;">Open ↗</span>
+              </div>
+              <div style="font-size:20px; font-weight:600; letter-spacing:-0.015em; margin-bottom:3px;">HEPA-13 Standard</div>
+              <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:#9B9892; margin-bottom:16px;">LINE WSZ-01 · STEP 4/6 PLEATING</div>
+
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:#9B9892;">Progress</span>
+                <span style="font-family:'Geist Mono',monospace; font-size:12px;">108 / 250 · 43%</span>
+              </div>
+              <div style="height:6px; border-radius:20px; background:#EFEDE8; overflow:hidden; margin-bottom:18px;"><div style="width:43%; height:100%; background:#EA5A2B; border-radius:20px;"></div></div>
+
+              <div style="display:flex; justify-content:space-between; padding-top:16px; border-top:1px solid #EDEBE6;">
+                <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:5px;">Elapsed</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500;">01:24</div></div>
+                <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:5px;">Cycle</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500;">2.94s</div></div>
+                <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:5px;">ETA</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500;">13:42</div></div>
+              </div>
+            </div>
+
+            <!-- KPI trio -->
+            <div style="display:flex; gap:10px; background:#FFFFFF; border:1px solid #E6E4DE; border-radius:16px; padding:16px 18px; margin-bottom:14px;">
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:8px;">OEE</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500;">78%</div><div style="font-size:10.5px; color:#1C9A55; margin-top:2px;">↑ 2.1</div></div>
+              <div style="width:1px; background:#EDEBE6;"></div>
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:8px;">Open issues</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500; color:#D6442F;">3</div><div style="font-size:10.5px; color:#9B9892; margin-top:2px;">1 blocking</div></div>
+              <div style="width:1px; background:#EDEBE6;"></div>
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892; margin-bottom:8px;">Done</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500;">14</div><div style="font-size:10.5px; color:#9B9892; margin-top:2px;">of 18</div></div>
+            </div>
+
+            <!-- up next -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin:4px 2px 11px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Up next</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6F6C66;">2 orders →</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:9px; margin-bottom:18px;">
+              <div style="display:flex; align-items:center; gap:14px; background:#FFFFFF; border:1px solid #E6E4DE; border-left:3px solid #D6442F; border-radius:12px; padding:13px 15px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#9B9892;">01</span>
+                <div style="flex:1;"><div style="font-size:14px; font-weight:600;">HEPA Slim</div><div style="font-family:'Geist Mono',monospace; font-size:10px; color:#9B9892; margin-top:2px;">WO-2026-005 · 120 PCS</div></div>
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:600; color:#D6442F;">17:00</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:14px; background:#FFFFFF; border:1px solid #E6E4DE; border-left:3px solid transparent; border-radius:12px; padding:13px 15px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#9B9892;">02</span>
+                <div style="flex:1;"><div style="font-size:14px; font-weight:600;">Polo Logo</div><div style="font-family:'Geist Mono',monospace; font-size:10px; color:#9B9892; margin-top:2px;">WO-2026-007 · 140 PCS</div></div>
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#9B9892;">Tomorrow</span>
+              </div>
+            </div>
+
+            <!-- terminal footer -->
+            <div style="background:#F1EFEA; border-radius:10px; padding:11px 14px;"><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#8A8782;">$ git pull · last sync 2s ago</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MOBILE DARK ═══ -->
+    <div style="display:flex; flex-direction:column; align-items:center; gap:14px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#9B9892;">Shop-floor dark</span>
+      <div style="width:390px; background:#000000; border-radius:46px; padding:11px; box-shadow:0 26px 60px -30px rgba(0,0,0,.6);">
+        <div style="background:#131211; border-radius:36px; overflow:hidden; position:relative;">
+          <!-- notch -->
+          <div style="position:absolute; top:0; left:50%; transform:translateX(-50%); width:128px; height:30px; background:#000000; border-bottom-left-radius:16px; border-bottom-right-radius:16px; z-index:5;"></div>
+          <!-- status bar -->
+          <div style="height:48px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 26px 8px;">
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:500; color:#F4F2ED;">06:42</span>
+            <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#F4F2ED;">▰▰▰▰</span>
+          </div>
+
+          <div style="padding:8px 22px 26px;">
+            <!-- app header -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:22px;">
+              <div style="display:flex; align-items:center; gap:9px;">
+                <div style="width:22px; height:22px; border-radius:5px; background:linear-gradient(135deg,#F2632F 0 50%,#F4F2ED 50% 100%);"></div>
+                <span style="font-size:15px; font-weight:600; color:#F4F2ED;">openmes</span>
+                <span style="font-family:'Geist Mono',monospace; font-size:9px; color:#A6A29B; border:1px solid #2C2A27; border-radius:4px; padding:1px 5px;">v1.0</span>
+              </div>
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:#2BBE6E;animation:omPulse 2.4s infinite;"></span><span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; color:#2BBE6E;">ONLINE</span></span>
+            </div>
+
+            <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:#6E6A63; margin-bottom:14px;">Tue, May 26 — A-Shift · 06:00–14:00</div>
+            <h2 style="margin:0 0 5px; font-size:28px; font-weight:600; letter-spacing:-0.025em; color:#F4F2ED;">Today's floor</h2>
+            <p style="margin:0 0 20px; font-size:14px; color:#A6A29B;">3 work orders on your line. 1 active.</p>
+
+            <!-- active WO card -->
+            <div style="background:#1C1B19; border:1px solid #2C2A27; border-radius:16px; padding:18px; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#A6A29B;">WO-2026-001</span>
+                  <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#2BBE6E; background:rgba(43,190,110,.14); border-radius:20px; padding:3px 8px;"><span style="width:5px;height:5px;border-radius:50%;background:#2BBE6E;animation:omPulse 2s infinite;"></span>RUNNING</span>
+                </div>
+                <span style="font-family:'Geist',sans-serif; font-size:12px; font-weight:600; color:#131211; background:#F4F2ED; border-radius:8px; padding:7px 13px;">Open ↗</span>
+              </div>
+              <div style="font-size:20px; font-weight:600; letter-spacing:-0.015em; margin-bottom:3px; color:#F4F2ED;">HEPA-13 Standard</div>
+              <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:#6E6A63; margin-bottom:16px;">LINE WSZ-01 · STEP 4/6 PLEATING</div>
+
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:#6E6A63;">Progress</span>
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#F4F2ED;">108 / 250 · 43%</span>
+              </div>
+              <div style="height:6px; border-radius:20px; background:#2C2A27; overflow:hidden; margin-bottom:18px;"><div style="width:43%; height:100%; background:#F2632F; border-radius:20px;"></div></div>
+
+              <div style="display:flex; justify-content:space-between; padding-top:16px; border-top:1px solid #2C2A27;">
+                <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#6E6A63; margin-bottom:5px;">Elapsed</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:#F4F2ED;">01:24</div></div>
+                <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#6E6A63; margin-bottom:5px;">Cycle</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:#F4F2ED;">2.94s</div></div>
+                <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#6E6A63; margin-bottom:5px;">ETA</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:#F4F2ED;">13:42</div></div>
+              </div>
+            </div>
+
+            <!-- KPI trio -->
+            <div style="display:flex; gap:10px; background:#1C1B19; border:1px solid #2C2A27; border-radius:16px; padding:16px 18px; margin-bottom:14px;">
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#6E6A63; margin-bottom:8px;">OEE</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500; color:#F4F2ED;">78%</div><div style="font-size:10.5px; color:#2BBE6E; margin-top:2px;">↑ 2.1</div></div>
+              <div style="width:1px; background:#2C2A27;"></div>
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#6E6A63; margin-bottom:8px;">Issues</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500; color:#F2604A;">3</div><div style="font-size:10.5px; color:#A6A29B; margin-top:2px;">1 blocking</div></div>
+              <div style="width:1px; background:#2C2A27;"></div>
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#6E6A63; margin-bottom:8px;">Done</div><div style="font-family:'Geist Mono',monospace; font-size:22px; font-weight:500; color:#F4F2ED;">14</div><div style="font-size:10.5px; color:#A6A29B; margin-top:2px;">of 18</div></div>
+            </div>
+
+            <!-- up next w/ blocked highlight -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin:4px 2px 11px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#6E6A63;">Up next</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#A6A29B;">2 orders →</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:9px; margin-bottom:18px;">
+              <div style="display:flex; align-items:center; gap:14px; background:rgba(242,96,74,.08); border:1px solid rgba(242,96,74,.28); border-left:3px solid #F2604A; border-radius:12px; padding:13px 15px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6E6A63;">01</span>
+                <div style="flex:1;"><div style="font-size:14px; font-weight:600; color:#F4F2ED;">HEPA Slim</div><div style="font-family:'Geist Mono',monospace; font-size:10px; color:#A6A29B; margin-top:2px;">WO-2026-005 · 120 PCS</div></div>
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:600; color:#F2604A;">17:00</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:14px; background:#1C1B19; border:1px solid #2C2A27; border-left:3px solid transparent; border-radius:12px; padding:13px 15px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6E6A63;">02</span>
+                <div style="flex:1;"><div style="font-size:14px; font-weight:600; color:#F4F2ED;">Polo Logo</div><div style="font-family:'Geist Mono',monospace; font-size:10px; color:#A6A29B; margin-top:2px;">WO-2026-007 · 140 PCS</div></div>
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#A6A29B;">Tomorrow</span>
+              </div>
+            </div>
+
+            <!-- terminal footer -->
+            <div style="background:#1C1B19; border:1px solid #2C2A27; border-radius:10px; padding:11px 14px;"><span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6E6A63;">$ git pull · last sync 2s ago</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 
 function Icon({ d, className = 'w-5 h-5' }) {
@@ -24,6 +25,9 @@ export default function CsvImport() {
     const [dragging, setDragging] = useState(false);
     const [filename, setFilename] = useState('');
     const [fileInput, setFileInput] = useState(null);
+    const [importStrategy, setImportStrategy] = useState('update_or_create');
+    const [mappingId, setMappingId] = useState('');
+    const [targetLineId, setTargetLineId] = useState('');
 
     const handleDrop = (e) => {
         e.preventDefault();
@@ -38,9 +42,9 @@ export default function CsvImport() {
     };
 
     const statusBadge = (status) => {
-        if (status === 'COMPLETED') return 'bg-green-100 text-green-800';
-        if (status === 'FAILED') return 'bg-red-100 text-red-800';
-        return 'bg-yellow-100 text-yellow-800';
+        if (status === 'COMPLETED') return 'bg-om-running-bg text-om-running';
+        if (status === 'FAILED') return 'bg-om-blocked-bg text-om-blocked';
+        return 'bg-om-downtime-bg text-om-downtime';
     };
 
     return (
@@ -48,47 +52,47 @@ export default function CsvImport() {
             <Head title="CSV Import" />
 
             {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-                <Link href="/admin/dashboard" className="hover:text-gray-700">Dashboard</Link>
+            <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
+                <Link href="/admin/dashboard" className="hover:text-om-ink">Dashboard</Link>
                 <span>/</span>
-                <span className="text-gray-800 font-medium">CSV Import</span>
+                <span className="text-om-ink font-medium">CSV Import</span>
             </nav>
 
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Import</h1>
-                    <p className="text-gray-600 mt-1">Import work orders from a CSV, XLS or XLSX file with custom column mapping</p>
+                    <h1 className="text-3xl font-bold text-om-ink">Import</h1>
+                    <p className="text-om-muted mt-1">Import work orders from a CSV, XLS or XLSX file with custom column mapping</p>
                 </div>
             </div>
 
             {/* Import result banner */}
             {importResult && (
-                <div className={`card mb-6 border-l-4 ${importResult.failed === 0 ? 'border-green-500' : 'border-yellow-500'}`}>
+                <div className={`card mb-6 border-l-4 ${importResult.failed === 0 ? 'border-om-running' : 'border-yellow-500'}`}>
                     <div className="flex items-start gap-4">
-                        <div className={`${importResult.failed === 0 ? 'bg-green-100' : 'bg-yellow-100'} rounded-full p-3 flex-shrink-0`}>
+                        <div className={`${importResult.failed === 0 ? 'bg-om-running-bg' : 'bg-om-downtime-bg'} rounded-full p-3 flex-shrink-0`}>
                             {importResult.failed === 0 ? (
-                                <Icon d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" className="w-6 h-6 text-green-600" />
+                                <Icon d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" className="w-6 h-6 text-om-running" />
                             ) : (
-                                <Icon d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z" className="w-6 h-6 text-yellow-600" />
+                                <Icon d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.97L12.75 4.97a2 2 0 00-3.5 0l-7 12A2 2 0 005.07 19z" className="w-6 h-6 text-om-downtime" />
                             )}
                         </div>
                         <div className="flex-1">
-                            <p className="font-bold text-gray-800 mb-1">
+                            <p className="font-bold text-om-ink mb-1">
                                 {importResult.failed === 0 ? 'Import Completed' : 'Import Completed with errors'}
                             </p>
                             <div className="flex gap-6 text-sm">
-                                <span className="text-green-700 font-medium">&#10003; {importResult.success} imported</span>
+                                <span className="text-om-running font-medium">&#10003; {importResult.success} imported</span>
                                 {importResult.failed > 0 && (
-                                    <span className="text-red-700 font-medium">&#10007; {importResult.failed} failed</span>
+                                    <span className="text-om-blocked font-medium">&#10007; {importResult.failed} failed</span>
                                 )}
-                                <span className="text-gray-600">{importResult.total} total rows</span>
+                                <span className="text-om-muted">{importResult.total} total rows</span>
                             </div>
                             {importResult.errors && importResult.errors.length > 0 && (
                                 <details className="mt-3">
-                                    <summary className="text-sm text-red-600 cursor-pointer">
+                                    <summary className="text-sm text-om-blocked cursor-pointer">
                                         Show errors ({importResult.errors.length})
                                     </summary>
-                                    <ul className="mt-2 text-xs text-red-700 space-y-1 bg-red-50 rounded p-3">
+                                    <ul className="mt-2 text-xs text-om-blocked space-y-1 bg-om-blocked-bg rounded p-3">
                                         {importResult.errors.map((err, i) => (
                                             <li key={i}>{err}</li>
                                         ))}
@@ -104,7 +108,7 @@ export default function CsvImport() {
 
                 {/* Upload Form */}
                 <div className="lg:col-span-2 card">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">Upload File</h2>
+                    <h2 className="text-xl font-bold text-om-ink mb-4">Upload File</h2>
                     <form
                         method="POST"
                         action="/admin/csv-import/upload"
@@ -114,8 +118,8 @@ export default function CsvImport() {
 
                         {/* Drop zone */}
                         <div
-                            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors mb-6 cursor-pointer
-                                ${dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}
+                            className={`border-2 border-dashed rounded-om p-8 text-center transition-colors mb-6 cursor-pointer
+                                ${dragging ? 'border-om-accent bg-om-chip' : 'border-om-line hover:border-om-faintest'}`}
                             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                             onDragLeave={(e) => { e.preventDefault(); setDragging(false); }}
                             onDrop={handleDrop}
@@ -123,18 +127,18 @@ export default function CsvImport() {
                         >
                             <Icon
                                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                                className="mx-auto h-12 w-12 text-gray-400 mb-3"
+                                className="mx-auto h-12 w-12 text-om-faint mb-3"
                             />
-                            <p className="text-gray-600 font-medium">
-                                Drop file here or <span className="text-blue-600">browse</span>
+                            <p className="text-om-muted font-medium">
+                                Drop file here or <span className="text-om-accent">browse</span>
                             </p>
-                            <p className="text-sm text-gray-400 mt-1">Max 32 MB &middot; .csv, .txt, .xlsx, .xls</p>
+                            <p className="text-sm text-om-faint mt-1">Max 32 MB &middot; .csv, .txt, .xlsx, .xls</p>
                             <div className="mt-3 flex items-center justify-center gap-3 text-xs">
-                                <span className="text-gray-400">Sample files:</span>
+                                <span className="text-om-faint">Sample files:</span>
                                 <a
                                     href="/samples/zlecenia-import.xlsx"
                                     download
-                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                                    className="inline-flex items-center gap-1 text-om-accent hover:text-om-accent font-medium hover:underline"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <Icon d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" className="w-3.5 h-3.5" />
@@ -143,7 +147,7 @@ export default function CsvImport() {
                                 <a
                                     href="/samples/zlecenia-import.csv"
                                     download
-                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                                    className="inline-flex items-center gap-1 text-om-accent hover:text-om-accent font-medium hover:underline"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <Icon d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" className="w-3.5 h-3.5" />
@@ -160,50 +164,65 @@ export default function CsvImport() {
                                 required
                             />
                             {filename && (
-                                <p className="mt-2 text-sm text-blue-700 font-medium">{filename}</p>
+                                <p className="mt-2 text-sm text-om-accent font-medium">{filename}</p>
                             )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label className="form-label">Duplicate Strategy</label>
-                                <select name="import_strategy" className="form-input w-full" required>
-                                    <option value="update_or_create">Update if exists, create if new</option>
-                                    <option value="skip_existing">Skip existing records</option>
-                                    <option value="error_on_duplicate">Error on duplicates</option>
-                                </select>
+                                <input type="hidden" name="import_strategy" value={importStrategy} />
+                                <Dropdown
+                                    options={[
+                                        { value: 'update_or_create', label: 'Update if exists, create if new' },
+                                        { value: 'skip_existing', label: 'Skip existing records' },
+                                        { value: 'error_on_duplicate', label: 'Error on duplicates' },
+                                    ]}
+                                    value={importStrategy}
+                                    onChange={(v) => setImportStrategy(v)}
+                                    className="w-full"
+                                />
                             </div>
                             <div>
                                 <label className="form-label">Load Mapping Profile (optional)</label>
-                                <select name="mapping_id" className="form-input w-full">
-                                    <option value="">— Map columns manually —</option>
-                                    {savedMappings.map((m) => (
-                                        <option key={m.id} value={m.id}>
-                                            {m.name}{m.is_default ? ' (default)' : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                <input type="hidden" name="mapping_id" value={mappingId} />
+                                <Dropdown
+                                    options={[
+                                        { value: '', label: '— Map columns manually —' },
+                                        ...savedMappings.map((m) => ({
+                                            value: String(m.id),
+                                            label: `${m.name}${m.is_default ? ' (default)' : ''}`,
+                                        })),
+                                    ]}
+                                    value={mappingId == null ? '' : String(mappingId)}
+                                    onChange={(v) => setMappingId(v)}
+                                    className="w-full"
+                                />
                             </div>
                         </div>
 
                         {/* Target line */}
                         <div className="mb-4">
                             <label className="form-label">Assign all rows to Production Line (optional)</label>
-                            <select name="target_line_id" className="form-input w-full">
-                                <option value="">— Use line_code column from file —</option>
-                                {lines.map((line) => (
-                                    <option key={line.id} value={line.id}>{line.name}</option>
-                                ))}
-                            </select>
-                            <p className="text-xs text-gray-400 mt-1">
+                            <input type="hidden" name="target_line_id" value={targetLineId} />
+                            <Dropdown
+                                options={[
+                                    { value: '', label: '— Use line_code column from file —' },
+                                    ...lines.map((line) => ({ value: String(line.id), label: line.name })),
+                                ]}
+                                value={targetLineId == null ? '' : String(targetLineId)}
+                                onChange={(v) => setTargetLineId(v)}
+                                className="w-full"
+                            />
+                            <p className="text-xs text-om-faint mt-1">
                                 If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.
                             </p>
                         </div>
 
                         {/* Planning period fields */}
                         {productionPeriod !== 'none' && (
-                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
+                            <div className="mb-4 p-3 bg-om-chip border border-om-line rounded-om-sm">
+                                <p className="text-xs font-semibold text-om-accent uppercase tracking-wide mb-2">
                                     Planning Period
                                     <span className="font-normal normal-case">
                                         {' '}— system is configured for <strong>{productionPeriod}</strong> production split
@@ -258,22 +277,22 @@ export default function CsvImport() {
 
                     {/* Field Reference */}
                     <details className="mt-6">
-                        <summary className="text-sm font-medium text-gray-600 cursor-pointer hover:text-gray-800">
+                        <summary className="text-sm font-medium text-om-muted cursor-pointer hover:text-om-ink">
                             Available system fields reference
                         </summary>
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {Object.entries(systemFields).map(([key, label]) => (
-                                <div key={key} className="flex items-center gap-2 text-xs bg-gray-50 rounded p-2">
-                                    <code className="text-blue-700 font-mono shrink-0">{key}</code>
-                                    <span className="text-gray-600">{label}</span>
+                                <div key={key} className="flex items-center gap-2 text-xs bg-om-panel rounded p-2">
+                                    <code className="text-om-accent font-mono shrink-0">{key}</code>
+                                    <span className="text-om-muted">{label}</span>
                                     {(key === 'order_no' || key === 'quantity') && (
-                                        <span className="ml-auto text-red-500 font-bold shrink-0">required</span>
+                                        <span className="ml-auto text-om-blocked font-bold shrink-0">required</span>
                                     )}
                                 </div>
                             ))}
-                            <div className="flex items-center gap-2 text-xs bg-purple-50 rounded p-2 sm:col-span-2">
+                            <div className="flex items-center gap-2 text-xs bg-om-chip rounded p-2 sm:col-span-2">
                                 <code className="text-purple-700 font-mono shrink-0">custom:field_name</code>
-                                <span className="text-gray-600">Any extra field — stored as JSON on the work order</span>
+                                <span className="text-om-muted">Any extra field — stored as JSON on the work order</span>
                             </div>
                         </div>
                     </details>
@@ -283,17 +302,17 @@ export default function CsvImport() {
                 <div className="space-y-6">
                     {/* Saved Mapping Profiles */}
                     <div className="card">
-                        <h2 className="text-lg font-bold text-gray-800 mb-3">Saved Mapping Profiles</h2>
+                        <h2 className="text-lg font-bold text-om-ink mb-3">Saved Mapping Profiles</h2>
                         {savedMappings.length === 0 ? (
-                            <p className="text-sm text-gray-500">No saved profiles yet. Profiles are saved during import.</p>
+                            <p className="text-sm text-om-muted">No saved profiles yet. Profiles are saved during import.</p>
                         ) : (
                             savedMappings.map((m) => {
                                 const colCount = Object.keys(m.mapping_config?.column_mappings ?? {}).length;
                                 return (
-                                    <div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                                    <div key={m.id} className="flex items-center justify-between py-2 border-b border-om-line2 last:border-0">
                                         <div>
-                                            <p className="text-sm font-medium text-gray-800">{m.name}</p>
-                                            <p className="text-xs text-gray-500">
+                                            <p className="text-sm font-medium text-om-ink">{m.name}</p>
+                                            <p className="text-xs text-om-muted">
                                                 {colCount} column{colCount !== 1 ? 's' : ''} mapped
                                             </p>
                                         </div>
@@ -305,7 +324,7 @@ export default function CsvImport() {
                                             >
                                                 <input type="hidden" name="_token" value={csrfToken} />
                                                 <input type="hidden" name="_method" value="DELETE" />
-                                                <button type="submit" className="text-red-400 hover:text-red-600 p-1">
+                                                <button type="submit" className="text-red-400 hover:text-om-blocked p-1">
                                                     <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" className="w-4 h-4" />
                                                 </button>
                                             </form>
@@ -318,36 +337,36 @@ export default function CsvImport() {
 
                     {/* Recent Imports */}
                     <div className="card">
-                        <h2 className="text-lg font-bold text-gray-800 mb-3">Recent Imports</h2>
+                        <h2 className="text-lg font-bold text-om-ink mb-3">Recent Imports</h2>
                         {recentImports.length === 0 ? (
-                            <p className="text-sm text-gray-500">No imports yet.</p>
+                            <p className="text-sm text-om-muted">No imports yet.</p>
                         ) : (
                             recentImports.map((imp) => (
-                                <div key={imp.id} className="py-2 border-b border-gray-100 last:border-0">
+                                <div key={imp.id} className="py-2 border-b border-om-line2 last:border-0">
                                     <div className="flex items-center justify-between mb-1">
-                                        <p className="text-xs text-gray-600 truncate max-w-[140px]" title={imp.filename}>
+                                        <p className="text-xs text-om-muted truncate max-w-[140px]" title={imp.filename}>
                                             {imp.filename}
                                         </p>
                                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(imp.status)}`}>
                                             {imp.status}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-gray-500">
-                                        <span className="text-green-600">&#10003; {imp.successful_rows}</span> /{' '}
+                                    <p className="text-xs text-om-muted">
+                                        <span className="text-om-running">&#10003; {imp.successful_rows}</span> /{' '}
                                         {imp.total_rows} rows
                                         {imp.failed_rows > 0 && (
-                                            <> &middot; <span className="text-red-600">&#10007; {imp.failed_rows}</span></>
+                                            <> &middot; <span className="text-om-blocked">&#10007; {imp.failed_rows}</span></>
                                         )}
                                         {imp.created_at_human && <> &middot; {imp.created_at_human}</>}
                                     </p>
                                     {imp.error_log && imp.error_log.length > 0 && (
                                         <details className="mt-1">
-                                            <summary className="text-xs text-red-600 cursor-pointer hover:text-red-800">
+                                            <summary className="text-xs text-om-blocked cursor-pointer hover:text-om-blocked">
                                                 Show errors ({imp.error_log.length})
                                             </summary>
-                                            <ul className="mt-1 space-y-0.5 bg-red-50 rounded p-2 max-h-40 overflow-y-auto">
+                                            <ul className="mt-1 space-y-0.5 bg-om-blocked-bg rounded p-2 max-h-40 overflow-y-auto">
                                                 {imp.error_log.map((err, i) => (
-                                                    <li key={i} className="text-xs text-red-700 font-mono break-all">{err}</li>
+                                                    <li key={i} className="text-xs text-om-blocked font-mono break-all">{err}</li>
                                                 ))}
                                             </ul>
                                         </details>

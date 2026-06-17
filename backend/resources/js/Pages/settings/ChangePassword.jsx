@@ -1,7 +1,13 @@
+// Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Button } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+
+const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
+const INPUT_CLASS =
+    'w-full bg-om-bg border rounded-om-sm px-3 py-2.5 pr-12 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
 
 function EyeIcon({ visible }) {
     if (visible) {
@@ -23,14 +29,14 @@ function PasswordField({ id, label, value, onChange, error, hint, autoComplete, 
     const [show, setShow] = useState(false);
     return (
         <div className="mb-6">
-            <label htmlFor={id} className="form-label">{label}</label>
+            <label htmlFor={id} className={LABEL_CLASS}>{label}</label>
             <div className="relative">
                 <input
                     type={show ? 'text' : 'password'}
                     id={id}
                     value={value}
                     onChange={onChange}
-                    className={`form-input w-full pr-12${error ? ' border-red-500' : ''}`}
+                    className={`${INPUT_CLASS} ${error ? 'border-om-blocked' : 'border-om-line'}`}
                     required
                     autoComplete={autoComplete}
                     minLength={minLength}
@@ -38,13 +44,13 @@ function PasswordField({ id, label, value, onChange, error, hint, autoComplete, 
                 <button
                     type="button"
                     onClick={() => setShow((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-om-faint hover:text-om-ink transition-colors"
                 >
                     <EyeIcon visible={show} />
                 </button>
             </div>
-            {hint && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{hint}</p>}
-            {error && <p className="text-red-600 dark:text-red-300 text-sm mt-1">{error}</p>}
+            {hint && <p className="text-[12.5px] text-om-muted mt-1">{hint}</p>}
+            {error && <p className="text-[11.5px] text-om-blocked mt-1">{error}</p>}
         </div>
     );
 }
@@ -79,16 +85,16 @@ export default function ChangePassword() {
             <Head title={__('Change Password')} />
 
             <div className="mb-6">
-                <Link href="/settings" className="text-blue-600 dark:text-blue-300 hover:text-blue-800 flex items-center gap-2 mb-4">
+                <Link href="/settings" className="text-[13px] text-om-muted hover:text-om-ink flex items-center gap-2 mb-4 transition-colors">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                     </svg>
                     {__('Back')}
                 </Link>
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Change Password')}</h1>
+                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Change Password')}</h1>
             </div>
 
-            <div className="card">
+            <div className="bg-om-card border border-om-line rounded-om p-6">
                 <form onSubmit={handleSubmit}>
                     <PasswordField
                         id="current_password"
@@ -111,7 +117,7 @@ export default function ChangePassword() {
                     />
 
                     <div className="mb-6">
-                        <label htmlFor="password_confirmation" className="form-label">{__('Confirm New Password')}</label>
+                        <label htmlFor="password_confirmation" className={LABEL_CLASS}>{__('Confirm New Password')}</label>
                         <div className="relative">
                             {/* PasswordField not reused here so we can place the dynamic hint outside */}
                             <ConfirmField
@@ -120,25 +126,31 @@ export default function ChangePassword() {
                             />
                         </div>
                         {!data.password_confirmation && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{__('Re-enter your password')}</p>
+                            <p className="text-[12.5px] text-om-muted mt-1">{__('Re-enter your password')}</p>
                         )}
                         {data.password_confirmation && data.password !== data.password_confirmation && (
-                            <p className="text-sm text-red-600 dark:text-red-400 mt-1">{__('Passwords do not match')}</p>
+                            <p className="text-[11.5px] text-om-blocked mt-1">{__('Passwords do not match')}</p>
                         )}
                         {data.password && data.password_confirmation && data.password === data.password_confirmation && (
-                            <p className="text-sm text-green-600 dark:text-green-400 mt-1">{__('Passwords match')}</p>
+                            <p className="text-[12.5px] text-om-running mt-1">{__('Passwords match')}</p>
                         )}
                     </div>
 
                     <div className="flex justify-end gap-3">
-                        <Link href="/settings" className="btn-touch btn-secondary">{__('Cancel')}</Link>
-                        <button
+                        <Link
+                            href="/settings"
+                            className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
+                        >
+                            {__('Cancel')}
+                        </Link>
+                        <Button
                             type="submit"
-                            disabled={!canSubmit || processing}
-                            className={`btn-touch btn-primary${(!canSubmit || processing) ? ' opacity-50 cursor-not-allowed' : ''}`}
+                            variant="accent"
+                            disabled={!canSubmit}
+                            loading={processing}
                         >
                             {__('Change Password')}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
@@ -155,7 +167,7 @@ function ConfirmField({ value, onChange }) {
                 id="password_confirmation"
                 value={value}
                 onChange={onChange}
-                className="form-input w-full pr-12"
+                className={`${INPUT_CLASS} border-om-line`}
                 required
                 autoComplete="new-password"
                 minLength={8}
@@ -163,7 +175,7 @@ function ConfirmField({ value, onChange }) {
             <button
                 type="button"
                 onClick={() => setShow((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-om-faint hover:text-om-ink transition-colors"
             >
                 <EyeIcon visible={show} />
             </button>

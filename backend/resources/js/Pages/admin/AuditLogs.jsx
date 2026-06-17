@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
 
 const ACTION_STYLES = {
-    created: 'bg-green-100 text-green-800',
-    updated: 'bg-blue-100 text-blue-800',
-    deleted: 'bg-red-100 text-red-800',
+    created: 'bg-om-running-bg text-om-running',
+    updated: 'bg-om-chip text-om-accent',
+    deleted: 'bg-om-blocked-bg text-om-blocked',
 };
 
 function ActionBadge({ action }) {
-    const cls = ACTION_STYLES[action] ?? 'bg-gray-100 text-gray-600';
+    const cls = ACTION_STYLES[action] ?? 'bg-om-chip text-om-muted';
     return (
         <span className={`px-2 py-1 rounded text-xs font-medium ${cls}`}>
             {action ? action.charAt(0).toUpperCase() + action.slice(1) : '—'}
@@ -26,12 +28,12 @@ function ExpandableChanges({ log }) {
                 <button
                     type="button"
                     onClick={() => setExpanded((v) => !v)}
-                    className="text-blue-600 hover:text-blue-800 text-sm"
+                    className="text-om-accent hover:text-om-accent text-sm"
                 >
                     {expanded ? 'Hide' : 'View'} Changes
                 </button>
                 {expanded && (
-                    <div className="mt-2 p-3 bg-gray-50 rounded text-xs">
+                    <div className="mt-2 p-3 bg-om-panel rounded text-xs">
                         {Object.entries(log.after_state).map(([field, newValue]) => (
                             <div key={field} className="mb-1">
                                 <strong>{field}:</strong>{' '}
@@ -46,14 +48,14 @@ function ExpandableChanges({ log }) {
 
     if (log.action === 'created') {
         return (
-            <span className="text-gray-500 text-sm">
+            <span className="text-om-muted text-sm">
                 Created with {Object.keys(log.after_state ?? {}).length} fields
             </span>
         );
     }
 
     if (log.action === 'deleted') {
-        return <span className="text-gray-500 text-sm">Record deleted</span>;
+        return <span className="text-om-muted text-sm">Record deleted</span>;
     }
 
     return null;
@@ -71,10 +73,10 @@ function Pagination({ meta, links, onPage }) {
                     onClick={() => link.url && onPage(new URL(link.url).searchParams.get('page'))}
                     className={`px-3 py-1 text-sm rounded border transition-colors ${
                         link.active
-                            ? 'bg-blue-600 text-white border-blue-600'
+                            ? 'bg-om-ink text-om-on-ink border-om-accent'
                             : link.url
-                            ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                            : 'border-gray-200 text-gray-400 cursor-default'
+                            ? 'border-om-line text-om-muted hover:bg-om-bg'
+                            : 'border-om-line2 text-om-faint cursor-default'
                     }`}
                     dangerouslySetInnerHTML={{ __html: link.label }}
                 />
@@ -123,24 +125,77 @@ export default function AuditLogs() {
     const meta = auditLogs?.meta ?? null;
     const paginationLinks = auditLogs?.links ?? [];
 
+    const columns = useMemo(() => [
+        {
+            id: 'timestamp',
+            accessorFn: (log) => log.created_at ?? '',
+            header: 'Timestamp',
+            cell: ({ row }) => {
+                const log = row.original;
+                return log.created_at
+                    ? String(log.created_at).replace('T', ' ').replace(/\.\d+Z?$/, '')
+                    : '—';
+            },
+            meta: { align: 'left' },
+        },
+        {
+            id: 'user',
+            accessorFn: (log) => log.user?.name ?? 'System',
+            header: 'User',
+            cell: ({ row }) => row.original.user?.name ?? 'System',
+            meta: { align: 'left' },
+        },
+        {
+            id: 'entity',
+            accessorFn: (log) =>
+                (log.entity_type ? String(log.entity_type).split('\\').pop() : '—') +
+                (log.entity_id ? ` #${log.entity_id}` : ''),
+            header: 'Entity',
+            cell: ({ row }) => {
+                const log = row.original;
+                return (
+                    <>
+                        {log.entity_type ? String(log.entity_type).split('\\').pop() : '—'}
+                        {log.entity_id ? ` #${log.entity_id}` : ''}
+                    </>
+                );
+            },
+            meta: { align: 'left' },
+        },
+        {
+            id: 'action',
+            accessorFn: (log) => log.action ?? '',
+            header: 'Action',
+            cell: ({ row }) => <ActionBadge action={row.original.action} />,
+            meta: { align: 'left' },
+        },
+        {
+            id: 'details',
+            header: 'Details',
+            enableSorting: false,
+            cell: ({ row }) => <ExpandableChanges log={row.original} />,
+            meta: { align: 'left' },
+        },
+    ], []);
+
     return (
         <>
             <Head title="Audit Logs" />
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800">Audit Logs</h1>
-                    <p className="text-gray-600 mt-2">Track all system changes and user activities</p>
+                    <h1 className="text-3xl font-bold text-om-ink">Audit Logs</h1>
+                    <p className="text-om-muted mt-2">Track all system changes and user activities</p>
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-lg shadow-sm p-5 mb-6">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-lg font-bold text-gray-800">Filters</h2>
+                        <h2 className="text-lg font-bold text-om-ink">Filters</h2>
                         <button
                             type="button"
                             onClick={() => setShowFilters((v) => !v)}
-                            className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
                             {showFilters ? 'Hide Filters' : 'Show Filters'}
                         </button>
@@ -150,66 +205,61 @@ export default function AuditLogs() {
                         <div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Entity Type</label>
-                                    <select
-                                        value={form.entity_type}
-                                        onChange={(e) => setForm((f) => ({ ...f, entity_type: e.target.value }))}
-                                        className="form-input w-full"
-                                    >
-                                        <option value="">All Types</option>
-                                        {entityTypes.map((t) => (
-                                            <option key={t} value={t}>{t}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
-                                    <select
-                                        value={form.user_id}
-                                        onChange={(e) => setForm((f) => ({ ...f, user_id: e.target.value }))}
-                                        className="form-input w-full"
-                                    >
-                                        <option value="">All Users</option>
-                                        {users.map((u) => (
-                                            <option key={u.id} value={u.id}>
-                                                {u.name} ({u.username})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
-                                    <select
-                                        value={form.action}
-                                        onChange={(e) => setForm((f) => ({ ...f, action: e.target.value }))}
-                                        className="form-input w-full"
-                                    >
-                                        <option value="">All Actions</option>
-                                        <option value="created">Created</option>
-                                        <option value="updated">Updated</option>
-                                        <option value="deleted">Deleted</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                                    <input
-                                        type="date"
-                                        value={form.start_date}
-                                        onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-                                        className="form-input w-full"
+                                    <label className="block text-sm font-medium text-om-muted mb-1">Entity Type</label>
+                                    <Dropdown
+                                        options={[
+                                            { value: '', label: 'All Types' },
+                                            ...entityTypes.map((t) => ({ value: String(t), label: t })),
+                                        ]}
+                                        value={form.entity_type == null ? '' : String(form.entity_type)}
+                                        onChange={(v) => setForm((f) => ({ ...f, entity_type: v }))}
+                                        className="w-full"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                                    <input
-                                        type="date"
-                                        value={form.end_date}
-                                        onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
-                                        className="form-input w-full"
+                                    <label className="block text-sm font-medium text-om-muted mb-1">User</label>
+                                    <Dropdown
+                                        options={[
+                                            { value: '', label: 'All Users' },
+                                            ...users.map((u) => ({ value: String(u.id), label: `${u.name} (${u.username})` })),
+                                        ]}
+                                        value={form.user_id == null ? '' : String(form.user_id)}
+                                        onChange={(v) => setForm((f) => ({ ...f, user_id: v }))}
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-om-muted mb-1">Action</label>
+                                    <Dropdown
+                                        options={[
+                                            { value: '', label: 'All Actions' },
+                                            { value: 'created', label: 'Created' },
+                                            { value: 'updated', label: 'Updated' },
+                                            { value: 'deleted', label: 'Deleted' },
+                                        ]}
+                                        value={form.action == null ? '' : String(form.action)}
+                                        onChange={(v) => setForm((f) => ({ ...f, action: v }))}
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-om-muted mb-1">Start Date</label>
+                                    <DatePicker
+                                        value={form.start_date || null}
+                                        onChange={(iso) => setForm((f) => ({ ...f, start_date: iso ?? '' }))}
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-om-muted mb-1">End Date</label>
+                                    <DatePicker
+                                        value={form.end_date || null}
+                                        onChange={(iso) => setForm((f) => ({ ...f, end_date: iso ?? '' }))}
+                                        className="w-full"
                                     />
                                 </div>
                             </div>
@@ -218,20 +268,20 @@ export default function AuditLogs() {
                                 <button
                                     type="button"
                                     onClick={() => apply()}
-                                    className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                    className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                                 >
                                     Apply Filters
                                 </button>
                                 <button
                                     type="button"
                                     onClick={clear}
-                                    className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                                    className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                                 >
                                     Clear Filters
                                 </button>
                                 <a
                                     href={exportUrl()}
-                                    className="ml-auto px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                                    className="ml-auto px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                                 >
                                     Export to CSV
                                 </a>
@@ -241,59 +291,23 @@ export default function AuditLogs() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white rounded-lg shadow-sm">
-                    {logs.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">No audit logs found</div>
-                    ) : (
-                        <>
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {logs.map((log) => (
-                                            <tr key={log.id} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                    {log.created_at
-                                                        ? String(log.created_at).replace('T', ' ').replace(/\.\d+Z?$/, '')
-                                                        : '—'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {log.user?.name ?? 'System'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                    {log.entity_type
-                                                        ? String(log.entity_type).split('\\').pop()
-                                                        : '—'}
-                                                    {log.entity_id ? ` #${log.entity_id}` : ''}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <ActionBadge action={log.action} />
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-gray-600">
-                                                    <ExpandableChanges log={log} />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                <DataTable
+                    data={logs}
+                    columns={columns}
+                    searchable
+                    columnToggle
+                    paginated={false}
+                    searchPlaceholder="Search audit logs…"
+                    columnsLabel="Columns"
+                    columnsMenuLabel="Toggle columns"
+                    emptyLabel="No audit logs found"
+                />
 
-                            {meta && (
-                                <div className="mt-4 mb-2 px-6">
-                                    <Pagination meta={meta} links={paginationLinks} onPage={goPage} />
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
+                {meta && (
+                    <div className="mt-4">
+                        <Pagination meta={meta} links={paginationLinks} onPage={goPage} />
+                    </div>
+                )}
             </div>
         </>
     );

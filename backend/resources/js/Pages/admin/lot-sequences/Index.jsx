@@ -7,20 +7,20 @@ export default function LotSequencesIndex() {
     const { productTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
-        { key: 'product_type', label: __('Product Type'), className: 'text-gray-600', render: (r) => productTypeNames[r.product_type_id] ?? __('Global') },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'product_type', label: __('Product Type'), className: 'text-om-muted', render: (r) => productTypeNames[r.product_type_id] ?? __('Global') },
         {
             key: 'format',
             label: __('Format'),
-            className: 'font-mono text-gray-700',
+            className: 'font-mono text-om-muted',
             render: (r) => r.pattern || r.prefix,
         },
-        { key: 'next_number', label: __('Next #'), className: 'text-gray-600' },
-        { key: 'pad_size', label: __('Pad'), className: 'text-gray-600' },
+        { key: 'next_number', label: __('Next #'), className: 'text-om-muted' },
+        { key: 'pad_size', label: __('Pad'), className: 'text-om-muted' },
         {
             key: 'reset_period',
             label: __('Reset'),
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) => (r.reset_period && r.reset_period !== 'none' ? r.reset_period : '—'),
         },
     ];

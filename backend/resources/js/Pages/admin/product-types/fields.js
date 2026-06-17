@@ -1,6 +1,6 @@
 import { __ } from '../../../lib/i18n';
 
-export const productTypeFields = () => [
+export const PRODUCT_TYPE_FIELDS = [
     {
         name: 'code',
         label: __('Product Code'),

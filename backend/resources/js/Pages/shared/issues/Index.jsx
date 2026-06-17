@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { Button, IconButton, Dropdown, DatePicker, TextField, StatusPill, Modal, InlineAlert, ConfirmDialog } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
+import { __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
-    OPEN: 'bg-red-100 text-red-800',
-    ACKNOWLEDGED: 'bg-yellow-100 text-yellow-800',
-    RESOLVED: 'bg-green-100 text-green-800',
-    CLOSED: 'bg-gray-200 text-gray-600',
+    OPEN: 'bg-om-blocked-bg text-om-blocked',
+    ACKNOWLEDGED: 'bg-om-downtime-bg text-om-downtime',
+    RESOLVED: 'bg-om-running-bg text-om-running',
+    CLOSED: 'bg-om-line2 text-om-muted',
 };
 
-const ACTION_STATUS_STYLES = {
-    open: 'bg-gray-100 text-gray-700',
-    in_progress: 'bg-blue-100 text-blue-800',
-    done: 'bg-amber-100 text-amber-800',
-    verified: 'bg-green-100 text-green-800',
+// Action lifecycle (open → in_progress → done → verified) mapped onto the
+// design system's StatusPill tones.
+const ACTION_STATUS = {
+    open: { tone: 'pending', label: __('Open') },
+    in_progress: { tone: 'downtime', label: __('In progress') },
+    done: { tone: 'running', label: __('Done') },
+    verified: { tone: 'done', label: __('Verified') },
 };
 
 export default function IssuesIndex() {
@@ -37,49 +41,49 @@ export default function IssuesIndex() {
     const [actionsFor, setActionsFor] = useState(null); // issue row whose actions modal is open
 
     const columns = [
-        { key: 'title', label: 'Issue', className: 'font-medium text-gray-800' },
-        { key: 'type', label: 'Type', className: 'text-gray-600', render: (r) => issueTypeNames[r.issue_type_id] ?? '—' },
-        { key: 'wo', label: 'Work Order', className: 'text-gray-600', render: (r) => workOrderNos[r.work_order_id] ?? '—' },
-        { key: 'reporter', label: 'Reported by', className: 'text-gray-600', render: (r) => reporterNames[r.reported_by_id] ?? '—' },
-        { key: 'reported_at', label: 'Reported', className: 'text-gray-500', render: (r) => (r.reported_at ? r.reported_at.slice(0, 16).replace('T', ' ') : '—') },
+        { key: 'title', label: __('Issue'), className: 'font-medium text-om-ink' },
+        { key: 'type', label: __('Type'), className: 'text-om-muted', render: (r) => issueTypeNames[r.issue_type_id] ?? '—' },
+        { key: 'wo', label: __('Work Order'), className: 'text-om-muted', render: (r) => workOrderNos[r.work_order_id] ?? '—' },
+        { key: 'reporter', label: __('Reported by'), className: 'text-om-muted', render: (r) => reporterNames[r.reported_by_id] ?? '—' },
+        { key: 'reported_at', label: __('Reported'), className: 'text-om-muted', render: (r) => (r.reported_at ? r.reported_at.slice(0, 16).replace('T', ' ') : '—') },
         {
-            key: 'status', label: 'Status',
-            render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-gray-100 text-gray-700'}`}>{r.status}</span>,
+            key: 'status', label: __('Status'),
+            render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{r.status}</span>,
         },
     ];
 
     const resolveAction = (r) => ({
-        label: 'Resolve',
+        label: __('Resolve'),
         onClick: () => {
-            const notes = prompt('Resolution notes:');
+            const notes = prompt(__('Resolution notes:'));
             if (notes !== null) post(r.id, 'resolve', { resolution_notes: notes });
         },
     });
 
     const actions = (r) => {
-        const list = [{ label: 'Actions', onClick: () => setActionsFor(r) }];
+        const list = [{ label: __('Actions'), onClick: () => setActionsFor(r) }];
         const s = r.status;
         if (s === 'OPEN') {
-            list.push({ label: 'Acknowledge', onClick: () => post(r.id, 'acknowledge') }, resolveAction(r));
+            list.push({ label: __('Acknowledge'), onClick: () => post(r.id, 'acknowledge') }, resolveAction(r));
         } else if (s === 'ACKNOWLEDGED') {
             list.push(resolveAction(r));
         } else if (s === 'RESOLVED') {
-            list.push({ label: 'Close', onClick: () => post(r.id, 'close') });
+            list.push({ label: __('Close'), onClick: () => post(r.id, 'close') });
         }
         return list;
     };
 
     return (
         <>
-            <Head title="Issues" />
+            <Head title={__('Issues')} />
             <ResourceTable
                 shape="issues_all"
-                title="Issues"
+                title={__('Issues')}
                 columns={columns}
                 orderBy="reported_at"
                 orderDir="desc"
                 actions={actions}
-                emptyText="No issues."
+                emptyText={__('No issues.')}
             />
             {actionsFor && (
                 <ActionsModal
@@ -103,6 +107,7 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [form, setForm] = useState({ type: 'corrective', title: '', assigned_to_id: '', due_date: '' });
+    const [confirmDelete, setConfirmDelete] = useState(null); // action pending deletion
 
     const api = async (url, method = 'GET', body) => {
         const res = await fetch(url, {
@@ -112,7 +117,7 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
             body: body ? JSON.stringify(body) : undefined,
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.message || 'Request failed');
+        if (!res.ok) throw new Error(json.message || __('Request failed'));
         return json;
     };
 
@@ -146,66 +151,132 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
 
     const start = (a) => run(() => api(`${base}/issues/actions/${a.id}/start`, 'POST'));
     const complete = (a) => {
-        const notes = prompt('Completion notes (optional):') ?? undefined;
+        const notes = prompt(__('Completion notes (optional):')) ?? undefined;
         run(() => api(`${base}/issues/actions/${a.id}/complete`, 'POST', { notes }));
     };
     const verify = (a) => run(() => api(`${base}/issues/actions/${a.id}/verify`, 'POST'));
-    const remove = (a) => { if (confirm('Delete this action?')) run(() => api(`${base}/issues/actions/${a.id}`, 'DELETE')); };
+    const remove = (a) => run(() => api(`${base}/issues/actions/${a.id}`, 'DELETE'));
+
+    const typeOptions = [
+        { value: 'corrective', label: __('Corrective') },
+        { value: 'preventive', label: __('Preventive') },
+    ];
+    const assigneeOptions = [
+        { value: '', label: __('— Assignee —') },
+        ...Object.entries(users).map(([id, name]) => ({ value: id, label: name })),
+    ];
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className="flex min-h-full items-center justify-center p-4">
-                <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">Corrective / preventive actions</h3>
-                            <p className="text-sm text-gray-500">{issue.title}</p>
-                        </div>
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
-                    </div>
-
-                    {error && <div className="mb-3 p-2 rounded bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
+        <>
+            <Modal
+                open
+                onClose={onClose}
+                title={__('Corrective / preventive actions')}
+                subtitle={issue.title}
+                closeLabel={__('Close')}
+                className="max-w-[640px]"
+            >
+                <div className="space-y-4">
+                    {error && (
+                        <InlineAlert severity="error" title={__('Something went wrong')}>
+                            {error}
+                        </InlineAlert>
+                    )}
 
                     {loading ? (
-                        <p className="text-gray-400 text-sm py-4">Loading…</p>
+                        <p className="py-4 text-[12.5px] text-om-faint">{__('Loading…')}</p>
                     ) : actions.length === 0 ? (
-                        <p className="text-gray-400 text-sm py-3">No actions yet. The issue can only be closed once all actions are verified.</p>
+                        <p className="py-3 text-[12.5px] text-om-faint">
+                            {__('No actions yet. The issue can only be closed once all actions are verified.')}
+                        </p>
                     ) : (
-                        <ul className="space-y-2 mb-4 max-h-72 overflow-y-auto">
-                            {actions.map((a) => (
-                                <li key={a.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                                    <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">{a.type}</span>
-                                    <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-200">
-                                        {a.title}
-                                        {a.assigned_to && <span className="ml-2 text-xs text-gray-400">→ {a.assigned_to}</span>}
-                                        {a.due_date && <span className="ml-2 text-xs text-gray-400">due {a.due_date}</span>}
-                                    </span>
-                                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${ACTION_STATUS_STYLES[a.status] ?? 'bg-gray-100'}`}>{a.status}</span>
-                                    {a.status === 'open' && <button onClick={() => start(a)} className="text-xs px-2 py-1 rounded bg-blue-600 text-white">Start</button>}
-                                    {(a.status === 'open' || a.status === 'in_progress') && <button onClick={() => complete(a)} className="text-xs px-2 py-1 rounded bg-amber-600 text-white">Complete</button>}
-                                    {a.status === 'done' && <button onClick={() => verify(a)} className="text-xs px-2 py-1 rounded bg-green-600 text-white">Verify</button>}
-                                    <button onClick={() => remove(a)} className="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600">Delete</button>
-                                </li>
-                            ))}
+                        <ul className="max-h-72 space-y-2 overflow-y-auto">
+                            {actions.map((a) => {
+                                const st = ACTION_STATUS[a.status] ?? { tone: 'pending', label: a.status };
+                                return (
+                                    <li
+                                        key={a.id}
+                                        className="flex items-center gap-3 rounded-om border border-om-line bg-om-bg px-3 py-3"
+                                    >
+                                        <span className="font-mono text-[9.5px] uppercase tracking-[0.06em] rounded-[20px] bg-om-chip px-[10px] py-1 text-om-muted">
+                                            {a.type === 'preventive' ? __('Preventive') : __('Corrective')}
+                                        </span>
+                                        <span className="flex-1 text-[13px] font-medium text-om-ink">
+                                            {a.title}
+                                            {a.assigned_to && <span className="ml-2 text-[11.5px] text-om-faint">→ {a.assigned_to}</span>}
+                                            {a.due_date && <span className="ml-2 text-[11.5px] text-om-faint">{__('due')} {a.due_date}</span>}
+                                        </span>
+                                        <StatusPill status={st.tone} label={st.label} pulse={false} />
+                                        {a.status === 'open' && (
+                                            <Button variant="secondary" className="px-3 py-1.5 text-[12px]" onClick={() => start(a)}>
+                                                {__('Start')}
+                                            </Button>
+                                        )}
+                                        {(a.status === 'open' || a.status === 'in_progress') && (
+                                            <Button variant="primary" className="px-3 py-1.5 text-[12px]" onClick={() => complete(a)}>
+                                                {__('Complete')}
+                                            </Button>
+                                        )}
+                                        {a.status === 'done' && (
+                                            <Button variant="accent" className="px-3 py-1.5 text-[12px]" onClick={() => verify(a)}>
+                                                {__('Verify')}
+                                            </Button>
+                                        )}
+                                        <IconButton variant="danger" aria-label={__('Delete')} onClick={() => setConfirmDelete(a)}>
+                                            ×
+                                        </IconButton>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
 
-                    <form onSubmit={add} className="flex flex-wrap items-end gap-2 border-t border-gray-200 dark:border-gray-700 pt-4">
-                        <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="form-input text-sm">
-                            <option value="corrective">Corrective</option>
-                            <option value="preventive">Preventive</option>
-                        </select>
-                        <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Action title" className="form-input text-sm flex-1 min-w-[12rem]" maxLength={255} required />
-                        <select value={form.assigned_to_id} onChange={(e) => setForm({ ...form, assigned_to_id: e.target.value })} className="form-input text-sm">
-                            <option value="">— Assignee —</option>
-                            {Object.entries(users).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-                        </select>
-                        <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="form-input text-sm" />
-                        <button type="submit" className="btn-touch btn-primary text-sm">Add</button>
+                    <form onSubmit={add} className="flex flex-wrap items-end gap-2 border-t border-om-line2 pt-4">
+                        <Dropdown
+                            className="min-w-[9rem]"
+                            options={typeOptions}
+                            value={form.type}
+                            onChange={(v) => setForm({ ...form, type: v })}
+                        />
+                        <TextField
+                            className="min-w-[12rem] flex-1"
+                            value={form.title}
+                            onChange={(v) => setForm({ ...form, title: v })}
+                            placeholder={__('Action title')}
+                            maxLength={255}
+                            required
+                        />
+                        <Dropdown
+                            className="min-w-[9rem]"
+                            options={assigneeOptions}
+                            value={form.assigned_to_id}
+                            onChange={(v) => setForm({ ...form, assigned_to_id: v })}
+                        />
+                        <DatePicker
+                            className="min-w-[10rem]"
+                            value={form.due_date}
+                            onChange={(v) => setForm({ ...form, due_date: v || '' })}
+                            placeholder={__('Due date')}
+                        />
+                        <Button type="submit" variant="primary">{__('Add')}</Button>
                     </form>
                 </div>
-            </div>
-        </div>
+            </Modal>
+
+            <ConfirmDialog
+                open={!!confirmDelete}
+                onClose={() => setConfirmDelete(null)}
+                onConfirm={() => {
+                    const a = confirmDelete;
+                    setConfirmDelete(null);
+                    if (a) remove(a);
+                }}
+                title={__('Delete this action?')}
+                confirmLabel={__('Delete')}
+                cancelLabel={__('Cancel')}
+            >
+                {confirmDelete?.title}
+            </ConfirmDialog>
+        </>
     );
 }

@@ -29,7 +29,7 @@ export default function WorkerCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('New Worker')} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('New Worker')}</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('New Worker')}</h1>
             <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} customFields={customFields} skills={skills} onSubmit={submit} />
         </div>
     );

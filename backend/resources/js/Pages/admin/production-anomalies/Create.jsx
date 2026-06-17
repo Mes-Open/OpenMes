@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
 export default function ProductionAnomalyCreate() {
@@ -22,8 +23,8 @@ export default function ProductionAnomalyCreate() {
         [batches, data.work_order_id],
     );
 
-    function handleWorkOrderChange(e) {
-        setData((prev) => ({ ...prev, work_order_id: e.target.value, batch_id: '' }));
+    function handleWorkOrderChange(v) {
+        setData((prev) => ({ ...prev, work_order_id: v, batch_id: '' }));
     }
 
     function submit(e) {
@@ -37,8 +38,8 @@ export default function ProductionAnomalyCreate() {
             <div className="max-w-2xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">Record Production Anomaly</h1>
-                        <p className="text-gray-600 mt-1">Log a deviation from the production plan</p>
+                        <h1 className="text-3xl font-bold text-om-ink">Record Production Anomaly</h1>
+                        <p className="text-om-muted mt-1">Log a deviation from the production plan</p>
                     </div>
                     <Link href="/admin/production-anomalies" className="btn-touch btn-secondary">
                         &larr; Back
@@ -52,77 +53,70 @@ export default function ProductionAnomalyCreate() {
                             {/* Work Order */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Work Order <span className="text-red-500">*</span>
+                                    Work Order <span className="text-om-blocked">*</span>
                                 </label>
-                                <select
-                                    value={data.work_order_id}
+                                <Dropdown
+                                    value={data.work_order_id == null ? '' : String(data.work_order_id)}
                                     onChange={handleWorkOrderChange}
-                                    className="form-input w-full"
-                                    required
-                                >
-                                    <option value="">— Select work order —</option>
-                                    {workOrders.map((wo) => (
-                                        <option key={wo.id} value={wo.id}>
-                                            {wo.order_no}{wo.product_name ? ` — ${wo.product_name}` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                    className="w-full"
+                                    placeholder="— Select work order —"
+                                    options={workOrders.map((wo) => ({
+                                        value: String(wo.id),
+                                        label: `${wo.order_no}${wo.product_name ? ` — ${wo.product_name}` : ''}`,
+                                    }))}
+                                />
                                 {errors.work_order_id && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.work_order_id}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.work_order_id}</p>
                                 )}
                             </div>
 
                             {/* Batch */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Batch <span className="text-gray-400 text-xs">(optional)</span>
+                                    Batch <span className="text-om-faint text-xs">(optional)</span>
                                 </label>
-                                <select
-                                    value={data.batch_id}
-                                    onChange={(e) => setData('batch_id', e.target.value)}
-                                    className="form-input w-full"
+                                <Dropdown
+                                    value={data.batch_id == null ? '' : String(data.batch_id)}
+                                    onChange={(v) => setData('batch_id', v)}
+                                    className="w-full"
                                     disabled={filteredBatches.length === 0}
-                                >
-                                    <option value="">— No specific batch —</option>
-                                    {filteredBatches.map((b) => (
-                                        <option key={b.id} value={b.id}>{b.label}</option>
-                                    ))}
-                                </select>
+                                    options={[
+                                        { value: '', label: '— No specific batch —' },
+                                        ...filteredBatches.map((b) => ({ value: String(b.id), label: b.label })),
+                                    ]}
+                                />
                                 {data.work_order_id && filteredBatches.length === 0 && (
-                                    <p className="text-sm text-gray-400 mt-1">No batches available for this work order.</p>
+                                    <p className="text-sm text-om-faint mt-1">No batches available for this work order.</p>
                                 )}
                                 {errors.batch_id && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.batch_id}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.batch_id}</p>
                                 )}
                             </div>
 
                             {/* Anomaly Reason */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Anomaly Reason <span className="text-red-500">*</span>
+                                    Anomaly Reason <span className="text-om-blocked">*</span>
                                 </label>
-                                <select
-                                    value={data.anomaly_reason_id}
-                                    onChange={(e) => setData('anomaly_reason_id', e.target.value)}
-                                    className="form-input w-full"
-                                    required
-                                >
-                                    <option value="">— Select reason —</option>
-                                    {anomalyReasons.map((r) => (
-                                        <option key={r.id} value={r.id}>
-                                            {r.name}{r.category ? ` (${r.category})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                <Dropdown
+                                    value={data.anomaly_reason_id == null ? '' : String(data.anomaly_reason_id)}
+                                    onChange={(v) => setData('anomaly_reason_id', v)}
+                                    className="w-full"
+                                    placeholder="— Select reason —"
+                                    options={anomalyReasons.map((r) => ({
+                                        value: String(r.id),
+                                        label: `${r.name}${r.category ? ` (${r.category})` : ''}`,
+                                    }))}
+                                />
                                 {errors.anomaly_reason_id && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.anomaly_reason_id}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.anomaly_reason_id}</p>
                                 )}
                             </div>
 
                             {/* Product Name */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Product Name <span className="text-red-500">*</span>
+                                    Product Name <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -134,14 +128,14 @@ export default function ProductionAnomalyCreate() {
                                     maxLength={200}
                                 />
                                 {errors.product_name && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.product_name}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.product_name}</p>
                                 )}
                             </div>
 
                             {/* Planned Qty */}
                             <div>
                                 <label className="form-label">
-                                    Planned Quantity <span className="text-red-500">*</span>
+                                    Planned Quantity <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -154,14 +148,14 @@ export default function ProductionAnomalyCreate() {
                                     placeholder="0.00"
                                 />
                                 {errors.planned_qty && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.planned_qty}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.planned_qty}</p>
                                 )}
                             </div>
 
                             {/* Actual Qty */}
                             <div>
                                 <label className="form-label">
-                                    Actual Quantity <span className="text-red-500">*</span>
+                                    Actual Quantity <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -174,7 +168,7 @@ export default function ProductionAnomalyCreate() {
                                     placeholder="0.00"
                                 />
                                 {errors.actual_qty && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.actual_qty}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.actual_qty}</p>
                                 )}
                             </div>
 
@@ -190,7 +184,7 @@ export default function ProductionAnomalyCreate() {
                                     placeholder="Additional details about the anomaly..."
                                 />
                                 {errors.comment && (
-                                    <p className="text-red-600 text-sm mt-1">{errors.comment}</p>
+                                    <p className="text-om-blocked text-sm mt-1">{errors.comment}</p>
                                 )}
                             </div>
                         </div>

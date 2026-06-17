@@ -1,6 +1,6 @@
 import { __ } from '../../../lib/i18n';
 
-export const companyFields = () => [
+export const COMPANY_FIELDS = [
     { name: 'code', label: __('Code'), required: true },
     { name: 'name', label: __('Name'), required: true },
     { name: 'tax_id', label: __('Tax ID') },

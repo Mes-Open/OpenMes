@@ -5,6 +5,7 @@ import { __ } from '../lib/i18n';
  * the same clientConfig definitions as the form. Renders nothing when no values
  * are set. File/Image values are stored-file metadata ({ path, name, … }) and
  * render as a download link / thumbnail via the authenticated file route.
+ * Geist White (light-only v1 — no dark: variants).
  */
 export default function CustomFieldsDisplay({ definitions = [], values = {}, title }) {
     const present = definitions.filter((d) => {
@@ -15,13 +16,13 @@ export default function CustomFieldsDisplay({ definitions = [], values = {}, tit
     if (!present.length) return null;
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">{title ?? __('Custom fields')}</h2>
+        <div className="bg-om-card border border-om-line rounded-om p-6">
+            <h2 className="text-[15px] font-semibold text-om-ink pb-3 mb-4 border-b border-om-line2">{title ?? __('Custom fields')}</h2>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {present.map((d) => (
                     <div key={d.key}>
-                        <dt className="text-sm text-gray-500">{d.label}</dt>
-                        <dd className="text-sm font-medium text-gray-900">{renderValue(d, values[d.key])}</dd>
+                        <dt className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[3px]">{d.label}</dt>
+                        <dd className="text-[13px] font-medium text-om-ink">{renderValue(d, values[d.key])}</dd>
                     </div>
                 ))}
             </dl>
@@ -40,7 +41,7 @@ function renderValue(def, value) {
         const url = fileUrl(value);
         return url ? (
             <a href={url} target="_blank" rel="noreferrer">
-                <img src={url} alt={value?.name ?? ''} className="h-24 w-24 rounded border border-gray-200 object-cover" />
+                <img src={url} alt={value?.name ?? ''} className="h-24 w-24 rounded-om-sm border border-om-line object-cover" />
             </a>
         ) : '—';
     }
@@ -48,7 +49,7 @@ function renderValue(def, value) {
     if (def.type === 'file') {
         const url = fileUrl(value);
         return url ? (
-            <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+            <a href={url} target="_blank" rel="noreferrer" className="text-om-accent hover:underline">
                 {value?.name ?? __('Download')}
             </a>
         ) : '—';
