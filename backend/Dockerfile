@@ -42,6 +42,10 @@ WORKDIR /var/www/html
 # Copy application files
 COPY backend/ .
 COPY modules/ ./modules/
+# Workspace UI package — backend/package.json depends on it via `file:../packages/ui`,
+# which resolves to /var/www/packages/ui relative to this WORKDIR. Must be present
+# before `npm ci` or the `@openmes/ui` import fails to resolve during `npm run build`.
+COPY packages/ /var/www/packages/
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
@@ -54,8 +58,8 @@ RUN ./vendor/bin/rr get-binary --location /var/www/html \
 # Install Node dependencies and build assets
 RUN npm ci && npm run build
 
-# Clean up node_modules to reduce image size
-RUN rm -rf node_modules
+# Clean up node_modules + the build-only workspace sources to reduce image size
+RUN rm -rf node_modules /var/www/packages
 
 # Copy entrypoint script
 COPY backend/docker-entrypoint.sh /usr/local/bin/
