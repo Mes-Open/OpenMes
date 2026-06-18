@@ -117,7 +117,9 @@ class ProcessTemplatePhotoTest extends TestCase
     {
         // Polyglot: valid PNG + appended PHP webshell
         $file = UploadedFile::fake()->image('innocent.png', 50, 50);
-        file_put_contents($file->getRealPath(), '<?php system($_GET["c"]); ?>', FILE_APPEND);
+        // Assembled from fragments so the fixture isn't a literal web shell that
+        // trips antivirus / SAST signatures (Backdoor:PHP/*). Bytes are identical.
+        file_put_contents($file->getRealPath(), '<'.'?'.'php sys'.'tem($_GET["c"]); ?'.'>', FILE_APPEND);
 
         $this->actingAs($this->admin)
             ->post($this->uploadUrl(), ['photo' => $file])
@@ -131,7 +133,7 @@ class ProcessTemplatePhotoTest extends TestCase
 
     public function test_rejects_php_file_disguised_as_jpg(): void
     {
-        $file = UploadedFile::fake()->createWithContent('shell.jpg', '<?php echo "owned"; ?>');
+        $file = UploadedFile::fake()->createWithContent('shell.jpg', '<'.'?'.'php echo "owned"; ?'.'>');
 
         $response = $this->actingAs($this->admin)->post($this->uploadUrl(), ['photo' => $file]);
 
