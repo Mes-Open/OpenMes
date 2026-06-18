@@ -28,6 +28,7 @@ export default function QualityTasksIndex() {
         lineNames = {},
         batchNumbers = {},
         roamingTriggers = [],
+        activeBatches = [],
     } = usePage().props;
 
     const base =
@@ -38,8 +39,10 @@ export default function QualityTasksIndex() {
     const [performFor, setPerformFor] = useState(null);
     const [rows, setRows] = useState([]);
     const [notes, setNotes] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     const [roamingOpen, setRoamingOpen] = useState(false);
     const [roamingTrigger, setRoamingTrigger] = useState('');
+    const [roamingBatch, setRoamingBatch] = useState('');
 
     const openPerform = (task) => {
         setRows(initialRows(triggers[task.quality_control_trigger_id]));
@@ -57,9 +60,11 @@ export default function QualityTasksIndex() {
             value_numeric: r.value_numeric === '' ? null : Number(r.value_numeric),
             is_passed: !!r.is_passed,
         }));
+        setSubmitting(true);
         router.post(`${base}/quality-tasks/${performFor.id}/perform`, { samples, notes }, {
             preserveScroll: true,
             onSuccess: () => setPerformFor(null),
+            onFinish: () => setSubmitting(false),
         });
     };
 
@@ -70,10 +75,10 @@ export default function QualityTasksIndex() {
     };
 
     const submitRoaming = () => {
-        if (!roamingTrigger) return;
-        router.post(`${base}/quality-tasks`, { quality_control_trigger_id: roamingTrigger }, {
+        if (!roamingTrigger || !roamingBatch) return;
+        router.post(`${base}/quality-tasks`, { quality_control_trigger_id: roamingTrigger, batch_id: roamingBatch }, {
             preserveScroll: true,
-            onSuccess: () => setRoamingOpen(false),
+            onSuccess: () => { setRoamingOpen(false); setRoamingTrigger(''); setRoamingBatch(''); },
         });
     };
 
@@ -149,7 +154,7 @@ export default function QualityTasksIndex() {
                 footer={
                     <>
                         <Button variant="secondary" onClick={() => setPerformFor(null)}>{__('Cancel')}</Button>
-                        <Button variant="primary" onClick={submitPerform}>{__('Record result')}</Button>
+                        <Button variant="primary" onClick={submitPerform} disabled={submitting}>{__('Record result')}</Button>
                     </>
                 }
             >
@@ -207,15 +212,26 @@ export default function QualityTasksIndex() {
                     </>
                 }
             >
-                <Dropdown
-                    label={__('Roaming trigger')}
-                    value={roamingTrigger}
-                    onChange={setRoamingTrigger}
-                    options={[
-                        { value: '', label: __('Select…') },
-                        ...roamingTriggers.map((t) => ({ value: String(t.id), label: t.name })),
-                    ]}
-                />
+                <div className="space-y-[14px]">
+                    <Dropdown
+                        label={__('Roaming trigger')}
+                        value={roamingTrigger}
+                        onChange={setRoamingTrigger}
+                        options={[
+                            { value: '', label: __('Select…') },
+                            ...roamingTriggers.map((t) => ({ value: String(t.id), label: t.name })),
+                        ]}
+                    />
+                    <Dropdown
+                        label={__('Batch')}
+                        value={roamingBatch}
+                        onChange={setRoamingBatch}
+                        options={[
+                            { value: '', label: __('Select…') },
+                            ...activeBatches.map((b) => ({ value: String(b.id), label: b.label })),
+                        ]}
+                    />
+                </div>
             </Modal>
         </>
     );

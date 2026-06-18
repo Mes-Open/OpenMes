@@ -84,8 +84,10 @@ class QualityTriggerService
                 ->where('work_order_id', $workOrder->id)
                 ->count();
 
-            // Cap per-call creation as a runaway guard (large produced / tiny N).
-            $toCreate = min(max($shouldHave - $existing, 0), 100);
+            // Create one task per N-unit mark still missing. No cap — a later
+            // fireForUnits() may never run (e.g. final batch), so the backlog
+            // must be cleared now or required controls would be lost.
+            $toCreate = max($shouldHave - $existing, 0);
             for ($i = 0; $i < $toCreate; $i++) {
                 $unitMark = ($existing + $i + 1) * $trigger->threshold_n;
                 $this->createTaskForBatch(
@@ -122,9 +124,13 @@ class QualityTriggerService
 
         $triggers = QualityControlTrigger::active()->ofType($type)->get();
 
-        // The batch currently running on this line (if any) gives us the work
-        // order / batch to record the control against.
+        // A control is recorded against the batch that was running on this line.
+        // No active batch → nothing to check (and the resulting task couldn't be
+        // completed), so we don't fire.
         $activeBatch = $this->activeBatchForLine($downtime->line_id, $downtime->workstation_id);
+        if ($activeBatch === null) {
+            return;
+        }
 
         foreach ($triggers as $trigger) {
             if ($trigger->line_id !== null && $trigger->line_id !== $downtime->line_id) {
@@ -134,7 +140,7 @@ class QualityTriggerService
                 continue;
             }
             if ($trigger->product_type_id !== null
-                && $trigger->product_type_id !== $activeBatch?->workOrder?->product_type_id) {
+                && $trigger->product_type_id !== $activeBatch->workOrder?->product_type_id) {
                 continue;
             }
             if ($trigger->downtime_min_minutes !== null && $durationMinutes < $trigger->downtime_min_minutes) {
@@ -147,9 +153,9 @@ class QualityTriggerService
 
             $this->createTask($trigger, [
                 'line_id' => $downtime->line_id,
-                'workstation_id' => $downtime->workstation_id ?? $activeBatch?->workstation_id,
-                'batch_id' => $activeBatch?->id,
-                'work_order_id' => $activeBatch?->work_order_id,
+                'workstation_id' => $downtime->workstation_id ?? $activeBatch->workstation_id,
+                'batch_id' => $activeBatch->id,
+                'work_order_id' => $activeBatch->work_order_id,
             ], $reason);
         }
     }
@@ -203,9 +209,15 @@ class QualityTriggerService
 
     /**
      * Manually raise a roaming / ad-hoc control task for a roaming trigger.
+     * A batch is required so the control can be recorded and gated like any
+     * other (a control with nothing to record against would be a dead task).
      */
     public function createRoamingTask(QualityControlTrigger $trigger, array $links = [], ?string $reason = null): QualityControlTask
     {
+        if (($links['batch_id'] ?? null) === null) {
+            throw new \DomainException('A roaming quality control must target a batch.');
+        }
+
         return $this->createTask($trigger, $links, $reason ?? __('Roaming check'));
     }
 
@@ -219,11 +231,14 @@ class QualityTriggerService
         if ($task->batch_id === null) {
             throw new \DomainException('This control is not tied to a batch and cannot record a quality check.');
         }
-        if (! $task->isOpen()) {
-            throw new \DomainException('This control has already been completed.');
-        }
 
         return DB::transaction(function () use ($task, $user, $samples, $productionQuantity, $notes) {
+            // Lock the row so two concurrent perform/skip calls can't both pass
+            // the open-state check and commit conflicting terminal actions.
+            $task = QualityControlTask::whereKey($task->getKey())->lockForUpdate()->firstOrFail();
+            if (! $task->isOpen()) {
+                throw new \DomainException('This control has already been completed.');
+            }
             $task->loadMissing(['batch', 'trigger']);
 
             $check = $this->qualityCheckService->performCheck(
@@ -254,17 +269,20 @@ class QualityTriggerService
 
     public function skipTask(QualityControlTask $task, User $user): QualityControlTask
     {
-        if (! $task->isOpen()) {
-            throw new \DomainException('This control has already been completed.');
-        }
+        return DB::transaction(function () use ($task, $user) {
+            $task = QualityControlTask::whereKey($task->getKey())->lockForUpdate()->firstOrFail();
+            if (! $task->isOpen()) {
+                throw new \DomainException('This control has already been completed.');
+            }
 
-        $task->update([
-            'status' => QualityControlTask::STATUS_SKIPPED,
-            'completed_at' => now(),
-            'completed_by_id' => $user->id,
-        ]);
+            $task->update([
+                'status' => QualityControlTask::STATUS_SKIPPED,
+                'completed_at' => now(),
+                'completed_by_id' => $user->id,
+            ]);
 
-        return $task->fresh();
+            return $task->fresh();
+        });
     }
 
     /** Has this batch already got a task for this trigger? (in_production dedupe) */

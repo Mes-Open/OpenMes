@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PerformQualityControlTaskRequest;
+use App\Http\Requests\StoreRoamingQualityControlTaskRequest;
 use App\Models\Batch;
 use App\Models\Line;
 use App\Models\QualityControlTask;
 use App\Models\QualityControlTrigger;
 use App\Models\WorkOrder;
 use App\Services\Quality\QualityTriggerService;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
@@ -44,22 +45,20 @@ class QualityControlTaskController extends Controller
             'roamingTriggers' => QualityControlTrigger::active()
                 ->ofType(QualityControlTrigger::TYPE_ROAMING)
                 ->get(['id', 'name']),
+            // In-progress batches a roaming control can be raised against.
+            'activeBatches' => Batch::where('status', Batch::STATUS_IN_PROGRESS)
+                ->with('workOrder:id,order_no')
+                ->get()
+                ->map(fn ($b) => [
+                    'id' => $b->id,
+                    'label' => trim(($b->workOrder?->order_no ?? '').' · #'.$b->batch_number, ' ·'),
+                ]),
         ]);
     }
 
-    public function perform(Request $request, QualityControlTask $task)
+    public function perform(PerformQualityControlTaskRequest $request, QualityControlTask $task)
     {
-        $validated = $request->validate([
-            'production_quantity' => 'nullable|numeric|min:0',
-            'notes' => 'nullable|string|max:1000',
-            'samples' => 'required|array|min:1',
-            'samples.*.sample_number' => 'required|integer',
-            'samples.*.parameter_name' => 'required|string',
-            'samples.*.parameter_type' => 'required|in:measurement,pass_fail',
-            'samples.*.value_numeric' => 'nullable|numeric',
-            'samples.*.value_boolean' => 'nullable',
-            'samples.*.is_passed' => 'nullable',
-        ]);
+        $validated = $request->validated();
 
         $samples = collect($validated['samples'])->map(fn ($s) => [
             'sample_number' => $s['sample_number'],
@@ -101,15 +100,9 @@ class QualityControlTaskController extends Controller
         return back()->with('success', __('Quality control skipped.'));
     }
 
-    public function storeRoaming(Request $request)
+    public function storeRoaming(StoreRoamingQualityControlTaskRequest $request)
     {
-        $validated = $request->validate([
-            'quality_control_trigger_id' => 'required|integer|exists:quality_control_triggers,id',
-            'line_id' => 'nullable|integer|exists:lines,id',
-            'workstation_id' => 'nullable|integer|exists:workstations,id',
-            'work_order_id' => 'nullable|integer|exists:work_orders,id',
-            'batch_id' => 'nullable|integer|exists:batches,id',
-        ]);
+        $validated = $request->validated();
 
         $trigger = QualityControlTrigger::findOrFail($validated['quality_control_trigger_id']);
 
@@ -117,12 +110,16 @@ class QualityControlTaskController extends Controller
             return back()->with('error', __('Only roaming triggers can be raised manually.'));
         }
 
-        $this->triggerService->createRoamingTask($trigger, [
-            'line_id' => $validated['line_id'] ?? null,
-            'workstation_id' => $validated['workstation_id'] ?? null,
-            'work_order_id' => $validated['work_order_id'] ?? null,
-            'batch_id' => $validated['batch_id'] ?? null,
-        ]);
+        try {
+            $this->triggerService->createRoamingTask($trigger, [
+                'line_id' => $validated['line_id'] ?? null,
+                'workstation_id' => $validated['workstation_id'] ?? null,
+                'work_order_id' => $validated['work_order_id'] ?? null,
+                'batch_id' => $validated['batch_id'] ?? null,
+            ]);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', __('Roaming quality control raised.'));
     }

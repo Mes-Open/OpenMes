@@ -104,9 +104,18 @@ class QualityControlTriggerTest extends TestCase
 
     // ── Firing: after_downtime / after_setup ─────────────────────────────────
 
+    /** A downtime check needs a batch to record against; seed one in progress. */
+    private function inProgressBatchOnLine(Line $line): Batch
+    {
+        $wo = WorkOrder::factory()->create(['line_id' => $line->id]);
+
+        return Batch::factory()->inProgress()->create(['work_order_id' => $wo->id]);
+    }
+
     public function test_after_downtime_trigger_fires_when_unplanned_downtime_stops(): void
     {
         $line = Line::factory()->create();
+        $batch = $this->inProgressBatchOnLine($line);
         $reason = DowntimeReason::factory()->create(['kind' => 'unplanned']);
         $trigger = QualityControlTrigger::factory()->afterDowntime()->create();
 
@@ -116,11 +125,13 @@ class QualityControlTriggerTest extends TestCase
         $task = QualityControlTask::where('quality_control_trigger_id', $trigger->id)->first();
         $this->assertNotNull($task);
         $this->assertSame($line->id, $task->line_id);
+        $this->assertSame($batch->id, $task->batch_id); // recordable against the running batch
     }
 
     public function test_after_setup_trigger_fires_when_changeover_downtime_stops(): void
     {
         $line = Line::factory()->create();
+        $this->inProgressBatchOnLine($line);
         $reason = DowntimeReason::factory()->create(['kind' => 'changeover']);
         $setupTrigger = QualityControlTrigger::factory()->afterSetup()->create();
         $downtimeTrigger = QualityControlTrigger::factory()->afterDowntime()->create();
@@ -136,9 +147,22 @@ class QualityControlTriggerTest extends TestCase
     public function test_planned_downtime_never_fires_a_control(): void
     {
         $line = Line::factory()->create();
+        $this->inProgressBatchOnLine($line);
         $reason = DowntimeReason::factory()->create(['kind' => 'planned']);
         QualityControlTrigger::factory()->afterDowntime()->create();
         QualityControlTrigger::factory()->afterSetup()->create();
+
+        $downtime = app(DowntimeService::class)->start($line, $reason->id, $this->admin);
+        app(DowntimeService::class)->stop($downtime);
+
+        $this->assertDatabaseCount('quality_control_tasks', 0);
+    }
+
+    public function test_after_downtime_does_not_fire_without_an_active_batch(): void
+    {
+        $line = Line::factory()->create(); // no in-progress batch
+        $reason = DowntimeReason::factory()->create(['kind' => 'unplanned']);
+        QualityControlTrigger::factory()->afterDowntime()->create();
 
         $downtime = app(DowntimeService::class)->start($line, $reason->id, $this->admin);
         app(DowntimeService::class)->stop($downtime);
@@ -151,12 +175,26 @@ class QualityControlTriggerTest extends TestCase
     public function test_roaming_control_can_be_raised_manually(): void
     {
         $trigger = QualityControlTrigger::factory()->roaming()->create();
+        $batch = Batch::factory()->inProgress()->create();
+
+        $this->actingAs($this->admin)
+            ->post('/admin/quality-tasks', ['quality_control_trigger_id' => $trigger->id, 'batch_id' => $batch->id])
+            ->assertRedirect();
+
+        $task = QualityControlTask::where('quality_control_trigger_id', $trigger->id)->first();
+        $this->assertNotNull($task);
+        $this->assertSame($batch->id, $task->batch_id);
+    }
+
+    public function test_roaming_control_requires_a_batch(): void
+    {
+        $trigger = QualityControlTrigger::factory()->roaming()->create();
 
         $this->actingAs($this->admin)
             ->post('/admin/quality-tasks', ['quality_control_trigger_id' => $trigger->id])
-            ->assertRedirect();
+            ->assertSessionHas('error');
 
-        $this->assertSame(1, QualityControlTask::where('quality_control_trigger_id', $trigger->id)->count());
+        $this->assertDatabaseCount('quality_control_tasks', 0);
     }
 
     public function test_non_roaming_trigger_cannot_be_raised_manually(): void
@@ -277,6 +315,18 @@ class QualityControlTriggerTest extends TestCase
     {
         $this->post('/admin/quality-control-triggers', [])->assertStatus(302);
         $this->get('/admin/quality-control-triggers')->assertStatus(302);
+    }
+
+    public function test_non_admin_cannot_manage_triggers(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        $this->actingAs($operator)->get('/admin/quality-control-triggers')->assertForbidden();
+        $this->actingAs($operator)->post('/admin/quality-control-triggers', [
+            'name' => 'X',
+            'trigger_type' => QualityControlTrigger::TYPE_IN_PRODUCTION,
+        ])->assertForbidden();
     }
 
     // ── Regression: existing per-batch quality check still works ──────────────
