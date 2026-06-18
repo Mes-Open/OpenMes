@@ -143,7 +143,8 @@ class ProcessTemplatePhotoTest extends TestCase
 
     public function test_rejects_svg(): void
     {
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.cookie)</script></svg>';
+        // 'script' split so the fixture isn't a literal payload for AV/SAST.
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg"><scr'.'ipt>alert(document.cookie)</scr'.'ipt></svg>';
         $file = UploadedFile::fake()->createWithContent('xss.svg', $svg);
 
         $response = $this->actingAs($this->admin)->post($this->uploadUrl(), ['photo' => $file]);
