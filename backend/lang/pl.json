@@ -3546,5 +3546,6 @@
     "Quality control trigger \":name\" updated.": "Zaktualizowano wyzwalacz kontroli jakości „:name”.",
     "Quality control trigger updated.": "Zaktualizowano wyzwalacz kontroli jakości.",
     "Roaming check": "Kontrola doraźna",
-    "Roaming quality control raised.": "Zgłoszono doraźną kontrolę jakości."
+    "Roaming quality control raised.": "Zgłoszono doraźną kontrolę jakości.",
+    "Optional.": "Opcjonalne."
 }

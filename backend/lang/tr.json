@@ -1572,5 +1572,6 @@
     "Quality control trigger \":name\" updated.": "\":name\" kalite kontrol tetikleyicisi güncellendi.",
     "Quality control trigger updated.": "Kalite kontrol tetikleyicisi güncellendi.",
     "Roaming check": "Gezici kontrol",
-    "Roaming quality control raised.": "Gezici kalite kontrolü oluşturuldu."
+    "Roaming quality control raised.": "Gezici kalite kontrolü oluşturuldu.",
+    "Optional.": "İsteğe bağlı."
 }

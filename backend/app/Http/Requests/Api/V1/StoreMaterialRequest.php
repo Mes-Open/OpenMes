@@ -17,7 +17,7 @@ class StoreMaterialRequest extends FormRequest
             'code' => ['required', 'string', 'max:50', 'unique:materials,code'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'material_type_id' => ['required', 'exists:material_types,id'],
+            'material_type_id' => ['nullable', 'exists:material_types,id'],
             'unit_of_measure' => ['nullable', 'string', 'max:20'],
             'tracking_type' => ['nullable', 'string', 'in:none,batch,serial'],
             'default_scrap_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
