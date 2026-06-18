@@ -78,12 +78,18 @@ class AdminNavSweepTest extends TestCase
         $supervisor = User::factory()->create();
         $supervisor->assignRole('Supervisor');
 
-        // No tabs by default → every admin page is forbidden.
-        foreach (self::PAGES as $pages) {
+        // Supervisor holds only tab:orders by default → orders is reachable,
+        // every other tab is forbidden.
+        foreach (self::PAGES as $tab => $pages) {
+            if ($tab === 'orders') {
+                $this->actingAs($supervisor)->get($pages[0])->assertOk();
+
+                continue;
+            }
             $this->actingAs($supervisor)->get($pages[0])->assertForbidden();
         }
 
-        // Grant the HR tab → only HR pages open up.
+        // Grant the HR tab → HR pages also open up.
         Role::findByName('Supervisor', 'web')->givePermissionTo(TabRegistry::permission('hr'));
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 

@@ -61,6 +61,8 @@ export default function SupervisorWorkOrdersIndex() {
             <ResourceTable
                 shape="work_orders_all"
                 title="Work Orders"
+                createHref="/supervisor/work-orders/create"
+                createLabel="+ New Work Order"
                 columns={columns}
                 orderBy="order_no"
                 actions={actions}

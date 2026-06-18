@@ -43,16 +43,18 @@ class TabAccessTest extends TestCase
 
     public function test_supervisor_without_grant_is_forbidden(): void
     {
-        $this->actingAs($this->supervisor)->get('/admin/work-orders')->assertForbidden();
+        // Supervisor holds tab:orders by default, but not other tabs.
+        $this->actingAs($this->supervisor)->get('/admin/sites')->assertForbidden();
         $this->actingAs($this->supervisor)->get('/admin/users')->assertForbidden();
     }
 
     public function test_granting_a_tab_lets_the_role_in(): void
     {
-        Role::findByName('Supervisor', 'web')->givePermissionTo('tab:orders');
+        // hr is not a Supervisor default → granting it opens HR pages.
+        Role::findByName('Supervisor', 'web')->givePermissionTo('tab:hr');
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $this->actingAs($this->supervisor)->get('/admin/work-orders')->assertOk();
+        $this->actingAs($this->supervisor)->get('/admin/workers')->assertOk();
         // A non-granted tab stays forbidden.
         $this->actingAs($this->supervisor)->get('/admin/users')->assertForbidden();
     }
