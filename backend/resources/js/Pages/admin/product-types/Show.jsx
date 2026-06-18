@@ -25,10 +25,34 @@ const WO_STATUS_STYLES = {
     PAUSED:      'bg-om-downtime-bg text-om-downtime',
 };
 
-export default function ProductTypeShow({ productType, recentWorkOrders = [], customFields = [] }) {
+const SERIAL_STATUS_STYLES = {
+    in_production: 'bg-om-chip text-om-accent',
+    completed:    'bg-om-running-bg text-om-running',
+    scrapped:     'bg-om-blocked-bg text-om-blocked',
+    shipped:      'bg-om-line2 text-om-muted',
+};
+
+function trimQty(val) {
+    if (val == null) return '0';
+    return parseFloat(Number(val).toFixed(4)).toString();
+}
+
+function ucWords(str) {
+    if (!str) return '—';
+    return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export default function ProductTypeShow({
+    productType,
+    recentWorkOrders = [],
+    componentsUsed = [],
+    serials = { total: 0, status_counts: {}, recent: [] },
+    customFields = [],
+}) {
     const templateCount = productType.process_templates?.length ?? 0;
     const workOrderCount = productType.work_order_count ?? recentWorkOrders.length;
     const totalWorkOrders = productType.total_work_order_count ?? workOrderCount;
+    const serialStatusCounts = serials.status_counts ?? {};
 
     const handleToggleActive = () => {
         router.post(`/admin/product-types/${productType.id}/toggle-active`, {}, { preserveScroll: true });
@@ -244,6 +268,122 @@ export default function ProductTypeShow({ productType, recentWorkOrders = [], cu
                                 <p className="text-om-muted">No work orders yet</p>
                             </div>
                         )}
+                    </div>
+                </div>
+
+                {/* Components & serials used */}
+                <div className="mt-6">
+                    <h2 className="text-xl font-bold text-om-ink mb-1">Components &amp; serials used</h2>
+                    <p className="text-sm text-om-muted mb-4">
+                        Materials actually consumed and serialized units produced across this product&apos;s work orders.
+                    </p>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Components consumed */}
+                        <div className="card">
+                            <h3 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">
+                                Components consumed ({componentsUsed.length})
+                            </h3>
+                            {componentsUsed.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
+                                                <th className="py-2 pr-3 font-medium">Material</th>
+                                                <th className="py-2 px-3 font-medium text-right">Consumed</th>
+                                                <th className="py-2 pl-3 font-medium text-right">Lots</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {componentsUsed.map((c) => (
+                                                <tr key={c.id} className="border-b border-om-line2 last:border-0">
+                                                    <td className="py-2 pr-3">
+                                                        <Link
+                                                            href={`/admin/materials/${c.id}`}
+                                                            className="font-medium text-om-accent hover:underline"
+                                                        >
+                                                            {c.name}
+                                                        </Link>
+                                                        <span className="block text-xs text-om-muted font-mono">{c.code}</span>
+                                                    </td>
+                                                    <td className="py-2 px-3 text-right font-mono">
+                                                        {trimQty(c.total_consumed)}{' '}
+                                                        <span className="text-xs text-om-muted">{c.unit_of_measure}</span>
+                                                    </td>
+                                                    <td className="py-2 pl-3 text-right font-mono text-om-muted">{c.lot_count}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 bg-om-panel rounded-om-sm">
+                                    <p className="text-om-muted">No material consumption recorded yet</p>
+                                    <p className="text-sm text-om-muted mt-1">
+                                        Components appear here once lots are consumed against this product&apos;s batches.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Serialized units */}
+                        <div className="card">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-semibold text-om-muted uppercase tracking-wide">
+                                    Serialized units ({serials.total ?? 0})
+                                </h3>
+                                {Object.keys(serialStatusCounts).length > 0 && (
+                                    <div className="flex flex-wrap gap-1 justify-end">
+                                        {Object.entries(serialStatusCounts).map(([status, count]) => (
+                                            <span
+                                                key={status}
+                                                className={`px-2 py-0.5 rounded-full text-xs font-medium ${SERIAL_STATUS_STYLES[status] ?? 'bg-om-chip text-om-muted'}`}
+                                            >
+                                                {ucWords(status)}: {count}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            {serials.recent && serials.recent.length > 0 ? (
+                                <>
+                                    <div className="space-y-2">
+                                        {serials.recent.map((s) => (
+                                            <Link
+                                                key={s.id}
+                                                href={`/admin/traceability?q=${encodeURIComponent(s.serial_no)}`}
+                                                className="block p-3 bg-om-panel rounded-om-sm hover:bg-om-chip transition-colors"
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-mono font-medium text-om-ink truncate">{s.serial_no}</p>
+                                                        <p className="text-xs text-om-muted mt-0.5">
+                                                            {s.work_order ?? '—'}
+                                                            {s.batch && <> &bull; {s.batch}</>}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap ${SERIAL_STATUS_STYLES[s.status] ?? 'bg-om-chip text-om-muted'}`}>
+                                                        {ucWords(s.status)}
+                                                    </span>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                    {(serials.total ?? 0) > serials.recent.length && (
+                                        <p className="text-sm text-om-muted text-center mt-4">
+                                            Showing {serials.recent.length} most recent of {serials.total} units
+                                        </p>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="text-center py-8 bg-om-panel rounded-om-sm">
+                                    <p className="text-om-muted">No serialized units yet</p>
+                                    <p className="text-sm text-om-muted mt-1">
+                                        Units registered against this product&apos;s work orders will be listed here.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
