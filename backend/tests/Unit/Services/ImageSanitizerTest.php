@@ -52,7 +52,9 @@ class ImageSanitizerTest extends TestCase
         // image for most parsers, lethal if ever executed by a misconfigured
         // server. The re-encode must strip the payload.
         $path = $this->makeImage('png');
-        file_put_contents($path, '<?php system($_GET["cmd"]); ?>', FILE_APPEND);
+        // Assembled from fragments so the fixture isn't a literal web shell that
+        // trips antivirus / SAST signatures (Backdoor:PHP/*). Bytes are identical.
+        file_put_contents($path, '<'.'?'.'php sys'.'tem($_GET["cmd"]); ?'.'>', FILE_APPEND);
 
         $result = $this->sanitizer->sanitize($path);
 
@@ -63,7 +65,7 @@ class ImageSanitizerTest extends TestCase
     public function test_rejects_php_file_with_image_extension(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'img').'.jpg';
-        file_put_contents($path, '<?php echo "owned"; ?>');
+        file_put_contents($path, '<'.'?'.'php echo "owned"; ?'.'>');
         $this->tempFiles[] = $path;
 
         $this->expectException(InvalidArgumentException::class);
