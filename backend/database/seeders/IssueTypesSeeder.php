@@ -77,6 +77,13 @@ class IssueTypesSeeder extends Seeder
                 'is_active' => true,
             ],
             [
+                'code' => 'IN_PROCESS_QC_FAIL',
+                'name' => 'In-process Quality — Control Failed',
+                'severity' => 'HIGH',
+                'is_blocking' => true,
+                'is_active' => true,
+            ],
+            [
                 'code' => 'OTHER',
                 'name' => 'Other Issue',
                 'severity' => 'MEDIUM',

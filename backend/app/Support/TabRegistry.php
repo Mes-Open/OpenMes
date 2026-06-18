@@ -38,7 +38,8 @@ class TabRegistry
         ]],
         'maintenance' => ['label' => 'Maintenance', 'prefixes' => [
             '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
-            '/admin/production-anomalies', '/admin/inspection-plans', '/admin/oee',
+            '/admin/production-anomalies', '/admin/inspection-plans', '/admin/quality-control-triggers',
+            '/admin/quality-tasks', '/admin/oee',
         ]],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
         'admin' => ['label' => 'Admin', 'prefixes' => ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash']],

@@ -60,6 +60,8 @@ class SoftDeleteRegistry
         'template_steps' => Models\TemplateStep::class,
         'bom_items' => Models\BomItem::class,
         'quality_check_templates' => Models\QualityCheckTemplate::class,
+        'quality_control_triggers' => Models\QualityControlTrigger::class,
+        'quality_control_tasks' => Models\QualityControlTask::class,
         'process_template_photos' => Models\ProcessTemplatePhoto::class,
         'process_segments' => Models\ProcessSegment::class,
         'materials' => Models\Material::class,
