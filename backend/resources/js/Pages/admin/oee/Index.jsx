@@ -4,6 +4,7 @@ import { DataTable } from '@openmes/ui/table';
 import { useMemo, useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatNumber } from '../../../lib/i18n';
+import OeeGauge from '../../../components/OeeGauge';
 
 const LINE_PALETTE = ['#2563eb', '#db2777', '#0891b2', '#16a34a', '#ea580c', '#7c3aed'];
 
@@ -172,7 +173,6 @@ export default function OeeIndex() {
                             const s = summary[line.id];
                             if (!s) return null;
                             const oee = s.avg_oee != null ? Number(s.avg_oee).toFixed(1) : null;
-                            const band = oeeBand(oee != null ? Number(oee) : null);
                             return (
                                 <a
                                     key={line.id}
@@ -180,7 +180,6 @@ export default function OeeIndex() {
                                     className="bg-om-card rounded-om-sm shadow-sm p-5 hover:shadow-md transition-shadow flex flex-col items-center text-center"
                                 >
                                     <h3 className="font-bold text-om-ink mb-3">{line.name}</h3>
-                                    {/* OEE gauge (CSS arc) */}
                                     <OeeGauge value={oee != null ? Number(oee) : null} />
                                     <div className="w-full grid grid-cols-3 gap-2 mt-4">
                                         <MetricMini label="Availability" value={fmt1(s.avg_availability)} />
@@ -346,36 +345,3 @@ function MetricMini({ label, value }) {
     );
 }
 
-/** Lightweight CSS semicircle gauge (no SVG lib needed). */
-function OeeGauge({ value }) {
-    const pct = value != null ? Math.min(Math.max(Number(value), 0), 100) : null;
-    const band = oeeBand(pct);
-    // Map 0-100% to 0deg-180deg rotation of the needle half
-    const deg = pct != null ? (pct / 100) * 180 : 0;
-
-    return (
-        <div className="flex flex-col items-center gap-1">
-            {/* Semicircle track */}
-            <div className="relative" style={{ width: 120, height: 60, overflow: 'hidden' }}>
-                {/* Track */}
-                <div className="absolute inset-0 rounded-t-full bg-om-chip" style={{ borderRadius: '60px 60px 0 0' }} />
-                {/* Fill — clip to semicircle */}
-                {pct != null && (
-                    <div
-                        className={`absolute inset-0 ${band.bg}`}
-                        style={{
-                            borderRadius: '60px 60px 0 0',
-                            clipPath: `polygon(50% 100%, 0% 100%, 0% 0%, ${50 - 50 * Math.cos((deg * Math.PI) / 180)}% ${100 - 100 * Math.sin((deg * Math.PI) / 180)}%)`,
-                            opacity: 0.85,
-                        }}
-                    />
-                )}
-                {/* Center text */}
-                <div className="absolute bottom-0 inset-x-0 flex justify-center">
-                    <span className={`text-lg font-black leading-none ${band.text}`}>{pct != null ? pct.toFixed(1) + '%' : '—'}</span>
-                </div>
-            </div>
-            <span className="text-xs text-om-faint font-medium tracking-widest">OEE</span>
-        </div>
-    );
-}

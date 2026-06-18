@@ -23,9 +23,8 @@ export default function OperatorLayout({ children }) {
         <div className="min-h-screen flex flex-col bg-om-bg font-sans">
             <header className="shrink-0 bg-om-card border-b border-om-line">
                 <div className="flex items-center gap-4 px-4 h-16">
-                    <Link href="/operator/select-line" className="flex items-center gap-2.5 shrink-0">
-                        <div aria-hidden className="size-7 rounded-md bg-[linear-gradient(135deg,#EA5A2B_0_50%,#1A1917_50%_100%)]" />
-                        <span className="hidden sm:block text-[15px] font-semibold tracking-[-0.01em] text-om-ink">openmes</span>
+                    <Link href="/operator/select-line" className="flex items-center shrink-0">
+                        <img src="/logo_open_mes.png" alt="OpenMES" className="h-8 w-auto" />
                     </Link>
 
                     {line && (

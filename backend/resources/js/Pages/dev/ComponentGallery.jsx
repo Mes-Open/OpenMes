@@ -122,8 +122,7 @@ function GalleryBody() {
                 <div className="mb-2 flex items-end justify-between gap-6">
                     <div>
                         <div className="mb-4 flex items-center gap-2.5">
-                            <div className="size-6 rounded-md bg-[linear-gradient(135deg,#EA5A2B_0_50%,#1A1917_50%_100%)]" />
-                            <span className="text-base font-semibold tracking-[-0.01em] text-om-ink">openmes</span>
+                            <img src="/logo_open_mes.png" alt="OpenMES" className="h-6 w-auto" />
                             <span className="rounded-[5px] border border-om-line px-[7px] py-0.5 font-mono text-[9.5px] text-om-faint">design system</span>
                         </div>
                         <h1 className="text-[32px] font-semibold tracking-[-0.025em] text-om-ink">Component gallery</h1>

@@ -17,12 +17,9 @@ export default function AuthLayout({ children }) {
     return (
         <div className="bg-om-bg min-h-screen flex items-center justify-center p-4 font-sans">
             <div className="w-full max-w-md">
-                {/* Logo / Header */}
+                {/* Logo / Header — real brand mark, matching the authenticated app shell */}
                 <div className="text-center mb-8">
-                    <div className="flex items-center justify-center gap-2.5 mb-3">
-                        <div aria-hidden className="size-8 rounded-md bg-[linear-gradient(135deg,#EA5A2B_0_50%,#1A1917_50%_100%)]" />
-                        <span className="text-xl font-semibold tracking-[-0.01em] text-om-ink">openmes</span>
-                    </div>
+                    <img src="/logo_open_mes.png" alt="OpenMES" className="h-9 w-auto mx-auto mb-3" />
                     <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">Manufacturing Execution System</p>
                 </div>
 
