@@ -25,10 +25,7 @@ export default function OnboardingLayout({ children }) {
             <div className="w-full max-w-2xl">
                 {/* Logo */}
                 <div className="text-center mb-8">
-                    <div className="flex items-center justify-center gap-2.5 mb-3">
-                        <div aria-hidden className="size-7 rounded-md bg-[linear-gradient(135deg,#EA5A2B_0_50%,#1A1917_50%_100%)]" />
-                        <span className="text-lg font-semibold tracking-[-0.01em] text-om-ink">openmes</span>
-                    </div>
+                    <img src="/logo_open_mes.png" alt="OpenMES" className="h-9 w-auto mx-auto mb-3" />
                     <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">Setup Wizard</p>
                 </div>
 

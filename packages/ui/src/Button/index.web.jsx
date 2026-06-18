@@ -23,13 +23,16 @@ export function Button({
         ghost: 'text-om-ink bg-transparent border border-om-line hover:bg-om-chip px-4 py-[9px]',
         danger: 'text-om-blocked bg-om-blocked-bg hover:bg-[#f8ddd6] px-4 py-2.5',
     };
-    const disabledCls = 'text-om-faint bg-om-chip opacity-60 hover:bg-om-chip hover:brightness-100';
+    // Disabled/loading keeps the variant's own colour, just dimmed — so an
+    // accent button stays orange instead of fading to a near-white chip (which
+    // was invisible on white cards). pointer-events-none suppresses hover.
+    const stateCls = disabled || loading ? 'opacity-50 pointer-events-none' : '';
 
     return (
         <button
             type={type}
             disabled={disabled || loading}
-            className={`${base} ${disabled || loading ? `${variants[variant]} ${disabledCls}` : variants[variant]} ${className}`}
+            className={`${base} ${variants[variant]} ${stateCls} ${className}`}
             {...props}
         >
             {loading && (
