@@ -3442,5 +3442,6 @@
     "full": "pełny",
     "Grant each role access to individual admin-panel tabs": "Przyznaj rolom dostęp do poszczególnych zakładek panelu admina",
     "Grant each role access to individual admin-panel tabs. The Admin role always has full access.": "Przyznaj rolom dostęp do poszczególnych zakładek panelu admina. Rola Admin zawsze ma pełny dostęp.",
-    "Tab access updated successfully.": "Dostęp do zakładek zaktualizowany."
+    "Tab access updated successfully.": "Dostęp do zakładek zaktualizowany.",
+    "Optional.": "Opcjonalne."
 }
