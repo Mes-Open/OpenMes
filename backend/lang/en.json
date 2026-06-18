@@ -3442,5 +3442,6 @@
     "full": "full",
     "Grant each role access to individual admin-panel tabs": "Grant each role access to individual admin-panel tabs",
     "Grant each role access to individual admin-panel tabs. The Admin role always has full access.": "Grant each role access to individual admin-panel tabs. The Admin role always has full access.",
-    "Tab access updated successfully.": "Tab access updated successfully."
+    "Tab access updated successfully.": "Tab access updated successfully.",
+    "Optional.": "Optional."
 }

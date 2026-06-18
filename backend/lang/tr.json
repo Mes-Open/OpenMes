@@ -1499,5 +1499,6 @@
     "full": "tam",
     "Grant each role access to individual admin-panel tabs": "Her role yönetici paneli sekmelerine erişim verin",
     "Grant each role access to individual admin-panel tabs. The Admin role always has full access.": "Her role yönetici paneli sekmelerine erişim verin. Admin rolü her zaman tam erişime sahiptir.",
-    "Tab access updated successfully.": "Sekme erişimi güncellendi."
+    "Tab access updated successfully.": "Sekme erişimi güncellendi.",
+    "Optional.": "İsteğe bağlı."
 }
