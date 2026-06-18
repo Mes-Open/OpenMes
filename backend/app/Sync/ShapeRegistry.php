@@ -112,6 +112,24 @@ class ShapeRegistry
             'table' => 'issue_types',
             'columns' => ['id', 'code', 'name', 'severity', 'is_blocking', 'is_active', 'created_at', 'updated_at'],
         ],
+        // Quality-control trigger config (#105) — admin list.
+        'quality_control_triggers' => [
+            'table' => 'quality_control_triggers',
+            'columns' => [
+                'id', 'name', 'trigger_type', 'quality_check_template_id', 'line_id', 'workstation_id',
+                'product_type_id', 'threshold_n', 'downtime_min_minutes', 'is_blocking', 'is_active',
+                'created_at', 'updated_at',
+            ],
+        ],
+        // Outstanding quality controls (#105) — the operator/supervisor "due" queue.
+        'quality_control_tasks_due' => [
+            'table' => 'quality_control_tasks',
+            'columns' => [
+                'id', 'quality_control_trigger_id', 'status', 'work_order_id', 'batch_id', 'workstation_id',
+                'line_id', 'due_reason', 'quality_check_id', 'issue_id', 'fired_at', 'created_at', 'updated_at',
+            ],
+            'where' => "status IN ('due', 'in_progress')",
+        ],
         'materials' => [
             'table' => 'materials',
             'columns' => ['id', 'code', 'name', 'description', 'material_type_id', 'unit_of_measure', 'tracking_type', 'default_scrap_percentage', 'external_code', 'external_system', 'stock_quantity', 'is_active', 'custom_fields', 'created_at', 'updated_at'],

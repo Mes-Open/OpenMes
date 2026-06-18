@@ -7,10 +7,15 @@ use App\Models\Line;
 use App\Models\ProductionDowntime;
 use App\Models\Shift;
 use App\Models\User;
+use App\Services\Quality\QualityTriggerService;
 use Carbon\Carbon;
 
 class DowntimeService
 {
+    public function __construct(
+        private QualityTriggerService $qualityTriggerService,
+    ) {}
+
     /**
      * Start a new downtime event.
      */
@@ -36,7 +41,12 @@ class DowntimeService
     {
         $downtime->stop();
 
-        return $downtime->fresh();
+        $fresh = $downtime->fresh();
+
+        // Quality-control triggers: after-downtime / after-setup checks (#105).
+        $this->qualityTriggerService->fireAfterDowntime($fresh);
+
+        return $fresh;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Services\Lot;
 use App\Models\Batch;
 use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
+use App\Models\QualityControlTask;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -55,6 +56,9 @@ class BatchReleaseService
         }
         if ($this->hasHeldConsumedLot($batch)) {
             throw new \RuntimeException('Cannot release: a material lot consumed by this batch is on quality hold.');
+        }
+        if (QualityControlTask::hasOpenBlockingForBatch($batch->id)) {
+            throw new \RuntimeException('Cannot release: a required quality control is still outstanding for this batch.');
         }
 
         return DB::transaction(function () use ($batch, $user, $releaseType) {
