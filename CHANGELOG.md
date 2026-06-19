@@ -7,8 +7,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+---
+
+## [0.15.4] - 2026-06-19
+
+### Added
+- **German (de) locale**: OpenMES is now available in German — a complete `backend/lang/de.json` (full key-parity with English, MES terminology) plus registration as a selectable language, so German can be chosen from the language switcher (login screen, Settings → System) exactly like English / Polski / Türkçe.
+
 ### Changed
 - **Material type is now optional**: a material no longer has to belong to a material type. The `materials.material_type_id` column is nullable, the create/edit form offers a "— None —" option, and the web + API validation accepts a missing type (an invalid/non-existent type is still rejected). The foreign key (restrict-on-delete) is unchanged and still applies when a type is set.
+
+### Fixed
+- **Web-shell/XSS test fixtures defanged**: the upload-sanitizer security tests embedded literal `<?php system($_GET[...])` / `<script>` payloads (used to prove the sanitizer destroys them), which matched antivirus signatures (`Backdoor:PHP/Perhetshell.A`) and got the files quarantined on checkout. The payloads are now assembled from fragments at runtime — identical test behaviour, no literal payload left in source.
 
 ---
 
@@ -332,7 +342,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.3...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.4...develop
+[0.15.4]: https://github.com/Mes-Open/OpenMes/compare/v0.15.3...v0.15.4
 [0.15.3]: https://github.com/Mes-Open/OpenMes/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/Mes-Open/OpenMes/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/Mes-Open/OpenMes/compare/v0.15.0...v0.15.1

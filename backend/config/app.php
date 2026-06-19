@@ -92,6 +92,7 @@ return [
         'en' => 'English',
         'pl' => 'Polski',
         'tr' => 'Türkçe',
+        'de' => 'Deutsch',
     ],
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
