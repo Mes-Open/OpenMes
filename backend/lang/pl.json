@@ -3546,5 +3546,9 @@
     "Quality control trigger \":name\" updated.": "Zaktualizowano wyzwalacz kontroli jakości „:name”.",
     "Quality control trigger updated.": "Zaktualizowano wyzwalacz kontroli jakości.",
     "Roaming check": "Kontrola doraźna",
-    "Roaming quality control raised.": "Zgłoszono doraźną kontrolę jakości."
+    "Roaming quality control raised.": "Zgłoszono doraźną kontrolę jakości.",
+    "All quality": "Wszystkie",
+    "Link to pallet (optional)": "Powiąż z paletą (opcjonalnie)",
+    "That pallet belongs to a different work order.": "Ta paleta należy do innego zlecenia.",
+    "Cannot ship pallet :no: quality status is \":status\" (must be passed).": "Nie można wysłać palety :no: status jakości to „:status” (musi być „pass”)."
 }

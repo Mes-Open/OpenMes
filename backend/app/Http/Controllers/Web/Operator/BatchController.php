@@ -175,6 +175,7 @@ class BatchController extends Controller
     {
         $request->validate([
             'production_quantity' => 'nullable|numeric|min:0',
+            'pallet_id' => 'nullable|integer|exists:pallets,id',
             'samples' => 'required|array|min:1',
             'samples.*.sample_number' => 'required|integer',
             'samples.*.parameter_name' => 'required|string',
@@ -193,7 +194,16 @@ class BatchController extends Controller
             'is_passed' => isset($s['is_passed']) ? (bool) $s['is_passed'] : null,
         ])->toArray();
 
-        $check = $this->qcService->performCheck($batch, $request->user(), $samples, $request->input('production_quantity'));
+        // Optional pallet link (#106): the pallet must belong to the batch's work order.
+        $pallet = null;
+        if ($request->filled('pallet_id')) {
+            $pallet = \App\Models\Pallet::find($request->input('pallet_id'));
+            if ($pallet && $pallet->work_order_id !== $batch->work_order_id) {
+                return back()->with('error', __('That pallet belongs to a different work order.'));
+            }
+        }
+
+        $check = $this->qcService->performCheck($batch, $request->user(), $samples, $request->input('production_quantity'), null, null, $pallet);
 
         return back()->with($check->all_passed ? 'success' : 'warning',
             $check->all_passed ? 'Quality check passed.' : 'Quality check recorded — some samples failed.');

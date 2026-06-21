@@ -156,7 +156,7 @@ class ShapeRegistry
         ],
         'pallets' => [
             'table' => 'pallets',
-            'columns' => ['id', 'pallet_no', 'work_order_id', 'qty', 'status', 'location', 'erp_reference', 'created_at', 'updated_at'],
+            'columns' => ['id', 'pallet_no', 'work_order_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
         ],
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
