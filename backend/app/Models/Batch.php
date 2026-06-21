@@ -122,6 +122,12 @@ class Batch extends Model
         return $this->hasOne(PackagingChecklist::class);
     }
 
+    /** Pallets packed from this batch (one batch per pallet). */
+    public function pallets(): HasMany
+    {
+        return $this->hasMany(Pallet::class);
+    }
+
     /**
      * Material lots produced by this batch (semi-finished / multi-stage output).
      * The inverse of MaterialLot::sourceBatch().

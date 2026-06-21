@@ -51,6 +51,7 @@ export default function Station() {
     const [activePallet, setActivePallet] = useState(null); // { id, pallet_no, work_order_id, order_no, qty }
     const [openPallets, setOpenPallets] = useState([]); // all currently open pallets (persist across shifts)
     const [palletWoId, setPalletWoId] = useState(''); // selected work order for a new pallet
+    const [palletBatchId, setPalletBatchId] = useState(''); // selected batch (when the WO has several)
     const [palletBusy, setPalletBusy] = useState(false);
     const lastHistoryIdRef = useRef(0);
     const bufferRef = useRef('');
@@ -257,12 +258,16 @@ export default function Station() {
                     'X-CSRF-TOKEN': csrf(),
                     'X-Requested-With': 'XMLHttpRequest',
                 },
-                body: JSON.stringify({ work_order_id: Number(palletWoId) }),
+                body: JSON.stringify({
+                    work_order_id: Number(palletWoId),
+                    ...(palletBatchId ? { batch_id: Number(palletBatchId) } : {}),
+                }),
             });
             const data = await res.json();
             if (res.ok) {
                 setActivePallet(data.pallet);
                 setPalletWoId('');
+                setPalletBatchId('');
                 fetchOpenPallets();
             } else {
                 setLastScan({ success: false, ean: '—', error: data.message, scanned_at: formatTime(new Date()) });
@@ -274,7 +279,7 @@ export default function Station() {
         } finally {
             setPalletBusy(false);
         }
-    }, [palletWoId, palletBusy, fetchOpenPallets]);
+    }, [palletWoId, palletBatchId, palletBusy, fetchOpenPallets]);
 
     // Resume an already-open pallet (e.g. one started on a previous shift) so the
     // next scans keep filling it instead of creating a new pallet.
@@ -405,7 +410,7 @@ export default function Station() {
                                 </label>
                                 <Dropdown
                                     value={palletWoId == null ? '' : String(palletWoId)}
-                                    onChange={(v) => setPalletWoId(v)}
+                                    onChange={(v) => { setPalletWoId(v); setPalletBatchId(''); }}
                                     placeholder={__('— Select order —')}
                                     options={items.map((it) => ({
                                         value: String(it.id),
@@ -414,10 +419,31 @@ export default function Station() {
                                     className="w-full"
                                 />
                             </div>
+                            {(() => {
+                                // Batch picker only when the selected order has more than one
+                                // batch; a single batch is auto-linked server-side.
+                                const wo = items.find((it) => String(it.id) === String(palletWoId));
+                                const batches = wo?.batches ?? [];
+                                if (batches.length < 2) return null;
+                                return (
+                                    <div className="flex-1">
+                                        <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
+                                            {__('Batch')}
+                                        </label>
+                                        <Dropdown
+                                            value={palletBatchId == null ? '' : String(palletBatchId)}
+                                            onChange={(v) => setPalletBatchId(v)}
+                                            placeholder={__('— Select batch —')}
+                                            options={batches.map((b) => ({ value: String(b.id), label: b.label }))}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                );
+                            })()}
                             <Button
                                 variant="accent"
                                 onClick={createPallet}
-                                disabled={!palletWoId || palletBusy}
+                                disabled={!palletWoId || palletBusy || ((items.find((it) => String(it.id) === String(palletWoId))?.batches?.length ?? 0) >= 2 && !palletBatchId)}
                                 className="px-6 py-4 text-[15px]"
                             >
                                 {__('+ Create pallet')}

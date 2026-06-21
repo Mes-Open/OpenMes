@@ -1,4 +1,13 @@
 {
+    "Customer Order No": "Numer zamówienia klienta",
+    "Customer order": "Zamówienie klienta",
+    "Quality controls": "Kontrole jakości",
+    "Trace a pallet number, customer order, finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.": "Prześledź numer palety, zamówienie klienta, LOT wyrobu, lot materiału, LOT dostawcy, kontener źródłowy lub numer seryjny przez pełną genealogię.",
+    "Pallet no, customer order, finished LOT, material lot, supplier LOT, source container or serial number…": "Nr palety, zamówienie klienta, LOT wyrobu, lot materiału, LOT dostawcy, kontener źródłowy lub numer seryjny…",
+    "This pallet is not linked to a batch, so no genealogy is available.": "Ta paleta nie jest powiązana z wsadem, więc genealogia jest niedostępna.",
+    "No quality controls recorded for this batch.": "Brak zarejestrowanych kontroli jakości dla tego wsadu.",
+    "No work orders match this customer order.": "Żadne zlecenie nie pasuje do tego zamówienia klienta.",
+    "— Select batch —": "— Wybierz wsad —",
     "Hold": "Wstrzymaj",
     "Release": "Zwolnij",
     "Hold reason:": "Powód wstrzymania:",

@@ -25,6 +25,7 @@ class WorkOrdersActiveShape extends Shape
         return [
             'id',
             'order_no',
+            'customer_order_no',
             'line_id',
             'product_type_id',
             'status',

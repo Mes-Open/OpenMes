@@ -1,4 +1,13 @@
 {
+    "Customer Order No": "Customer Order No",
+    "Customer order": "Customer order",
+    "Quality controls": "Quality controls",
+    "Trace a pallet number, customer order, finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.": "Trace a pallet number, customer order, finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.",
+    "Pallet no, customer order, finished LOT, material lot, supplier LOT, source container or serial number…": "Pallet no, customer order, finished LOT, material lot, supplier LOT, source container or serial number…",
+    "This pallet is not linked to a batch, so no genealogy is available.": "This pallet is not linked to a batch, so no genealogy is available.",
+    "No quality controls recorded for this batch.": "No quality controls recorded for this batch.",
+    "No work orders match this customer order.": "No work orders match this customer order.",
+    "— Select batch —": "— Select batch —",
     "Hold": "Hold",
     "Release": "Release",
     "Hold reason:": "Hold reason:",

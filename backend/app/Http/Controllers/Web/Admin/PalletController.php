@@ -41,7 +41,7 @@ class PalletController extends Controller
     {
         return Inertia::render('admin/pallets/Edit', [
             'pallet' => $pallet->only(
-                'id', 'pallet_no', 'work_order_id', 'qty', 'status', 'location', 'erp_reference',
+                'id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'location', 'erp_reference',
             ),
             'workOrders' => $this->workOrderOptions(),
             'statuses' => $this->statusOptions(),
@@ -69,8 +69,16 @@ class PalletController extends Controller
     {
         return WorkOrder::orderByDesc('id')
             ->limit(500)
+            ->with('batches:id,work_order_id,batch_number,lot_number')
             ->get(['id', 'order_no'])
-            ->map(fn (WorkOrder $wo) => ['id' => $wo->id, 'order_no' => $wo->order_no]);
+            ->map(fn (WorkOrder $wo) => [
+                'id' => $wo->id,
+                'order_no' => $wo->order_no,
+                'batches' => $wo->batches->map(fn ($b) => [
+                    'id' => $b->id,
+                    'label' => '#'.$b->batch_number.($b->lot_number ? ' · '.$b->lot_number : ''),
+                ])->values(),
+            ]);
     }
 
     /** @return array<string, string> */

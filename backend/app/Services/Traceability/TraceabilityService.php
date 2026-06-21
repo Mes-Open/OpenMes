@@ -2,9 +2,13 @@
 
 namespace App\Services\Traceability;
 
+use App\Enums\PalletStatus;
 use App\Models\Batch;
 use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
+use App\Models\Pallet;
+use App\Models\WorkOrder;
+use Carbon\Carbon;
 
 /**
  * Unified material traceability / genealogy.
@@ -156,6 +160,135 @@ class TraceabilityService
     }
 
     /**
+     * Full chain for a pallet: pallet → work order (incl. customer order) →
+     * batch → consumed lots → machine/line → operator → quality controls.
+     * Returns a ready-to-render array; `batch` is null for unlinked pallets.
+     */
+    public function palletTrace(Pallet $pallet): array
+    {
+        $pallet->loadMissing([
+            'workOrder:id,order_no,customer_order_no,product_type_id',
+            'workOrder.productType:id,name',
+            'batch',
+        ]);
+
+        return [
+            'pallet' => [
+                'pallet_no' => $pallet->pallet_no,
+                'status' => $pallet->status instanceof PalletStatus ? $pallet->status->value : $pallet->status,
+                'qty' => (int) $pallet->qty,
+                'location' => $pallet->location,
+                'created_at' => $pallet->created_at?->format('Y-m-d H:i'),
+                'shipped_at' => $pallet->shipped_at?->format('Y-m-d H:i'),
+            ],
+            'work_order' => $pallet->workOrder ? [
+                'order_no' => $pallet->workOrder->order_no,
+                'customer_order_no' => $pallet->workOrder->customer_order_no,
+                'product' => $pallet->workOrder->productType?->name,
+            ] : null,
+            'batch' => $pallet->batch ? $this->batchChain($pallet->batch) : null,
+        ];
+    }
+
+    /**
+     * The batch leg of the chain: per-step machine/line/operator + consumed
+     * lots, the distinct input lots, and the quality controls for the batch.
+     */
+    private function batchChain(Batch $batch): array
+    {
+        $genealogy = $this->batchGenealogy($batch);
+        $b = $genealogy['batch'];
+        $byStep = $genealogy['consumptions_by_step'];
+
+        // batchGenealogy loads steps.workstation with only id/name/code, so the
+        // line FK is missing. Re-load the workstation WITH line_id (+ the line),
+        // the step starter, the batch-level machine and the quality controls.
+        $b->load([
+            'steps.workstation:id,name,code,line_id',
+            'steps.workstation.line:id,name',
+            'steps.startedBy:id,name',
+            'steps.completedBy:id,name',
+            'workstation:id,name',
+            'qualityChecks.checkedBy:id,name',
+            'qualityChecks.samples',
+        ]);
+
+        return [
+            'batch_number' => $b->batch_number,
+            'lot_number' => $b->lot_number,
+            'status' => $b->status,
+            'machine' => $b->workstation?->name,
+            'steps' => $b->steps->map(fn ($s) => [
+                'step_number' => $s->step_number,
+                'name' => $s->name,
+                'status' => $s->status,
+                'machine' => $s->workstation?->name,
+                'line' => $s->workstation?->line?->name,
+                'operator' => $s->completedBy?->name ?? $s->startedBy?->name,
+                'completed_at' => $s->completed_at ? Carbon::parse($s->completed_at)->format('Y-m-d H:i') : null,
+                'consumptions' => ($byStep[$s->id] ?? collect())->map(fn ($c) => [
+                    'lot_number' => $c->materialLot?->lot_number,
+                    'material' => $c->materialLot?->material?->name,
+                    'quantity' => (float) $c->quantity_consumed,
+                ])->values(),
+            ])->values(),
+            'input_lots' => $genealogy['distinct_input_lots']->map(fn ($lot) => [
+                'material' => $lot->material?->name,
+                'lot_number' => $lot->lot_number,
+                'supplier_lot_no' => $lot->supplier_lot_no,
+                'status' => $lot->status,
+            ])->values(),
+            'quality_checks' => $b->qualityChecks->map(fn ($qc) => [
+                'all_passed' => (bool) $qc->all_passed,
+                'checked_by' => $qc->checkedBy?->name,
+                'checked_at' => $qc->checked_at ? Carbon::parse($qc->checked_at)->format('Y-m-d H:i') : null,
+                'samples' => $qc->samples->map(fn ($s) => [
+                    'parameter' => $s->parameter_name,
+                    'value' => $s->value_numeric ?? $s->value_boolean,
+                    'passed' => $s->is_passed,
+                ])->values(),
+            ])->values(),
+        ];
+    }
+
+    /**
+     * Aggregated trace for a customer order number (non-unique): every work
+     * order carrying it, with its pallets and batches. Each pallet/lot links
+     * into the deeper pallet/batch trace from the console.
+     */
+    public function customerOrderTrace(string $customerOrderNo): array
+    {
+        $workOrders = WorkOrder::where('customer_order_no', $customerOrderNo)
+            ->with([
+                'productType:id,name',
+                'pallets:id,work_order_id,batch_id,pallet_no,status',
+                'pallets.batch:id,lot_number',
+                'batches:id,work_order_id,batch_number,lot_number,status',
+            ])
+            ->orderByDesc('id')
+            ->get();
+
+        return [
+            'customer_order_no' => $customerOrderNo,
+            'work_orders' => $workOrders->map(fn ($wo) => [
+                'order_no' => $wo->order_no,
+                'product' => $wo->productType?->name,
+                'status' => $wo->status,
+                'pallets' => $wo->pallets->map(fn ($p) => [
+                    'pallet_no' => $p->pallet_no,
+                    'status' => $p->status instanceof PalletStatus ? $p->status->value : $p->status,
+                    'batch_lot' => $p->batch?->lot_number,
+                ])->values(),
+                'batches' => $wo->batches->map(fn ($b) => [
+                    'batch_number' => $b->batch_number,
+                    'lot_number' => $b->lot_number,
+                    'status' => $b->status,
+                ])->values(),
+            ])->values(),
+        ];
+    }
+
+    /**
      * Resolve a free-text search to a result: a finished batch (by lot_number)
      * or a material lot (by lot_number / supplier_lot_no / source_container_no).
      *
@@ -166,6 +299,12 @@ class TraceabilityService
         $term = trim($term);
         if ($term === '') {
             return null;
+        }
+
+        // Pallet number (e.g. PAL-000001) — most specific, won't collide with lots.
+        $pallet = Pallet::where('pallet_no', $term)->first();
+        if ($pallet) {
+            return ['type' => 'pallet', 'model' => $pallet];
         }
 
         $batch = Batch::where('lot_number', $term)->first();

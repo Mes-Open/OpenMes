@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SerialUnit;
+use App\Models\WorkOrder;
 use App\Services\Traceability\SerialTraceService;
 use App\Services\Traceability\TraceabilityService;
 use Carbon\Carbon;
@@ -31,7 +32,12 @@ class TraceabilityController extends Controller
         if ($term !== '') {
             $resolved = $this->tracer->resolve($term);
 
-            if ($resolved && $resolved['type'] === 'batch') {
+            if ($resolved && $resolved['type'] === 'pallet') {
+                $result = [
+                    'type' => 'pallet',
+                    'data' => $this->tracer->palletTrace($resolved['model']),
+                ];
+            } elseif ($resolved && $resolved['type'] === 'batch') {
                 $result = [
                     'type' => 'batch',
                     'data' => $this->mapBatch($this->tracer->batchGenealogy($resolved['model'])),
@@ -44,15 +50,17 @@ class TraceabilityController extends Controller
                     // backwardTraceLot() already returns clean nested arrays.
                     'backward' => $this->tracer->backwardTraceLot($lot),
                 ];
-            } else {
-                // Fall back to serial-number lookup
-                $unit = SerialUnit::where('serial_no', $term)->first();
-                if ($unit) {
-                    $result = [
-                        'type' => 'serial',
-                        'data' => $this->mapSerial($this->serials->getHistory($unit)),
-                    ];
-                }
+            } elseif ($unit = SerialUnit::where('serial_no', $term)->first()) {
+                $result = [
+                    'type' => 'serial',
+                    'data' => $this->mapSerial($this->serials->getHistory($unit)),
+                ];
+            } elseif (WorkOrder::where('customer_order_no', $term)->exists()) {
+                // Customer order number is non-unique → aggregate all matching WOs.
+                $result = [
+                    'type' => 'customer_order',
+                    'data' => $this->tracer->customerOrderTrace($term),
+                ];
             }
         }
 

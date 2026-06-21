@@ -1,4 +1,13 @@
 {
+    "Customer Order No": "Müşteri Sipariş No",
+    "Customer order": "Müşteri siparişi",
+    "Quality controls": "Kalite kontrolleri",
+    "Trace a pallet number, customer order, finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.": "Bir palet numarasını, müşteri siparişini, bitmiş LOT'u, malzeme lotunu, tedarikçi LOT'unu, kaynak konteynerini veya seri numarasını tüm soy ağacı boyunca izleyin.",
+    "Pallet no, customer order, finished LOT, material lot, supplier LOT, source container or serial number…": "Palet no, müşteri siparişi, bitmiş LOT, malzeme lotu, tedarikçi LOT, kaynak konteyner veya seri numarası…",
+    "This pallet is not linked to a batch, so no genealogy is available.": "Bu palet bir partiye bağlı değil, bu nedenle soy ağacı mevcut değil.",
+    "No quality controls recorded for this batch.": "Bu parti için kayıtlı kalite kontrolü yok.",
+    "No work orders match this customer order.": "Bu müşteri siparişiyle eşleşen iş emri yok.",
+    "— Select batch —": "— Parti seçin —",
     "Hold": "Beklet",
     "Release": "Serbest bırak",
     "Hold reason:": "Bekletme nedeni:",

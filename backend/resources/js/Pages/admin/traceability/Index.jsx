@@ -27,7 +27,7 @@ export default function TraceabilityIndex() {
                 <div>
                     <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Traceability')}</h1>
                     <p className="text-sm text-om-muted mt-1">
-                        {__('Trace a finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.')}
+                        {__('Trace a pallet number, customer order, finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.')}
                     </p>
                 </div>
 
@@ -40,7 +40,7 @@ export default function TraceabilityIndex() {
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
                             autoFocus
-                            placeholder={__('Finished LOT, material lot, supplier LOT, source container or serial number…')}
+                            placeholder={__('Pallet no, customer order, finished LOT, material lot, supplier LOT, source container or serial number…')}
                             className="form-input flex-1"
                         />
                         <Button type="submit" variant="primary" className="whitespace-nowrap">
@@ -60,6 +60,8 @@ export default function TraceabilityIndex() {
                     </div>
                 )}
 
+                {result?.type === 'pallet' && <PalletResult data={result.data} />}
+                {result?.type === 'customer_order' && <CustomerOrderResult data={result.data} />}
                 {result?.type === 'batch' && <BatchResult data={result.data} />}
                 {result?.type === 'material_lot' && <MaterialLotResult forward={result.forward} backward={result.backward} />}
                 {result?.type === 'serial' && <SerialResult unit={result.data} />}
@@ -309,6 +311,174 @@ function IngredientTree({ node }) {
                 </li>
             ))}
         </ul>
+    );
+}
+
+/* ── Pallet (pallet → batch → lots → machine → operator → controls) ──── */
+
+function PalletResult({ data }) {
+    const p = data.pallet;
+    const wo = data.work_order;
+    const batch = data.batch;
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <div className="flex items-start justify-between flex-wrap gap-2">
+                    <div>
+                        <span className="text-xs font-semibold uppercase text-om-faint">{__('Pallet')}</span>
+                        <h2 className="text-2xl font-bold text-om-ink font-mono">{p.pallet_no}</h2>
+                        <p className="text-sm text-om-muted mt-1">
+                            {__('Work Order')}: <span className="font-medium">{wo?.order_no ?? '—'}</span>
+                            {' · '}{__('Product')}: <span className="font-medium">{wo?.product ?? '—'}</span>
+                            {wo?.customer_order_no && <> {' · '}{__('Customer Order No')}: <span className="font-medium">{wo.customer_order_no}</span></>}
+                        </p>
+                        <p className="text-xs text-om-faint mt-1">
+                            {__('Quantity')}: {p.qty}{p.location ? ` · ${p.location}` : ''}{p.created_at ? ` · ${p.created_at}` : ''}
+                        </p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-om-chip text-om-muted">{p.status}</span>
+                </div>
+            </Card>
+
+            {!batch ? (
+                <Card>
+                    <p className="text-sm text-om-muted">{__('This pallet is not linked to a batch, so no genealogy is available.')}</p>
+                </Card>
+            ) : (
+                <>
+                    <Card>
+                        <div className="flex items-start justify-between flex-wrap gap-2">
+                            <div>
+                                <span className="text-xs font-semibold uppercase text-om-faint">{__('Batch')}</span>
+                                <h3 className="text-xl font-bold text-om-ink">
+                                    #{batch.batch_number}
+                                    {batch.lot_number && <span className="ml-2 font-mono text-om-accent text-base">{batch.lot_number}</span>}
+                                </h3>
+                                {batch.machine && <p className="text-sm text-om-muted mt-1">{__('Machine')}: <span className="font-medium">{batch.machine}</span></p>}
+                            </div>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{batch.status}</span>
+                        </div>
+                    </Card>
+
+                    <Card>
+                        <h3 className="text-lg font-bold text-om-ink mb-3">{__('Process history')}</h3>
+                        <div className="space-y-3">
+                            {batch.steps.map((step, idx) => (
+                                <div key={idx} className={`border-l-2 pl-4 py-1 ${step.status === 'DONE' ? 'border-om-done' : 'border-om-line2'}`}>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-bold text-om-ink">{__('Step')} {step.step_number}: {step.name}</span>
+                                        {step.machine && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-accent">{__('Machine')}: {step.machine}</span>}
+                                        {step.line && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-muted">{__('Line')}: {step.line}</span>}
+                                        {step.operator && <span className="text-xs text-om-muted">{__('Operator')}: {step.operator}</span>}
+                                        {step.completed_at && <span className="text-xs text-om-faint">{step.completed_at}</span>}
+                                    </div>
+                                    {step.consumptions.length > 0 && (
+                                        <ul className="mt-1 ml-1 text-sm text-om-muted space-y-0.5">
+                                            {step.consumptions.map((c, i) => (
+                                                <li key={i} className="flex items-center gap-2">
+                                                    <span className="w-1 h-1 rounded-full bg-om-faintest" />
+                                                    <Link href={traceLink(c.lot_number)} className="font-mono text-om-accent hover:underline">{c.lot_number}</Link>
+                                                    <span className="text-om-faint">{c.material}</span>
+                                                    <span className="text-om-muted">— {formatNumber(c.quantity, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+
+                    <Card>
+                        <h3 className="text-lg font-bold text-om-ink mb-3">{__('Quality controls')} ({batch.quality_checks.length})</h3>
+                        {batch.quality_checks.length === 0 ? (
+                            <p className="text-sm text-om-muted">{__('No quality controls recorded for this batch.')}</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {batch.quality_checks.map((qc, i) => (
+                                    <div key={i} className={`border-l-2 pl-4 py-1 ${qc.all_passed ? 'border-om-done' : 'border-om-blocked'}`}>
+                                        <div className="flex items-center gap-2 flex-wrap text-sm">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${qc.all_passed ? 'bg-om-done-bg text-om-done' : 'bg-om-blocked-bg text-om-blocked'}`}>
+                                                {qc.all_passed ? __('Passed') : __('Failed')}
+                                            </span>
+                                            {qc.checked_by && <span className="text-om-muted">{__('by')} {qc.checked_by}</span>}
+                                            {qc.checked_at && <span className="text-xs text-om-faint">{qc.checked_at}</span>}
+                                        </div>
+                                        {qc.samples.length > 0 && (
+                                            <div className="mt-1 ml-1 flex flex-wrap gap-2">
+                                                {qc.samples.map((s, si) => (
+                                                    <span key={si} className="text-xs bg-om-panel border border-om-line2 rounded px-2 py-0.5 text-om-muted">
+                                                        <span className="text-om-faint">{s.parameter}:</span> {s.value == null ? '—' : String(s.value)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Card>
+                </>
+            )}
+        </div>
+    );
+}
+
+/* ── Customer order (aggregate of work orders) ───────────────────────── */
+
+function CustomerOrderResult({ data }) {
+    const wos = data.work_orders ?? [];
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <span className="text-xs font-semibold uppercase text-om-faint">{__('Customer order')}</span>
+                <h2 className="text-2xl font-bold text-om-ink font-mono">{data.customer_order_no}</h2>
+                <p className="text-sm text-om-muted mt-1">{wos.length} {__('work orders')}</p>
+            </Card>
+
+            {wos.length === 0 ? (
+                <Card><p className="text-sm text-om-muted">{__('No work orders match this customer order.')}</p></Card>
+            ) : (
+                wos.map((wo, i) => (
+                    <Card key={i}>
+                        <div className="flex items-center gap-3 flex-wrap mb-3">
+                            <span className="font-mono font-semibold text-om-ink">{wo.order_no}</span>
+                            <span className="text-om-muted text-sm">{wo.product}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{wo.status}</span>
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="text-sm font-semibold text-om-muted mb-2">{__('Pallets')} ({wo.pallets.length})</h4>
+                                {wo.pallets.length === 0 ? (
+                                    <p className="text-xs text-om-faint">—</p>
+                                ) : wo.pallets.map((p, pi) => (
+                                    <div key={pi} className="flex items-center gap-2 text-sm mb-1">
+                                        <Link href={traceLink(p.pallet_no)} className="font-mono text-om-accent hover:underline">{p.pallet_no}</Link>
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{p.status}</span>
+                                        {p.batch_lot && <span className="text-xs text-om-faint font-mono">{p.batch_lot}</span>}
+                                    </div>
+                                ))}
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-semibold text-om-muted mb-2">{__('Batches')} ({wo.batches.length})</h4>
+                                {wo.batches.length === 0 ? (
+                                    <p className="text-xs text-om-faint">—</p>
+                                ) : wo.batches.map((b, bi) => (
+                                    <div key={bi} className="flex items-center gap-2 text-sm mb-1">
+                                        <span className="text-om-muted">#{b.batch_number}</span>
+                                        {b.lot_number && <Link href={traceLink(b.lot_number)} className="font-mono text-om-accent hover:underline">{b.lot_number}</Link>}
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{b.status}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </Card>
+                ))
+            )}
+        </div>
     );
 }
 
