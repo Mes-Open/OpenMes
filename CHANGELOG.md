@@ -9,6 +9,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [0.15.5] - 2026-06-21
+
+### Fixed
+- **German locale terminology**: "Work Order" now translates as **Fertigungsauftrag** (production order) instead of the generic *Arbeitsauftrag*, matching the MES domain — applied across all singular/plural/compound occurrences in `backend/lang/de.json`.
+
+---
+
 ## [0.15.4] - 2026-06-19
 
 ### Added
@@ -342,7 +349,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.4...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.5...develop
+[0.15.5]: https://github.com/Mes-Open/OpenMes/compare/v0.15.4...v0.15.5
 [0.15.4]: https://github.com/Mes-Open/OpenMes/compare/v0.15.3...v0.15.4
 [0.15.3]: https://github.com/Mes-Open/OpenMes/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/Mes-Open/OpenMes/compare/v0.15.1...v0.15.2
