@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
+import { __ } from '../../../lib/i18n';
 
 const WO_STATUS_LABELS = {
     PENDING:     'Pending',
@@ -273,25 +274,25 @@ export default function ProductTypeShow({
 
                 {/* Components & serials used */}
                 <div className="mt-6">
-                    <h2 className="text-xl font-bold text-om-ink mb-1">Components &amp; serials used</h2>
+                    <h2 className="text-xl font-bold text-om-ink mb-1">{__('Components & serials used')}</h2>
                     <p className="text-sm text-om-muted mb-4">
-                        Materials actually consumed and serialized units produced across this product&apos;s work orders.
+                        {__("Materials actually consumed and serialized units produced across this product's work orders.")}
                     </p>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Components consumed */}
                         <div className="card">
                             <h3 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">
-                                Components consumed ({componentsUsed.length})
+                                {__('Components consumed')} ({componentsUsed.length})
                             </h3>
                             {componentsUsed.length > 0 ? (
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="text-left text-xs text-om-muted uppercase border-b border-om-line2">
-                                                <th className="py-2 pr-3 font-medium">Material</th>
-                                                <th className="py-2 px-3 font-medium text-right">Consumed</th>
-                                                <th className="py-2 pl-3 font-medium text-right">Lots</th>
+                                                <th className="py-2 pr-3 font-medium">{__('Material')}</th>
+                                                <th className="py-2 px-3 font-medium text-right">{__('Consumed')}</th>
+                                                <th className="py-2 pl-3 font-medium text-right">{__('Lots')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -318,9 +319,9 @@ export default function ProductTypeShow({
                                 </div>
                             ) : (
                                 <div className="text-center py-8 bg-om-panel rounded-om-sm">
-                                    <p className="text-om-muted">No material consumption recorded yet</p>
+                                    <p className="text-om-muted">{__('No material consumption recorded yet')}</p>
                                     <p className="text-sm text-om-muted mt-1">
-                                        Components appear here once lots are consumed against this product&apos;s batches.
+                                        {__("Components appear here once lots are consumed against this product's batches.")}
                                     </p>
                                 </div>
                             )}
@@ -330,7 +331,7 @@ export default function ProductTypeShow({
                         <div className="card">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-sm font-semibold text-om-muted uppercase tracking-wide">
-                                    Serialized units ({serials.total ?? 0})
+                                    {__('Serialized units')} ({serials.total ?? 0})
                                 </h3>
                                 {Object.keys(serialStatusCounts).length > 0 && (
                                     <div className="flex flex-wrap gap-1 justify-end">
@@ -339,7 +340,7 @@ export default function ProductTypeShow({
                                                 key={status}
                                                 className={`px-2 py-0.5 rounded-full text-xs font-medium ${SERIAL_STATUS_STYLES[status] ?? 'bg-om-chip text-om-muted'}`}
                                             >
-                                                {ucWords(status)}: {count}
+                                                {__(ucWords(status))}: {count}
                                             </span>
                                         ))}
                                     </div>
@@ -363,7 +364,7 @@ export default function ProductTypeShow({
                                                         </p>
                                                     </div>
                                                     <span className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap ${SERIAL_STATUS_STYLES[s.status] ?? 'bg-om-chip text-om-muted'}`}>
-                                                        {ucWords(s.status)}
+                                                        {__(ucWords(s.status))}
                                                     </span>
                                                 </div>
                                             </Link>
@@ -371,15 +372,15 @@ export default function ProductTypeShow({
                                     </div>
                                     {(serials.total ?? 0) > serials.recent.length && (
                                         <p className="text-sm text-om-muted text-center mt-4">
-                                            Showing {serials.recent.length} most recent of {serials.total} units
+                                            {__('Showing :count most recent of :total units', { count: serials.recent.length, total: serials.total })}
                                         </p>
                                     )}
                                 </>
                             ) : (
                                 <div className="text-center py-8 bg-om-panel rounded-om-sm">
-                                    <p className="text-om-muted">No serialized units yet</p>
+                                    <p className="text-om-muted">{__('No serialized units yet')}</p>
                                     <p className="text-sm text-om-muted mt-1">
-                                        Units registered against this product&apos;s work orders will be listed here.
+                                        {__("Units registered against this product's work orders will be listed here.")}
                                     </p>
                                 </div>
                             )}
