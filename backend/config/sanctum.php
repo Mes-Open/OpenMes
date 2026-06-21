@@ -15,11 +15,19 @@ return [
     |
     */
 
+    // currentRequestHost() makes the app treat its own host as stateful, so the
+    // SPA's same-origin /api/collections reads carry the session and authenticate
+    // regardless of which host/port/domain the app is actually served on (behind
+    // Caddy, a LAN IP, a custom domain, …). Sanctum only marks a request stateful
+    // when its Origin/Referer matches this host, so cross-site requests stay
+    // rejected — this does NOT weaken CSRF. Fixes "POST create 200 but list 401"
+    // when APP_URL doesn't match the access host. SANCTUM_STATEFUL_DOMAINS still
+    // overrides when set.
     'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
+        '%s%s%s',
         'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
         Sanctum::currentApplicationUrlWithPort(),
-        // Sanctum::currentRequestHost(),
+        Sanctum::currentRequestHost(),
     ))),
 
     /*
