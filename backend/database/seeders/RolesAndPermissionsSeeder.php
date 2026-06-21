@@ -98,6 +98,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $supervisorRole = Role::firstOrCreate(['name' => 'Supervisor', 'guard_name' => 'web']);
         $supervisorRole->syncPermissions(array_merge($keepTabs($supervisorRole), [
             'view work orders', 'create work orders', 'edit work orders',
+            // Orders admin tab — per the role docs, supervisors create & manage orders.
+            'tab:orders',
             'start batch step', 'complete batch step',
             'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
             'view lines', 'view products', 'view process templates',
