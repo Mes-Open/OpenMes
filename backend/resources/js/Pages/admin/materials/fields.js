@@ -14,9 +14,9 @@ export function materialFields(materialTypes) {
             name: 'material_type_id',
             label: __('Material Type'),
             type: 'select',
-            required: true,
+            help: __('Optional.'),
             options: [
-                { value: '', label: __('— Select type —') },
+                { value: '', label: __('— None —') },
                 ...materialTypes.map((t) => ({ value: String(t.id), label: t.name })),
             ],
         },
