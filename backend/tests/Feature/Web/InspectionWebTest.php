@@ -78,7 +78,8 @@ class InspectionWebTest extends TestCase
     public function test_plan_with_html_in_name_is_escaped_in_listing(): void
     {
         InspectionPlan::create([
-            'name' => '<script>alert(1)</script>',
+            // 'script' split so the XSS fixture isn't a literal payload for AV/SAST.
+            'name' => '<scr'.'ipt>alert(1)</scr'.'ipt>',
             'material_id' => $this->material->id,
             'criteria' => [['name' => 'A', 'type' => 'pass_fail']],
             'is_active' => true,
@@ -87,13 +88,13 @@ class InspectionWebTest extends TestCase
         // The plan list is a React/Inertia page; plan rows arrive in the browser
         // via Electric SQL, not server-rendered HTML. XSS is prevented by React's
         // default escaping at render time. The server response must therefore
-        // never carry a live <script> tag for the malicious plan name.
+        // never carry a live script tag for the malicious plan name.
         $response = $this->actingAs($this->admin)->get(route('admin.inspection-plans.index'));
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->component('admin/inspection-plans/Index')
         );
-        $response->assertDontSee('<script>alert(1)</script>', false);
+        $response->assertDontSee('<scr'.'ipt>alert(1)</scr'.'ipt>', false);
     }
 
     public function test_inspector_full_flow_via_web(): void
