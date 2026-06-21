@@ -76,7 +76,7 @@ class PalletController extends Controller
                 'order_no' => $wo->order_no,
                 'batches' => $wo->batches->map(fn ($b) => [
                     'id' => $b->id,
-                    'label' => '#'.$b->batch_number.($b->lot_number ? ' · '.$b->lot_number : ''),
+                    'label' => $b->displayLabel(),
                 ])->values(),
             ]);
     }

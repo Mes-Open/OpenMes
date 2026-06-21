@@ -128,6 +128,12 @@ class Batch extends Model
         return $this->hasMany(Pallet::class);
     }
 
+    /** Human-facing label for pickers/dropdowns, e.g. "#2 · LOT-0007". */
+    public function displayLabel(): string
+    {
+        return '#'.$this->batch_number.($this->lot_number ? ' · '.$this->lot_number : '');
+    }
+
     /**
      * Material lots produced by this batch (semi-finished / multi-stage output).
      * The inverse of MaterialLot::sourceBatch().

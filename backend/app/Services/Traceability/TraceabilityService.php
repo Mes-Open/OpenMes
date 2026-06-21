@@ -112,7 +112,7 @@ class TraceabilityService
             'workOrder:id,order_no,product_type_id,status',
             'workOrder.productType:id,name,code',
             'steps:id,batch_id,name,step_number,status,workstation_id,started_by_id,completed_by_id,started_at,completed_at',
-            'steps.workstation:id,name,code',
+            'steps.workstation:id,name,code,line_id',
             'steps.completedBy:id,name',
             'outputLots:id,lot_number,material_id,source_batch_id,status',
             'outputLots.material:id,name,code',
@@ -200,14 +200,12 @@ class TraceabilityService
         $b = $genealogy['batch'];
         $byStep = $genealogy['consumptions_by_step'];
 
-        // batchGenealogy loads steps.workstation with only id/name/code, so the
-        // line FK is missing. Re-load the workstation WITH line_id (+ the line),
+        // batchGenealogy already loaded steps, steps.workstation (incl. line_id)
+        // and completedBy. Only pull what's still missing - the workstation line,
         // the step starter, the batch-level machine and the quality controls.
-        $b->load([
-            'steps.workstation:id,name,code,line_id',
+        $b->loadMissing([
             'steps.workstation.line:id,name',
             'steps.startedBy:id,name',
-            'steps.completedBy:id,name',
             'workstation:id,name',
             'qualityChecks.checkedBy:id,name',
             'qualityChecks.samples',

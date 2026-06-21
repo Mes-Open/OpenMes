@@ -222,4 +222,17 @@ class PalletTraceabilityTest extends TestCase
 
         $this->assertDatabaseMissing('pallets', ['work_order_id' => $wo->id]);
     }
+
+    public function test_sync_shapes_expose_the_new_columns(): void
+    {
+        $registry = app(\App\Sync\ShapeRegistry::class);
+
+        // pallets is a synced table; batch_id must be in the allowlist or live
+        // views never see the pallet→batch link.
+        $this->assertContains('batch_id', $registry->find('pallets')->columns());
+
+        // work_orders shapes must carry customer_order_no for live filtering.
+        $this->assertContains('customer_order_no', $registry->find('work_orders_all')->columns());
+        $this->assertContains('customer_order_no', $registry->find('work_orders_active')->columns());
+    }
 }

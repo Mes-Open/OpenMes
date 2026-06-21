@@ -102,7 +102,7 @@ class PackagingController extends Controller
         if ($pallet) {
             $pallet->increment('qty');
             \App\Sync\CollectionBroadcaster::flush($pallet); // increment() bypasses model events
-            $pallet->refresh();
+            $pallet->refresh()->loadMissing(['workOrder.line', 'batch']);
         }
 
         PackagingScanLog::create([
@@ -192,7 +192,7 @@ class PackagingController extends Controller
         $pallet->update(['status' => PalletStatus::Closed->value]);
 
         return response()->json([
-            'pallet' => $this->palletPayload($pallet->fresh(['workOrder.line'])),
+            'pallet' => $this->palletPayload($pallet->fresh(['workOrder.line', 'batch'])),
             'message' => __('Pallet :no closed', ['no' => $pallet->pallet_no]),
         ]);
     }
@@ -288,7 +288,7 @@ class PackagingController extends Controller
                     // Batches the operator can assign a new pallet to (one per pallet).
                     'batches' => $wo->batches->map(fn ($b) => [
                         'id' => $b->id,
-                        'label' => '#'.$b->batch_number.($b->lot_number ? ' · '.$b->lot_number : ''),
+                        'label' => $b->displayLabel(),
                     ])->values(),
                     'status' => $wo->status,
                 ];
