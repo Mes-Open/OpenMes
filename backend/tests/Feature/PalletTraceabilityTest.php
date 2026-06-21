@@ -129,6 +129,19 @@ class PalletTraceabilityTest extends TestCase
         $this->assertTrue($data['batch']['quality_checks'][0]['all_passed']);
     }
 
+    public function test_pallet_trace_resolves_a_soft_deleted_batch(): void
+    {
+        // Recall must survive batch deletion: a pallet linked to a soft-deleted
+        // batch should still resolve its genealogy, not show "not linked".
+        $s = $this->scenario();
+        $s['batch']->delete();
+
+        $data = app(TraceabilityService::class)->palletTrace($s['pallet']->fresh());
+
+        $this->assertNotNull($data['batch']);
+        $this->assertSame('FG-9', $data['batch']['lot_number']);
+    }
+
     public function test_pallet_trace_without_batch_is_null(): void
     {
         $wo = WorkOrder::factory()->create(['customer_order_no' => 'PO-1']);

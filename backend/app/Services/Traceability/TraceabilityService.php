@@ -390,7 +390,9 @@ class TraceabilityService
         $pallet->loadMissing([
             'workOrder:id,order_no,customer_order_no,product_type_id',
             'workOrder.productType:id,name',
-            'batch',
+            // withTrashed: recall must still resolve a pallet whose batch was later
+            // soft-deleted, otherwise the genealogy link silently disappears.
+            'batch' => fn ($q) => $q->withTrashed(),
         ]);
 
         return [
@@ -520,7 +522,7 @@ class TraceabilityService
             return null;
         }
 
-        // Pallet number (e.g. PAL-000001) — most specific, won't collide with lots.
+        // Pallet number (e.g. PAL-000001) - most specific, won't collide with lots.
         $pallet = Pallet::where('pallet_no', $term)->first();
         if ($pallet) {
             return ['type' => 'pallet', 'model' => $pallet];

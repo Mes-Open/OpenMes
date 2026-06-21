@@ -132,7 +132,7 @@ class MaterialAllocationService
      * Build the WO-time lot-picking proposal for starting a given step: per
      * lot-tracked material that this step start would allocate, the required
      * quantity, the system's proposed lot split, and the candidate lots. Returns
-     * an empty array when lot tracking is off or nothing needs picking — the UI
+     * an empty array when lot tracking is off or nothing needs picking - the UI
      * then skips the modal and starts the step directly. Read-only.
      *
      * @return array<int, array{material_id: int, material_name: ?string, material_code: ?string, unit_of_measure: ?string, required_qty: float, strategy: string, proposed: array, candidates: array}>
@@ -169,7 +169,7 @@ class MaterialAllocationService
                 continue;
             }
 
-            // Phase 1: lots/batches only — serial-tracked materials are handled elsewhere.
+            // Phase 1: lots/batches only - serial-tracked materials are handled elsewhere.
             if ($material->tracking_type === 'serial') {
                 continue;
             }
@@ -388,7 +388,7 @@ class MaterialAllocationService
      * @param  array<int, array<int, array{material_lot_id: int|string, picked_qty: int|float|string}>>  $picksByMaterial
      * @param  int|null  $stepId  Drives the stock-movement source (during-items) and batch_step_id.
      * @param  int|null  $attributeStepId  Sets batch_step_id only (start/end-items), leaving the
-     *                                     stock-movement source as the batch — keeps genealogy attributable without changing accounting.
+     *                                     stock-movement source as the batch - keeps genealogy attributable without changing accounting.
      */
     private function allocateMatching(
         Batch $batch,
@@ -487,7 +487,7 @@ class MaterialAllocationService
     /**
      * Record one BatchStepLotConsumption row per picked lot for this allocation.
      * Requires a step to attribute to (batch_step_id is NOT NULL); allocations
-     * without a step or without picks are skipped — genealogy stays optional.
+     * without a step or without picks are skipped - genealogy stays optional.
      */
     private function writeGenealogy(MaterialAllocation $allocation): void
     {

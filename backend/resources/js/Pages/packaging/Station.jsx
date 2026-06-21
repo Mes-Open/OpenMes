@@ -347,6 +347,12 @@ export default function Station() {
             ? 'bg-om-blocked-bg border-om-blocked/30'
             : 'bg-om-card border-om-line';
 
+    // Work order selected for a new pallet + its batches (one lookup, reused by
+    // the batch picker and the create-button guard). A single batch auto-links
+    // server-side, so the picker only shows when there are 2+.
+    const palletWo = items.find((it) => String(it.id) === String(palletWoId));
+    const palletBatches = palletWo?.batches ?? [];
+
     return (
         <>
             <Head title={__('Packing Station')} />
@@ -419,31 +425,24 @@ export default function Station() {
                                     className="w-full"
                                 />
                             </div>
-                            {(() => {
-                                // Batch picker only when the selected order has more than one
-                                // batch; a single batch is auto-linked server-side.
-                                const wo = items.find((it) => String(it.id) === String(palletWoId));
-                                const batches = wo?.batches ?? [];
-                                if (batches.length < 2) return null;
-                                return (
-                                    <div className="flex-1">
-                                        <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
-                                            {__('Batch')}
-                                        </label>
-                                        <Dropdown
-                                            value={palletBatchId == null ? '' : String(palletBatchId)}
-                                            onChange={(v) => setPalletBatchId(v)}
-                                            placeholder={__('— Select batch —')}
-                                            options={batches.map((b) => ({ value: String(b.id), label: b.label }))}
-                                            className="w-full"
-                                        />
-                                    </div>
-                                );
-                            })()}
+                            {palletBatches.length >= 2 && (
+                                <div className="flex-1">
+                                    <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
+                                        {__('Batch')}
+                                    </label>
+                                    <Dropdown
+                                        value={palletBatchId == null ? '' : String(palletBatchId)}
+                                        onChange={(v) => setPalletBatchId(v)}
+                                        placeholder={__('— Select batch —')}
+                                        options={palletBatches.map((b) => ({ value: String(b.id), label: b.label }))}
+                                        className="w-full"
+                                    />
+                                </div>
+                            )}
                             <Button
                                 variant="accent"
                                 onClick={createPallet}
-                                disabled={!palletWoId || palletBusy || ((items.find((it) => String(it.id) === String(palletWoId))?.batches?.length ?? 0) >= 2 && !palletBatchId)}
+                                disabled={!palletWoId || palletBusy || (palletBatches.length >= 2 && !palletBatchId)}
                                 className="px-6 py-4 text-[15px]"
                             >
                                 {__('+ Create pallet')}

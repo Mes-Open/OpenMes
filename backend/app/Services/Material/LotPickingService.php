@@ -244,7 +244,7 @@ class LotPickingService
 
     /**
      * Locked, strategy-ordered available lots for the auto-pick path.
-     * 'manual' returns empty — the caller supplies lots via pickManualForAllocation().
+     * 'manual' returns empty - the caller supplies lots via pickManualForAllocation().
      *
      * @return \Illuminate\Support\Collection<int, MaterialLot>
      */
