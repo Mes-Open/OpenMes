@@ -3,11 +3,14 @@
 namespace Tests\Unit\Services;
 
 use App\Exceptions\InsufficientStockException;
+use App\Models\AllocationLotPick;
 use App\Models\Batch;
+use App\Models\BatchStep;
+use App\Models\BatchStepLotConsumption;
 use App\Models\Material;
 use App\Models\MaterialAllocation;
+use App\Models\MaterialLot;
 use App\Models\MaterialType;
-use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\User;
 use App\Models\WorkOrder;
@@ -175,5 +178,120 @@ class MaterialAllocationServiceTest extends TestCase
         $this->assertEqualsWithDelta(210.0, $preview[0]['required_qty'], 0.0001);
         $this->assertEqualsWithDelta(1000.0, (float) $preview[0]['available_qty'], 0.0001);
         $this->assertTrue($preview[0]['sufficient']);
+    }
+
+    // ── WO-time lot picking (suggest + override) ────────────────────────────
+
+    private function enableLotTracking(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'lot_tracking_enabled'], ['value' => json_encode(true)]);
+    }
+
+    private function makeLot(string $number, float $qty): MaterialLot
+    {
+        return MaterialLot::create([
+            'material_id' => $this->material->id,
+            'lot_number' => $number,
+            'unit_of_measure' => 'pcs',
+            'quantity_received' => $qty,
+            'quantity_available' => $qty,
+            'received_at' => now(),
+            'status' => MaterialLot::STATUS_RELEASED,
+        ]);
+    }
+
+    private function makeStep(int $number = 1): BatchStep
+    {
+        return BatchStep::create([
+            'batch_id' => $this->batch->id,
+            'step_number' => $number,
+            'name' => 'Step '.$number,
+            'status' => BatchStep::STATUS_PENDING,
+        ]);
+    }
+
+    public function test_allocate_with_manual_picks_uses_chosen_lots(): void
+    {
+        $this->enableLotTracking();
+        $step = $this->makeStep();
+        $lotA = $this->makeLot('LOT-A', 150);
+        $lotB = $this->makeLot('LOT-B', 100); // required = 210
+
+        $allocs = $this->service->allocateForBatch($this->batch, $this->user, [
+            $this->material->id => [
+                ['material_lot_id' => $lotA->id, 'picked_qty' => 150],
+                ['material_lot_id' => $lotB->id, 'picked_qty' => 60],
+            ],
+        ], attributeStepId: $step->id);
+
+        $this->assertSame(2, AllocationLotPick::count());
+        $this->assertEqualsWithDelta(0.0, (float) $lotA->fresh()->quantity_available, 0.0001);
+        $this->assertEqualsWithDelta(40.0, (float) $lotB->fresh()->quantity_available, 0.0001);
+        AllocationLotPick::all()->each(fn ($p) => $this->assertSame(AllocationLotPick::STRATEGY_MANUAL, $p->picking_strategy));
+        $this->assertSame($step->id, $allocs->first()->batch_step_id);
+    }
+
+    public function test_allocate_without_picks_falls_back_to_auto_picking(): void
+    {
+        $this->enableLotTracking();
+        $this->makeLot('LOT-A', 300);
+
+        $this->service->allocateForBatch($this->batch, $this->user);
+
+        $this->assertSame(1, AllocationLotPick::count());
+        $this->assertSame(AllocationLotPick::STRATEGY_FEFO, AllocationLotPick::first()->picking_strategy);
+    }
+
+    public function test_consume_writes_genealogy_from_picks_and_is_idempotent(): void
+    {
+        $this->enableLotTracking();
+        $step = $this->makeStep();
+        $lot = $this->makeLot('LOT-A', 300);
+
+        $this->service->allocateForBatch($this->batch, $this->user, [], attributeStepId: $step->id);
+        $this->service->consumeForBatch($this->batch);
+
+        $this->assertSame(1, BatchStepLotConsumption::count());
+        $row = BatchStepLotConsumption::first();
+        $this->assertSame($step->id, $row->batch_step_id);
+        $this->assertSame($lot->id, $row->material_lot_id);
+        $this->assertEqualsWithDelta(210.0, (float) $row->quantity_consumed, 0.0001);
+
+        // Allocations already CONSUMED → a second pass writes nothing more.
+        $this->service->consumeForBatch($this->batch);
+        $this->assertSame(1, BatchStepLotConsumption::count());
+    }
+
+    public function test_pick_preview_for_step_returns_proposal_when_tracking_on(): void
+    {
+        $this->enableLotTracking();
+        $step = $this->makeStep();
+        $this->makeLot('LOT-A', 300);
+
+        $preview = $this->service->pickPreviewForStep($step);
+
+        $this->assertCount(1, $preview);
+        $this->assertSame($this->material->id, $preview[0]['material_id']);
+        $this->assertEqualsWithDelta(210.0, $preview[0]['required_qty'], 0.0001);
+        $this->assertCount(1, $preview[0]['proposed']);
+        $this->assertCount(1, $preview[0]['candidates']);
+    }
+
+    public function test_pick_preview_for_step_empty_when_tracking_off(): void
+    {
+        $step = $this->makeStep();
+        $this->makeLot('LOT-A', 300);
+
+        $this->assertSame([], $this->service->pickPreviewForStep($step));
+    }
+
+    public function test_pick_preview_for_step_skips_serial_tracked_material(): void
+    {
+        $this->enableLotTracking();
+        $this->material->update(['tracking_type' => 'serial']);
+        $step = $this->makeStep();
+        $this->makeLot('LOT-A', 300);
+
+        $this->assertSame([], $this->service->pickPreviewForStep($step));
     }
 }

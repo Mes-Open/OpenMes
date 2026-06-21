@@ -18,11 +18,15 @@ class BatchService
     /**
      * Start a batch step.
      *
+     * @param  array<int, array<int, array{material_lot_id: int|string, picked_qty: int|float|string}>>  $picksByMaterial
+     *                                                                                                                     Operator-chosen lot picks keyed by material id (WO-time "suggest +
+     *                                                                                                                     override"). Empty → automatic FEFO/FIFO/LIFO picking as before.
+     *
      * @throws \Exception
      */
-    public function startStep(BatchStep $step, User $user): BatchStep
+    public function startStep(BatchStep $step, User $user, array $picksByMaterial = []): BatchStep
     {
-        return DB::transaction(function () use ($step, $user) {
+        return DB::transaction(function () use ($step, $user, $picksByMaterial) {
             // Enforce workstation routing (if enabled)
             $this->guardWorkstationRouting($step, $user);
 
@@ -45,13 +49,14 @@ class BatchService
             $this->updateBatchStatus($batch);
 
             // Allocate materials when batch first transitions to IN_PROGRESS
-            // (covers BOM rows with consumed_at='start' or unspecified).
+            // (covers BOM rows with consumed_at='start' or unspecified). Attribute
+            // these allocations to this (first) step for genealogy.
             if ($wasPending && $batch->fresh()->status === Batch::STATUS_IN_PROGRESS) {
-                $this->allocationService->allocateForBatch($batch, $user);
+                $this->allocationService->allocateForBatch($batch, $user, $picksByMaterial, attributeStepId: $step->id);
             }
 
             // Always check for BOM rows targeted at *this* step (consumed_at='during').
-            $this->allocationService->allocateForStep($step, $user);
+            $this->allocationService->allocateForStep($step, $user, $picksByMaterial);
 
             // Update work order status
             $this->workOrderService->updateWorkOrderStatus($batch->workOrder);
@@ -100,8 +105,9 @@ class BatchService
             // If batch is complete, update produced quantity and consume materials
             if ($batch->status === Batch::STATUS_DONE) {
                 // End-of-batch BOM rows (consumed_at='end') get allocated now,
-                // immediately before everything is marked consumed.
-                $this->allocationService->allocateForBatchEnd($batch, $user);
+                // immediately before everything is marked consumed. Attribute to
+                // the completing step so the genealogy bridge has a step to record.
+                $this->allocationService->allocateForBatchEnd($batch, $user, attributeStepId: $step->id);
                 $this->completeBatch($batch, $data['produced_qty'] ?? $batch->target_qty);
                 $this->allocationService->consumeForBatch($batch);
             }
