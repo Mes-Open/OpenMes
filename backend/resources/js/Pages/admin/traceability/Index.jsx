@@ -63,8 +63,8 @@ export default function TraceabilityIndex() {
                 {result?.type === 'pallet' && <PalletResult data={result.data} />}
                 {result?.type === 'customer_order' && <CustomerOrderResult data={result.data} />}
                 {result?.type === 'batch' && <BatchResult data={result.data} />}
-                {result?.type === 'material_lot' && <MaterialLotResult forward={result.forward} backward={result.backward} />}
-                {result?.type === 'serial' && <SerialResult unit={result.data} />}
+                {result?.type === 'material_lot' && <MaterialLotResult forward={result.forward} backward={result.backward} recall={result.recall} />}
+                {result?.type === 'serial' && <SerialResult unit={result.data} recall={result.recall} components={result.components} />}
             </div>
         </>
     );
@@ -213,7 +213,7 @@ function BatchResult({ data }) {
 
 /* ── Material lot (forward + backward) ───────────────────────────────── */
 
-function MaterialLotResult({ forward, backward }) {
+function MaterialLotResult({ forward, backward, recall }) {
     return (
         <div className="space-y-4">
             <Card>
@@ -226,6 +226,8 @@ function MaterialLotResult({ forward, backward }) {
                     <p className="text-sm text-om-muted mt-1">{__('Source container')}: <span className="font-mono">{backward.source_container_no}</span></p>
                 )}
             </Card>
+
+            {recall && <RecallImpact recall={recall} />}
 
             {/* Forward */}
             <Card>
@@ -482,9 +484,145 @@ function CustomerOrderResult({ data }) {
     );
 }
 
+/* ── Recall impact (reverse trace — affected finished goods) ─────────── */
+
+const SERIAL_STATUS_BADGE = {
+    scrapped: 'bg-om-blocked-bg text-om-blocked',
+    shipped: 'bg-om-done-bg text-om-done',
+    completed: 'bg-om-done-bg text-om-done',
+};
+
+function RecallImpact({ recall }) {
+    const workOrders = recall.work_orders ?? [];
+    const totals = recall.totals ?? { work_orders: 0, finished_serials: 0, quantity_consumed: 0 };
+
+    return (
+        <Card className="border-om-blocked/40">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                <h3 className="text-lg font-bold text-om-ink">{__('Recall impact')}</h3>
+                <div className="flex gap-2">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-om-blocked-bg text-om-blocked">
+                        {totals.work_orders} {__('work orders')}
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-om-chip text-om-muted">
+                        {totals.finished_serials} {__('units')}
+                    </span>
+                </div>
+            </div>
+            <p className="text-sm text-om-muted mb-4">{__('Finished work orders and units that contain this component.')}</p>
+
+            {workOrders.length === 0 ? (
+                <p className="text-sm text-om-muted">{__('No downstream consumption recorded yet.')}</p>
+            ) : (
+                <div className="space-y-3">
+                    {workOrders.map((wo, i) => (
+                        <div key={i} className="border-l-2 border-om-blocked pl-4 py-1">
+                            <div className="flex items-center gap-2 flex-wrap text-sm">
+                                <span className="font-mono font-semibold text-om-ink">{wo.order_no}</span>
+                                <span className="text-om-muted">{wo.product ?? '—'}</span>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{wo.status}</span>
+                                <span className="text-xs text-om-faint">
+                                    {__('Consumed')}: {formatNumber(Number(wo.quantity_consumed), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                {wo.batches?.length > 0 && (
+                                    <span className="text-xs text-om-faint">{__('Batches')}: #{wo.batches.join(', #')}</span>
+                                )}
+                            </div>
+                            {wo.finished_serials?.length > 0 && (
+                                <div className="mt-1.5 ml-1">
+                                    <span className="text-xs text-om-faint mr-2">{__('Units')} ({wo.finished_serials.length}):</span>
+                                    {wo.finished_serials.map((u, j) => (
+                                        <Link
+                                            key={j}
+                                            href={traceLink(u.serial_no)}
+                                            className={`inline-block mr-1.5 mb-1.5 px-2 py-0.5 rounded text-xs font-mono hover:underline ${SERIAL_STATUS_BADGE[u.status] ?? 'bg-om-chip text-om-accent'}`}
+                                            title={u.status}
+                                        >
+                                            {u.serial_no}
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {recall.truncated && (
+                        <p className="text-xs text-om-downtime">{__('Trace truncated (max depth reached).')}</p>
+                    )}
+                </div>
+            )}
+        </Card>
+    );
+}
+
+/* ── Component journeys (finished unit → component → lines passed through) ─ */
+
+const COMPONENT_STATUS_DONE = 'DONE';
+
+function ComponentJourneys({ components }) {
+    const list = components ?? [];
+
+    return (
+        <Card>
+            <h3 className="text-lg font-bold text-om-ink mb-1">{__('Components & production lines')}</h3>
+            <p className="text-sm text-om-muted mb-4">
+                {__('Lines and workstations each component passed through during its own production.')}
+            </p>
+
+            {list.length === 0 ? (
+                <p className="text-sm text-om-muted">{__('No components recorded for this unit.')}</p>
+            ) : (
+                <div className="space-y-4">
+                    {list.map((c, i) => (
+                        <div key={i} className="border-l-2 border-om-line2 pl-4">
+                            <div className="flex items-center gap-2 flex-wrap text-sm">
+                                <Link href={traceLink(c.lot_number)} className="font-mono font-semibold text-om-accent hover:underline">
+                                    {c.lot_number ?? '—'}
+                                </Link>
+                                <span className="text-om-muted">{c.material ?? ''}</span>
+                                {c.material_code && <span className="text-xs text-om-faint font-mono">{c.material_code}</span>}
+                                {c.lines?.length > 0 && (
+                                    <span className="flex items-center gap-1 flex-wrap">
+                                        {c.lines.map((ln, j) => (
+                                            <span key={j} className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-accent" title={__('Production line')}>
+                                                {ln.name}
+                                            </span>
+                                        ))}
+                                    </span>
+                                )}
+                            </div>
+
+                            {c.is_raw ? (
+                                <p className="text-xs text-om-faint mt-1">
+                                    {__('Raw material (supplied) - no internal production line.')}
+                                    {c.supplier_lot_no && <> · {__('Supplier LOT')}: <span className="font-mono">{c.supplier_lot_no}</span></>}
+                                </p>
+                            ) : c.steps?.length > 0 ? (
+                                <ul className="mt-1.5 ml-1 space-y-0.5 text-sm">
+                                    {c.steps.map((s, j) => (
+                                        <li key={j} className="flex items-center gap-2 flex-wrap">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${s.status === COMPONENT_STATUS_DONE ? 'bg-om-done' : 'bg-om-faintest'}`} />
+                                            <span className="text-om-muted">{__('Step')} {s.step_number}: {s.name}</span>
+                                            {s.line && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-accent">{s.line}</span>}
+                                            {s.workstation && <span className="text-xs text-om-faint">{s.workstation}</span>}
+                                            {s.completed_by && <span className="text-xs text-om-muted">{__('by')} {s.completed_by}</span>}
+                                            {s.completed_at && <span className="text-xs text-om-faint">{s.completed_at}</span>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-xs text-om-faint mt-1">{__('No production steps recorded for this component.')}</p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </Card>
+    );
+}
+
 /* ── Serial unit (per-unit history) ──────────────────────────────────── */
 
-function SerialResult({ unit }) {
+function SerialResult({ unit, recall, components }) {
     const RESULT_BADGE = {
         pass: 'bg-om-done-bg text-om-done',
         fail: 'bg-om-blocked-bg text-om-blocked',
@@ -502,6 +640,10 @@ function SerialResult({ unit }) {
                 </p>
             </Card>
 
+            <ComponentJourneys components={components} />
+
+            {recall && <RecallImpact recall={recall} />}
+
             <Card>
                 <h3 className="text-lg font-bold text-om-ink mb-3">{__('Process history')} ({unit.history.length})</h3>
                 {unit.history.length === 0 ? (
@@ -512,6 +654,7 @@ function SerialResult({ unit }) {
                             <div key={i} className={`border-l-2 pl-4 py-1 ${h.result === 'fail' ? 'border-om-blocked' : 'border-om-done'}`}>
                                 <div className="flex items-center gap-2 flex-wrap text-sm">
                                     <span className="font-semibold text-om-ink">{h.workstation ?? __('Unknown')}</span>
+                                    {h.line && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-accent">{h.line}</span>}
                                     {h.step && <span className="text-xs text-om-muted">{h.step}</span>}
                                     {h.operator && <span className="text-xs text-om-muted">{__('by')} {h.operator}</span>}
                                     {h.processed_at && <span className="text-xs text-om-faint">{h.processed_at}</span>}

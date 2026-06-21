@@ -44,15 +44,19 @@ class TraceabilityController extends Controller
                 ];
             } elseif ($resolved && $resolved['type'] === 'material_lot') {
                 $lot = $resolved['model'];
+                $lot->loadMissing('material:id,name,code');
                 $result = [
                     'type' => 'material_lot',
+                    // recallImpact() / backwardTraceLot() already return clean arrays.
+                    'recall' => $this->tracer->recallImpact(collect([$lot])),
                     'forward' => $this->mapForward($this->tracer->forwardTrace($lot)),
-                    // backwardTraceLot() already returns clean nested arrays.
                     'backward' => $this->tracer->backwardTraceLot($lot),
                 ];
             } elseif ($unit = SerialUnit::where('serial_no', $term)->first()) {
                 $result = [
                     'type' => 'serial',
+                    'recall' => $this->tracer->recallImpactForSerial($unit),
+                    'components' => $this->tracer->componentLineJourneys($unit)['components'],
                     'data' => $this->mapSerial($this->serials->getHistory($unit)),
                 ];
             } elseif (WorkOrder::where('customer_order_no', $term)->exists()) {
@@ -138,6 +142,7 @@ class TraceabilityController extends Controller
             'work_order' => $u->workOrder?->order_no,
             'history' => $u->history->map(fn ($h) => [
                 'workstation' => $h->workstation?->name,
+                'line' => $h->workstation?->line?->name,
                 'step' => $h->batchStep?->name,
                 'operator' => $h->operator?->name,
                 'processed_at' => $h->processed_at ? Carbon::parse($h->processed_at)->format('Y-m-d H:i:s') : null,
