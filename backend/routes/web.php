@@ -55,8 +55,8 @@ use App\Http\Controllers\Web\Admin\WorkstationTypeController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\IssueManagementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
-// Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
+// Gate 7 — Maintenance
 use App\Http\Controllers\Web\Operator\LineController as OperatorLineController;
 use App\Http\Controllers\Web\Operator\ProductionCorrectionController;
 use App\Http\Controllers\Web\Operator\ScrapController as OperatorScrapController;
@@ -66,6 +66,7 @@ use App\Http\Controllers\Web\Packaging\LabelPrintController;
 use App\Http\Controllers\Web\Packaging\LabelTemplateController;
 use App\Http\Controllers\Web\Packaging\PackagingController;
 use App\Http\Controllers\Web\Packaging\PackagingEanController;
+use App\Http\Controllers\Web\QualityControlTaskController;
 use App\Http\Controllers\Web\RegisterController;
 use App\Http\Controllers\Web\Supervisor\DashboardController as SupervisorDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -274,8 +275,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/shift-handover/preview', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'preview'])->name('shift-handover.preview');
         Route::post('/shift-handover', [\App\Http\Controllers\Web\Supervisor\ShiftHandoverController::class, 'store'])->name('shift-handover.store');
 
-        // Work Orders (supervisor can manage status)
+        // Work Orders (supervisor can create + manage)
         Route::get('/work-orders', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'index'])->name('work-orders.index');
+        // create/store before the {workOrder} routes so "create" isn't bound as an id.
+        Route::get('/work-orders/create', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'create'])->name('work-orders.create');
+        Route::post('/work-orders', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'store'])->name('work-orders.store');
         Route::get('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'show'])->name('work-orders.show');
         Route::post('/work-orders/{workOrder}/accept', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'accept'])->name('work-orders.accept');
         Route::post('/work-orders/{workOrder}/reject', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'reject'])->name('work-orders.reject');
@@ -300,6 +304,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/actions/{action}/complete', [IssueManagementController::class, 'completeAction'])->name('issues.actions.complete');
         Route::post('/issues/actions/{action}/verify', [IssueManagementController::class, 'verifyAction'])->name('issues.actions.verify');
         Route::delete('/issues/actions/{action}', [IssueManagementController::class, 'destroyAction'])->name('issues.actions.destroy');
+
+        // Quality-control trigger queue (#105) — outstanding controls.
+        Route::get('/quality-tasks', [QualityControlTaskController::class, 'index'])->name('quality-tasks.index');
+        Route::post('/quality-tasks', [QualityControlTaskController::class, 'storeRoaming'])->name('quality-tasks.roaming');
+        Route::post('/quality-tasks/{task}/perform', [QualityControlTaskController::class, 'perform'])->name('quality-tasks.perform');
+        Route::post('/quality-tasks/{task}/skip', [QualityControlTaskController::class, 'skip'])->name('quality-tasks.skip');
+
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
     });
 
@@ -384,6 +395,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/actions/{action}/complete', [IssueManagementController::class, 'completeAction'])->name('issues.actions.complete');
         Route::post('/issues/actions/{action}/verify', [IssueManagementController::class, 'verifyAction'])->name('issues.actions.verify');
         Route::delete('/issues/actions/{action}', [IssueManagementController::class, 'destroyAction'])->name('issues.actions.destroy');
+
+        // Quality-control trigger queue (#105) — outstanding controls.
+        Route::get('/quality-tasks', [QualityControlTaskController::class, 'index'])->name('quality-tasks.index');
+        Route::post('/quality-tasks', [QualityControlTaskController::class, 'storeRoaming'])->name('quality-tasks.roaming');
+        Route::post('/quality-tasks/{task}/perform', [QualityControlTaskController::class, 'perform'])->name('quality-tasks.perform');
+        Route::post('/quality-tasks/{task}/skip', [QualityControlTaskController::class, 'skip'])->name('quality-tasks.skip');
 
         // User Management
         Route::resource('users', \App\Http\Controllers\Web\Admin\UserManagementController::class);
@@ -540,6 +557,7 @@ Route::middleware('auth')->group(function () {
         // ISA-95 Equipment Hierarchy: Sites & Areas
         Route::resource('sites', SiteController::class);
         Route::post('/sites/{site}/toggle-active', [SiteController::class, 'toggleActive'])->name('sites.toggle-active');
+        Route::get('/areas/create', [AreaController::class, 'create'])->name('areas.create');
         Route::resource('sites.areas', AreaController::class)->shallow();
         Route::get('/areas', [AreaController::class, 'index'])->name('areas.index'); // flat list across sites
         Route::post('/areas/{area}/toggle-active', [AreaController::class, 'toggleActive'])->name('areas.toggle-active');
@@ -613,6 +631,10 @@ Route::middleware('auth')->group(function () {
         // Inspection Plans (admin CRUD + version publish)
         Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
         Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);
+
+        // Quality-control triggers (#105) — admin CRUD.
+        Route::post('quality-control-triggers/{qualityControlTrigger}/toggle-active', [\App\Http\Controllers\Web\Admin\QualityControlTriggerController::class, 'toggleActive'])->name('quality-control-triggers.toggle-active');
+        Route::resource('quality-control-triggers', \App\Http\Controllers\Web\Admin\QualityControlTriggerController::class)->except(['show']);
 
         // ── Gate 6: Costing ───────────────────────────────────────────────────
         // Cost Sources

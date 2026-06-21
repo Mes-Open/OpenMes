@@ -4,8 +4,10 @@ namespace App\Services\WorkOrder;
 
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\QualityControlTask;
 use App\Models\User;
 use App\Services\Material\MaterialAllocationService;
+use App\Services\Quality\QualityTriggerService;
 use Illuminate\Support\Facades\DB;
 
 class BatchService
@@ -13,6 +15,7 @@ class BatchService
     public function __construct(
         protected WorkOrderService $workOrderService,
         protected MaterialAllocationService $allocationService,
+        protected QualityTriggerService $qualityTriggerService,
     ) {}
 
     /**
@@ -25,6 +28,12 @@ class BatchService
         return DB::transaction(function () use ($step, $user) {
             // Enforce workstation routing (if enabled)
             $this->guardWorkstationRouting($step, $user);
+
+            // Hard gate: an outstanding blocking quality control must be done
+            // before more work happens on this batch (#105).
+            if (QualityControlTask::hasOpenBlockingForBatch($step->batch_id)) {
+                throw new \Exception(__('A required quality control is outstanding for this batch and must be completed first.'));
+            }
 
             // Validate step can be started
             if (! $step->canStart()) {
@@ -55,6 +64,11 @@ class BatchService
 
             // Update work order status
             $this->workOrderService->updateWorkOrderStatus($batch->workOrder);
+
+            // Quality-control triggers: batch just entered production (#105).
+            if ($wasPending && $batch->fresh()->status === Batch::STATUS_IN_PROGRESS) {
+                $this->qualityTriggerService->fireInProduction($batch->fresh());
+            }
 
             return $step->fresh();
         });
@@ -104,6 +118,9 @@ class BatchService
                 $this->allocationService->allocateForBatchEnd($batch, $user);
                 $this->completeBatch($batch, $data['produced_qty'] ?? $batch->target_qty);
                 $this->allocationService->consumeForBatch($batch);
+
+                // Quality-control triggers: every-N-units checks (#105).
+                $this->qualityTriggerService->fireForUnits($batch->fresh());
             }
 
             // Update work order status

@@ -9,11 +9,34 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - **Trace by pallet number or customer order**: work orders now carry a **customer order number** (the customer's own PO/order reference - editable on the admin/supervisor work-order forms, searchable, synced live), and each **pallet is linked to the batch it holds** (set at the packaging station - auto when the work order has a single batch, otherwise picked - and editable in the admin pallet form). The Admin → Traceability console can now resolve a **pallet number** into the full chain **pallet → batch → consumed lots → machine/line → operator → quality controls**, and a **customer order number** into every matching work order with its pallets and batches (each linking into the deeper trace). Pallet labels can now also print the linked batch's LOT. Built on the existing genealogy (`batch_step_lot_consumption`); two additive columns (`work_orders.customer_order_no`, `pallets.batch_id`), no breaking change. Lots/batches only - serialized-component picking is unchanged.
+- **Quality control triggers — in-production, frequency, after downtime/setup, roaming** *([#105](https://github.com/Mes-Open/OpenMes/issues/105))*: quality controls can now fire **automatically during production**, beyond the manual inbound inspection and ad-hoc per-batch check. Configure **triggers** (Admin → Quality Control Triggers) of six types — **in production** (batch enters production), **every N units**, **every N minutes**, **after downtime**, **after setup/changeover**, and **roaming** (manual ad-hoc) — each optionally scoped to a line, workstation or product type and pointing at a quality-check template. When a trigger fires it raises a **due control** that surfaces in the live **Quality Controls** queue (supervisor/admin); performing it records a `QualityCheck` against the **work order / machine** and, on failure, raises a non-conformance `Issue`. Triggers marked **blocking** hard-gate production — the next step can't start and the batch can't be released until the control is done. Time-based triggers fire via a scheduled `quality:fire-due-triggers` command; the rest fire synchronously from the production lifecycle (`BatchService`, `DowntimeService`). New `quality_control_triggers` + `quality_control_tasks` tables follow the soft-delete-with-audit pattern. Existing inbound inspection and per-batch checks are unchanged.
 - **Non-conformity workflow — material hold/release + batch-release quality gate** *(part 2 of [#107](https://github.com/Mes-Open/OpenMes/issues/107))*: quality can now put **any material lot on hold** (→ quarantine, with a reason and an optional link to the triggering issue) and **release** it later, straight from Admin → Material Lots — not just via an inbound-inspection disposition. Held lots stay out of the allocation engine. A new **quality gate on batch release** refuses to release a batch whose work order is blocked by an open non-conformance, or that consumed a held (quarantined/rejected) lot. Implemented in `MaterialHoldService` + `BatchReleaseService`.
 - **Non-conformity workflow — corrective/preventive actions (CAPA) on issues** *(part 1 of [#107](https://github.com/Mes-Open/OpenMes/issues/107))*: an issue (the non-conformance record) can now carry **corrective and preventive actions**, each with an assignee, due date and lifecycle **Open → In progress → Done → Verified**. The issue **can only be CLOSED once every action is Verified** (enforced server-side in `IssueService::closeIssue` for both the admin/supervisor UI and the API). Manage actions from a panel on the Issues page (Admin → Issues / Supervisor → Issues). New `issue_actions` table follows the soft-delete-with-audit pattern and cascades when its issue is deleted.
 
 ### Fixed
+- **Supervisors can now create & manage work orders (as the role docs state)** *([#122](https://github.com/Mes-Open/OpenMes/issues/122))*: the Supervisor role already held the `create work orders` ability and `WorkOrderPolicy::create` allowed it, but there was no way to use it — no supervisor create route/controller/button, and the role lacked the `tab:orders` permission needed to reach the admin order pages. Supervisor now gets `tab:orders` (seeder) **and** a native create flow: `GET/POST /supervisor/work-orders` (authorized via `WorkOrderPolicy`) with a **"+ New Work Order"** button on the supervisor Orders list. Operators and guests remain blocked.
+- **Live-sync lists 401 / appear empty when the app host isn't `APP_URL`**: creating a record returned `200` but the list stayed empty because the live-sync read (`GET /api/collections/{name}`, guarded by `auth:web,sanctum`) was only treated as a stateful session request when the host matched `localhost`/`127.0.0.1`/`APP_URL`. Served on any other host (LAN IP, custom domain, a port `APP_URL` doesn't cover, behind Caddy) the request wasn't stateful → no session → `401` → empty lists. `config/sanctum.php` now includes `Sanctum::currentRequestHost()`, so the app's own host is stateful for **same-origin** requests on any deployment (cross-origin requests stay non-stateful, so CSRF protection is unchanged). `SANCTUM_STATEFUL_DOMAINS` still overrides.
 - **Production Docker image build broken by the `@openmes/ui` workspace package**: the image's `npm run build` failed with `Rollup failed to resolve import "@openmes/ui"` because `backend/package.json` depends on it via `file:../packages/ui`, but `backend/Dockerfile` never copied `packages/` into the build. The Dockerfile now copies `packages/` to `/var/www/packages/` before `npm ci` (and removes it after the build to keep the image lean); the dev-overlay frontend watcher gains a `./packages` bind mount so its runtime `npm ci` resolves the dependency and edits to `@openmes/ui` rebuild live. Only the image build was affected — PR CI runs the PHP suite, not the Docker build.
+
+---
+
+## [0.15.5] - 2026-06-21
+
+### Fixed
+- **German locale terminology**: "Work Order" now translates as **Fertigungsauftrag** (production order) instead of the generic *Arbeitsauftrag*, matching the MES domain — applied across all singular/plural/compound occurrences in `backend/lang/de.json`.
+
+---
+
+## [0.15.4] - 2026-06-19
+
+### Added
+- **German (de) locale**: OpenMES is now available in German — a complete `backend/lang/de.json` (full key-parity with English, MES terminology) plus registration as a selectable language, so German can be chosen from the language switcher (login screen, Settings → System) exactly like English / Polski / Türkçe.
+
+### Changed
+- **Material type is now optional**: a material no longer has to belong to a material type. The `materials.material_type_id` column is nullable, the create/edit form offers a "— None —" option, and the web + API validation accepts a missing type (an invalid/non-existent type is still rejected). The foreign key (restrict-on-delete) is unchanged and still applies when a type is set.
+
+### Fixed
+- **Web-shell/XSS test fixtures defanged**: the upload-sanitizer security tests embedded literal `<?php system($_GET[...])` / `<script>` payloads (used to prove the sanitizer destroys them), which matched antivirus signatures (`Backdoor:PHP/Perhetshell.A`) and got the files quarantined on checkout. The payloads are now assembled from fragments at runtime — identical test behaviour, no literal payload left in source.
 
 ---
 
@@ -337,7 +360,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.3...develop
+[Unreleased]: https://github.com/Mes-Open/OpenMes/compare/v0.15.5...develop
+[0.15.5]: https://github.com/Mes-Open/OpenMes/compare/v0.15.4...v0.15.5
+[0.15.4]: https://github.com/Mes-Open/OpenMes/compare/v0.15.3...v0.15.4
 [0.15.3]: https://github.com/Mes-Open/OpenMes/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/Mes-Open/OpenMes/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/Mes-Open/OpenMes/compare/v0.15.0...v0.15.1
