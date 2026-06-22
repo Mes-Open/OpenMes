@@ -218,6 +218,11 @@ class WoTimeLotPickingTest extends TestCase
             ->withSession(['selected_line_id' => $this->batch->workOrder->line_id])
             ->get("/operator/batch-step/{$this->step->id}/pick-preview")
             ->assertForbidden();
+
+        $this->actingAs($viewer)
+            ->withSession(['selected_line_id' => $this->batch->workOrder->line_id])
+            ->post("/operator/batch-step/{$this->step->id}/start")
+            ->assertForbidden();
     }
 
     public function test_step_on_another_line_is_rejected(): void

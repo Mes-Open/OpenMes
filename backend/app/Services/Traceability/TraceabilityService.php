@@ -80,6 +80,7 @@ class TraceabilityService
     {
         $visitedLotIds = [];
         $affected = []; // work_order_id => aggregate row
+        $affectedBatchIds = []; // batch_id => true (batches that consumed the recalled material)
         $frontier = $sourceLots->pluck('id')->filter()->unique()->values()->all();
         $truncated = false;
 
@@ -97,8 +98,10 @@ class TraceabilityService
                 ->whereIn('material_lot_id', $frontier)
                 ->with([
                     'batchStep:id,batch_id',
-                    'batchStep.batch:id,batch_number,work_order_id',
-                    'batchStep.batch.workOrder:id,order_no,product_type_id,status',
+                    // Recall must see through soft-deleted intermediates, otherwise
+                    // a deleted batch/WO would hide downstream affected lots.
+                    'batchStep.batch' => fn ($q) => $q->withTrashed()->select('id', 'batch_number', 'work_order_id'),
+                    'batchStep.batch.workOrder' => fn ($q) => $q->withTrashed()->select('id', 'order_no', 'product_type_id', 'status'),
                     'batchStep.batch.workOrder.productType:id,name,code',
                 ])
                 ->get();
@@ -107,12 +110,18 @@ class TraceabilityService
 
             foreach ($consumptions as $consumption) {
                 $batch = $consumption->batchStep?->batch;
-                $workOrder = $batch?->workOrder;
-                if (! $workOrder) {
-                    continue; // batch / WO soft-deleted (global scope nulled it)
+                if (! $batch) {
+                    continue; // orphaned consumption (no batch step / batch at all)
                 }
 
+                // Track the batch for the downstream walk even if its WO is gone.
                 $consumingBatchIds[$batch->id] = true;
+                $affectedBatchIds[$batch->id] = true;
+
+                $workOrder = $batch->workOrder;
+                if (! $workOrder) {
+                    continue; // WO unrecoverable; batch still walked downstream
+                }
 
                 $row = $affected[$workOrder->id] ?? [
                     'id' => $workOrder->id,
@@ -130,7 +139,7 @@ class TraceabilityService
             }
 
             // Next level: output lots of the consuming batches we haven't walked yet.
-            $frontier = MaterialLot::query()
+            $frontier = MaterialLot::withTrashed()
                 ->whereIn('source_batch_id', array_keys($consumingBatchIds))
                 ->pluck('id')
                 ->reject(fn ($id) => isset($visitedLotIds[$id]))
@@ -143,6 +152,12 @@ class TraceabilityService
             ? collect()
             : SerialUnit::query()
                 ->whereIn('work_order_id', array_keys($affected))
+                // Only units from batches that consumed the recalled material;
+                // null batch_id is the legacy fallback (pre-batch-linked serials).
+                ->where(function ($query) use ($affectedBatchIds) {
+                    $query->whereIn('batch_id', array_keys($affectedBatchIds))
+                        ->orWhereNull('batch_id');
+                })
                 ->orderByDesc('produced_at')
                 ->orderByDesc('id')
                 ->get(['id', 'serial_no', 'status', 'work_order_id', 'produced_at'])

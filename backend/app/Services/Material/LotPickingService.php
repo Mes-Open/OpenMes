@@ -101,7 +101,7 @@ class LotPickingService
             $lines = [];
             foreach ($chosen as $row) {
                 $lotId = (int) ($row['material_lot_id'] ?? 0);
-                $qty = (float) ($row['picked_qty'] ?? 0);
+                $qty = round((float) ($row['picked_qty'] ?? 0), 4);
                 if ($lotId <= 0 || $qty <= 0) {
                     throw new \DomainException(__('Each lot pick must reference a lot and a positive quantity.'));
                 }
@@ -138,7 +138,7 @@ class LotPickingService
                     'tenant_id' => $allocation->tenant_id,
                     'material_allocation_id' => $allocation->id,
                     'material_lot_id' => $lot->id,
-                    'picked_qty' => round($qty, 4),
+                    'picked_qty' => $qty,
                     'picking_strategy' => AllocationLotPick::STRATEGY_MANUAL,
                 ]);
 

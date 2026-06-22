@@ -61,7 +61,9 @@ class WorkOrderService
         }
 
         $workOrder->update([
-            'customer_order_no' => $data['customer_order_no'] ?? $workOrder->customer_order_no,
+            'customer_order_no' => array_key_exists('customer_order_no', $data)
+                ? $data['customer_order_no']
+                : $workOrder->customer_order_no,
             'planned_qty' => $data['planned_qty'] ?? $workOrder->planned_qty,
             'priority' => $data['priority'] ?? $workOrder->priority,
             'due_date' => $data['due_date'] ?? $workOrder->due_date,
