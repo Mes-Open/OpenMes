@@ -38,6 +38,7 @@ function DashboardBody({
     inboundQcStats,
     materialsStats,
     scrapStats,
+    nonConformanceStats,
 }) {
     const { workOrders, lines, issues, issueTypes, oeeRecords, isLoading, error } =
         useDashboardShapes(hot);
@@ -129,6 +130,12 @@ function DashboardBody({
                     {showWidget('scrap_overview') && scrapStats && (
                         <Section order={order.scrap_overview}>
                             <ScrapOverview stats={scrapStats} />
+                        </Section>
+                    )}
+
+                    {showWidget('non_conformance_overview') && nonConformanceStats && (
+                        <Section order={order.non_conformance_overview}>
+                            <NonConformanceOverview stats={nonConformanceStats} />
                         </Section>
                     )}
 
@@ -388,6 +395,55 @@ function ScrapOverview({ stats }) {
     );
 }
 
+// Non-conformance overview (#11): open NCRs by type, disposition split and the
+// overdue-actions alert.
+function NonConformanceOverview({ stats }) {
+    const DISPOSITION_LABELS = {
+        pending: __('Pending'), scrap: __('Scrap'), rework: __('Rework'),
+        return_to_supplier: __('Return to supplier'), use_as_is: __('Use as is'),
+    };
+    const byType = stats.open_by_type ?? [];
+    const maxCount = Math.max(...byType.map((t) => Number(t.count ?? 0)), 1);
+    const summary = stats.disposition_summary ?? {};
+    const overdue = Number(stats.overdue_actions ?? 0);
+
+    return (
+        <div className="bg-om-card border border-om-line rounded-om p-5">
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[14px] font-semibold text-om-ink">{__('Non-conformances')}</h2>
+                <a href="/admin/non-conformance-reports" className="text-[12.5px] text-om-accent hover:underline">{__('Full report')} →</a>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm mb-4">
+                <Stat label={__('Open non-conformances')} value={stats.open_total ?? 0} />
+                <Stat
+                    label={__('Overdue actions')}
+                    value={overdue}
+                    color={overdue > 0 ? 'red' : 'green'}
+                />
+                <Stat label={__('Scrap')} value={Number(summary.scrap ?? 0)} color="yellow" />
+            </div>
+
+            {byType.length > 0 ? (
+                <div className="space-y-1.5">
+                    <p className="text-[11.5px] uppercase tracking-[0.06em] text-om-faint mb-1">{__('Open by type')}</p>
+                    {byType.map((t) => (
+                        <div key={t.name} className="flex items-center gap-3 text-[12.5px]">
+                            <span className="w-36 shrink-0 truncate text-om-muted" title={t.name}>{t.name}</span>
+                            <div className="flex-1 h-3.5 bg-om-chip rounded">
+                                <div className="h-3.5 bg-om-blocked rounded" style={{ width: `${(Number(t.count) / maxCount) * 100}%` }} />
+                            </div>
+                            <span className="w-8 shrink-0 text-right tabular-nums text-om-muted">{t.count}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-[12.5px] text-om-faint">{__('No open non-conformances.')}</p>
+            )}
+        </div>
+    );
+}
+
 function Stat({ label, value, color }) {
     // State-tinted tiles on om tokens (parity with the Blade dashboard widgets).
     const tile = {
@@ -605,6 +661,7 @@ function buildOrder(widgetOrder) {
         'inbound_qc_overview',
         'materials_overview',
         'scrap_overview',
+        'non_conformance_overview',
         'recent_work_orders',
         'open_issues',
     ];

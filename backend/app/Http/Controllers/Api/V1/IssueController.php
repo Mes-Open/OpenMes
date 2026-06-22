@@ -5,9 +5,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateIssueRequest;
 use App\Http\Requests\ResolveIssueRequest;
-use App\Http\Requests\UpdateIssueRequest;
+use App\Http\Requests\SetDispositionRequest;
+use App\Http\Requests\StoreIssueActionRequest;
+use App\Http\Requests\UpdateIssueActionRequest;
 use App\Models\Issue;
+use App\Models\IssueAction;
 use App\Services\IssueService;
+use App\Services\Quality\IssueActionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -161,6 +165,76 @@ class IssueController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    /**
+     * Set the non-conformance disposition on an issue (#11).
+     */
+    public function disposition(SetDispositionRequest $request, Issue $issue): JsonResponse
+    {
+        $updated = $this->issueService->setDisposition($issue, $request->validated(), $request->user()->id);
+
+        return response()->json([
+            'data' => $updated,
+            'message' => 'Disposition recorded',
+        ]);
+    }
+
+    /**
+     * List corrective/preventive/containment actions for an issue (#11).
+     */
+    public function actions(Issue $issue): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->serializeActions($issue),
+        ]);
+    }
+
+    /**
+     * Create a corrective/preventive/containment action on an issue (#11).
+     */
+    public function storeAction(StoreIssueActionRequest $request, Issue $issue, IssueActionService $service): JsonResponse
+    {
+        $service->create($issue, $request->validated());
+
+        return response()->json([
+            'data' => $this->serializeActions($issue->fresh()),
+        ], 201);
+    }
+
+    /**
+     * Update an action (status/fields) (#11).
+     */
+    public function updateAction(UpdateIssueActionRequest $request, IssueAction $action): JsonResponse
+    {
+        $action->update($request->validated());
+
+        return response()->json([
+            'data' => $this->serializeActions($action->issue),
+        ]);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function serializeActions(Issue $issue): array
+    {
+        return $issue->actions()
+            ->with(['assignedTo:id,name', 'completedBy:id,name', 'verifiedBy:id,name'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (IssueAction $a) => [
+                'id' => $a->id,
+                'type' => $a->type,
+                'title' => $a->title,
+                'description' => $a->description,
+                'status' => $a->status,
+                'is_overdue' => $a->isOverdue(),
+                'assigned_to' => $a->assignedTo?->name,
+                'due_date' => $a->due_date?->toDateString(),
+                'completed_by' => $a->completedBy?->name,
+                'verified_by' => $a->verifiedBy?->name,
+                'notes' => $a->notes,
+            ])
+            ->all();
     }
 
     /**
