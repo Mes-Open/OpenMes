@@ -806,8 +806,10 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                                 </span>
                             )}
 
-                            {/* Action buttons */}
-                            {step.status === 'PENDING' && (
+                            {/* Action buttons — READY (the next-in-line step
+                                promoted by promoteReadySteps) is startable too;
+                                the backend accepts PENDING and READY alike. */}
+                            {(step.status === 'PENDING' || step.status === 'READY') && (
                                 <Button
                                     variant="accent"
                                     disabled={isInflight}

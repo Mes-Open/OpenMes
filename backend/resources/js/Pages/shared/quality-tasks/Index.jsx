@@ -212,7 +212,7 @@ export default function QualityTasksIndex() {
                         onChange={setNotes}
                         placeholder={__('Optional')}
                     />
-                    <InlineAlert tone="info">
+                    <InlineAlert severity="info">
                         {__('A failing result raises a non-conformance and, for blocking controls, halts the work order.')}
                     </InlineAlert>
                 </div>
