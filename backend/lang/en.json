@@ -1529,7 +1529,6 @@
     "Recall impact": "Recall impact",
     "Finished work orders and units that contain this component.": "Finished work orders and units that contain this component.",
     "No downstream consumption recorded yet.": "No downstream consumption recorded yet.",
-    "Batches": "Batches",
     "Units": "Units",
     "units": "units",
     "Components & production lines": "Components & production lines",
@@ -3633,5 +3632,14 @@
     "Planned work orders": "Planned work orders",
     "Components required": "Components required",
     "Components short": "Components short",
-    "Total shortfall": "Total shortfall"
+    "Total shortfall": "Total shortfall",
+    "Enable only the feature areas your team uses. A disabled module is hidden from the menu and its pages return 404. Core areas (Dashboard, Orders, Production, Admin) are always on.": "Enable only the feature areas your team uses. A disabled module is hidden from the menu and its pages return 404. Core areas (Dashboard, Orders, Production, Admin) are always on.",
+    "Company structure": "Company structure",
+    "Maintenance & Quality": "Maintenance & Quality",
+    "Work-order history, production cost, scrap, non-conformance and net-requirements reports.": "Work-order history, production cost, scrap, non-conformance and net-requirements reports.",
+    "Sites, areas, factories, divisions, workstation types and subassemblies.": "Sites, areas, factories, divisions, workstation types and subassemblies.",
+    "Workers, crews, skills, wage groups and absences.": "Workers, crews, skills, wage groups and absences.",
+    "Maintenance events, tools, inspection plans, quality controls and OEE.": "Maintenance events, tools, inspection plans, quality controls and OEE.",
+    "Machine connections (MQTT / Modbus / OPC UA) and the live machine monitor.": "Machine connections (MQTT / Modbus / OPC UA) and the live machine monitor.",
+    "Pallets and the packaging station.": "Pallets and the packaging station."
 }

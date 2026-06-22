@@ -78,6 +78,8 @@ Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\Chec
     Route::post('/environment', [InstallController::class, 'setupEnvironment'])->name('environment.setup');
     Route::get('/database', [InstallController::class, 'showDatabaseForm'])->name('database');
     Route::post('/database', [InstallController::class, 'setupDatabase'])->name('database.setup');
+    Route::get('/modules', [InstallController::class, 'showModulesForm'])->name('modules');
+    Route::post('/modules', [InstallController::class, 'selectModules'])->name('modules.select');
     Route::get('/admin', [InstallController::class, 'showAdminForm'])->name('admin');
     Route::post('/admin', [InstallController::class, 'createAdmin'])->name('admin.create');
     Route::get('/complete', [InstallController::class, 'complete'])->name('complete');

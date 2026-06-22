@@ -32,6 +32,10 @@ class TabAccessMiddleware
             return $next($request);
         }
 
+        // A feature module switched off for this installation (#144) is gone —
+        // 404 so a deep link behaves like the area doesn't exist, not "forbidden".
+        abort_unless(\App\Support\ModuleRegistry::isTabEnabled($tab), 404);
+
         abort_unless($user->can(TabRegistry::permission($tab)), 403);
 
         return $next($request);

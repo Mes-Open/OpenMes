@@ -44,7 +44,7 @@ function SelectCard({ value, current, onChange, label, desc, disabled }) {
 }
 
 export default function System() {
-    const { settings, availableLocales, appUrl } = usePage().props;
+    const { settings, availableLocales, appUrl, modules = [] } = usePage().props;
 
     const [tab, setTab] = useState('general');
     const [sampleConfirm, setSampleConfirm] = useState(false);
@@ -74,7 +74,13 @@ export default function System() {
         default_currency: settings.default_currency ?? 'PLN',
         default_pay_type: settings.default_pay_type ?? 'hourly',
         default_pay_rate: settings.default_pay_rate ?? null,
+        enabled_modules: modules.filter((m) => m.enabled).map((m) => m.key),
     });
+
+    const toggleModule = (key, on) =>
+        setData('enabled_modules', on
+            ? [...data.enabled_modules, key]
+            : data.enabled_modules.filter((k) => k !== key));
 
     function handleSubmit(e) {
         e.preventDefault();
@@ -113,6 +119,7 @@ export default function System() {
                         { value: 'production', label: __('Production') },
                         { value: 'schedule', label: __('Schedule') },
                         { value: 'security', label: __('Security') },
+                        { value: 'modules', label: __('Modules') },
                         { value: 'data', label: __('Data') },
                     ]}
                     value={tab}
@@ -121,6 +128,28 @@ export default function System() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+                {/* ═══ Modules — enable only the feature areas you need (#144) ═══ */}
+                {tab === 'modules' && (
+                    <div className={CARD_CLASS}>
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Modules')}</h2>
+                        <p className={`${HELP_CLASS} mb-4`}>
+                            {__('Enable only the feature areas your team uses. A disabled module is hidden from the menu and its pages return 404. Core areas (Dashboard, Orders, Production, Admin) are always on.')}
+                        </p>
+                        <div className="space-y-3">
+                            {modules.map((m) => (
+                                <div key={m.key} className="flex items-start gap-3 border border-om-line rounded-om-sm p-3">
+                                    <Checkbox
+                                        checked={data.enabled_modules.includes(m.key)}
+                                        onChange={(next) => toggleModule(m.key, next)}
+                                        label={__(m.label)}
+                                    />
+                                    <span className="text-[12.5px] text-om-muted">{__(m.description)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* ═══ General ═══ */}
                 {tab === 'general' && (
                     <div className={CARD_CLASS}>
