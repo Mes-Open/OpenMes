@@ -1584,5 +1584,9 @@
     "Quality control trigger \":name\" updated.": "\":name\" kalite kontrol tetikleyicisi güncellendi.",
     "Quality control trigger updated.": "Kalite kontrol tetikleyicisi güncellendi.",
     "Roaming check": "Gezici kontrol",
-    "Roaming quality control raised.": "Gezici kalite kontrolü oluşturuldu."
+    "Roaming quality control raised.": "Gezici kalite kontrolü oluşturuldu.",
+    "All quality": "Tümü",
+    "Link to pallet (optional)": "Paletle ilişkilendir (isteğe bağlı)",
+    "That pallet belongs to a different work order.": "Bu palet farklı bir iş emrine ait.",
+    "Cannot ship pallet :no: quality status is \":status\" (must be passed).": "Palet :no gönderilemez: kalite durumu \":status\" (geçmiş olmalı)."
 }

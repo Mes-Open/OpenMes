@@ -9,6 +9,14 @@ const STATUS_BADGE = {
     shipped: 'bg-om-chip text-om-muted',
 };
 
+// Pallet-level quality status (#106).
+const QUALITY_BADGE = {
+    pending: 'bg-om-downtime-bg text-om-downtime',
+    pass: 'bg-om-running-bg text-om-running',
+    fail: 'bg-om-blocked-bg text-om-blocked',
+};
+const QUALITY_LABELS = { pending: 'Pending', pass: 'Passed', fail: 'Failed' };
+
 const PRINTER_ICON = (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -89,6 +97,22 @@ export default function PalletsIndex() {
             render: (r) => (
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[r.status] ?? ''}`}>
                     {statusLabels[r.status] ?? r.status}
+                </span>
+            ),
+        },
+        {
+            key: 'quality_status',
+            label: 'Quality',
+            filter: true,
+            allLabel: __('All quality'),
+            options: [
+                { value: 'pending', label: __('Pending') },
+                { value: 'pass', label: __('Passed') },
+                { value: 'fail', label: __('Failed') },
+            ],
+            render: (r) => (
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${QUALITY_BADGE[r.quality_status] ?? ''}`}>
+                    {__(QUALITY_LABELS[r.quality_status] ?? r.quality_status ?? 'Pending')}
                 </span>
             ),
         },

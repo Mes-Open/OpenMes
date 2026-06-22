@@ -29,6 +29,7 @@ export default function QualityTasksIndex() {
         batchNumbers = {},
         roamingTriggers = [],
         activeBatches = [],
+        pallets = [],
     } = usePage().props;
 
     const base =
@@ -40,6 +41,7 @@ export default function QualityTasksIndex() {
     const [rows, setRows] = useState([]);
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [palletId, setPalletId] = useState('');
     const [roamingOpen, setRoamingOpen] = useState(false);
     const [roamingTrigger, setRoamingTrigger] = useState('');
     const [roamingBatch, setRoamingBatch] = useState('');
@@ -47,8 +49,14 @@ export default function QualityTasksIndex() {
     const openPerform = (task) => {
         setRows(initialRows(triggers[task.quality_control_trigger_id]));
         setNotes('');
+        setPalletId('');
         setPerformFor(task);
     };
+
+    // Pallets belonging to the task's work order — the control can be linked to one (#106).
+    const palletOptions = performFor
+        ? pallets.filter((p) => !performFor.work_order_id || p.work_order_id === performFor.work_order_id)
+        : [];
 
     const setRow = (i, patch) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
@@ -61,7 +69,7 @@ export default function QualityTasksIndex() {
             is_passed: !!r.is_passed,
         }));
         setSubmitting(true);
-        router.post(`${base}/quality-tasks/${performFor.id}/perform`, { samples, notes }, {
+        router.post(`${base}/quality-tasks/${performFor.id}/perform`, { samples, notes, pallet_id: palletId || null }, {
             preserveScroll: true,
             onSuccess: () => setPerformFor(null),
             onFinish: () => setSubmitting(false),
@@ -186,6 +194,17 @@ export default function QualityTasksIndex() {
                             />
                         </div>
                     ))}
+                    {palletOptions.length > 0 && (
+                        <Dropdown
+                            label={__('Link to pallet (optional)')}
+                            value={palletId}
+                            onChange={setPalletId}
+                            options={[
+                                { value: '', label: __('— None —') },
+                                ...palletOptions.map((p) => ({ value: String(p.id), label: p.pallet_no })),
+                            ]}
+                        />
+                    )}
                     <TextField
                         label={__('Notes')}
                         multiline
@@ -193,7 +212,7 @@ export default function QualityTasksIndex() {
                         onChange={setNotes}
                         placeholder={__('Optional')}
                     />
-                    <InlineAlert tone="info">
+                    <InlineAlert severity="info">
                         {__('A failing result raises a non-conformance and, for blocking controls, halts the work order.')}
                     </InlineAlert>
                 </div>

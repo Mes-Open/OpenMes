@@ -53,6 +53,10 @@ class QualityControlTaskController extends Controller
                     'id' => $b->id,
                     'label' => trim(($b->workOrder?->order_no ?? '').' · #'.$b->batch_number, ' ·'),
                 ]),
+            // Pallets a recorded control can be linked to (#106) — not yet shipped.
+            'pallets' => \App\Models\Pallet::whereIn('status', ['open', 'closed'])
+                ->get(['id', 'pallet_no', 'work_order_id'])
+                ->map(fn ($p) => ['id' => $p->id, 'pallet_no' => $p->pallet_no, 'work_order_id' => $p->work_order_id]),
         ]);
     }
 
@@ -69,6 +73,15 @@ class QualityControlTaskController extends Controller
             'is_passed' => isset($s['is_passed']) ? (bool) $s['is_passed'] : null,
         ])->toArray();
 
+        // Optional pallet link (#106): the pallet must belong to the task's work order.
+        $pallet = null;
+        if (! empty($validated['pallet_id'])) {
+            $pallet = \App\Models\Pallet::find($validated['pallet_id']);
+            if ($pallet && $task->work_order_id && $pallet->work_order_id !== $task->work_order_id) {
+                return back()->with('error', __('That pallet belongs to a different work order.'));
+            }
+        }
+
         try {
             $task = $this->triggerService->performTask(
                 $task,
@@ -76,6 +89,7 @@ class QualityControlTaskController extends Controller
                 $samples,
                 $validated['production_quantity'] ?? null,
                 $validated['notes'] ?? null,
+                $pallet,
             );
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());

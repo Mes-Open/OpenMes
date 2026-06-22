@@ -51,7 +51,12 @@ class PalletController extends Controller
 
     public function update(PalletRequest $request, Pallet $pallet)
     {
-        $pallet->update($request->payload());
+        try {
+            $pallet->update($request->payload());
+        } catch (\DomainException $e) {
+            // Quality ship-gate (#106) rejected the closed → shipped transition.
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
 
         return redirect()->route('admin.pallets.index')
             ->with('success', __('Pallet updated.'));

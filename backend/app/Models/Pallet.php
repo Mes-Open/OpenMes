@@ -16,12 +16,22 @@ class Pallet extends Model
     use HasFactory, HasTenant;
     use SoftDeletesWithAudit;
 
+    // Quality status (#106) — derived from the pallet's linked quality checks.
+    const QUALITY_PENDING = 'pending'; // no quality check linked yet
+
+    const QUALITY_PASS = 'pass';       // every linked check passed
+
+    const QUALITY_FAIL = 'fail';       // at least one linked check failed
+
+    public const QUALITY_STATUSES = [self::QUALITY_PENDING, self::QUALITY_PASS, self::QUALITY_FAIL];
+
     protected $fillable = [
         'pallet_no',
         'work_order_id',
         'batch_id',
         'qty',
         'status',
+        'quality_status',
         'location',
         'erp_reference',
         'tenant_id',
@@ -48,10 +58,42 @@ class Pallet extends Model
         // pallet must not move it into another shift's handover window, so the
         // calculator attributes by shipped_at instead of updated_at.
         static::saving(function (self $pallet): void {
+            // Quality ship-gate (#106): an existing pallet can't be shipped until
+            // its quality status is "pass" (no/failed quality checks block it).
+            if ($pallet->exists
+                && $pallet->isDirty('status')
+                && $pallet->status === PalletStatus::Shipped
+                && $pallet->quality_status !== self::QUALITY_PASS) {
+                throw new \DomainException(__(
+                    'Cannot ship pallet :no: quality status is ":status" (must be passed).',
+                    ['no' => $pallet->pallet_no, 'status' => $pallet->quality_status],
+                ));
+            }
+
             if ($pallet->status === PalletStatus::Shipped && $pallet->shipped_at === null) {
                 $pallet->shipped_at = now();
             }
         });
+    }
+
+    /**
+     * Recompute and persist the pallet's quality status from its linked checks.
+     * Quiet save — does not re-fire the ship-gate / shipped-at hooks.
+     */
+    public function recomputeQualityStatus(): void
+    {
+        $checks = $this->qualityChecks()->get(['all_passed']);
+
+        $status = match (true) {
+            $checks->isEmpty() => self::QUALITY_PENDING,
+            $checks->contains(fn ($c) => ! $c->all_passed) => self::QUALITY_FAIL,
+            default => self::QUALITY_PASS,
+        };
+
+        if ($this->quality_status !== $status) {
+            $this->quality_status = $status;
+            $this->saveQuietly();
+        }
     }
 
     /**
@@ -91,6 +133,11 @@ class Pallet extends Model
     public function scanLogs(): HasMany
     {
         return $this->hasMany(PackagingScanLog::class);
+    }
+
+    public function qualityChecks(): HasMany
+    {
+        return $this->hasMany(QualityCheck::class);
     }
 
     public function isOpen(): bool
