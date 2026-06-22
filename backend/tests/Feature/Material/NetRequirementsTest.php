@@ -216,6 +216,23 @@ class NetRequirementsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_api_endpoint_requires_authentication(): void
+    {
+        $this->getJson('/api/v1/reports/net-requirements')->assertUnauthorized();
+    }
+
+    public function test_api_endpoint_rejects_invalid_filters(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/reports/net-requirements?line_id=999999&end_date=not-a-date')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['line_id', 'end_date']);
+    }
+
     public function test_web_report_page_renders_for_admin_and_is_forbidden_for_operator(): void
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
@@ -226,5 +243,16 @@ class NetRequirementsTest extends TestCase
 
         $this->actingAs($admin)->get('/admin/net-requirements')->assertOk();
         $this->actingAs($operator)->get('/admin/net-requirements')->assertForbidden();
+    }
+
+    public function test_web_report_rejects_invalid_filters(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        $this->actingAs($admin)
+            ->get('/admin/net-requirements?date_from=2026-13-99')
+            ->assertSessionHasErrors('date_from');
     }
 }

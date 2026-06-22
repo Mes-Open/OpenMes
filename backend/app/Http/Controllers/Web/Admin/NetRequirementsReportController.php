@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\NetRequirementsReportRequest;
 use App\Models\Line;
 use App\Services\Material\NetRequirementsService;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
@@ -19,13 +19,9 @@ class NetRequirementsReportController extends Controller
         protected NetRequirementsService $reports,
     ) {}
 
-    public function index(Request $request)
+    public function index(NetRequirementsReportRequest $request)
     {
-        $validated = $request->validate([
-            'line_id' => ['nullable', 'integer', 'exists:lines,id'],
-            'date_from' => ['nullable', 'date_format:Y-m-d'],
-            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-        ]);
+        $validated = $request->validated();
 
         $lineId = isset($validated['line_id']) ? (int) $validated['line_id'] : null;
         $from = isset($validated['date_from'])

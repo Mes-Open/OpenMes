@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\NetRequirementsRequest;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
@@ -243,13 +244,9 @@ class ReportController extends Controller
      * against BOMs, net against on-hand stock. Forward-looking: defaults to the
      * next 30 days.
      */
-    public function netRequirements(Request $request, NetRequirementsService $service): JsonResponse
+    public function netRequirements(NetRequirementsRequest $request, NetRequirementsService $service): JsonResponse
     {
-        $validated = $request->validate([
-            'line_id' => ['nullable', 'integer', 'exists:lines,id'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-        ]);
+        $validated = $request->validated();
 
         $from = isset($validated['start_date'])
             ? Carbon::parse($validated['start_date'])->startOfDay()
