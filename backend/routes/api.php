@@ -26,7 +26,6 @@ use App\Http\Controllers\Api\V1\LineStatusController;
 use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
 use App\Http\Controllers\Api\V1\MaintenanceScheduleController;
-use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialLotController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
@@ -38,6 +37,7 @@ use App\Http\Controllers\Api\V1\ProductionAnomalyController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\QualityCheckController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\ScrapEntryController;
 use App\Http\Controllers\Api\V1\ScrapReasonController;
 use App\Http\Controllers\Api\V1\ShiftController;
@@ -614,6 +614,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/reports/scrap-pareto', [ReportController::class, 'scrapPareto']);
         Route::get('/reports/scrap-rate', [ReportController::class, 'scrapRate']);
         Route::get('/reports/non-conformance-pareto', [ReportController::class, 'nonConformancePareto']);
+        Route::get('/reports/net-requirements', [ReportController::class, 'netRequirements']);
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
     });
 

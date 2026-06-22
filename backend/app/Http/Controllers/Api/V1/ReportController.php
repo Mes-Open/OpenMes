@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\NetRequirementsRequest;
 use App\Http\Requests\NonConformanceParetoRequest;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
 use App\Models\WorkOrder;
+use App\Services\Material\NetRequirementsService;
 use App\Services\Quality\NonConformanceReportService;
 use App\Services\Scrap\ScrapReportService;
 use App\Support\Csv;
@@ -260,6 +262,31 @@ class ReportController extends Controller
             'trend' => $service->trend($from, $to, $lineId),
             'generated_at' => now()->toIso8601String(),
         ]]);
+    }
+
+    /**
+     * MRP net requirements + shortage report (#90): explode planned work orders
+     * against BOMs, net against on-hand stock. Forward-looking: defaults to the
+     * next 30 days.
+     */
+    public function netRequirements(NetRequirementsRequest $request, NetRequirementsService $service): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $from = isset($validated['start_date'])
+            ? Carbon::parse($validated['start_date'])->startOfDay()
+            : today()->startOfDay();
+        $to = isset($validated['end_date'])
+            ? Carbon::parse($validated['end_date'])->endOfDay()
+            : today()->addDays(30)->endOfDay();
+        $lineId = isset($validated['line_id']) ? (int) $validated['line_id'] : null;
+
+        return response()->json([
+            'data' => array_merge(
+                $service->report($from, $to, $lineId),
+                ['generated_at' => now()->toIso8601String()],
+            ),
+        ]);
     }
 
     /**

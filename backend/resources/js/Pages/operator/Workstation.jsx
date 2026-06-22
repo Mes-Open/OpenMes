@@ -774,6 +774,8 @@ export default function Workstation() {
         qtyEditPolicy = 'none',
         qtyEditWindowMinutes = 60,
         labelTemplates = [],
+        machineStates = [],
+        machineStateOptions = [],
     } = usePage().props;
 
     const { visibleKeys, toggleColumn, resetColumns } = useVisibleColumns(allColumns, line?.id ?? 0);
@@ -813,6 +815,9 @@ export default function Workstation() {
             <LineSync lineId={line?.id} reloadOnly={['workOrders', 'shiftEntries']} />
 
             <div className="max-w-full mx-auto px-2 sm:px-4">
+                {machineStates.length > 0 && (
+                    <MachineStatePanel machines={machineStates} options={machineStateOptions} />
+                )}
                 {/* Header */}
                 <div className="mb-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
@@ -1000,6 +1005,52 @@ export default function Workstation() {
                 />
             )}
         </>
+    );
+}
+
+// Machine-state panel (#87): set a workstation's state (running/idle/setup/
+// waiting/cleaning/maintenance/stopped/fault) manually from the operator panel.
+const MACHINE_STATE_LABELS = {
+    RUNNING: 'Running', IDLE: 'Idle', STOPPED: 'Stopped', FAULT: 'Fault', SETUP: 'Setup',
+    WAITING: 'Waiting', CLEANING: 'Cleaning', MAINTENANCE: 'Maintenance',
+};
+const MACHINE_STATE_DOT = {
+    RUNNING: 'bg-om-running', IDLE: 'bg-amber-400', SETUP: 'bg-om-accent',
+    STOPPED: 'bg-om-faintest', FAULT: 'bg-om-blocked',
+    WAITING: 'bg-yellow-400', CLEANING: 'bg-purple-400', MAINTENANCE: 'bg-orange-400',
+};
+
+function MachineStatePanel({ machines, options }) {
+    const setState = (workstationId, state) => {
+        router.post(`/operator/workstation/machine-state/${workstationId}`, { state }, { preserveScroll: true });
+    };
+
+    return (
+        <div className="mb-4 bg-om-card border border-om-line rounded-om-sm p-3">
+            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">Machine state</p>
+            <div className="flex flex-wrap gap-3">
+                {machines.map((m) => (
+                    <div key={m.id} className="flex items-center gap-2 border border-om-line2 rounded-om-sm px-2.5 py-1.5">
+                        <span className={`w-2 h-2 rounded-full ${MACHINE_STATE_DOT[m.state] ?? 'bg-slate-300'}`} />
+                        <span className="text-sm font-medium text-om-ink">{m.name}</span>
+                        <select
+                            value={m.state ?? ''}
+                            onChange={(e) => setState(m.id, e.target.value)}
+                            className="form-input text-xs py-1"
+                            aria-label={`Set state for ${m.name}`}
+                        >
+                            {!m.state && <option value="" disabled>—</option>}
+                            {m.state && !options.includes(m.state) && (
+                                <option value={m.state}>{MACHINE_STATE_LABELS[m.state] ?? m.state}</option>
+                            )}
+                            {options.map((s) => (
+                                <option key={s} value={s}>{MACHINE_STATE_LABELS[s] ?? s}</option>
+                            ))}
+                        </select>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 

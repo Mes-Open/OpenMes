@@ -246,6 +246,8 @@ Route::middleware('auth')->group(function () {
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
         Route::get('/workstation/check', [OperatorWorkstationController::class, 'check'])->name('workstation.check');
+        // Manual machine-state set (#87) — operator/supervisor sets a workstation's state.
+        Route::post('/workstation/machine-state/{workstation}', [OperatorWorkstationController::class, 'setMachineState'])->name('workstation.machine-state');
         Route::post('/workstation/{workOrder}/start', [OperatorWorkstationController::class, 'start'])->name('workstation.start');
         Route::post('/workstation/{workOrder}/complete', [OperatorWorkstationController::class, 'complete'])->name('workstation.complete');
         Route::post('/workstation/{workOrder}/shift-entry', [OperatorWorkstationController::class, 'shiftEntry'])->name('workstation.shift-entry');
@@ -635,6 +637,9 @@ Route::middleware('auth')->group(function () {
         // Non-conformance reporting (Pareto by issue type, disposition summary) (#11)
         Route::get('/non-conformance-reports', [\App\Http\Controllers\Web\Admin\NonConformanceReportController::class, 'index'])->name('non-conformance-reports.index');
 
+        // MRP net requirements & shortage report (#90)
+        Route::get('/net-requirements', [\App\Http\Controllers\Web\Admin\NetRequirementsReportController::class, 'index'])->name('net-requirements.index');
+
         // Inspection Plans (admin CRUD + version publish)
         Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
         Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);
@@ -689,6 +694,8 @@ Route::middleware('auth')->group(function () {
         // Live machine monitor (React/Inertia — ported from the original develop Blade UI)
         Route::get('/machine-monitor', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'index'])->name('machine-monitor.index');
         Route::get('/machine-monitor/check', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'check'])->name('machine-monitor.check');
+        // Manual machine-state set (#87) — supervisor/admin override from the monitor.
+        Route::post('/machine-monitor/{workstation}/state', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'setState'])->name('machine-monitor.set-state');
 
         // ── Gate 7: Maintenance ───────────────────────────────────────────────
         // Tools
