@@ -43,6 +43,7 @@ class BomManagementController extends Controller
                 'material_type_code' => $item->material->materialType->code,
                 'unit_of_measure' => $item->material->unit_of_measure,
                 'tracking_type' => $item->material->tracking_type,
+                'template_step_id' => $item->template_step_id,
                 'step_number' => $item->templateStep?->step_number,
                 'step_name' => $item->templateStep?->name,
                 'quantity_per_unit' => $item->quantity_per_unit,
