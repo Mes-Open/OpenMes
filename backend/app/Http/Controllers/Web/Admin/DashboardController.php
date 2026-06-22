@@ -64,7 +64,29 @@ class DashboardController extends Controller
             'inboundQcStats' => fn () => $this->inboundQcStats($enabledWidgets),
             'materialsStats' => fn () => $this->materialsStats($enabledWidgets),
             'scrapStats' => fn () => $this->scrapStats($enabledWidgets),
+            'nonConformanceStats' => fn () => $this->nonConformanceStats($enabledWidgets),
         ]);
+    }
+
+    /**
+     * Non-conformance overview (#11): open-by-type, disposition split and the
+     * overdue corrective/preventive action count.
+     */
+    private function nonConformanceStats(array $enabledWidgets): ?array
+    {
+        if (! in_array('non_conformance_overview', $enabledWidgets, true)) {
+            return null;
+        }
+
+        $service = app(\App\Services\Quality\NonConformanceReportService::class);
+        $openByType = $service->openByType();
+
+        return [
+            'open_total' => array_sum(array_column($openByType, 'count')),
+            'open_by_type' => array_slice($openByType, 0, 5),
+            'disposition_summary' => $service->dispositionSummary(),
+            'overdue_actions' => $service->overdueActionsCount(),
+        ];
     }
 
     private function inboundQcStats(array $enabledWidgets): ?array

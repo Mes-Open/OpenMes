@@ -28,12 +28,26 @@ class IssueActionFactory extends Factory
         return $this->state(fn () => ['type' => IssueAction::TYPE_PREVENTIVE]);
     }
 
+    public function containment(): static
+    {
+        return $this->state(fn () => ['type' => IssueAction::TYPE_CONTAINMENT]);
+    }
+
     public function verified(): static
     {
         return $this->state(fn () => [
             'status' => IssueAction::STATUS_VERIFIED,
             'completed_at' => now(),
             'verified_at' => now(),
+        ]);
+    }
+
+    /** Outstanding action with a due date in the past. */
+    public function overdue(): static
+    {
+        return $this->state(fn () => [
+            'status' => IssueAction::STATUS_OPEN,
+            'due_date' => now()->subDays(3)->toDateString(),
         ]);
     }
 }
