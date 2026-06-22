@@ -6,6 +6,7 @@ use App\Enums\DowntimeKind;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\IssueType;
+use App\Models\Pallet;
 use App\Models\ProductionDowntime;
 use App\Models\QualityCheck;
 use App\Models\QualityControlTask;
@@ -226,13 +227,13 @@ class QualityTriggerService
      * QualityCheck against its batch. A failing result raises a non-conformance
      * Issue (blocking when the trigger is blocking).
      */
-    public function performTask(QualityControlTask $task, User $user, array $samples, ?float $productionQuantity = null, ?string $notes = null): QualityControlTask
+    public function performTask(QualityControlTask $task, User $user, array $samples, ?float $productionQuantity = null, ?string $notes = null, ?Pallet $pallet = null): QualityControlTask
     {
         if ($task->batch_id === null) {
             throw new \DomainException('This control is not tied to a batch and cannot record a quality check.');
         }
 
-        return DB::transaction(function () use ($task, $user, $samples, $productionQuantity, $notes) {
+        return DB::transaction(function () use ($task, $user, $samples, $productionQuantity, $notes, $pallet) {
             // Lock the row so two concurrent perform/skip calls can't both pass
             // the open-state check and commit conflicting terminal actions.
             $task = QualityControlTask::whereKey($task->getKey())->lockForUpdate()->firstOrFail();
@@ -248,6 +249,7 @@ class QualityTriggerService
                 $productionQuantity,
                 $task->trigger->template,
                 $notes,
+                $pallet,
             );
 
             $issueId = null;

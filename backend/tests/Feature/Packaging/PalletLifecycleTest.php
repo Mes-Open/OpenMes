@@ -196,6 +196,9 @@ class PalletLifecycleTest extends TestCase
         // ───── Dispatch, 15:30 — admin ships the pallet ─────────────────────
         $this->travelTo(Carbon::create(2026, 6, 10, 15, 30, 0));
 
+        // The pallet must have passed quality before it can ship (#106 gate).
+        \App\Models\Pallet::whereKey($palletId)->update(['quality_status' => 'pass']);
+
         $this->actingAs($this->admin)
             ->put(route('admin.pallets.update', $palletId), [
                 'work_order_id' => $this->wo->id,

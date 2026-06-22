@@ -14,6 +14,7 @@ class QualityCheck extends Model
 
     protected $fillable = [
         'batch_id',
+        'pallet_id',
         'quality_check_template_id',
         'checked_by',
         'checked_at',
@@ -30,6 +31,11 @@ class QualityCheck extends Model
             'production_quantity' => 'decimal:2',
             'all_passed' => 'boolean',
         ];
+    }
+
+    public function pallet(): BelongsTo
+    {
+        return $this->belongsTo(Pallet::class);
     }
 
     public function batch(): BelongsTo

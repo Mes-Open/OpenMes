@@ -3547,5 +3547,9 @@
     "Quality control trigger \":name\" updated.": "Quality control trigger \":name\" updated.",
     "Quality control trigger updated.": "Quality control trigger updated.",
     "Roaming check": "Roaming check",
-    "Roaming quality control raised.": "Roaming quality control raised."
+    "Roaming quality control raised.": "Roaming quality control raised.",
+    "All quality": "All quality",
+    "Link to pallet (optional)": "Link to pallet (optional)",
+    "That pallet belongs to a different work order.": "That pallet belongs to a different work order.",
+    "Cannot ship pallet :no: quality status is \":status\" (must be passed).": "Cannot ship pallet :no: quality status is \":status\" (must be passed)."
 }

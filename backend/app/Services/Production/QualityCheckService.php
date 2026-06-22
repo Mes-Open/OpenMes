@@ -3,6 +3,7 @@
 namespace App\Services\Production;
 
 use App\Models\Batch;
+use App\Models\Pallet;
 use App\Models\QualityCheck;
 use App\Models\QualityCheckSample;
 use App\Models\QualityCheckTemplate;
@@ -23,12 +24,14 @@ class QualityCheckService
         ?float $productionQuantity = null,
         ?QualityCheckTemplate $template = null,
         ?string $notes = null,
+        ?Pallet $pallet = null,
     ): QualityCheck {
-        return DB::transaction(function () use ($batch, $user, $samples, $productionQuantity, $template, $notes) {
+        return DB::transaction(function () use ($batch, $user, $samples, $productionQuantity, $template, $notes, $pallet) {
             $allPassed = collect($samples)->every(fn ($s) => $s['is_passed'] ?? true);
 
             $check = QualityCheck::create([
                 'batch_id' => $batch->id,
+                'pallet_id' => $pallet?->id,
                 'quality_check_template_id' => $template?->id,
                 'checked_by' => $user->id,
                 'checked_at' => now(),
@@ -48,6 +51,9 @@ class QualityCheckService
                     'is_passed' => $sample['is_passed'] ?? null,
                 ]);
             }
+
+            // Recompute the linked pallet's quality status (#106).
+            $pallet?->recomputeQualityStatus();
 
             return $check->load('samples');
         });
