@@ -2,9 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Models\WorkOrder;
+use App\Enums\IssueDisposition;
 use App\Models\IssueType;
 use App\Models\User;
+use App\Models\WorkOrder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,9 +22,30 @@ class IssueFactory extends Factory
             'title' => fake()->sentence(),
             'description' => fake()->paragraph(),
             'status' => 'OPEN',
+            'disposition' => IssueDisposition::Pending->value,
             'reported_by_id' => User::factory(),
             'assigned_to_id' => null,
             'reported_at' => now(),
         ];
+    }
+
+    public function scrap(): static
+    {
+        return $this->state(fn () => ['disposition' => IssueDisposition::Scrap->value]);
+    }
+
+    public function rework(): static
+    {
+        return $this->state(fn () => ['disposition' => IssueDisposition::Rework->value]);
+    }
+
+    public function returnToSupplier(): static
+    {
+        return $this->state(fn () => ['disposition' => IssueDisposition::ReturnToSupplier->value]);
+    }
+
+    public function useAsIs(): static
+    {
+        return $this->state(fn () => ['disposition' => IssueDisposition::UseAsIs->value]);
     }
 }

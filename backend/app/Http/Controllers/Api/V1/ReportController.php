@@ -3,16 +3,19 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\WorkOrder;
+use App\Http\Requests\NetRequirementsRequest;
+use App\Http\Requests\NonConformanceParetoRequest;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
+use App\Models\WorkOrder;
+use App\Services\Material\NetRequirementsService;
+use App\Services\Quality\NonConformanceReportService;
 use App\Services\Scrap\ScrapReportService;
 use App\Support\Csv;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class ReportController extends Controller
 {
@@ -91,7 +94,7 @@ class ReportController extends Controller
             ->where('status', 'DONE');
 
         if ($request->line_id) {
-            $query->whereHas('workOrder', fn($q) => $q->where('line_id', $request->line_id));
+            $query->whereHas('workOrder', fn ($q) => $q->where('line_id', $request->line_id));
         }
 
         $batches = $query->with(['workOrder.productType', 'workOrder.line'])->get();
@@ -148,12 +151,12 @@ class ReportController extends Controller
         $query = Issue::whereBetween('reported_at', [$startDate, $endDate]);
 
         if ($request->line_id) {
-            $query->whereHas('workOrder', fn($q) => $q->where('line_id', $request->line_id));
+            $query->whereHas('workOrder', fn ($q) => $q->where('line_id', $request->line_id));
         }
 
         $issues = $query->with(['issueType', 'workOrder', 'reportedBy'])->get();
 
-        $downtimeMinutes = $issues->filter(fn($issue) => $issue->resolved_at && $issue->reported_at)
+        $downtimeMinutes = $issues->filter(fn ($issue) => $issue->resolved_at && $issue->reported_at)
             ->sum(function ($issue) {
                 return Carbon::parse($issue->reported_at)->diffInMinutes($issue->resolved_at);
             });
@@ -175,8 +178,8 @@ class ReportController extends Controller
                     : 0,
             ],
             'by_type' => $issues->groupBy('issue_type_id')->map(function ($typeIssues) {
-                $typeDowntime = $typeIssues->filter(fn($i) => $i->resolved_at && $i->reported_at)
-                    ->sum(fn($i) => Carbon::parse($i->reported_at)->diffInMinutes($i->resolved_at));
+                $typeDowntime = $typeIssues->filter(fn ($i) => $i->resolved_at && $i->reported_at)
+                    ->sum(fn ($i) => Carbon::parse($i->reported_at)->diffInMinutes($i->resolved_at));
 
                 return [
                     'type' => $typeIssues->first()->issueType->name,
@@ -224,6 +227,29 @@ class ReportController extends Controller
     }
 
     /**
+     * Non-conformance Pareto by issue type (#11), plus disposition summary.
+     */
+    public function nonConformancePareto(NonConformanceParetoRequest $request, NonConformanceReportService $service): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $from = isset($validated['start_date'])
+            ? Carbon::parse($validated['start_date'])->startOfDay()
+            : today()->subDays(29)->startOfDay();
+        $to = isset($validated['end_date'])
+            ? Carbon::parse($validated['end_date'])->endOfDay()
+            : today()->endOfDay();
+
+        return response()->json(['data' => [
+            'period' => ['start' => $from->toDateString(), 'end' => $to->toDateString()],
+            'pareto' => $service->pareto($from, $to),
+            'disposition_summary' => $service->dispositionSummary($from, $to),
+            'overdue_actions' => $service->overdueActionsCount(),
+            'generated_at' => now()->toIso8601String(),
+        ]]);
+    }
+
+    /**
      * Scrap rate per line over time (scrap qty / total produced) plus daily trend.
      */
     public function scrapRate(Request $request, ScrapReportService $service): JsonResponse
@@ -236,6 +262,31 @@ class ReportController extends Controller
             'trend' => $service->trend($from, $to, $lineId),
             'generated_at' => now()->toIso8601String(),
         ]]);
+    }
+
+    /**
+     * MRP net requirements + shortage report (#90): explode planned work orders
+     * against BOMs, net against on-hand stock. Forward-looking: defaults to the
+     * next 30 days.
+     */
+    public function netRequirements(NetRequirementsRequest $request, NetRequirementsService $service): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $from = isset($validated['start_date'])
+            ? Carbon::parse($validated['start_date'])->startOfDay()
+            : today()->startOfDay();
+        $to = isset($validated['end_date'])
+            ? Carbon::parse($validated['end_date'])->endOfDay()
+            : today()->addDays(30)->endOfDay();
+        $lineId = isset($validated['line_id']) ? (int) $validated['line_id'] : null;
+
+        return response()->json([
+            'data' => array_merge(
+                $service->report($from, $to, $lineId),
+                ['generated_at' => now()->toIso8601String()],
+            ),
+        ]);
     }
 
     /**
@@ -278,7 +329,7 @@ class ReportController extends Controller
             default => null,
         };
 
-        if (!$reportData) {
+        if (! $reportData) {
             return response()->json(['error' => 'Invalid report type'], 400);
         }
 
@@ -287,7 +338,7 @@ class ReportController extends Controller
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $reportType . '_' . now()->format('Y-m-d') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="'.$reportType.'_'.now()->format('Y-m-d').'.csv"',
         ]);
     }
 

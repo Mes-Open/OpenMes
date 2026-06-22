@@ -124,6 +124,34 @@ class IssueService
     }
 
     /**
+     * Set the non-conformance disposition on an issue (#11). Records who decided
+     * and when, alongside the non-conforming quantity, root cause, containment
+     * action and responsibility source.
+     */
+    public function setDisposition(Issue $issue, array $data, int $userId): Issue
+    {
+        return DB::transaction(function () use ($issue, $data, $userId) {
+            $issue->update([
+                'disposition' => $data['disposition'],
+                'non_conforming_qty' => $data['non_conforming_qty'] ?? $issue->non_conforming_qty,
+                'root_cause' => $data['root_cause'] ?? $issue->root_cause,
+                'containment_action' => $data['containment_action'] ?? $issue->containment_action,
+                'nc_source' => $data['nc_source'] ?? $issue->nc_source,
+                'disposition_by_id' => $userId,
+                'disposition_at' => now(),
+            ]);
+
+            Log::info('Issue disposition set', [
+                'issue_id' => $issue->id,
+                'disposition' => $issue->disposition,
+                'by' => $userId,
+            ]);
+
+            return $issue->fresh(['issueType', 'reportedBy', 'assignedTo', 'workOrder', 'dispositionBy']);
+        });
+    }
+
+    /**
      * Block a work order.
      */
     protected function blockWorkOrder(int $workOrderId): void

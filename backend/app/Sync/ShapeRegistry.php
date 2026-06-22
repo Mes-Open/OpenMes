@@ -209,7 +209,7 @@ class ShapeRegistry
         // All issues (any status) for the supervisor/admin issue management page.
         'issues_all' => [
             'table' => 'issues',
-            'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'disposition', 'non_conforming_qty', 'root_cause', 'containment_action', 'nc_source', 'disposition_at', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'issue_actions' => [
             'table' => 'issue_actions',
