@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SetWorkstationStateRequest;
 use App\Models\IssueType;
 use App\Models\Line;
 use App\Models\Shift;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderShiftEntry;
+use App\Models\Workstation;
+use App\Models\WorkstationState;
+use App\Services\Machine\WorkstationStateMachine;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -21,11 +25,11 @@ class WorkstationController extends Controller
         $lineId = $request->session()->get('selected_line_id')
             ?? $request->query('line');
 
-        if (!$lineId && auth()->user()->account_type === 'workstation') {
+        if (! $lineId && auth()->user()->account_type === 'workstation') {
             $lineId = auth()->user()->workstation?->line_id;
         }
 
-        if (!$lineId) {
+        if (! $lineId) {
             return redirect()->route('operator.select-line');
         }
 
@@ -58,8 +62,8 @@ class WorkstationController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('order_no', 'ilike', "%{$search}%")
-                  ->orWhereHas('productType', fn($pt) => $pt->where('name', 'ilike', "%{$search}%"))
-                  ->orWhereRaw("extra_data::text ilike ?", ["%{$search}%"]);
+                    ->orWhereHas('productType', fn ($pt) => $pt->where('name', 'ilike', "%{$search}%"))
+                    ->orWhereRaw('extra_data::text ilike ?', ["%{$search}%"]);
             });
         }
 
@@ -79,7 +83,7 @@ class WorkstationController extends Controller
         $shiftEntries = WorkOrderShiftEntry::whereIn('work_order_id', $woIds)
             ->where('production_date', $today)
             ->get()
-            ->groupBy(fn($e) => $e->work_order_id . '_' . $e->shift_id);
+            ->groupBy(fn ($e) => $e->work_order_id.'_'.$e->shift_id);
 
         $settingRows = \Illuminate\Support\Facades\DB::table('system_settings')->get()->keyBy('key');
         $trackingMode = json_decode($settingRows['production_tracking_mode']->value ?? '"per_operation"', true) ?? 'per_operation';
@@ -92,11 +96,63 @@ class WorkstationController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'size', 'barcode_format', 'is_default']);
 
+        // Machine states (#87): the line's workstations with their current state,
+        // so operators can set waiting/cleaning/maintenance etc. from the panel.
+        $machineStates = $this->machineStatesForLine((int) $lineId);
+        $machineStateOptions = WorkstationState::STATES;
+
         return Inertia::render('operator/Workstation', compact(
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
             'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode',
-            'qtyEditPolicy', 'qtyEditWindowMinutes', 'labelTemplates'
+            'qtyEditPolicy', 'qtyEditWindowMinutes', 'labelTemplates',
+            'machineStates', 'machineStateOptions'
         ));
+    }
+
+    /**
+     * The line's workstations with their current machine state (#87).
+     *
+     * @return array<int, array{id: int, name: string, state: string|null}>
+     */
+    private function machineStatesForLine(int $lineId): array
+    {
+        $workstations = Workstation::where('line_id', $lineId)->orderBy('name')->get(['id', 'name']);
+
+        $current = WorkstationState::whereIn('workstation_id', $workstations->pluck('id'))
+            ->whereNull('ended_at')
+            ->get(['workstation_id', 'state'])
+            ->keyBy('workstation_id');
+
+        return $workstations->map(fn ($w) => [
+            'id' => $w->id,
+            'name' => $w->name,
+            'state' => $current->get($w->id)?->state,
+        ])->all();
+    }
+
+    /**
+     * Manually set a workstation's machine state (#87). The workstation must
+     * belong to the operator's selected line. Recorded with source 'manual'.
+     */
+    public function setMachineState(SetWorkstationStateRequest $request, Workstation $workstation, WorkstationStateMachine $stateMachine)
+    {
+        $lineId = $request->session()->get('selected_line_id');
+
+        if (! $lineId || (int) $workstation->line_id !== (int) $lineId) {
+            return redirect()->back()->with('error', 'That workstation is not on your selected line.');
+        }
+
+        $note = $request->validated()['note'] ?? null;
+
+        $stateMachine->transition(
+            $workstation,
+            $request->validated()['state'],
+            $note ? ['note' => $note] : [],
+            null,
+            'manual',
+        );
+
+        return redirect()->back()->with('success', 'Machine state updated.');
     }
 
     /**
@@ -105,7 +161,7 @@ class WorkstationController extends Controller
     public function check(Request $request)
     {
         $lineId = $request->session()->get('selected_line_id');
-        if (!$lineId) {
+        if (! $lineId) {
             return response()->json(['count' => 0, 'hash' => '']);
         }
 
@@ -118,7 +174,7 @@ class WorkstationController extends Controller
         }
 
         $orders = $query->select('id', 'status', 'produced_qty')->get();
-        $hash = md5($orders->map(fn($o) => "{$o->id}:{$o->status}:{$o->produced_qty}")->implode('|'));
+        $hash = md5($orders->map(fn ($o) => "{$o->id}:{$o->status}:{$o->produced_qty}")->implode('|'));
 
         return response()->json([
             'count' => $orders->count(),
@@ -135,7 +191,7 @@ class WorkstationController extends Controller
         // System columns — always available
         $systemColumns = [
             ['label' => 'Order No',    'key' => 'order_no',    'source' => 'field',        'default' => true],
-            ['label' => 'Product',     'key' => 'product_name','source' => 'product_type', 'default' => true],
+            ['label' => 'Product',     'key' => 'product_name', 'source' => 'product_type', 'default' => true],
             ['label' => 'Description', 'key' => 'description', 'source' => 'field',        'default' => false],
             ['label' => 'Status',      'key' => 'status',      'source' => 'field',        'default' => true],
             ['label' => 'Priority',    'key' => 'priority',    'source' => 'field',        'default' => false],
@@ -148,7 +204,7 @@ class WorkstationController extends Controller
         foreach ($workOrders as $wo) {
             if (is_array($wo->extra_data)) {
                 foreach (array_keys($wo->extra_data) as $key) {
-                    if (!$extraKeys->contains($key)) {
+                    if (! $extraKeys->contains($key)) {
                         $extraKeys->push($key);
                     }
                 }
@@ -156,9 +212,9 @@ class WorkstationController extends Controller
         }
 
         $extraColumns = $extraKeys->map(fn ($key) => [
-            'label'   => str_replace('_', ' ', ucfirst($key)),
-            'key'     => $key,
-            'source'  => 'extra_data',
+            'label' => str_replace('_', ' ', ucfirst($key)),
+            'key' => $key,
+            'source' => 'extra_data',
             'default' => true, // extra_data columns shown by default
         ])->values()->toArray();
 
@@ -176,7 +232,7 @@ class WorkstationController extends Controller
             return back()->with('error', 'Work order does not belong to this line.');
         }
 
-        if (!in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
+        if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
             return back()->with('error', 'Work order cannot be started from current status.');
         }
 
@@ -225,6 +281,7 @@ class WorkstationController extends Controller
         $workOrder->update($updates);
 
         $remaining = max(0, $planned - $newProduced);
+
         return back()->with('success', "{$workOrder->order_no}: +{$addedQty} produced (remaining: {$remaining})");
     }
 
@@ -254,13 +311,13 @@ class WorkstationController extends Controller
         // Find or create shift entry for today, then add quantity
         $entry = WorkOrderShiftEntry::firstOrCreate(
             [
-                'work_order_id'   => $workOrder->id,
-                'shift_id'        => $validated['shift_id'],
+                'work_order_id' => $workOrder->id,
+                'shift_id' => $validated['shift_id'],
                 'production_date' => $today,
             ],
             [
                 'quantity' => 0,
-                'user_id'  => auth()->id(),
+                'user_id' => auth()->id(),
             ]
         );
 
@@ -289,6 +346,7 @@ class WorkstationController extends Controller
 
         $shift = Shift::find($validated['shift_id']);
         $remaining = max(0, $planned - $totalProduced);
+
         return back()->with('success', "{$workOrder->order_no} [{$shift->code}]: +{$qty} (remaining: {$remaining})");
     }
 }

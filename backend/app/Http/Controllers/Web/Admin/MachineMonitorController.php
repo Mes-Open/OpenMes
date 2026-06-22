@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SetWorkstationStateRequest;
+use App\Models\Workstation;
+use App\Models\WorkstationState;
 use App\Services\Machine\MachineMonitorService;
+use App\Services\Machine\WorkstationStateMachine;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 
@@ -18,13 +22,33 @@ class MachineMonitorController extends Controller
     public function index()
     {
         return Inertia::render('admin/machine-monitor/Index', [
-            'tiles'    => $this->tiles(),
+            'tiles' => $this->tiles(),
             'checkUrl' => route('admin.machine-monitor.check'),
+            'states' => WorkstationState::STATES,
         ]);
     }
 
     public function check(): JsonResponse
     {
+        return response()->json(['data' => $this->tiles(), 'timestamp' => now()->timestamp]);
+    }
+
+    /**
+     * Manually set a workstation's state (#87) — supervisor/admin override from
+     * the monitor. Recorded with source 'manual' in the state history.
+     */
+    public function setState(SetWorkstationStateRequest $request, Workstation $workstation, WorkstationStateMachine $stateMachine): JsonResponse
+    {
+        $note = $request->validated()['note'] ?? null;
+
+        $stateMachine->transition(
+            $workstation,
+            $request->validated()['state'],
+            $note ? ['note' => $note] : [],
+            null,
+            'manual',
+        );
+
         return response()->json(['data' => $this->tiles(), 'timestamp' => now()->timestamp]);
     }
 

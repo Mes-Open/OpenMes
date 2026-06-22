@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\NetRequirementsRequest;
+use App\Http\Requests\NonConformanceParetoRequest;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
 use App\Models\WorkOrder;
 use App\Services\Material\NetRequirementsService;
+use App\Services\Quality\NonConformanceReportService;
 use App\Services\Scrap\ScrapReportService;
 use App\Support\Csv;
 use Carbon\Carbon;
@@ -220,6 +222,29 @@ class ReportController extends Controller
             'line_id' => $lineId,
             'pareto' => $service->pareto($from, $to, $lineId),
             'by_category' => $service->byCategory($from, $to, $lineId),
+            'generated_at' => now()->toIso8601String(),
+        ]]);
+    }
+
+    /**
+     * Non-conformance Pareto by issue type (#11), plus disposition summary.
+     */
+    public function nonConformancePareto(NonConformanceParetoRequest $request, NonConformanceReportService $service): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $from = isset($validated['start_date'])
+            ? Carbon::parse($validated['start_date'])->startOfDay()
+            : today()->subDays(29)->startOfDay();
+        $to = isset($validated['end_date'])
+            ? Carbon::parse($validated['end_date'])->endOfDay()
+            : today()->endOfDay();
+
+        return response()->json(['data' => [
+            'period' => ['start' => $from->toDateString(), 'end' => $to->toDateString()],
+            'pareto' => $service->pareto($from, $to),
+            'disposition_summary' => $service->dispositionSummary($from, $to),
+            'overdue_actions' => $service->overdueActionsCount(),
             'generated_at' => now()->toIso8601String(),
         ]]);
     }

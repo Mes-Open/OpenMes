@@ -29,6 +29,16 @@ class Issue extends Model
 
     public const SOURCE_CUSTOMER_COMPLAINT = 'customer_complaint';
 
+    // Non-conformance responsibility source (#11) — who is responsible for the
+    // non-conformance. Distinct from `source` (where it originated).
+    public const NC_SOURCE_INTERNAL = 'internal';
+
+    public const NC_SOURCE_EXTERNAL = 'external';
+
+    public const NC_SOURCE_SUPPLIER = 'supplier';
+
+    public const NC_SOURCES = [self::NC_SOURCE_INTERNAL, self::NC_SOURCE_EXTERNAL, self::NC_SOURCE_SUPPLIER];
+
     protected $fillable = [
         'work_order_id',
         'batch_step_id',
@@ -38,6 +48,13 @@ class Issue extends Model
         'title',
         'description',
         'status',
+        'disposition',
+        'non_conforming_qty',
+        'root_cause',
+        'containment_action',
+        'nc_source',
+        'disposition_by_id',
+        'disposition_at',
         'reported_by_id',
         'assigned_to_id',
         'reported_at',
@@ -54,6 +71,8 @@ class Issue extends Model
             'acknowledged_at' => 'datetime',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
+            'disposition_at' => 'datetime',
+            'non_conforming_qty' => 'decimal:2',
         ];
     }
 
@@ -104,6 +123,14 @@ class Issue extends Model
     public function material(): BelongsTo
     {
         return $this->belongsTo(Material::class);
+    }
+
+    /**
+     * The user who set the current disposition (#11).
+     */
+    public function dispositionBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'disposition_by_id');
     }
 
     /**
@@ -166,5 +193,13 @@ class Issue extends Model
     public function scopeStatus($query, string $status)
     {
         return $query->where('status', $status);
+    }
+
+    /**
+     * Scope to filter by disposition (#11).
+     */
+    public function scopeDisposition($query, string $disposition)
+    {
+        return $query->where('disposition', $disposition);
     }
 }
