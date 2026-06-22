@@ -298,6 +298,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+        // Non-conformance disposition (#11)
+        Route::post('/issues/{issue}/disposition', [IssueManagementController::class, 'disposition'])->name('issues.disposition');
         // Corrective / preventive actions (CAPA)
         Route::get('/issues/{issue}/actions', [IssueManagementController::class, 'actions'])->name('issues.actions');
         Route::post('/issues/{issue}/actions', [IssueManagementController::class, 'storeAction'])->name('issues.actions.store');
@@ -389,6 +391,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+        // Non-conformance disposition (#11)
+        Route::post('/issues/{issue}/disposition', [IssueManagementController::class, 'disposition'])->name('issues.disposition');
         // Corrective / preventive actions (CAPA)
         Route::get('/issues/{issue}/actions', [IssueManagementController::class, 'actions'])->name('issues.actions');
         Route::post('/issues/{issue}/actions', [IssueManagementController::class, 'storeAction'])->name('issues.actions.store');
@@ -629,6 +633,9 @@ Route::middleware('auth')->group(function () {
 
         // Scrap reporting (Pareto, scrap rate per line, trend)
         Route::get('/scrap-reports', [ScrapReportController::class, 'index'])->name('scrap-reports.index');
+
+        // Non-conformance reporting (Pareto by issue type, disposition summary) (#11)
+        Route::get('/non-conformance-reports', [\App\Http\Controllers\Web\Admin\NonConformanceReportController::class, 'index'])->name('non-conformance-reports.index');
 
         // Inspection Plans (admin CRUD + version publish)
         Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');

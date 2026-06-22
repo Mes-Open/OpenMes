@@ -540,6 +540,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/issues/{issue}/close', [IssueController::class, 'close']);
     Route::delete('/issues/{issue}', [IssueController::class, 'destroy']); // Admin only (enforced in controller)
     Route::get('/issues/stats/line', [IssueController::class, 'lineStats']);
+    // Non-conformance disposition + actions (#11)
+    Route::put('/issues/{issue}/disposition', [IssueController::class, 'disposition']);
+    Route::get('/issues/{issue}/actions', [IssueController::class, 'actions']);
+    Route::post('/issues/{issue}/actions', [IssueController::class, 'storeAction']);
+    Route::put('/issue-actions/{action}', [IssueController::class, 'updateAction']);
 
     // Issue Types
     Route::get('/issue-types', [IssueTypeController::class, 'index']);
@@ -608,6 +613,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
         Route::get('/reports/scrap-pareto', [ReportController::class, 'scrapPareto']);
         Route::get('/reports/scrap-rate', [ReportController::class, 'scrapRate']);
+        Route::get('/reports/non-conformance-pareto', [ReportController::class, 'nonConformancePareto']);
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
     });
 

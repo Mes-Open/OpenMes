@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Button, IconButton, Dropdown, DatePicker, TextField, StatusPill, Modal, InlineAlert, ConfirmDialog } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
@@ -12,6 +12,23 @@ const STATUS_STYLES = {
     CLOSED: 'bg-om-line2 text-om-muted',
 };
 
+// Non-conformance disposition (#11) — badge styling + labels.
+const DISPOSITION_STYLES = {
+    pending: 'bg-om-downtime-bg text-om-downtime',
+    scrap: 'bg-om-blocked-bg text-om-blocked',
+    rework: 'bg-om-chip text-om-accent',
+    return_to_supplier: 'bg-om-chip text-om-accent',
+    use_as_is: 'bg-om-running-bg text-om-running',
+};
+const DISPOSITION_LABELS = {
+    pending: 'Pending',
+    scrap: 'Scrap',
+    rework: 'Rework',
+    return_to_supplier: 'Return to supplier',
+    use_as_is: 'Use as is',
+};
+const NC_SOURCE_LABELS = { internal: 'Internal', external: 'External', supplier: 'Supplier' };
+
 // Action lifecycle (open → in_progress → done → verified) mapped onto the
 // design system's StatusPill tones.
 const ACTION_STATUS = {
@@ -20,6 +37,7 @@ const ACTION_STATUS = {
     done: { tone: 'running', label: __('Done') },
     verified: { tone: 'done', label: __('Verified') },
 };
+const ACTION_TYPE_LABELS = { corrective: 'Corrective', preventive: 'Preventive', containment: 'Containment' };
 
 export default function IssuesIndex() {
     const {
@@ -39,6 +57,7 @@ export default function IssuesIndex() {
         router.post(`${base}/issues/${id}/${verb}`, data, { preserveScroll: true });
 
     const [actionsFor, setActionsFor] = useState(null); // issue row whose actions modal is open
+    const [dispositionFor, setDispositionFor] = useState(null); // issue row whose disposition modal is open
 
     const columns = [
         { key: 'title', label: __('Issue'), className: 'font-medium text-om-ink' },
@@ -49,6 +68,17 @@ export default function IssuesIndex() {
         {
             key: 'status', label: __('Status'),
             render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{r.status}</span>,
+        },
+        {
+            key: 'disposition', label: __('Disposition'),
+            filter: true,
+            allLabel: __('All dispositions'),
+            options: Object.keys(DISPOSITION_LABELS).map((value) => ({ value, label: __(DISPOSITION_LABELS[value]) })),
+            render: (r) => (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DISPOSITION_STYLES[r.disposition] ?? 'bg-om-chip text-om-muted'}`}>
+                    {__(DISPOSITION_LABELS[r.disposition] ?? r.disposition ?? 'Pending')}
+                </span>
+            ),
         },
     ];
 
@@ -61,7 +91,10 @@ export default function IssuesIndex() {
     });
 
     const actions = (r) => {
-        const list = [{ label: __('Actions'), onClick: () => setActionsFor(r) }];
+        const list = [
+            { label: __('Disposition'), onClick: () => setDispositionFor(r) },
+            { label: __('Actions'), onClick: () => setActionsFor(r) },
+        ];
         const s = r.status;
         if (s === 'OPEN') {
             list.push({ label: __('Acknowledge'), onClick: () => post(r.id, 'acknowledge') }, resolveAction(r));
@@ -85,6 +118,13 @@ export default function IssuesIndex() {
                 actions={actions}
                 emptyText={__('No issues.')}
             />
+            {dispositionFor && (
+                <DispositionModal
+                    issue={dispositionFor}
+                    base={base}
+                    onClose={() => setDispositionFor(null)}
+                />
+            )}
             {actionsFor && (
                 <ActionsModal
                     issue={actionsFor}
@@ -99,6 +139,105 @@ export default function IssuesIndex() {
 }
 
 IssuesIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
+
+// ── Non-conformance disposition modal (#11) ─────────────────────────────────
+
+function DispositionModal({ issue, base, onClose }) {
+    const { data, setData, post, processing, errors } = useForm({
+        disposition: issue.disposition ?? 'pending',
+        non_conforming_qty: issue.non_conforming_qty ?? '',
+        nc_source: issue.nc_source ?? '',
+        root_cause: issue.root_cause ?? '',
+        containment_action: issue.containment_action ?? '',
+    });
+
+    const submit = () => {
+        post(`${base}/issues/${issue.id}/disposition`, {
+            preserveScroll: true,
+            onSuccess: onClose,
+        });
+    };
+
+    const dispositionOptions = Object.keys(DISPOSITION_LABELS).map((value) => ({ value, label: __(DISPOSITION_LABELS[value]) }));
+    const sourceOptions = [
+        { value: '', label: __('— Source —') },
+        ...Object.keys(NC_SOURCE_LABELS).map((value) => ({ value, label: __(NC_SOURCE_LABELS[value]) })),
+    ];
+
+    return (
+        <Modal
+            open
+            onClose={onClose}
+            title={__('Disposition')}
+            subtitle={issue.title}
+            closeLabel={__('Close')}
+            className="max-w-[520px]"
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                    <Button variant="primary" onClick={submit} disabled={processing}>{__('Record disposition')}</Button>
+                </>
+            }
+        >
+            <div className="space-y-4">
+                <div>
+                    <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Disposition')}</label>
+                    <Dropdown
+                        className="w-full"
+                        options={dispositionOptions}
+                        value={data.disposition}
+                        onChange={(v) => setData('disposition', v)}
+                    />
+                    {errors.disposition && <p className="mt-1 text-[11.5px] text-om-blocked">{errors.disposition}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Non-conforming quantity')}</label>
+                        <TextField
+                            inputMode="decimal"
+                            value={String(data.non_conforming_qty ?? '')}
+                            onChange={(v) => setData('non_conforming_qty', v)}
+                            placeholder="0"
+                            error={errors.non_conforming_qty}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Source')}</label>
+                        <Dropdown
+                            className="w-full"
+                            options={sourceOptions}
+                            value={data.nc_source}
+                            onChange={(v) => setData('nc_source', v)}
+                        />
+                        {errors.nc_source && <p className="mt-1 text-[11.5px] text-om-blocked">{errors.nc_source}</p>}
+                    </div>
+                </div>
+
+                <div>
+                    <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Root cause')}</label>
+                    <TextField
+                        multiline
+                        value={data.root_cause ?? ''}
+                        onChange={(v) => setData('root_cause', v)}
+                        placeholder={__('Optional')}
+                        error={errors.root_cause}
+                    />
+                </div>
+                <div>
+                    <label className="mb-1 block text-[12.5px] font-medium text-om-ink">{__('Containment action')}</label>
+                    <TextField
+                        multiline
+                        value={data.containment_action ?? ''}
+                        onChange={(v) => setData('containment_action', v)}
+                        placeholder={__('Optional')}
+                        error={errors.containment_action}
+                    />
+                </div>
+            </div>
+        </Modal>
+    );
+}
 
 // ── Corrective / preventive actions modal ───────────────────────────────────
 
@@ -160,6 +299,7 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
     const typeOptions = [
         { value: 'corrective', label: __('Corrective') },
         { value: 'preventive', label: __('Preventive') },
+        { value: 'containment', label: __('Containment') },
     ];
     const assigneeOptions = [
         { value: '', label: __('— Assignee —') },
@@ -199,12 +339,16 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
                                         className="flex items-center gap-3 rounded-om border border-om-line bg-om-bg px-3 py-3"
                                     >
                                         <span className="font-mono text-[9.5px] uppercase tracking-[0.06em] rounded-[20px] bg-om-chip px-[10px] py-1 text-om-muted">
-                                            {a.type === 'preventive' ? __('Preventive') : __('Corrective')}
+                                            {__(ACTION_TYPE_LABELS[a.type] ?? a.type)}
                                         </span>
                                         <span className="flex-1 text-[13px] font-medium text-om-ink">
                                             {a.title}
                                             {a.assigned_to && <span className="ml-2 text-[11.5px] text-om-faint">→ {a.assigned_to}</span>}
-                                            {a.due_date && <span className="ml-2 text-[11.5px] text-om-faint">{__('due')} {a.due_date}</span>}
+                                            {a.due_date && (
+                                                <span className={`ml-2 text-[11.5px] ${a.is_overdue ? 'font-semibold text-om-blocked' : 'text-om-faint'}`}>
+                                                    {__('due')} {a.due_date}{a.is_overdue ? ` · ${__('Overdue')}` : ''}
+                                                </span>
+                                            )}
                                         </span>
                                         <StatusPill status={st.tone} label={st.label} pulse={false} />
                                         {a.status === 'open' && (
