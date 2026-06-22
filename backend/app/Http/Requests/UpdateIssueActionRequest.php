@@ -21,6 +21,7 @@ class UpdateIssueActionRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:2000'],
             'assigned_to_id' => ['nullable', 'integer', 'exists:users,id'],
             'due_date' => ['nullable', 'date'],
+            'status' => ['sometimes', 'required', Rule::in(IssueAction::STATUSES)],
         ];
     }
 }
