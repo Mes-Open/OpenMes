@@ -156,7 +156,7 @@ class ShapeRegistry
         ],
         'pallets' => [
             'table' => 'pallets',
-            'columns' => ['id', 'pallet_no', 'work_order_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
+            'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
         ],
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
@@ -175,7 +175,7 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'customer_order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [

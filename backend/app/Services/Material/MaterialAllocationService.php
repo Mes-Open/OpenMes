@@ -5,6 +5,7 @@ namespace App\Services\Material;
 use App\Exceptions\InsufficientStockException;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\BatchStepLotConsumption;
 use App\Models\Material;
 use App\Models\MaterialAllocation;
 use App\Models\StockMovement;
@@ -19,12 +20,27 @@ class MaterialAllocationService
         protected LotPickingService $lotPicking,
     ) {}
 
-    public function allocateForBatch(Batch $batch, User $user): Collection
+    /**
+     * @param  array<int, array<int, array{material_lot_id: int|string, picked_qty: int|float|string}>>  $picksByMaterial
+     *                                                                                                                     Operator-chosen lot picks keyed by material id (WO-time override).
+     * @param  int|null  $attributeStepId  Step to attribute these allocations to for
+     *                                     genealogy (sets batch_step_id without changing the stock-movement source).
+     */
+    public function allocateForBatch(Batch $batch, User $user, array $picksByMaterial = [], ?int $attributeStepId = null): Collection
     {
-        return $this->allocateMatching($batch, $user, fn ($bom) => $this->isStartItem($bom));
+        return $this->allocateMatching(
+            $batch,
+            $user,
+            fn ($bom) => $this->isStartItem($bom),
+            picksByMaterial: $picksByMaterial,
+            attributeStepId: $attributeStepId,
+        );
     }
 
-    public function allocateForStep(BatchStep $step, User $user): Collection
+    /**
+     * @param  array<int, array<int, array{material_lot_id: int|string, picked_qty: int|float|string}>>  $picksByMaterial
+     */
+    public function allocateForStep(BatchStep $step, User $user, array $picksByMaterial = []): Collection
     {
         $batch = $step->batch;
         $stepNumber = $step->step_number;
@@ -34,12 +50,22 @@ class MaterialAllocationService
             $user,
             fn ($bom) => $this->isDuringItem($bom) && (int) ($bom['step_number'] ?? 0) === $stepNumber,
             stepId: $step->id,
+            picksByMaterial: $picksByMaterial,
         );
     }
 
-    public function allocateForBatchEnd(Batch $batch, User $user): Collection
+    /**
+     * @param  array<int, array<int, array{material_lot_id: int|string, picked_qty: int|float|string}>>  $picksByMaterial
+     */
+    public function allocateForBatchEnd(Batch $batch, User $user, array $picksByMaterial = [], ?int $attributeStepId = null): Collection
     {
-        return $this->allocateMatching($batch, $user, fn ($bom) => $this->isEndItem($bom));
+        return $this->allocateMatching(
+            $batch,
+            $user,
+            fn ($bom) => $this->isEndItem($bom),
+            picksByMaterial: $picksByMaterial,
+            attributeStepId: $attributeStepId,
+        );
     }
 
     public function previewForBatch(Batch $batch): array
@@ -103,6 +129,78 @@ class MaterialAllocationService
     }
 
     /**
+     * Build the WO-time lot-picking proposal for starting a given step: per
+     * lot-tracked material that this step start would allocate, the required
+     * quantity, the system's proposed lot split, and the candidate lots. Returns
+     * an empty array when lot tracking is off or nothing needs picking - the UI
+     * then skips the modal and starts the step directly. Read-only.
+     *
+     * @return array<int, array{material_id: int, material_name: ?string, material_code: ?string, unit_of_measure: ?string, required_qty: float, strategy: string, proposed: array, candidates: array}>
+     */
+    public function pickPreviewForStep(BatchStep $step): array
+    {
+        if (! $this->lotPicking->isLotTrackingEnabled()) {
+            return [];
+        }
+
+        $batch = $step->batch;
+        $bom = $batch->workOrder->process_snapshot['bom'] ?? [];
+        if (empty($bom)) {
+            return [];
+        }
+
+        // Start-items only allocate on the first start (batch still PENDING),
+        // mirroring BatchService::startStep's $wasPending gate.
+        $batchPending = $batch->status === Batch::STATUS_PENDING;
+        $stepNumber = $step->step_number;
+
+        $out = [];
+        foreach ($bom as $bomItem) {
+            $isStart = $this->isStartItem($bomItem) && $batchPending;
+            $isDuringThisStep = $this->isDuringItem($bomItem)
+                && (int) ($bomItem['step_number'] ?? 0) === $stepNumber;
+
+            if (! $isStart && ! $isDuringThisStep) {
+                continue;
+            }
+
+            $material = $this->resolveMaterialReadonly($bomItem);
+            if (! $material) {
+                continue;
+            }
+
+            // Phase 1: lots/batches only - serial-tracked materials are handled elsewhere.
+            if ($material->tracking_type === 'serial') {
+                continue;
+            }
+
+            // Skip materials already allocated for this batch (mirror allocateMatching's guard).
+            $alreadyAllocated = MaterialAllocation::where('batch_id', $batch->id)
+                ->where('material_id', $material->id)
+                ->exists();
+            if ($alreadyAllocated) {
+                continue;
+            }
+
+            $requiredQty = $this->calculateRequiredQty($bomItem, (float) $batch->target_qty);
+            $proposal = $this->lotPicking->proposePicks($material, $requiredQty);
+
+            $out[] = [
+                'material_id' => $material->id,
+                'material_name' => $bomItem['material_name'] ?? $material->name,
+                'material_code' => $bomItem['material_code'] ?? $material->code,
+                'unit_of_measure' => $bomItem['unit_of_measure'] ?? $material->unit_of_measure,
+                'required_qty' => $requiredQty,
+                'strategy' => $proposal['strategy'],
+                'proposed' => $proposal['proposed'],
+                'candidates' => $proposal['candidates'],
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Mark allocations as consumed when batch is completed. Reads each
      * allocation's consumed_qty (set by recordConsumption) and falls back
      * to allocated_qty for any rows where the operator did not record an
@@ -115,10 +213,16 @@ class MaterialAllocationService
             $allocations = MaterialAllocation::where('batch_id', $batch->id)
                 ->where('status', MaterialAllocation::STATUS_ALLOCATED)
                 ->lockForUpdate()
-                ->with('material')
+                ->with(['material', 'lotPicks'])
                 ->get();
 
             foreach ($allocations as $allocation) {
+                // Bridge the picked lots into the ISA-95 genealogy table so
+                // forward/backward traceability reflects what was actually
+                // consumed. consumeForBatch runs once per batch (allocations
+                // flip to CONSUMED), so this never double-writes.
+                $this->writeGenealogy($allocation);
+
                 // Default: operator did not record per-step consumption → assume planned.
                 $actualConsumed = (float) $allocation->consumed_qty > 0
                     ? (float) $allocation->consumed_qty
@@ -280,8 +384,20 @@ class MaterialAllocationService
 
     // ── internals ─────────────────────────────────────────────────────────────
 
-    private function allocateMatching(Batch $batch, User $user, \Closure $filter, ?int $stepId = null): Collection
-    {
+    /**
+     * @param  array<int, array<int, array{material_lot_id: int|string, picked_qty: int|float|string}>>  $picksByMaterial
+     * @param  int|null  $stepId  Drives the stock-movement source (during-items) and batch_step_id.
+     * @param  int|null  $attributeStepId  Sets batch_step_id only (start/end-items), leaving the
+     *                                     stock-movement source as the batch - keeps genealogy attributable without changing accounting.
+     */
+    private function allocateMatching(
+        Batch $batch,
+        User $user,
+        \Closure $filter,
+        ?int $stepId = null,
+        array $picksByMaterial = [],
+        ?int $attributeStepId = null,
+    ): Collection {
         $bom = $batch->workOrder->process_snapshot['bom'] ?? [];
 
         if (empty($bom)) {
@@ -289,8 +405,9 @@ class MaterialAllocationService
         }
 
         $blockNegative = $this->blockNegativeStockEnabled();
+        $genealogyStepId = $stepId ?? $attributeStepId;
 
-        return DB::transaction(function () use ($batch, $user, $bom, $filter, $stepId, $blockNegative) {
+        return DB::transaction(function () use ($batch, $user, $bom, $filter, $stepId, $genealogyStepId, $picksByMaterial, $blockNegative) {
             $allocations = collect();
 
             foreach ($bom as $bomItem) {
@@ -337,7 +454,7 @@ class MaterialAllocationService
 
                 $newAllocation = MaterialAllocation::create([
                     'batch_id' => $batch->id,
-                    'batch_step_id' => $stepId,
+                    'batch_step_id' => $genealogyStepId,
                     'material_id' => $material->id,
                     'work_order_id' => $batch->work_order_id,
                     'allocated_qty' => $requiredQty,
@@ -349,8 +466,15 @@ class MaterialAllocationService
 
                 // Lot picking (opt-in via setting). Errors here roll back
                 // the surrounding transaction so stock/reserved stay consistent.
+                // When the operator supplied an explicit pick for this material
+                // (WO-time "suggest + override"), honour it; otherwise auto-pick.
                 if ($this->lotPicking->isLotTrackingEnabled()) {
-                    $this->lotPicking->pickForAllocation($newAllocation, $material, $requiredQty);
+                    $chosen = $picksByMaterial[$material->id] ?? null;
+                    if (! empty($chosen)) {
+                        $this->lotPicking->pickManualForAllocation($newAllocation, $material, $requiredQty, $chosen);
+                    } else {
+                        $this->lotPicking->pickForAllocation($newAllocation, $material, $requiredQty);
+                    }
                 }
 
                 $allocations->push($newAllocation);
@@ -358,6 +482,29 @@ class MaterialAllocationService
 
             return $allocations;
         });
+    }
+
+    /**
+     * Record one BatchStepLotConsumption row per picked lot for this allocation.
+     * Requires a step to attribute to (batch_step_id is NOT NULL); allocations
+     * without a step or without picks are skipped - genealogy stays optional.
+     */
+    private function writeGenealogy(MaterialAllocation $allocation): void
+    {
+        if (! $allocation->batch_step_id || $allocation->lotPicks->isEmpty()) {
+            return;
+        }
+
+        foreach ($allocation->lotPicks as $pick) {
+            BatchStepLotConsumption::create([
+                'batch_step_id' => $allocation->batch_step_id,
+                'material_lot_id' => $pick->material_lot_id,
+                'sublot_id' => null, // sublots are phase 2
+                'quantity_consumed' => $pick->picked_qty,
+                'consumed_at' => now(),
+                'recorded_by_id' => null, // system-recorded at batch completion
+            ]);
+        }
     }
 
     private function releaseReservation(?Material $material, float $qty): void
@@ -396,6 +543,19 @@ class MaterialAllocationService
 
         if (! empty($bomItem['material_code'])) {
             return $query->where('code', $bomItem['material_code'])->first();
+        }
+
+        return null;
+    }
+
+    /** Resolve a BOM item's material without locking (for read-only previews). */
+    private function resolveMaterialReadonly(array $bomItem): ?Material
+    {
+        if (! empty($bomItem['material_id'])) {
+            return Material::find($bomItem['material_id']);
+        }
+        if (! empty($bomItem['material_code'])) {
+            return Material::where('code', $bomItem['material_code'])->first();
         }
 
         return null;

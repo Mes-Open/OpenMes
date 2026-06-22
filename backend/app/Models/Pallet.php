@@ -28,6 +28,7 @@ class Pallet extends Model
     protected $fillable = [
         'pallet_no',
         'work_order_id',
+        'batch_id',
         'qty',
         'status',
         'quality_status',
@@ -121,6 +122,12 @@ class Pallet extends Model
     public function workOrder(): BelongsTo
     {
         return $this->belongsTo(WorkOrder::class);
+    }
+
+    /** The batch this pallet holds (one batch per pallet; nullable for legacy pallets). */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class);
     }
 
     public function scanLogs(): HasMany

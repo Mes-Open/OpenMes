@@ -15,6 +15,7 @@ export default function SupervisorWorkOrderEdit() {
                 fields={woFields(lines, productTypes, { withStatus: true })}
                 initial={{
                     order_no: workOrder.order_no ?? '',
+                    customer_order_no: workOrder.customer_order_no ?? '',
                     line_id: workOrder.line_id != null ? String(workOrder.line_id) : '',
                     product_type_id: workOrder.product_type_id != null ? String(workOrder.product_type_id) : '',
                     planned_qty: workOrder.planned_qty ?? '',

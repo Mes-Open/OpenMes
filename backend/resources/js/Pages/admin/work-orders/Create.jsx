@@ -14,7 +14,7 @@ export default function WorkOrderCreate() {
                 method="post"
                 fields={woFields(lines, productTypes)}
                 customFields={customFields}
-                initial={{ order_no: '', line_id: '', product_type_id: '', planned_qty: '', priority: 0, due_date: '', description: '', custom_fields: {} }}
+                initial={{ order_no: '', customer_order_no: '', line_id: '', product_type_id: '', planned_qty: '', priority: 0, due_date: '', description: '', custom_fields: {} }}
                 submitLabel="Create"
                 cancelHref="/admin/work-orders"
             />

@@ -103,6 +103,7 @@ class WorkOrderManagementController extends Controller
             'workOrder' => [
                 'id'               => $workOrder->id,
                 'order_no'         => $workOrder->order_no,
+                'customer_order_no' => $workOrder->customer_order_no,
                 'status'           => $workOrder->status,
                 'planned_qty'      => $workOrder->planned_qty,
                 'produced_qty'     => $workOrder->produced_qty,
@@ -126,7 +127,7 @@ class WorkOrderManagementController extends Controller
     {
         return Inertia::render('admin/work-orders/Edit', [
             'workOrder' => [
-                ...$workOrder->only('id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status', 'custom_fields'),
+                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
             ],
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),

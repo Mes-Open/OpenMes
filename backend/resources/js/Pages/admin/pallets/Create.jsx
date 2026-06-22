@@ -12,6 +12,7 @@ export default function PalletCreate() {
                 method="post"
                 initial={{
                     work_order_id: '',
+                    batch_id: '',
                     qty: 0,
                     status: 'open',
                     location: '',

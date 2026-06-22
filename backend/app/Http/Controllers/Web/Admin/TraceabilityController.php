@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SerialUnit;
+use App\Models\WorkOrder;
 use App\Services\Traceability\SerialTraceService;
 use App\Services\Traceability\TraceabilityService;
 use Carbon\Carbon;
@@ -31,28 +32,39 @@ class TraceabilityController extends Controller
         if ($term !== '') {
             $resolved = $this->tracer->resolve($term);
 
-            if ($resolved && $resolved['type'] === 'batch') {
+            if ($resolved && $resolved['type'] === 'pallet') {
+                $result = [
+                    'type' => 'pallet',
+                    'data' => $this->tracer->palletTrace($resolved['model']),
+                ];
+            } elseif ($resolved && $resolved['type'] === 'batch') {
                 $result = [
                     'type' => 'batch',
                     'data' => $this->mapBatch($this->tracer->batchGenealogy($resolved['model'])),
                 ];
             } elseif ($resolved && $resolved['type'] === 'material_lot') {
                 $lot = $resolved['model'];
+                $lot->loadMissing('material:id,name,code');
                 $result = [
                     'type' => 'material_lot',
+                    // recallImpact() / backwardTraceLot() already return clean arrays.
+                    'recall' => $this->tracer->recallImpact(collect([$lot])),
                     'forward' => $this->mapForward($this->tracer->forwardTrace($lot)),
-                    // backwardTraceLot() already returns clean nested arrays.
                     'backward' => $this->tracer->backwardTraceLot($lot),
                 ];
-            } else {
-                // Fall back to serial-number lookup
-                $unit = SerialUnit::where('serial_no', $term)->first();
-                if ($unit) {
-                    $result = [
-                        'type' => 'serial',
-                        'data' => $this->mapSerial($this->serials->getHistory($unit)),
-                    ];
-                }
+            } elseif ($unit = SerialUnit::where('serial_no', $term)->first()) {
+                $result = [
+                    'type' => 'serial',
+                    'recall' => $this->tracer->recallImpactForSerial($unit),
+                    'components' => $this->tracer->componentLineJourneys($unit)['components'],
+                    'data' => $this->mapSerial($this->serials->getHistory($unit)),
+                ];
+            } elseif (WorkOrder::where('customer_order_no', $term)->exists()) {
+                // Customer order number is non-unique → aggregate all matching WOs.
+                $result = [
+                    'type' => 'customer_order',
+                    'data' => $this->tracer->customerOrderTrace($term),
+                ];
             }
         }
 
@@ -130,6 +142,7 @@ class TraceabilityController extends Controller
             'work_order' => $u->workOrder?->order_no,
             'history' => $u->history->map(fn ($h) => [
                 'workstation' => $h->workstation?->name,
+                'line' => $h->workstation?->line?->name,
                 'step' => $h->batchStep?->name,
                 'operator' => $h->operator?->name,
                 'processed_at' => $h->processed_at ? Carbon::parse($h->processed_at)->format('Y-m-d H:i:s') : null,

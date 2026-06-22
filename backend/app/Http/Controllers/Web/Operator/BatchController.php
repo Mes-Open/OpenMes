@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Web\Operator;
 
+use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\WorkOrder;
 use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
+use App\Services\Material\MaterialAllocationService;
 use App\Services\Production\PackagingChecklistService;
 use App\Services\Production\ProcessConfirmationService;
 use App\Services\Production\QualityCheckService;
@@ -25,25 +28,72 @@ class BatchController extends Controller
         protected QualityCheckService $qcService,
         protected PackagingChecklistService $checklistService,
         protected BatchService $batchService,
+        protected MaterialAllocationService $allocationService,
     ) {}
+
+    /**
+     * Read-only proposal for the WO-time lot-picking modal shown before a step
+     * starts. Returns the materials this step start would lot-pick, each with the
+     * proposed split + candidate lots. Empty list → the UI skips the modal.
+     */
+    public function pickPreview(Request $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return response()->json(['message' => 'This step does not belong to the selected line.'], 403);
+        }
+
+        return response()->json([
+            'materials' => $this->allocationService->pickPreviewForStep($batchStep),
+        ]);
+    }
 
     /**
      * Start a batch step (React replacement for the old Livewire BatchStepList).
      * Delegates to BatchService::startStep, which also allocates BOM materials.
+     * Optionally accepts operator-chosen lot picks (WO-time "suggest + override").
      */
-    public function startStep(Request $request, BatchStep $batchStep)
+    public function startStep(StartStepRequest $request, BatchStep $batchStep)
     {
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
             return back()->with('error', 'This step does not belong to the selected line.');
         }
 
         try {
-            $this->batchService->startStep($batchStep, $request->user());
+            $picksByMaterial = $this->reshapePicks($request->validated()['picks'] ?? []);
+            $this->batchService->startStep($batchStep, $request->user(), $picksByMaterial);
 
             return back()->with('success', 'Step started. Materials have been allocated.');
+        } catch (InsufficientStockException|\DomainException $e) {
+            return back()->withErrors(['picks' => $e->getMessage()])->with('error', $e->getMessage());
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Reshape the validated picks payload into a material-keyed map for the
+     * allocation service: [material_id => [['material_lot_id'=>, 'picked_qty'=>], ...]].
+     *
+     * @param  array<int, array{material_id: int, lots: array<int, array{material_lot_id: int, picked_qty: float}>}>  $picks
+     * @return array<int, array<int, array{material_lot_id: int, picked_qty: float}>>
+     */
+    private function reshapePicks(array $picks): array
+    {
+        $out = [];
+        foreach ($picks as $row) {
+            $materialId = (int) ($row['material_id'] ?? 0);
+            if ($materialId <= 0) {
+                continue;
+            }
+            foreach ($row['lots'] ?? [] as $lot) {
+                $out[$materialId][] = [
+                    'material_lot_id' => (int) $lot['material_lot_id'],
+                    'picked_qty' => (float) $lot['picked_qty'],
+                ];
+            }
+        }
+
+        return $out;
     }
 
     /**

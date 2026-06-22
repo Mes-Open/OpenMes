@@ -1,4 +1,13 @@
 {
+    "Customer Order No": "Kundenauftragsnr.",
+    "Customer order": "Kundenauftrag",
+    "Quality controls": "Qualitätskontrollen",
+    "Trace a pallet number, customer order, finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.": "Verfolgen Sie eine Palettennummer, einen Kundenauftrag, eine Fertig-LOT, eine Material-LOT, eine Lieferanten-LOT, einen Quellbehälter oder eine Seriennummer durch die vollständige Genealogie.",
+    "Pallet no, customer order, finished LOT, material lot, supplier LOT, source container or serial number…": "Palettennr., Kundenauftrag, Fertig-LOT, Material-LOT, Lieferanten-LOT, Quellbehälter oder Seriennummer…",
+    "This pallet is not linked to a batch, so no genealogy is available.": "Diese Palette ist keiner Charge zugeordnet, daher ist keine Genealogie verfügbar.",
+    "No quality controls recorded for this batch.": "Keine Qualitätskontrollen für diese Charge erfasst.",
+    "No work orders match this customer order.": "Keine Fertigungsaufträge entsprechen diesem Kundenauftrag.",
+    "— Select batch —": "— Charge wählen —",
     "% of Total": "% des Gesamtwerts",
     "(default)": "(Standard)",
     "(leave blank to keep)": "(leer lassen, um beizubehalten)",
