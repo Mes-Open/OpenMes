@@ -95,11 +95,12 @@ export const ADMIN_GROUPS = [
         key: 'reports',
         label: 'Reports',
         icon: 'chart',
-        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports'],
+        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/net-requirements'],
         children: [
             { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'] },
             { label: 'Production Cost', href: '/admin/cost-reports', match: ['/admin/cost-reports'] },
             { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'] },
+            { label: 'Net requirements', href: '/admin/net-requirements', match: ['/admin/net-requirements'] },
         ],
     },
     {

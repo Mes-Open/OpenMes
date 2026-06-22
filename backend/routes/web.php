@@ -628,6 +628,9 @@ Route::middleware('auth')->group(function () {
         // Scrap reporting (Pareto, scrap rate per line, trend)
         Route::get('/scrap-reports', [ScrapReportController::class, 'index'])->name('scrap-reports.index');
 
+        // MRP net requirements & shortage report (#90)
+        Route::get('/net-requirements', [\App\Http\Controllers\Web\Admin\NetRequirementsReportController::class, 'index'])->name('net-requirements.index');
+
         // Inspection Plans (admin CRUD + version publish)
         Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
         Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);
