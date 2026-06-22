@@ -1040,6 +1040,9 @@ function MachineStatePanel({ machines, options }) {
                             aria-label={`Set state for ${m.name}`}
                         >
                             {!m.state && <option value="" disabled>—</option>}
+                            {m.state && !options.includes(m.state) && (
+                                <option value={m.state}>{MACHINE_STATE_LABELS[m.state] ?? m.state}</option>
+                            )}
                             {options.map((s) => (
                                 <option key={s} value={s}>{MACHINE_STATE_LABELS[s] ?? s}</option>
                             ))}

@@ -58,6 +58,23 @@ class SetMachineStateTest extends TestCase
             ->assertStatus(422)->assertJsonValidationErrors('state');
     }
 
+    public function test_guest_cannot_set_state_from_the_monitor(): void
+    {
+        $this->post("/admin/machine-monitor/{$this->workstation->id}/state", ['state' => 'WAITING'])
+            ->assertRedirect('/login');
+
+        $this->assertDatabaseMissing('workstation_states', ['workstation_id' => $this->workstation->id]);
+    }
+
+    public function test_operator_cannot_set_state_from_the_monitor(): void
+    {
+        $this->actingAs($this->operator)
+            ->post("/admin/machine-monitor/{$this->workstation->id}/state", ['state' => 'WAITING'])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('workstation_states', ['workstation_id' => $this->workstation->id]);
+    }
+
     public function test_operator_can_set_state_for_a_workstation_on_their_line(): void
     {
         $this->actingAs($this->operator)
