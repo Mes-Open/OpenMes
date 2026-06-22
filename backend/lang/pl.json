@@ -229,7 +229,7 @@
     "Batch (LOT)": "Partia (LOT)",
     "Batch completion": "Zakończenie partii",
     "BATCHES": "PARTIE",
-    "Batches": "Serie",
+    "Batches": "Partie",
     "Batches:": "Serie:",
     "Below min": "Poniżej minimum",
     "Bill of Materials": "Lista materiałów (BOM)",
@@ -1529,7 +1529,6 @@
     "Recall impact": "Zakres wycofania",
     "Finished work orders and units that contain this component.": "Zlecenia i egzemplarze zawierające ten komponent.",
     "No downstream consumption recorded yet.": "Brak zarejestrowanego zużycia w dalszej produkcji.",
-    "Batches": "Partie",
     "Units": "Egzemplarze",
     "units": "egzemplarzy",
     "Components & production lines": "Komponenty i linie produkcyjne",
@@ -3633,5 +3632,14 @@
     "Planned work orders": "Planowane zlecenia",
     "Components required": "Wymagane komponenty",
     "Components short": "Komponenty z brakiem",
-    "Total shortfall": "Łączny niedobór"
+    "Total shortfall": "Łączny niedobór",
+    "Enable only the feature areas your team uses. A disabled module is hidden from the menu and its pages return 404. Core areas (Dashboard, Orders, Production, Admin) are always on.": "Włącz tylko te obszary, których używa Twój zespół. Wyłączony moduł znika z menu, a jego strony zwracają 404. Obszary podstawowe (Pulpit, Zlecenia, Produkcja, Admin) są zawsze włączone.",
+    "Company structure": "Struktura firmy",
+    "Maintenance & Quality": "Utrzymanie i jakość",
+    "Work-order history, production cost, scrap, non-conformance and net-requirements reports.": "Raporty: historia zleceń, koszty produkcji, odpady, niezgodności i zapotrzebowanie netto.",
+    "Sites, areas, factories, divisions, workstation types and subassemblies.": "Lokalizacje, obszary, fabryki, działy, typy stanowisk i podzespoły.",
+    "Workers, crews, skills, wage groups and absences.": "Pracownicy, brygady, umiejętności, grupy płacowe i nieobecności.",
+    "Maintenance events, tools, inspection plans, quality controls and OEE.": "Zdarzenia utrzymania, narzędzia, plany inspekcji, kontrole jakości i OEE.",
+    "Machine connections (MQTT / Modbus / OPC UA) and the live machine monitor.": "Połączenia z maszynami (MQTT / Modbus / OPC UA) i podgląd maszyn na żywo.",
+    "Pallets and the packaging station.": "Palety i stacja pakowania."
 }

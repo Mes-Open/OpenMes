@@ -34,9 +34,9 @@ export const ICONS = {
  * `alert: true` marks the Alerts item so it can show the badge + red active.
  */
 export const ADMIN_LINKS = [
-    { label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
-    { label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
-    { label: 'Schedule', href: '/admin/schedule', icon: 'calendar', match: ['/admin/schedule'], exact: true },
+    { key: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
+    { key: 'alerts', label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
+    { key: 'schedule', label: 'Schedule', href: '/admin/schedule', icon: 'calendar', match: ['/admin/schedule'], exact: true },
     // Hidden for now — re-enable to restore the Employees tab in the sidebar.
     // { label: 'Employees', href: '/admin/schedule/employees', icon: 'users', match: ['/admin/schedule/employees'] },
 ];
@@ -175,6 +175,7 @@ export const ADMIN_GROUPS = [
     },
     {
         key: 'adminGroup',
+        tab: 'admin',
         label: 'Admin',
         icon: 'shield',
         match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash'],
@@ -188,6 +189,7 @@ export const ADMIN_GROUPS = [
     },
     {
         key: 'modulesGroup',
+        tab: 'modules',
         label: 'Modules',
         icon: 'cube',
         href: '/admin/modules',

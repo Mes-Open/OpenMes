@@ -71,9 +71,12 @@ class HandleInertiaRequests extends Middleware
             return [];
         }
 
+        // A tab shows only when the user may access it AND its feature module is
+        // enabled for this installation (#144).
         return array_values(array_filter(
             \App\Support\TabRegistry::keys(),
-            fn (string $key) => $user->can(\App\Support\TabRegistry::permission($key)),
+            fn (string $key) => $user->can(\App\Support\TabRegistry::permission($key))
+                && \App\Support\ModuleRegistry::isTabEnabled($key),
         ));
     }
 
