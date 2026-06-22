@@ -14,20 +14,23 @@ function typeColorClass(code) {
     return TYPE_COLORS[code] ?? 'bg-om-chip text-om-ink';
 }
 
-function AddMaterialForm({ productType, processTemplate, materials, steps, onCancel }) {
+function MaterialForm({ productType, processTemplate, materials, steps, item, onCancel }) {
+    const isEdit = !!item;
     const form = useForm({
-        material_id: '',
-        quantity_per_unit: '',
-        template_step_id: '',
-        scrap_percentage: '0',
-        consumed_at: 'start',
-        notes: '',
+        material_id: item ? String(item.material_id ?? '') : '',
+        quantity_per_unit: item ? String(item.quantity_per_unit ?? '') : '',
+        template_step_id: item && item.template_step_id != null ? String(item.template_step_id) : '',
+        scrap_percentage: item ? String(item.scrap_percentage ?? '0') : '0',
+        consumed_at: item ? (item.consumed_at ?? 'start') : 'start',
+        notes: item ? (item.notes ?? '') : '',
     });
 
     const { data, setData, errors, processing } = form;
 
-    const selectedMaterial = materials.find((m) => String(m.id) === String(data.material_id));
-    const unit = selectedMaterial?.unit_of_measure;
+    const selectedMaterial = isEdit
+        ? null
+        : materials.find((m) => String(m.id) === String(data.material_id));
+    const unit = isEdit ? item.unit_of_measure : selectedMaterial?.unit_of_measure;
 
     // When a material with a default scrap % is picked, pre-fill it (only while
     // the field still holds the untouched default) and surface that it was auto-set.
@@ -41,35 +44,48 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
 
     const submit = (e) => {
         e.preventDefault();
-        form.post(
-            `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom`,
-            { onSuccess: onCancel },
-        );
+        const base = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom`;
+        if (isEdit) {
+            form.put(`${base}/${item.id}`, { onSuccess: onCancel });
+        } else {
+            form.post(base, { onSuccess: onCancel });
+        }
     };
 
     return (
         <div className="card mb-6" style={{ borderLeft: '4px solid #3b82f6' }}>
-            <h3 className="text-lg font-semibold mb-4">Add Material to BOM</h3>
+            <h3 className="text-lg font-semibold mb-4">
+                {isEdit ? `Edit BOM Item - ${item.material_name}` : 'Add Material to BOM'}
+            </h3>
             <form onSubmit={submit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">
-                            Material <span className="text-om-blocked">*</span>
-                        </label>
-                        <Dropdown
-                            value={data.material_id == null ? '' : String(data.material_id)}
-                            onChange={(v) => onMaterialChange(v)}
-                            placeholder="Select material..."
-                            options={materials.map((m) => ({
-                                value: String(m.id),
-                                label: `${m.code} - ${m.name} (${m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}${m.material_type_name})`,
-                            }))}
-                            className="w-full"
-                        />
-                        {errors.material_id && (
-                            <p className="mt-1 text-sm text-om-blocked">{errors.material_id}</p>
-                        )}
-                    </div>
+                    {isEdit ? (
+                        <div>
+                            <label className="block text-sm font-medium text-om-muted mb-1">Material</label>
+                            <div className="form-input w-full bg-om-panel text-om-muted">
+                                {item.material_code} - {item.material_name}
+                            </div>
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="block text-sm font-medium text-om-muted mb-1">
+                                Material <span className="text-om-blocked">*</span>
+                            </label>
+                            <Dropdown
+                                value={data.material_id == null ? '' : String(data.material_id)}
+                                onChange={(v) => onMaterialChange(v)}
+                                placeholder="Select material..."
+                                options={materials.map((m) => ({
+                                    value: String(m.id),
+                                    label: `${m.code} - ${m.name} (${m.unit_of_measure ? `${m.unit_of_measure}, ` : ''}${m.material_type_name})`,
+                                }))}
+                                className="w-full"
+                            />
+                            {errors.material_id && (
+                                <p className="mt-1 text-sm text-om-blocked">{errors.material_id}</p>
+                            )}
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-om-muted mb-1">
@@ -159,7 +175,9 @@ function AddMaterialForm({ productType, processTemplate, materials, steps, onCan
                         Cancel
                     </button>
                     <button type="submit" disabled={processing} className="btn-touch btn-primary">
-                        {processing ? 'Adding…' : 'Add to BOM'}
+                        {isEdit
+                            ? (processing ? 'Saving…' : 'Save Changes')
+                            : (processing ? 'Adding…' : 'Add to BOM')}
                     </button>
                 </div>
             </form>
@@ -171,6 +189,12 @@ export default function ProcessTemplatesBom() {
     const { productType, processTemplate, bomItems = [], materials = [], steps = [] } = usePage().props;
 
     const [showAddForm, setShowAddForm] = useState(false);
+    const [editingItem, setEditingItem] = useState(null);
+
+    const startEdit = (item) => {
+        setShowAddForm(false);
+        setEditingItem(item);
+    };
 
     const handleRemove = (item) => {
         if (!confirm('Remove this material from BOM?')) return;
@@ -264,13 +288,22 @@ export default function ProcessTemplatesBom() {
             enableSorting: false,
             meta: { align: 'right' },
             cell: ({ row }) => (
-                <button
-                    type="button"
-                    onClick={() => handleRemove(row.original)}
-                    className="text-om-blocked hover:text-om-blocked text-sm"
-                >
-                    Remove
-                </button>
+                <>
+                    <button
+                        type="button"
+                        onClick={() => startEdit(row.original)}
+                        className="text-om-accent hover:text-om-accent text-sm mr-4"
+                    >
+                        Edit
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleRemove(row.original)}
+                        className="text-om-blocked hover:text-om-blocked text-sm"
+                    >
+                        Remove
+                    </button>
+                </>
             ),
         },
     ], [productType.id, processTemplate.id]);
@@ -300,7 +333,10 @@ export default function ProcessTemplatesBom() {
                         </div>
                         <button
                             type="button"
-                            onClick={() => setShowAddForm((v) => !v)}
+                            onClick={() => {
+                                setEditingItem(null);
+                                setShowAddForm((v) => !v);
+                            }}
                             className="btn-touch btn-primary"
                         >
                             <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,13 +347,25 @@ export default function ProcessTemplatesBom() {
                     </div>
                 </div>
 
-                {showAddForm && (
-                    <AddMaterialForm
+                {showAddForm && !editingItem && (
+                    <MaterialForm
                         productType={productType}
                         processTemplate={processTemplate}
                         materials={materials}
                         steps={steps}
                         onCancel={() => setShowAddForm(false)}
+                    />
+                )}
+
+                {editingItem && (
+                    <MaterialForm
+                        key={editingItem.id}
+                        productType={productType}
+                        processTemplate={processTemplate}
+                        materials={materials}
+                        steps={steps}
+                        item={editingItem}
+                        onCancel={() => setEditingItem(null)}
                     />
                 )}
 
