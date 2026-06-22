@@ -159,6 +159,9 @@ class MachineMonitorService
             WorkstationState::SETUP => 'blue',
             WorkstationState::STOPPED => 'gray',
             WorkstationState::FAULT => 'red',
+            WorkstationState::WAITING => 'yellow',
+            WorkstationState::CLEANING => 'purple',
+            WorkstationState::MAINTENANCE => 'orange',
             default => 'slate',
         };
     }

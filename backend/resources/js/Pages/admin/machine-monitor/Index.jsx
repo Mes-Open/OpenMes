@@ -16,6 +16,9 @@ const BORDER = {
     blue:  'border-om-accent',
     gray:  'border-om-faintest',
     red:   'border-om-blocked',
+    yellow: 'border-yellow-400',
+    purple: 'border-purple-400',
+    orange: 'border-orange-400',
     slate: 'border-slate-300',
 };
 
@@ -25,8 +28,22 @@ const BADGE = {
     blue:  'bg-om-chip text-om-accent',
     gray:  'bg-om-chip text-om-muted',
     red:   'bg-om-blocked-bg text-om-blocked',
+    yellow: 'bg-yellow-100 text-yellow-700',
+    purple: 'bg-purple-100 text-purple-700',
+    orange: 'bg-orange-100 text-orange-700',
     slate: 'bg-slate-100 text-slate-600',
 };
+
+// Translatable labels for the manual state picker (#87).
+const STATE_LABELS = {
+    RUNNING: 'Running', IDLE: 'Idle', STOPPED: 'Stopped', FAULT: 'Fault', SETUP: 'Setup',
+    WAITING: 'Waiting', CLEANING: 'Cleaning', MAINTENANCE: 'Maintenance',
+};
+
+function csrf() {
+    const m = typeof document !== 'undefined' ? document.querySelector('meta[name="csrf-token"]') : null;
+    return m ? m.content : '';
+}
 
 const POLL_MS = 3000;
 
@@ -41,13 +58,35 @@ function timeInState(sinceIso, now) {
 }
 
 export default function MachineMonitorIndex() {
-    const { tiles: initialTiles = [], checkUrl } = usePage().props;
+    const { tiles: initialTiles = [], checkUrl, states = [] } = usePage().props;
 
     const [tiles, setTiles] = useState(initialTiles);
     const [live, setLive] = useState(true);
     const [now, setNow] = useState(() => Date.now());
     const liveRef = useRef(live);
     liveRef.current = live;
+
+    // Manually set a workstation's state (#87). Pauses isn't needed — the POST
+    // returns a fresh fleet snapshot which we apply immediately.
+    const setState = async (workstationId, state) => {
+        try {
+            const res = await fetch(`/admin/machine-monitor/${workstationId}/state`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrf(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ state }),
+            });
+            if (res.ok) {
+                const json = await res.json();
+                if (Array.isArray(json.data)) setTiles(json.data);
+            }
+        } catch (_) { /* keep last good snapshot */ }
+    };
 
     // Poll the fleet status.
     useEffect(() => {
@@ -105,7 +144,7 @@ export default function MachineMonitorIndex() {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {tiles.map((t) => (
-                            <Tile key={t.id} t={t} now={now} />
+                            <Tile key={t.id} t={t} now={now} states={states} onSetState={setState} />
                         ))}
                     </div>
                 )}
@@ -116,7 +155,7 @@ export default function MachineMonitorIndex() {
 
 MachineMonitorIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 
-function Tile({ t, now }) {
+function Tile({ t, now, states = [], onSetState }) {
     const border = BORDER[t.color] ?? BORDER.slate;
     const badge = BADGE[t.color] ?? BADGE.slate;
     const elapsed = timeInState(t.since, now);
@@ -155,6 +194,23 @@ function Tile({ t, now }) {
                             <span className="text-om-faint">{k}:</span> {String(v)}
                         </span>
                     ))}
+                </div>
+            )}
+
+            {states.length > 0 && onSetState && (
+                <div className="mt-3 pt-2 border-t border-om-line2 flex items-center gap-2">
+                    <label className="text-[10px] uppercase text-om-faint shrink-0">{__('Set state')}</label>
+                    <select
+                        value={t.state}
+                        onChange={(e) => onSetState(t.id, e.target.value)}
+                        className="form-input text-xs py-1 flex-1"
+                        aria-label={__('Set state')}
+                    >
+                        {!states.includes(t.state) && <option value={t.state}>{t.state}</option>}
+                        {states.map((s) => (
+                            <option key={s} value={s}>{__(STATE_LABELS[s] ?? s)}</option>
+                        ))}
+                    </select>
                 </div>
             )}
         </div>

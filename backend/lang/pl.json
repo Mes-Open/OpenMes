@@ -3576,5 +3576,13 @@
     "Open by type": "Otwarte wg typu",
     "No open non-conformances.": "Brak otwartych niezgodności.",
     "— Source —": "— Źródło —",
-    "Non-conformance": "Niezgodności"
+    "Non-conformance": "Niezgodności",
+    "Set state": "Ustaw stan",
+    "Running": "Pracuje",
+    "Idle": "Bezczynny",
+    "Stopped": "Zatrzymany",
+    "Fault": "Awaria",
+    "Setup": "Przezbrojenie",
+    "Waiting": "Oczekiwanie",
+    "Cleaning": "Czyszczenie"
 }
