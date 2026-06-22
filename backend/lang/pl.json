@@ -3551,5 +3551,13 @@
     "All quality": "Wszystkie",
     "Link to pallet (optional)": "Powiąż z paletą (opcjonalnie)",
     "That pallet belongs to a different work order.": "Ta paleta należy do innego zlecenia.",
-    "Cannot ship pallet :no: quality status is \":status\" (must be passed).": "Nie można wysłać palety :no: status jakości to „:status” (musi być „pass”)."
+    "Cannot ship pallet :no: quality status is \":status\" (must be passed).": "Nie można wysłać palety :no: status jakości to „:status” (musi być „pass”).",
+    "Set state": "Ustaw stan",
+    "Running": "Pracuje",
+    "Idle": "Bezczynny",
+    "Stopped": "Zatrzymany",
+    "Fault": "Awaria",
+    "Setup": "Przezbrojenie",
+    "Waiting": "Oczekiwanie",
+    "Cleaning": "Czyszczenie"
 }
