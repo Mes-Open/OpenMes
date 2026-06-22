@@ -637,6 +637,9 @@ Route::middleware('auth')->group(function () {
         // Non-conformance reporting (Pareto by issue type, disposition summary) (#11)
         Route::get('/non-conformance-reports', [\App\Http\Controllers\Web\Admin\NonConformanceReportController::class, 'index'])->name('non-conformance-reports.index');
 
+        // MRP net requirements & shortage report (#90)
+        Route::get('/net-requirements', [\App\Http\Controllers\Web\Admin\NetRequirementsReportController::class, 'index'])->name('net-requirements.index');
+
         // Inspection Plans (admin CRUD + version publish)
         Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
         Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);

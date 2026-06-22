@@ -27,7 +27,7 @@ class TabRegistry
             '/admin/view-templates', '/admin/shifts', '/admin/issues', '/admin/companies',
             '/admin/anomaly-reasons', '/admin/scrap-reasons',
         ]],
-        'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports']],
+        'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements']],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
             '/admin/workstation-types', '/admin/subassemblies',
