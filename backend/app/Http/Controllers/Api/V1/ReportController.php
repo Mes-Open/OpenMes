@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\NonConformanceParetoRequest;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
@@ -226,12 +227,9 @@ class ReportController extends Controller
     /**
      * Non-conformance Pareto by issue type (#11), plus disposition summary.
      */
-    public function nonConformancePareto(Request $request, NonConformanceReportService $service): JsonResponse
+    public function nonConformancePareto(NonConformanceParetoRequest $request, NonConformanceReportService $service): JsonResponse
     {
-        $validated = $request->validate([
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-        ]);
+        $validated = $request->validated();
 
         $from = isset($validated['start_date'])
             ? Carbon::parse($validated['start_date'])->startOfDay()

@@ -205,12 +205,35 @@ class IssueController extends Controller
     /**
      * Update an action (status/fields) (#11).
      */
-    public function updateAction(UpdateIssueActionRequest $request, IssueAction $action): JsonResponse
+    public function updateAction(UpdateIssueActionRequest $request, IssueAction $action, IssueActionService $service): JsonResponse
     {
-        $action->update($request->validated());
+        $data = $request->validated();
+        $status = $data['status'] ?? null;
+        unset($data['status']); // status is a lifecycle transition, not a free field.
+
+        // Field edits (type/title/description/assignee/due date) apply directly.
+        if ($data) {
+            $action->update($data);
+        }
+
+        // A status change goes through the lifecycle service so the legal
+        // open → in_progress → done → verified transitions are enforced and the
+        // completed_by / verified_by audit stamps are captured.
+        if ($status !== null && $status !== $action->status) {
+            try {
+                match ($status) {
+                    IssueAction::STATUS_IN_PROGRESS => $service->start($action),
+                    IssueAction::STATUS_DONE => $service->complete($action, $request->user()),
+                    IssueAction::STATUS_VERIFIED => $service->verify($action, $request->user()),
+                    default => throw new \DomainException("Unsupported status transition to {$status}."),
+                };
+            } catch (\DomainException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+        }
 
         return response()->json([
-            'data' => $this->serializeActions($action->issue),
+            'data' => $this->serializeActions($action->fresh()->issue),
         ]);
     }
 

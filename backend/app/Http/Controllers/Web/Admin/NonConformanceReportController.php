@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\NonConformanceReportRequest;
 use App\Services\Quality\NonConformanceReportService;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class NonConformanceReportController extends Controller
@@ -14,12 +14,9 @@ class NonConformanceReportController extends Controller
         protected NonConformanceReportService $reports,
     ) {}
 
-    public function index(Request $request)
+    public function index(NonConformanceReportRequest $request)
     {
-        $validated = $request->validate([
-            'date_from' => ['nullable', 'date_format:Y-m-d'],
-            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-        ]);
+        $validated = $request->validated();
 
         $from = isset($validated['date_from'])
             ? Carbon::parse($validated['date_from'])->startOfDay()
