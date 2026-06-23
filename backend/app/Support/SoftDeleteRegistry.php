@@ -97,6 +97,9 @@ class SoftDeleteRegistry
         'machine_topics' => Models\MachineTopic::class,
         'topic_mappings' => Models\TopicMapping::class,
         'machine_tags' => Models\MachineTag::class,
+
+        // Integrations
+        'webhooks' => Models\Webhook::class,
     ];
 
     /** Attributes tried (in order) to label a trashed row in the Trash UI. */

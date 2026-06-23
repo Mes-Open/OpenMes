@@ -130,4 +130,13 @@ if [ "$IS_PRIMARY" = "1" ]; then
     (while true; do php artisan schedule:run >> storage/logs/scheduler.log 2>&1; sleep 60; done) &
 fi
 
+# ── Queue worker (background) ────────────────────────────────────────────────
+# Outgoing webhooks (#20) and other queued jobs need a worker. Run one on the
+# primary so a default `docker compose up` delivers webhooks out of the box; a
+# self-restarting loop keeps it alive if a job fatals. The standalone
+# `queue-worker` compose service (profile: workers) can still scale this out.
+if [ "$IS_PRIMARY" = "1" ]; then
+    (while true; do php artisan queue:work --sleep=1 --tries=5 --max-time=3600 >> storage/logs/queue-worker.log 2>&1; sleep 2; done) &
+fi
+
 exec "$@"

@@ -42,6 +42,7 @@ class TabRegistry
             '/admin/quality-tasks', '/admin/oee',
         ]],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
+        'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
         'admin' => ['label' => 'Admin', 'prefixes' => ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash']],
         'modules' => ['label' => 'Modules', 'prefixes' => ['/admin/modules']],
         'packaging' => ['label' => 'Packaging', 'prefixes' => ['/admin/pallets']],
