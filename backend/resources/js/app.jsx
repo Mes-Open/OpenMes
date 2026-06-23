@@ -2,6 +2,9 @@ import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { loadLocale, setTimezone } from './lib/i18n';
 import './lib/echo'; // opens the single Reverb WebSocket
+import { initPostHog } from './lib/posthog';
+
+initPostHog();
 
 createInertiaApp({
     resolve: (name) => {
