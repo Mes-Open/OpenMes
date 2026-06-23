@@ -5,7 +5,7 @@ import { crewFields } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CrewEdit() {
-    const { crew, divisions = [], users = [] } = usePage().props;
+    const { crew, divisions = [], users = [], lines = [] } = usePage().props;
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -14,7 +14,7 @@ export default function CrewEdit() {
             <ResourceForm
                 action={`/admin/crews/${crew.id}`}
                 method="put"
-                fields={crewFields(divisions, users)}
+                fields={crewFields(divisions, users, lines)}
                 initial={{
                     code: crew.code ?? '',
                     name: crew.name ?? '',
@@ -22,6 +22,7 @@ export default function CrewEdit() {
                     leader_id: crew.leader_id != null ? String(crew.leader_id) : '',
                     description: crew.description ?? '',
                     is_active: !!crew.is_active,
+                    line_ids: crew.line_ids ?? [],
                 }}
                 submitLabel={__('Save Changes')}
                 cancelHref="/admin/crews"

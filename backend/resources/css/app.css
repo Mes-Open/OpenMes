@@ -13,9 +13,12 @@
 @source '../../../packages/ui/src';
 
 @theme inline {
-    --font-sans: 'Geist', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Geist Mono's default zero is slashed; stylistic set ss09 swaps in the plain
+       round zero. Keep tabular figures ('tnum') so number columns stay aligned. */
+    --font-mono--font-feature-settings: 'ss09' 1, 'tnum' 1;
 
     /* OpenMES design tokens — "Geist White". Colours indirect through the --om-*
        value vars (defined in :root / html.dark below) so the `om-*` utilities can

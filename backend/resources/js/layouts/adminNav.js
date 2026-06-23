@@ -36,9 +36,6 @@ export const ICONS = {
 export const ADMIN_LINKS = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
     { label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
-    { label: 'Schedule', href: '/admin/schedule', icon: 'calendar', match: ['/admin/schedule'], exact: true },
-    // Hidden for now — re-enable to restore the Employees tab in the sidebar.
-    // { label: 'Employees', href: '/admin/schedule/employees', icon: 'users', match: ['/admin/schedule/employees'] },
 ];
 
 /**
@@ -46,6 +43,18 @@ export const ADMIN_LINKS = [
  * whether the group auto-expands and highlights based on the current path.
  */
 export const ADMIN_GROUPS = [
+    {
+        key: 'schedule',
+        label: 'Schedule',
+        icon: 'calendar',
+        href: '/admin/schedule',
+        match: ['/admin/schedule'],
+        children: [
+            { label: 'Planner', href: '/admin/schedule', match: ['/admin/schedule'], exact: true },
+            { label: 'Capacity', href: '/admin/schedule/capacity', match: ['/admin/schedule/capacity'] },
+            { label: 'Employee', href: '/admin/schedule/employees', match: ['/admin/schedule/employees'] },
+        ],
+    },
     {
         key: 'orders',
         label: 'Orders',

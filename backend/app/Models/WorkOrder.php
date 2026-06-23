@@ -104,6 +104,58 @@ class WorkOrder extends Model
     }
 
     /**
+     * Best-effort estimate of total planned work in minutes for orders that do
+     * NOT have minute-level planning timestamps (those use
+     * {@see plannedDurationMinutes()} instead). Falls back through concrete
+     * batch-step durations, then the product's process-snapshot step estimates.
+     *
+     * Returns null when neither source yields a positive duration
+     * ("unestimated") so callers can surface the order rather than silently
+     * treating it as zero load.
+     */
+    public function estimatedDurationMinutes(): ?int
+    {
+        // 1. Concrete batch-step durations (actual planned runtimes per step).
+        if ($this->relationLoaded('batches')) {
+            $sum = 0;
+            foreach ($this->batches as $batch) {
+                if (! $batch->relationLoaded('steps')) {
+                    continue;
+                }
+                foreach ($batch->steps as $step) {
+                    $sum += (int) ($step->duration_minutes ?? 0);
+                }
+            }
+            if ($sum > 0) {
+                return $sum;
+            }
+        }
+
+        // 2. Process-snapshot step estimates captured from the product template.
+        $sum = 0;
+        foreach ($this->process_snapshot['steps'] ?? [] as $step) {
+            $sum += (int) ($step['estimated_duration_minutes'] ?? 0);
+        }
+
+        return $sum > 0 ? $sum : null;
+    }
+
+    /**
+     * Peak operators this order needs while running — the max `required_operators`
+     * across its process-snapshot steps (defaults to 1). Used by the schedule
+     * capacity crew axis to weight a line's machine-hours into labor-hours.
+     */
+    public function requiredOperators(): int
+    {
+        $max = 0;
+        foreach ($this->process_snapshot['steps'] ?? [] as $step) {
+            $max = max($max, (int) ($step['required_operators'] ?? 0));
+        }
+
+        return max(1, $max);
+    }
+
+    /**
      * Get the line that owns this work order.
      */
     public function line(): BelongsTo

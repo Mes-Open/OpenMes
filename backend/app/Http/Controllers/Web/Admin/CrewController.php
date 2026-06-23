@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Crew;
 use App\Models\Division;
+use App\Models\Line;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -33,11 +34,13 @@ class CrewController extends Controller
     public function create()
     {
         $divisions = Division::active()->orderBy('name')->get(['id', 'name']);
-        $users     = User::orderBy('name')->get(['id', 'name']);
+        $users = User::orderBy('name')->get(['id', 'name']);
+        $lines = Line::where('is_active', true)->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('admin/crews/Create', [
             'divisions' => $divisions,
             'users' => $users,
+            'lines' => $lines,
         ]);
     }
 
@@ -47,17 +50,20 @@ class CrewController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:crews',
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:crews',
+            'name' => 'required|string|max:255',
             'division_id' => 'nullable|exists:divisions,id',
-            'leader_id'   => 'nullable|exists:users,id',
+            'leader_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
+            'line_ids' => 'nullable|array',
+            'line_ids.*' => 'integer|exists:lines,id',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
-        Crew::create($validated);
+        $crew = Crew::create($validated);
+        $crew->lines()->sync($request->input('line_ids', []));
 
         return redirect()->route('admin.crews.index')
             ->with('success', 'Crew created successfully.');
@@ -69,12 +75,17 @@ class CrewController extends Controller
     public function edit(Crew $crew)
     {
         $divisions = Division::active()->orderBy('name')->get(['id', 'name']);
-        $users     = User::orderBy('name')->get(['id', 'name']);
+        $users = User::orderBy('name')->get(['id', 'name']);
+        $lines = Line::where('is_active', true)->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('admin/crews/Edit', [
-            'crew' => $crew->only('id', 'code', 'name', 'leader_id', 'division_id', 'description', 'is_active'),
+            'crew' => array_merge(
+                $crew->only('id', 'code', 'name', 'leader_id', 'division_id', 'description', 'is_active'),
+                ['line_ids' => $crew->lines()->pluck('lines.id')->all()],
+            ),
             'divisions' => $divisions,
             'users' => $users,
+            'lines' => $lines,
         ]);
     }
 
@@ -84,17 +95,20 @@ class CrewController extends Controller
     public function update(Request $request, Crew $crew)
     {
         $validated = $request->validate([
-            'code'        => 'required|string|max:50|unique:crews,code,' . $crew->id,
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:crews,code,'.$crew->id,
+            'name' => 'required|string|max:255',
             'division_id' => 'nullable|exists:divisions,id',
-            'leader_id'   => 'nullable|exists:users,id',
+            'leader_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string|max:2000',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
+            'line_ids' => 'nullable|array',
+            'line_ids.*' => 'integer|exists:lines,id',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
 
         $crew->update($validated);
+        $crew->lines()->sync($request->input('line_ids', []));
 
         return redirect()->route('admin.crews.index')
             ->with('success', 'Crew updated successfully.');

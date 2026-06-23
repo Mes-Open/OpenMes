@@ -350,6 +350,8 @@ Route::middleware('auth')->group(function () {
         // Schedule (planner is the main view; list is a secondary overview)
         Route::get('/schedule/list', [ScheduleController::class, 'index'])->name('schedule.list');
         Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
+        Route::get('/schedule/capacity', [\App\Http\Controllers\Web\Admin\ScheduleCapacityController::class, 'index'])->name('schedule.capacity');
+        Route::get('/schedule/capacity/cell', [\App\Http\Controllers\Web\Admin\ScheduleCapacityController::class, 'cellOrders'])->name('schedule.capacity.cell');
         Route::get('/schedule/check-updates', [SchedulePlannerController::class, 'checkUpdates'])->name('schedule.check-updates');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');

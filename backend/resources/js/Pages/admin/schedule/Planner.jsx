@@ -3,7 +3,9 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import LiveRefresh from '../../../components/LiveRefresh';
-import { formatDate, formatNumber } from '../../../lib/i18n';
+import { formatDate, formatNumber, __ } from '../../../lib/i18n';
+import { loadBarClass, loadPercClass } from '../../../lib/load';
+import { apiCall, apiGet } from '../../../lib/http';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -37,36 +39,6 @@ const PX_PER_MINUTE = 2;
 const HOUR_PX = 60 * PX_PER_MINUTE;
 const TOTAL_WIDTH = 24 * 60 * PX_PER_MINUTE;
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
-
-function getCsrf() {
-    return document.querySelector('meta[name=csrf-token]')?.content ?? '';
-}
-
-async function apiCall(url, method, body) {
-    const r = await fetch(url, {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': getCsrf(),
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify(body),
-    });
-    return r;
-}
-
-function loadPercClass(pct) {
-    if (pct > 100) return 'text-om-blocked';
-    if (pct > 80) return 'text-om-accent';
-    return 'text-om-running';
-}
-function loadBarClass(pct) {
-    if (pct > 100) return 'bg-om-blocked';
-    if (pct > 80) return 'bg-orange-500';
-    return 'bg-om-running';
-}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -283,9 +255,7 @@ export default function Planner() {
     };
     const fetchTracking = async (id) => {
         try {
-            const r = await fetch(`/admin/schedule/check-updates?track=${id}`, {
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            });
+            const r = await apiGet(`/admin/schedule/check-updates?track=${id}`);
             if (!r.ok) return;
             const d = await r.json();
             if (d.tracked_order) setTrackingData(d.tracked_order);
@@ -387,7 +357,12 @@ export default function Planner() {
                         <Link href={`/admin/schedule/employees?date=${startDate}`}
                            className="px-3 py-1 text-xs font-medium rounded-md transition text-om-downtime hover:text-om-downtime"
                            title="Employee day planner — tachograph view">
-                            Employees
+                            {__('Employees')}
+                        </Link>
+                        <Link href="/admin/schedule/capacity"
+                           className="px-3 py-1 text-xs font-medium rounded-md transition text-om-accent hover:text-om-accent"
+                           title="Capacity view — available vs planned hours">
+                            {__('Capacity')}
                         </Link>
                     </div>
 
@@ -469,8 +444,6 @@ export default function Planner() {
                                 data={data} slotMinutes={slotMinutes} startDate={startDate}
                                 shiftsPerDay={shiftsPerDay} maintenanceEvents={maintenanceEvents}
                                 onUnassign={unassignOrder}
-                                onRefresh={refreshContent}
-                                showToast={showToast}
                             />
                         )}
                         {viewMode === 'monthly' && (
@@ -1037,7 +1010,7 @@ function DailyView({ data, lines, maintenanceEvents, onUnassign }) {
 
 // ─── HourlyView ───────────────────────────────────────────────────────────────
 
-function HourlyView({ data, slotMinutes, startDate, shiftsPerDay, maintenanceEvents, onUnassign, onRefresh, showToast }) {
+function HourlyView({ data, slotMinutes, startDate, shiftsPerDay, maintenanceEvents, onUnassign }) {
     const scrollerRef = useRef(null);
     const [nowLeft, setNowLeft] = useState(null);
     const isToday = data?.date === new Date().toISOString().slice(0, 10);
@@ -1083,8 +1056,6 @@ function HourlyView({ data, slotMinutes, startDate, shiftsPerDay, maintenanceEve
         const len = Math.floor(1440 / shiftsPerDay);
         for (let b = len; b < 1440; b += len) shiftBoundaries.push(b);
     }
-
-    const getCsrfToken = () => document.querySelector('meta[name=csrf-token]')?.content ?? '';
 
     const handleMouseDown = (e, card, mode) => {
         if (e.button !== 0) return;
@@ -1138,14 +1109,14 @@ function HourlyView({ data, slotMinutes, startDate, shiftsPerDay, maintenanceEve
                     if (lane?.dataset.laneId) targetLineId = parseInt(lane.dataset.laneId, 10);
                 }
                 if (newStart === d.origStart && targetLineId === d.origLineId) { setStatusText(''); return; }
-                await saveHourly(woId, toIso(newStart), toIso(newStart + d.origDur), targetLineId, false, onRefresh, showToast, getCsrfToken);
+                await saveHourly(woId, toIso(newStart), toIso(newStart + d.origDur), targetLineId, false);
                 d.card.dataset.startMinute = newStart;
             } else {
                 const rawDur = (parseFloat(d.card.style.width) || 0) / PX_PER_MINUTE;
                 const newDur = Math.min(snapToSlot(Math.max(slotMinutes, rawDur)), 24 * 60 - d.origStart);
                 d.card.style.width = (newDur * PX_PER_MINUTE) + 'px';
                 if (newDur === d.origDur) { setStatusText(''); return; }
-                await saveHourlyResize(woId, toIso(d.origStart), toIso(d.origStart + newDur), false, onRefresh, showToast, getCsrfToken);
+                await saveHourlyResize(woId, toIso(d.origStart), toIso(d.origStart + newDur), false);
                 d.card.dataset.durationMinutes = newDur;
             }
             setStatusText('');
@@ -1324,18 +1295,14 @@ function HourlyView({ data, slotMinutes, startDate, shiftsPerDay, maintenanceEve
     );
 }
 
-async function saveHourly(woId, startAt, endAt, lineId, force, onRefresh, showToast, getCsrf) {
+async function saveHourly(woId, startAt, endAt, lineId, force) {
     const body = { planned_start_at: startAt, planned_end_at: endAt, line_id: lineId };
     if (force) body.force_conflict = 1;
-    const r = await fetch(`/admin/schedule/${woId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrf(), 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify(body),
-    });
+    const r = await apiCall(`/admin/schedule/${woId}`, 'PUT', body);
     if (r.status === 409) {
         const d = await r.json().catch(() => ({}));
         if (confirm((d.message || 'Conflict detected.') + '\n\nSave anyway?')) {
-            return saveHourly(woId, startAt, endAt, lineId, true, onRefresh, showToast, getCsrf);
+            return saveHourly(woId, startAt, endAt, lineId, true);
         }
         location.reload();
         return;
@@ -1344,20 +1311,17 @@ async function saveHourly(woId, startAt, endAt, lineId, force, onRefresh, showTo
     if (lineId !== parseInt(new URLSearchParams(window.location.search).get('line_id') || '0')) location.reload();
 }
 
-async function saveHourlyResize(woId, startAt, endAt, force, onRefresh, showToast, getCsrf) {
+async function saveHourlyResize(woId, startAt, endAt, force) {
     const body = { planned_start_at: startAt, planned_end_at: endAt };
     if (force) body.force_conflict = 1;
-    const r = await fetch(`/admin/schedule/${woId}/resize`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': getCsrf(), 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify(body),
-    });
+    const r = await apiCall(`/admin/schedule/${woId}/resize`, 'PUT', body);
     if (r.status === 409) {
         const d = await r.json().catch(() => ({}));
         if (confirm((d.message || 'Conflict detected.') + '\n\nSave anyway?')) {
-            return saveHourlyResize(woId, startAt, endAt, true, onRefresh, showToast, getCsrf);
+            return saveHourlyResize(woId, startAt, endAt, true);
         }
         location.reload();
+        return;
     }
     if (!r.ok) { alert(`Save failed (${r.status}).`); location.reload(); }
 }

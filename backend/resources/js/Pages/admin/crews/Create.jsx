@@ -5,7 +5,7 @@ import { crewFields } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function CrewCreate() {
-    const { divisions = [], users = [] } = usePage().props;
+    const { divisions = [], users = [], lines = [] } = usePage().props;
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -14,8 +14,8 @@ export default function CrewCreate() {
             <ResourceForm
                 action="/admin/crews"
                 method="post"
-                fields={crewFields(divisions, users)}
-                initial={{ code: '', name: '', division_id: '', leader_id: '', description: '', is_active: true }}
+                fields={crewFields(divisions, users, lines)}
+                initial={{ code: '', name: '', division_id: '', leader_id: '', description: '', is_active: true, line_ids: [] }}
                 submitLabel={__('Create')}
                 cancelHref="/admin/crews"
             />

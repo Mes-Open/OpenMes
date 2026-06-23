@@ -28,7 +28,7 @@ class Shift extends Model
     protected function casts(): array
     {
         return [
-            'days_of_week' => 'array',
+            'days_of_week' => \App\Casts\DaysOfWeek::class,
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
