@@ -274,10 +274,30 @@ class SettingsController extends Controller
      */
     public function loadSampleData()
     {
-        Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+        // Guard against a second load: re-running the demo seeder against an
+        // already-populated database races on unique keys (the 409s seen in the
+        // field). Once loaded, tell the admin instead of re-seeding.
+        if (DB::table('system_settings')->where('key', 'sample_data_loaded')->exists()) {
+            return redirect()->route('settings.system')
+                ->with('info', __('Sample data has already been loaded.'));
+        }
+
+        try {
+            Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->route('settings.system')
+                ->with('error', __('Could not load sample data: :msg', ['msg' => $e->getMessage()]));
+        }
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'sample_data_loaded'],
+            ['value' => json_encode(true), 'updated_at' => now()],
+        );
 
         return redirect()->route('settings.system')
-            ->with('success', 'Sample data loaded successfully. Lines, work orders, operators and product types have been created.');
+            ->with('success', __('Sample data loaded successfully. Lines, work orders, operators and product types have been created.'));
     }
 
     /**

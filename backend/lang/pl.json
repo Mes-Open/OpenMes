@@ -3641,5 +3641,9 @@
     "Workers, crews, skills, wage groups and absences.": "Pracownicy, brygady, umiejętności, grupy płacowe i nieobecności.",
     "Maintenance events, tools, inspection plans, quality controls and OEE.": "Zdarzenia utrzymania, narzędzia, plany inspekcji, kontrole jakości i OEE.",
     "Machine connections (MQTT / Modbus / OPC UA) and the live machine monitor.": "Połączenia z maszynami (MQTT / Modbus / OPC UA) i podgląd maszyn na żywo.",
-    "Pallets and the packaging station.": "Palety i stacja pakowania."
+    "Pallets and the packaging station.": "Palety i stacja pakowania.",
+    "Scheduled, but the batch could not be prepared automatically: :msg": "Zaplanowano, ale partii nie udało się przygotować automatycznie: :msg",
+    "Sample data has already been loaded.": "Dane przykładowe zostały już załadowane.",
+    "Could not load sample data: :msg": "Nie udało się załadować danych przykładowych: :msg",
+    "Sample data loaded successfully. Lines, work orders, operators and product types have been created.": "Dane przykładowe załadowane. Utworzono linie, zlecenia, operatorów i typy produktów."
 }

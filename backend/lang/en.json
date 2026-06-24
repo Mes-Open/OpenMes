@@ -3641,5 +3641,9 @@
     "Workers, crews, skills, wage groups and absences.": "Workers, crews, skills, wage groups and absences.",
     "Maintenance events, tools, inspection plans, quality controls and OEE.": "Maintenance events, tools, inspection plans, quality controls and OEE.",
     "Machine connections (MQTT / Modbus / OPC UA) and the live machine monitor.": "Machine connections (MQTT / Modbus / OPC UA) and the live machine monitor.",
-    "Pallets and the packaging station.": "Pallets and the packaging station."
+    "Pallets and the packaging station.": "Pallets and the packaging station.",
+    "Scheduled, but the batch could not be prepared automatically: :msg": "Scheduled, but the batch could not be prepared automatically: :msg",
+    "Sample data has already been loaded.": "Sample data has already been loaded.",
+    "Could not load sample data: :msg": "Could not load sample data: :msg",
+    "Sample data loaded successfully. Lines, work orders, operators and product types have been created.": "Sample data loaded successfully. Lines, work orders, operators and product types have been created."
 }

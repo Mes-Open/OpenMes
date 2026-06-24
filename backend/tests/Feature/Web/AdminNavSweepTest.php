@@ -86,6 +86,13 @@ class AdminNavSweepTest extends TestCase
 
                 continue;
             }
+            if ($tab === 'dashboard') {
+                // The dashboard is the admin home: a user who can open another
+                // tab is redirected there, not hard-403'd (TabAccessMiddleware).
+                $this->actingAs($supervisor)->get($pages[0])->assertRedirect();
+
+                continue;
+            }
             $this->actingAs($supervisor)->get($pages[0])->assertForbidden();
         }
 
