@@ -21,7 +21,7 @@ fi
 # Docker Compose passes the real values via environment variables, but
 # config:cache reads from the .env file.  Sync important vars so the
 # cached config uses the correct credentials.
-for VAR in APP_ENV APP_DEBUG APP_URL DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD BROADCAST_CONNECTION REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET REVERB_HOST REVERB_PORT REVERB_SCHEME REVERB_SERVER_HOST REVERB_SERVER_PORT; do
+for VAR in APP_ENV APP_DEBUG APP_URL QUEUE_CONNECTION DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD BROADCAST_CONNECTION REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET REVERB_HOST REVERB_PORT REVERB_SCHEME REVERB_SERVER_HOST REVERB_SERVER_PORT; do
     eval VAL=\$$VAR
     if [ -n "$VAL" ]; then
         if grep -q "^${VAR}=" .env; then
@@ -128,6 +128,16 @@ echo "[OpenMES] Ready at http://localhost:8080"
 # Only on the primary, so sidecars don't each spawn a competing scheduler.
 if [ "$IS_PRIMARY" = "1" ]; then
     (while true; do php artisan schedule:run >> storage/logs/scheduler.log 2>&1; sleep 60; done) &
+fi
+
+# ── Queue worker (background) ────────────────────────────────────────────────
+# QUEUE_CONNECTION defaults to "database" (see docker-compose.yml), so real jobs
+# (webhook delivery, CSV import, MQTT, auto-update) need a worker — without one
+# they'd queue and never run. Run a self-restarting worker on the primary so a
+# default `docker compose up` processes jobs out of the box (the standalone
+# `queue-worker` service, profile: workers, can still scale this out).
+if [ "$IS_PRIMARY" = "1" ]; then
+    (while true; do php artisan queue:work --sleep=1 --tries=5 --max-time=3600 >> storage/logs/queue-worker.log 2>&1; sleep 2; done) &
 fi
 
 exec "$@"
