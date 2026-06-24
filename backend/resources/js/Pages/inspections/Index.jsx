@@ -1,6 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
-import { formatNumber } from '../../lib/i18n';
+import { formatNumber, __ } from '../../lib/i18n';
 
 const DISPOSITION_LABELS = {
     pending: 'Pending',
@@ -57,9 +57,9 @@ export default function InspectionsIndex() {
     const { inspections = [], tab = 'pending', stats = {}, selectedDisposition = '' } = usePage().props;
 
     const tabs = [
-        { key: 'pending', label: 'Pending' },
-        { key: 'recent', label: 'Recent' },
-        { key: 'failed', label: 'Failed' },
+        { key: 'pending', label: __('Pending') },
+        { key: 'recent', label: __('Recent') },
+        { key: 'failed', label: __('Failed') },
     ];
 
     const tabHref = (key) => {
@@ -76,32 +76,32 @@ export default function InspectionsIndex() {
 
     return (
         <>
-            <Head title="Inbound Inspections" />
+            <Head title={__('Inbound Inspections')} />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Inbound Inspections</h1>
+                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Inbound Inspections')}</h1>
                         <p className="text-gray-600 dark:text-gray-400 mt-1">
-                            Receive material lots and verify them against an inspection plan.
+                            {__('Receive material lots and verify them against an inspection plan.')}
                         </p>
                     </div>
                     <Link href="/inspections/create" className="btn-touch btn-primary">
-                        + Start inspection
+                        + {__('Start inspection')}
                     </Link>
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                     <div className="card text-center">
-                        <div className="text-xs text-gray-500 uppercase">Pending</div>
+                        <div className="text-xs text-gray-500 uppercase">{__('Pending')}</div>
                         <div className={`text-2xl font-bold ${(stats.pending ?? 0) > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
                             {stats.pending ?? 0}
                         </div>
                     </div>
                     <div className="card text-center">
-                        <div className="text-xs text-gray-500 uppercase">Failed (30d)</div>
+                        <div className="text-xs text-gray-500 uppercase">{__('Failed (30d)')}</div>
                         <div className={`text-2xl font-bold ${(stats.recent_fail ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
                             {stats.recent_fail ?? 0}
                         </div>
@@ -127,41 +127,41 @@ export default function InspectionsIndex() {
 
                 {/* Disposition filter */}
                 <div className="flex items-center gap-2 mb-3 text-sm">
-                    <label htmlFor="disposition" className="text-gray-600 dark:text-gray-400">Disposition:</label>
+                    <label htmlFor="disposition" className="text-gray-600 dark:text-gray-400">{__('Disposition:')}</label>
                     <select
                         id="disposition"
                         value={selectedDisposition}
                         onChange={(e) => router.visit(dispHref(e.target.value), { preserveScroll: true })}
                         className="form-input w-48"
                     >
-                        <option value="">All</option>
+                        <option value="">{__('All')}</option>
                         {DISPOSITION_OPTIONS.map((d) => (
-                            <option key={d} value={d}>{DISPOSITION_LABELS[d] ?? d}</option>
+                            <option key={d} value={d}>{__(DISPOSITION_LABELS[d] ?? d)}</option>
                         ))}
                     </select>
                     {selectedDisposition && (
                         <a href={`/inspections?tab=${tab}`} className="text-xs text-gray-500 hover:underline">
-                            Clear
+                            {__('Clear')}
                         </a>
                     )}
                 </div>
 
                 {/* Table */}
                 {inspections.length === 0 ? (
-                    <div className="card text-center py-8 text-gray-500">No inspections in this tab.</div>
+                    <div className="card text-center py-8 text-gray-500">{__('No inspections in this tab.')}</div>
                 ) : (
                     <div className="card overflow-hidden">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                             <thead className="bg-gray-50 dark:bg-slate-700">
                                 <tr>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Started</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Lot</th>
-                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Inspector</th>
-                                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Disposition</th>
-                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{__('Started')}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{__('Material')}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{__('Lot')}</th>
+                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">{__('Qty')}</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{__('Inspector')}</th>
+                                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{__('Status')}</th>
+                                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">{__('Disposition')}</th>
+                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">{__('Actions')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -176,17 +176,17 @@ export default function InspectionsIndex() {
                                         <td className="px-3 py-2 text-gray-500">{insp.inspector?.name ?? '—'}</td>
                                         <td className="px-3 py-2 text-center">
                                             <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold capitalize ${statusBadge(insp.status)}`}>
-                                                {(insp.status ?? '').replace(/_/g, ' ')}
+                                                {__(insp.status)}
                                             </span>
                                             {insp.issue_id && (
                                                 <span className="block text-xs text-red-600 mt-1">
-                                                    NC #{insp.issue_id}
+                                                    {__('NC #:id', { id: insp.issue_id })}
                                                 </span>
                                             )}
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                             <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold capitalize ${dispositionBadge(insp.disposition ?? 'pending')}`}>
-                                                {(insp.disposition ?? 'pending').replace(/_/g, ' ')}
+                                                {__(insp.disposition ?? 'pending')}
                                             </span>
                                         </td>
                                         <td className="px-3 py-2 text-right">
@@ -194,7 +194,7 @@ export default function InspectionsIndex() {
                                                 href={`/inspections/${insp.id}`}
                                                 className="text-blue-600 hover:underline"
                                             >
-                                                {insp.status === 'pending' ? 'Perform' : 'Open'}
+                                                {insp.status === 'pending' ? __('Perform') : __('Open')}
                                             </Link>
                                         </td>
                                     </tr>

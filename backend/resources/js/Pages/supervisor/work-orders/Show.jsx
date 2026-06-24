@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import { WO_STATUS_STYLES } from '../../admin/work-orders/fields';
-import { formatDate, formatNumber } from '../../../lib/i18n';
+import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
@@ -41,22 +41,7 @@ function fmtDateTime(d) {
     return formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function timeAgo(d) {
-    if (!d) return '';
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return '';
-    const sec = Math.round((Date.now() - dt.getTime()) / 1000);
-    const abs = Math.abs(sec);
-    const past = sec >= 0;
-    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
-    for (const [name, s] of units) {
-        if (abs >= s) {
-            const n = Math.floor(abs / s);
-            return past ? `${n} ${name}${n > 1 ? 's' : ''} ago` : `in ${n} ${name}${n > 1 ? 's' : ''}`;
-        }
-    }
-    return past ? 'just now' : 'soon';
-}
+
 
 function BatchRow({ batch, processSnapshot }) {
     const [open, setOpen] = useState(batch.is_first ?? false);
@@ -79,7 +64,7 @@ function BatchRow({ batch, processSnapshot }) {
                 <div className="flex items-center gap-3">
                     <span className="font-semibold text-gray-700">Batch #{batch.batch_number}</span>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${batchStyle}`}>
-                        {batch.status.replace('_', ' ')}
+                        {__(batch.status.replace('_', ' '))}
                     </span>
                     <span className="text-sm text-gray-500">
                         {fmtQty(batch.produced_qty)} / {fmtQty(batch.target_qty)}
@@ -105,7 +90,7 @@ function BatchRow({ batch, processSnapshot }) {
                                     {step.step_number}
                                 </span>
                                 <span className="flex-1 text-gray-700">{step.name}</span>
-                                <span className="text-xs text-gray-400">{step.status.replace('_', ' ')}</span>
+                                <span className="text-xs text-gray-400">{__(step.status.replace('_', ' '))}</span>
                                 {step.duration_minutes != null ? (
                                     <span className={`text-xs font-medium ${overTime ? 'text-red-500' : 'text-green-600'}`}>
                                         {step.duration_minutes}min{estimated ? ` / est. ${estimated}min` : ''}
@@ -140,13 +125,13 @@ function DoneModal({ workOrder, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Complete Work Order</h3>
+                <h3 className="text-lg font-bold text-gray-800 mb-4">{__('Complete Work Order')}</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                    Enter the produced quantity for <strong>{workOrder.order_no}</strong>.
+                    {__('Enter the produced quantity for :order_no.', { order_no: workOrder.order_no })}
                 </p>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Produced Quantity</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{__('Produced Quantity')}</label>
                         <input
                             type="number"
                             step="0.01"
@@ -157,7 +142,7 @@ function DoneModal({ workOrder, onClose }) {
                             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
                         />
-                        <p className="text-xs text-gray-500 mt-1">Planned: {fmtQty(workOrder.planned_qty)}</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Planned:')} {fmtQty(workOrder.planned_qty)}</p>
                     </div>
                     <div className="flex justify-end gap-2">
                         <button
@@ -197,7 +182,7 @@ export default function SupervisorWorkOrderShow() {
 
     return (
         <>
-            <Head title={`Work Order ${workOrder.order_no}`} />
+            <Head title={__('Work Order :no', { no: workOrder.order_no })} />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
@@ -206,11 +191,11 @@ export default function SupervisorWorkOrderShow() {
                         <div className="flex items-center gap-3">
                             <h1 className="text-3xl font-bold text-gray-800 font-mono">{workOrder.order_no}</h1>
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${WO_STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-700'}`}>
-                                {status}
+                                {__(status)}
                             </span>
                         </div>
                         <p className="text-gray-500 mt-1">
-                            Created {timeAgo(workOrder.created_at)}
+                            {__('Created :time', { time: timeAgo(workOrder.created_at) })}
                             {workOrder.product_type_name ? ` · ${workOrder.product_type_name}` : ''}
                         </p>
                     </div>
@@ -304,35 +289,35 @@ export default function SupervisorWorkOrderShow() {
 
                         {/* Details */}
                         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-                            <h2 className="text-lg font-bold text-gray-800 mb-4">Details</h2>
+                            <h2 className="text-lg font-bold text-gray-800 mb-4">{__('Details')}</h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                                 <div>
-                                    <p className="text-gray-500">Order Number</p>
+                                    <p className="text-gray-500">{__('Order Number')}</p>
                                     <p className="font-mono font-semibold text-gray-800">{workOrder.order_no}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">Line</p>
+                                    <p className="text-gray-500">{__('Line')}</p>
                                     <p className="font-medium text-gray-800">{workOrder.line_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">Product Type</p>
+                                    <p className="text-gray-500">{__('Product Type')}</p>
                                     <p className="font-medium text-gray-800">{workOrder.product_type_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">Planned Qty</p>
+                                    <p className="text-gray-500">{__('Planned Qty')}</p>
                                     <p className="font-medium text-gray-800">{fmtQty(workOrder.planned_qty)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">Produced Qty</p>
+                                    <p className="text-gray-500">{__('Produced Qty')}</p>
                                     <p className="font-medium text-gray-800">{fmtQty(workOrder.produced_qty)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">Priority</p>
+                                    <p className="text-gray-500">{__('Priority')}</p>
                                     <p className="font-medium text-gray-800">{workOrder.priority ?? '—'}</p>
                                 </div>
                                 {workOrder.due_date && (
                                     <div>
-                                        <p className="text-gray-500">Due Date</p>
+                                        <p className="text-gray-500">{__('Due Date')}</p>
                                         <p className={`font-medium ${isDuePast ? 'text-red-600' : 'text-gray-800'}`}>
                                             {fmtDate(workOrder.due_date)}
                                         </p>
@@ -340,7 +325,7 @@ export default function SupervisorWorkOrderShow() {
                                 )}
                                 {workOrder.description && (
                                     <div className="col-span-2 md:col-span-3">
-                                        <p className="text-gray-500">Description</p>
+                                        <p className="text-gray-500">{__('Description')}</p>
                                         <p className="font-medium text-gray-800">{workOrder.description}</p>
                                     </div>
                                 )}
@@ -350,11 +335,11 @@ export default function SupervisorWorkOrderShow() {
                         {/* Batches */}
                         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
                             <h2 className="text-lg font-bold text-gray-800 mb-4">
-                                Batches{' '}
+                                {__('Batches')}{' '}
                                 <span className="text-sm font-normal text-gray-400">({workOrder.batches.length})</span>
                             </h2>
                             {workOrder.batches.length === 0 ? (
-                                <p className="text-sm text-gray-400 py-4 text-center">No batches yet.</p>
+                                <p className="text-sm text-gray-400 py-4 text-center">{__('No batches yet.')}</p>
                             ) : (
                                 <div className="space-y-3">
                                     {workOrder.batches.map((batch, i) => (
@@ -374,10 +359,10 @@ export default function SupervisorWorkOrderShow() {
 
                         {/* Progress */}
                         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-                            <h3 className="text-base font-bold text-gray-800 mb-3">Progress</h3>
+                            <h3 className="text-base font-bold text-gray-800 mb-3">{__('Progress')}</h3>
                             <div className="mb-3">
                                 <div className="flex justify-between text-sm text-gray-600 mb-1">
-                                    <span>Completion</span>
+                                    <span>{__('Completion')}</span>
                                     <span>{pct.toFixed(1)}%</span>
                                 </div>
                                 <div className="w-full bg-gray-200 rounded-full h-3">
@@ -389,15 +374,15 @@ export default function SupervisorWorkOrderShow() {
                             </div>
                             <div className="space-y-1 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-gray-500">Planned:</span>
+                                    <span className="text-gray-500">{__('Planned:')}</span>
                                     <span className="font-medium">{fmtQty(workOrder.planned_qty)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-gray-500">Produced:</span>
+                                    <span className="text-gray-500">{__('Produced:')}</span>
                                     <span className="font-medium">{fmtQty(workOrder.produced_qty)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-gray-500">Batches:</span>
+                                    <span className="text-gray-500">{__('Batches:')}</span>
                                     <span className="font-medium">{workOrder.batches.length}</span>
                                 </div>
                             </div>
@@ -406,16 +391,16 @@ export default function SupervisorWorkOrderShow() {
                         {/* Issues */}
                         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
                             <div className="flex justify-between items-center mb-3">
-                                <h3 className="text-base font-bold text-gray-800">Issues</h3>
+                                <h3 className="text-base font-bold text-gray-800">{__('Issues')}</h3>
                                 <Link
                                     href="/supervisor/issues"
                                     className="text-xs text-blue-600 hover:underline"
                                 >
-                                    Manage →
+                                    {__('Manage →')}
                                 </Link>
                             </div>
                             {workOrder.issues.length === 0 ? (
-                                <p className="text-sm text-gray-400 text-center py-3">No issues.</p>
+                                <p className="text-sm text-gray-400 text-center py-3">{__('No issues.')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {workOrder.issues.map((issue) => {
@@ -429,7 +414,7 @@ export default function SupervisorWorkOrderShow() {
                                                 <div className="flex justify-between">
                                                     <span className="font-medium text-gray-800">{issue.issue_type_name}</span>
                                                     <span className={`px-1.5 py-0.5 rounded text-xs ${issueStatusStyle}`}>
-                                                        {issue.status}
+                                                        {__(issue.status)}
                                                     </span>
                                                 </div>
                                                 <p className="text-gray-600 mt-1 truncate">{issue.title}</p>

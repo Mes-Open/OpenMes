@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatNumber } from '../../../lib/i18n';
+import { formatNumber, __ } from '../../../lib/i18n';
 
 const LINE_PALETTE = ['#2563eb', '#db2777', '#0891b2', '#16a34a', '#ea580c', '#7c3aed'];
 
@@ -31,13 +31,13 @@ export default function OeeIndex() {
 
     return (
         <>
-            <Head title="OEE Report" />
+            <Head title={__('OEE Report')} />
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-start">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">OEE Report</h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Overall Equipment Effectiveness — Availability × Performance × Quality</p>
+                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('OEE Report')}</h1>
+                        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{__('Overall Equipment Effectiveness — Availability × Performance × Quality')}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <a
@@ -49,7 +49,7 @@ export default function OeeIndex() {
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                             </svg>
-                            Print
+                            {__('Print')}
                         </a>
                         <a
                             href={`/admin/oee/print/pdf?${new URLSearchParams(Object.fromEntries(Object.entries({ line_id: lineId, date_from: dateFrom, date_to: dateTo }).filter(([, v]) => v != null && v !== '')))}`}
@@ -58,7 +58,7 @@ export default function OeeIndex() {
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                             </svg>
-                            Download PDF
+                            {__('Download PDF')}
                         </a>
                     </div>
                 </div>
@@ -71,7 +71,7 @@ export default function OeeIndex() {
                             onChange={(e) => apply({ line_id: e.target.value })}
                             className="form-input py-1.5 text-sm min-w-[160px]"
                         >
-                            <option value="">All Lines</option>
+                            <option value="">{__('All Lines')}</option>
                             {lines.map((l) => (
                                 <option key={l.id} value={l.id}>{l.name}</option>
                             ))}
@@ -118,9 +118,9 @@ export default function OeeIndex() {
                                         <MetricMini label="Quality" value={fmt1(s.avg_quality)} />
                                     </div>
                                     <div className="w-full mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-around text-xs text-gray-500">
-                                        <span>Produced: {formatNumber(Number(s.total_produced))}</span>
-                                        <span>Scrap: {formatNumber(Number(s.total_scrap))}</span>
-                                        <span>Downtime: {s.total_downtime}min</span>
+                                        <span>{__('Produced')}: {formatNumber(Number(s.total_produced))}</span>
+                                        <span>{__('Scrap')}: {formatNumber(Number(s.total_scrap))}</span>
+                                        <span>{__('Downtime')}: {__(':minutes min', { minutes: s.total_downtime })}</span>
                                     </div>
                                 </a>
                             );
@@ -132,16 +132,16 @@ export default function OeeIndex() {
                 {trend.length > 0 && (
                     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5">
                         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-                            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">OEE Trend</h2>
+                            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">{__('OEE Trend')}</h2>
                             <div className="flex gap-2 flex-wrap">
                                 {coloredByLine.length > 1 && (
                                     <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-                                        <ModeBtn active={mode === 'combined'} onClick={() => setMode('combined')}>Combined</ModeBtn>
-                                        <ModeBtn active={mode === 'per_line'} onClick={() => setMode('per_line')}>Per line</ModeBtn>
+                                        <ModeBtn active={mode === 'combined'} onClick={() => setMode('combined')}>{__('Combined')}</ModeBtn>
+                                        <ModeBtn active={mode === 'per_line'} onClick={() => setMode('per_line')}>{__('Per line')}</ModeBtn>
                                     </div>
                                 )}
                                 <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-                                    {[['day', 'Daily'], ['week', 'Weekly'], ['month', 'Monthly']].map(([key, label]) => (
+                                    {[['day', __('Daily')], ['week', __('Weekly')], ['month', __('Monthly')]].map(([key, label]) => (
                                         <button
                                             key={key}
                                             onClick={() => apply({ granularity: key })}
@@ -205,7 +205,7 @@ export default function OeeIndex() {
                         <div className="mt-2 flex items-center gap-4 text-xs text-gray-500 flex-wrap">
                             {mode === 'combined' ? (
                                 <>
-                                    <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded inline-block" /> ≥ 85% (World-class)</span>
+                                    <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded inline-block" /> {__('≥ 85% (World-class)')}</span>
                                     <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-500 rounded inline-block" /> 65–84%</span>
                                     <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded inline-block" /> &lt; 65%</span>
                                 </>
@@ -224,13 +224,13 @@ export default function OeeIndex() {
                 {/* Detail Table */}
                 {records.length > 0 ? (
                     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-5 overflow-hidden">
-                        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Daily Records</h2>
+                        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">{__('Daily Records')}</h2>
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                                 <thead className="bg-gray-50 dark:bg-slate-700">
                                     <tr>
                                         {['Date', 'Line', 'Shift', 'A%', 'P%', 'Q%', 'OEE%', 'Produced', 'Scrap', 'Downtime'].map((h) => (
-                                            <th key={h} className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase ${['A%', 'P%', 'Q%', 'OEE%', 'Produced', 'Scrap', 'Downtime'].includes(h) ? 'text-right' : 'text-left'}`}>{h}</th>
+                                            <th key={h} className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase ${['A%', 'P%', 'Q%', 'OEE%', 'Produced', 'Scrap', 'Downtime'].includes(h) ? 'text-right' : 'text-left'}`}>{__(h)}</th>
                                         ))}
                                     </tr>
                                 </thead>
@@ -241,14 +241,14 @@ export default function OeeIndex() {
                                             <tr key={i}>
                                                 <td className="px-3 py-2 font-mono">{r.record_date}</td>
                                                 <td className="px-3 py-2 font-medium">{r.line?.name}</td>
-                                                <td className="px-3 py-2 text-gray-500">{r.shift?.name ?? 'All'}</td>
+                                                <td className="px-3 py-2 text-gray-500">{r.shift?.name ?? __('All')}</td>
                                                 <td className="px-3 py-2 text-right">{r.availability_pct != null ? Number(r.availability_pct).toFixed(1) + '%' : '—'}</td>
                                                 <td className="px-3 py-2 text-right">{r.performance_pct != null ? Number(r.performance_pct).toFixed(1) + '%' : '—'}</td>
                                                 <td className="px-3 py-2 text-right">{r.quality_pct != null ? Number(r.quality_pct).toFixed(1) + '%' : '—'}</td>
                                                 <td className={`px-3 py-2 text-right font-bold ${band.text}`}>{r.oee_pct != null ? Number(r.oee_pct).toFixed(1) + '%' : '—'}</td>
                                                 <td className="px-3 py-2 text-right font-mono">{formatNumber(Number(r.total_produced))}</td>
                                                 <td className="px-3 py-2 text-right font-mono text-red-600">{r.scrap_qty > 0 ? formatNumber(Number(r.scrap_qty)) : '—'}</td>
-                                                <td className="px-3 py-2 text-right font-mono">{r.downtime_minutes}min</td>
+                                                <td className="px-3 py-2 text-right font-mono">{__(':minutes min', { minutes: r.downtime_minutes })}</td>
                                             </tr>
                                         );
                                     })}
@@ -258,8 +258,8 @@ export default function OeeIndex() {
                     </div>
                 ) : (
                     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-12 text-center">
-                        <p className="text-gray-500 text-lg mb-2">No OEE data available</p>
-                        <p className="text-sm text-gray-400">OEE data will appear once production batches are completed and downtimes are reported.</p>
+                        <p className="text-gray-500 text-lg mb-2">{__('No OEE data available')}</p>
+                        <p className="text-sm text-gray-400">{__('OEE data will appear once production batches are completed and downtimes are reported.')}</p>
                     </div>
                 )}
             </div>
@@ -274,7 +274,7 @@ OeeIndex.layout = (page) => <AppLayout>{page}</AppLayout>;
 function Filter({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{__(label)}</label>
             {children}
         </div>
     );
@@ -295,7 +295,7 @@ function ModeBtn({ active, onClick, children }) {
 function MetricMini({ label, value }) {
     return (
         <div>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide leading-tight">{label}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide leading-tight">{__(label)}</p>
             <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{value}</p>
         </div>
     );

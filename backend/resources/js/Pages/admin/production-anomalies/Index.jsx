@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatNumber } from '../../../lib/i18n';
+import { formatNumber, __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
     pending:   'bg-yellow-100 text-yellow-800',
@@ -46,25 +46,25 @@ export default function ProductionAnomaliesIndex() {
     }
 
     function handleDelete(id) {
-        if (confirm('Delete this anomaly record?')) {
+        if (confirm(__('Delete this anomaly record?'))) {
             router.delete(`/admin/production-anomalies/${id}`, { preserveScroll: true });
         }
     }
 
     return (
         <>
-            <Head title="Production Anomalies" />
+            <Head title={__('Production Anomalies')} />
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800">Production Anomalies</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">{__('Production Anomalies')}</h1>
                     <Link
-                        href="/admin/production-anomalies/create"
-                        className="btn-touch btn-primary"
+                         href="/admin/production-anomalies/create"
+                         className="btn-touch btn-primary"
                     >
                         <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                         </svg>
-                        Record Anomaly
+                        {__('Record Anomaly')}
                     </Link>
                 </div>
 
@@ -72,34 +72,34 @@ export default function ProductionAnomaliesIndex() {
                 <div className="card mb-4">
                     <form onSubmit={applyFilter} className="flex flex-wrap gap-3 items-end">
                         <div>
-                            <label className="form-label">Work Order</label>
+                            <label className="form-label">{__('Work Order')}</label>
                             <select
                                 value={workOrderId}
                                 onChange={(e) => setWorkOrderId(e.target.value)}
                                 className="form-input"
                             >
-                                <option value="">All work orders</option>
+                                <option value="">{__('All work orders')}</option>
                                 {workOrders.map((wo) => (
                                     <option key={wo.id} value={wo.id}>{wo.order_no}</option>
                                 ))}
                             </select>
                         </div>
                         <div>
-                            <label className="form-label">Status</label>
+                            <label className="form-label">{__('Status')}</label>
                             <select
                                 value={status}
                                 onChange={(e) => setStatus(e.target.value)}
                                 className="form-input"
                             >
-                                <option value="">All statuses</option>
-                                <option value="pending">Pending</option>
-                                <option value="processed">Processed</option>
-                                <option value="dismissed">Dismissed</option>
+                                <option value="">{__('All statuses')}</option>
+                                <option value="pending">{__('Pending')}</option>
+                                <option value="processed">{__('Processed')}</option>
+                                <option value="dismissed">{__('Dismissed')}</option>
                             </select>
                         </div>
                         <div className="flex gap-2">
-                            <button type="submit" className="btn-touch btn-primary">Filter</button>
-                            <button type="button" onClick={resetFilter} className="btn-touch btn-secondary">Reset</button>
+                            <button type="submit" className="btn-touch btn-primary">{__('Filter')}</button>
+                            <button type="button" onClick={resetFilter} className="btn-touch btn-secondary">{__('Reset')}</button>
                         </div>
                     </form>
                 </div>
@@ -109,14 +109,14 @@ export default function ProductionAnomaliesIndex() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="border-b border-gray-200">
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Work Order</th>
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Product</th>
-                                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Planned Qty</th>
-                                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Actual Qty</th>
-                                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Deviation</th>
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Reason</th>
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">{__('Work Order')}</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">{__('Product')}</th>
+                                    <th className="text-right py-3 px-4 font-semibold text-gray-700">{__('Planned Qty')}</th>
+                                    <th className="text-right py-3 px-4 font-semibold text-gray-700">{__('Actual Qty')}</th>
+                                    <th className="text-right py-3 px-4 font-semibold text-gray-700">{__('Deviation')}</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">{__('Reason')}</th>
+                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">{__('Status')}</th>
+                                    <th className="text-right py-3 px-4 font-semibold text-gray-700">{__('Actions')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -126,9 +126,9 @@ export default function ProductionAnomaliesIndex() {
                                             <svg className="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                             </svg>
-                                            <p className="font-medium">No anomalies recorded</p>
+                                            <p className="font-medium">{__('No anomalies recorded')}</p>
                                             <Link href="/admin/production-anomalies/create" className="inline-block mt-3 btn-touch btn-primary">
-                                                Record Anomaly
+                                                {__('Record Anomaly')}
                                             </Link>
                                         </td>
                                     </tr>
@@ -158,7 +158,12 @@ export default function ProductionAnomaliesIndex() {
                                             <td className="py-3 px-4 text-gray-600">{anomaly.anomaly_reason?.name ?? '—'}</td>
                                             <td className="py-3 px-4">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[anomaly.status] ?? STATUS_STYLES.dismissed}`}>
-                                                    {anomaly.status ? anomaly.status.charAt(0).toUpperCase() + anomaly.status.slice(1) : '—'}
+                                                    {anomaly.status ? {
+                                                        pending: __('Pending'),
+                                                        processed: __('Processed'),
+                                                        dismissed: __('Dismissed'),
+                                                        draft: __('Draft'),
+                                                    }[anomaly.status] ?? anomaly.status : '—'}
                                                 </span>
                                             </td>
                                             <td className="py-3 px-4">
@@ -166,7 +171,7 @@ export default function ProductionAnomaliesIndex() {
                                                     {anomaly.status === 'pending' && (
                                                         <button
                                                             onClick={() => handleProcess(anomaly.id)}
-                                                            title="Process"
+                                                            title={__('Process')}
                                                             className="text-green-600 hover:text-green-800 p-1"
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,7 +181,7 @@ export default function ProductionAnomaliesIndex() {
                                                     )}
                                                     <button
                                                         onClick={() => handleDelete(anomaly.id)}
-                                                        title="Delete"
+                                                        title={__('Delete')}
                                                         className="text-red-600 hover:text-red-800 p-1"
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

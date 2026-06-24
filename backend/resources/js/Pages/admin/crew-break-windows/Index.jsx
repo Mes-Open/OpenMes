@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { formatDays } from './fields';
+import { __ } from '../../../lib/i18n';
 
 export default function CrewBreakWindowsIndex() {
     const { crewNames = {} } = usePage().props;
@@ -11,28 +12,28 @@ export default function CrewBreakWindowsIndex() {
     const columns = [
         {
             key: 'crew',
-            label: 'Crew',
+            label: __('Crew'),
             className: 'font-medium text-gray-800',
             render: (r) => crewNames[r.crew_id] ?? `#${r.crew_id}`,
         },
-        { key: 'name', label: 'Name' },
+        { key: 'name', label: __('Name') },
         {
             key: 'time',
-            label: 'Time',
+            label: __('Time'),
             render: (r) => `${time(r.start_time)}–${time(r.end_time)}`,
         },
         {
             key: 'days',
-            label: 'Days',
+            label: __('Days'),
             className: 'text-gray-600',
             render: (r) => formatDays(r.days_of_week ?? []),
         },
         {
             key: 'is_active',
-            label: 'Status',
+            label: __('Status'),
             render: (r) => (
                 <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {r.is_active ? 'Active' : 'Inactive'}
+                    {r.is_active ? __('Active') : __('Inactive')}
                 </span>
             ),
         },
@@ -45,10 +46,10 @@ export default function CrewBreakWindowsIndex() {
             icon: 'delete',
             variant: 'danger',
             onClick: () => {
-                if (confirm('Delete this break window?')) {
+                if (confirm(__('Delete this break window?'))) {
                     router.delete(`/admin/crew-break-windows/${r.id}`, {
                         preserveScroll: true,
-                        onError: (e) => alert(e?.message || 'Failed to delete.'),
+                        onError: (e) => alert(e?.message || __('Failed to delete.')),
                     });
                 }
             },
@@ -57,16 +58,16 @@ export default function CrewBreakWindowsIndex() {
 
     return (
         <>
-            <Head title="Crew Break Windows" />
+            <Head title={__('Crew Break Windows')} />
             <ResourceTable
                 shape="crew_break_windows"
-                title="Crew Break Windows"
+                title={__('Crew Break Windows')}
                 createHref="/admin/crew-break-windows/create"
-                createLabel="+ New Break Window"
+                createLabel={__('+ New Break Window')}
                 columns={columns}
                 orderBy="start_time"
                 actions={actions}
-                emptyText="No break windows defined yet."
+                emptyText={__('No break windows defined yet.')}
             />
         </>
     );

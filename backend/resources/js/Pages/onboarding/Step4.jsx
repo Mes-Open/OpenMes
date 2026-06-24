@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Onboarding Step 4 — Create First Work Order.
@@ -20,17 +21,17 @@ export default function Step4() {
 
     return (
         <>
-            <Head title="Step 4 — Work Order" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Create First Work Order</h2>
+            <Head title={__('Step 4 — Work Order')} />
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">{__('Create First Work Order')}</h2>
             <p className="text-gray-600 mb-6">
-                A work order represents a production batch to manufacture. Create your first one.
+                {__('A work order represents a production batch to manufacture. Create your first one.')}
             </p>
 
             <form onSubmit={submit}>
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="order_no" className="block text-sm font-medium text-gray-700 mb-1">
-                            Order Number <span className="text-red-500">*</span>
+                            {__('Order Number')} <span className="text-red-500">*</span>
                         </label>
                         <input
                             id="order_no"
@@ -45,7 +46,7 @@ export default function Step4() {
 
                     <div>
                         <label htmlFor="planned_qty" className="block text-sm font-medium text-gray-700 mb-1">
-                            Planned Quantity <span className="text-red-500">*</span>
+                            {__('Planned Quantity')} <span className="text-red-500">*</span>
                         </label>
                         <input
                             id="planned_qty"
@@ -62,14 +63,14 @@ export default function Step4() {
 
                     <div>
                         <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                            Description
+                            {__('Description')}
                         </label>
                         <textarea
                             id="description"
                             rows={2}
                             value={data.description}
                             onChange={(e) => setData('description', e.target.value)}
-                            placeholder="Optional notes"
+                            placeholder={__('Optional notes')}
                             className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                         />
                     </div>
@@ -84,7 +85,7 @@ export default function Step4() {
                         disabled={processing}
                         className="btn-touch btn-primary disabled:opacity-50"
                     >
-                        {processing ? 'Saving…' : 'Complete Setup'}
+                        {processing ? __('Saving…') : __('Complete Setup')}
                     </button>
                 </div>
             </form>

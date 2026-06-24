@@ -1,22 +1,25 @@
-// ISO weekdays: 1 = Mon … 7 = Sun (matches the backend days_of_week).
-export const DAY_OPTIONS = [
-    { value: 1, label: 'Mon' },
-    { value: 2, label: 'Tue' },
-    { value: 3, label: 'Wed' },
-    { value: 4, label: 'Thu' },
-    { value: 5, label: 'Fri' },
-    { value: 6, label: 'Sat' },
-    { value: 7, label: 'Sun' },
-];
+import { __ } from '../../../lib/i18n';
 
-const DAY_LABELS = Object.fromEntries(DAY_OPTIONS.map((d) => [d.value, d.label]));
+// ISO weekdays: 1 = Mon … 7 = Sun (matches the backend days_of_week).
+export function getDayOptions() {
+    return [
+        { value: 1, label: __('Mon') },
+        { value: 2, label: __('Tue') },
+        { value: 3, label: __('Wed') },
+        { value: 4, label: __('Thu') },
+        { value: 5, label: __('Fri') },
+        { value: 6, label: __('Sat') },
+        { value: 7, label: __('Sun') },
+    ];
+}
 
 /** Render a days_of_week array as e.g. "Mon, Tue, Wed". */
 export function formatDays(days = []) {
+    const dayLabels = Object.fromEntries(getDayOptions().map((d) => [d.value, d.label]));
     return [...days]
         .map(Number)
         .sort((a, b) => a - b)
-        .map((d) => DAY_LABELS[d] ?? d)
+        .map((d) => dayLabels[d] ?? d)
         .join(', ');
 }
 
@@ -24,25 +27,25 @@ export function crewBreakWindowFields(crews = []) {
     return [
         {
             name: 'crew_id',
-            label: 'Crew',
+            label: __('Crew'),
             type: 'select',
             required: true,
             options: [
-                { value: '', label: '— Select crew (required) —' },
+                { value: '', label: __('— Select crew (required) —') },
                 ...crews.map((c) => ({ value: String(c.id), label: c.name })),
             ],
         },
-        { name: 'name', label: 'Name', type: 'text', required: true, placeholder: 'e.g. Lunch' },
-        { name: 'start_time', label: 'Start time', type: 'time', required: true },
-        { name: 'end_time', label: 'End time', type: 'time', required: true },
+        { name: 'name', label: __('Name'), type: 'text', required: true, placeholder: __('e.g. Lunch') },
+        { name: 'start_time', label: __('Start time'), type: 'time', required: true },
+        { name: 'end_time', label: __('End time'), type: 'time', required: true },
         {
             name: 'days_of_week',
-            label: 'Days',
+            label: __('Days'),
             type: 'checkbox-group',
             required: true,
-            options: DAY_OPTIONS,
-            help: 'Weekdays this break applies on.',
+            options: getDayOptions(),
+            help: __('Weekdays this break applies on.'),
         },
-        { name: 'is_active', label: 'Active', type: 'checkbox' },
+        { name: 'is_active', label: __('Active'), type: 'checkbox' },
     ];
 }

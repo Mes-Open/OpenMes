@@ -107,20 +107,20 @@ export default function DashboardWidgetsIndex() {
                             {/* Info */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">{widget.name}</h3>
+                                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">{__(widget.name)}</h3>
                                     <span
                                         className={`px-2 py-0.5 rounded-full text-xs ${widget.source === 'builtin'
                                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                                             : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'}`}
                                     >
-                                        {widget.source === 'builtin' ? __('Built-in') : widget.module_name}
+                                        {widget.source === 'builtin' ? __('Built-in') : __(widget.module_name)}
                                     </span>
                                     <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                                        {widget.zone}
+                                        {__(widget.zone)}
                                     </span>
                                 </div>
                                 {widget.description && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{widget.description}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{__(widget.description)}</p>
                                 )}
                             </div>
 
