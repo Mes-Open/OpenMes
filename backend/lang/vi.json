@@ -3619,6 +3619,7 @@
     "Redirecting to the homepage in": "Tự động chuyển hướng về trang chủ sau",
     "Redirecting to the login page in": "Tự động chuyển hướng về trang đăng nhập sau",
     "Are you sure you want to restore the system from this backup? Current data will be overwritten.": "Bạn có chắc chắn muốn khôi phục hệ thống từ bản sao lưu này? Dữ liệu hiện tại sẽ bị ghi đè.",
+    "Are you sure you want to restore the system from this uploaded backup? Current data will be overwritten.": "Bạn có chắc chắn muốn khôi phục hệ thống từ bản sao lưu được tải lên này? Dữ liệu hiện tại sẽ bị ghi đè.",
     "seconds...": "giây...",
     "Redirecting...": "Đang chuyển hướng...",
     "Resetting the system": "Đang thiết lập lại hệ thống",

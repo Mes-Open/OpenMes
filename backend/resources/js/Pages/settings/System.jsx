@@ -187,6 +187,77 @@ export default function System() {
         }
     };
 
+    const handleUploadRestoreSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (!confirm(__('Are you sure you want to restore the system from this uploaded backup? Current data will be overwritten.'))) {
+            return;
+        }
+
+        const fileInput = e.target.elements.backup_file;
+        if (!fileInput || !fileInput.files[0]) {
+            alert(__('Please select a backup file.'));
+            return;
+        }
+
+        setIsRestoring(true);
+        setStatusMessage(__('Uploading backup file...'));
+
+        try {
+            const formData = new FormData();
+            formData.append('backup_file', fileInput.files[0]);
+
+            const uploadResponse = await fetch('/settings/backups/upload', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf_token,
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+
+            const uploadResult = await uploadResponse.json();
+            if (!uploadResponse.ok || !uploadResult.success) {
+                setIsRestoring(false);
+                alert(uploadResult.message || __('An error occurred while uploading the backup file.'));
+                return;
+            }
+
+            const filename = uploadResult.filename;
+            setStatusMessage(__('Restoring system from backup... Please wait...'));
+
+            const restoreResponse = await fetch(`/settings/backups/restore/${filename}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf_token,
+                    'Accept': 'application/json',
+                }
+            });
+
+            const restoreResult = await restoreResponse.json();
+            if (restoreResponse.ok && restoreResult.success) {
+                let count = 5;
+                setRestoreCountdown(count);
+                setStatusMessage(__('System restored successfully.'));
+                const interval = setInterval(() => {
+                    count -= 1;
+                    setRestoreCountdown(count);
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        window.location.href = '/';
+                    }
+                }, 1000);
+            } else {
+                setIsRestoring(false);
+                alert(restoreResult.message || __('An error occurred while restoring the system.'));
+            }
+        } catch (err) {
+            setIsRestoring(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
+
     return (
         <div className="max-w-3xl mx-auto">
             <Head title={__('System Settings')} />
@@ -834,11 +905,10 @@ export default function System() {
                             </form>
                         </div>
 
-                        {/* Upload Backup */}
+                        {/* Upload Backup & Restore */}
                         <div className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
                             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">{__('Upload Backup File')}</h3>
-                            <form method="POST" action="/settings/backups/upload" encType="multipart/form-data" className="flex flex-wrap items-center gap-3">
-                                <input type="hidden" name="_token" value={csrf_token} />
+                            <form onSubmit={handleUploadRestoreSubmit} className="flex flex-wrap items-center gap-3">
                                 <input
                                     type="file"
                                     name="backup_file"
@@ -846,8 +916,8 @@ export default function System() {
                                     required
                                     className="text-sm text-gray-600 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 dark:file:bg-gray-700 file:text-gray-700 dark:file:text-gray-200 hover:file:bg-gray-200 dark:hover:file:bg-gray-600"
                                 />
-                                <button type="submit" className="btn-touch bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 text-sm">
-                                    {__('Upload')}
+                                <button type="submit" className="btn-touch bg-amber-600 text-white hover:bg-amber-700 px-4 py-2 text-sm font-medium">
+                                    {__('Restore')}
                                 </button>
                             </form>
                         </div>

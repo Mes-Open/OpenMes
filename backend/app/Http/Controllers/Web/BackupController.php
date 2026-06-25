@@ -82,15 +82,30 @@ class BackupController extends Controller
             $file->move($backupsDir, $safeName);
 
             AuditLog::create([
-                'user_id' => $request->user()->id,
+                'user_id' => $request->user()?->id,
                 'action' => 'backup_upload',
                 'after_state' => ['filename' => $safeName],
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
 
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'filename' => $safeName,
+                    'message' => __('Backup file uploaded successfully.')
+                ]);
+            }
+
             return redirect()->route('settings.system')->with('success', __('Backup file uploaded successfully.'));
         } catch (\Exception $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => __('Error uploading backup: ') . $e->getMessage()
+                ], 500);
+            }
+
             return redirect()->route('settings.system')->with('error', __('Error uploading backup: ') . $e->getMessage());
         }
     }
