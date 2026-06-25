@@ -139,7 +139,7 @@ class SettingsController extends Controller
         $backups = [];
         $backupsDir = storage_path('app/backups');
         if (is_dir($backupsDir)) {
-            $backups = collect(glob($backupsDir . '/backup_*.zip'))
+            $backups = collect(glob($backupsDir . '/*.zip'))
                 ->map(function ($file) {
                     return [
                         'filename' => basename($file),

@@ -3476,5 +3476,19 @@
     "Restore error: ": "Restore error: ",
     "System has been reset to its initial state. Please log in again using the default Admin account.": "System has been reset to its initial state. Please log in again using the default Admin account.",
     "System reset error: ": "System reset error: ",
-    "System restored successfully.": "System restored successfully."
+    "System restored successfully.": "System restored successfully.",
+    "Resetting the system... Please wait...": "Resetting the system... Please wait...",
+    "System reset successfully.": "System reset successfully.",
+    "An error occurred while resetting the system.": "An error occurred while resetting the system.",
+    "Restoring system from backup... Please wait...": "Restoring system from backup... Please wait...",
+    "An error occurred while restoring the system.": "An error occurred while restoring the system.",
+    "Connection error: ": "Connection error: ",
+    "Redirecting to the homepage in": "Redirecting to the homepage in",
+    "Redirecting to the login page in": "Redirecting to the login page in",
+    "Are you sure you want to restore the system from this backup? Current data will be overwritten.": "Are you sure you want to restore the system from this backup? Current data will be overwritten.",
+    "Are you sure you want to restore the system from this uploaded backup? Current data will be overwritten.": "Are you sure you want to restore the system from this uploaded backup? Current data will be overwritten.",
+    "seconds...": "seconds...",
+    "Redirecting...": "Redirecting...",
+    "Resetting the system": "Resetting the system",
+    "Restoring data": "Restoring data"
 }

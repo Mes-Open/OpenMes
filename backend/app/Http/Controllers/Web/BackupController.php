@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UploadBackupRequest;
+use App\Http\Requests\ResetSystemRequest;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -31,6 +33,8 @@ class BackupController extends Controller
 
             AuditLog::create([
                 'user_id' => $request->user()->id,
+                'entity_type' => null,
+                'entity_id' => null,
                 'action' => 'backup_create_full',
                 'after_state' => ['filename' => $filename],
                 'ip_address' => $request->ip(),
@@ -53,6 +57,8 @@ class BackupController extends Controller
 
             AuditLog::create([
                 'user_id' => $request->user()->id,
+                'entity_type' => null,
+                'entity_id' => null,
                 'action' => 'backup_create_data',
                 'after_state' => ['filename' => $filename],
                 'ip_address' => $request->ip(),
@@ -68,12 +74,8 @@ class BackupController extends Controller
     /**
      * Upload a backup file.
      */
-    public function uploadBackup(Request $request)
+    public function uploadBackup(UploadBackupRequest $request)
     {
-        $request->validate([
-            'backup_file' => 'required|file|mimes:zip|max:102400', // max 100MB
-        ]);
-
         try {
             $file = $request->file('backup_file');
             $backupsDir = $this->getBackupsDir();
@@ -83,6 +85,8 @@ class BackupController extends Controller
 
             AuditLog::create([
                 'user_id' => $request->user()?->id,
+                'entity_type' => null,
+                'entity_id' => null,
                 'action' => 'backup_upload',
                 'after_state' => ['filename' => $safeName],
                 'ip_address' => $request->ip(),
@@ -149,6 +153,8 @@ class BackupController extends Controller
 
         AuditLog::create([
             'user_id' => $request->user()->id,
+            'entity_type' => null,
+            'entity_id' => null,
             'action' => 'backup_delete',
             'before_state' => ['filename' => $filename],
             'ip_address' => $request->ip(),
@@ -182,10 +188,7 @@ class BackupController extends Controller
         $ipAddress = $request->ip();
         $userAgent = $request->userAgent();
 
-        // Log out the user and invalidate session first
-        auth()->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        // Session will be invalidated after restore succeeds
 
         try {
             // Extract the Zip
@@ -316,9 +319,16 @@ class BackupController extends Controller
 
 
 
+            // Log out the user and invalidate session after restore succeeds
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
             // Log activity
             AuditLog::create([
                 'user_id' => $userId,
+                'entity_type' => null,
+                'entity_id' => null,
                 'action' => 'backup_restore',
                 'after_state' => ['filename' => $filename],
                 'ip_address' => $ipAddress,
@@ -351,16 +361,23 @@ class BackupController extends Controller
     /**
      * Reset the system (Wipe + Seed + Re-create Admin + Delete Uploads).
      */
-    public function resetSystem(Request $request)
+    public function resetSystem(ResetSystemRequest $request)
     {
-        $request->validate([
-            'confirm_text' => 'required|string|in:RESET',
-        ]);
-
         try {
             // Capture request details for logging later before session is invalidated
             $ipAddress = $request->ip();
             $userAgent = $request->userAgent();
+            $initiatingUserId = $request->user()?->id;
+            $initiatingUsername = $request->user()?->username;
+
+            // Check if admin environment variables are set explicitly
+            $adminUsername = env('ADMIN_USERNAME');
+            $adminEmail = env('ADMIN_EMAIL');
+            $adminPassword = env('ADMIN_PASSWORD');
+
+            if (empty($adminUsername) || empty($adminEmail) || empty($adminPassword)) {
+                throw new \Exception(__('Admin creation failed: ADMIN_USERNAME, ADMIN_EMAIL, or ADMIN_PASSWORD is not configured.'));
+            }
 
             // 1. Log out the user and invalidate session first to prevent session middleware querying the database at the end of the request
             auth()->logout();
@@ -379,12 +396,12 @@ class BackupController extends Controller
             DB::purge();
             DB::reconnect();
 
-            // 5. Recreate admin user
+            // 5. Recreate admin user using explicitly configured values
             $admin = User::create([
                 'name'                  => 'Administrator',
-                'username'              => env('ADMIN_USERNAME', 'admin'),
-                'email'                 => env('ADMIN_EMAIL', 'admin@example.com'),
-                'password'              => bcrypt(env('ADMIN_PASSWORD', 'Admin1234!')),
+                'username'              => $adminUsername,
+                'email'                 => $adminEmail,
+                'password'              => bcrypt($adminPassword),
                 'force_password_change' => false,
                 'email_verified_at'     => now(),
             ]);
@@ -394,10 +411,16 @@ class BackupController extends Controller
             $this->clearDirectorySafe(storage_path('app/private'));
             $this->clearDirectorySafe(storage_path('app/public'));
 
-            // 7. Log activity (note: auth state is wiped out since we migrated fresh, so we log with new admin user id)
+            // 7. Log activity
             AuditLog::create([
-                'user_id' => $admin->id,
+                'user_id' => User::where('id', $initiatingUserId)->exists() ? $initiatingUserId : null,
+                'entity_type' => null,
+                'entity_id' => null,
                 'action' => 'system_reset',
+                'after_state' => [
+                    'initiating_user_id' => $initiatingUserId,
+                    'initiating_username' => $initiatingUsername,
+                ],
                 'ip_address' => $ipAddress,
                 'user_agent' => $userAgent,
             ]);
