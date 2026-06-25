@@ -31,6 +31,7 @@ export function woStatusLabel(status) {
 export function woFields(lines, productTypes, { withStatus = false } = {}) {
     const fields = [
         { name: 'order_no', label: __('Order No'), required: true },
+        { name: 'customer_order_no', label: __('Customer Order No') },
         {
             name: 'line_id', label: __('Line'), type: 'select',
             options: [{ value: '', label: __('— None —') }, ...lines.map((l) => ({ value: String(l.id), label: l.name }))],

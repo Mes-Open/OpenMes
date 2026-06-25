@@ -102,7 +102,7 @@ class PackagingController extends Controller
         if ($pallet) {
             $pallet->increment('qty');
             \App\Sync\CollectionBroadcaster::flush($pallet); // increment() bypasses model events
-            $pallet->refresh();
+            $pallet->refresh()->loadMissing(['workOrder.line', 'batch']);
         }
 
         PackagingScanLog::create([
@@ -132,7 +132,7 @@ class PackagingController extends Controller
     public function openPallets(Request $request)
     {
         $query = Pallet::where('status', PalletStatus::Open->value)
-            ->with(['workOrder:id,order_no,line_id', 'workOrder.line:id,name'])
+            ->with(['workOrder:id,order_no,line_id', 'workOrder.line:id,name', 'batch:id,batch_number,lot_number'])
             ->orderByDesc('updated_at');
 
         if ($workOrderId = $request->integer('work_order_id')) {
@@ -154,15 +154,31 @@ class PackagingController extends Controller
     {
         $workOrder = WorkOrder::findOrFail($request->integer('work_order_id'));
 
+        // Link the pallet to the batch it holds (one batch per pallet). Use the
+        // explicit choice if given (and it belongs to the WO); otherwise auto-link
+        // when the work order has exactly one batch.
+        $batchId = $request->integer('batch_id') ?: null;
+        if ($batchId) {
+            if (! $workOrder->batches()->whereKey($batchId)->exists()) {
+                return response()->json(['message' => __('Selected batch does not belong to this work order.')], 422);
+            }
+        } else {
+            $batchIds = $workOrder->batches()->pluck('id');
+            if ($batchIds->count() === 1) {
+                $batchId = $batchIds->first();
+            }
+        }
+
         $pallet = Pallet::create([
             'work_order_id' => $workOrder->id,
+            'batch_id' => $batchId,
             'status' => PalletStatus::Open->value,
             'location' => $request->input('location'),
             'qty' => 0,
         ]);
 
         return response()->json([
-            'pallet' => $this->palletPayload($pallet->fresh(['workOrder.line'])),
+            'pallet' => $this->palletPayload($pallet->fresh(['workOrder.line', 'batch'])),
             'message' => __('Pallet :no created', ['no' => $pallet->pallet_no]),
         ], 201);
     }
@@ -176,7 +192,7 @@ class PackagingController extends Controller
         $pallet->update(['status' => PalletStatus::Closed->value]);
 
         return response()->json([
-            'pallet' => $this->palletPayload($pallet->fresh(['workOrder.line'])),
+            'pallet' => $this->palletPayload($pallet->fresh(['workOrder.line', 'batch'])),
             'message' => __('Pallet :no closed', ['no' => $pallet->pallet_no]),
         ]);
     }
@@ -190,6 +206,9 @@ class PackagingController extends Controller
             'order_no' => $pallet->workOrder?->order_no,
             'line_id' => $pallet->workOrder?->line_id,
             'line_name' => $pallet->workOrder?->line?->name,
+            'batch_id' => $pallet->batch_id,
+            'batch_lot' => $pallet->batch?->lot_number,
+            'batch_number' => $pallet->batch?->batch_number,
             'qty' => (int) $pallet->qty,
             'status' => $pallet->status instanceof PalletStatus ? $pallet->status->value : $pallet->status,
             'location' => $pallet->location,
@@ -248,7 +267,7 @@ class PackagingController extends Controller
             ->groupBy('work_order_id');
 
         return WorkOrder::whereIn('status', [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])
-            ->with('productType', 'line')
+            ->with('productType', 'line', 'batches:id,work_order_id,batch_number,lot_number')
             ->orderByDesc('priority')
             ->get()
             ->filter(fn ($wo) => $eansByWorkOrder->has($wo->id))
@@ -266,6 +285,11 @@ class PackagingController extends Controller
                     'progress' => $planned > 0 ? min(100, (int) round($packed / $planned * 100)) : 0,
                     'done' => $planned > 0 && $packed >= $planned,
                     'eans' => $eansByWorkOrder[$wo->id]->pluck('ean')->values(),
+                    // Batches the operator can assign a new pallet to (one per pallet).
+                    'batches' => $wo->batches->map(fn ($b) => [
+                        'id' => $b->id,
+                        'label' => $b->displayLabel(),
+                    ])->values(),
                     'status' => $wo->status,
                 ];
             })

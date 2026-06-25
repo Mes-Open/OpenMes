@@ -13,17 +13,21 @@ use Illuminate\Support\Facades\DB;
 /**
  * Owns the per-workstation state timeline and the automatic downtime it drives.
  *
- * Entering a loss state (STOPPED/FAULT) opens a ProductionDowntime; leaving it
- * closes the open one. Reasons are auto-provisioned per state so OEE
- * availability reflects real machine behaviour without manual reporting.
+ * Entering a downtime state (STOPPED/FAULT/WAITING → unplanned, CLEANING/
+ * MAINTENANCE → planned) opens a ProductionDowntime; leaving it closes the open
+ * one. Reasons are auto-provisioned per state so OEE availability reflects real
+ * machine behaviour without manual reporting.
  */
 class WorkstationStateMachine
 {
     /**
      * Transition a workstation to a new state. No-op (metadata refresh only) if
      * the state is unchanged. Returns the new (or current) WorkstationState row.
+     *
+     * @param  string  $source  'machine' (from a connectivity signal) or 'manual'
+     *                          (set by an operator/supervisor in the UI).
      */
-    public function transition(Workstation $workstation, string $newState, array $metadata = [], ?Carbon $at = null): WorkstationState
+    public function transition(Workstation $workstation, string $newState, array $metadata = [], ?Carbon $at = null, string $source = 'machine'): WorkstationState
     {
         if (! in_array($newState, WorkstationState::STATES, true)) {
             throw new \InvalidArgumentException("Unknown workstation state: {$newState}");
@@ -31,7 +35,7 @@ class WorkstationStateMachine
 
         $at ??= now();
 
-        return DB::transaction(function () use ($workstation, $newState, $metadata, $at) {
+        return DB::transaction(function () use ($workstation, $newState, $metadata, $at, $source) {
             $current = $this->current($workstation);
 
             if ($current && $current->state === $newState) {
@@ -54,11 +58,11 @@ class WorkstationStateMachine
                 'workstation_id' => $workstation->id,
                 'state' => $newState,
                 'started_at' => $at,
-                'source' => 'machine',
+                'source' => $source,
                 'metadata' => $metadata ?: null,
             ]);
 
-            if (in_array($newState, WorkstationState::LOSS_STATES, true)) {
+            if (in_array($newState, WorkstationState::DOWNTIME_STATES, true)) {
                 $this->openDowntime($workstation, $newState, $at);
             }
 
@@ -118,14 +122,18 @@ class WorkstationStateMachine
     }
 
     /**
-     * A FAULT is unplanned loss; a STOPPED machine is treated as unplanned too
-     * (operators can re-categorise later). Reasons are provisioned once.
+     * Per-state auto downtime reason. STOPPED/FAULT/WAITING are unplanned loss;
+     * CLEANING/MAINTENANCE are planned (scheduled) downtime, so OEE treats them
+     * as schedule loss, not availability loss (#87). Reasons are provisioned once.
      */
     private function autoReasonFor(string $state): DowntimeReason
     {
         $map = [
             WorkstationState::FAULT => ['code' => 'AUTO-FAULT', 'name' => 'Machine fault (auto)', 'kind' => DowntimeKind::Unplanned->value],
             WorkstationState::STOPPED => ['code' => 'AUTO-STOP', 'name' => 'Machine stopped (auto)', 'kind' => DowntimeKind::Unplanned->value],
+            WorkstationState::WAITING => ['code' => 'AUTO-WAIT', 'name' => 'Machine waiting (auto)', 'kind' => DowntimeKind::Unplanned->value],
+            WorkstationState::CLEANING => ['code' => 'AUTO-CLEAN', 'name' => 'Machine cleaning (auto)', 'kind' => DowntimeKind::Planned->value],
+            WorkstationState::MAINTENANCE => ['code' => 'AUTO-MAINT', 'name' => 'Machine maintenance (auto)', 'kind' => DowntimeKind::Planned->value],
         ];
         $cfg = $map[$state] ?? $map[WorkstationState::STOPPED];
 

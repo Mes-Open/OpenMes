@@ -78,6 +78,8 @@ Route::prefix('install')->name('install.')->middleware(\App\Http\Middleware\Chec
     Route::post('/environment', [InstallController::class, 'setupEnvironment'])->name('environment.setup');
     Route::get('/database', [InstallController::class, 'showDatabaseForm'])->name('database');
     Route::post('/database', [InstallController::class, 'setupDatabase'])->name('database.setup');
+    Route::get('/modules', [InstallController::class, 'showModulesForm'])->name('modules');
+    Route::post('/modules', [InstallController::class, 'selectModules'])->name('modules.select');
     Route::get('/admin', [InstallController::class, 'showAdminForm'])->name('admin');
     Route::post('/admin', [InstallController::class, 'createAdmin'])->name('admin.create');
     Route::get('/complete', [InstallController::class, 'complete'])->name('complete');
@@ -231,6 +233,7 @@ Route::middleware('auth')->group(function () {
 
         // Batch step progression (replaces the old Livewire BatchStepList — see
         // OperatorBatchController::startStep/completeStep delegating to BatchService).
+        Route::get('/batch-step/{batchStep}/pick-preview', [OperatorBatchController::class, 'pickPreview'])->name('batch-step.pick-preview');
         Route::post('/batch-step/{batchStep}/start', [OperatorBatchController::class, 'startStep'])->name('batch-step.start');
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
@@ -246,6 +249,8 @@ Route::middleware('auth')->group(function () {
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
         Route::get('/workstation/check', [OperatorWorkstationController::class, 'check'])->name('workstation.check');
+        // Manual machine-state set (#87) — operator/supervisor sets a workstation's state.
+        Route::post('/workstation/machine-state/{workstation}', [OperatorWorkstationController::class, 'setMachineState'])->name('workstation.machine-state');
         Route::post('/workstation/{workOrder}/start', [OperatorWorkstationController::class, 'start'])->name('workstation.start');
         Route::post('/workstation/{workOrder}/complete', [OperatorWorkstationController::class, 'complete'])->name('workstation.complete');
         Route::post('/workstation/{workOrder}/shift-entry', [OperatorWorkstationController::class, 'shiftEntry'])->name('workstation.shift-entry');
@@ -296,6 +301,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+        // Non-conformance disposition (#11)
+        Route::post('/issues/{issue}/disposition', [IssueManagementController::class, 'disposition'])->name('issues.disposition');
         // Corrective / preventive actions (CAPA)
         Route::get('/issues/{issue}/actions', [IssueManagementController::class, 'actions'])->name('issues.actions');
         Route::post('/issues/{issue}/actions', [IssueManagementController::class, 'storeAction'])->name('issues.actions.store');
@@ -389,6 +396,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/{issue}/acknowledge', [IssueManagementController::class, 'acknowledge'])->name('issues.acknowledge');
         Route::post('/issues/{issue}/resolve', [IssueManagementController::class, 'resolve'])->name('issues.resolve');
         Route::post('/issues/{issue}/close', [IssueManagementController::class, 'close'])->name('issues.close');
+        // Non-conformance disposition (#11)
+        Route::post('/issues/{issue}/disposition', [IssueManagementController::class, 'disposition'])->name('issues.disposition');
         // Corrective / preventive actions (CAPA)
         Route::get('/issues/{issue}/actions', [IssueManagementController::class, 'actions'])->name('issues.actions');
         Route::post('/issues/{issue}/actions', [IssueManagementController::class, 'storeAction'])->name('issues.actions.store');
@@ -510,6 +519,12 @@ Route::middleware('auth')->group(function () {
         // Integration Configs
         Route::resource('integrations', IntegrationConfigController::class)->except(['show']);
 
+        // Outgoing webhooks (#20)
+        Route::resource('webhooks', \App\Http\Controllers\Web\Admin\WebhookController::class)->except(['show']);
+        Route::post('/webhooks/{webhook}/toggle-active', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'toggleActive'])->name('webhooks.toggle-active');
+        Route::post('/webhooks/{webhook}/test', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'test'])->name('webhooks.test');
+        Route::get('/webhooks/{webhook}/deliveries', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'deliveries'])->name('webhooks.deliveries');
+
         // Import Example CSV
         Route::get('/import-example/{type}', [ImportExampleController::class, 'download'])->name('import-example');
 
@@ -630,6 +645,12 @@ Route::middleware('auth')->group(function () {
         // Scrap reporting (Pareto, scrap rate per line, trend)
         Route::get('/scrap-reports', [ScrapReportController::class, 'index'])->name('scrap-reports.index');
 
+        // Non-conformance reporting (Pareto by issue type, disposition summary) (#11)
+        Route::get('/non-conformance-reports', [\App\Http\Controllers\Web\Admin\NonConformanceReportController::class, 'index'])->name('non-conformance-reports.index');
+
+        // MRP net requirements & shortage report (#90)
+        Route::get('/net-requirements', [\App\Http\Controllers\Web\Admin\NetRequirementsReportController::class, 'index'])->name('net-requirements.index');
+
         // Inspection Plans (admin CRUD + version publish)
         Route::post('inspection-plans/{inspection_plan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
         Route::resource('inspection-plans', \App\Http\Controllers\Web\Admin\InspectionPlanController::class)->except(['show']);
@@ -684,6 +705,8 @@ Route::middleware('auth')->group(function () {
         // Live machine monitor (React/Inertia — ported from the original develop Blade UI)
         Route::get('/machine-monitor', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'index'])->name('machine-monitor.index');
         Route::get('/machine-monitor/check', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'check'])->name('machine-monitor.check');
+        // Manual machine-state set (#87) — supervisor/admin override from the monitor.
+        Route::post('/machine-monitor/{workstation}/state', [\App\Http\Controllers\Web\Admin\MachineMonitorController::class, 'setState'])->name('machine-monitor.set-state');
 
         // ── Gate 7: Maintenance ───────────────────────────────────────────────
         // Tools

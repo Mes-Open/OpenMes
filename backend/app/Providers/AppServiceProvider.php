@@ -86,6 +86,13 @@ class AppServiceProvider extends ServiceProvider
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
 
+        // Outgoing webhooks (#20): observe the source models so a status change /
+        // creation fans out to subscribed endpoints. The dispatcher is
+        // best-effort and never breaks the underlying write.
+        \App\Models\WorkOrder::observe(\App\Observers\WorkOrderWebhookObserver::class);
+        \App\Models\Issue::observe(\App\Observers\IssueWebhookObserver::class);
+        \App\Models\Batch::observe(\App\Observers\BatchWebhookObserver::class);
+
         // Live-edit (dev/staging only): under Octane the Vite manifest is cached
         // in a static property in worker memory, so a `vite build --watch` rebuild
         // wouldn't appear until workers recycle. When OCTANE_LIVE_RELOAD is set

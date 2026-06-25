@@ -40,6 +40,7 @@ class WorkOrder extends Model
 
     protected $fillable = [
         'order_no',
+        'customer_order_no',
         'line_id',
         'product_type_id',
         'process_snapshot',
@@ -203,6 +204,12 @@ class WorkOrder extends Model
     public function batches(): HasMany
     {
         return $this->hasMany(Batch::class)->orderBy('batch_number');
+    }
+
+    /** Pallets packed for this work order. */
+    public function pallets(): HasMany
+    {
+        return $this->hasMany(Pallet::class);
     }
 
     /**

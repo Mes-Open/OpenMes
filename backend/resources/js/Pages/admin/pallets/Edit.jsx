@@ -20,6 +20,7 @@ export default function PalletEdit() {
                 method="put"
                 initial={{
                     work_order_id: pallet.work_order_id != null ? String(pallet.work_order_id) : '',
+                    batch_id: pallet.batch_id != null ? String(pallet.batch_id) : '',
                     qty: pallet.qty ?? 0,
                     status: pallet.status ?? 'open',
                     location: pallet.location ?? '',

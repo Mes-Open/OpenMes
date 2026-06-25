@@ -73,7 +73,7 @@ class BomService
                 'material_id' => $item->material_id,
                 'material_code' => $item->material->code,
                 'material_name' => $item->material->name,
-                'material_type' => $item->material->materialType->code,
+                'material_type' => $item->material->materialType?->code,
                 'unit_of_measure' => $item->material->unit_of_measure,
                 'quantity_per_unit' => (float) $item->quantity_per_unit,
                 'base_qty' => $baseQty,

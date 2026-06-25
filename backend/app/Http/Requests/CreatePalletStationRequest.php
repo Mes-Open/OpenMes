@@ -15,6 +15,9 @@ class CreatePalletStationRequest extends FormRequest
     {
         return [
             'work_order_id' => ['required', 'exists:work_orders,id'],
+            // Optional - the controller auto-links when the WO has one batch and
+            // re-checks that a chosen batch belongs to the work order.
+            'batch_id' => ['nullable', 'integer', 'exists:batches,id'],
             'location' => ['nullable', 'string', 'max:100'],
         ];
     }

@@ -27,7 +27,7 @@ export default function TraceabilityIndex() {
                 <div>
                     <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Traceability')}</h1>
                     <p className="text-sm text-om-muted mt-1">
-                        {__('Trace a finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.')}
+                        {__('Trace a pallet number, customer order, finished LOT, material lot, supplier LOT, source container or serial number through its full genealogy.')}
                     </p>
                 </div>
 
@@ -40,7 +40,7 @@ export default function TraceabilityIndex() {
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
                             autoFocus
-                            placeholder={__('Finished LOT, material lot, supplier LOT, source container or serial number…')}
+                            placeholder={__('Pallet no, customer order, finished LOT, material lot, supplier LOT, source container or serial number…')}
                             className="form-input flex-1"
                         />
                         <Button type="submit" variant="primary" className="whitespace-nowrap">
@@ -60,9 +60,11 @@ export default function TraceabilityIndex() {
                     </div>
                 )}
 
+                {result?.type === 'pallet' && <PalletResult data={result.data} />}
+                {result?.type === 'customer_order' && <CustomerOrderResult data={result.data} />}
                 {result?.type === 'batch' && <BatchResult data={result.data} />}
-                {result?.type === 'material_lot' && <MaterialLotResult forward={result.forward} backward={result.backward} />}
-                {result?.type === 'serial' && <SerialResult unit={result.data} />}
+                {result?.type === 'material_lot' && <MaterialLotResult forward={result.forward} backward={result.backward} recall={result.recall} />}
+                {result?.type === 'serial' && <SerialResult unit={result.data} recall={result.recall} components={result.components} />}
             </div>
         </>
     );
@@ -211,7 +213,7 @@ function BatchResult({ data }) {
 
 /* ── Material lot (forward + backward) ───────────────────────────────── */
 
-function MaterialLotResult({ forward, backward }) {
+function MaterialLotResult({ forward, backward, recall }) {
     return (
         <div className="space-y-4">
             <Card>
@@ -224,6 +226,8 @@ function MaterialLotResult({ forward, backward }) {
                     <p className="text-sm text-om-muted mt-1">{__('Source container')}: <span className="font-mono">{backward.source_container_no}</span></p>
                 )}
             </Card>
+
+            {recall && <RecallImpact recall={recall} />}
 
             {/* Forward */}
             <Card>
@@ -312,9 +316,313 @@ function IngredientTree({ node }) {
     );
 }
 
+/* ── Pallet (pallet → batch → lots → machine → operator → controls) ──── */
+
+function PalletResult({ data }) {
+    const p = data.pallet;
+    const wo = data.work_order;
+    const batch = data.batch;
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <div className="flex items-start justify-between flex-wrap gap-2">
+                    <div>
+                        <span className="text-xs font-semibold uppercase text-om-faint">{__('Pallet')}</span>
+                        <h2 className="text-2xl font-bold text-om-ink font-mono">{p.pallet_no}</h2>
+                        <p className="text-sm text-om-muted mt-1">
+                            {__('Work Order')}: <span className="font-medium">{wo?.order_no ?? '—'}</span>
+                            {' · '}{__('Product')}: <span className="font-medium">{wo?.product ?? '—'}</span>
+                            {wo?.customer_order_no && <> {' · '}{__('Customer Order No')}: <span className="font-medium">{wo.customer_order_no}</span></>}
+                        </p>
+                        <p className="text-xs text-om-faint mt-1">
+                            {__('Quantity')}: {p.qty}{p.location ? ` · ${p.location}` : ''}{p.created_at ? ` · ${p.created_at}` : ''}
+                        </p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-om-chip text-om-muted">{p.status}</span>
+                </div>
+            </Card>
+
+            {!batch ? (
+                <Card>
+                    <p className="text-sm text-om-muted">{__('This pallet is not linked to a batch, so no genealogy is available.')}</p>
+                </Card>
+            ) : (
+                <>
+                    <Card>
+                        <div className="flex items-start justify-between flex-wrap gap-2">
+                            <div>
+                                <span className="text-xs font-semibold uppercase text-om-faint">{__('Batch')}</span>
+                                <h3 className="text-xl font-bold text-om-ink">
+                                    #{batch.batch_number}
+                                    {batch.lot_number && <span className="ml-2 font-mono text-om-accent text-base">{batch.lot_number}</span>}
+                                </h3>
+                                {batch.machine && <p className="text-sm text-om-muted mt-1">{__('Machine')}: <span className="font-medium">{batch.machine}</span></p>}
+                            </div>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{batch.status}</span>
+                        </div>
+                    </Card>
+
+                    <Card>
+                        <h3 className="text-lg font-bold text-om-ink mb-3">{__('Process history')}</h3>
+                        <div className="space-y-3">
+                            {batch.steps.map((step, idx) => (
+                                <div key={idx} className={`border-l-2 pl-4 py-1 ${step.status === 'DONE' ? 'border-om-done' : 'border-om-line2'}`}>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-bold text-om-ink">{__('Step')} {step.step_number}: {step.name}</span>
+                                        {step.machine && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-accent">{__('Machine')}: {step.machine}</span>}
+                                        {step.line && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-muted">{__('Line')}: {step.line}</span>}
+                                        {step.operator && <span className="text-xs text-om-muted">{__('Operator')}: {step.operator}</span>}
+                                        {step.completed_at && <span className="text-xs text-om-faint">{step.completed_at}</span>}
+                                    </div>
+                                    {step.consumptions.length > 0 && (
+                                        <ul className="mt-1 ml-1 text-sm text-om-muted space-y-0.5">
+                                            {step.consumptions.map((c, i) => (
+                                                <li key={i} className="flex items-center gap-2">
+                                                    <span className="w-1 h-1 rounded-full bg-om-faintest" />
+                                                    <Link href={traceLink(c.lot_number)} className="font-mono text-om-accent hover:underline">{c.lot_number}</Link>
+                                                    <span className="text-om-faint">{c.material}</span>
+                                                    <span className="text-om-muted">— {formatNumber(c.quantity, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+
+                    <Card>
+                        <h3 className="text-lg font-bold text-om-ink mb-3">{__('Quality controls')} ({batch.quality_checks.length})</h3>
+                        {batch.quality_checks.length === 0 ? (
+                            <p className="text-sm text-om-muted">{__('No quality controls recorded for this batch.')}</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {batch.quality_checks.map((qc, i) => (
+                                    <div key={i} className={`border-l-2 pl-4 py-1 ${qc.all_passed ? 'border-om-done' : 'border-om-blocked'}`}>
+                                        <div className="flex items-center gap-2 flex-wrap text-sm">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${qc.all_passed ? 'bg-om-done-bg text-om-done' : 'bg-om-blocked-bg text-om-blocked'}`}>
+                                                {qc.all_passed ? __('Passed') : __('Failed')}
+                                            </span>
+                                            {qc.checked_by && <span className="text-om-muted">{__('by')} {qc.checked_by}</span>}
+                                            {qc.checked_at && <span className="text-xs text-om-faint">{qc.checked_at}</span>}
+                                        </div>
+                                        {qc.samples.length > 0 && (
+                                            <div className="mt-1 ml-1 flex flex-wrap gap-2">
+                                                {qc.samples.map((s, si) => (
+                                                    <span key={si} className="text-xs bg-om-panel border border-om-line2 rounded px-2 py-0.5 text-om-muted">
+                                                        <span className="text-om-faint">{s.parameter}:</span> {s.value == null ? '—' : String(s.value)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Card>
+                </>
+            )}
+        </div>
+    );
+}
+
+/* ── Customer order (aggregate of work orders) ───────────────────────── */
+
+function CustomerOrderResult({ data }) {
+    const wos = data.work_orders ?? [];
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <span className="text-xs font-semibold uppercase text-om-faint">{__('Customer order')}</span>
+                <h2 className="text-2xl font-bold text-om-ink font-mono">{data.customer_order_no}</h2>
+                <p className="text-sm text-om-muted mt-1">{wos.length} {__('work orders')}</p>
+            </Card>
+
+            {wos.length === 0 ? (
+                <Card><p className="text-sm text-om-muted">{__('No work orders match this customer order.')}</p></Card>
+            ) : (
+                wos.map((wo, i) => (
+                    <Card key={i}>
+                        <div className="flex items-center gap-3 flex-wrap mb-3">
+                            <span className="font-mono font-semibold text-om-ink">{wo.order_no}</span>
+                            <span className="text-om-muted text-sm">{wo.product}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{wo.status}</span>
+                        </div>
+
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <h4 className="text-sm font-semibold text-om-muted mb-2">{__('Pallets')} ({wo.pallets.length})</h4>
+                                {wo.pallets.length === 0 ? (
+                                    <p className="text-xs text-om-faint">—</p>
+                                ) : wo.pallets.map((p, pi) => (
+                                    <div key={pi} className="flex items-center gap-2 text-sm mb-1">
+                                        <Link href={traceLink(p.pallet_no)} className="font-mono text-om-accent hover:underline">{p.pallet_no}</Link>
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{p.status}</span>
+                                        {p.batch_lot && <span className="text-xs text-om-faint font-mono">{p.batch_lot}</span>}
+                                    </div>
+                                ))}
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-semibold text-om-muted mb-2">{__('Batches')} ({wo.batches.length})</h4>
+                                {wo.batches.length === 0 ? (
+                                    <p className="text-xs text-om-faint">—</p>
+                                ) : wo.batches.map((b, bi) => (
+                                    <div key={bi} className="flex items-center gap-2 text-sm mb-1">
+                                        <span className="text-om-muted">#{b.batch_number}</span>
+                                        {b.lot_number && <Link href={traceLink(b.lot_number)} className="font-mono text-om-accent hover:underline">{b.lot_number}</Link>}
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{b.status}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </Card>
+                ))
+            )}
+        </div>
+    );
+}
+
+/* ── Recall impact (reverse trace — affected finished goods) ─────────── */
+
+const SERIAL_STATUS_BADGE = {
+    scrapped: 'bg-om-blocked-bg text-om-blocked',
+    shipped: 'bg-om-done-bg text-om-done',
+    completed: 'bg-om-done-bg text-om-done',
+};
+
+function RecallImpact({ recall }) {
+    const workOrders = recall.work_orders ?? [];
+    const totals = recall.totals ?? { work_orders: 0, finished_serials: 0, quantity_consumed: 0 };
+
+    return (
+        <Card className="border-om-blocked/40">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                <h3 className="text-lg font-bold text-om-ink">{__('Recall impact')}</h3>
+                <div className="flex gap-2">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-om-blocked-bg text-om-blocked">
+                        {totals.work_orders} {__('work orders')}
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-om-chip text-om-muted">
+                        {totals.finished_serials} {__('units')}
+                    </span>
+                </div>
+            </div>
+            <p className="text-sm text-om-muted mb-4">{__('Finished work orders and units that contain this component.')}</p>
+
+            {workOrders.length === 0 ? (
+                <p className="text-sm text-om-muted">{__('No downstream consumption recorded yet.')}</p>
+            ) : (
+                <div className="space-y-3">
+                    {workOrders.map((wo, i) => (
+                        <div key={i} className="border-l-2 border-om-blocked pl-4 py-1">
+                            <div className="flex items-center gap-2 flex-wrap text-sm">
+                                <span className="font-mono font-semibold text-om-ink">{wo.order_no}</span>
+                                <span className="text-om-muted">{wo.product ?? '—'}</span>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{wo.status}</span>
+                                <span className="text-xs text-om-faint">
+                                    {__('Consumed')}: {formatNumber(Number(wo.quantity_consumed), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                {wo.batches?.length > 0 && (
+                                    <span className="text-xs text-om-faint">{__('Batches')}: #{wo.batches.join(', #')}</span>
+                                )}
+                            </div>
+                            {wo.finished_serials?.length > 0 && (
+                                <div className="mt-1.5 ml-1">
+                                    <span className="text-xs text-om-faint mr-2">{__('Units')} ({wo.finished_serials.length}):</span>
+                                    {wo.finished_serials.map((u, j) => (
+                                        <Link
+                                            key={j}
+                                            href={traceLink(u.serial_no)}
+                                            className={`inline-block mr-1.5 mb-1.5 px-2 py-0.5 rounded text-xs font-mono hover:underline ${SERIAL_STATUS_BADGE[u.status] ?? 'bg-om-chip text-om-accent'}`}
+                                            title={u.status}
+                                        >
+                                            {u.serial_no}
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {recall.truncated && (
+                        <p className="text-xs text-om-downtime">{__('Trace truncated (max depth reached).')}</p>
+                    )}
+                </div>
+            )}
+        </Card>
+    );
+}
+
+/* ── Component journeys (finished unit → component → lines passed through) ─ */
+
+const COMPONENT_STATUS_DONE = 'DONE';
+
+function ComponentJourneys({ components }) {
+    const list = components ?? [];
+
+    return (
+        <Card>
+            <h3 className="text-lg font-bold text-om-ink mb-1">{__('Components & production lines')}</h3>
+            <p className="text-sm text-om-muted mb-4">
+                {__('Lines and workstations each component passed through during its own production.')}
+            </p>
+
+            {list.length === 0 ? (
+                <p className="text-sm text-om-muted">{__('No components recorded for this unit.')}</p>
+            ) : (
+                <div className="space-y-4">
+                    {list.map((c, i) => (
+                        <div key={i} className="border-l-2 border-om-line2 pl-4">
+                            <div className="flex items-center gap-2 flex-wrap text-sm">
+                                <Link href={traceLink(c.lot_number)} className="font-mono font-semibold text-om-accent hover:underline">
+                                    {c.lot_number ?? '—'}
+                                </Link>
+                                <span className="text-om-muted">{c.material ?? ''}</span>
+                                {c.material_code && <span className="text-xs text-om-faint font-mono">{c.material_code}</span>}
+                                {c.lines?.length > 0 && (
+                                    <span className="flex items-center gap-1 flex-wrap">
+                                        {c.lines.map((ln, j) => (
+                                            <span key={j} className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-accent" title={__('Production line')}>
+                                                {ln.name}
+                                            </span>
+                                        ))}
+                                    </span>
+                                )}
+                            </div>
+
+                            {c.is_raw ? (
+                                <p className="text-xs text-om-faint mt-1">
+                                    {__('Raw material (supplied) - no internal production line.')}
+                                    {c.supplier_lot_no && <> · {__('Supplier LOT')}: <span className="font-mono">{c.supplier_lot_no}</span></>}
+                                </p>
+                            ) : c.steps?.length > 0 ? (
+                                <ul className="mt-1.5 ml-1 space-y-0.5 text-sm">
+                                    {c.steps.map((s, j) => (
+                                        <li key={j} className="flex items-center gap-2 flex-wrap">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${s.status === COMPONENT_STATUS_DONE ? 'bg-om-done' : 'bg-om-faintest'}`} />
+                                            <span className="text-om-muted">{__('Step')} {s.step_number}: {s.name}</span>
+                                            {s.line && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-accent">{s.line}</span>}
+                                            {s.workstation && <span className="text-xs text-om-faint">{s.workstation}</span>}
+                                            {s.completed_by && <span className="text-xs text-om-muted">{__('by')} {s.completed_by}</span>}
+                                            {s.completed_at && <span className="text-xs text-om-faint">{s.completed_at}</span>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-xs text-om-faint mt-1">{__('No production steps recorded for this component.')}</p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </Card>
+    );
+}
+
 /* ── Serial unit (per-unit history) ──────────────────────────────────── */
 
-function SerialResult({ unit }) {
+function SerialResult({ unit, recall, components }) {
     const RESULT_BADGE = {
         pass: 'bg-om-done-bg text-om-done',
         fail: 'bg-om-blocked-bg text-om-blocked',
@@ -332,6 +640,10 @@ function SerialResult({ unit }) {
                 </p>
             </Card>
 
+            <ComponentJourneys components={components} />
+
+            {recall && <RecallImpact recall={recall} />}
+
             <Card>
                 <h3 className="text-lg font-bold text-om-ink mb-3">{__('Process history')} ({unit.history.length})</h3>
                 {unit.history.length === 0 ? (
@@ -342,6 +654,7 @@ function SerialResult({ unit }) {
                             <div key={i} className={`border-l-2 pl-4 py-1 ${h.result === 'fail' ? 'border-om-blocked' : 'border-om-done'}`}>
                                 <div className="flex items-center gap-2 flex-wrap text-sm">
                                     <span className="font-semibold text-om-ink">{h.workstation ?? __('Unknown')}</span>
+                                    {h.line && <span className="text-xs px-2 py-0.5 rounded bg-om-chip text-om-accent">{h.line}</span>}
                                     {h.step && <span className="text-xs text-om-muted">{h.step}</span>}
                                     {h.operator && <span className="text-xs text-om-muted">{__('by')} {h.operator}</span>}
                                     {h.processed_at && <span className="text-xs text-om-faint">{h.processed_at}</span>}

@@ -6,6 +6,9 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
     const form = useForm(initial);
     const { data, setData, errors, processing } = form;
 
+    const selectedWo = workOrders.find((wo) => String(wo.id) === String(data.work_order_id));
+    const batches = selectedWo?.batches ?? [];
+
     const submit = (e) => {
         e.preventDefault();
         form.submit(method, action);
@@ -19,13 +22,27 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 </label>
                 <Dropdown
                     value={data.work_order_id == null ? '' : String(data.work_order_id)}
-                    onChange={(v) => setData('work_order_id', v)}
+                    onChange={(v) => { setData('work_order_id', v); setData('batch_id', ''); }}
                     placeholder="— Select work order —"
                     options={workOrders.map((wo) => ({ value: String(wo.id), label: wo.order_no }))}
                     className="w-full"
                 />
                 {errors.work_order_id && <p className="mt-1 text-xs text-om-blocked">{errors.work_order_id}</p>}
             </div>
+
+            {batches.length > 0 && (
+                <div>
+                    <label className="block text-sm font-medium text-om-muted mb-1">Batch</label>
+                    <Dropdown
+                        value={data.batch_id == null ? '' : String(data.batch_id)}
+                        onChange={(v) => setData('batch_id', v)}
+                        placeholder="— None —"
+                        options={batches.map((b) => ({ value: String(b.id), label: b.label }))}
+                        className="w-full"
+                    />
+                    {errors.batch_id && <p className="mt-1 text-xs text-om-blocked">{errors.batch_id}</p>}
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div>

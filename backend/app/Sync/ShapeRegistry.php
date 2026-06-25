@@ -156,7 +156,7 @@ class ShapeRegistry
         ],
         'pallets' => [
             'table' => 'pallets',
-            'columns' => ['id', 'pallet_no', 'work_order_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
+            'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
         ],
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
@@ -175,7 +175,7 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'customer_order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [
@@ -209,11 +209,23 @@ class ShapeRegistry
         // All issues (any status) for the supervisor/admin issue management page.
         'issues_all' => [
             'table' => 'issues',
-            'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'disposition', 'non_conforming_qty', 'root_cause', 'containment_action', 'nc_source', 'disposition_at', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'issue_actions' => [
             'table' => 'issue_actions',
             'columns' => ['id', 'issue_id', 'type', 'title', 'description', 'status', 'assigned_to_id', 'due_date', 'completed_at', 'completed_by_id', 'verified_at', 'verified_by_id', 'notes', 'created_at', 'updated_at'],
+        ],
+        // Outgoing webhooks (#20). NEVER sync `secret` — the HMAC signing key
+        // must not leave the server.
+        'webhooks' => [
+            'table' => 'webhooks',
+            'columns' => ['id', 'name', 'url', 'events', 'is_active', 'last_triggered_at', 'created_at', 'updated_at'],
+        ],
+        // Delivery log — payload/response_body are excluded to keep the stream
+        // light; the status/code/error are enough for the admin list.
+        'webhook_deliveries' => [
+            'table' => 'webhook_deliveries',
+            'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
         ],
     ];
 

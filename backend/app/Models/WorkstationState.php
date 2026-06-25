@@ -20,10 +20,35 @@ class WorkstationState extends Model
 
     public const SETUP = 'SETUP';
 
-    public const STATES = [self::RUNNING, self::IDLE, self::STOPPED, self::FAULT, self::SETUP];
+    // Added states (#87) for more accurate downtime categorisation.
+    public const WAITING = 'WAITING';
 
-    /** States that count as availability loss (drive downtime). */
-    public const LOSS_STATES = [self::STOPPED, self::FAULT];
+    public const CLEANING = 'CLEANING';
+
+    public const MAINTENANCE = 'MAINTENANCE';
+
+    public const STATES = [
+        self::RUNNING, self::IDLE, self::STOPPED, self::FAULT, self::SETUP,
+        self::WAITING, self::CLEANING, self::MAINTENANCE,
+    ];
+
+    /**
+     * States that count as UNPLANNED availability loss — entering one opens an
+     * unplanned ProductionDowntime that lowers OEE availability. WAITING (the
+     * machine is idle waiting for material/operator) is lost time (#87).
+     */
+    public const LOSS_STATES = [self::STOPPED, self::FAULT, self::WAITING];
+
+    /**
+     * States that drive PLANNED downtime — scheduled activities that reduce the
+     * planned operating time but are NOT counted as an availability loss (#87).
+     */
+    public const PLANNED_STATES = [self::CLEANING, self::MAINTENANCE];
+
+    /** Every state that auto-opens a ProductionDowntime when entered. */
+    public const DOWNTIME_STATES = [
+        self::STOPPED, self::FAULT, self::WAITING, self::CLEANING, self::MAINTENANCE,
+    ];
 
     protected $fillable = [
         'workstation_id',
@@ -52,5 +77,11 @@ class WorkstationState extends Model
     public function isLoss(): bool
     {
         return in_array($this->state, self::LOSS_STATES, true);
+    }
+
+    /** Whether entering this state opens a planned (scheduled) downtime (#87). */
+    public function isPlanned(): bool
+    {
+        return in_array($this->state, self::PLANNED_STATES, true);
     }
 }

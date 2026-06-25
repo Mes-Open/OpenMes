@@ -100,6 +100,7 @@ class WorkOrderController extends Controller
             'workOrder' => [
                 'id' => $workOrder->id,
                 'order_no' => $workOrder->order_no,
+                'customer_order_no' => $workOrder->customer_order_no,
                 'status' => $workOrder->status,
                 'planned_qty' => $workOrder->planned_qty,
                 'produced_qty' => $workOrder->produced_qty,
@@ -199,7 +200,7 @@ class WorkOrderController extends Controller
     {
         return Inertia::render('supervisor/work-orders/Edit', [
             'workOrder' => [
-                ...$workOrder->only('id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status'),
+                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
             ],
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
@@ -211,6 +212,7 @@ class WorkOrderController extends Controller
     {
         $validated = $request->validate([
             'order_no' => 'required|string|max:100|unique:work_orders,order_no,'.$workOrder->id,
+            'customer_order_no' => 'nullable|string|max:100',
             'line_id' => 'nullable|exists:lines,id',
             'product_type_id' => 'nullable|exists:product_types,id',
             'planned_qty' => 'required|numeric|min:0.01|max:99999999',

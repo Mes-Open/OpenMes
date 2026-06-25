@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SetDispositionRequest;
 use App\Http\Requests\StoreIssueActionRequest;
 use App\Http\Requests\UpdateIssueActionRequest;
 use App\Models\Issue;
@@ -11,6 +12,7 @@ use App\Models\IssueType;
 use App\Models\Line;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Services\IssueService;
 use App\Services\Quality\IssueActionService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -90,6 +92,16 @@ class IssueManagementController extends Controller
         return redirect()->back()->with('success', 'Issue closed.');
     }
 
+    /**
+     * Set the non-conformance disposition on an issue (#11).
+     */
+    public function disposition(SetDispositionRequest $request, Issue $issue, IssueService $service)
+    {
+        $service->setDisposition($issue, $request->validated(), $request->user()->id);
+
+        return redirect()->back()->with('success', 'Disposition recorded.');
+    }
+
     // ── Corrective / preventive actions (CAPA) ───────────────────────────────
 
     /** JSON list of an issue's actions (for the actions modal). */
@@ -164,6 +176,7 @@ class IssueManagementController extends Controller
                 'title' => $a->title,
                 'description' => $a->description,
                 'status' => $a->status,
+                'is_overdue' => $a->isOverdue(),
                 'assigned_to' => $a->assignedTo?->name,
                 'due_date' => $a->due_date?->toDateString(),
                 'completed_by' => $a->completedBy?->name,

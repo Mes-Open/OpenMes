@@ -2,9 +2,15 @@
 
 namespace App\Services\Traceability;
 
+use App\Enums\PalletStatus;
 use App\Models\Batch;
 use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
+use App\Models\Pallet;
+use App\Models\SerialUnit;
+use App\Models\WorkOrder;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Unified material traceability / genealogy.
@@ -58,6 +64,240 @@ class TraceabilityService
     }
 
     /**
+     * Reverse traceability for recall: starting from one or more source lots,
+     * walk forward through every batch that consumed them and collect the
+     * affected work orders plus the finished serial units produced under them -
+     * the "what do I need to pull off the shelf?" answer.
+     *
+     * The walk is transitive: a consuming batch may itself produce output lots
+     * (material_lots.source_batch_id), which can be consumed further downstream,
+     * so multi-stage builds surface every affected level. Bounded by MAX_DEPTH.
+     *
+     * @param  Collection<int, MaterialLot>  $sourceLots
+     * @return array{source_lots: array, work_orders: array, totals: array, truncated: bool}
+     */
+    public function recallImpact(Collection $sourceLots): array
+    {
+        $visitedLotIds = [];
+        $affected = []; // work_order_id => aggregate row
+        $affectedBatchIds = []; // batch_id => true (batches that consumed the recalled material)
+        $frontier = $sourceLots->pluck('id')->filter()->unique()->values()->all();
+        $truncated = false;
+
+        for ($depth = 0; ! empty($frontier); $depth++) {
+            if ($depth >= self::MAX_DEPTH) {
+                $truncated = true;
+                break;
+            }
+
+            foreach ($frontier as $id) {
+                $visitedLotIds[$id] = true;
+            }
+
+            $consumptions = BatchStepLotConsumption::query()
+                ->whereIn('material_lot_id', $frontier)
+                ->with([
+                    'batchStep:id,batch_id',
+                    // Recall must see through soft-deleted intermediates, otherwise
+                    // a deleted batch/WO would hide downstream affected lots.
+                    'batchStep.batch' => fn ($q) => $q->withTrashed()->select('id', 'batch_number', 'work_order_id'),
+                    'batchStep.batch.workOrder' => fn ($q) => $q->withTrashed()->select('id', 'order_no', 'product_type_id', 'status'),
+                    'batchStep.batch.workOrder.productType:id,name,code',
+                ])
+                ->get();
+
+            $consumingBatchIds = [];
+
+            foreach ($consumptions as $consumption) {
+                $batch = $consumption->batchStep?->batch;
+                if (! $batch) {
+                    continue; // orphaned consumption (no batch step / batch at all)
+                }
+
+                // Track the batch for the downstream walk even if its WO is gone.
+                $consumingBatchIds[$batch->id] = true;
+                $affectedBatchIds[$batch->id] = true;
+
+                $workOrder = $batch->workOrder;
+                if (! $workOrder) {
+                    continue; // WO unrecoverable; batch still walked downstream
+                }
+
+                $row = $affected[$workOrder->id] ?? [
+                    'id' => $workOrder->id,
+                    'order_no' => $workOrder->order_no,
+                    'product' => $workOrder->productType?->name,
+                    'status' => $workOrder->status,
+                    'quantity_consumed' => 0.0,
+                    'batches' => [],
+                ];
+                $row['quantity_consumed'] += (float) $consumption->quantity_consumed;
+                if ($batch->batch_number !== null && ! in_array($batch->batch_number, $row['batches'], true)) {
+                    $row['batches'][] = $batch->batch_number;
+                }
+                $affected[$workOrder->id] = $row;
+            }
+
+            // Next level: output lots of the consuming batches we haven't walked yet.
+            $frontier = MaterialLot::withTrashed()
+                ->whereIn('source_batch_id', array_keys($consumingBatchIds))
+                ->pluck('id')
+                ->reject(fn ($id) => isset($visitedLotIds[$id]))
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        $serialsByWorkOrder = empty($affected)
+            ? collect()
+            : SerialUnit::query()
+                ->whereIn('work_order_id', array_keys($affected))
+                // Only units from batches that consumed the recalled material;
+                // null batch_id is the legacy fallback (pre-batch-linked serials).
+                ->where(function ($query) use ($affectedBatchIds) {
+                    $query->whereIn('batch_id', array_keys($affectedBatchIds))
+                        ->orWhereNull('batch_id');
+                })
+                ->orderByDesc('produced_at')
+                ->orderByDesc('id')
+                ->get(['id', 'serial_no', 'status', 'work_order_id', 'produced_at'])
+                ->groupBy('work_order_id');
+
+        $workOrders = collect($affected)->values()->map(function (array $row) use ($serialsByWorkOrder) {
+            $serials = ($serialsByWorkOrder[$row['id']] ?? collect())
+                ->map(fn (SerialUnit $unit) => [
+                    'serial_no' => $unit->serial_no,
+                    'status' => $unit->status,
+                    'produced_at' => $unit->produced_at?->format('Y-m-d H:i'),
+                ])
+                ->values()
+                ->all();
+            $row['quantity_consumed'] = round($row['quantity_consumed'], 4);
+            $row['finished_serials'] = $serials;
+
+            return $row;
+        })->all();
+
+        return [
+            'source_lots' => $sourceLots->map(fn (MaterialLot $lot) => [
+                'lot_number' => $lot->lot_number,
+                'material' => $lot->material?->name,
+                'supplier_lot_no' => $lot->supplier_lot_no,
+            ])->values()->all(),
+            'work_orders' => $workOrders,
+            'truncated' => $truncated,
+            'totals' => [
+                'work_orders' => count($workOrders),
+                'finished_serials' => array_sum(array_map(fn ($w) => count($w['finished_serials']), $workOrders)),
+                'quantity_consumed' => round(array_sum(array_column($workOrders, 'quantity_consumed')), 4),
+            ],
+        ];
+    }
+
+    /**
+     * Recall impact for a serialised unit, resolved through its batch: a
+     * component serial is traced via the output lots its batch produced, which
+     * is what flows downstream into finished goods. A unit with no batch (or a
+     * top-level finished unit with no downstream consumption) yields an empty
+     * impact.
+     */
+    public function recallImpactForSerial(SerialUnit $unit): array
+    {
+        $sourceLots = $unit->batch_id
+            ? MaterialLot::with('material:id,name,code')
+                ->where('source_batch_id', $unit->batch_id)
+                ->get()
+            : collect();
+
+        return $this->recallImpact($sourceLots);
+    }
+
+    /**
+     * Diagnostic drill-down for a finished serial unit: for every component lot
+     * consumed to build it, the production lines and workstations that component
+     * passed through during its OWN manufacture (the steps of the batch that
+     * produced it). Answers "this finished piece is defective - which component,
+     * and on which line, was at fault?".
+     *
+     * A component with no producing batch (a raw inbound lot) is returned with
+     * an empty journey: it came from a supplier, not an internal line.
+     *
+     * @return array{components: array}
+     */
+    public function componentLineJourneys(SerialUnit $unit): array
+    {
+        $batch = $unit->batch_id ? Batch::find($unit->batch_id) : null;
+        if (! $batch) {
+            return ['components' => []];
+        }
+
+        $components = $this->batchInputLots($batch)
+            ->map(fn (MaterialLot $lot) => $this->lotLineJourney($lot))
+            ->values()
+            ->all();
+
+        return ['components' => $components];
+    }
+
+    /**
+     * The line / workstation path a single material lot travelled through during
+     * its own production, resolved from the steps of the batch that produced it
+     * (source_batch_id). Empty journey for a raw inbound lot.
+     *
+     * @return array{lot_number: ?string, material: ?string, material_code: ?string, supplier_lot_no: ?string, status: ?string, is_raw: bool, lines: array, steps: array}
+     */
+    private function lotLineJourney(MaterialLot $lot): array
+    {
+        $node = [
+            'lot_number' => $lot->lot_number,
+            'material' => $lot->material?->name,
+            'material_code' => $lot->material?->code,
+            'supplier_lot_no' => $lot->supplier_lot_no,
+            'status' => $lot->status,
+            'is_raw' => $lot->source_batch_id === null,
+            'lines' => [],
+            'steps' => [],
+        ];
+
+        if (! $lot->source_batch_id) {
+            return $node;
+        }
+
+        $batch = Batch::with([
+            'steps:id,batch_id,step_number,name,status,workstation_id,completed_by_id,completed_at',
+            'steps.workstation:id,name,code,line_id',
+            'steps.workstation.line:id,name,code',
+            'steps.completedBy:id,name',
+        ])->find($lot->source_batch_id);
+
+        if (! $batch) {
+            return $node;
+        }
+
+        $lines = []; // line_id => row, first occurrence wins (steps are step-ordered)
+
+        foreach ($batch->steps as $step) {
+            $line = $step->workstation?->line;
+            $node['steps'][] = [
+                'step_number' => $step->step_number,
+                'name' => $step->name,
+                'status' => $step->status,
+                'line' => $line?->name,
+                'workstation' => $step->workstation?->name,
+                'completed_by' => $step->completedBy?->name,
+                'completed_at' => $step->completed_at?->format('Y-m-d H:i'),
+            ];
+            if ($line && ! array_key_exists($line->id, $lines)) {
+                $lines[$line->id] = ['name' => $line->name, 'code' => $line->code];
+            }
+        }
+
+        $node['lines'] = array_values($lines);
+
+        return $node;
+    }
+
+    /**
      * Backward trace from a material lot: the ingredient lots that fed into it.
      *
      * For an inbound raw lot this is terminal (supplier reference). For a
@@ -108,7 +348,7 @@ class TraceabilityService
             'workOrder:id,order_no,product_type_id,status',
             'workOrder.productType:id,name,code',
             'steps:id,batch_id,name,step_number,status,workstation_id,started_by_id,completed_by_id,started_at,completed_at',
-            'steps.workstation:id,name,code',
+            'steps.workstation:id,name,code,line_id',
             'steps.completedBy:id,name',
             'outputLots:id,lot_number,material_id,source_batch_id,status',
             'outputLots.material:id,name,code',
@@ -156,6 +396,135 @@ class TraceabilityService
     }
 
     /**
+     * Full chain for a pallet: pallet → work order (incl. customer order) →
+     * batch → consumed lots → machine/line → operator → quality controls.
+     * Returns a ready-to-render array; `batch` is null for unlinked pallets.
+     */
+    public function palletTrace(Pallet $pallet): array
+    {
+        $pallet->loadMissing([
+            'workOrder:id,order_no,customer_order_no,product_type_id',
+            'workOrder.productType:id,name',
+            // withTrashed: recall must still resolve a pallet whose batch was later
+            // soft-deleted, otherwise the genealogy link silently disappears.
+            'batch' => fn ($q) => $q->withTrashed(),
+        ]);
+
+        return [
+            'pallet' => [
+                'pallet_no' => $pallet->pallet_no,
+                'status' => $pallet->status instanceof PalletStatus ? $pallet->status->value : $pallet->status,
+                'qty' => (int) $pallet->qty,
+                'location' => $pallet->location,
+                'created_at' => $pallet->created_at?->format('Y-m-d H:i'),
+                'shipped_at' => $pallet->shipped_at?->format('Y-m-d H:i'),
+            ],
+            'work_order' => $pallet->workOrder ? [
+                'order_no' => $pallet->workOrder->order_no,
+                'customer_order_no' => $pallet->workOrder->customer_order_no,
+                'product' => $pallet->workOrder->productType?->name,
+            ] : null,
+            'batch' => $pallet->batch ? $this->batchChain($pallet->batch) : null,
+        ];
+    }
+
+    /**
+     * The batch leg of the chain: per-step machine/line/operator + consumed
+     * lots, the distinct input lots, and the quality controls for the batch.
+     */
+    private function batchChain(Batch $batch): array
+    {
+        $genealogy = $this->batchGenealogy($batch);
+        $b = $genealogy['batch'];
+        $byStep = $genealogy['consumptions_by_step'];
+
+        // batchGenealogy already loaded steps, steps.workstation (incl. line_id)
+        // and completedBy. Only pull what's still missing - the workstation line,
+        // the step starter, the batch-level machine and the quality controls.
+        $b->loadMissing([
+            'steps.workstation.line:id,name',
+            'steps.startedBy:id,name',
+            'workstation:id,name',
+            'qualityChecks.checkedBy:id,name',
+            'qualityChecks.samples',
+        ]);
+
+        return [
+            'batch_number' => $b->batch_number,
+            'lot_number' => $b->lot_number,
+            'status' => $b->status,
+            'machine' => $b->workstation?->name,
+            'steps' => $b->steps->map(fn ($s) => [
+                'step_number' => $s->step_number,
+                'name' => $s->name,
+                'status' => $s->status,
+                'machine' => $s->workstation?->name,
+                'line' => $s->workstation?->line?->name,
+                'operator' => $s->completedBy?->name ?? $s->startedBy?->name,
+                'completed_at' => $s->completed_at ? Carbon::parse($s->completed_at)->format('Y-m-d H:i') : null,
+                'consumptions' => ($byStep[$s->id] ?? collect())->map(fn ($c) => [
+                    'lot_number' => $c->materialLot?->lot_number,
+                    'material' => $c->materialLot?->material?->name,
+                    'quantity' => (float) $c->quantity_consumed,
+                ])->values(),
+            ])->values(),
+            'input_lots' => $genealogy['distinct_input_lots']->map(fn ($lot) => [
+                'material' => $lot->material?->name,
+                'lot_number' => $lot->lot_number,
+                'supplier_lot_no' => $lot->supplier_lot_no,
+                'status' => $lot->status,
+            ])->values(),
+            'quality_checks' => $b->qualityChecks->map(fn ($qc) => [
+                'all_passed' => (bool) $qc->all_passed,
+                'checked_by' => $qc->checkedBy?->name,
+                'checked_at' => $qc->checked_at ? Carbon::parse($qc->checked_at)->format('Y-m-d H:i') : null,
+                'samples' => $qc->samples->map(fn ($s) => [
+                    'parameter' => $s->parameter_name,
+                    'value' => $s->value_numeric ?? $s->value_boolean,
+                    'passed' => $s->is_passed,
+                ])->values(),
+            ])->values(),
+        ];
+    }
+
+    /**
+     * Aggregated trace for a customer order number (non-unique): every work
+     * order carrying it, with its pallets and batches. Each pallet/lot links
+     * into the deeper pallet/batch trace from the console.
+     */
+    public function customerOrderTrace(string $customerOrderNo): array
+    {
+        $workOrders = WorkOrder::where('customer_order_no', $customerOrderNo)
+            ->with([
+                'productType:id,name',
+                'pallets:id,work_order_id,batch_id,pallet_no,status',
+                'pallets.batch:id,lot_number',
+                'batches:id,work_order_id,batch_number,lot_number,status',
+            ])
+            ->orderByDesc('id')
+            ->get();
+
+        return [
+            'customer_order_no' => $customerOrderNo,
+            'work_orders' => $workOrders->map(fn ($wo) => [
+                'order_no' => $wo->order_no,
+                'product' => $wo->productType?->name,
+                'status' => $wo->status,
+                'pallets' => $wo->pallets->map(fn ($p) => [
+                    'pallet_no' => $p->pallet_no,
+                    'status' => $p->status instanceof PalletStatus ? $p->status->value : $p->status,
+                    'batch_lot' => $p->batch?->lot_number,
+                ])->values(),
+                'batches' => $wo->batches->map(fn ($b) => [
+                    'batch_number' => $b->batch_number,
+                    'lot_number' => $b->lot_number,
+                    'status' => $b->status,
+                ])->values(),
+            ])->values(),
+        ];
+    }
+
+    /**
      * Resolve a free-text search to a result: a finished batch (by lot_number)
      * or a material lot (by lot_number / supplier_lot_no / source_container_no).
      *
@@ -166,6 +535,12 @@ class TraceabilityService
         $term = trim($term);
         if ($term === '') {
             return null;
+        }
+
+        // Pallet number (e.g. PAL-000001) - most specific, won't collide with lots.
+        $pallet = Pallet::where('pallet_no', $term)->first();
+        if ($pallet) {
+            return ['type' => 'pallet', 'model' => $pallet];
         }
 
         $batch = Batch::where('lot_number', $term)->first();

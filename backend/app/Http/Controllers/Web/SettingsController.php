@@ -139,6 +139,7 @@ class SettingsController extends Controller
             'settings' => $settings,
             'availableLocales' => $availableLocales,
             'appUrl' => config('app.url'),
+            'modules' => \App\Support\ModuleRegistry::forForm(),
         ]);
     }
 
@@ -273,10 +274,30 @@ class SettingsController extends Controller
      */
     public function loadSampleData()
     {
-        Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+        // Guard against a second load: re-running the demo seeder against an
+        // already-populated database races on unique keys (the 409s seen in the
+        // field). Once loaded, tell the admin instead of re-seeding.
+        if (DB::table('system_settings')->where('key', 'sample_data_loaded')->exists()) {
+            return redirect()->route('settings.system')
+                ->with('info', __('Sample data has already been loaded.'));
+        }
+
+        try {
+            Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->route('settings.system')
+                ->with('error', __('Could not load sample data: :msg', ['msg' => $e->getMessage()]));
+        }
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'sample_data_loaded'],
+            ['value' => json_encode(true), 'updated_at' => now()],
+        );
 
         return redirect()->route('settings.system')
-            ->with('success', 'Sample data loaded successfully. Lines, work orders, operators and product types have been created.');
+            ->with('success', __('Sample data loaded successfully. Lines, work orders, operators and product types have been created.'));
     }
 
     /**
@@ -309,6 +330,9 @@ class SettingsController extends Controller
             'default_currency' => 'nullable|string|size:3',
             'default_pay_type' => 'nullable|in:hourly,weekly,piece_rate',
             'default_pay_rate' => 'nullable|numeric|min:0',
+            // Optional feature modules (#144).
+            'enabled_modules' => 'nullable|array',
+            'enabled_modules.*' => ['string', Rule::in(\App\Support\ModuleRegistry::optionalKeys())],
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -353,6 +377,12 @@ class SettingsController extends Controller
                 ['key' => $key],
                 ['value' => json_encode($value)]
             );
+        }
+
+        // Optional feature modules (#144) — only when the section was submitted,
+        // so saving unrelated settings never resets the module selection.
+        if ($request->has('enabled_modules')) {
+            \App\Support\ModuleRegistry::save($validated['enabled_modules'] ?? []);
         }
 
         Cache::forget('cors_allowed_origins');

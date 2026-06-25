@@ -173,8 +173,8 @@ function DesktopClock() {
  * `trail` is the group path shown under a result, e.g. "Production /
  * Production Lines". Disabled entries are skipped.
  */
-function flattenNavItems() {
-    const items = ADMIN_LINKS.map((link) => ({
+function flattenNavItems(showTab = () => true) {
+    const items = ADMIN_LINKS.filter((link) => showTab(link.key)).map((link) => ({
         label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
     }));
     const walk = (nodes, trail) => {
@@ -187,7 +187,8 @@ function flattenNavItems() {
             }
         });
     };
-    walk(ADMIN_GROUPS, []);
+    // Only index groups whose tab is accessible (role + enabled module — #144).
+    walk(ADMIN_GROUPS.filter((group) => showTab(group.tab ?? group.key)), []);
     items.push({ label: 'Settings', href: '/settings', match: ['/settings'], trail: [] });
     return items;
 }
@@ -200,11 +201,17 @@ function Sidebar({
     const widthClass = collapsed ? 'lg:w-16' : 'lg:w-64';
     const translate = mobileOpen ? 'translate-x-0' : '-translate-x-full';
 
+    // Show a tab only when the backend lists it as accessible — this hides tabs
+    // the role can't reach AND feature modules switched off for this install
+    // (#144). Falls back to "show all" if the prop is ever missing.
+    const allowedTabs = auth?.user?.accessibleTabs;
+    const showTab = (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key);
+
     // Menu search: a non-empty query swaps the nav tree for a flat result list.
     // Matches both the English label and its translation so users can search
     // in the active locale.
     const [query, setQuery] = useState('');
-    const searchItems = useMemo(flattenNavItems, []);
+    const searchItems = useMemo(() => flattenNavItems(showTab), [allowedTabs]); // eslint-disable-line react-hooks/exhaustive-deps
     const q = query.trim().toLowerCase();
     const results = q
         ? searchItems.filter((item) =>
@@ -296,7 +303,7 @@ function Sidebar({
                     )
                 ) : (
                     <>
-                        {ADMIN_LINKS.map((link) => (
+                        {ADMIN_LINKS.filter((link) => showTab(link.key)).map((link) => (
                             <NavLink
                                 key={link.href}
                                 link={link}
@@ -310,7 +317,7 @@ function Sidebar({
                         {/* Separator under the top links (parity with the Blade sidebar) */}
                         {showLabels && <div className="mx-4 my-2 border-t border-om-line" />}
 
-                        {ADMIN_GROUPS.map((group) => (
+                        {ADMIN_GROUPS.filter((group) => showTab(group.tab ?? group.key)).map((group) => (
                             <NavGroup
                                 key={group.key}
                                 group={group}

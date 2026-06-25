@@ -27,7 +27,7 @@ class TabRegistry
             '/admin/view-templates', '/admin/shifts', '/admin/issues', '/admin/companies',
             '/admin/anomaly-reasons', '/admin/scrap-reasons',
         ]],
-        'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports']],
+        'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements']],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
             '/admin/workstation-types', '/admin/subassemblies',
@@ -42,6 +42,7 @@ class TabRegistry
             '/admin/quality-tasks', '/admin/oee',
         ]],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
+        'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
         'admin' => ['label' => 'Admin', 'prefixes' => ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash']],
         'modules' => ['label' => 'Modules', 'prefixes' => ['/admin/modules']],
         'packaging' => ['label' => 'Packaging', 'prefixes' => ['/admin/pallets']],

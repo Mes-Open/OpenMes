@@ -380,25 +380,35 @@ class SchedulePlannerController extends Controller
 
         $workOrder->update($data);
 
-        // If line assigned and no process_snapshot yet — generate it from product type
-        if ($workOrder->line_id && $workOrder->product_type_id && empty($workOrder->process_snapshot)) {
-            $processTemplate = \App\Models\ProcessTemplate::where('product_type_id', $workOrder->product_type_id)
-                ->where('is_active', true)
-                ->orderBy('version', 'desc')
-                ->first();
-            if ($processTemplate) {
-                $workOrder->update(['process_snapshot' => $processTemplate->toSnapshot()]);
+        // The schedule placement is already persisted above. The snapshot /
+        // auto-batch side-effects below can throw on incomplete product data
+        // (missing BOM material, lot allocation, …); that must NOT 500 the
+        // schedule drag and discard the user's placement — collect it as a
+        // warning instead so the planner edit still succeeds.
+        $warnings = [];
+        try {
+            // If line assigned and no process_snapshot yet — generate it from product type
+            if ($workOrder->line_id && $workOrder->product_type_id && empty($workOrder->process_snapshot)) {
+                $processTemplate = \App\Models\ProcessTemplate::where('product_type_id', $workOrder->product_type_id)
+                    ->where('is_active', true)
+                    ->orderBy('version', 'desc')
+                    ->first();
+                if ($processTemplate) {
+                    $workOrder->update(['process_snapshot' => $processTemplate->toSnapshot()]);
+                }
             }
-        }
 
-        // Auto-create first batch if none exist and WO has line + snapshot
-        if ($workOrder->line_id && ! empty($workOrder->process_snapshot) && $workOrder->batches()->count() === 0) {
-            app(\App\Services\WorkOrder\WorkOrderService::class)
-                ->createBatch($workOrder, $workOrder->planned_qty);
+            // Auto-create first batch if none exist and WO has line + snapshot
+            if ($workOrder->line_id && ! empty($workOrder->process_snapshot) && $workOrder->batches()->count() === 0) {
+                app(\App\Services\WorkOrder\WorkOrderService::class)
+                    ->createBatch($workOrder, $workOrder->planned_qty);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $warnings[] = __('Scheduled, but the batch could not be prepared automatically: :msg', ['msg' => $e->getMessage()]);
         }
 
         // Warn about cross-line workstations
-        $warnings = [];
         if ($workOrder->line_id && ! empty($workOrder->process_snapshot)) {
             $lineWorkstationIds = \App\Models\Workstation::where('line_id', $workOrder->line_id)->pluck('id')->toArray();
             foreach ($workOrder->process_snapshot['steps'] ?? [] as $step) {

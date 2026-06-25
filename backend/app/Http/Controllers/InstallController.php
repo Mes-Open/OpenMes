@@ -57,7 +57,7 @@ class InstallController extends Controller
         }
 
         if (session('install_step_1_completed')) {
-            return redirect()->route('install.admin');
+            return redirect()->route('install.modules');
         }
 
         if (session('install_database_configured')) {
@@ -248,11 +248,56 @@ class InstallController extends Controller
             'install_database_config' => array_merge($validated, ['db_driver' => $driver]),
         ]);
 
+        return redirect()->route('install.modules');
+    }
+
+    /**
+     * Step 2.5: Module selection — pick the optional feature areas to enable
+     * (#144). Defaults to everything enabled.
+     */
+    public function showModulesForm()
+    {
+        if ($this->isInstalled()) {
+            return redirect('/');
+        }
+
+        if (! session('install_step_1_completed')) {
+            return redirect()->route('install.database')
+                ->with('error', 'Please complete database configuration first.');
+        }
+
+        $selected = session('install_selected_modules', \App\Support\ModuleRegistry::optionalKeys());
+
+        $modules = array_map(fn (array $m) => [
+            ...$m,
+            'enabled' => in_array($m['key'], $selected, true),
+        ], \App\Support\ModuleRegistry::forForm());
+
+        return view('install.modules', ['modules' => $modules]);
+    }
+
+    /**
+     * Step 2.5: Persist the module selection to the install session.
+     */
+    public function selectModules(Request $request)
+    {
+        if (! session('install_step_1_completed')) {
+            return redirect()->route('install.database')
+                ->with('error', 'Please complete database configuration first.');
+        }
+
+        $validated = $request->validate([
+            'modules' => 'nullable|array',
+            'modules.*' => ['string', \Illuminate\Validation\Rule::in(\App\Support\ModuleRegistry::optionalKeys())],
+        ]);
+
+        session(['install_selected_modules' => array_values($validated['modules'] ?? [])]);
+
         return redirect()->route('install.admin');
     }
 
     /**
-     * Step 2: Admin account creation form
+     * Step 3: Admin account creation form
      */
     public function showAdminForm()
     {
@@ -348,6 +393,12 @@ class InstallController extends Controller
         $adminRole = Role::where('name', 'Admin')->first();
         $admin->assignRole($adminRole);
 
+        // Persist the chosen optional feature modules (#144). When the step was
+        // skipped, default to all enabled.
+        \App\Support\ModuleRegistry::save(
+            session('install_selected_modules', \App\Support\ModuleRegistry::optionalKeys()),
+        );
+
         if ($request->boolean('seed_demo_data')) {
             Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
         }
@@ -359,6 +410,7 @@ class InstallController extends Controller
             'install_database_configured',
             'install_database_config',
             'install_admin_config',
+            'install_selected_modules',
         ]);
 
         // Write final .env after response is sent

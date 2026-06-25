@@ -734,6 +734,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {} })
 function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
     const [inflightStepId, setInflightStepId] = useState(null);
     const [photoZoom, setPhotoZoom] = useState(null);
+    const [pickModal, setPickModal] = useState(null); // { step, materials } | null
 
     if (!steps || steps.length === 0) return null;
 
@@ -746,6 +747,35 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                 preserveScroll: true,
                 onFinish: () => setInflightStepId(null),
             }
+        );
+    };
+
+    // Starting a step: first ask the server which material lots (if any) need
+    // picking. With lots to pick, open the WO-time picking modal seeded with the
+    // system's proposal; otherwise start the step directly (unchanged behavior).
+    const handleStart = async (step) => {
+        setInflightStepId(step.id);
+        try {
+            const res = await fetch(`/operator/batch-step/${step.id}/pick-preview`, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.materials && data.materials.length > 0) {
+                    setInflightStepId(null);
+                    setPickModal({ step, materials: data.materials });
+                    return;
+                }
+            }
+        } catch {
+            // Preview failed → fall through and start directly; the server
+            // still auto-picks lots and surfaces any real error.
+        }
+        router.post(
+            `/operator/batch-step/${step.id}/start`,
+            {},
+            { preserveScroll: true, onFinish: () => setInflightStepId(null) }
         );
     };
 
@@ -813,7 +843,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                                 <Button
                                     variant="accent"
                                     disabled={isInflight}
-                                    onClick={() => handleStepAction(step, 'start')}
+                                    onClick={() => handleStart(step)}
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
                                     {isInflight ? '…' : 'Start'}
@@ -852,8 +882,214 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                     </figure>
                 </div>
             )}
+
+            {pickModal && (
+                <LotPickModal
+                    step={pickModal.step}
+                    materials={pickModal.materials}
+                    onClose={() => setPickModal(null)}
+                />
+            )}
         </div>
     );
+}
+
+// ---------------------------------------------------------------------------
+// WO-time lot picking modal (ERP-aligned "suggest + override"): the system
+// proposes lots (FEFO/FIFO/LIFO); the operator can split/reassign quantities
+// across the candidate lots before starting the step. Lots only (phase 1).
+// ---------------------------------------------------------------------------
+
+const EPSILON = 0.0001;
+
+function LotPickModal({ step, materials, onClose }) {
+    const [submitting, setSubmitting] = useState(false);
+    // picks: { [materialId]: [{ material_lot_id, picked_qty: string }] }
+    const [picks, setPicks] = useState(() =>
+        Object.fromEntries(
+            materials.map((m) => [
+                m.material_id,
+                m.proposed.map((p) => ({ material_lot_id: p.material_lot_id, picked_qty: String(p.picked_qty) })),
+            ])
+        )
+    );
+
+    // material_id -> { lotId -> candidate } for quick lookups.
+    const candById = useMemo(
+        () =>
+            Object.fromEntries(
+                materials.map((m) => [m.material_id, Object.fromEntries(m.candidates.map((c) => [c.id, c]))])
+            ),
+        [materials]
+    );
+
+    const setLineQty = (matId, idx, val) =>
+        setPicks((prev) => {
+            const lines = [...(prev[matId] ?? [])];
+            lines[idx] = { ...lines[idx], picked_qty: val };
+            return { ...prev, [matId]: lines };
+        });
+
+    const removeLine = (matId, idx) =>
+        setPicks((prev) => ({ ...prev, [matId]: (prev[matId] ?? []).filter((_, i) => i !== idx) }));
+
+    const addLine = (matId, lotId, required) =>
+        setPicks((prev) => {
+            const lines = prev[matId] ?? [];
+            if (lines.some((ln) => ln.material_lot_id === lotId)) return prev;
+            const allocated = lines.reduce((s, ln) => s + (Number(ln.picked_qty) || 0), 0);
+            const cand = candById[matId][lotId];
+            const want = Math.max(required - allocated, 0);
+            const qty = Math.min(want > 0 ? want : cand.quantity_available, cand.quantity_available);
+            return { ...prev, [matId]: [...lines, { material_lot_id: lotId, picked_qty: String(round4(qty)) }] };
+        });
+
+    const materialValid = (m) => {
+        const lines = picks[m.material_id] ?? [];
+        if (lines.length === 0) return false;
+        let sum = 0;
+        for (const ln of lines) {
+            const q = Number(ln.picked_qty);
+            const cand = candById[m.material_id][ln.material_lot_id];
+            if (!(q > 0) || !cand || q > cand.quantity_available + EPSILON) return false;
+            sum += q;
+        }
+        return Math.abs(sum - m.required_qty) < EPSILON;
+    };
+
+    const allValid = materials.every(materialValid);
+
+    const submit = (e) => {
+        e.preventDefault();
+        if (!allValid) return;
+        setSubmitting(true);
+        const payload = {
+            picks: materials.map((m) => ({
+                material_id: m.material_id,
+                lots: (picks[m.material_id] ?? []).map((ln) => ({
+                    material_lot_id: ln.material_lot_id,
+                    picked_qty: Number(ln.picked_qty),
+                })),
+            })),
+        };
+        router.post(`/operator/batch-step/${step.id}/start`, payload, {
+            preserveScroll: true,
+            onSuccess: onClose,
+            onFinish: () => setSubmitting(false),
+        });
+    };
+
+    return (
+        <ModalShell title="Pick material lots" subtitle={step.name} onClose={onClose}>
+            <form onSubmit={submit}>
+                <div className="max-h-[60vh] space-y-5 overflow-y-auto px-[18px] py-4">
+                    {materials.map((m) => {
+                        const lines = picks[m.material_id] ?? [];
+                        const allocated = lines.reduce((s, ln) => s + (Number(ln.picked_qty) || 0), 0);
+                        const balanced = Math.abs(allocated - m.required_qty) < EPSILON;
+                        const remaining = m.candidates.filter((c) => !lines.some((ln) => ln.material_lot_id === c.id));
+                        return (
+                            <div key={m.material_id} className="rounded-om-sm border border-om-line2 bg-om-panel p-3">
+                                <div className="mb-2 flex items-start justify-between gap-2">
+                                    <div>
+                                        <span className="text-sm font-medium text-om-ink">{m.material_name}</span>
+                                        <span className="ml-1 font-mono text-[11px] text-om-faint">{m.material_code}</span>
+                                    </div>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-muted">
+                                        {m.strategy}
+                                    </span>
+                                </div>
+
+                                {lines.length === 0 && (
+                                    <p className={errorCls}>
+                                        {m.candidates.length === 0
+                                            ? 'No lots available for this material'
+                                            : 'Add a lot to allocate the required quantity.'}
+                                    </p>
+                                )}
+
+                                <div className="space-y-1.5">
+                                    {lines.map((ln, idx) => {
+                                        const cand = candById[m.material_id][ln.material_lot_id];
+                                        const over = Number(ln.picked_qty) > (cand?.quantity_available ?? 0) + EPSILON;
+                                        return (
+                                            <div key={ln.material_lot_id} className="flex items-center gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <span className="block truncate font-mono text-[12px] text-om-ink">
+                                                        {cand?.lot_number ?? `#${ln.material_lot_id}`}
+                                                    </span>
+                                                    <span className="font-mono text-[10px] text-om-faint">
+                                                        avail {fmtQty(cand?.quantity_available, 4)}
+                                                        {cand?.expiry_date ? ` · exp ${formatDate(cand.expiry_date)}` : ''}
+                                                    </span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    step="0.0001"
+                                                    min="0"
+                                                    inputMode="decimal"
+                                                    value={ln.picked_qty}
+                                                    onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
+                                                    className={`${inputCls} w-28 text-right ${over ? 'border-om-blocked' : ''}`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeLine(m.material_id, idx)}
+                                                    className="cursor-pointer px-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
+                                                    title="Remove lot"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {remaining.length > 0 && (
+                                    <select
+                                        value=""
+                                        onChange={(e) => {
+                                            if (e.target.value) addLine(m.material_id, Number(e.target.value), m.required_qty);
+                                        }}
+                                        className={`${inputCls} mt-2`}
+                                    >
+                                        <option value="">+ Add lot…</option>
+                                        {remaining.map((c) => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.lot_number} — avail {fmtQty(c.quantity_available, 4)}
+                                                {c.expiry_date ? ` (exp ${formatDate(c.expiry_date)})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+
+                                <div className="mt-2 flex justify-between font-mono text-[11px]">
+                                    <span className="text-om-faint">
+                                        Required {fmtQty(m.required_qty, 4)} {m.unit_of_measure}
+                                    </span>
+                                    <span className={balanced ? 'text-om-done' : 'text-om-blocked'}>
+                                        Allocated {fmtQty(allocated, 4)}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className={modalFooterCls}>
+                    <Button variant="secondary" type="button" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button variant="accent" type="submit" disabled={!allValid || submitting}>
+                        {submitting ? '…' : 'Confirm picks & start'}
+                    </Button>
+                </div>
+            </form>
+        </ModalShell>
+    );
+}
+
+function round4(n) {
+    return Math.round((Number(n) + Number.EPSILON) * 10000) / 10000;
 }
 
 // ---------------------------------------------------------------------------

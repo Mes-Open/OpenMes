@@ -149,6 +149,116 @@ class LotPickingServiceTest extends TestCase
         $this->assertSame(0, AllocationLotPick::count());
     }
 
+    public function test_manual_pick_writes_one_row_per_chosen_lot(): void
+    {
+        $lotA = $this->makeLot('LOT-A', 100);
+        $lotB = $this->makeLot('LOT-B', 100);
+
+        $picks = $this->svc->pickManualForAllocation($this->allocation, $this->material, 100, [
+            ['material_lot_id' => $lotA->id, 'picked_qty' => 70],
+            ['material_lot_id' => $lotB->id, 'picked_qty' => 30],
+        ]);
+
+        $this->assertCount(2, $picks);
+        $this->assertEqualsWithDelta(30.0, (float) $lotA->fresh()->quantity_available, 0.0001);
+        $this->assertEqualsWithDelta(70.0, (float) $lotB->fresh()->quantity_available, 0.0001);
+        foreach ($picks as $pick) {
+            $this->assertSame(AllocationLotPick::STRATEGY_MANUAL, $pick->picking_strategy);
+        }
+    }
+
+    public function test_manual_pick_marks_depleted_lot_consumed(): void
+    {
+        $lot = $this->makeLot('LOT-A', 40);
+
+        $this->svc->pickManualForAllocation($this->allocation, $this->material, 40, [
+            ['material_lot_id' => $lot->id, 'picked_qty' => 40],
+        ]);
+
+        $this->assertEqualsWithDelta(0.0, (float) $lot->fresh()->quantity_available, 0.0001);
+        $this->assertSame(MaterialLot::STATUS_CONSUMED, $lot->fresh()->status);
+    }
+
+    public function test_manual_pick_rejects_quantities_not_summing_to_required(): void
+    {
+        $lot = $this->makeLot('LOT-A', 100);
+
+        $this->expectException(\DomainException::class);
+        $this->svc->pickManualForAllocation($this->allocation, $this->material, 100, [
+            ['material_lot_id' => $lot->id, 'picked_qty' => 80],
+        ]);
+    }
+
+    public function test_manual_pick_rejects_lot_from_another_material(): void
+    {
+        $otherType = MaterialType::create(['code' => 'PKG', 'name' => 'Pkg']);
+        $otherMaterial = Material::create([
+            'code' => 'OTHER', 'name' => 'Other',
+            'material_type_id' => $otherType->id, 'unit_of_measure' => 'kg', 'stock_quantity' => 100,
+        ]);
+        $foreignLot = MaterialLot::create([
+            'material_id' => $otherMaterial->id, 'lot_number' => 'FOREIGN',
+            'unit_of_measure' => 'kg', 'quantity_received' => 100, 'quantity_available' => 100,
+            'received_at' => now(), 'status' => MaterialLot::STATUS_RELEASED,
+        ]);
+
+        $this->expectException(\DomainException::class);
+        $this->svc->pickManualForAllocation($this->allocation, $this->material, 100, [
+            ['material_lot_id' => $foreignLot->id, 'picked_qty' => 100],
+        ]);
+    }
+
+    public function test_manual_pick_rejects_quarantined_lot(): void
+    {
+        $lot = $this->makeLot('LOT-A', 100);
+        $lot->update(['status' => MaterialLot::STATUS_QUARANTINE]);
+
+        $this->expectException(\DomainException::class);
+        $this->svc->pickManualForAllocation($this->allocation, $this->material, 100, [
+            ['material_lot_id' => $lot->id, 'picked_qty' => 100],
+        ]);
+    }
+
+    public function test_manual_pick_throws_when_line_exceeds_lot_available(): void
+    {
+        $lot = $this->makeLot('LOT-A', 50);
+
+        $this->expectException(InsufficientStockException::class);
+        $this->svc->pickManualForAllocation($this->allocation, $this->material, 60, [
+            ['material_lot_id' => $lot->id, 'picked_qty' => 60],
+        ]);
+    }
+
+    public function test_propose_picks_returns_fefo_split_and_candidates_without_mutating(): void
+    {
+        $late = $this->makeLot('LOT-LATE', 50, expiry: '2027-12-31');
+        $early = $this->makeLot('LOT-EARLY', 50, expiry: '2026-08-01');
+
+        $proposal = $this->svc->proposePicks($this->material, 80, 'fefo');
+
+        $this->assertSame('fefo', $proposal['strategy']);
+        $this->assertCount(2, $proposal['proposed']);
+        $this->assertSame($early->id, $proposal['proposed'][0]['material_lot_id']);
+        $this->assertEqualsWithDelta(50.0, $proposal['proposed'][0]['picked_qty'], 0.0001);
+        $this->assertSame($late->id, $proposal['proposed'][1]['material_lot_id']);
+        $this->assertEqualsWithDelta(30.0, $proposal['proposed'][1]['picked_qty'], 0.0001);
+        $this->assertCount(2, $proposal['candidates']);
+        // Read-only: availability untouched, no picks written.
+        $this->assertEqualsWithDelta(50.0, (float) $early->fresh()->quantity_available, 0.0001);
+        $this->assertSame(0, AllocationLotPick::count());
+    }
+
+    public function test_propose_picks_with_manual_strategy_proposes_nothing(): void
+    {
+        $this->makeLot('LOT-A', 100);
+
+        $proposal = $this->svc->proposePicks($this->material, 50, 'manual');
+
+        $this->assertSame('manual', $proposal['strategy']);
+        $this->assertCount(0, $proposal['proposed']);
+        $this->assertCount(1, $proposal['candidates']);
+    }
+
     public function test_setting_toggles_lot_tracking_for_allocator(): void
     {
         $this->makeLot('LOT-A', 200);
