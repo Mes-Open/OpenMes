@@ -56,6 +56,23 @@ class ProcessTemplateStepWebTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_set_required_operators_on_a_step(): void
+    {
+        [$pt, $tpl] = $this->template();
+
+        $this->actingAs($this->admin)
+            ->post($this->base($pt, $tpl).'/steps', [
+                'name' => 'Two-person press',
+                'required_operators' => 2,
+            ])->assertRedirect();
+
+        $this->assertDatabaseHas('template_steps', [
+            'process_template_id' => $tpl->id,
+            'name' => 'Two-person press',
+            'required_operators' => 2,
+        ]);
+    }
+
     public function test_admin_can_update_step(): void
     {
         [$pt, $tpl] = $this->template();

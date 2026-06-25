@@ -141,18 +141,36 @@ class WorkOrder extends Model
     }
 
     /**
-     * Peak operators this order needs while running — the max `required_operators`
-     * across its process-snapshot steps (defaults to 1). Used by the schedule
-     * capacity crew axis to weight a line's machine-hours into labor-hours.
+     * Labor multiplier turning this order's machine-hours into person-hours for
+     * the schedule-capacity crew axis: the duration-weighted average operators
+     * across its process-snapshot steps — i.e. Σ(step minutes × operators) ÷
+     * Σ(step minutes), so true person-hours = machine-hours × this factor.
+     *
+     * Falls back to the heaviest step's operator count when no step has a
+     * duration, and to 1 when the snapshot has no steps/operators. A step with
+     * a missing or zero operator count is treated as needing one operator.
      */
-    public function requiredOperators(): int
+    public function operatorFactor(): float
     {
-        $max = 0;
+        $totalMinutes = 0;
+        $weighted = 0;
+        $maxOperators = 0;
+
         foreach ($this->process_snapshot['steps'] ?? [] as $step) {
-            $max = max($max, (int) ($step['required_operators'] ?? 0));
+            $operators = max(1, (int) ($step['required_operators'] ?? 1));
+            $minutes = (int) ($step['estimated_duration_minutes'] ?? 0);
+            $maxOperators = max($maxOperators, $operators);
+            if ($minutes > 0) {
+                $totalMinutes += $minutes;
+                $weighted += $minutes * $operators;
+            }
         }
 
-        return max(1, $max);
+        if ($totalMinutes > 0) {
+            return $weighted / $totalMinutes;
+        }
+
+        return max(1, $maxOperators);
     }
 
     /**

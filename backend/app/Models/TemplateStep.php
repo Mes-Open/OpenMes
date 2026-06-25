@@ -100,6 +100,11 @@ class TemplateStep extends Model
      */
     public function effectiveRequiredOperators(): int
     {
-        return $this->required_operators ?? $this->processSegment?->required_operators ?? 1;
+        // Treat a missing OR zero step value as "unset" so it defers to the
+        // segment default, then to one operator (validation enforces min:1, but
+        // factories/imports/direct writes could store 0).
+        return ($this->required_operators ?: null)
+            ?? $this->processSegment?->required_operators
+            ?? 1;
     }
 }

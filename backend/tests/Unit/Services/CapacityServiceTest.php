@@ -389,7 +389,8 @@ class CapacityServiceTest extends TestCase
         $crew = $this->crewWithWorker($line, 1);
 
         $monday = Carbon::now()->startOfWeek();
-        // 8h of machine work whose peak step needs 2 operators → 16 labor-hours.
+        // 8h machine work; duration-weighted operators = (60×2 + 60×1)/120 = 1.5
+        // → 8 machine-hours × 1.5 = 12 labor-hours (true person-hours, not peak).
         WorkOrder::factory()->create([
             'line_id' => $line->id,
             'status' => WorkOrder::STATUS_PENDING,
@@ -397,15 +398,55 @@ class CapacityServiceTest extends TestCase
             'planned_end_at' => $monday->copy()->setTime(14, 0),
             'process_snapshot' => ['steps' => [
                 ['estimated_duration_minutes' => 60, 'required_operators' => 2],
-                ['estimated_duration_minutes' => 30, 'required_operators' => 1],
+                ['estimated_duration_minutes' => 60, 'required_operators' => 1],
             ]],
         ]);
 
         $grid = $this->service->crewCapacity($monday, $monday->copy()->endOfWeek(), 'week');
         $cell = $this->cell($grid, $crew->id, $grid['buckets'][0]['key']);
 
-        // 8 machine-hours × peak 2 operators.
-        $this->assertSame(16.0, $cell['planned_h']);
+        $this->assertSame(12.0, $cell['planned_h']);
+    }
+
+    public function test_demand_on_unstaffed_lines_surfaces_in_an_unassigned_row(): void
+    {
+        // A line with planned work but no crew staffing it.
+        $line = $this->line();
+        $this->shift(['line_id' => $line->id]);
+        $monday = Carbon::now()->startOfWeek();
+        WorkOrder::factory()->create([
+            'line_id' => $line->id,
+            'status' => WorkOrder::STATUS_PENDING,
+            'planned_start_at' => $monday->copy()->setTime(6, 0),
+            'planned_end_at' => $monday->copy()->setTime(14, 0), // 8h, 1 operator
+        ]);
+
+        $grid = $this->service->crewCapacity($monday, $monday->copy()->endOfWeek(), 'week');
+        $unassigned = collect($grid['resources'])->firstWhere('id', 0);
+
+        $this->assertNotNull($unassigned, 'an Unassigned row should appear');
+        $cell = $unassigned['cells'][$grid['buckets'][0]['key']];
+        $this->assertSame(8.0, $cell['planned_h']);
+        $this->assertSame(0.0, $cell['available_h']);
+        $this->assertNull($cell['load_pct']); // no labor supply → over-capacity flag
+    }
+
+    public function test_no_unassigned_row_when_every_line_is_staffed(): void
+    {
+        $line = $this->line();
+        $this->shift(['line_id' => $line->id]);
+        $this->crewWithWorker($line, 1); // staffs the line
+        WorkOrder::factory()->create([
+            'line_id' => $line->id,
+            'status' => WorkOrder::STATUS_PENDING,
+            'planned_start_at' => Carbon::now()->startOfWeek()->setTime(6, 0),
+            'planned_end_at' => Carbon::now()->startOfWeek()->setTime(14, 0),
+        ]);
+
+        $monday = Carbon::now()->startOfWeek();
+        $grid = $this->service->crewCapacity($monday, $monday->copy()->endOfWeek(), 'week');
+
+        $this->assertNull(collect($grid['resources'])->firstWhere('id', 0));
     }
 
     public function test_explicit_line_assignment_drives_crew_demand(): void

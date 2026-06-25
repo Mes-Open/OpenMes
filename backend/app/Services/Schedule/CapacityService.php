@@ -25,9 +25,9 @@ use Illuminate\Support\Collection;
  * The *crew* axis ({@see crewCapacity()}) supplies labor capacity: available
  * hours from each crew's workers (their line's shifts minus approved absences
  * and crew break windows), planned hours from the forward labor demand of the
- * lines the crew staffs (derived from worker → workstation → line, since the
- * schema has no explicit crew↔line link). See {@see crewCapacity()} for the
- * demand model and its one-operator-per-line-hour heuristic.
+ * lines the crew staffs (explicit crew↔line assignment, else derived from
+ * worker → workstation → line), weighted by each order's required operators.
+ * See {@see crewCapacity()} for the demand model.
  */
 class CapacityService
 {
@@ -100,10 +100,11 @@ class CapacityService
      * Planned = the forward labor demand of the lines the crew staffs. A crew
      * "staffs" the lines its explicit assignment lists (or, failing that, the
      * lines its active workers' workstations belong to). Each such line's
-     * planned machine-hours are weighted by its orders' peak required operators
-     * (see {@see WorkOrder::requiredOperators()}) to get labor-hours, then split
-     * equally among the crews that staff the line so shared lines aren't
-     * double-counted.
+     * planned machine-hours are weighted into person-hours by its orders'
+     * duration-weighted operator count ({@see WorkOrder::operatorFactor()}),
+     * then split equally among the crews that staff the line so shared lines
+     * aren't double-counted. Demand on lines no crew staffs is surfaced in an
+     * "Unassigned" row (zero available, so it reads as over-capacity).
      *
      * @return array{granularity: string, buckets: array<int, array>, resources: array<int, array>}
      */
@@ -134,10 +135,13 @@ class CapacityService
             $lineDemand[$lineId] = $this->lineLaborMinutes($orders, $buckets);
         }
 
-        // How many crews staff each line, to split a line's demand fairly.
+        // Lines each crew staffs (resolved once per crew) and how many crews
+        // staff each line, to split a line's demand fairly.
+        $crewLineIdsById = [];
         $crewsPerLine = [];
         foreach ($crews as $crew) {
-            foreach ($this->crewLineIds($crew) as $lineId) {
+            $crewLineIdsById[$crew->id] = $this->crewLineIds($crew);
+            foreach ($crewLineIdsById[$crew->id] as $lineId) {
                 $crewsPerLine[$lineId] = ($crewsPerLine[$lineId] ?? 0) + 1;
             }
         }
@@ -147,14 +151,13 @@ class CapacityService
 
         $resources = [];
         foreach ($crews as $crew) {
-            $crewLineIds = $this->crewLineIds($crew);
-
             $cells = [];
             foreach ($buckets as $bucket) {
-                $planned = 0;
-                foreach ($crewLineIds as $lineId) {
+                // Float through the split; round once when converting to hours.
+                $planned = 0.0;
+                foreach ($crewLineIdsById[$crew->id] as $lineId) {
                     $lineMinutes = $lineDemand[$lineId][$bucket['key']] ?? 0;
-                    $planned += (int) round($lineMinutes / max(1, $crewsPerLine[$lineId] ?? 1));
+                    $planned += $lineMinutes / max(1, $crewsPerLine[$lineId] ?? 1);
                 }
 
                 $cells[$bucket['key']] = [
@@ -172,13 +175,37 @@ class CapacityService
             ];
         }
 
+        // Labor demand on lines no crew staffs would otherwise vanish; surface
+        // it in an "Unassigned" row with zero available labor (reads as over
+        // capacity) so the planner sees unmet demand instead of idle crews.
+        $unassigned = [];
+        $hasUnassigned = false;
+        foreach ($buckets as $bucket) {
+            $minutes = 0;
+            foreach ($lineDemand as $lineId => $perBucket) {
+                if (($crewsPerLine[$lineId] ?? 0) === 0) {
+                    $minutes += $perBucket[$bucket['key']] ?? 0;
+                }
+            }
+            $unassigned[$bucket['key']] = ['available_minutes' => 0, 'planned_minutes' => $minutes, 'unestimated_count' => 0];
+            $hasUnassigned = $hasUnassigned || $minutes > 0;
+        }
+        if ($hasUnassigned) {
+            $resources[] = [
+                'id' => 0,
+                'name' => __('Unassigned'),
+                'code' => null,
+                'cells' => $this->finalizeCells($unassigned),
+            ];
+        }
+
         return $this->grid($granularity, $buckets, $resources);
     }
 
     /**
      * Work orders contributing to a single line-axis cell (for the drill-down),
      * each with the hours it contributes to that bucket. Uses the same
-     * {@see orderBucketContribution()} as the grid, so the listed orders always
+     * {@see orderContributions()} as the grid, so the listed orders always
      * reconcile with the cell total.
      *
      * @return array<int, array>
@@ -210,8 +237,10 @@ class CapacityService
 
         $rows = [];
         foreach ($orders as $wo) {
-            $contribution = $this->orderBucketContribution($wo, $bucket, [$bucket]);
-            if (! $contribution['contributes']) {
+            $contribution = $this->orderContributions($wo, [$bucket]);
+            $minutes = $contribution['minutes'][$bucket['key']] ?? 0;
+            $unestimated = $contribution['unestimatedKey'] === $bucket['key'];
+            if ($minutes <= 0 && ! $unestimated) {
                 continue;
             }
 
@@ -226,8 +255,8 @@ class CapacityService
                 'shift_number' => $wo->shift_number,
                 'planned_start_at' => $wo->planned_start_at?->toIso8601String(),
                 'planned_end_at' => $wo->planned_end_at?->toIso8601String(),
-                'hours' => round($contribution['minutes'] / 60, 1),
-                'unestimated' => $contribution['unestimated'],
+                'hours' => round($minutes / 60, 1),
+                'unestimated' => $unestimated,
                 'minute_planned' => $wo->hasMinutePlanning(),
             ];
         }
@@ -255,56 +284,71 @@ class CapacityService
     }
 
     /**
-     * How a single work order contributes to one bucket: minutes of planned
-     * work and whether it is unestimated. The single source of truth shared by
-     * the grid ({@see placeOrder()}) and the drill-down ({@see cellOrders()}).
+     * How a work order's planned hours spread across the buckets — computed
+     * once per order (bucket placement is resolved a single time, not per
+     * bucket). The single source of truth for both axes and the drill-down.
      *
-     * @return array{contributes: bool, minutes: int, unestimated: bool}
+     * @return array{minutes: array<string, int>, unestimatedKey: ?string}
+     *                                                                     minutes: bucket key => planned minutes;
+     *                                                                     unestimatedKey: the bucket an unestimable order is flagged in
      */
-    private function orderBucketContribution(WorkOrder $wo, array $bucket, array $buckets): array
+    private function orderContributions(WorkOrder $wo, array $buckets): array
     {
+        $minutes = [];
+
         if ($wo->hasMinutePlanning()) {
             // An inverted/zero span (planned_end <= planned_start) is invalid but the
             // data model permits it (plannedDurationMinutes() returns it unclamped).
             // Surface it as unestimated in the bucket holding planned_start_at rather
-            // than silently dropping it to zero minutes (a hidden double-book).
+            // than silently dropping it (a hidden double-book).
             if ($wo->planned_end_at->lessThanOrEqualTo($wo->planned_start_at)) {
-                $inBucket = $wo->planned_start_at->between($bucket['start'], $bucket['end']);
+                foreach ($buckets as $bucket) {
+                    if ($wo->planned_start_at->between($bucket['start'], $bucket['end'])) {
+                        return ['minutes' => $minutes, 'unestimatedKey' => $bucket['key']];
+                    }
+                }
 
-                return ['contributes' => $inBucket, 'minutes' => 0, 'unestimated' => $inBucket];
+                return ['minutes' => $minutes, 'unestimatedKey' => null];
             }
 
-            $minutes = $this->overlapMinutes($wo->planned_start_at, $wo->planned_end_at, $bucket);
+            foreach ($buckets as $bucket) {
+                $overlap = $this->overlapMinutes($wo->planned_start_at, $wo->planned_end_at, $bucket);
+                if ($overlap > 0) {
+                    $minutes[$bucket['key']] = $overlap;
+                }
+            }
 
-            return ['contributes' => $minutes > 0, 'minutes' => $minutes, 'unestimated' => false];
+            return ['minutes' => $minutes, 'unestimatedKey' => null];
         }
 
-        // Non-minute-planned orders belong to exactly one bucket (their
-        // placement date / week); they only contribute to that bucket.
-        if ($this->bucketKeyForOrder($wo, $buckets) !== $bucket['key']) {
-            return ['contributes' => false, 'minutes' => 0, 'unestimated' => false];
+        // Non-minute-planned orders belong to exactly one bucket (their placement
+        // date / week), resolved once here rather than per bucket.
+        $key = $this->bucketKeyForOrder($wo, $buckets);
+        if ($key === null) {
+            return ['minutes' => $minutes, 'unestimatedKey' => null];
         }
 
         $estimate = $wo->estimatedDurationMinutes();
+        if ($estimate === null) {
+            return ['minutes' => $minutes, 'unestimatedKey' => $key];
+        }
 
-        return ['contributes' => true, 'minutes' => $estimate ?? 0, 'unestimated' => $estimate === null];
+        $minutes[$key] = $estimate;
+
+        return ['minutes' => $minutes, 'unestimatedKey' => null];
     }
 
     /**
-     * Attribute a work order's planned hours to the relevant bucket(s).
+     * Attribute a work order's planned machine-hours to the relevant bucket(s).
      */
     private function placeOrder(WorkOrder $wo, array &$cells, array $buckets): void
     {
-        foreach ($buckets as $bucket) {
-            $contribution = $this->orderBucketContribution($wo, $bucket, $buckets);
-            if (! $contribution['contributes']) {
-                continue;
-            }
-            if ($contribution['unestimated']) {
-                $cells[$bucket['key']]['unestimated_count']++;
-            } else {
-                $cells[$bucket['key']]['planned_minutes'] += $contribution['minutes'];
-            }
+        $contribution = $this->orderContributions($wo, $buckets);
+        foreach ($contribution['minutes'] as $key => $minutes) {
+            $cells[$key]['planned_minutes'] += $minutes;
+        }
+        if ($contribution['unestimatedKey'] !== null) {
+            $cells[$contribution['unestimatedKey']]['unestimated_count']++;
         }
     }
 
@@ -333,25 +377,24 @@ class CapacityService
 
     /**
      * Operator-weighted labor minutes per bucket for a single line's orders:
-     * each order's machine-minutes in a bucket × its required operators (peak).
-     * This is the crew-axis demand — the person-minutes the line's planned work
-     * needs. With every step needing one operator it equals machine-minutes.
+     * each order's machine-minutes in a bucket × its duration-weighted operator
+     * count ({@see WorkOrder::operatorFactor()}). This is the crew-axis demand —
+     * the person-minutes the line's planned work needs. With every step needing
+     * one operator it equals machine-minutes. Kept as floats and rounded once at
+     * the hour-display step, so per-order rounding can't drift the bucket total.
      *
-     * @return array<string, int> bucket key => labor minutes
+     * @return array<string, float> bucket key => labor minutes
      */
     private function lineLaborMinutes(Collection $orders, array $buckets): array
     {
         $labor = [];
         foreach ($buckets as $bucket) {
-            $labor[$bucket['key']] = 0;
+            $labor[$bucket['key']] = 0.0;
         }
         foreach ($orders as $wo) {
-            $operators = $wo->requiredOperators();
-            foreach ($buckets as $bucket) {
-                $contribution = $this->orderBucketContribution($wo, $bucket, $buckets);
-                if ($contribution['contributes'] && ! $contribution['unestimated']) {
-                    $labor[$bucket['key']] += $contribution['minutes'] * $operators;
-                }
+            $factor = $wo->operatorFactor();
+            foreach ($this->orderContributions($wo, $buckets)['minutes'] as $key => $minutes) {
+                $labor[$key] += $minutes * $factor;
             }
         }
 

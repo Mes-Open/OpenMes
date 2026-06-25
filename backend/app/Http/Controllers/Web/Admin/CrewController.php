@@ -8,6 +8,7 @@ use App\Models\Division;
 use App\Models\Line;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Inertia\Inertia;
 
 class CrewController extends Controller
@@ -62,7 +63,7 @@ class CrewController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
-        $crew = Crew::create($validated);
+        $crew = Crew::create(Arr::except($validated, 'line_ids'));
         $crew->lines()->sync($request->input('line_ids', []));
 
         return redirect()->route('admin.crews.index')
@@ -107,7 +108,7 @@ class CrewController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active');
 
-        $crew->update($validated);
+        $crew->update(Arr::except($validated, 'line_ids'));
         $crew->lines()->sync($request->input('line_ids', []));
 
         return redirect()->route('admin.crews.index')

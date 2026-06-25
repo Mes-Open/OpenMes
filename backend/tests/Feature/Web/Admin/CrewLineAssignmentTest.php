@@ -63,4 +63,26 @@ class CrewLineAssignmentTest extends TestCase
             'line_ids' => [999999],
         ])->assertSessionHasErrors('line_ids.0');
     }
+
+    public function test_a_restored_crew_keeps_its_line_assignments(): void
+    {
+        // Soft-deleting a crew must NOT detach its lines, so restoring it from
+        // Admin → Trash brings the assignments back (the crew_line pivot is not
+        // a soft-delete cascade child — preserved on delete, intact on restore).
+        $a = Line::factory()->create(['is_active' => true]);
+        $b = Line::factory()->create(['is_active' => true]);
+        $crew = Crew::factory()->create(['is_active' => true]);
+        $crew->lines()->sync([$a->id, $b->id]);
+
+        $this->actingAs($this->admin);
+        $crew->delete();
+        $this->assertSoftDeleted('crews', ['id' => $crew->id]);
+
+        // Restore through the actual Trash endpoint the user uses.
+        $this->post("/admin/trash/crews/{$crew->id}/restore")->assertRedirect();
+
+        $restored = Crew::find($crew->id);
+        $this->assertNotNull($restored, 'crew should be restored');
+        $this->assertEqualsCanonicalizing([$a->id, $b->id], $restored->lines()->pluck('lines.id')->all());
+    }
 }

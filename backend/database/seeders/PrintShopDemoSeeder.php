@@ -44,11 +44,11 @@ class PrintShopDemoSeeder extends Seeder
         $this->seedUsers($lines);
         $this->seedWorkOrders($productTypes, $lines);
         $this->seedShifts($lines);
-        $this->seedCrews($lines, $workstations);
         $materials = $this->seedMaterials();
         $this->seedMaterialLots($materials);
         $site = $this->seedISA95Hierarchy($lines);
         $this->seedSkillsAndPersonnelClasses();
+        $this->seedCrews($lines, $workstations);
         $this->seedProcessSegments();
         $this->seedMaintenanceSchedulesAndEvents($lines, $workstations);
         $this->seedInspectionPlans($materials);
