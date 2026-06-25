@@ -12,25 +12,25 @@ export default function CrewBreakWindowsIndex() {
     const columns = [
         {
             key: 'crew',
-            label: __('Crew'),
+            label: 'Crew',
             className: 'font-medium text-gray-800',
             render: (r) => crewNames[r.crew_id] ?? `#${r.crew_id}`,
         },
-        { key: 'name', label: __('Name') },
+        { key: 'name', label: 'Name' },
         {
             key: 'time',
-            label: __('Time'),
+            label: 'Time',
             render: (r) => `${time(r.start_time)}–${time(r.end_time)}`,
         },
         {
             key: 'days',
-            label: __('Days'),
+            label: 'Days',
             className: 'text-gray-600',
             render: (r) => formatDays(r.days_of_week ?? []),
         },
         {
             key: 'is_active',
-            label: __('Status'),
+            label: 'Status',
             render: (r) => (
                 <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                     {r.is_active ? __('Active') : __('Inactive')}

@@ -186,7 +186,7 @@ export default function InspectionsIndex() {
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                             <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold capitalize ${dispositionBadge(insp.disposition ?? 'pending')}`}>
-                                                {__(insp.disposition ?? 'pending')}
+                                                {__(DISPOSITION_LABELS[insp.disposition ?? 'pending'] ?? (insp.disposition ?? 'pending'))}
                                             </span>
                                         </td>
                                         <td className="px-3 py-2 text-right">

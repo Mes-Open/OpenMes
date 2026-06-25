@@ -25,7 +25,7 @@ function StatusBadge({ item }) {
     if (item.status === 'DONE') {
         return (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
-                {__('In progress')}
+                {__('Done')}
             </span>
         );
     }

@@ -64,7 +64,7 @@ function BatchRow({ batch, processSnapshot }) {
                 <div className="flex items-center gap-3">
                     <span className="font-semibold text-gray-700">Batch #{batch.batch_number}</span>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${batchStyle}`}>
-                        {__(batch.status.replace('_', ' '))}
+                        {__(batch.status)}
                     </span>
                     <span className="text-sm text-gray-500">
                         {fmtQty(batch.produced_qty)} / {fmtQty(batch.target_qty)}
@@ -90,7 +90,7 @@ function BatchRow({ batch, processSnapshot }) {
                                     {step.step_number}
                                 </span>
                                 <span className="flex-1 text-gray-700">{step.name}</span>
-                                <span className="text-xs text-gray-400">{__(step.status.replace('_', ' '))}</span>
+                                <span className="text-xs text-gray-400">{__(step.status)}</span>
                                 {step.duration_minutes != null ? (
                                     <span className={`text-xs font-medium ${overTime ? 'text-red-500' : 'text-green-600'}`}>
                                         {step.duration_minutes}min{estimated ? ` / est. ${estimated}min` : ''}
