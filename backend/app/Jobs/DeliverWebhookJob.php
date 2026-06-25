@@ -50,12 +50,14 @@ class DeliverWebhookJob implements ShouldQueue
             return;
         }
 
-        // Re-check SSRF at delivery time (DNS may have changed since save).
-        // Unsafe target is terminal — retrying won't make it safe.
-        $unsafe = WebhookUrlGuard::reason($webhook->url);
-        if ($unsafe !== null) {
-            $this->markFailed($delivery, $unsafe);
-            $this->fail(new \RuntimeException($unsafe));
+        // Re-validate at delivery time AND capture the vetted IP to pin the
+        // connection to (below), so DNS can't rebind to an internal address
+        // between this check and the actual connect. Unsafe = terminal.
+        try {
+            $target = WebhookUrlGuard::safeTarget($webhook->url);
+        } catch (Throwable $e) {
+            $this->markFailed($delivery, $e->getMessage());
+            $this->fail($e);
 
             return;
         }
@@ -77,6 +79,9 @@ class DeliverWebhookJob implements ShouldQueue
 
         try {
             $response = Http::withHeaders($headers)
+                // Pin the socket to the IP we just vetted (Host header + TLS SNI
+                // still use the original hostname) — closes the rebinding window.
+                ->withOptions(['curl' => [CURLOPT_RESOLVE => ["{$target['host']}:{$target['port']}:{$target['ip']}"]]])
                 ->timeout(10)
                 ->withBody($body, 'application/json')
                 ->post($webhook->url);

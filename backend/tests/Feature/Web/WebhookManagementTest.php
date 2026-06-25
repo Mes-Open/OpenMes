@@ -112,6 +112,20 @@ class WebhookManagementTest extends TestCase
         $this->assertSame([WebhookEventRegistry::BATCH_COMPLETED], $webhook->events);
     }
 
+    public function test_update_omitting_is_active_keeps_current_state(): void
+    {
+        $webhook = Webhook::factory()->inactive()->create();
+
+        // An update payload without is_active must NOT silently re-activate it.
+        $this->actingAs($this->admin)->put("/admin/webhooks/{$webhook->id}", [
+            'name' => 'Still disabled',
+            'url' => self::VALID_URL,
+            'events' => [WebhookEventRegistry::ISSUE_CREATED],
+        ])->assertRedirect('/admin/webhooks');
+
+        $this->assertFalse($webhook->fresh()->is_active);
+    }
+
     public function test_destroy_soft_deletes(): void
     {
         $webhook = Webhook::factory()->create();

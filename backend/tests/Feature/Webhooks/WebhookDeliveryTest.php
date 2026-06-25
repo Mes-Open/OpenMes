@@ -3,6 +3,8 @@
 namespace Tests\Feature\Webhooks;
 
 use App\Jobs\DeliverWebhookJob;
+use App\Models\Batch;
+use App\Models\Issue;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
 use App\Models\WorkOrder;
@@ -74,6 +76,33 @@ class WebhookDeliveryTest extends TestCase
 
         $this->assertDatabaseHas('webhook_deliveries', [
             'event_type' => WebhookEventRegistry::WORK_ORDER_STATUS_CHANGED,
+        ]);
+        Bus::assertDispatched(DeliverWebhookJob::class);
+    }
+
+    public function test_issue_created_fires_webhook(): void
+    {
+        Bus::fake();
+        Webhook::factory()->subscribedTo([WebhookEventRegistry::ISSUE_CREATED])->create();
+
+        Issue::factory()->create();
+
+        $this->assertDatabaseHas('webhook_deliveries', [
+            'event_type' => WebhookEventRegistry::ISSUE_CREATED,
+        ]);
+        Bus::assertDispatched(DeliverWebhookJob::class);
+    }
+
+    public function test_batch_completed_fires_webhook(): void
+    {
+        Bus::fake();
+        Webhook::factory()->subscribedTo([WebhookEventRegistry::BATCH_COMPLETED])->create();
+
+        $batch = Batch::factory()->create(['status' => Batch::STATUS_IN_PROGRESS]);
+        $batch->update(['status' => Batch::STATUS_DONE]);
+
+        $this->assertDatabaseHas('webhook_deliveries', [
+            'event_type' => WebhookEventRegistry::BATCH_COMPLETED,
         ]);
         Bus::assertDispatched(DeliverWebhookJob::class);
     }

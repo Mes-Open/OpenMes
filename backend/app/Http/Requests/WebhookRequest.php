@@ -25,7 +25,12 @@ class WebhookRequest extends FormRequest
         return [
             'name' => [
                 'required', 'string', 'max:150',
-                Rule::unique('webhooks', 'name')->whereNull('deleted_at')->ignore($webhookId),
+                // Names are unique per tenant among live rows (mirrors the
+                // partial unique index on (COALESCE(tenant_id,0), name)).
+                Rule::unique('webhooks', 'name')
+                    ->where('tenant_id', $this->user()?->tenant_id)
+                    ->whereNull('deleted_at')
+                    ->ignore($webhookId),
             ],
             'url' => ['required', 'string', 'max:2048', new SafeWebhookUrl],
             'events' => ['required', 'array', 'min:1'],

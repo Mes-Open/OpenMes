@@ -37,10 +37,13 @@ return new class extends Migration
             $table->index('is_active');
         });
 
-        // Name is unique among live (non-deleted) rows so it can be reused after
-        // a soft delete. Partial indexes are supported by PostgreSQL (prod) and
-        // SQLite (tests); MySQL is not a target for this project.
-        DB::statement('CREATE UNIQUE INDEX webhooks_name_unique ON webhooks (name) WHERE deleted_at IS NULL');
+        // Name is unique per tenant among live (non-deleted) rows, so it can be
+        // reused after a soft delete and the same name can exist across tenants.
+        // COALESCE(tenant_id, 0) makes the null-tenant (single-tenant/global)
+        // case enforce uniqueness too — a plain (tenant_id, name) index would
+        // treat NULLs as distinct. Partial + expression indexes work on
+        // PostgreSQL (prod) and SQLite (tests); MySQL is not a target here.
+        DB::statement('CREATE UNIQUE INDEX webhooks_name_unique ON webhooks (COALESCE(tenant_id, 0), name) WHERE deleted_at IS NULL');
     }
 
     public function down(): void

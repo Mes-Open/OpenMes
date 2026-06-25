@@ -31,6 +31,7 @@ class WebhookController extends Controller
     public function store(WebhookRequest $request)
     {
         $data = $this->payload($request);
+        $data['is_active'] = $request->boolean('is_active', true);
         $data['secret'] = $request->filled('secret') ? $request->input('secret') : Str::random(40);
 
         Webhook::create($data);
@@ -54,6 +55,9 @@ class WebhookController extends Controller
     public function update(WebhookRequest $request, Webhook $webhook)
     {
         $data = $this->payload($request);
+        // Default to the current state when the field is omitted, so an update
+        // that doesn't carry is_active can't silently re-activate a disabled hook.
+        $data['is_active'] = $request->boolean('is_active', $webhook->is_active);
         // Keep the existing secret unless a new one is explicitly provided.
         if ($request->filled('secret')) {
             $data['secret'] = $request->input('secret');
@@ -116,12 +120,13 @@ class WebhookController extends Controller
     {
         $validated = $request->validated();
 
+        // is_active is set per-action (store defaults true, update keeps current)
+        // so an omitted field can't silently flip a webhook's enabled state.
         return [
             'name' => $validated['name'],
             'url' => $validated['url'],
             'events' => $validated['events'],
             'headers' => $validated['headers'] ?? null,
-            'is_active' => $request->boolean('is_active', true),
         ];
     }
 }

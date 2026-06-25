@@ -46,6 +46,7 @@ class WebhookDispatcher
                 continue;
             }
 
+            $delivery = null;
             try {
                 $delivery = WebhookDelivery::create([
                     'webhook_id' => $webhook->id,
@@ -61,6 +62,19 @@ class WebhookDispatcher
                     'event' => $event,
                     'error' => $e->getMessage(),
                 ]);
+
+                // Don't leave a pending delivery with no queued job behind it —
+                // mark it failed so the admin log reflects reality.
+                if ($delivery !== null) {
+                    try {
+                        $delivery->update([
+                            'status' => WebhookDelivery::STATUS_FAILED,
+                            'error' => mb_substr('Failed to enqueue: '.$e->getMessage(), 0, 500),
+                        ]);
+                    } catch (\Throwable) {
+                        // best-effort
+                    }
+                }
             }
         }
     }
