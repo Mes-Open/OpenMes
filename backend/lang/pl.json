@@ -3668,5 +3668,9 @@
     "Deliveries for :name": "Dostawy dla :name",
     "Work order status changed": "Zmiana statusu zlecenia",
     "Issue created": "Zgłoszenie utworzone",
-    "Batch completed": "Partia zakończona"
+    "Batch completed": "Partia zakończona",
+    "Scheduled, but the batch could not be prepared automatically: :msg": "Zaplanowano, ale partii nie udało się przygotować automatycznie: :msg",
+    "Sample data has already been loaded.": "Dane przykładowe zostały już załadowane.",
+    "Could not load sample data: :msg": "Nie udało się załadować danych przykładowych: :msg",
+    "Sample data loaded successfully. Lines, work orders, operators and product types have been created.": "Dane przykładowe załadowane. Utworzono linie, zlecenia, operatorów i typy produktów."
 }

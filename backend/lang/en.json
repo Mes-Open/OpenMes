@@ -3668,5 +3668,9 @@
     "Deliveries for :name": "Deliveries for :name",
     "Work order status changed": "Work order status changed",
     "Issue created": "Issue created",
-    "Batch completed": "Batch completed"
+    "Batch completed": "Batch completed",
+    "Scheduled, but the batch could not be prepared automatically: :msg": "Scheduled, but the batch could not be prepared automatically: :msg",
+    "Sample data has already been loaded.": "Sample data has already been loaded.",
+    "Could not load sample data: :msg": "Could not load sample data: :msg",
+    "Sample data loaded successfully. Lines, work orders, operators and product types have been created.": "Sample data loaded successfully. Lines, work orders, operators and product types have been created."
 }

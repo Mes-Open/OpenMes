@@ -236,31 +236,32 @@ class SchedulePlannerController extends Controller
             if ($value instanceof Carbon) {
                 return $value->toIso8601String();
             }
+
             return $value;
         };
 
         // Flatten maintenance events for the React component
         $maintFlat = $maintenanceEvents->map(fn ($m) => [
-            'id'                  => $m->id,
-            'title'               => $m->title,
-            'event_type'          => $m->event_type,
-            'status'              => $m->status,
-            'line_id'             => $m->line_id,
-            'workstation_id'      => $m->workstation_id,
-            'schedule_id'         => $m->schedule_id,
-            'scheduled_at_date'   => $m->scheduled_at?->format('Y-m-d'),
-            'scheduled_at_time'   => $m->scheduled_at?->format('H:i'),
+            'id' => $m->id,
+            'title' => $m->title,
+            'event_type' => $m->event_type,
+            'status' => $m->status,
+            'line_id' => $m->line_id,
+            'workstation_id' => $m->workstation_id,
+            'schedule_id' => $m->schedule_id,
+            'scheduled_at_date' => $m->scheduled_at?->format('Y-m-d'),
+            'scheduled_at_time' => $m->scheduled_at?->format('H:i'),
             'scheduled_at_minute' => $m->scheduled_at
                 ? ($m->scheduled_at->hour * 60 + $m->scheduled_at->minute)
                 : null,
-            'duration_minutes'    => $m->scheduled_end_at
+            'duration_minutes' => $m->scheduled_end_at
                 ? (int) $m->scheduled_at->diffInMinutes($m->scheduled_end_at)
                 : 60,
-            'description'         => $m->description,
+            'description' => $m->description,
         ])->values()->all();
 
         // Serialize data array — recursively convert Carbon objects
-        $serializeData = function ($item) use (&$serializeData, $serialize) {
+        $serializeData = function ($item) use (&$serializeData) {
             if (is_array($item)) {
                 return array_map($serializeData, $item);
             }
@@ -279,8 +280,10 @@ class SchedulePlannerController extends Controller
                 if (isset($arr['product_type'])) {
                     $arr['product_name'] = $item->productType?->name;
                 }
+
                 return array_map($serializeData, $arr);
             }
+
             return $item;
         };
 
@@ -289,39 +292,39 @@ class SchedulePlannerController extends Controller
 
         // Flatten backlog orders
         $backlogFlat = $backlogOrders->map(fn ($wo) => [
-            'id'          => $wo->id,
-            'order_no'    => $wo->order_no,
-            'product_name'=> $wo->productType?->name,
-            'line_id'     => $wo->line_id,
-            'due_date'    => $wo->due_date?->format('Y-m-d'),
+            'id' => $wo->id,
+            'order_no' => $wo->order_no,
+            'product_name' => $wo->productType?->name,
+            'line_id' => $wo->line_id,
+            'due_date' => $wo->due_date?->format('Y-m-d'),
             'planned_qty' => $wo->planned_qty,
-            'status'      => $wo->status,
-            'priority'    => $wo->priority,
+            'status' => $wo->status,
+            'priority' => $wo->priority,
         ])->values()->all();
 
         // Flatten lines for props
-        $linesFlat  = $lines->map(fn ($l)  => ['id' => $l->id, 'name' => $l->name, 'code' => $l->code])->values()->all();
+        $linesFlat = $lines->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'code' => $l->code])->values()->all();
         $allLinesFlat = $allLines->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'code' => $l->code])->values()->all();
-        $shiftsFlat = $shifts->map(fn ($s)  => ['id' => $s->id, 'name' => $s->name, 'sort_order' => $s->sort_order])->values()->all();
+        $shiftsFlat = $shifts->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'sort_order' => $s->sort_order])->values()->all();
 
         return Inertia::render('admin/schedule/Planner', [
-            'data'             => $flatData,
-            'lines'            => $linesFlat,
-            'allLines'         => $allLinesFlat,
-            'shifts'           => $shiftsFlat,
-            'viewMode'         => $viewMode,
-            'shiftsPerDay'     => $shiftsPerDay,
-            'slotMinutes'      => $slotMinutes,
-            'horizonWeeks'     => $horizonWeeks,
-            'showWeekends'     => $showWeekends,
-            'startDate'        => $startDate->format('Y-m-d'),
-            'rangeStart'       => $rangeStart->format('Y-m-d'),
-            'rangeEnd'         => $rangeEnd->format('Y-m-d'),
-            'navPrev'          => $navPrev->format('Y-m-d'),
-            'navNext'          => $navNext->format('Y-m-d'),
-            'backlogOrders'    => $backlogFlat,
-            'maintenanceEvents'=> $maintFlat,
-            'realtimeMode'     => $realtimeMode,
+            'data' => $flatData,
+            'lines' => $linesFlat,
+            'allLines' => $allLinesFlat,
+            'shifts' => $shiftsFlat,
+            'viewMode' => $viewMode,
+            'shiftsPerDay' => $shiftsPerDay,
+            'slotMinutes' => $slotMinutes,
+            'horizonWeeks' => $horizonWeeks,
+            'showWeekends' => $showWeekends,
+            'startDate' => $startDate->format('Y-m-d'),
+            'rangeStart' => $rangeStart->format('Y-m-d'),
+            'rangeEnd' => $rangeEnd->format('Y-m-d'),
+            'navPrev' => $navPrev->format('Y-m-d'),
+            'navNext' => $navNext->format('Y-m-d'),
+            'backlogOrders' => $backlogFlat,
+            'maintenanceEvents' => $maintFlat,
+            'realtimeMode' => $realtimeMode,
         ]);
     }
 
@@ -394,25 +397,35 @@ class SchedulePlannerController extends Controller
 
         $workOrder->update($data);
 
-        // If line assigned and no process_snapshot yet — generate it from product type
-        if ($workOrder->line_id && $workOrder->product_type_id && empty($workOrder->process_snapshot)) {
-            $processTemplate = \App\Models\ProcessTemplate::where('product_type_id', $workOrder->product_type_id)
-                ->where('is_active', true)
-                ->orderBy('version', 'desc')
-                ->first();
-            if ($processTemplate) {
-                $workOrder->update(['process_snapshot' => $processTemplate->toSnapshot()]);
+        // The schedule placement is already persisted above. The snapshot /
+        // auto-batch side-effects below can throw on incomplete product data
+        // (missing BOM material, lot allocation, …); that must NOT 500 the
+        // schedule drag and discard the user's placement — collect it as a
+        // warning instead so the planner edit still succeeds.
+        $warnings = [];
+        try {
+            // If line assigned and no process_snapshot yet — generate it from product type
+            if ($workOrder->line_id && $workOrder->product_type_id && empty($workOrder->process_snapshot)) {
+                $processTemplate = \App\Models\ProcessTemplate::where('product_type_id', $workOrder->product_type_id)
+                    ->where('is_active', true)
+                    ->orderBy('version', 'desc')
+                    ->first();
+                if ($processTemplate) {
+                    $workOrder->update(['process_snapshot' => $processTemplate->toSnapshot()]);
+                }
             }
-        }
 
-        // Auto-create first batch if none exist and WO has line + snapshot
-        if ($workOrder->line_id && ! empty($workOrder->process_snapshot) && $workOrder->batches()->count() === 0) {
-            app(\App\Services\WorkOrder\WorkOrderService::class)
-                ->createBatch($workOrder, $workOrder->planned_qty);
+            // Auto-create first batch if none exist and WO has line + snapshot
+            if ($workOrder->line_id && ! empty($workOrder->process_snapshot) && $workOrder->batches()->count() === 0) {
+                app(\App\Services\WorkOrder\WorkOrderService::class)
+                    ->createBatch($workOrder, $workOrder->planned_qty);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $warnings[] = __('Scheduled, but the batch could not be prepared automatically: :msg', ['msg' => $e->getMessage()]);
         }
 
         // Warn about cross-line workstations
-        $warnings = [];
         if ($workOrder->line_id && ! empty($workOrder->process_snapshot)) {
             $lineWorkstationIds = \App\Models\Workstation::where('line_id', $workOrder->line_id)->pluck('id')->toArray();
             foreach ($workOrder->process_snapshot['steps'] ?? [] as $step) {
