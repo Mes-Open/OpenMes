@@ -48,6 +48,10 @@ class ModuleRegistry
             'label' => 'Packaging',
             'description' => 'Pallets and the packaging station.',
         ],
+        'webhooks' => [
+            'label' => 'Webhooks',
+            'description' => 'Send HTTP notifications to external systems on work-order, issue and batch events.',
+        ],
     ];
 
     /** @return array<int, string> */
