@@ -61,6 +61,11 @@ services:
       DB_DATABASE: ${POSTGRES_DB:-openmmes}
       DB_USERNAME: ${POSTGRES_USER:-openmmes_user}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-openmmes_secret}
+      # Database-backed queue so real jobs (webhook delivery, CSV import, MQTT,
+      # auto-update) run async with retries instead of blocking the request. The
+      # entrypoint runs a queue worker on the primary, so this works out of the
+      # box. (Live-sync broadcasts are ShouldBroadcastNow and unaffected.)
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@openmmes.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
@@ -249,10 +254,11 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: ${OPENMES_NAME_PREFIX:-openmmes}-queue-worker
-    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=120"]
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=5", "--timeout=120"]
     environment:
       APP_ENV: ${APP_ENV:-production}
       APP_KEY: ${APP_KEY}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432

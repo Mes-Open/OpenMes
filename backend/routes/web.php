@@ -517,6 +517,12 @@ Route::middleware('auth')->group(function () {
         // Integration Configs
         Route::resource('integrations', IntegrationConfigController::class)->except(['show']);
 
+        // Outgoing webhooks (#20)
+        Route::resource('webhooks', \App\Http\Controllers\Web\Admin\WebhookController::class)->except(['show']);
+        Route::post('/webhooks/{webhook}/toggle-active', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'toggleActive'])->name('webhooks.toggle-active');
+        Route::post('/webhooks/{webhook}/test', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'test'])->name('webhooks.test');
+        Route::get('/webhooks/{webhook}/deliveries', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'deliveries'])->name('webhooks.deliveries');
+
         // Import Example CSV
         Route::get('/import-example/{type}', [ImportExampleController::class, 'download'])->name('import-example');
 
