@@ -140,35 +140,35 @@ export default function EansIndex() {
                 <nav className="flex items-center gap-1 text-[13px] text-om-muted mb-4">
                     <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">{__('Dashboard')}</Link>
                     <span className="mx-1">/</span>
-                    <Link href="/packaging" className="hover:text-om-ink hover:underline">Pakowanie</Link>
+                    <Link href="/packaging" className="hover:text-om-ink hover:underline">{__('Packaging')}</Link>
                     <span className="mx-1">/</span>
-                    <span className="text-om-ink">Kody EAN</span>
+                    <span className="text-om-ink">{__('EAN Codes')}</span >
                 </nav>
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-om-ink">Kody EAN &mdash; Zarządzanie</h1>
-                        <p className="text-[12.5px] text-om-muted mt-1">Przypisuj kody kreskowe do zleceń produkcyjnych</p>
+                        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-om-ink">{__('EAN Codes — Management')}</h1>
+                        <p className="text-[12.5px] text-om-muted mt-1">{__('Assign barcodes to work orders')}</p>
                     </div>
                     <Link
                         href="/packaging"
                         className="inline-flex items-center justify-center rounded-om-sm bg-om-chip px-4 py-2.5 text-[13px] font-semibold text-om-ink hover:bg-om-line2 transition-colors"
                     >
-                        &larr; Przegląd pakowania
+                        &larr; {__('Packaging Overview')}
                     </Link>
                 </div>
 
                 {/* Add EAN form */}
                 <div className="bg-om-card border border-om-line rounded-om p-5 mb-6">
-                    <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink border-b border-om-line pb-2.5 mb-4">Dodaj kod EAN</h2>
+                    <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink border-b border-om-line pb-2.5 mb-4">{__('Add EAN code')}</h2>
                     <form onSubmit={handleAddSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                            <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">Zlecenie produkcyjne</label>
+                            <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">{__('Production work order')}</label>
                             <Dropdown
                                 value={form.data.work_order_id == null ? '' : String(form.data.work_order_id)}
                                 onChange={(v) => form.setData('work_order_id', v)}
-                                placeholder="— wybierz zlecenie —"
+                                placeholder={__('— select work order —')}
                                 options={rows.map((wo) => ({
                                     value: String(wo.id),
                                     label: `${wo.order_no}${wo.product_type ? ` — ${wo.product_type.name}` : ''}`,
@@ -180,12 +180,12 @@ export default function EansIndex() {
                             )}
                         </div>
                         <TextField
-                            label="Kod EAN"
+                            label={__('EAN code')}
                             mono
                             value={form.data.ean}
                             onChange={(v) => form.setData('ean', v)}
                             error={form.errors.ean}
-                            placeholder="np. 5901234123457"
+                            placeholder={__('e.g. 5901234123457')}
                             required
                             maxLength={100}
                         />
@@ -196,7 +196,7 @@ export default function EansIndex() {
                                 loading={form.processing}
                                 className="w-full sm:w-auto"
                             >
-                                {form.processing ? 'Dodawanie…' : 'Dodaj EAN'}
+                                {form.processing ? __('Adding…') : __('Add EAN')}
                             </Button>
                         </div>
                     </form>
@@ -209,12 +209,12 @@ export default function EansIndex() {
                             className="flex-1"
                             value={searchVal}
                             onChange={setSearchVal}
-                            placeholder="Szukaj po numerze zlecenia…"
+                            placeholder={__('Search by order number…')}
                         />
-                        <Button type="submit" variant="secondary">Szukaj</Button>
+                        <Button type="submit" variant="secondary">{__('Search')}</Button>
                         {hasSearch && (
                             <Button variant="ghost" onClick={handleClear}>
-                                Wyczyść
+                                {__('Clear')}
                             </Button>
                         )}
                     </div>
@@ -228,7 +228,7 @@ export default function EansIndex() {
                         searchable={false}
                         columnToggle={false}
                         paginated={false}
-                        emptyLabel="Brak wyników"
+                        emptyLabel={__('No results found')}
                     />
 
                     {/* Pagination links */}
@@ -259,9 +259,9 @@ export default function EansIndex() {
                 open={!!eanToDelete}
                 onClose={() => setEanToDelete(null)}
                 onConfirm={confirmDelete}
-                title={eanToDelete ? `Usunąć kod EAN ${eanToDelete.ean}?` : ''}
-                confirmLabel="Usuń"
-                cancelLabel="Anuluj"
+                title={eanToDelete ? __('Delete EAN code :ean?', { ean: eanToDelete.ean }) : ''}
+                confirmLabel={__('Delete')}
+                cancelLabel={__('Cancel')}
             />
         </>
     );
