@@ -37,9 +37,9 @@ class BackupController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
-            return redirect()->route('settings.system')->with('success', __('Sao lưu toàn bộ website thành công.'));
+            return redirect()->route('settings.system')->with('success', __('Full website backup created successfully.'));
         } catch (\Exception $e) {
-            return redirect()->route('settings.system')->with('error', __('Lỗi tạo bản sao lưu: ') . $e->getMessage());
+            return redirect()->route('settings.system')->with('error', __('Error creating backup: ') . $e->getMessage());
         }
     }
 
@@ -59,9 +59,9 @@ class BackupController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
-            return redirect()->route('settings.system')->with('success', __('Sao lưu dữ liệu thành công.'));
+            return redirect()->route('settings.system')->with('success', __('Data backup created successfully.'));
         } catch (\Exception $e) {
-            return redirect()->route('settings.system')->with('error', __('Lỗi tạo bản sao lưu dữ liệu: ') . $e->getMessage());
+            return redirect()->route('settings.system')->with('error', __('Error creating data backup: ') . $e->getMessage());
         }
     }
 
@@ -89,9 +89,9 @@ class BackupController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
-            return redirect()->route('settings.system')->with('success', __('Tải lên tệp sao lưu thành công.'));
+            return redirect()->route('settings.system')->with('success', __('Backup file uploaded successfully.'));
         } catch (\Exception $e) {
-            return redirect()->route('settings.system')->with('error', __('Lỗi tải lên bản sao lưu: ') . $e->getMessage());
+            return redirect()->route('settings.system')->with('error', __('Error uploading backup: ') . $e->getMessage());
         }
     }
 
@@ -104,11 +104,11 @@ class BackupController extends Controller
         $filePath = realpath($backupsDir . '/' . $filename);
 
         if (!$filePath || !str_starts_with($filePath, realpath($backupsDir))) {
-            abort(400, __('Đường dẫn không hợp lệ.'));
+            abort(400, __('Invalid path.'));
         }
 
         if (!file_exists($filePath)) {
-            abort(404, __('Không tìm thấy file sao lưu.'));
+            abort(404, __('Backup file not found.'));
         }
 
         return response()->download($filePath, $filename);
@@ -123,11 +123,11 @@ class BackupController extends Controller
         $filePath = realpath($backupsDir . '/' . $filename);
 
         if (!$filePath || !str_starts_with($filePath, realpath($backupsDir))) {
-            return redirect()->route('settings.system')->with('error', __('Đường dẫn không hợp lệ.'));
+            return redirect()->route('settings.system')->with('error', __('Invalid path.'));
         }
 
         if (!file_exists($filePath)) {
-            return redirect()->route('settings.system')->with('error', __('Không tìm thấy file sao lưu.'));
+            return redirect()->route('settings.system')->with('error', __('Backup file not found.'));
         }
 
         unlink($filePath);
@@ -140,7 +140,7 @@ class BackupController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->route('settings.system')->with('success', __('Đã xóa bản sao lưu thành công.'));
+        return redirect()->route('settings.system')->with('success', __('Backup deleted successfully.'));
     }
 
     /**
@@ -152,53 +152,65 @@ class BackupController extends Controller
         $filePath = realpath($backupsDir . '/' . $filename);
 
         if (!$filePath || !str_starts_with($filePath, realpath($backupsDir))) {
-            return redirect()->route('settings.system')->with('error', __('Đường dẫn không hợp lệ.'));
+            return redirect()->route('settings.system')->with('error', __('Invalid path.'));
         }
 
         if (!file_exists($filePath)) {
-            return redirect()->route('settings.system')->with('error', __('Không tìm thấy file sao lưu.'));
+            return redirect()->route('settings.system')->with('error', __('Backup file not found.'));
         }
 
         $tempDir = storage_path('app/temp_restore_' . uniqid());
         mkdir($tempDir, 0755, true);
 
+        // Capture request details
+        $userId = $request->user()?->id;
+        $ipAddress = $request->ip();
+        $userAgent = $request->userAgent();
+
+        // Log out the user and invalidate session first
+        auth()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         try {
             // Extract the Zip
             $zip = new \ZipArchive();
             if ($zip->open($filePath) !== true) {
-                throw new \Exception(__('Không thể mở file zip sao lưu.'));
+                throw new \Exception(__('Could not open backup zip file.'));
             }
             $zip->extractTo($tempDir);
             $zip->close();
 
             $jsonPath = $tempDir . '/db_backup.json';
             if (!file_exists($jsonPath)) {
-                throw new \Exception(__('File sao lưu không chứa dữ liệu database (thiếu db_backup.json).'));
+                throw new \Exception(__('Backup file does not contain database data (missing db_backup.json).'));
             }
 
-            // Get tables list in database (excluding migrations)
+            // Get tables list in database (excluding migrations and sessions)
             $tables = collect(DB::select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"))
                 ->pluck('table_name')
-                ->reject(fn($name) => $name === 'migrations')
+                ->reject(fn($name) => in_array($name, ['migrations', 'sessions']))
                 ->values()
                 ->toArray();
 
             // Perform DB Restore in a Transaction
             DB::transaction(function () use ($jsonPath, $tables) {
-                // 1. Disable triggers to skip foreign key validation
-                foreach ($tables as $table) {
-                    DB::statement("ALTER TABLE \"$table\" DISABLE TRIGGER ALL;");
+                // 1. Truncate all tables in a single statement to acquire locks instantly and avoid deadlocks/disk sync overhead
+                if (!empty($tables)) {
+                    $quotedTables = array_map(fn($t) => "\"$t\"", $tables);
+                    $tablesList = implode(', ', $quotedTables);
+                    DB::statement("TRUNCATE TABLE $tablesList RESTART IDENTITY CASCADE;");
                 }
 
-                // 2. Truncate tables to clear existing data and reset identity sequences
+                // 2. Disable triggers to skip foreign key validation during data restoration
                 foreach ($tables as $table) {
-                    DB::statement("TRUNCATE TABLE \"$table\" RESTART IDENTITY CASCADE;");
+                    DB::statement("ALTER TABLE \"$table\" DISABLE TRIGGER ALL;");
                 }
 
                 // 3. Streaming read and restore of table data
                 $handle = fopen($jsonPath, 'r');
                 if (!$handle) {
-                    throw new \Exception(__('Không thể mở file db_backup.json.'));
+                    throw new \Exception(__('Could not open db_backup.json.'));
                 }
 
                 $currentTable = null;
@@ -216,7 +228,8 @@ class BackupController extends Controller
                             $this->bulkInsertSafe($currentTable, $buffer);
                             $buffer = [];
                         }
-                        $currentTable = $matches[1];
+                        $tableName = $matches[1];
+                        $currentTable = in_array($tableName, $tables) ? $tableName : null;
                         continue;
                     }
 
@@ -286,18 +299,34 @@ class BackupController extends Controller
                 $this->copyDirectorySafe($sourceStorageApp . '/public', storage_path('app/public'));
             }
 
+
+
             // Log activity
             AuditLog::create([
-                'user_id' => $request->user()->id,
+                'user_id' => $userId,
                 'action' => 'backup_restore',
                 'after_state' => ['filename' => $filename],
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
             ]);
 
-            return redirect()->route('settings.system')->with('success', __('Khôi phục hệ thống thành công.'));
-        } catch (\Exception $e) {
-            return redirect()->route('settings.system')->with('error', __('Lỗi khôi phục: ') . $e->getMessage());
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => __('System restored successfully.')
+                ]);
+            }
+
+            return redirect('/')->with('success', __('System restored successfully.'));
+        } catch (\Throwable $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => __('Restore error: ') . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->route('settings.system')->with('error', __('Restore error: ') . $e->getMessage());
         } finally {
             // Clean up tempDir
             $this->removeDirectoryRecursive($tempDir);
@@ -314,11 +343,28 @@ class BackupController extends Controller
         ]);
 
         try {
-            // 1. Wipe and re-migrate & seed
+            // Capture request details for logging later before session is invalidated
+            $ipAddress = $request->ip();
+            $userAgent = $request->userAgent();
+
+            // 1. Log out the user and invalidate session first to prevent session middleware querying the database at the end of the request
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            // 2. Purge and reconnect to database to clear any cached plans or connections in Octane/Roadrunner worker
+            DB::purge();
+            DB::reconnect();
+
+            // 3. Wipe and re-migrate & seed
             Artisan::call('migrate:fresh', ['--force' => true]);
             Artisan::call('db:seed', ['--force' => true]);
 
-            // 2. Recreate admin user
+            // 4. Reconnect again after migrations to ensure fresh schema states
+            DB::purge();
+            DB::reconnect();
+
+            // 5. Recreate admin user
             $admin = User::create([
                 'name'                  => 'Administrator',
                 'username'              => env('ADMIN_USERNAME', 'admin'),
@@ -329,26 +375,35 @@ class BackupController extends Controller
             ]);
             $admin->assignRole('Admin');
 
-            // 3. Clear uploads/attachments
+            // 6. Clear uploads/attachments
             $this->clearDirectorySafe(storage_path('app/private'));
             $this->clearDirectorySafe(storage_path('app/public'));
 
-            // Log activity (note: auth state is wiped out since we migrated fresh, so we log with new admin user id)
+            // 7. Log activity (note: auth state is wiped out since we migrated fresh, so we log with new admin user id)
             AuditLog::create([
                 'user_id' => $admin->id,
                 'action' => 'system_reset',
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
             ]);
 
-            // In Laravel, since we wiped the sessions table, we should force logout the current session
-            auth()->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => __('System has been reset to its initial state. Please log in again using the default Admin account.')
+                ]);
+            }
 
-            return redirect('/login')->with('success', __('Hệ thống đã được thiết lập lại về trạng thái ban đầu. Hãy đăng nhập lại bằng tài khoản Admin mặc định.'));
-        } catch (\Exception $e) {
-            return redirect()->route('settings.system')->with('error', __('Lỗi reset hệ thống: ') . $e->getMessage());
+            return redirect('/')->with('success', __('System has been reset to its initial state. Please log in again using the default Admin account.'));
+        } catch (\Throwable $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => __('System reset error: ') . $e->getMessage()
+                ], 500);
+            }
+
+            return redirect()->route('settings.system')->with('error', __('System reset error: ') . $e->getMessage());
         }
     }
 
@@ -364,13 +419,13 @@ class BackupController extends Controller
             $jsonPath = $tempDir . '/db_backup.json';
             $handle = fopen($jsonPath, 'w');
             if (!$handle) {
-                throw new \Exception(__('Không thể tạo file db_backup.json.'));
+                throw new \Exception(__('Could not create db_backup.json.'));
             }
 
-            // Get tables list
+            // Get tables list (excluding migrations and sessions)
             $tables = collect(DB::select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"))
                 ->pluck('table_name')
-                ->reject(fn($name) => $name === 'migrations')
+                ->reject(fn($name) => in_array($name, ['migrations', 'sessions']))
                 ->values()
                 ->toArray();
 
@@ -408,7 +463,7 @@ class BackupController extends Controller
 
             $zip = new \ZipArchive();
             if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-                throw new \Exception(__('Không thể tạo file zip sao lưu.'));
+                throw new \Exception(__('Could not create backup zip file.'));
             }
 
             // Add database json

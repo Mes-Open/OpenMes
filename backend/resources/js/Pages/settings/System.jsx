@@ -57,6 +57,14 @@ export default function System() {
     const [sampleConfirm, setSampleConfirm] = useState(false);
     const [resetConfirm, setResetConfirm] = useState(false);
     const [resetText, setResetText] = useState('');
+    
+    // Countdown states
+    const [isResetting, setIsResetting] = useState(false);
+    const [resetCountdown, setResetCountdown] = useState(null);
+    const [isRestoring, setIsRestoring] = useState(false);
+    const [restoreCountdown, setRestoreCountdown] = useState(null);
+    const [statusMessage, setStatusMessage] = useState('');
+
     const { csrf_token } = usePage().props;
 
     const { data, setData, post, processing, errors } = useForm({
@@ -97,6 +105,87 @@ export default function System() {
             },
         });
     }
+
+    const handleResetSubmit = async (e) => {
+        e.preventDefault();
+        if (resetText !== 'RESET') return;
+
+        setIsResetting(true);
+        setStatusMessage(__('Resetting the system... Please wait...'));
+
+        try {
+            const response = await fetch('/settings/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf_token,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    confirm_text: resetText
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                let count = 5;
+                setResetCountdown(count);
+                setStatusMessage(__('System reset successfully.'));
+                const interval = setInterval(() => {
+                    count -= 1;
+                    setResetCountdown(count);
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        window.location.href = '/';
+                    }
+                }, 1000);
+            } else {
+                setIsResetting(false);
+                alert(result.message || __('An error occurred while resetting the system.'));
+            }
+        } catch (err) {
+            setIsResetting(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
+
+    const handleRestoreSubmit = async (e, filename) => {
+        e.preventDefault();
+        setIsRestoring(true);
+        setStatusMessage(__('Restoring system from backup... Please wait...'));
+
+        try {
+            const response = await fetch(`/settings/backups/restore/${filename}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf_token,
+                    'Accept': 'application/json',
+                }
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                let count = 5;
+                setRestoreCountdown(count);
+                setStatusMessage(__('System restored successfully.'));
+                const interval = setInterval(() => {
+                    count -= 1;
+                    setRestoreCountdown(count);
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        window.location.href = '/';
+                    }
+                }, 1000);
+            } else {
+                setIsRestoring(false);
+                alert(result.message || __('An error occurred while restoring the system.'));
+            }
+        } catch (err) {
+            setIsRestoring(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -800,15 +889,14 @@ export default function System() {
                                                         >
                                                             {__('Download')}
                                                         </a>
-                                                        <form method="POST" action={`/settings/backups/restore/${backup.filename}`}>
-                                                            <input type="hidden" name="_token" value={csrf_token} />
+                                                        <form onSubmit={(e) => {
+                                                            e.preventDefault();
+                                                            if (confirm(__('Are you sure you want to restore the system from this backup? Current data will be overwritten.'))) {
+                                                                handleRestoreSubmit(e, backup.filename);
+                                                            }
+                                                        }}>
                                                             <button
                                                                 type="submit"
-                                                                onClick={(e) => {
-                                                                    if (!confirm(__('Bạn có chắc chắn muốn khôi phục? Hành động này sẽ ghi đè toàn bộ dữ liệu hiện tại và đăng xuất bạn khỏi hệ thống!'))) {
-                                                                        e.preventDefault();
-                                                                    }
-                                                                }}
                                                                 className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 font-medium"
                                                             >
                                                                 {__('Restore')}
@@ -820,7 +908,7 @@ export default function System() {
                                                             <button
                                                                 type="submit"
                                                                 onClick={(e) => {
-                                                                    if (!confirm(__('Bạn có chắc chắn muốn xóa bản sao lưu này?'))) {
+                                                                    if (!confirm(__('Are you sure you want to delete this backup?'))) {
                                                                         e.preventDefault();
                                                                     }
                                                                 }}
@@ -847,8 +935,7 @@ export default function System() {
                                 {__('Wipe all database records (production data, settings, configurations) and delete all uploaded attachments. The system will be restored to its initial state, and you will be logged out.')}
                             </p>
 
-                            <form method="POST" action="/settings/reset" className="space-y-4">
-                                <input type="hidden" name="_token" value={csrf_token} />
+                            <form onSubmit={handleResetSubmit} className="space-y-4">
                                 <div className="flex flex-col gap-2">
                                     <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
                                         <input
@@ -882,6 +969,39 @@ export default function System() {
                                     </div>
                                 )}
                             </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Countdown Overlay Modal */}
+            {(isResetting || isRestoring) && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8 max-w-md w-full text-center space-y-6">
+                        <div className="flex justify-center">
+                            {resetCountdown !== null || restoreCountdown !== null ? (
+                                <div className="w-20 h-20 rounded-full border-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-3xl font-bold text-blue-600 dark:text-blue-400 animate-pulse">
+                                    {resetCountdown !== null ? resetCountdown : restoreCountdown}
+                                </div>
+                            ) : (
+                                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                        </div>
+
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                                {resetCountdown !== null || restoreCountdown !== null 
+                                    ? __('Redirecting...') 
+                                    : (isResetting ? __('Resetting the system') : __('Restoring data'))}
+                            </h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                                {statusMessage}
+                            </p>
+                            {(resetCountdown !== null || restoreCountdown !== null) && (
+                                <p className="text-xs text-blue-500 mt-2">
+                                    {__('Redirecting to the login page in')} {resetCountdown !== null ? resetCountdown : restoreCountdown} {__('seconds...')}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
