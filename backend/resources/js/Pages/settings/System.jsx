@@ -50,10 +50,12 @@ function TabButton({ label, active, onClick }) {
 }
 
 export default function System() {
-    const { settings, availableLocales, appUrl } = usePage().props;
+    const { settings, availableLocales, appUrl, backups } = usePage().props;
 
     const [tab, setTab] = useState('general');
     const [sampleConfirm, setSampleConfirm] = useState(false);
+    const [resetConfirm, setResetConfirm] = useState(false);
+    const [resetText, setResetText] = useState('');
     const { csrf_token } = usePage().props;
 
     const { data, setData, post, processing, errors } = useForm({
@@ -711,6 +713,174 @@ export default function System() {
                                 {__('Import Settings')}
                             </button>
                         </form>
+                    </div>
+
+                    {/* Backups & Recovery */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                        <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">{__('Backup & Recovery')}</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                            {__('Create and manage backups of the database and uploaded files. Full backups include all uploaded attachments, while data-only backups only contain database records.')}
+                        </p>
+
+                        <div className="flex flex-wrap gap-3 mb-6">
+                            <form method="POST" action="/settings/backups/full">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <button type="submit" className="btn-touch bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {__('Create Full Backup')}
+                                </button>
+                            </form>
+
+                            <form method="POST" action="/settings/backups/data">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <button type="submit" className="btn-touch bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 inline-flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    {__('Create Data Backup')}
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Upload Backup */}
+                        <div className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">{__('Upload Backup File')}</h3>
+                            <form method="POST" action="/settings/backups/upload" encType="multipart/form-data" className="flex flex-wrap items-center gap-3">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <input
+                                    type="file"
+                                    name="backup_file"
+                                    accept=".zip"
+                                    required
+                                    className="text-sm text-gray-600 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 dark:file:bg-gray-700 file:text-gray-700 dark:file:text-gray-200 hover:file:bg-gray-200 dark:hover:file:bg-gray-600"
+                                />
+                                <button type="submit" className="btn-touch bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 text-sm">
+                                    {__('Upload')}
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Backups List */}
+                        <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                                <thead className="bg-gray-50 dark:bg-gray-800">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{__('Filename')}</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{__('Size')}</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">{__('Created At')}</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">{__('Actions')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900/20">
+                                    {(!backups || backups.length === 0) ? (
+                                        <tr>
+                                            <td colSpan="4" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                                                {__('No backups found.')}
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        backups.map((backup) => (
+                                            <tr key={backup.filename} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/10">
+                                                <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{backup.filename}</td>
+                                                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                                                    {(backup.size_bytes / (1024 * 1024)).toFixed(2)} MB
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                                                    {new Date(backup.created_at).toLocaleString()}
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="flex justify-end gap-3">
+                                                        <a
+                                                            href={`/settings/backups/download/${backup.filename}`}
+                                                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                                                            title={__('Download')}
+                                                        >
+                                                            {__('Download')}
+                                                        </a>
+                                                        <form method="POST" action={`/settings/backups/restore/${backup.filename}`}>
+                                                            <input type="hidden" name="_token" value={csrf_token} />
+                                                            <button
+                                                                type="submit"
+                                                                onClick={(e) => {
+                                                                    if (!confirm(__('Bạn có chắc chắn muốn khôi phục? Hành động này sẽ ghi đè toàn bộ dữ liệu hiện tại và đăng xuất bạn khỏi hệ thống!'))) {
+                                                                        e.preventDefault();
+                                                                    }
+                                                                }}
+                                                                className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 font-medium"
+                                                            >
+                                                                {__('Restore')}
+                                                            </button>
+                                                        </form>
+                                                        <form method="POST" action={`/settings/backups/${backup.filename}`}>
+                                                            <input type="hidden" name="_token" value={csrf_token} />
+                                                            <input type="hidden" name="_method" value="DELETE" />
+                                                            <button
+                                                                type="submit"
+                                                                onClick={(e) => {
+                                                                    if (!confirm(__('Bạn có chắc chắn muốn xóa bản sao lưu này?'))) {
+                                                                        e.preventDefault();
+                                                                    }
+                                                                }}
+                                                                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium"
+                                                            >
+                                                                {__('Delete')}
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Reset System */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                        <div className="card border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
+                            <h2 className="text-lg font-bold text-red-800 dark:text-red-400 mb-1">{__('Reset System')}</h2>
+                            <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                                {__('Wipe all database records (production data, settings, configurations) and delete all uploaded attachments. The system will be restored to its initial state, and you will be logged out.')}
+                            </p>
+
+                            <form method="POST" action="/settings/reset" className="space-y-4">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <div className="flex flex-col gap-2">
+                                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={resetConfirm}
+                                            onChange={(e) => setResetConfirm(e.target.checked)}
+                                            className="rounded border-gray-300 dark:border-gray-600 text-red-600 focus:ring-red-500"
+                                        />
+                                        {__('I understand that this action is irreversible and all data will be permanently lost.')}
+                                    </label>
+                                </div>
+
+                                {resetConfirm && (
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="text"
+                                            value={resetText}
+                                            onChange={(e) => setResetText(e.target.value)}
+                                            placeholder={__('Type RESET to confirm')}
+                                            className="px-3 py-2 border border-red-300 dark:border-red-700 bg-white dark:bg-gray-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 text-gray-900 dark:text-gray-100"
+                                            required
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={resetText !== 'RESET'}
+                                            className="btn-touch px-4 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {__('Reset System')}
+                                        </button>
+                                    </div>
+                                )}
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}
