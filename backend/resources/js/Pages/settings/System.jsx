@@ -865,6 +865,7 @@ export default function System() {
                                     <div className="flex items-center gap-3">
                                         <input
                                             type="text"
+                                            name="confirm_text"
                                             value={resetText}
                                             onChange={(e) => setResetText(e.target.value)}
                                             placeholder={__('Type RESET to confirm')}
