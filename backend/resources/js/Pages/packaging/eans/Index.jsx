@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
     DONE: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -55,32 +56,32 @@ export default function EansIndex() {
 
     return (
         <>
-            <Head title="Zarządzanie kodami EAN" />
+            <Head title={__('EAN Codes — Management')} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex items-center gap-1 text-sm text-gray-500 mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-300">Dashboard</Link>
+                    <Link href="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-300">{__('Dashboard')}</Link>
                     <span className="mx-1">/</span>
-                    <Link href="/packaging" className="hover:text-gray-700 dark:hover:text-gray-300">Pakowanie</Link>
+                    <Link href="/packaging" className="hover:text-gray-700 dark:hover:text-gray-300">{__('Packaging')}</Link>
                     <span className="mx-1">/</span>
-                    <span className="text-gray-700 dark:text-gray-300">Kody EAN</span>
+                    <span className="text-gray-700 dark:text-gray-300">{__('EAN Codes')}</span>
                 </nav>
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Kody EAN &mdash; Zarządzanie</h1>
-                        <p className="text-sm text-gray-500 mt-1">Przypisuj kody kreskowe do zleceń produkcyjnych</p>
+                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{__('EAN Codes — Management')}</h1>
+                        <p className="text-sm text-gray-500 mt-1">{__('Assign barcodes to work orders')}</p>
                     </div>
-                    <Link href="/packaging" className="btn-touch btn-secondary">&larr; Przegląd pakowania</Link>
+                    <Link href="/packaging" className="btn-touch btn-secondary">&larr; {__('Packaging — Overview')}</Link>
                 </div>
 
                 {/* Add EAN form */}
                 <div className="card mb-6">
-                    <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-4">Dodaj kod EAN</h2>
+                    <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-4">{__('Add EAN code')}</h2>
                     <form onSubmit={handleAddSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                            <label className="form-label">Zlecenie produkcyjne</label>
+                            <label className="form-label">{__('Work order')}</label>
                             <select
                                 name="work_order_id"
                                 value={form.data.work_order_id}
@@ -88,7 +89,7 @@ export default function EansIndex() {
                                 className="form-input w-full"
                                 required
                             >
-                                <option value="">— wybierz zlecenie —</option>
+                                <option value="">{__('— select work order —')}</option>
                                 {rows.map((wo) => (
                                     <option key={wo.id} value={wo.id}>
                                         {wo.order_no}{wo.product_type ? ` — ${wo.product_type.name}` : ''}
@@ -100,13 +101,13 @@ export default function EansIndex() {
                             )}
                         </div>
                         <div>
-                            <label className="form-label">Kod EAN</label>
+                            <label className="form-label">{__('EAN code')}</label>
                             <input
                                 type="text"
                                 value={form.data.ean}
                                 onChange={(e) => form.setData('ean', e.target.value)}
                                 className="form-input w-full font-mono"
-                                placeholder="np. 5901234123457"
+                                placeholder={__('e.g. 5901234123457')}
                                 required
                                 maxLength={100}
                             />
@@ -120,7 +121,7 @@ export default function EansIndex() {
                                 disabled={form.processing}
                                 className="btn-touch btn-primary w-full sm:w-auto disabled:opacity-50"
                             >
-                                {form.processing ? 'Dodawanie…' : 'Dodaj EAN'}
+                                {form.processing ? __('Adding…') : __('Add EAN')}
                             </button>
                         </div>
                     </form>
@@ -134,12 +135,12 @@ export default function EansIndex() {
                             value={searchVal}
                             onChange={(e) => setSearchVal(e.target.value)}
                             className="form-input flex-1"
-                            placeholder="Szukaj po numerze zlecenia…"
+                            placeholder={__('Search by work order number…')}
                         />
-                        <button type="submit" className="btn-touch btn-secondary text-sm">Szukaj</button>
+                        <button type="submit" className="btn-touch btn-secondary text-sm">{__('Search')}</button>
                         {hasSearch && (
                             <button type="button" onClick={handleClear} className="btn-touch btn-secondary text-sm">
-                                Wyczyść
+                                {__('Clear')}
                             </button>
                         )}
                     </div>
@@ -151,17 +152,17 @@ export default function EansIndex() {
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                             <thead className="bg-gray-50 dark:bg-gray-800">
                                 <tr>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Zlecenie</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Produkt</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Kody EAN</th>
-                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Spakowano / Plan</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('Order')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('Product')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('Status')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('EAN Codes')}</th>
+                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">{__('Packed')} / {__('Plan')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                                 {rows.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-10 text-center text-gray-400 text-sm">Brak wyników</td>
+                                        <td colSpan={5} className="px-4 py-10 text-center text-gray-400 text-sm">{__('No results')}</td>
                                     </tr>
                                 ) : rows.map((wo) => (
                                     <tr key={wo.id}>
@@ -169,12 +170,12 @@ export default function EansIndex() {
                                         <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{wo.product_type?.name ?? '—'}</td>
                                         <td className="px-4 py-3">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${statusStyle(wo.status)}`}>
-                                                {(wo.status ?? '').replace(/_/g, ' ')}
+                                                {__(wo.status)}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3">
                                             {(wo.eans ?? []).length === 0 ? (
-                                                <span className="text-xs text-gray-400">Brak EAN</span>
+                                                <span className="text-xs text-gray-400">{__('No EAN')}</span>
                                             ) : (wo.eans ?? []).map((ean) => (
                                                 <div key={ean.id} className="flex items-center gap-2 mb-1">
                                                     <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
@@ -183,13 +184,13 @@ export default function EansIndex() {
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            if (confirm(`Usunąć kod EAN ${ean.ean}?`)) {
+                                                            if (confirm(__('Delete EAN code :ean?', { ean: ean.ean }))) {
                                                                 router.delete(`/packaging/eans/${ean.id}`, { preserveScroll: true });
                                                             }
                                                         }}
                                                         className="text-xs text-red-500 hover:text-red-700 transition-colors"
                                                     >
-                                                        Usuń
+                                                        {__('Delete')}
                                                     </button>
                                                 </div>
                                             ))}

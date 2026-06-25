@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Onboarding Step 3 — Define Process Template.
@@ -68,18 +69,17 @@ export default function Step3() {
 
     return (
         <>
-            <Head title="Step 3 — Process Template" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Define Process Template</h2>
+            <Head title={__('Step 3 — Process Template')} />
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">{__('Define Process Template')}</h2>
             <p className="text-gray-600 mb-6">
-                A process template defines the production steps (recipe) for your product. Add each step in the order
-                they happen during production.
+                {__('A process template defines the production steps (recipe) for your product. Add each step in the order they happen during production.')}
             </p>
 
             <form onSubmit={submit}>
                 <div className="space-y-5">
                     <div>
                         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                            Template Name <span className="text-red-500">*</span>
+                            {__('Template Name')} <span className="text-red-500">*</span>
                         </label>
                         <input
                             id="name"
@@ -87,7 +87,7 @@ export default function Step3() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
-                            placeholder="e.g. Filter Assembly Process"
+                            placeholder={__('e.g. Filter Assembly Process')}
                             className={`w-full rounded-lg border px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
                         />
                         {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
@@ -95,16 +95,16 @@ export default function Step3() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Production Steps <span className="text-red-500">*</span>
+                            {__('Production Steps')} <span className="text-red-500">*</span>
                         </label>
-                        <p className="text-xs text-gray-500 mb-3">Add steps in order. Drag the handle to reorder.</p>
+                        <p className="text-xs text-gray-500 mb-3">{__('Add steps in order. Drag the handle to reorder.')}</p>
                         {errors.steps && <p className="mb-2 text-sm text-red-600">{errors.steps}</p>}
 
                         {/* Column headers */}
                         <div className="flex gap-2 mb-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <span className="w-10" />
-                            <span className="flex-1">Step Name</span>
-                            <span className="w-28 text-center">Duration (min)</span>
+                            <span className="flex-1">{__('Step Name')}</span>
+                            <span className="w-28 text-center">{__('Duration (min)')}</span>
                             <span className="w-8" />
                         </div>
 
@@ -123,7 +123,7 @@ export default function Step3() {
                                 {/* Drag handle */}
                                 <span
                                     className="flex items-center justify-center w-10 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 select-none"
-                                    title="Drag to reorder"
+                                    title={__('Drag to reorder')}
                                 >
                                     <DragHandle />
                                 </span>
@@ -132,14 +132,14 @@ export default function Step3() {
                                     value={step.name}
                                     onChange={(e) => updateStep(i, 'name', e.target.value)}
                                     required
-                                    placeholder={`Step ${i + 1} (e.g. Assembly, Packaging...)`}
+                                    placeholder={__('Step :num (e.g. Assembly, Packaging...)', { num: i + 1 })}
                                     className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
                                 />
                                 <input
                                     type="number"
                                     value={step.estimated_duration_minutes}
                                     onChange={(e) => updateStep(i, 'estimated_duration_minutes', e.target.value)}
-                                    placeholder="min"
+                                    placeholder={__('min')}
                                     min="0"
                                     className="w-28 rounded-lg border border-gray-300 px-3 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-center"
                                 />
@@ -162,7 +162,7 @@ export default function Step3() {
                             onClick={addStep}
                             className="text-sm text-blue-600 hover:text-blue-800 mt-2 font-medium"
                         >
-                            + Add another step
+                            {__('+ Add another step')}
                         </button>
                     </div>
                 </div>
@@ -176,7 +176,7 @@ export default function Step3() {
                         disabled={processing}
                         className="btn-touch btn-primary disabled:opacity-50"
                     >
-                        {processing ? 'Saving…' : 'Next: Work Order →'}
+                        {processing ? __('Saving…') : __('Next: Work Order →')}
                     </button>
                 </div>
             </form>

@@ -14,7 +14,19 @@ export default function MaintenanceEventsIndex() {
 
     const columns = [
         { key: 'title', label: __('Title'), className: 'font-medium text-gray-800' },
-        { key: 'event_type', label: __('Type'), className: 'text-gray-600' },
+        {
+            key: 'event_type',
+            label: __('Type'),
+            className: 'text-gray-600',
+            render: (r) => {
+                const types = {
+                    planned: __('Planned'),
+                    corrective: __('Corrective'),
+                    inspection: __('Inspection'),
+                };
+                return types[r.event_type] ?? r.event_type;
+            },
+        },
         {
             key: 'target',
             label: __('Target'),
@@ -46,7 +58,14 @@ export default function MaintenanceEventsIndex() {
                         EVENT_STATUS_STYLES[r.status] ?? 'bg-gray-100 text-gray-700'
                     }`}
                 >
-                    {r.status}
+                    {{
+                        pending: __('Pending'),
+                        planned: __('Planned'),
+                        in_progress: __('In Progress'),
+                        completed: __('Completed'),
+                        done: __('Completed'),
+                        cancelled: __('Cancelled'),
+                    }[r.status] ?? r.status}
                 </span>
             ),
         },

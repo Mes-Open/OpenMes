@@ -4,7 +4,7 @@ import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
-import { formatDate } from '../../../lib/i18n';
+import { formatDate, timeAgo, __ } from '../../../lib/i18n';
 
 /**
  * Admin Alerts — joins five collections (issues, work orders, and the issue
@@ -78,7 +78,7 @@ export default function AlertsIndex() {
     return (
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-3 mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Alerts</h1>
+                <h1 className="text-3xl font-bold text-gray-800">{__('Alerts')}</h1>
                 {total > 0 && (
                     <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-600 text-white text-sm font-bold">{total}</span>
                 )}
@@ -87,7 +87,7 @@ export default function AlertsIndex() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                     </span>
-                    Live
+                    {__('Live')}
                 </span>
             </div>
 
@@ -96,8 +96,8 @@ export default function AlertsIndex() {
                     <svg className="w-16 h-16 text-green-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-xl font-semibold text-gray-700">All clear</p>
-                    <p className="text-gray-500 mt-1">No active alerts at this time.</p>
+                    <p className="text-xl font-semibold text-gray-700">{__('All clear')}</p>
+                    <p className="text-gray-500 mt-1">{__('No active alerts at this time.')}</p>
                 </div>
             ) : (
                 <>
@@ -108,14 +108,14 @@ export default function AlertsIndex() {
                                 <>
                                     <SectionTitle color="text-red-700" count={blockingIssues.length} badge="bg-red-100 text-red-700"
                                         icon="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636">
-                                        Blocking Issues
+                                        {__('Blocking Issues')}
                                     </SectionTitle>
                                     <div className="space-y-3">
                                         {blockingIssues.map((issue) => <BlockingCard key={issue.id} issue={issue} />)}
                                     </div>
                                 </>
                             ) : (
-                                <EmptyCard text="No blocking issues" />
+                                <EmptyCard text={__('No blocking issues')} />
                             )}
                         </div>
 
@@ -125,7 +125,7 @@ export default function AlertsIndex() {
                                 <div>
                                     <SectionTitle color="text-orange-700" count={overdueOrders.length} badge="bg-orange-100 text-orange-700"
                                         icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z">
-                                        Overdue Work Orders
+                                        {__('Overdue Work Orders')}
                                     </SectionTitle>
                                     <OrderTable rows={overdueOrders} accent="orange" showStatus showDue />
                                 </div>
@@ -134,12 +134,12 @@ export default function AlertsIndex() {
                                 <div>
                                     <SectionTitle color="text-yellow-700" count={blockedOrders.length} badge="bg-yellow-100 text-yellow-700"
                                         icon="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                                        Blocked Work Orders
+                                        {__('Blocked Work Orders')}
                                     </SectionTitle>
                                     <OrderTable rows={blockedOrders} accent="yellow" showBlockedSince />
                                 </div>
                             )}
-                            {overdueOrders.length === 0 && blockedOrders.length === 0 && <EmptyCard text="No work order alerts" />}
+                            {overdueOrders.length === 0 && blockedOrders.length === 0 && <EmptyCard text={__('No work order alerts')} />}
                         </div>
                     </div>
 
@@ -148,14 +148,14 @@ export default function AlertsIndex() {
                         <div className="mt-6">
                             <SectionTitle color="text-amber-700" plain
                                 icon="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                                Open Issues ({nonBlockingIssues.length})
+                                {__('Open Issues')} ({nonBlockingIssues.length})
                             </SectionTitle>
                             <div className="bg-white rounded-lg shadow-sm overflow-hidden p-0">
                                 <table className="min-w-full text-sm">
                                     <thead className="bg-amber-50">
                                         <tr>
                                             {['Issue', 'Work Order', 'Type', 'Reported', 'Status'].map((h) => (
-                                                <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
+                                                <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__(h)}</th>
                                             ))}
                                         </tr>
                                     </thead>
@@ -169,7 +169,7 @@ export default function AlertsIndex() {
                                                 <td className="px-4 py-3 text-xs text-gray-600">{issue.type?.name ?? '—'}</td>
                                                 <td className="px-4 py-3 text-xs text-gray-500">{timeAgo(issue.created_at)}</td>
                                                 <td className="px-4 py-3">
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${issue.status === 'OPEN' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{issue.status}</span>
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${issue.status === 'OPEN' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{__(issue.status)}</span>
                                                 </td>
                                             </tr>
                                         ))}
@@ -192,19 +192,19 @@ function BlockingCard({ issue }) {
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-red-800">{issue.type?.name ?? 'Issue'}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${issue.status === 'OPEN' ? 'bg-red-200 text-red-800' : 'bg-yellow-200 text-yellow-800'}`}>{issue.status}</span>
+                        <span className="font-semibold text-red-800">{issue.type?.name ?? __('Issue')}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${issue.status === 'OPEN' ? 'bg-red-200 text-red-800' : 'bg-yellow-200 text-yellow-800'}`}>{__(issue.status)}</span>
                     </div>
                     {issue.description && <p className="text-sm text-gray-600 mt-1">{issue.description}</p>}
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 flex-wrap">
                         {issue.order && (
-                            <span>Work Order: <Link href={`/admin/work-orders/${issue.order.id}`} className="font-mono font-semibold text-blue-700 hover:underline">{issue.order.order_no}</Link></span>
+                            <span>{__('Work Order')}: <Link href={`/admin/work-orders/${issue.order.id}`} className="font-mono font-semibold text-blue-700 hover:underline">{issue.order.order_no}</Link></span>
                         )}
-                        <span>Reported by: {issue.reporter?.name ?? '—'}</span>
+                        <span>{__('Reported by')}: {issue.reporter?.name ?? '—'}</span>
                         <span>{timeAgo(issue.created_at)}</span>
                     </div>
                 </div>
-                <Link href="/admin/issues" className="shrink-0 text-xs text-red-700 hover:underline font-medium">View issues →</Link>
+                <Link href="/admin/issues" className="shrink-0 text-xs text-red-700 hover:underline font-medium">{__('View issues')} &rarr;</Link>
             </div>
         </div>
     );
@@ -219,11 +219,11 @@ function OrderTable({ rows, accent, showStatus, showDue, showBlockedSince }) {
             <table className="min-w-full divide-y divide-gray-100">
                 <thead>
                     <tr className={head}>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Order</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Line</th>
-                        {showDue && <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Overdue</th>}
-                        {showStatus && <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Status</th>}
-                        {showBlockedSince && <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Blocked since</th>}
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">{__('Order')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">{__('Line')}</th>
+                        {showDue && <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">{__('Overdue')}</th>}
+                        {showStatus && <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">{__('Status')}</th>}
+                        {showBlockedSince && <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">{__('Blocked since')}</th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -237,7 +237,7 @@ function OrderTable({ rows, accent, showStatus, showDue, showBlockedSince }) {
                             {showDue && <td className="px-3 py-2 text-sm text-red-600 font-semibold">{timeAgo(wo.due_date)}</td>}
                             {showStatus && (
                                 <td className="px-3 py-2">
-                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-gray-100 text-gray-700'}`}>{WO_STATUS_LABELS[wo.status] ?? wo.status}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-gray-100 text-gray-700'}`}>{__(WO_STATUS_LABELS[wo.status] ?? wo.status)}</span>
                                 </td>
                             )}
                             {showBlockedSince && <td className="px-3 py-2 text-sm text-gray-500">{timeAgo(wo.updated_at)}</td>}
@@ -276,21 +276,4 @@ function fmtDate(d) {
     if (!d) return '';
     const dt = new Date(d);
     return Number.isNaN(dt.getTime()) ? '' : formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function timeAgo(d) {
-    if (!d) return '';
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return '';
-    const sec = Math.round((Date.now() - dt.getTime()) / 1000);
-    const abs = Math.abs(sec);
-    const past = sec >= 0;
-    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
-    for (const [name, s] of units) {
-        if (abs >= s) {
-            const n = Math.floor(abs / s);
-            return past ? `${n} ${name}${n > 1 ? 's' : ''} ago` : `in ${n} ${name}${n > 1 ? 's' : ''}`;
-        }
-    }
-    return past ? 'just now' : 'soon';
 }
