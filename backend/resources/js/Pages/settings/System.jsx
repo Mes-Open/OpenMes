@@ -17,6 +17,7 @@ const CURRENCIES = [
     ['HUF', 'Hungarian Forint'],
     ['RON', 'Romanian Leu'],
     ['UAH', 'Ukrainian Hryvnia'],
+    ['VND', 'Vietnamese Đồng'],
 ];
 
 function SelectCard({ value, current, onChange, label, desc, disabled }) {

@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
-import { formatNumber } from '../../lib/i18n';
+import { formatNumber, __ } from '../../lib/i18n';
 
 function ProgressBar({ pct, done }) {
     const color = done ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-indigo-500';
@@ -18,20 +18,20 @@ function StatusBadge({ item }) {
     if (item.done) {
         return (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                Spakowane
+                {__('Packed')}
             </span>
         );
     }
     if (item.status === 'DONE') {
         return (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
-                W trakcie
+                {__('Done')}
             </span>
         );
     }
     return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-            {item.status}
+            {__(item.status)}
         </span>
     );
 }
@@ -54,24 +54,24 @@ export default function Admin() {
 
     return (
         <>
-            <Head title="Pakowanie — Przegląd" />
+            <Head title={__('Packaging — Overview')} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex items-center gap-1 text-sm text-gray-500 mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-300">Dashboard</Link>
+                    <Link href="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-300">{__('Dashboard')}</Link>
                     <span className="mx-1">/</span>
-                    <span className="text-gray-700 dark:text-gray-300">Pakowanie</span>
+                    <span className="text-gray-700 dark:text-gray-300">{__('Packaging')}</span>
                 </nav>
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Pakowanie &mdash; Przegląd</h1>
-                        <p className="text-sm text-gray-500 mt-1">Bieżąca zmiana: {shiftLabel}</p>
+                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{__('Packaging — Overview')}</h1>
+                        <p className="text-sm text-gray-500 mt-1">{__('Current shift: :shift', { shift: shiftLabel })}</p>
                     </div>
                     <div className="flex gap-2">
-                        <Link href="/packaging/station" className="btn-touch btn-primary">Otwórz stanowisko</Link>
-                        <Link href="/packaging/eans" className="btn-touch btn-secondary">Zarządzaj EAN</Link>
+                        <Link href="/packaging/station" className="btn-touch btn-primary">{__('Open station')}</Link>
+                        <Link href="/packaging/eans" className="btn-touch btn-secondary">{__('Manage EANs')}</Link>
                     </div>
                 </div>
 
@@ -81,23 +81,23 @@ export default function Admin() {
                         <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
                             {formatNumber((stats.today_packed ?? 0))}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">Spakowano (zmiana)</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Packed (shift)')}</p>
                     </div>
                     <div className="card text-center">
                         <p className="text-3xl font-extrabold text-gray-700 dark:text-gray-200">
                             {formatNumber(plan)}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">Plan łącznie</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Total plan')}</p>
                     </div>
                     <div className="card text-center">
                         <p className={`text-3xl font-extrabold ${(stats.backlog ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                             {formatNumber((stats.backlog ?? 0))}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">Backlog</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Backlog')}</p>
                     </div>
                     <div className="card text-center">
                         <p className={`text-3xl font-extrabold ${realizacjaColor}`}>{realizacja}%</p>
-                        <p className="text-xs text-gray-500 mt-1">Realizacja</p>
+                        <p className="text-xs text-gray-500 mt-1">{__('Completion')}</p>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-2">
                             <div className={`h-1.5 rounded-full ${realizacjaBar}`} style={{ width: `${realizacja}%` }} />
                         </div>
@@ -108,28 +108,28 @@ export default function Admin() {
                 <div className="card overflow-hidden p-0">
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                         <h2 className="font-semibold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide">
-                            Zlecenia do spakowania ({items.length})
+                            {__('Work orders to pack')} ({items.length})
                         </h2>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                             <thead className="bg-gray-50 dark:bg-gray-800">
                                 <tr>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Zlecenie</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Produkt</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Linia</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">EAN</th>
-                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Spakowano</th>
-                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">Plan</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-32">Postęp</th>
-                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('Order')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('Product')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('Line')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('EAN')}</th>
+                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">{__('Packed')}</th>
+                                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase">{__('Plan')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase w-32">{__('Progress')}</th>
+                                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{__('Status')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                                 {items.length === 0 ? (
                                     <tr>
                                         <td colSpan={8} className="px-4 py-10 text-center text-gray-400 text-sm">
-                                            Brak zleceń z przypisanymi kodami EAN
+                                            {__('No work orders with assigned EAN codes')}
                                         </td>
                                     </tr>
                                 ) : items.map((item) => (

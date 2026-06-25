@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 const ACTION_STYLES = {
     created: 'bg-green-100 text-green-800',
@@ -12,7 +13,7 @@ function ActionBadge({ action }) {
     const cls = ACTION_STYLES[action] ?? 'bg-gray-100 text-gray-600';
     return (
         <span className={`px-2 py-1 rounded text-xs font-medium ${cls}`}>
-            {action ? action.charAt(0).toUpperCase() + action.slice(1) : '—'}
+            {action ? __(action.charAt(0).toUpperCase() + action.slice(1)) : '—'}
         </span>
     );
 }
@@ -28,7 +29,7 @@ function ExpandableChanges({ log }) {
                     onClick={() => setExpanded((v) => !v)}
                     className="text-blue-600 hover:text-blue-800 text-sm"
                 >
-                    {expanded ? 'Hide' : 'View'} Changes
+                    {expanded ? __('Hide') : __('View')} {__('Changes')}
                 </button>
                 {expanded && (
                     <div className="mt-2 p-3 bg-gray-50 rounded text-xs">
@@ -47,13 +48,13 @@ function ExpandableChanges({ log }) {
     if (log.action === 'created') {
         return (
             <span className="text-gray-500 text-sm">
-                Created with {Object.keys(log.after_state ?? {}).length} fields
+                {__('Created with :count fields', { count: Object.keys(log.after_state ?? {}).length })}
             </span>
         );
     }
 
     if (log.action === 'deleted') {
-        return <span className="text-gray-500 text-sm">Record deleted</span>;
+        return <span className="text-gray-500 text-sm">{__('Record deleted')}</span>;
     }
 
     return null;
@@ -125,24 +126,24 @@ export default function AuditLogs() {
 
     return (
         <>
-            <Head title="Audit Logs" />
+            <Head title={__('Audit Logs')} />
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800">Audit Logs</h1>
-                    <p className="text-gray-600 mt-2">Track all system changes and user activities</p>
+                    <h1 className="text-3xl font-bold text-gray-800">{__('Audit Logs')}</h1>
+                    <p className="text-gray-600 mt-2">{__('Track all system changes and user activities')}</p>
                 </div>
 
                 {/* Filters */}
                 <div className="bg-white rounded-lg shadow-sm p-5 mb-6">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-lg font-bold text-gray-800">Filters</h2>
+                        <h2 className="text-lg font-bold text-gray-800">{__('Filters')}</h2>
                         <button
                             type="button"
                             onClick={() => setShowFilters((v) => !v)}
                             className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                         >
-                            {showFilters ? 'Hide Filters' : 'Show Filters'}
+                            {showFilters ? __('Hide Filters') : __('Show Filters')}
                         </button>
                     </div>
 
@@ -150,13 +151,13 @@ export default function AuditLogs() {
                         <div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Entity Type</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{__('Entity Type')}</label>
                                     <select
                                         value={form.entity_type}
                                         onChange={(e) => setForm((f) => ({ ...f, entity_type: e.target.value }))}
                                         className="form-input w-full"
                                     >
-                                        <option value="">All Types</option>
+                                        <option value="">{__('All Types')}</option>
                                         {entityTypes.map((t) => (
                                             <option key={t} value={t}>{t}</option>
                                         ))}
@@ -164,13 +165,13 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{__('User')}</label>
                                     <select
                                         value={form.user_id}
                                         onChange={(e) => setForm((f) => ({ ...f, user_id: e.target.value }))}
                                         className="form-input w-full"
                                     >
-                                        <option value="">All Users</option>
+                                        <option value="">{__('All Users')}</option>
                                         {users.map((u) => (
                                             <option key={u.id} value={u.id}>
                                                 {u.name} ({u.username})
@@ -180,21 +181,21 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{__('Action')}</label>
                                     <select
                                         value={form.action}
                                         onChange={(e) => setForm((f) => ({ ...f, action: e.target.value }))}
                                         className="form-input w-full"
                                     >
-                                        <option value="">All Actions</option>
-                                        <option value="created">Created</option>
-                                        <option value="updated">Updated</option>
-                                        <option value="deleted">Deleted</option>
+                                        <option value="">{__('All Actions')}</option>
+                                        <option value="created">{__('Created')}</option>
+                                        <option value="updated">{__('Updated')}</option>
+                                        <option value="deleted">{__('Deleted')}</option>
                                     </select>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{__('Start Date')}</label>
                                     <input
                                         type="date"
                                         value={form.start_date}
@@ -204,7 +205,7 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{__('End Date')}</label>
                                     <input
                                         type="date"
                                         value={form.end_date}
@@ -220,20 +221,20 @@ export default function AuditLogs() {
                                     onClick={() => apply()}
                                     className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                                 >
-                                    Apply Filters
+                                    {__('Apply Filters')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={clear}
                                     className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                                 >
-                                    Clear Filters
+                                    {__('Clear Filters')}
                                 </button>
                                 <a
                                     href={exportUrl()}
                                     className="ml-auto px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                                 >
-                                    Export to CSV
+                                    {__('Export to CSV')}
                                 </a>
                             </div>
                         </div>
@@ -243,18 +244,18 @@ export default function AuditLogs() {
                 {/* Table */}
                 <div className="bg-white rounded-lg shadow-sm">
                     {logs.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">No audit logs found</div>
+                        <div className="text-center py-12 text-gray-500">{__('No audit logs found')}</div>
                     ) : (
                         <>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{__('Timestamp')}</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{__('User')}</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{__('Entity')}</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{__('Action')}</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{__('Details')}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
@@ -266,7 +267,7 @@ export default function AuditLogs() {
                                                         : '—'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {log.user?.name ?? 'System'}
+                                                    {log.user?.name ?? __('System')}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                                     {log.entity_type

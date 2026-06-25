@@ -1,4 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
+import { __ } from '../lib/i18n';
 
 /**
  * Wizard chrome for the onboarding flow.
@@ -19,12 +20,12 @@ export default function OnboardingLayout({ children }) {
 
     return (
         <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
-            <Head title="OpenMES — Setup Wizard" />
+            <Head title={`OpenMES — ${__('Setup Wizard')}`} />
             <div className="w-full max-w-2xl">
                 {/* Logo */}
                 <div className="text-center mb-8">
                     <img src="/logo_open_mes.png" alt="OpenMES" className="h-10 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Setup Wizard</p>
+                    <p className="text-sm text-gray-500">{__('Setup Wizard')}</p>
                 </div>
 
                 {/* Stepper */}
@@ -59,7 +60,7 @@ export default function OnboardingLayout({ children }) {
                                     <span
                                         className={`text-xs mt-1 ${current ? 'text-blue-600 font-medium' : 'text-gray-500'}`}
                                     >
-                                        {label}
+                                        {__(label)}
                                     </span>
                                 </div>
                                 {i < steps.length - 1 && (
@@ -82,7 +83,7 @@ export default function OnboardingLayout({ children }) {
                         onClick={skipWizard}
                         className="text-sm text-gray-400 hover:text-gray-600"
                     >
-                        Skip wizard →
+                        {__('Skip wizard →')}
                     </button>
                 </div>
             </div>

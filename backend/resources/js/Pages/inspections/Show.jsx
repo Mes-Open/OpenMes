@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
-import { formatDateTime, formatNumber } from '../../lib/i18n';
+import { formatDateTime, formatNumber, __ } from '../../lib/i18n';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,16 +66,16 @@ function DispositionSection({ inspection }) {
 
     return (
         <div className="card mb-4">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Disposition</h3>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{__('Disposition')}</h3>
 
             {hasDecision ? (
                 <div>
                     <div className="flex items-center gap-3">
                         <span className={`px-3 py-1 rounded text-sm font-medium capitalize ${dispositionColorClass(inspection.disposition)}`}>
-                            {(inspection.disposition ?? '').replace(/_/g, ' ')}
+                            {__(inspection.disposition)}
                         </span>
                         <span className="text-sm text-gray-500">
-                            by {inspection.disposition_by?.name ?? '—'}
+                            {__('by :name', { name: inspection.disposition_by?.name ?? '—' })}
                             {inspection.disposition_at ? ` · ${fmtDateTime(inspection.disposition_at)}` : ''}
                         </span>
                     </div>
@@ -85,7 +85,7 @@ function DispositionSection({ inspection }) {
                 </div>
             ) : (
                 <div>
-                    <p className="text-sm text-gray-500">No disposition recorded yet.</p>
+                    <p className="text-sm text-gray-500">{__('No disposition recorded yet.')}</p>
                     {canDispose && (
                         <div className="mt-3">
                             <button
@@ -93,7 +93,7 @@ function DispositionSection({ inspection }) {
                                 onClick={() => setModalOpen(true)}
                                 className="btn-touch btn-primary text-sm"
                             >
-                                Record Disposition
+                                {__('Record Disposition')}
                             </button>
                         </div>
                     )}
@@ -130,7 +130,7 @@ function DispositionModal({ inspection, onClose }) {
                 className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full p-6"
                 onClick={(e) => e.stopPropagation()}
             >
-                <h3 className="text-lg font-semibold mb-3">Record Disposition</h3>
+                <h3 className="text-lg font-semibold mb-3">{__('Record Disposition')}</h3>
                 <form onSubmit={submit}>
                     <div className="space-y-2 mb-4">
                         {DISPOSITION_OPTIONS.map(({ value, label, desc }) => (
@@ -148,8 +148,8 @@ function DispositionModal({ inspection, onClose }) {
                                     className="mt-1"
                                 />
                                 <div>
-                                    <div className="font-medium text-sm capitalize">{label}</div>
-                                    <div className="text-xs text-gray-500">{desc}</div>
+                                    <div className="font-medium text-sm capitalize">{__(label)}</div>
+                                    <div className="text-xs text-gray-500">{__(desc)}</div>
                                 </div>
                             </label>
                         ))}
@@ -162,7 +162,7 @@ function DispositionModal({ inspection, onClose }) {
                         onChange={(e) => form.setData('notes', e.target.value)}
                         rows={3}
                         className="form-input w-full text-sm"
-                        placeholder="Notes (optional)"
+                        placeholder={__('Notes (optional)')}
                     />
                     {form.errors.notes && (
                         <p className="text-red-600 text-xs mt-1">{form.errors.notes}</p>
@@ -173,14 +173,14 @@ function DispositionModal({ inspection, onClose }) {
                             onClick={onClose}
                             className="btn-touch btn-secondary text-sm"
                         >
-                            Cancel
+                            {__('Cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={form.processing}
                             className="btn-touch btn-primary text-sm disabled:opacity-50"
                         >
-                            Save
+                            {__('Save')}
                         </button>
                     </div>
                 </form>
@@ -239,16 +239,16 @@ function ResultsEntryForm({ inspection }) {
 
     return (
         <form onSubmit={saveProgress} className="card mb-4">
-            <h2 className="text-lg font-bold mb-3">Record measurements</h2>
+            <h2 className="text-lg font-bold mb-3">{__('Record measurements')}</h2>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-slate-700">
                         <tr>
-                            <th className="text-left p-2">Criterion</th>
-                            <th className="text-left p-2">Type</th>
-                            <th className="text-left p-2">Spec</th>
-                            <th className="text-left p-2">Value</th>
-                            <th className="text-left p-2">Notes</th>
+                            <th className="text-left p-2">{__('Criterion')}</th>
+                            <th className="text-left p-2">{__('Type')}</th>
+                            <th className="text-left p-2">{__('Spec')}</th>
+                            <th className="text-left p-2">{__('Value')}</th>
+                            <th className="text-left p-2">{__('Notes')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -257,10 +257,10 @@ function ResultsEntryForm({ inspection }) {
                                 <td className="p-2 font-medium">
                                     {row.criterion_name}
                                     {row.required && (
-                                        <span className="text-red-500 ml-0.5" title="Required">*</span>
+                                        <span className="text-red-500 ml-0.5" title={__('Required')}>*</span>
                                     )}
                                 </td>
-                                <td className="p-2 text-gray-500">{row.criterion_type}</td>
+                                <td className="p-2 text-gray-500">{__(row.criterion_type)}</td>
                                 <td className="p-2 text-gray-500 font-mono text-xs">
                                     {row.criterion_type === 'measurement'
                                         ? `${row.spec_min ?? '−∞'} … ${row.spec_max ?? '+∞'} ${row.unit ?? ''}`
@@ -282,8 +282,8 @@ function ResultsEntryForm({ inspection }) {
                                             className="form-input w-28"
                                         >
                                             <option value="">—</option>
-                                            <option value="1">Pass</option>
-                                            <option value="0">Fail</option>
+                                            <option value="1">{__('Pass')}</option>
+                                            <option value="0">{__('Fail')}</option>
                                         </select>
                                     )}
                                 </td>
@@ -303,7 +303,7 @@ function ResultsEntryForm({ inspection }) {
             </div>
             <div className="flex gap-2 justify-end mt-3">
                 <button type="submit" disabled={saving} className="btn-touch btn-secondary disabled:opacity-50">
-                    Save progress
+                    {__('Save progress')}
                 </button>
             </div>
         </form>
@@ -319,22 +319,21 @@ function CompleteForm({ inspection }) {
 
     const submit = (e) => {
         e.preventDefault();
-        if (!confirm('Complete this inspection? It cannot be edited afterwards.')) return;
+        if (!confirm(__('Complete this inspection? It cannot be edited afterwards.'))) return;
         form.post(`/inspections/${inspection.id}/complete`);
     };
 
     return (
         <form onSubmit={submit} className="card">
-            <h2 className="text-lg font-bold mb-3">Complete inspection</h2>
+            <h2 className="text-lg font-bold mb-3">{__('Complete inspection')}</h2>
             <p className="text-sm text-gray-600 mb-2">
-                Pass/fail is computed from the recorded results above. If any required criterion fails,
-                a non-conformance issue is created automatically.
+                {__('Pass/fail is computed from the recorded results above. If any required criterion fails, a non-conformance issue is created automatically.')}
             </p>
             <textarea
                 value={form.data.notes}
                 onChange={(e) => form.setData('notes', e.target.value)}
                 rows={2}
-                placeholder="Optional notes…"
+                placeholder={__('Optional notes…')}
                 className="form-input w-full mb-3"
             />
             {form.errors.notes && (
@@ -346,7 +345,7 @@ function CompleteForm({ inspection }) {
                     disabled={form.processing}
                     className="btn-touch btn-primary disabled:opacity-50"
                 >
-                    Complete
+                    {__('Complete')}
                 </button>
             </div>
         </form>
@@ -366,39 +365,39 @@ function ResultsTable({ results, notes }) {
     }
 
     function passBadge(isPassed) {
-        if (isPassed === true) return <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">✓ Pass</span>;
-        if (isPassed === false) return <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">✗ Fail</span>;
+        if (isPassed === true) return <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">✓ {__('Pass')}</span>;
+        if (isPassed === false) return <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">✗ {__('Fail')}</span>;
         return <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-500">—</span>;
     }
 
     return (
         <div className="card">
-            <h2 className="text-lg font-bold mb-3">Results</h2>
+            <h2 className="text-lg font-bold mb-3">{__('Results')}</h2>
             {results.length === 0 ? (
-                <p className="text-gray-500">No results recorded.</p>
+                <p className="text-gray-500">{__('No results recorded.')}</p>
             ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-slate-700">
                             <tr>
-                                <th className="text-left p-2">Criterion</th>
-                                <th className="text-left p-2">Type</th>
-                                <th className="text-left p-2">Spec</th>
-                                <th className="text-left p-2">Value</th>
-                                <th className="text-left p-2">Result</th>
+                                <th className="text-left p-2">{__('Criterion')}</th>
+                                <th className="text-left p-2">{__('Type')}</th>
+                                <th className="text-left p-2">{__('Spec')}</th>
+                                <th className="text-left p-2">{__('Value')}</th>
+                                <th className="text-left p-2">{__('Result')}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {results.map((r) => (
                                 <tr key={r.id} className="border-b border-gray-100 dark:border-gray-700">
                                     <td className="p-2 font-medium">{r.criterion_name}</td>
-                                    <td className="p-2 text-gray-500">{r.criterion_type}</td>
+                                    <td className="p-2 text-gray-500">{__(r.criterion_type)}</td>
                                     <td className="p-2 text-gray-500 font-mono text-xs">
                                         {r.criterion_type === 'measurement'
                                             ? `${r.spec_min ?? '−∞'} … ${r.spec_max ?? '+∞'} ${r.unit ?? ''}`
                                             : '—'}
                                     </td>
-                                    <td className="p-2 font-mono">{resultValue(r)}</td>
+                                    <td className="p-2 font-mono">{r.value_boolean != null ? __(resultValue(r)) : resultValue(r)}</td>
                                     <td className="p-2">{passBadge(r.is_passed)}</td>
                                 </tr>
                             ))}
@@ -408,11 +407,11 @@ function ResultsTable({ results, notes }) {
             )}
             {notes && (
                 <div className="mt-3 text-sm text-gray-700 dark:text-gray-300">
-                    <strong>Notes:</strong> {notes}
+                    <strong>{__('Notes:')}</strong> {notes}
                 </div>
             )}
             <div className="text-right mt-3">
-                <Link href="/inspections" className="btn-touch btn-secondary">Back</Link>
+                <Link href="/inspections" className="btn-touch btn-secondary">{__('Back')}</Link>
             </div>
         </div>
     );
@@ -428,26 +427,26 @@ export default function InspectionsShow() {
 
     return (
         <>
-            <Head title={`Inspection #${inspection.id}`} />
+            <Head title={__('Inspection #:id', { id: inspection.id })} />
 
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex justify-between items-start mb-4">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-                            Inspection #{inspection.id} — {inspection.material?.name ?? '—'}
+                            {__('Inspection #:id — :material', { id: inspection.id, material: inspection.material?.name ?? '—' })}
                         </h1>
                         <p className="text-gray-600 dark:text-gray-400 mt-1">
-                            Lot: <span className="font-mono">{inspection.lot_number}</span>
+                            {__('Lot')}: <span className="font-mono">{inspection.lot_number}</span>
                             {inspection.quantity_received != null && (
-                                <> · Qty: {fmtNum(inspection.quantity_received)}</>
+                                <> · {__('Qty')}: {fmtNum(inspection.quantity_received)}</>
                             )}
-                            {' · '}Inspector: {inspection.inspector?.name ?? '—'}
-                            {' · '}Started: {fmtDateTime(inspection.started_at)}
+                            {' · '}{__('Inspector')}: {inspection.inspector?.name ?? '—'}
+                            {' · '}{__('Started')}: {fmtDateTime(inspection.started_at)}
                         </p>
                     </div>
                     <span className={`inline-block px-3 py-1 rounded text-sm font-semibold capitalize ${statusBadge(inspection.status)}`}>
-                        {(inspection.status ?? '').replace(/_/g, ' ')}
+                        {__(inspection.status)}
                     </span>
                 </div>
 
@@ -457,9 +456,9 @@ export default function InspectionsShow() {
                 {/* Non-conformance alert */}
                 {inspection.issue_id && (
                     <div className="card mb-4 border-l-4 border-red-500 bg-red-50 dark:bg-red-900/20">
-                        <strong>Non-conformance created: Issue #{inspection.issue_id}</strong>
+                        <strong>{__('Non-conformance created: Issue #:id', { id: inspection.issue_id })}</strong>
                         <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                            A non-conformance issue was auto-generated because this inspection failed.
+                            {__('A non-conformance issue was auto-generated because this inspection failed.')}
                         </p>
                     </div>
                 )}

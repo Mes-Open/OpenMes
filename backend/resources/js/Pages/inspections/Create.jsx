@@ -1,5 +1,6 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 export default function InspectionsCreate() {
     const { materials = [], plans = [] } = usePage().props;
@@ -20,16 +21,16 @@ export default function InspectionsCreate() {
 
     return (
         <>
-            <Head title="Start Inspection" />
+            <Head title={__('Start Inspection')} />
 
             <div className="max-w-2xl mx-auto">
-                <h1 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Start Inspection</h1>
+                <h1 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">{__('Start Inspection')}</h1>
 
                 <form onSubmit={submit} className="card space-y-4">
                     {/* Material */}
                     <div>
                         <label className="block text-sm font-medium mb-1">
-                            Material <span className="text-red-500">*</span>
+                            {__('Material')} <span className="text-red-500">*</span>
                         </label>
                         <select
                             value={data.material_id}
@@ -37,7 +38,7 @@ export default function InspectionsCreate() {
                             required
                             className="form-input w-full"
                         >
-                            <option value="">-- choose --</option>
+                            <option value="">{__('-- choose --')}</option>
                             {materials.map((m) => (
                                 <option key={m.id} value={m.id}>
                                     {m.code} — {m.name}
@@ -53,7 +54,7 @@ export default function InspectionsCreate() {
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-sm font-medium mb-1">
-                                Lot number <span className="text-red-500">*</span>
+                                {__('Lot number')} <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
@@ -68,7 +69,7 @@ export default function InspectionsCreate() {
                             )}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Supplier lot ref</label>
+                            <label className="block text-sm font-medium mb-1">{__('Supplier lot ref')}</label>
                             <input
                                 type="text"
                                 maxLength={100}
@@ -84,17 +85,17 @@ export default function InspectionsCreate() {
 
                     {/* Source container (scan) */}
                     <div>
-                        <label className="block text-sm font-medium mb-1">Source container no</label>
+                        <label className="block text-sm font-medium mb-1">{__('Source container no')}</label>
                         <input
                             type="text"
                             maxLength={100}
                             value={data.source_container_no}
                             onChange={(e) => setData('source_container_no', e.target.value)}
-                            placeholder="Scan container barcode…"
+                            placeholder={__('Scan container barcode…')}
                             className="form-input w-full font-mono"
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                            Scan the barcode of the container/pallet the delivery arrived in. Carried onto the created material lot for traceability.
+                            {__('Scan the barcode of the container/pallet the delivery arrived in. Carried onto the created material lot for traceability.')}
                         </p>
                         {errors.source_container_no && (
                             <p className="text-red-600 text-xs mt-1">{errors.source_container_no}</p>
@@ -103,7 +104,7 @@ export default function InspectionsCreate() {
 
                     {/* Quantity received */}
                     <div>
-                        <label className="block text-sm font-medium mb-1">Quantity received</label>
+                        <label className="block text-sm font-medium mb-1">{__('Quantity received')}</label>
                         <input
                             type="number"
                             step="0.001"
@@ -119,13 +120,13 @@ export default function InspectionsCreate() {
 
                     {/* Inspection plan */}
                     <div>
-                        <label className="block text-sm font-medium mb-1">Inspection plan</label>
+                        <label className="block text-sm font-medium mb-1">{__('Inspection plan')}</label>
                         <select
                             value={data.inspection_plan_id}
                             onChange={(e) => setData('inspection_plan_id', e.target.value)}
                             className="form-input w-full"
                         >
-                            <option value="">— no plan (ad-hoc) —</option>
+                            <option value="">{__('— no plan (ad-hoc) —')}</option>
                             {plans.map((plan) => (
                                 <option key={plan.id} value={plan.id}>
                                     {plan.name}
@@ -135,7 +136,7 @@ export default function InspectionsCreate() {
                             ))}
                         </select>
                         <p className="text-xs text-gray-500 mt-1">
-                            If no plan is selected, you can still record results but no criteria will be pre-filled.
+                            {__('If no plan is selected, you can still record results but no criteria will be pre-filled.')}
                         </p>
                         {errors.inspection_plan_id && (
                             <p className="text-red-600 text-xs mt-1">{errors.inspection_plan_id}</p>
@@ -145,10 +146,10 @@ export default function InspectionsCreate() {
                     {/* Actions */}
                     <div className="flex justify-end gap-2">
                         <Link href="/inspections" className="btn-touch btn-secondary">
-                            Cancel
+                            {__('Cancel')}
                         </Link>
                         <button type="submit" disabled={processing} className="btn-touch btn-primary disabled:opacity-50">
-                            Start
+                            {__('Start')}
                         </button>
                     </div>
                 </form>

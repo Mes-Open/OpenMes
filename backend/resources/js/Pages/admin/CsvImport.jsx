@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 function Icon({ d, className = 'w-5 h-5' }) {
     return (
@@ -45,19 +46,19 @@ export default function CsvImport() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="CSV Import" />
+            <Head title={__('CSV Import')} />
 
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-                <Link href="/admin/dashboard" className="hover:text-gray-700">Dashboard</Link>
+                <Link href="/admin/dashboard" className="hover:text-gray-700">{__('Dashboard')}</Link>
                 <span>/</span>
-                <span className="text-gray-800 font-medium">CSV Import</span>
+                <span className="text-gray-800 font-medium">{__('CSV Import')}</span>
             </nav>
 
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Import</h1>
-                    <p className="text-gray-600 mt-1">Import work orders from a CSV, XLS or XLSX file with custom column mapping</p>
+                    <h1 className="text-3xl font-bold text-gray-800">{__('Import')}</h1>
+                    <p className="text-gray-600 mt-1">{__('Import work orders from a CSV, XLS or XLSX file with custom column mapping')}</p>
                 </div>
             </div>
 
@@ -74,19 +75,19 @@ export default function CsvImport() {
                         </div>
                         <div className="flex-1">
                             <p className="font-bold text-gray-800 mb-1">
-                                {importResult.failed === 0 ? 'Import Completed' : 'Import Completed with errors'}
+                                {importResult.failed === 0 ? __('Import Completed') : __('Import Completed with errors')}
                             </p>
                             <div className="flex gap-6 text-sm">
-                                <span className="text-green-700 font-medium">&#10003; {importResult.success} imported</span>
+                                <span className="text-green-700 font-medium">&#10003; {__(':count imported', { count: importResult.success })}</span>
                                 {importResult.failed > 0 && (
-                                    <span className="text-red-700 font-medium">&#10007; {importResult.failed} failed</span>
+                                    <span className="text-red-700 font-medium">&#10007; {__(':count failed', { count: importResult.failed })}</span>
                                 )}
-                                <span className="text-gray-600">{importResult.total} total rows</span>
+                                <span className="text-gray-600">{__(':count total rows', { count: importResult.total })}</span>
                             </div>
                             {importResult.errors && importResult.errors.length > 0 && (
                                 <details className="mt-3">
                                     <summary className="text-sm text-red-600 cursor-pointer">
-                                        Show errors ({importResult.errors.length})
+                                        {__('Show errors (:count)', { count: importResult.errors.length })}
                                     </summary>
                                     <ul className="mt-2 text-xs text-red-700 space-y-1 bg-red-50 rounded p-3">
                                         {importResult.errors.map((err, i) => (
@@ -104,7 +105,7 @@ export default function CsvImport() {
 
                 {/* Upload Form */}
                 <div className="lg:col-span-2 card">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">Upload File</h2>
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">{__('Upload File')}</h2>
                     <form
                         method="POST"
                         action="/admin/csv-import/upload"
@@ -126,11 +127,11 @@ export default function CsvImport() {
                                 className="mx-auto h-12 w-12 text-gray-400 mb-3"
                             />
                             <p className="text-gray-600 font-medium">
-                                Drop file here or <span className="text-blue-600">browse</span>
+                                {__('Drop file here or')} <span className="text-blue-600">{__('browse')}</span>
                             </p>
-                            <p className="text-sm text-gray-400 mt-1">Max 32 MB &middot; .csv, .txt, .xlsx, .xls</p>
+                            <p className="text-sm text-gray-400 mt-1">{__('Max 32 MB')} &middot; .csv, .txt, .xlsx, .xls</p>
                             <div className="mt-3 flex items-center justify-center gap-3 text-xs">
-                                <span className="text-gray-400">Sample files:</span>
+                                <span className="text-gray-400">{__('Sample files:')}</span>
                                 <a
                                     href="/samples/zlecenia-import.xlsx"
                                     download
@@ -166,20 +167,20 @@ export default function CsvImport() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label className="form-label">Duplicate Strategy</label>
+                                <label className="form-label">{__('Duplicate Strategy')}</label>
                                 <select name="import_strategy" className="form-input w-full" required>
-                                    <option value="update_or_create">Update if exists, create if new</option>
-                                    <option value="skip_existing">Skip existing records</option>
-                                    <option value="error_on_duplicate">Error on duplicates</option>
+                                    <option value="update_or_create">{__('Update if exists, create if new')}</option>
+                                    <option value="skip_existing">{__('Skip existing records')}</option>
+                                    <option value="error_on_duplicate">{__('Error on duplicates')}</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="form-label">Load Mapping Profile (optional)</label>
+                                <label className="form-label">{__('Load Mapping Profile (optional)')}</label>
                                 <select name="mapping_id" className="form-input w-full">
-                                    <option value="">— Map columns manually —</option>
+                                    <option value="">{__('— Map columns manually —')}</option>
                                     {savedMappings.map((m) => (
                                         <option key={m.id} value={m.id}>
-                                            {m.name}{m.is_default ? ' (default)' : ''}
+                                            {m.name}{m.is_default ? ` (${__('default')})` : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -188,15 +189,15 @@ export default function CsvImport() {
 
                         {/* Target line */}
                         <div className="mb-4">
-                            <label className="form-label">Assign all rows to Production Line (optional)</label>
+                            <label className="form-label">{__('Assign all rows to Production Line (optional)')}</label>
                             <select name="target_line_id" className="form-input w-full">
-                                <option value="">— Use line_code column from file —</option>
+                                <option value="">{__('— Use line_code column from file —')}</option>
                                 {lines.map((line) => (
                                     <option key={line.id} value={line.id}>{line.name}</option>
                                 ))}
                             </select>
                             <p className="text-xs text-gray-400 mt-1">
-                                If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.
+                                {__('If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.')}
                             </p>
                         </div>
 
@@ -204,39 +205,39 @@ export default function CsvImport() {
                         {productionPeriod !== 'none' && (
                             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                 <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
-                                    Planning Period
+                                    {__('Planning Period')}
                                     <span className="font-normal normal-case">
-                                        {' '}— system is configured for <strong>{productionPeriod}</strong> production split
+                                        {' '}— {__('system is configured for :period production split', { period: __(productionPeriod.charAt(0).toUpperCase() + productionPeriod.slice(1)) })}
                                     </span>
                                 </p>
                                 <div className="grid grid-cols-2 gap-3">
                                     {productionPeriod === 'weekly' ? (
                                         <div>
-                                            <label className="form-label text-xs">Week Number (1–53)</label>
+                                            <label className="form-label text-xs">{__('Week Number (1–53)')}</label>
                                             <input
                                                 type="number"
                                                 name="import_week"
                                                 min="1"
                                                 max="53"
                                                 className="form-input w-full"
-                                                placeholder="e.g. current week"
+                                                placeholder={__('e.g. current week')}
                                             />
                                         </div>
                                     ) : (
                                         <div>
-                                            <label className="form-label text-xs">Month Number (1–12)</label>
+                                            <label className="form-label text-xs">{__('Month Number (1–12)')}</label>
                                             <input
                                                 type="number"
                                                 name="import_month"
                                                 min="1"
                                                 max="12"
                                                 className="form-input w-full"
-                                                placeholder="e.g. current month"
+                                                placeholder={__('e.g. current month')}
                                             />
                                         </div>
                                     )}
                                     <div>
-                                        <label className="form-label text-xs">Year</label>
+                                        <label className="form-label text-xs">{__('Year')}</label>
                                         <input
                                             type="number"
                                             name="production_year"
@@ -252,28 +253,28 @@ export default function CsvImport() {
 
                         <button type="submit" className="btn-touch btn-primary w-full">
                             <Icon d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" className="w-5 h-5 inline-block mr-2" />
-                            Upload &amp; Configure Mapping
+                            {__('Upload & Configure Mapping')}
                         </button>
                     </form>
 
                     {/* Field Reference */}
                     <details className="mt-6">
                         <summary className="text-sm font-medium text-gray-600 cursor-pointer hover:text-gray-800">
-                            Available system fields reference
+                            {__('Available system fields reference')}
                         </summary>
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {Object.entries(systemFields).map(([key, label]) => (
                                 <div key={key} className="flex items-center gap-2 text-xs bg-gray-50 rounded p-2">
                                     <code className="text-blue-700 font-mono shrink-0">{key}</code>
-                                    <span className="text-gray-600">{label}</span>
+                                    <span className="text-gray-600">{__(label)}</span>
                                     {(key === 'order_no' || key === 'quantity') && (
-                                        <span className="ml-auto text-red-500 font-bold shrink-0">required</span>
+                                        <span className="ml-auto text-red-500 font-bold shrink-0">{__('required')}</span>
                                     )}
                                 </div>
                             ))}
                             <div className="flex items-center gap-2 text-xs bg-purple-50 rounded p-2 sm:col-span-2">
                                 <code className="text-purple-700 font-mono shrink-0">custom:field_name</code>
-                                <span className="text-gray-600">Any extra field — stored as JSON on the work order</span>
+                                <span className="text-gray-600">{__('Any extra field — stored as JSON on the work order')}</span>
                             </div>
                         </div>
                     </details>
@@ -283,9 +284,9 @@ export default function CsvImport() {
                 <div className="space-y-6">
                     {/* Saved Mapping Profiles */}
                     <div className="card">
-                        <h2 className="text-lg font-bold text-gray-800 mb-3">Saved Mapping Profiles</h2>
+                        <h2 className="text-lg font-bold text-gray-800 mb-3">{__('Saved Mapping Profiles')}</h2>
                         {savedMappings.length === 0 ? (
-                            <p className="text-sm text-gray-500">No saved profiles yet. Profiles are saved during import.</p>
+                            <p className="text-sm text-gray-500">{__('No saved profiles yet. Profiles are saved during import.')}</p>
                         ) : (
                             savedMappings.map((m) => {
                                 const colCount = Object.keys(m.mapping_config?.column_mappings ?? {}).length;
@@ -294,14 +295,14 @@ export default function CsvImport() {
                                         <div>
                                             <p className="text-sm font-medium text-gray-800">{m.name}</p>
                                             <p className="text-xs text-gray-500">
-                                                {colCount} column{colCount !== 1 ? 's' : ''} mapped
+                                                {colCount === 1 ? __(':count column mapped', { count: colCount }) : __(':count columns mapped', { count: colCount })}
                                             </p>
                                         </div>
                                         {!m.is_default && (
                                             <form
                                                 method="POST"
                                                 action={`/admin/csv-import/mappings/${m.id}`}
-                                                onSubmit={(e) => !window.confirm('Delete mapping profile?') && e.preventDefault()}
+                                                onSubmit={(e) => !window.confirm(__('Delete mapping profile?')) && e.preventDefault()}
                                             >
                                                 <input type="hidden" name="_token" value={csrfToken} />
                                                 <input type="hidden" name="_method" value="DELETE" />
@@ -318,9 +319,9 @@ export default function CsvImport() {
 
                     {/* Recent Imports */}
                     <div className="card">
-                        <h2 className="text-lg font-bold text-gray-800 mb-3">Recent Imports</h2>
+                        <h2 className="text-lg font-bold text-gray-800 mb-3">{__('Recent Imports')}</h2>
                         {recentImports.length === 0 ? (
-                            <p className="text-sm text-gray-500">No imports yet.</p>
+                            <p className="text-sm text-gray-500">{__('No imports yet.')}</p>
                         ) : (
                             recentImports.map((imp) => (
                                 <div key={imp.id} className="py-2 border-b border-gray-100 last:border-0">
@@ -329,12 +330,12 @@ export default function CsvImport() {
                                             {imp.filename}
                                         </p>
                                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(imp.status)}`}>
-                                            {imp.status}
+                                            {__(imp.status)}
                                         </span>
                                     </div>
                                     <p className="text-xs text-gray-500">
                                         <span className="text-green-600">&#10003; {imp.successful_rows}</span> /{' '}
-                                        {imp.total_rows} rows
+                                        {__(':count rows', { count: imp.total_rows })}
                                         {imp.failed_rows > 0 && (
                                             <> &middot; <span className="text-red-600">&#10007; {imp.failed_rows}</span></>
                                         )}
@@ -343,7 +344,7 @@ export default function CsvImport() {
                                     {imp.error_log && imp.error_log.length > 0 && (
                                         <details className="mt-1">
                                             <summary className="text-xs text-red-600 cursor-pointer hover:text-red-800">
-                                                Show errors ({imp.error_log.length})
+                                                {__('Show errors (:count)', { count: imp.error_log.length })}
                                             </summary>
                                             <ul className="mt-1 space-y-0.5 bg-red-50 rounded p-2 max-h-40 overflow-y-auto">
                                                 {imp.error_log.map((err, i) => (
