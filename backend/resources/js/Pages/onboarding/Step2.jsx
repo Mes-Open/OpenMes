@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Button, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Onboarding Step 2 — Add a Product Type.
@@ -19,39 +20,39 @@ export default function Step2() {
 
     return (
         <>
-            <Head title="Step 2 — Product Type" />
+            <Head title={__('Step 2 — Product Type')} />
             <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 2/4</div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">Add a Product Type</h2>
-            <p className="text-sm text-om-muted mb-6">What product does this line produce? Define the product type.</p>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Add a Product Type')}</h2>
+            <p className="text-sm text-om-muted mb-6">{__('What product does this line produce? Define the product type.')}</p>
 
             <form onSubmit={submit}>
                 <div className="space-y-4">
                     <TextField
-                        label={<>Product Name <span className="text-om-accent">*</span></>}
+                        label={<>{__('Product Name')} <span className="text-om-accent">*</span></>}
                         id="name"
                         value={data.name}
                         onChange={(v) => setData('name', v)}
                         error={errors.name}
                         required
-                        placeholder="e.g. Air Filter"
+                        placeholder={__('e.g. Air Filter')}
                     />
 
                     <TextField
-                        label={<>Code <span className="text-om-accent">*</span></>}
+                        label={<>{__('Code')} <span className="text-om-accent">*</span></>}
                         id="code"
                         value={data.code}
                         onChange={(v) => setData('code', v)}
                         error={errors.code}
                         required
-                        placeholder="e.g. FILTER"
+                        placeholder={__('e.g. FILTER')}
                     />
 
                     <TextField
-                        label="Unit of Measure"
+                        label={__('Unit of Measure')}
                         id="unit_of_measure"
                         value={data.unit_of_measure}
                         onChange={(v) => setData('unit_of_measure', v)}
-                        placeholder="pcs, kg, m..."
+                        placeholder={__('pcs, kg, m...')}
                     />
                 </div>
 
@@ -60,7 +61,7 @@ export default function Step2() {
                         ← Back
                     </Link>
                     <Button type="submit" variant="accent" loading={processing}>
-                        {processing ? 'Saving…' : 'Next: Process Template →'}
+                        {processing ? __('Saving…') : __('Next: Process Template →')}
                     </Button>
                 </div>
             </form>

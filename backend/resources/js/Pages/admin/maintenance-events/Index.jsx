@@ -46,7 +46,14 @@ export default function MaintenanceEventsIndex() {
                         EVENT_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'
                     }`}
                 >
-                    {r.status}
+                    {{
+                        pending: __('Pending'),
+                        planned: __('Planned'),
+                        in_progress: __('In Progress'),
+                        completed: __('Completed'),
+                        done: __('Completed'),
+                        cancelled: __('Cancelled'),
+                    }[r.status] ?? r.status}
                 </span>
             ),
         },

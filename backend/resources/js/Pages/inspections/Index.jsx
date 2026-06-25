@@ -4,10 +4,10 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dropdown, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
-import { formatNumber } from '../../lib/i18n';
+import { formatNumber, __ } from '../../lib/i18n';
 
 const DISPOSITION_LABELS = {
-    pending: 'Pending',
+    pending: __('Pending'),
     accept: 'Accept',
     accept_with_deviation: 'Accept with deviation',
     rework: 'Rework',
@@ -65,9 +65,9 @@ export default function InspectionsIndex() {
     const { inspections = [], tab = 'pending', stats = {}, selectedDisposition = '' } = usePage().props;
 
     const tabs = [
-        { key: 'pending', label: 'Pending' },
-        { key: 'recent', label: 'Recent' },
-        { key: 'failed', label: 'Failed' },
+        { key: 'pending', label: __('Pending') },
+        { key: 'recent', label: __('Recent') },
+        { key: 'failed', label: __('Failed') },
     ];
 
     const tabHref = (key) => {
@@ -86,7 +86,7 @@ export default function InspectionsIndex() {
         {
             id: 'started',
             accessorFn: (r) => r.started_at_formatted ?? '',
-            header: 'Started',
+            header: __('Started'),
             cell: ({ row }) => (
                 <span className="font-mono text-[12px] text-om-muted">{row.original.started_at_formatted ?? '—'}</span>
             ),
@@ -94,19 +94,19 @@ export default function InspectionsIndex() {
         {
             id: 'material',
             accessorFn: (r) => r.material?.name ?? '',
-            header: 'Material',
+            header: __('Material'),
             cell: ({ row }) => <span className="text-om-ink">{row.original.material?.name ?? '—'}</span>,
         },
         {
             id: 'lot',
             accessorKey: 'lot_number',
-            header: 'Lot',
+            header: __('Lot'),
             cell: ({ row }) => <span className="font-mono text-om-ink">{row.original.lot_number}</span>,
         },
         {
             id: 'qty',
             accessorKey: 'quantity_received',
-            header: 'Qty',
+            header: __('Qty'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className="font-mono text-om-ink">
@@ -117,13 +117,13 @@ export default function InspectionsIndex() {
         {
             id: 'inspector',
             accessorFn: (r) => r.inspector?.name ?? '',
-            header: 'Inspector',
+            header: __('Inspector'),
             cell: ({ row }) => <span className="text-om-muted">{row.original.inspector?.name ?? '—'}</span>,
         },
         {
             id: 'status',
             accessorKey: 'status',
-            header: 'Status',
+            header: __('Status'),
             cell: ({ row }) => (
                 <>
                     <StatusPill
@@ -142,7 +142,7 @@ export default function InspectionsIndex() {
         {
             id: 'disposition',
             accessorKey: 'disposition',
-            header: 'Disposition',
+            header: __('Disposition'),
             cell: ({ row }) => (
                 <StatusPill
                     status={dispositionPill(row.original.disposition ?? 'pending')}
@@ -153,7 +153,7 @@ export default function InspectionsIndex() {
         },
         {
             id: 'actions',
-            header: 'Actions',
+            header: __('Actions'),
             enableSorting: false,
             meta: { align: 'right' },
             cell: ({ row }) => (
@@ -161,7 +161,7 @@ export default function InspectionsIndex() {
                     href={`/inspections/${row.original.id}`}
                     className="text-om-accent hover:underline"
                 >
-                    {row.original.status === 'pending' ? 'Perform' : 'Open'}
+                    {row.original.status === 'pending' ? __('Perform') : __('Open')}
                 </Link>
             ),
         },
@@ -169,15 +169,15 @@ export default function InspectionsIndex() {
 
     return (
         <>
-            <Head title="Inbound Inspections" />
+            <Head title={__('Inbound Inspections')} />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">Inbound Inspections</h1>
+                        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Inbound Inspections')}</h1>
                         <p className="text-[13px] text-om-muted mt-1">
-                            Receive material lots and verify them against an inspection plan.
+                            {__('Receive material lots and verify them against an inspection plan.')}
                         </p>
                     </div>
                     <Link
@@ -191,13 +191,13 @@ export default function InspectionsIndex() {
                 {/* Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                     <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
-                        <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Pending</div>
+                        <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Pending')}</div>
                         <div className={`mt-1 font-mono text-2xl font-semibold ${(stats.pending ?? 0) > 0 ? 'text-om-downtime' : 'text-om-faint'}`}>
                             {stats.pending ?? 0}
                         </div>
                     </div>
                     <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
-                        <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Failed (30d)</div>
+                        <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Failed (30d)')}</div>
                         <div className={`mt-1 font-mono text-2xl font-semibold ${(stats.recent_fail ?? 0) > 0 ? 'text-om-blocked' : 'text-om-running'}`}>
                             {stats.recent_fail ?? 0}
                         </div>
@@ -223,19 +223,19 @@ export default function InspectionsIndex() {
 
                 {/* Disposition filter */}
                 <div className="flex items-center gap-2 mb-3">
-                    <label htmlFor="disposition" className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Disposition:</label>
+                    <label htmlFor="disposition" className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Disposition:')}</label>
                     <Dropdown
                         value={selectedDisposition == null ? '' : String(selectedDisposition)}
                         onChange={(v) => router.visit(dispHref(v), { preserveScroll: true })}
                         options={[
-                            { value: '', label: 'All' },
+                            { value: '', label: __('All') },
                             ...DISPOSITION_OPTIONS.map((d) => ({ value: String(d), label: DISPOSITION_LABELS[d] ?? d })),
                         ]}
                         className="w-48"
                     />
                     {selectedDisposition && (
                         <a href={`/inspections?tab=${tab}`} className="text-[11.5px] text-om-muted hover:text-om-ink">
-                            Clear
+                            {__('Clear')}
                         </a>
                     )}
                 </div>
@@ -248,7 +248,7 @@ export default function InspectionsIndex() {
                     columnToggle
                     paginated
                     searchPlaceholder="Search inspections…"
-                    emptyLabel="No inspections in this tab."
+                    emptyLabel={__('No inspections in this tab.')}
                 />
             </div>
         </>

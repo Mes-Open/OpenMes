@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Button, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Onboarding Step 1 — Create a Production Line.
@@ -19,49 +20,49 @@ export default function Step1() {
 
     return (
         <>
-            <Head title="Step 1 — Production Line" />
+            <Head title={__('Step 1 — Production Line')} />
             <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 1/4</div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">Create a Production Line</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Create a Production Line')}</h2>
             <p className="text-sm text-om-muted mb-6">
-                A production line is a physical area where manufacturing happens. Start by creating your first one.
+                {__('A production line is a physical area where manufacturing happens. Start by creating your first one.')}
             </p>
 
             <form onSubmit={submit}>
                 <div className="space-y-4">
                     <TextField
-                        label={<>Line Name <span className="text-om-accent">*</span></>}
+                        label={<>{__('Line Name')} <span className="text-om-accent">*</span></>}
                         id="name"
                         value={data.name}
                         onChange={(v) => setData('name', v)}
                         error={errors.name}
                         required
-                        placeholder="e.g. Injection Line 1"
+                        placeholder={__('e.g. Injection Line 1')}
                     />
 
                     <TextField
-                        label={<>Code <span className="text-om-accent">*</span></>}
+                        label={<>{__('Code')} <span className="text-om-accent">*</span></>}
                         id="code"
                         value={data.code}
                         onChange={(v) => setData('code', v)}
                         error={errors.code}
                         required
-                        placeholder="e.g. INJ-01"
+                        placeholder={__('e.g. INJ-01')}
                     />
 
                     <TextField
-                        label="Description"
+                        label={__('Description')}
                         id="description"
                         multiline
                         rows={2}
                         value={data.description}
                         onChange={(v) => setData('description', v)}
-                        placeholder="Optional description"
+                        placeholder={__('Optional description')}
                     />
                 </div>
 
                 <div className="flex justify-end mt-6">
                     <Button type="submit" variant="accent" loading={processing}>
-                        {processing ? 'Saving…' : 'Next: Product Type →'}
+                        {processing ? __('Saving…') : __('Next: Product Type →')}
                     </Button>
                 </div>
             </form>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { Button, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Onboarding Step 3 — Define Process Template.
@@ -75,9 +76,9 @@ export default function Step3() {
 
     return (
         <>
-            <Head title="Step 3 — Process Template" />
+            <Head title={__('Step 3 — Process Template')} />
             <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 3/4</div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">Define Process Template</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Define Process Template')}</h2>
             <p className="text-sm text-om-muted mb-6">
                 A process template defines the production steps (recipe) for your product. Add each step in the order
                 they happen during production.
@@ -86,27 +87,27 @@ export default function Step3() {
             <form onSubmit={submit}>
                 <div className="space-y-5">
                     <TextField
-                        label={<>Template Name <span className="text-om-accent">*</span></>}
+                        label={<>{__('Template Name')} <span className="text-om-accent">*</span></>}
                         id="name"
                         value={name}
                         onChange={setName}
                         error={errors.name}
                         required
-                        placeholder="e.g. Filter Assembly Process"
+                        placeholder={__('e.g. Filter Assembly Process')}
                     />
 
                     <div>
                         <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
-                            Production Steps <span className="text-om-accent">*</span>
+                            {__('Production Steps')} <span className="text-om-accent">*</span>
                         </label>
-                        <p className="text-[12.5px] text-om-muted mb-3">Add steps in order. Drag the handle to reorder.</p>
+                        <p className="text-[12.5px] text-om-muted mb-3">{__('Add steps in order. Drag the handle to reorder.')}</p>
                         {errors.steps && <p className="mb-2 text-[11.5px] text-om-blocked">{errors.steps}</p>}
 
                         {/* Column headers */}
                         <div className="flex gap-2 mb-2 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">
                             <span className="w-10" />
-                            <span className="flex-1">Step Name</span>
-                            <span className="w-28 text-center">Duration (min)</span>
+                            <span className="flex-1">{__('Step Name')}</span>
+                            <span className="w-28 text-center">{__('Duration (min)')}</span>
                             <span className="w-8" />
                         </div>
 
@@ -125,7 +126,7 @@ export default function Step3() {
                                 {/* Drag handle */}
                                 <span
                                     className="flex items-center justify-center w-10 cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted select-none"
-                                    title="Drag to reorder"
+                                    title={__('Drag to reorder')}
                                 >
                                     <DragHandle />
                                 </span>
@@ -141,7 +142,7 @@ export default function Step3() {
                                     type="number"
                                     value={step.estimated_duration_minutes}
                                     onChange={(e) => updateStep(i, 'estimated_duration_minutes', e.target.value)}
-                                    placeholder="min"
+                                    placeholder={__('min')}
                                     min="0"
                                     className={`w-28 text-center ${ROW_INPUT_CLASS}`}
                                 />
@@ -164,7 +165,7 @@ export default function Step3() {
                             onClick={addStep}
                             className="text-[13px] text-om-accent hover:underline mt-2 font-medium"
                         >
-                            + Add another step
+                            {__('+ Add another step')}
                         </button>
                     </div>
                 </div>
@@ -174,7 +175,7 @@ export default function Step3() {
                         ← Back
                     </Link>
                     <Button type="submit" variant="accent" loading={processing}>
-                        {processing ? 'Saving…' : 'Next: Work Order →'}
+                        {processing ? __('Saving…') : __('Next: Work Order →')}
                     </Button>
                 </div>
             </form>

@@ -47,9 +47,9 @@ export default function OeeIndex() {
         },
         {
             id: 'shift',
-            accessorFn: (r) => r.shift?.name ?? 'All',
+            accessorFn: (r) => r.shift?.name ?? __('All'),
             header: 'Shift',
-            cell: ({ row }) => <span className="text-om-muted">{row.original.shift?.name ?? 'All'}</span>,
+            cell: ({ row }) => <span className="text-om-muted">{row.original.shift?.name ?? __('All')}</span>,
         },
         {
             id: 'availability_pct',
@@ -86,21 +86,21 @@ export default function OeeIndex() {
         {
             id: 'total_produced',
             accessorKey: 'total_produced',
-            header: 'Produced',
+            header: __('Produced'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="font-mono">{formatNumber(Number(row.original.total_produced))}</span>,
         },
         {
             id: 'scrap_qty',
             accessorKey: 'scrap_qty',
-            header: 'Scrap',
+            header: __('Scrap'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="font-mono text-om-blocked">{row.original.scrap_qty > 0 ? formatNumber(Number(row.original.scrap_qty)) : '—'}</span>,
         },
         {
             id: 'downtime_minutes',
             accessorKey: 'downtime_minutes',
-            header: 'Downtime',
+            header: __('Downtime'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="font-mono">{row.original.downtime_minutes}min</span>,
         },
@@ -108,13 +108,13 @@ export default function OeeIndex() {
 
     return (
         <>
-            <Head title="OEE Report" />
+            <Head title={__('OEE Report')} />
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-start">
                     <div>
-                        <h1 className="text-3xl font-bold text-om-ink">OEE Report</h1>
-                        <p className="text-om-muted mt-1 text-sm">Overall Equipment Effectiveness — Availability × Performance × Quality</p>
+                        <h1 className="text-3xl font-bold text-om-ink">{__('OEE Report')}</h1>
+                        <p className="text-om-muted mt-1 text-sm">{__('Overall Equipment Effectiveness — Availability × Performance × Quality')}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <a
@@ -126,7 +126,7 @@ export default function OeeIndex() {
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                             </svg>
-                            Print
+                            {__('Print')}
                         </a>
                         <a
                             href={`/admin/oee/print/pdf?${new URLSearchParams(Object.fromEntries(Object.entries({ line_id: lineId, date_from: dateFrom, date_to: dateTo }).filter(([, v]) => v != null && v !== '')))}`}
@@ -135,7 +135,7 @@ export default function OeeIndex() {
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                             </svg>
-                            Download PDF
+                            {__('Download PDF')}
                         </a>
                     </div>
                 </div>
@@ -145,7 +145,7 @@ export default function OeeIndex() {
                     <Filter label="Line">
                         <Dropdown
                             className="min-w-[160px]"
-                            options={[{ value: '', label: 'All Lines' }, ...lines.map((l) => ({ value: String(l.id), label: l.name }))]}
+                            options={[{ value: '', label: __('All Lines') }, ...lines.map((l) => ({ value: String(l.id), label: l.name }))]}
                             value={lineId == null ? '' : String(lineId)}
                             onChange={(v) => apply({ line_id: v })}
                         />
@@ -201,16 +201,16 @@ export default function OeeIndex() {
                 {trend.length > 0 && (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-5">
                         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-                            <h2 className="text-lg font-bold text-om-ink">OEE Trend</h2>
+                            <h2 className="text-lg font-bold text-om-ink">{__('OEE Trend')}</h2>
                             <div className="flex gap-2 flex-wrap">
                                 {coloredByLine.length > 1 && (
                                     <div className="inline-flex rounded-om-sm border border-om-line2 overflow-hidden">
-                                        <ModeBtn active={mode === 'combined'} onClick={() => setMode('combined')}>Combined</ModeBtn>
-                                        <ModeBtn active={mode === 'per_line'} onClick={() => setMode('per_line')}>Per line</ModeBtn>
+                                        <ModeBtn active={mode === 'combined'} onClick={() => setMode('combined')}>{__('Combined')}</ModeBtn>
+                                        <ModeBtn active={mode === 'per_line'} onClick={() => setMode('per_line')}>{__('Per line')}</ModeBtn>
                                     </div>
                                 )}
                                 <div className="inline-flex rounded-om-sm border border-om-line2 overflow-hidden">
-                                    {[['day', 'Daily'], ['week', 'Weekly'], ['month', 'Monthly']].map(([key, label]) => (
+                                    {[['day', __('Daily')], ['week', __('Weekly')], ['month', __('Monthly')]].map(([key, label]) => (
                                         <button
                                             key={key}
                                             onClick={() => apply({ granularity: key })}
@@ -274,7 +274,7 @@ export default function OeeIndex() {
                         <div className="mt-2 flex items-center gap-4 text-xs text-om-muted flex-wrap">
                             {mode === 'combined' ? (
                                 <>
-                                    <span className="flex items-center gap-1"><span className="w-3 h-3 bg-om-running rounded inline-block" /> ≥ 85% (World-class)</span>
+                                    <span className="flex items-center gap-1"><span className="w-3 h-3 bg-om-running rounded inline-block" /> {__('≥ 85% (World-class)')}</span>
                                     <span className="flex items-center gap-1"><span className="w-3 h-3 bg-om-downtime rounded inline-block" /> 65–84%</span>
                                     <span className="flex items-center gap-1"><span className="w-3 h-3 bg-om-blocked rounded inline-block" /> &lt; 65%</span>
                                 </>
@@ -293,7 +293,7 @@ export default function OeeIndex() {
                 {/* Detail Table */}
                 {records.length > 0 ? (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-5 overflow-hidden">
-                        <h2 className="text-lg font-bold text-om-ink mb-4">Daily Records</h2>
+                        <h2 className="text-lg font-bold text-om-ink mb-4">{__('Daily Records')}</h2>
                         <DataTable
                             data={records}
                             columns={recordColumns}
@@ -302,8 +302,8 @@ export default function OeeIndex() {
                     </div>
                 ) : (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-12 text-center">
-                        <p className="text-om-muted text-lg mb-2">No OEE data available</p>
-                        <p className="text-sm text-om-faint">OEE data will appear once production batches are completed and downtimes are reported.</p>
+                        <p className="text-om-muted text-lg mb-2">{__('No OEE data available')}</p>
+                        <p className="text-sm text-om-faint">{__('OEE data will appear once production batches are completed and downtimes are reported.')}</p>
                     </div>
                 )}
             </div>

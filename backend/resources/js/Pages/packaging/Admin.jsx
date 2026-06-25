@@ -3,7 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
-import { formatNumber } from '../../lib/i18n';
+import { formatNumber, __ } from '../../lib/i18n';
 
 function ProgressBar({ pct, done }) {
     const color = done ? 'bg-om-running' : pct >= 50 ? 'bg-om-downtime' : 'bg-om-accent';
@@ -49,7 +49,7 @@ const itemColumns = [
     {
         id: 'eans',
         accessorFn: (r) => (r.eans ?? []).join(' '),
-        header: 'EAN',
+        header: __('EAN'),
         enableSorting: false,
         cell: ({ row }) => (
             (row.original.eans ?? []).map((ean) => (
@@ -69,7 +69,7 @@ const itemColumns = [
     {
         id: 'planned_qty',
         accessorKey: 'planned_qty',
-        header: 'Plan',
+        header: __('Plan'),
         meta: { align: 'right' },
         cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.planned_qty}</span>,
     },
@@ -82,7 +82,7 @@ const itemColumns = [
     {
         id: 'status',
         accessorFn: (r) => (r.done ? 'Spakowane' : r.status === 'DONE' ? 'W trakcie' : r.status),
-        header: 'Status',
+        header: __('Status'),
         cell: ({ row }) => <StatusBadge item={row.original} />,
     },
 ];
@@ -105,11 +105,11 @@ export default function Admin() {
 
     return (
         <>
-            <Head title="Pakowanie — Przegląd" />
+            <Head title={__('Packaging — Overview')} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex items-center gap-1 text-[13px] text-om-muted mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">Dashboard</Link>
+                    <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">{__('Dashboard')}</Link>
                     <span className="mx-1">/</span>
                     <span className="text-om-ink">Pakowanie</span>
                 </nav>
@@ -154,7 +154,7 @@ export default function Admin() {
                         <p className={`font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] ${(stats.backlog ?? 0) > 0 ? 'text-om-blocked' : 'text-om-running'}`}>
                             {formatNumber((stats.backlog ?? 0))}
                         </p>
-                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">Backlog</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Backlog')}</p>
                     </div>
                     <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
                         <p className={`font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] ${realizacjaColor}`}>{realizacja}%</p>

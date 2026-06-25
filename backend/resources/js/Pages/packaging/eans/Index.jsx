@@ -4,6 +4,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, ConfirmDialog, Dropdown, StatusPill, TextField } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 const STATUS_PILLS = {
     DONE: 'done',
@@ -86,7 +87,7 @@ export default function EansIndex() {
         {
             id: 'status',
             accessorKey: 'status',
-            header: 'Status',
+            header: __('Status'),
             cell: ({ row }) => (
                 <StatusPill
                     status={pillStatus(row.original.status)}
@@ -133,11 +134,11 @@ export default function EansIndex() {
 
     return (
         <>
-            <Head title="Zarządzanie kodami EAN" />
+            <Head title={__('EAN Codes — Management')} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex items-center gap-1 text-[13px] text-om-muted mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">Dashboard</Link>
+                    <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">{__('Dashboard')}</Link>
                     <span className="mx-1">/</span>
                     <Link href="/packaging" className="hover:text-om-ink hover:underline">Pakowanie</Link>
                     <span className="mx-1">/</span>

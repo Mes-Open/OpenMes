@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import LabelTemplateForm from './Form';
+import { __ } from '../../../lib/i18n';
 
 export default function LabelTemplateEdit() {
     const { template, types = {}, sizes = {}, barcodeFormats = {}, availableFields = {} } = usePage().props;
@@ -17,8 +18,8 @@ export default function LabelTemplateEdit() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${template.name}`} />
-            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Label Template</h1>
+            <Head title={__('Edit :name', { name: template.name })} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('Edit Label Template')}</h1>
             <LabelTemplateForm form={form} types={types} sizes={sizes} barcodeFormats={barcodeFormats} availableFields={availableFields} submitLabel="Save Changes" onSubmit={submit} />
         </div>
     );

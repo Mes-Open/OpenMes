@@ -19,6 +19,7 @@ const CURRENCIES = [
     ['HUF', 'Hungarian Forint'],
     ['RON', 'Romanian Leu'],
     ['UAH', 'Ukrainian Hryvnia'],
+    ['VND', 'Vietnamese Đồng'],
 ];
 
 const CARD_CLASS = 'bg-om-card border border-om-line rounded-om p-6';

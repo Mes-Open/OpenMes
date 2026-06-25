@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { WO_STATUS_STYLES } from '../../admin/work-orders/fields';
+import { __ } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
@@ -11,17 +12,17 @@ export default function SupervisorWorkOrdersIndex() {
     const post = (id, verb, data = {}) => router.post(`/supervisor/work-orders/${id}/${verb}`, data, { preserveScroll: true });
 
     const columns = [
-        { key: 'order_no', label: 'Order', className: 'font-mono font-medium text-om-ink' },
-        { key: 'line', label: 'Line', className: 'text-om-muted', render: (r) => lineNames[r.line_id] ?? '—' },
-        { key: 'product', label: 'Product', className: 'text-om-muted', render: (r) => productTypeNames[r.product_type_id] ?? '—' },
-        { key: 'qty', label: 'Produced / Planned', className: 'text-om-muted', render: (r) => `${Number(r.produced_qty).toFixed(0)} / ${Number(r.planned_qty).toFixed(0)}` },
+        { key: 'order_no', label: __('Order'), className: 'font-mono font-medium text-om-ink' },
+        { key: 'line', label: __('Line'), className: 'text-om-muted', render: (r) => lineNames[r.line_id] ?? '—' },
+        { key: 'product', label: __('Product'), className: 'text-om-muted', render: (r) => productTypeNames[r.product_type_id] ?? '—' },
+        { key: 'qty', label: __('Produced / Planned'), className: 'text-om-muted', render: (r) => `${Number(r.produced_qty).toFixed(0)} / ${Number(r.planned_qty).toFixed(0)}` },
         {
-            key: 'status', label: 'Status',
+            key: 'status', label: __('Status'),
             render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${WO_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{r.status}</span>,
         },
-        { key: 'priority', label: 'Prio', className: 'text-om-muted' },
-        { key: 'due_date', label: 'Due', className: 'text-om-muted', render: (r) => (r.due_date ? r.due_date.slice(0, 10) : '—') },
-        { key: 'batches', label: 'Batches', render: (r) => counts[r.id] ?? 0 },
+        { key: 'priority', label: __('Prio'), className: 'text-om-muted' },
+        { key: 'due_date', label: __('Due'), className: 'text-om-muted', render: (r) => (r.due_date ? r.due_date.slice(0, 10) : '—') },
+        { key: 'batches', label: __('Batches'), render: (r) => counts[r.id] ?? 0 },
     ];
 
     const actions = (r) => {
@@ -57,16 +58,16 @@ export default function SupervisorWorkOrdersIndex() {
 
     return (
         <>
-            <Head title="Work Orders" />
+            <Head title={__('Work Orders')} />
             <ResourceTable
                 shape="work_orders_all"
-                title="Work Orders"
+                title={__('Work Orders')}
                 createHref="/supervisor/work-orders/create"
                 createLabel="+ New Work Order"
                 columns={columns}
                 orderBy="order_no"
                 actions={actions}
-                emptyText="No work orders yet."
+                emptyText={__('No work orders yet.')}
             />
         </>
     );

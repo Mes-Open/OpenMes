@@ -26,17 +26,17 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
     return (
         <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">Name <span className="text-om-blocked">*</span></label>
+                <label className="block text-sm font-medium text-om-muted mb-1">{__('Name')} <span className="text-om-blocked">*</span></label>
                 <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
                 {errors.name && <p className="mt-1 text-xs text-om-blocked">{errors.name}</p>}
             </div>
 
-            {sel('Type', 'type', types, errors.type)}
-            {sel('Label Size', 'size', sizes, errors.size)}
-            {sel('Barcode Format', 'barcode_format', barcodeFormats, errors.barcode_format)}
+            {sel(__('Type'), 'type', types, errors.type)}
+            {sel(__('Label Size'), 'size', sizes, errors.size)}
+            {sel(__('Barcode Format'), 'barcode_format', barcodeFormats, errors.barcode_format)}
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-2">Fields on label</label>
+                <label className="block text-sm font-medium text-om-muted mb-2">{__('Fields on label')}</label>
                 <div className="grid grid-cols-2 gap-2 border border-om-line2 rounded-om-sm p-3">
                     {Object.entries(availableFields).map(([key, label]) => (
                         <Checkbox
@@ -53,12 +53,12 @@ export default function LabelTemplateForm({ form, types, sizes, barcodeFormats, 
                 <Checkbox
                     checked={!!data.is_default}
                     onChange={(next) => setData('is_default', next)}
-                    label="Default template for this type"
+                    label={__('Default template for this type')}
                 />
                 <Checkbox
                     checked={!!data.is_active}
                     onChange={(next) => setData('is_active', next)}
-                    label="Active"
+                    label={__('Active')}
                 />
             </div>
 

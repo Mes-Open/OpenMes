@@ -4,7 +4,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, ConfirmDialog, Dropdown, StatusPill, TextField } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
-import { formatDateTime, formatNumber } from '../../lib/i18n';
+import { formatDateTime, formatNumber, __ } from '../../lib/i18n';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -77,7 +77,7 @@ function DispositionSection({ inspection }) {
 
     return (
         <div className={`${CARD_CLASS} mb-4`}>
-            <h3 className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-3">Disposition</h3>
+            <h3 className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-3">{__('Disposition')}</h3>
 
             {hasDecision ? (
                 <div>
@@ -98,11 +98,11 @@ function DispositionSection({ inspection }) {
                 </div>
             ) : (
                 <div>
-                    <p className="text-[12.5px] text-om-muted">No disposition recorded yet.</p>
+                    <p className="text-[12.5px] text-om-muted">{__('No disposition recorded yet.')}</p>
                     {canDispose && (
                         <div className="mt-3">
                             <Button variant="primary" onClick={() => setModalOpen(true)}>
-                                Record Disposition
+                                {__('Record Disposition')}
                             </Button>
                         </div>
                     )}
@@ -139,7 +139,7 @@ function DispositionModal({ inspection, onClose }) {
                 className="bg-om-card border border-om-line rounded-om shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)] max-w-lg w-full p-6"
                 onClick={(e) => e.stopPropagation()}
             >
-                <h3 className="text-[17px] font-semibold tracking-[-0.01em] text-om-ink mb-3">Record Disposition</h3>
+                <h3 className="text-[17px] font-semibold tracking-[-0.01em] text-om-ink mb-3">{__('Record Disposition')}</h3>
                 <form onSubmit={submit}>
                     <div className="space-y-2 mb-4">
                         {DISPOSITION_OPTIONS.map(({ value, label, desc }) => (
@@ -176,15 +176,15 @@ function DispositionModal({ inspection, onClose }) {
                         multiline
                         value={form.data.notes}
                         onChange={(v) => form.setData('notes', v)}
-                        placeholder="Notes (optional)"
+                        placeholder={__('Notes (optional)')}
                         error={form.errors.notes}
                     />
                     <div className="flex justify-end gap-2 mt-3">
                         <Button variant="secondary" onClick={onClose}>
-                            Cancel
+                            {__('Cancel')}
                         </Button>
                         <Button type="submit" variant="primary" loading={form.processing}>
-                            Save
+                            {__('Save')}
                         </Button>
                     </div>
                 </form>
@@ -243,16 +243,16 @@ function ResultsEntryForm({ inspection }) {
 
     return (
         <form onSubmit={saveProgress} className={`${CARD_CLASS} mb-4`}>
-            <h2 className={SECTION_HEADING_CLASS}>Record measurements</h2>
+            <h2 className={SECTION_HEADING_CLASS}>{__('Record measurements')}</h2>
             <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
                     <thead>
                         <tr className="border-b border-om-line">
-                            <th className={TH_CLASS}>Criterion</th>
-                            <th className={TH_CLASS}>Type</th>
-                            <th className={TH_CLASS}>Spec</th>
-                            <th className={TH_CLASS}>Value</th>
-                            <th className={TH_CLASS}>Notes</th>
+                            <th className={TH_CLASS}>{__('Criterion')}</th>
+                            <th className={TH_CLASS}>{__('Type')}</th>
+                            <th className={TH_CLASS}>{__('Spec')}</th>
+                            <th className={TH_CLASS}>{__('Value')}</th>
+                            <th className={TH_CLASS}>{__('Notes')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-om-line">
@@ -261,7 +261,7 @@ function ResultsEntryForm({ inspection }) {
                                 <td className="p-2 font-medium text-om-ink">
                                     {row.criterion_name}
                                     {row.required && (
-                                        <span className="text-om-accent ml-0.5" title="Required">*</span>
+                                        <span className="text-om-accent ml-0.5" title={__('Required')}>*</span>
                                     )}
                                 </td>
                                 <td className="p-2 text-om-muted">{row.criterion_type}</td>
@@ -285,8 +285,8 @@ function ResultsEntryForm({ inspection }) {
                                             onChange={(v) => updateRow(idx, 'value_boolean', v)}
                                             options={[
                                                 { value: '', label: '—' },
-                                                { value: '1', label: 'Pass' },
-                                                { value: '0', label: 'Fail' },
+                                                { value: '1', label: __('Pass') },
+                                                { value: '0', label: __('Fail') },
                                             ]}
                                             className="w-28"
                                         />
@@ -308,7 +308,7 @@ function ResultsEntryForm({ inspection }) {
             </div>
             <div className="flex gap-2 justify-end mt-3">
                 <Button type="submit" variant="secondary" loading={saving}>
-                    Save progress
+                    {__('Save progress')}
                 </Button>
             </div>
         </form>
@@ -335,7 +335,7 @@ function CompleteForm({ inspection }) {
 
     return (
         <form onSubmit={submit} className={CARD_CLASS}>
-            <h2 className={SECTION_HEADING_CLASS}>Complete inspection</h2>
+            <h2 className={SECTION_HEADING_CLASS}>{__('Complete inspection')}</h2>
             <p className="text-[12.5px] text-om-muted mb-2">
                 Pass/fail is computed from the recorded results above. If any required criterion fails,
                 a non-conformance issue is created automatically.
@@ -345,13 +345,13 @@ function CompleteForm({ inspection }) {
                 rows={2}
                 value={form.data.notes}
                 onChange={(v) => form.setData('notes', v)}
-                placeholder="Optional notes…"
+                placeholder={__('Optional notes…')}
                 error={form.errors.notes}
                 className="mb-3"
             />
             <div className="text-right">
                 <Button type="submit" variant="accent" loading={form.processing}>
-                    Complete
+                    {__('Complete')}
                 </Button>
             </div>
             <ConfirmDialog
@@ -360,8 +360,8 @@ function CompleteForm({ inspection }) {
                 onConfirm={confirmComplete}
                 destructive={false}
                 title="Complete this inspection?"
-                confirmLabel="Complete"
-                cancelLabel="Cancel"
+                confirmLabel={__('Complete')}
+                cancelLabel={__('Cancel')}
             >
                 It cannot be edited afterwards.
             </ConfirmDialog>
@@ -391,7 +391,7 @@ function ResultsTable({ results, notes }) {
         {
             id: 'criterion_name',
             accessorKey: 'criterion_name',
-            header: 'Criterion',
+            header: __('Criterion'),
             cell: ({ row }) => (
                 <span className="font-medium text-om-ink">{row.original.criterion_name}</span>
             ),
@@ -399,7 +399,7 @@ function ResultsTable({ results, notes }) {
         {
             id: 'criterion_type',
             accessorKey: 'criterion_type',
-            header: 'Type',
+            header: __('Type'),
             cell: ({ row }) => (
                 <span className="text-om-muted">{row.original.criterion_type}</span>
             ),
@@ -410,7 +410,7 @@ function ResultsTable({ results, notes }) {
                 r.criterion_type === 'measurement'
                     ? `${r.spec_min ?? '−∞'} … ${r.spec_max ?? '+∞'} ${r.unit ?? ''}`
                     : '—',
-            header: 'Spec',
+            header: __('Spec'),
             cell: ({ row }) => (
                 <span className="text-om-muted font-mono text-[12px]">
                     {row.original.criterion_type === 'measurement'
@@ -422,7 +422,7 @@ function ResultsTable({ results, notes }) {
         {
             id: 'value',
             accessorFn: (r) => resultValue(r),
-            header: 'Value',
+            header: __('Value'),
             cell: ({ row }) => (
                 <span className="font-mono text-om-ink">{resultValue(row.original)}</span>
             ),
@@ -430,16 +430,16 @@ function ResultsTable({ results, notes }) {
         {
             id: 'result',
             accessorKey: 'is_passed',
-            header: 'Result',
+            header: __('Result'),
             cell: ({ row }) => passBadge(row.original.is_passed),
         },
     ], []);
 
     return (
         <div className={CARD_CLASS}>
-            <h2 className={SECTION_HEADING_CLASS}>Results</h2>
+            <h2 className={SECTION_HEADING_CLASS}>{__('Results')}</h2>
             {results.length === 0 ? (
-                <p className="text-[13px] text-om-muted">No results recorded.</p>
+                <p className="text-[13px] text-om-muted">{__('No results recorded.')}</p>
             ) : (
                 <DataTable
                     data={results}
@@ -447,12 +447,12 @@ function ResultsTable({ results, notes }) {
                     searchable={false}
                     columnToggle={false}
                     paginated={false}
-                    emptyLabel="No results recorded."
+                    emptyLabel={__('No results recorded.')}
                 />
             )}
             {notes && (
                 <div className="mt-3 text-[12.5px] text-om-muted">
-                    <strong className="text-om-ink">Notes:</strong> {notes}
+                    <strong className="text-om-ink">{__('Notes:')}</strong> {notes}
                 </div>
             )}
             <div className="text-right mt-3">
@@ -460,7 +460,7 @@ function ResultsTable({ results, notes }) {
                     href="/inspections"
                     className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
                 >
-                    Back
+                    {__('Back')}
                 </Link>
             </div>
         </div>
@@ -477,7 +477,7 @@ export default function InspectionsShow() {
 
     return (
         <>
-            <Head title={`Inspection #${inspection.id}`} />
+            <Head title={__('Inspection #:id', { id: inspection.id })} />
 
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
@@ -489,10 +489,10 @@ export default function InspectionsShow() {
                         <p className="text-[13px] text-om-muted mt-1">
                             Lot: <span className="font-mono text-om-ink">{inspection.lot_number}</span>
                             {inspection.quantity_received != null && (
-                                <> · Qty: {fmtNum(inspection.quantity_received)}</>
+                                <> · {__('Qty')}: {fmtNum(inspection.quantity_received)}</>
                             )}
-                            {' · '}Inspector: {inspection.inspector?.name ?? '—'}
-                            {' · '}Started: {fmtDateTime(inspection.started_at)}
+                            {' · '}{__('Inspector')}: {inspection.inspector?.name ?? '—'}
+                            {' · '}{__('Started')}: {fmtDateTime(inspection.started_at)}
                         </p>
                     </div>
                     <StatusPill
@@ -510,7 +510,7 @@ export default function InspectionsShow() {
                     <div className="mb-4 rounded-om border border-om-line border-l-4 border-l-om-blocked bg-om-blocked-bg p-5">
                         <strong className="text-[13px] text-om-blocked">Non-conformance created: Issue #{inspection.issue_id}</strong>
                         <p className="text-[12.5px] text-om-blocked mt-1">
-                            A non-conformance issue was auto-generated because this inspection failed.
+                            {__('A non-conformance issue was auto-generated because this inspection failed.')}
                         </p>
                     </div>
                 )}
