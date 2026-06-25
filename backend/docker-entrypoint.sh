@@ -126,8 +126,9 @@ echo "[OpenMES] Ready at http://localhost:8080"
 
 # ── Scheduler (runs every 60s in background) ─────────────────────────────────
 # Only on the primary, so sidecars don't each spawn a competing scheduler.
+# `|| true` so a non-zero run can't trip `set -e` and kill the restart loop.
 if [ "$IS_PRIMARY" = "1" ]; then
-    (while true; do php artisan schedule:run >> storage/logs/scheduler.log 2>&1; sleep 60; done) &
+    (while true; do php artisan schedule:run >> storage/logs/scheduler.log 2>&1 || true; sleep 60; done) &
 fi
 
 # ── Queue worker (background) ────────────────────────────────────────────────
@@ -135,9 +136,10 @@ fi
 # (webhook delivery, CSV import, MQTT, auto-update) need a worker — without one
 # they'd queue and never run. Run a self-restarting worker on the primary so a
 # default `docker compose up` processes jobs out of the box (the standalone
-# `queue-worker` service, profile: workers, can still scale this out).
+# `queue-worker` service, profile: workers, can still scale this out). `|| true`
+# keeps `set -e` from killing the loop when `queue:work` exits non-zero.
 if [ "$IS_PRIMARY" = "1" ]; then
-    (while true; do php artisan queue:work --sleep=1 --tries=5 --max-time=3600 >> storage/logs/queue-worker.log 2>&1; sleep 2; done) &
+    (while true; do php artisan queue:work --sleep=1 --tries=5 --max-time=3600 >> storage/logs/queue-worker.log 2>&1 || true; sleep 2; done) &
 fi
 
 exec "$@"
