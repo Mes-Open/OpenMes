@@ -3444,5 +3444,18 @@
     "← Back": "← Back",
     "← Back to Site": "← Back to Site",
     "← Packaging overview": "← Packaging overview",
-    "✓ Passwords match": "✓ Passwords match"
+    "✓ Passwords match": "✓ Passwords match",
+    "Backup & Recovery": "Backup & Recovery",
+    "Create and manage backups of the database and uploaded files. Full backups include all uploaded attachments, while data-only backups only contain database records.": "Create and manage backups of the database and uploaded files. Full backups include all uploaded attachments, while data-only backups only contain database records.",
+    "Create Full Backup": "Create Full Backup",
+    "Create Data Backup": "Create Data Backup",
+    "Upload Backup File": "Upload Backup File",
+    "No backups found.": "No backups found.",
+    "Reset System": "Reset System",
+    "Wipe all database records (production data, settings, configurations) and delete all uploaded attachments. The system will be restored to its initial state, and you will be logged out.": "Wipe all database records (production data, settings, configurations) and delete all uploaded attachments. The system will be restored to its initial state, and you will be logged out.",
+    "I understand that this action is irreversible and all data will be permanently lost.": "I understand that this action is irreversible and all data will be permanently lost.",
+    "Type RESET to confirm": "Type RESET to confirm",
+    "Upload": "Upload",
+    "Filename": "Filename",
+    "Created At": "Created At"
 }

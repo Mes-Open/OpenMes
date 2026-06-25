@@ -3595,5 +3595,18 @@
     "← Back to Site": "← Quay lại cơ sở",
     "← Packaging overview": "← Tổng quan về bao bì",
     "≥ 85% (World-class)": "≥ 85% (Đạt chuẩn thế giới)",
-    "✓ Passwords match": "✓ Mật khẩu trùng khớp"
+    "✓ Passwords match": "✓ Mật khẩu trùng khớp",
+    "Backup & Recovery": "Sao lưu & Phục hồi",
+    "Create and manage backups of the database and uploaded files. Full backups include all uploaded attachments, while data-only backups only contain database records.": "Tạo và quản lý các bản sao lưu của cơ sở dữ liệu và tệp tin đã tải lên. Bản sao lưu đầy đủ bao gồm tất cả các tệp đính kèm, trong khi sao lưu chỉ dữ liệu chỉ chứa các bản ghi cơ sở dữ liệu.",
+    "Create Full Backup": "Tạo bản sao lưu đầy đủ",
+    "Create Data Backup": "Tạo bản sao lưu chỉ dữ liệu",
+    "Upload Backup File": "Tải lên tệp sao lưu",
+    "No backups found.": "Không tìm thấy bản sao lưu nào.",
+    "Reset System": "Khởi tạo lại hệ thống",
+    "Wipe all database records (production data, settings, configurations) and delete all uploaded attachments. The system will be restored to its initial state, and you will be logged out.": "Xóa toàn bộ các bản ghi cơ sở dữ liệu (dữ liệu sản xuất, cài đặt, cấu hình) và xóa tất cả các tệp đính kèm đã tải lên. Hệ thống sẽ được khôi phục về trạng thái ban đầu và bạn sẽ bị đăng xuất.",
+    "I understand that this action is irreversible and all data will be permanently lost.": "Tôi hiểu rằng hành động này không thể hoàn tác và tất cả dữ liệu sẽ bị mất vĩnh viễn.",
+    "Type RESET to confirm": "Nhập RESET để xác nhận",
+    "Upload": "Tải lên",
+    "Filename": "Tên tệp",
+    "Created At": "Thời gian tạo"
 }

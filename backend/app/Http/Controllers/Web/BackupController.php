@@ -260,12 +260,18 @@ class BackupController extends Controller
 
                 // 5. Align auto-increment sequences (PostgreSQL setval)
                 foreach ($tables as $table) {
-                    $seqExists = DB::select("
-                        SELECT pg_get_serial_sequence(:table, 'id') as seq
-                    ", ['table' => $table])[0]->seq ?? null;
+                    try {
+                        if (Schema::hasColumn($table, 'id')) {
+                            $seqExists = DB::select("
+                                SELECT pg_get_serial_sequence(:table, 'id') as seq
+                            ", ['table' => $table])[0]->seq ?? null;
 
-                    if ($seqExists) {
-                        DB::statement("SELECT setval('$seqExists', COALESCE((SELECT MAX(id) FROM \"$table\"), 1))");
+                            if ($seqExists) {
+                                DB::statement("SELECT setval('$seqExists', COALESCE((SELECT MAX(id) FROM \"$table\"), 1))");
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Skip if sequence alignment fails (e.g. table has no sequence)
                     }
                 }
             });
@@ -380,8 +386,8 @@ class BackupController extends Controller
                 fwrite($handle, "  \"" . $table . "\": [\n");
                 $firstRow = true;
 
-                // Stream rows using lazy cursor to keep memory usage low
-                DB::table($table)->lazy(500)->each(function ($row) use ($handle, &$firstRow) {
+                // Stream rows using cursor to keep memory usage low and avoid requiring orderBy
+                DB::table($table)->cursor()->each(function ($row) use ($handle, &$firstRow) {
                     if (!$firstRow) {
                         fwrite($handle, ",\n");
                     }
