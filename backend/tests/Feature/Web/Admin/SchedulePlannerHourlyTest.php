@@ -3,6 +3,7 @@
 namespace Tests\Feature\Web\Admin;
 
 use App\Models\Line;
+use App\Models\Shift;
 use App\Models\User;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
@@ -34,8 +35,8 @@ class SchedulePlannerHourlyTest extends TestCase
     {
         parent::setUp();
 
-        Role::create(['name' => 'Admin', 'guard_name' => 'web']);
-        Role::create(['name' => 'Operator', 'guard_name' => 'web']);
+        Role::findOrCreate('Admin', 'web');
+        Role::findOrCreate('Operator', 'web');
 
         $this->admin = User::factory()->create();
         $this->admin->assignRole('Admin');
@@ -91,7 +92,7 @@ class SchedulePlannerHourlyTest extends TestCase
                 ->where('viewMode', 'hourly')
                 ->where('slotMinutes', 15)
                 ->has('lines')
-                ->has('data')
+                ->has('workOrders')
         );
 
         // Default slot granularity is 15 min.
@@ -104,6 +105,63 @@ class SchedulePlannerHourlyTest extends TestCase
             ->get('/admin/schedule?view_mode=hourly');
 
         $response->assertStatus(403);
+    }
+
+    public function test_weekly_payload_is_flat(): void
+    {
+        $line = $this->createLine(['name' => 'Weekly Line', 'code' => 'WK-1']);
+        Shift::create([
+            'name' => 'Morning',
+            'sort_order' => 1,
+            'is_active' => true,
+            'start_time' => '06:00',
+            'end_time' => '14:00',
+        ]);
+
+        $monday = now()->startOfWeek();
+        $scheduled = $this->createWO($line, [
+            'order_no' => 'WO-WK-SCHED',
+            'due_date' => $monday->copy()->addDay(),
+            'shift_number' => 1,
+        ]);
+        // Unassigned (no line) → backlog rail.
+        $backlog = WorkOrder::factory()->create([
+            'order_no' => 'WO-WK-BACKLOG',
+            'line_id' => null,
+            'status' => WorkOrder::STATUS_PENDING,
+            'planned_qty' => 50,
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get('/admin/schedule?start_date='.$monday->format('Y-m-d'));
+
+        $response->assertOk();
+        $response->assertInertia(
+            fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->component('admin/schedule/Planner')
+                ->where('viewMode', 'weekly')
+                ->has('workOrders')
+                ->has('lines')
+                ->has('shifts')
+                ->has('backlogOrders')
+        );
+
+        $props = $response->viewData('page')['props'];
+
+        // Shifts carry start/end time for the hourly timeline.
+        $shift = collect($props['shifts'])->firstWhere('sort_order', 1);
+        $this->assertNotNull($shift);
+        $this->assertArrayHasKey('start_time', $shift);
+
+        // The scheduled order is shipped flat with its placement fields.
+        $row = collect($props['workOrders'])->firstWhere('id', $scheduled->id);
+        $this->assertNotNull($row);
+        $this->assertSame($line->id, $row['line_id']);
+        $this->assertSame(1, $row['shift_number']);
+        $this->assertNotNull($row['due_date']);
+
+        // The unassigned order lands in the backlog payload.
+        $this->assertNotNull(collect($props['backlogOrders'])->firstWhere('id', $backlog->id));
     }
 
     public function test_hourly_data_includes_wo_with_planned_times(): void
@@ -124,18 +182,15 @@ class SchedulePlannerHourlyTest extends TestCase
         $response->assertOk();
         $response->assertSee('WO-HOUR-VIS');
 
-        // Data now arrives as an Inertia prop (serialized to plain arrays),
-        // exposed via the root Blade view's `page` variable.
-        $data = $response->viewData('page')['props']['data'];
-        $lineRow = collect($data['lines'])->firstWhere('line.id', $line->id);
-        $this->assertNotNull($lineRow);
-        $this->assertCount(1, $lineRow['orders']);
-        $layout = $lineRow['orders'][0];
-        $this->assertSame($wo->id, $layout['wo']['id']);
-        $this->assertSame(480, $layout['start_minute']);   // 08:00 → 480
-        $this->assertSame(660, $layout['end_minute']);     // 11:00 → 660
-        $this->assertSame(180, $layout['duration_minutes']);
-        $this->assertFalse($layout['is_legacy']);
+        // The controller now ships a flat `workOrders` list; the React planner
+        // computes the hourly lane layout client-side. Assert the minute-planned
+        // order is present with its line + timestamps intact.
+        $wos = $response->viewData('page')['props']['workOrders'];
+        $row = collect($wos)->firstWhere('id', $wo->id);
+        $this->assertNotNull($row);
+        $this->assertSame($line->id, $row['line_id']);
+        $this->assertNotNull($row['planned_start_at']);
+        $this->assertNotNull($row['planned_end_at']);
     }
 
     public function test_hourly_data_excludes_wo_on_other_day(): void
@@ -159,14 +214,10 @@ class SchedulePlannerHourlyTest extends TestCase
 
         $response->assertOk();
 
-        // The hourly per-line layout for the rendered day must not include
-        // this WO. (We don't assertDontSee on the body because the planner
-        // template also renders an unrelated "backlog" section that could
-        // surface unrelated work orders.)
-        $data = $response->viewData('page')['props']['data'];
-        $lineRow = collect($data['lines'])->firstWhere('line.id', $line->id);
-        $this->assertNotNull($lineRow);
-        $this->assertCount(0, $lineRow['orders']);
+        // A WO whose window sits entirely on another day must not be shipped in
+        // the visible-range `workOrders` payload for the rendered day.
+        $wos = $response->viewData('page')['props']['workOrders'];
+        $this->assertNull(collect($wos)->firstWhere('order_no', 'WO-OTHER-DAY'));
     }
 
     // ── updateOrder() minute-level ───────────────────────────────────────────
@@ -419,14 +470,16 @@ class SchedulePlannerHourlyTest extends TestCase
     }
 
     // ── cross-midnight ───────────────────────────────────────────────────────
+    // Clamping a cross-midnight window to the visible day is now a client-side
+    // concern (helpers.js `hourlyLanes`). These cases assert the controller's
+    // range query still ships such overlapping orders in the flat payload.
 
-    public function test_cross_midnight_wo_is_clamped_at_end_of_visible_day(): void
+    public function test_cross_midnight_wo_ending_next_day_is_in_payload(): void
     {
         $line = $this->createLine();
         $monday = now()->startOfWeek();
 
-        // Order runs Monday 22:00 → Tuesday 06:00 (8h). On the Monday view
-        // it must show up clamped to [1320, 1440] minutes.
+        // Order runs Monday 22:00 → Tuesday 06:00 (8h); it touches the Monday view.
         $this->createWO($line, [
             'order_no' => 'WO-MIDNIGHT-END',
             'planned_start_at' => $monday->copy()->setTimeFromTimeString('22:00'),
@@ -439,24 +492,16 @@ class SchedulePlannerHourlyTest extends TestCase
         $response->assertOk();
         $response->assertSee('WO-MIDNIGHT-END');
 
-        $lineRow = collect($response->viewData('page')['props']['data']['lines'])
-            ->firstWhere('line.id', $line->id);
-        $layout = collect($lineRow['orders'])
-            ->firstWhere('wo.order_no', 'WO-MIDNIGHT-END');
-
-        $this->assertNotNull($layout);
-        $this->assertSame(22 * 60, $layout['start_minute']);
-        $this->assertSame(24 * 60, $layout['end_minute']);
-        $this->assertSame(2 * 60, $layout['duration_minutes']);
+        $wos = $response->viewData('page')['props']['workOrders'];
+        $this->assertNotNull(collect($wos)->firstWhere('order_no', 'WO-MIDNIGHT-END'));
     }
 
-    public function test_cross_midnight_wo_is_clamped_at_start_of_visible_day(): void
+    public function test_cross_midnight_wo_starting_prev_day_is_in_payload(): void
     {
         $line = $this->createLine();
         $monday = now()->startOfWeek();
 
-        // Order runs Sunday 22:00 → Monday 06:00 (8h). On the Monday view
-        // it must show up clamped to [0, 360] minutes.
+        // Order runs Sunday 22:00 → Monday 06:00 (8h); it touches the Monday view.
         $this->createWO($line, [
             'order_no' => 'WO-MIDNIGHT-START',
             'planned_start_at' => $monday->copy()->subDay()->setTimeFromTimeString('22:00'),
@@ -469,20 +514,13 @@ class SchedulePlannerHourlyTest extends TestCase
         $response->assertOk();
         $response->assertSee('WO-MIDNIGHT-START');
 
-        $lineRow = collect($response->viewData('page')['props']['data']['lines'])
-            ->firstWhere('line.id', $line->id);
-        $layout = collect($lineRow['orders'])
-            ->firstWhere('wo.order_no', 'WO-MIDNIGHT-START');
-
-        $this->assertNotNull($layout);
-        $this->assertSame(0, $layout['start_minute']);
-        $this->assertSame(6 * 60, $layout['end_minute']);
-        $this->assertSame(6 * 60, $layout['duration_minutes']);
+        $wos = $response->viewData('page')['props']['workOrders'];
+        $this->assertNotNull(collect($wos)->firstWhere('order_no', 'WO-MIDNIGHT-START'));
     }
 
-    // ── legacy fallback ──────────────────────────────────────────────────────
+    // ── legacy (due-date only) order ─────────────────────────────────────────
 
-    public function test_legacy_wo_with_due_date_only_appears_as_placeholder(): void
+    public function test_legacy_wo_with_due_date_only_is_in_payload(): void
     {
         $line = $this->createLine();
         $monday = now()->startOfWeek();
@@ -500,14 +538,14 @@ class SchedulePlannerHourlyTest extends TestCase
         $response->assertOk();
         $response->assertSee('WO-LEGACY');
 
-        $lineRow = collect($response->viewData('page')['props']['data']['lines'])
-            ->firstWhere('line.id', $line->id);
-        $this->assertNotNull($lineRow);
-        $this->assertCount(1, $lineRow['orders']);
-        $layout = $lineRow['orders'][0];
-        $this->assertTrue($layout['is_legacy']);
-        $this->assertSame(0, $layout['start_minute']);
-        $this->assertSame(60, $layout['end_minute']); // 1h block at top of day
+        // A due-date-only order is shipped in the payload (matched by due_date in
+        // range) but carries no minute timestamps — the hourly timeline simply
+        // won't lay it out (that is a client-side concern now).
+        $wos = $response->viewData('page')['props']['workOrders'];
+        $row = collect($wos)->firstWhere('order_no', 'WO-LEGACY');
+        $this->assertNotNull($row);
+        $this->assertNull($row['planned_start_at']);
+        $this->assertNull($row['planned_end_at']);
     }
 
     // ── slot_minutes setting ─────────────────────────────────────────────────

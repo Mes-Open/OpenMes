@@ -72,7 +72,18 @@ class SnapshotServiceTest extends TestCase
         $this->assertArrayHasKey('name', $step);
         $this->assertArrayHasKey('instruction', $step);
         $this->assertArrayHasKey('estimated_duration_minutes', $step);
+        $this->assertArrayHasKey('required_operators', $step);
         $this->assertArrayHasKey('workstation_id', $step);
+    }
+
+    public function test_snapshot_step_carries_required_operators(): void
+    {
+        $template = ProcessTemplate::factory()->withSteps(1)->create();
+        $template->steps()->first()->update(['required_operators' => 3]);
+
+        $snapshot = $this->service->createSnapshot($template->fresh());
+
+        $this->assertSame(3, $snapshot['steps'][0]['required_operators']);
     }
 
     public function test_snapshot_step_count_matches_template_steps(): void

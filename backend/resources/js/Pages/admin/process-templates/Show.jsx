@@ -67,6 +67,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         name: '',
         instruction: '',
         estimated_duration_minutes: '',
+        required_operators: '',
         workstation_id: '',
         process_segment_id: '',
         is_optional: false,
@@ -179,6 +180,19 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                         />
                     </div>
 
+                    <div>
+                        <label className="form-label">Operators Required</label>
+                        <input
+                            type="number"
+                            value={data.required_operators}
+                            onChange={(e) => setData('required_operators', e.target.value)}
+                            min="1"
+                            className="form-input w-full"
+                            placeholder="Inherit from segment"
+                        />
+                        <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
+                    </div>
+
                     <OptionalVariantFields data={data} setData={setData} errors={errors} />
                 </div>
 
@@ -203,6 +217,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         name: step.name ?? '',
         instruction: step.instruction ?? '',
         estimated_duration_minutes: step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
+        required_operators: step.required_operators != null ? String(step.required_operators) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
         is_optional: !!step.is_optional,
@@ -291,6 +306,19 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                         min="0"
                         className="form-input w-full"
                     />
+                </div>
+
+                <div>
+                    <label className="form-label">Operators Required</label>
+                    <input
+                        type="number"
+                        value={data.required_operators}
+                        onChange={(e) => setData('required_operators', e.target.value)}
+                        min="1"
+                        className="form-input w-full"
+                        placeholder="Inherit from segment"
+                    />
+                    <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
                 </div>
 
                 <OptionalVariantFields data={data} setData={setData} errors={errors} />

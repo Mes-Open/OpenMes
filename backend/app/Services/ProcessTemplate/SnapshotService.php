@@ -33,6 +33,7 @@ class SnapshotService
                     'name' => $step->name,
                     'instruction' => $step->instruction,
                     'estimated_duration_minutes' => $step->estimated_duration_minutes,
+                    'required_operators' => $step->effectiveRequiredOperators(),
                     'workstation_id' => $step->workstation_id,
                 ];
             })->toArray(),

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Crew;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 
 class CrewController extends Controller
@@ -15,9 +16,10 @@ class CrewController extends Controller
         $this->authorize('viewAny', Crew::class);
 
         $query = Crew::query()->withCount('workers')->with(['leader', 'division']);
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
+
         return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
@@ -26,6 +28,7 @@ class CrewController extends Controller
         $this->authorize('view', $crew);
         $crew->loadCount('workers');
         $crew->load(['leader', 'division']);
+
         return response()->json(['data' => $crew]);
     }
 
@@ -39,10 +42,14 @@ class CrewController extends Controller
             'leader_id' => ['nullable', 'integer', 'exists:users,id'],
             'division_id' => ['nullable', 'integer', 'exists:divisions,id'],
             'is_active' => ['nullable', 'boolean'],
+            'line_ids' => ['nullable', 'array'],
+            'line_ids.*' => ['integer', 'exists:lines,id'],
         ]);
         $data['is_active'] = $data['is_active'] ?? true;
-        $crew = Crew::create($data);
-        return response()->json(['message' => 'Crew created', 'data' => $crew->fresh(['leader', 'division'])], 201);
+        $crew = Crew::create(Arr::except($data, 'line_ids'));
+        $crew->lines()->sync($request->input('line_ids', []));
+
+        return response()->json(['message' => 'Crew created', 'data' => $crew->fresh(['leader', 'division', 'lines'])], 201);
     }
 
     public function update(Request $request, Crew $crew): JsonResponse
@@ -55,9 +62,15 @@ class CrewController extends Controller
             'leader_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
             'division_id' => ['sometimes', 'nullable', 'integer', 'exists:divisions,id'],
             'is_active' => ['sometimes', 'boolean'],
+            'line_ids' => ['sometimes', 'array'],
+            'line_ids.*' => ['integer', 'exists:lines,id'],
         ]);
-        $crew->update($data);
-        return response()->json(['message' => 'Crew updated', 'data' => $crew->fresh(['leader', 'division'])]);
+        $crew->update(Arr::except($data, 'line_ids'));
+        if ($request->has('line_ids')) {
+            $crew->lines()->sync($request->input('line_ids', []));
+        }
+
+        return response()->json(['message' => 'Crew updated', 'data' => $crew->fresh(['leader', 'division', 'lines'])]);
     }
 
     public function destroy(Crew $crew): JsonResponse
@@ -69,13 +82,15 @@ class CrewController extends Controller
             ], 422);
         }
         $crew->delete();
+
         return response()->json(['message' => 'Crew deleted']);
     }
 
     public function toggleActive(Crew $crew): JsonResponse
     {
         $this->authorize('update', $crew);
-        $crew->update(['is_active' => !$crew->is_active]);
+        $crew->update(['is_active' => ! $crew->is_active]);
+
         return response()->json([
             'message' => $crew->is_active ? 'Activated' : 'Deactivated',
             'data' => $crew,
@@ -85,6 +100,7 @@ class CrewController extends Controller
     public function workers(Crew $crew): JsonResponse
     {
         $this->authorize('view', $crew);
+
         return response()->json([
             'data' => $crew->workers()->orderBy('name')->get(),
         ]);

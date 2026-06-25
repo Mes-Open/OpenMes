@@ -2,28 +2,28 @@
 
 namespace Database\Seeders;
 
+use App\Models\Area;
+use App\Models\InspectionPlan;
+use App\Models\Line;
+use App\Models\MaintenanceEvent;
+use App\Models\MaintenanceSchedule;
+use App\Models\Material;
+use App\Models\MaterialLot;
+use App\Models\MaterialType;
+use App\Models\OeeRecord;
+use App\Models\PersonnelClass;
+use App\Models\ProcessSegment;
+use App\Models\ProcessTemplate;
+use App\Models\ProductType;
+use App\Models\Shift;
+use App\Models\Site;
+use App\Models\Skill;
+use App\Models\User;
+use App\Models\WorkOrder;
+use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\Models\User;
-use App\Models\Line;
-use App\Models\Workstation;
-use App\Models\ProductType;
-use App\Models\ProcessTemplate;
-use App\Models\WorkOrder;
-use App\Models\Shift;
-use App\Models\MaterialType;
-use App\Models\Material;
-use App\Models\MaterialLot;
-use App\Models\Site;
-use App\Models\Area;
-use App\Models\Skill;
-use App\Models\PersonnelClass;
-use App\Models\ProcessSegment;
-use App\Models\MaintenanceSchedule;
-use App\Models\MaintenanceEvent;
-use App\Models\InspectionPlan;
-use App\Models\OeeRecord;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
@@ -37,7 +37,7 @@ class PrintShopDemoSeeder extends Seeder
     public function run(): void
     {
         $this->seedIssueTypes();
-        $lines        = $this->seedLines();
+        $lines = $this->seedLines();
         $workstations = $this->seedWorkstations($lines);
         $productTypes = $this->seedProductTypes();
         $this->seedProcessTemplates($productTypes, $workstations, $lines);
@@ -48,6 +48,7 @@ class PrintShopDemoSeeder extends Seeder
         $this->seedMaterialLots($materials);
         $site = $this->seedISA95Hierarchy($lines);
         $this->seedSkillsAndPersonnelClasses();
+        $this->seedCrews($lines, $workstations);
         $this->seedProcessSegments();
         $this->seedMaintenanceSchedulesAndEvents($lines, $workstations);
         $this->seedInspectionPlans($materials);
@@ -116,8 +117,8 @@ class PrintShopDemoSeeder extends Seeder
             ['line' => 'SITO',     'code' => 'SITO-2',      'name' => 'Screen Printing Table #2',       'workstation_type' => 'press'],
             ['line' => 'SITO',     'code' => 'SITO-DRY-1',  'name' => 'Conveyor Dryer',                 'workstation_type' => 'dryer'],
             // Embroidery line
-            ['line' => 'HAFT',     'code' => 'HAFT-1',      'name' => 'Embroidery Machine #1 (Barudan)','workstation_type' => 'embroidery'],
-            ['line' => 'HAFT',     'code' => 'HAFT-2',      'name' => 'Embroidery Machine #2 (Barudan)','workstation_type' => 'embroidery'],
+            ['line' => 'HAFT',     'code' => 'HAFT-1',      'name' => 'Embroidery Machine #1 (Barudan)', 'workstation_type' => 'embroidery'],
+            ['line' => 'HAFT',     'code' => 'HAFT-2',      'name' => 'Embroidery Machine #2 (Barudan)', 'workstation_type' => 'embroidery'],
             ['line' => 'HAFT',     'code' => 'HAFT-3',      'name' => 'Embroidery Machine #3 (Tajima)', 'workstation_type' => 'embroidery'],
             // Heat Transfer line
             ['line' => 'TRANSFER', 'code' => 'TRANS-1',     'name' => 'Heat Press #1',                  'workstation_type' => 'heat_press'],
@@ -133,10 +134,10 @@ class PrintShopDemoSeeder extends Seeder
             $ws = Workstation::updateOrCreate(
                 ['code' => $def['code']],
                 [
-                    'line_id'          => $lines[$def['line']]->id,
-                    'name'             => $def['name'],
+                    'line_id' => $lines[$def['line']]->id,
+                    'name' => $def['name'],
                     'workstation_type' => $def['workstation_type'],
-                    'is_active'        => true,
+                    'is_active' => true,
                 ]
             );
             $result[$def['code']] = $ws;
@@ -224,7 +225,7 @@ class PrintShopDemoSeeder extends Seeder
         ]);
 
         $this->createTemplate($pt['MUG'], 'Sublimation Mug', [
-            [1, 'Print sublimation transfer','Print artwork mirrored on sublimation paper. Trim with 5 mm margin.', 10, null],
+            [1, 'Print sublimation transfer', 'Print artwork mirrored on sublimation paper. Trim with 5 mm margin.', 10, null],
             [2, 'Wrap mug',                  'Wrap mug with transfer paper, secure with heat-resistant tape. No wrinkles.', 5, $ws['TRANS-SUB-1'] ?? null],
             [3, 'Sublimation in oven',       'Place in sublimation oven: 200 °C / 4 min. Do not open early.', 5, $ws['TRANS-SUB-1'] ?? null],
             [4, 'Cool and unwrap',           'Remove mug, allow to cool 2 min. Peel paper.', 3, null],
@@ -253,11 +254,11 @@ class PrintShopDemoSeeder extends Seeder
             DB::table('template_steps')->updateOrInsert(
                 ['process_template_id' => $template->id, 'step_number' => $stepNo],
                 [
-                    'name'                       => $stepName,
-                    'instruction'                => $instruction,
+                    'name' => $stepName,
+                    'instruction' => $instruction,
                     'estimated_duration_minutes' => $duration,
-                    'workstation_id'             => $workstation?->id,
-                    'created_at'                 => now(),
+                    'workstation_id' => $workstation?->id,
+                    'created_at' => now(),
                 ]
             );
         }
@@ -268,24 +269,24 @@ class PrintShopDemoSeeder extends Seeder
     private function seedUsers(array $lines): array
     {
         $supervisorRole = Role::where('name', 'Supervisor')->first();
-        $operatorRole   = Role::where('name', 'Operator')->first();
+        $operatorRole = Role::where('name', 'Operator')->first();
 
         $users = [];
 
         $supervisor = User::updateOrCreate(
             ['username' => 'peter.wilson'],
             [
-                'name'                  => 'Peter Wilson',
-                'email'                 => 'peter.wilson@printshop.local',
-                'password'              => Hash::make('Supervisor1!'),
-                'account_type'          => 'user',
+                'name' => 'Peter Wilson',
+                'email' => 'peter.wilson@printshop.local',
+                'password' => Hash::make('Supervisor1!'),
+                'account_type' => 'user',
                 'force_password_change' => false,
             ]
         );
-        if ($supervisorRole && !$supervisor->hasRole('Supervisor')) {
+        if ($supervisorRole && ! $supervisor->hasRole('Supervisor')) {
             $supervisor->assignRole($supervisorRole);
         }
-        $supervisor->lines()->syncWithoutDetaching(array_map(fn($l) => $l->id, $lines));
+        $supervisor->lines()->syncWithoutDetaching(array_map(fn ($l) => $l->id, $lines));
         $users[] = $supervisor;
 
         $operatorDefs = [
@@ -299,17 +300,17 @@ class PrintShopDemoSeeder extends Seeder
             $user = User::updateOrCreate(
                 ['username' => $def['username']],
                 [
-                    'name'                  => $def['name'],
-                    'email'                 => $def['email'],
-                    'password'              => Hash::make('Operator1!'),
-                    'account_type'          => 'user',
+                    'name' => $def['name'],
+                    'email' => $def['email'],
+                    'password' => Hash::make('Operator1!'),
+                    'account_type' => 'user',
                     'force_password_change' => false,
                 ]
             );
-            if ($operatorRole && !$user->hasRole('Operator')) {
+            if ($operatorRole && ! $user->hasRole('Operator')) {
                 $user->assignRole($operatorRole);
             }
-            $lineIds = array_map(fn($code) => $lines[$code]->id, $def['lines']);
+            $lineIds = array_map(fn ($code) => $lines[$code]->id, $def['lines']);
             $user->lines()->syncWithoutDetaching($lineIds);
             $users[] = $user;
         }
@@ -323,123 +324,123 @@ class PrintShopDemoSeeder extends Seeder
     {
         $orders = [
             [
-                'order_no'        => 'WO-2026-001',
-                'line_id'         => $lines['DTG']->id,
+                'order_no' => 'WO-2026-001',
+                'line_id' => $lines['DTG']->id,
                 'product_type_id' => $pt['TSHIRT']->id,
-                'planned_qty'     => 50,
-                'status'          => WorkOrder::STATUS_IN_PROGRESS,
-                'priority'        => 3,
-                'due_date'        => now()->addDays(2),
+                'planned_qty' => 50,
+                'status' => WorkOrder::STATUS_IN_PROGRESS,
+                'priority' => 3,
+                'due_date' => now()->addDays(2),
                 'planned_start_at' => now()->setTime(8, 0),
-                'planned_end_at'   => now()->addDays(1)->setTime(14, 0),
-                'description'     => 'Corporate t-shirts — XYZ Ltd. logo, white base, DTG print, sizes M/L/XL',
+                'planned_end_at' => now()->addDays(1)->setTime(14, 0),
+                'description' => 'Corporate t-shirts — XYZ Ltd. logo, white base, DTG print, sizes M/L/XL',
             ],
             [
-                'order_no'        => 'WO-2026-002',
-                'line_id'         => $lines['HAFT']->id,
+                'order_no' => 'WO-2026-002',
+                'line_id' => $lines['HAFT']->id,
                 'product_type_id' => $pt['CAP']->id,
-                'planned_qty'     => 30,
-                'status'          => WorkOrder::STATUS_PENDING,
-                'priority'        => 2,
-                'due_date'        => now()->addDays(5),
+                'planned_qty' => 30,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 2,
+                'due_date' => now()->addDays(5),
                 'planned_start_at' => now()->addDays(1)->setTime(6, 0),
-                'planned_end_at'   => now()->addDays(2)->setTime(12, 0),
-                'description'     => 'Sports team caps — 3D embroidery logo, navy blue',
+                'planned_end_at' => now()->addDays(2)->setTime(12, 0),
+                'description' => 'Sports team caps — 3D embroidery logo, navy blue',
             ],
             [
-                'order_no'        => 'WO-2026-003',
-                'line_id'         => $lines['SITO']->id,
+                'order_no' => 'WO-2026-003',
+                'line_id' => $lines['SITO']->id,
                 'product_type_id' => $pt['POLO']->id,
-                'planned_qty'     => 100,
-                'status'          => WorkOrder::STATUS_ACCEPTED,
-                'priority'        => 4,
-                'due_date'        => now()->addDay(),
+                'planned_qty' => 100,
+                'status' => WorkOrder::STATUS_ACCEPTED,
+                'priority' => 4,
+                'due_date' => now()->addDay(),
                 'planned_start_at' => now()->setTime(6, 0),
-                'planned_end_at'   => now()->setTime(18, 0),
-                'description'     => 'Polo shirts screen print 2 colours — workwear for construction company',
+                'planned_end_at' => now()->setTime(18, 0),
+                'description' => 'Polo shirts screen print 2 colours — workwear for construction company',
             ],
             [
-                'order_no'        => 'WO-2026-004',
-                'line_id'         => $lines['TRANSFER']->id,
+                'order_no' => 'WO-2026-004',
+                'line_id' => $lines['TRANSFER']->id,
                 'product_type_id' => $pt['TOTE']->id,
-                'planned_qty'     => 200,
-                'status'          => WorkOrder::STATUS_PENDING,
-                'priority'        => 1,
-                'due_date'        => now()->addDays(7),
+                'planned_qty' => 200,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 1,
+                'due_date' => now()->addDays(7),
                 'planned_start_at' => now()->addDays(2)->setTime(8, 0),
-                'planned_end_at'   => now()->addDays(4)->setTime(16, 0),
-                'description'     => 'Conference tote bags — flex transfer, single colour print',
+                'planned_end_at' => now()->addDays(4)->setTime(16, 0),
+                'description' => 'Conference tote bags — flex transfer, single colour print',
             ],
             [
-                'order_no'        => 'WO-2026-005',
-                'line_id'         => $lines['DTG']->id,
+                'order_no' => 'WO-2026-005',
+                'line_id' => $lines['DTG']->id,
                 'product_type_id' => $pt['HOODIE']->id,
-                'planned_qty'     => 25,
-                'status'          => WorkOrder::STATUS_DONE,
-                'priority'        => 2,
-                'due_date'        => now()->subDay(),
+                'planned_qty' => 25,
+                'status' => WorkOrder::STATUS_DONE,
+                'priority' => 2,
+                'due_date' => now()->subDay(),
                 'planned_start_at' => now()->subDays(2)->setTime(8, 0),
-                'planned_end_at'   => now()->subDay()->setTime(14, 0),
-                'description'     => 'Artist hoodies — limited edition, full-colour DTG print',
-                'completed_at'    => now()->subHours(3),
+                'planned_end_at' => now()->subDay()->setTime(14, 0),
+                'description' => 'Artist hoodies — limited edition, full-colour DTG print',
+                'completed_at' => now()->subHours(3),
             ],
             [
-                'order_no'        => 'WO-2026-006',
-                'line_id'         => $lines['TRANSFER']->id,
+                'order_no' => 'WO-2026-006',
+                'line_id' => $lines['TRANSFER']->id,
                 'product_type_id' => $pt['MUG']->id,
-                'planned_qty'     => 48,
-                'status'          => WorkOrder::STATUS_IN_PROGRESS,
-                'priority'        => 3,
-                'due_date'        => now()->addDays(3),
+                'planned_qty' => 48,
+                'status' => WorkOrder::STATUS_IN_PROGRESS,
+                'priority' => 3,
+                'due_date' => now()->addDays(3),
                 'planned_start_at' => now()->addDay()->setTime(10, 0),
-                'planned_end_at'   => now()->addDays(2)->setTime(16, 0),
-                'description'     => 'Sublimation mugs — personalised customer photos, gift order',
+                'planned_end_at' => now()->addDays(2)->setTime(16, 0),
+                'description' => 'Sublimation mugs — personalised customer photos, gift order',
             ],
             [
-                'order_no'        => 'WO-2026-007',
-                'line_id'         => $lines['HAFT']->id,
+                'order_no' => 'WO-2026-007',
+                'line_id' => $lines['HAFT']->id,
                 'product_type_id' => $pt['SWEATSHIRT']->id,
-                'planned_qty'     => 15,
-                'status'          => WorkOrder::STATUS_PENDING,
-                'priority'        => 2,
-                'due_date'        => now()->addDays(4),
+                'planned_qty' => 15,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 2,
+                'due_date' => now()->addDays(4),
                 'planned_start_at' => now()->addDays(3)->setTime(6, 0),
-                'planned_end_at'   => now()->addDays(3)->setTime(18, 0),
-                'description'     => 'University crewneck sweatshirts — embroidered crest, black, sizes S–XXL',
+                'planned_end_at' => now()->addDays(3)->setTime(18, 0),
+                'description' => 'University crewneck sweatshirts — embroidered crest, black, sizes S–XXL',
             ],
 
             // Unassigned orders — created but not yet allocated to a production
             // line (line_id null). They sit in the backlog awaiting scheduling,
             // exercising the "no line assigned" path across the UI.
             [
-                'order_no'        => 'WO-2026-008',
-                'line_id'         => null,
+                'order_no' => 'WO-2026-008',
+                'line_id' => null,
                 'product_type_id' => $pt['TSHIRT']->id,
-                'planned_qty'     => 75,
-                'status'          => WorkOrder::STATUS_PENDING,
-                'priority'        => 2,
-                'due_date'        => now()->addDays(6),
-                'description'     => 'Festival merch t-shirts — line not assigned yet, awaiting scheduling',
+                'planned_qty' => 75,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 2,
+                'due_date' => now()->addDays(6),
+                'description' => 'Festival merch t-shirts — line not assigned yet, awaiting scheduling',
             ],
             [
-                'order_no'        => 'WO-2026-009',
-                'line_id'         => null,
+                'order_no' => 'WO-2026-009',
+                'line_id' => null,
                 'product_type_id' => $pt['HOODIE']->id,
-                'planned_qty'     => 40,
-                'status'          => WorkOrder::STATUS_PENDING,
-                'priority'        => 1,
-                'due_date'        => now()->addDays(10),
-                'description'     => 'Bulk hoodie order — unassigned, pending capacity planning',
+                'planned_qty' => 40,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 1,
+                'due_date' => now()->addDays(10),
+                'description' => 'Bulk hoodie order — unassigned, pending capacity planning',
             ],
             [
-                'order_no'        => 'WO-2026-010',
-                'line_id'         => null,
+                'order_no' => 'WO-2026-010',
+                'line_id' => null,
                 'product_type_id' => $pt['TOTE']->id,
-                'planned_qty'     => 150,
-                'status'          => WorkOrder::STATUS_PENDING,
-                'priority'        => 0,
-                'due_date'        => now()->addDays(14),
-                'description'     => 'Promo tote bags — no line assigned, backlog',
+                'planned_qty' => 150,
+                'status' => WorkOrder::STATUS_PENDING,
+                'priority' => 0,
+                'due_date' => now()->addDays(14),
+                'description' => 'Promo tote bags — no line assigned, backlog',
             ],
         ];
 
@@ -452,7 +453,7 @@ class PrintShopDemoSeeder extends Seeder
 
         // Generate additional orders spread over 3 months
         $allLines = array_values($lines);
-        $allPt    = array_values($pt);
+        $allPt = array_values($pt);
         $descriptions = [
             'Rush order — client event next week',
             'Reprint batch — colour correction applied',
@@ -479,26 +480,26 @@ class PrintShopDemoSeeder extends Seeder
             $endDate = $startDate->copy()->addHours($durationHours);
 
             $status = match (true) {
-                $day < -3  => WorkOrder::STATUS_DONE,
-                $day < 0   => WorkOrder::STATUS_IN_PROGRESS,
-                $day < 3   => WorkOrder::STATUS_ACCEPTED,
-                default    => WorkOrder::STATUS_PENDING,
+                $day < -3 => WorkOrder::STATUS_DONE,
+                $day < 0 => WorkOrder::STATUS_IN_PROGRESS,
+                $day < 3 => WorkOrder::STATUS_ACCEPTED,
+                default => WorkOrder::STATUS_PENDING,
             };
 
             WorkOrder::updateOrCreate(
                 ['order_no' => $orderNo],
                 [
-                    'line_id'          => $line->id,
-                    'product_type_id'  => $product->id,
-                    'planned_qty'      => $qty,
-                    'produced_qty'     => $status === WorkOrder::STATUS_DONE ? $qty : 0,
-                    'status'           => $status,
-                    'priority'         => $priority,
-                    'due_date'         => $endDate->copy()->addDays(rand(0, 3)),
+                    'line_id' => $line->id,
+                    'product_type_id' => $product->id,
+                    'planned_qty' => $qty,
+                    'produced_qty' => $status === WorkOrder::STATUS_DONE ? $qty : 0,
+                    'status' => $status,
+                    'priority' => $priority,
+                    'due_date' => $endDate->copy()->addDays(rand(0, 3)),
                     'planned_start_at' => $startDate,
-                    'planned_end_at'   => $endDate,
-                    'description'      => $descriptions[array_rand($descriptions)],
-                    'completed_at'     => $status === WorkOrder::STATUS_DONE ? $endDate : null,
+                    'planned_end_at' => $endDate,
+                    'description' => $descriptions[array_rand($descriptions)],
+                    'completed_at' => $status === WorkOrder::STATUS_DONE ? $endDate : null,
                 ]
             );
         }
@@ -508,8 +509,9 @@ class PrintShopDemoSeeder extends Seeder
 
     private function seedShifts(array $lines): void
     {
-        $weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-        $monToThu = ['monday', 'tuesday', 'wednesday', 'thursday'];
+        // ISO weekday integers (1=Mon .. 7=Sun) — the canonical days_of_week format.
+        $weekdays = [1, 2, 3, 4, 5];
+        $monToThu = [1, 2, 3, 4];
 
         $defs = [
             [
@@ -535,17 +537,51 @@ class PrintShopDemoSeeder extends Seeder
         foreach ($defs as $def) {
             foreach ($def['line_codes'] as $lineCode) {
                 $shortLine = substr($lineCode, 0, 4);
-                $uniqueCode = $def['code'] . '-' . $shortLine;
+                $uniqueCode = $def['code'].'-'.$shortLine;
                 Shift::updateOrCreate(
                     ['code' => $uniqueCode],
                     [
-                        'name'         => $def['name'],
-                        'start_time'   => $def['start_time'],
-                        'end_time'     => $def['end_time'],
+                        'name' => $def['name'],
+                        'start_time' => $def['start_time'],
+                        'end_time' => $def['end_time'],
                         'days_of_week' => $def['days_of_week'],
-                        'line_id'      => $lines[$lineCode]->id,
-                        'is_active'    => true,
-                        'sort_order'   => $def['sort_order'],
+                        'line_id' => $lines[$lineCode]->id,
+                        'is_active' => true,
+                        'sort_order' => $def['sort_order'],
+                    ]
+                );
+            }
+        }
+    }
+
+    // ── Crews ────────────────────────────────────────────────────────────────
+
+    private function seedCrews(array $lines, array $workstations): void
+    {
+        $defs = [
+            ['code' => 'CREW-A', 'name' => 'Day Shift A', 'lines' => ['DTG', 'SITO'], 'workstations' => ['DTG-1', 'DTG-2', 'SITO-1']],
+            ['code' => 'CREW-B', 'name' => 'Day Shift B', 'lines' => ['HAFT', 'TRANSFER'], 'workstations' => ['HAFT-1', 'HAFT-2', 'TRANS-1']],
+            ['code' => 'CREW-PACK', 'name' => 'Packing Crew', 'lines' => ['PACKING'], 'workstations' => ['PAK-1', 'PAK-2']],
+        ];
+
+        foreach ($defs as $def) {
+            $crew = \App\Models\Crew::updateOrCreate(
+                ['code' => $def['code']],
+                ['name' => $def['name'], 'is_active' => true]
+            );
+
+            // Explicit crew → line assignment (drives the capacity crew axis).
+            $crew->lines()->sync(collect($def['lines'])->map(fn ($code) => $lines[$code]->id)->all());
+
+            // A few operators per crew, stationed on the crew's lines.
+            foreach ($def['workstations'] as $i => $wsCode) {
+                \App\Models\Worker::updateOrCreate(
+                    ['code' => $def['code'].'-W'.($i + 1)],
+                    [
+                        'name' => $def['name'].' Operator '.($i + 1),
+                        'crew_id' => $crew->id,
+                        'workstation_id' => $workstations[$wsCode]->id,
+                        'is_active' => true,
                     ]
                 );
             }
@@ -588,15 +624,15 @@ class PrintShopDemoSeeder extends Seeder
             $mat = Material::updateOrCreate(
                 ['code' => $def['code']],
                 [
-                    'name'             => $def['name'],
-                    'description'      => $def['description'],
+                    'name' => $def['name'],
+                    'description' => $def['description'],
                     'material_type_id' => $typeModels[$def['type']]->id,
-                    'unit_of_measure'  => $def['unit'],
-                    'tracking_type'    => $def['tracking'],
-                    'stock_quantity'   => $def['stock'],
-                    'min_stock_level'  => $def['min'],
-                    'is_active'        => true,
-                    'supplier_name'    => $def['supplier'],
+                    'unit_of_measure' => $def['unit'],
+                    'tracking_type' => $def['tracking'],
+                    'stock_quantity' => $def['stock'],
+                    'min_stock_level' => $def['min'],
+                    'is_active' => true,
+                    'supplier_name' => $def['supplier'],
                 ]
             );
             $materials[$def['code']] = $mat;
@@ -613,21 +649,21 @@ class PrintShopDemoSeeder extends Seeder
             ['lot' => 'LOT-INK-2026-001', 'material' => 'MAT-INK-DTG-W',    'qty' => 10, 'unit' => 'litre', 'supplier_lot' => 'EPS-W-20260101'],
             ['lot' => 'LOT-INK-2026-002', 'material' => 'MAT-INK-DTG-CMYK', 'qty' => 5,  'unit' => 'set',   'supplier_lot' => 'EPS-CMYK-20260115'],
             ['lot' => 'LOT-INK-2026-003', 'material' => 'MAT-INK-PLAST-BK', 'qty' => 20, 'unit' => 'kg',    'supplier_lot' => 'UI-BK-20260210'],
-            ['lot' => 'LOT-GAR-2026-001', 'material' => 'MAT-GAR-TSH-W',    'qty' => 250,'unit' => 'pcs',   'supplier_lot' => 'FOTL-WHT-B4420'],
-            ['lot' => 'LOT-GAR-2026-002', 'material' => 'MAT-GAR-HOOD-BK',  'qty' => 100,'unit' => 'pcs',   'supplier_lot' => 'GIL-BLK-H1822'],
+            ['lot' => 'LOT-GAR-2026-001', 'material' => 'MAT-GAR-TSH-W',    'qty' => 250, 'unit' => 'pcs',   'supplier_lot' => 'FOTL-WHT-B4420'],
+            ['lot' => 'LOT-GAR-2026-002', 'material' => 'MAT-GAR-HOOD-BK',  'qty' => 100, 'unit' => 'pcs',   'supplier_lot' => 'GIL-BLK-H1822'],
         ];
 
         foreach ($lots as $def) {
             MaterialLot::updateOrCreate(
                 ['lot_number' => $def['lot']],
                 [
-                    'material_id'        => $materials[$def['material']]->id,
-                    'quantity_received'   => $def['qty'],
-                    'quantity_available'  => $def['qty'],
-                    'unit_of_measure'     => $def['unit'],
-                    'received_at'         => now()->subDays(rand(5, 30)),
-                    'status'              => 'available',
-                    'supplier_lot_no'     => $def['supplier_lot'],
+                    'material_id' => $materials[$def['material']]->id,
+                    'quantity_received' => $def['qty'],
+                    'quantity_available' => $def['qty'],
+                    'unit_of_measure' => $def['unit'],
+                    'received_at' => now()->subDays(rand(5, 30)),
+                    'status' => 'available',
+                    'supplier_lot_no' => $def['supplier_lot'],
                 ]
             );
         }
@@ -640,13 +676,13 @@ class PrintShopDemoSeeder extends Seeder
         $site = Site::updateOrCreate(
             ['code' => 'PS-HQ'],
             [
-                'name'        => 'PrintShop HQ',
+                'name' => 'PrintShop HQ',
                 'description' => 'Main production facility for garment printing and decoration',
-                'address'     => 'ul. Drukarska 15',
-                'city'        => 'Warsaw',
-                'country'     => 'PL',
-                'timezone'    => 'Europe/Warsaw',
-                'is_active'   => true,
+                'address' => 'ul. Drukarska 15',
+                'city' => 'Warsaw',
+                'country' => 'PL',
+                'timezone' => 'Europe/Warsaw',
+                'is_active' => true,
             ]
         );
 
@@ -661,10 +697,10 @@ class PrintShopDemoSeeder extends Seeder
             $areas[$def['code']] = Area::updateOrCreate(
                 ['code' => $def['code']],
                 [
-                    'name'        => $def['name'],
-                    'site_id'     => $site->id,
+                    'name' => $def['name'],
+                    'site_id' => $site->id,
                     'description' => $def['description'],
-                    'is_active'   => true,
+                    'is_active' => true,
                 ]
             );
         }
@@ -672,11 +708,11 @@ class PrintShopDemoSeeder extends Seeder
         // Link lines to areas (if column exists)
         if (Schema::hasColumn('lines', 'area_id')) {
             $lineAreaMap = [
-                'DTG'      => 'HALL-A',
-                'SITO'     => 'HALL-A',
-                'HAFT'     => 'HALL-A',
+                'DTG' => 'HALL-A',
+                'SITO' => 'HALL-A',
+                'HAFT' => 'HALL-A',
                 'TRANSFER' => 'HALL-A',
-                'PACKING'  => 'SHIP-1',
+                'PACKING' => 'SHIP-1',
             ];
 
             foreach ($lineAreaMap as $lineCode => $areaCode) {
@@ -734,10 +770,10 @@ class PrintShopDemoSeeder extends Seeder
             PersonnelClass::updateOrCreate(
                 ['code' => $def['code']],
                 [
-                    'name'               => $def['name'],
-                    'description'        => $def['description'],
+                    'name' => $def['name'],
+                    'description' => $def['description'],
                     'required_skill_ids' => $def['required_skill_ids'],
-                    'is_active'          => true,
+                    'is_active' => true,
                 ]
             );
         }
@@ -753,20 +789,20 @@ class PrintShopDemoSeeder extends Seeder
             ['code' => 'SEG-SCREEN-PRINT', 'name' => 'Screen Print',       'description' => 'Screen printing production run',                               'segment_type' => 'production', 'duration' => 30, 'operators' => 2, 'instruction' => 'Mount screen, set registration, pull test print, run production batch.'],
             ['code' => 'SEG-EMBROIDERY',   'name' => 'Embroidery Run',     'description' => 'Machine embroidery of design onto garment or accessory',       'segment_type' => 'production', 'duration' => 25, 'operators' => 1, 'instruction' => 'Thread machine per colour card, hoop garment, start machine, monitor tension.'],
             ['code' => 'SEG-HEAT-PRESS',   'name' => 'Heat Press',         'description' => 'Heat transfer pressing for flex, foil, or sublimation',        'segment_type' => 'production', 'duration' => 8,  'operators' => 1, 'instruction' => 'Set temperature and time per transfer type. Position transfer, press, peel.'],
-            ['code' => 'SEG-QC-CHECK',     'name' => 'Quality Check',      'description' => 'Visual and dimensional quality inspection of finished product','segment_type' => 'inspection',    'duration' => 5,  'operators' => 1, 'instruction' => 'Inspect colour accuracy, coverage, edge sharpness. Reject defects. Log results.'],
+            ['code' => 'SEG-QC-CHECK',     'name' => 'Quality Check',      'description' => 'Visual and dimensional quality inspection of finished product', 'segment_type' => 'inspection',    'duration' => 5,  'operators' => 1, 'instruction' => 'Inspect colour accuracy, coverage, edge sharpness. Reject defects. Log results.'],
         ];
 
         foreach ($defs as $def) {
             ProcessSegment::updateOrCreate(
                 ['code' => $def['code']],
                 [
-                    'name'                       => $def['name'],
-                    'description'                => $def['description'],
-                    'segment_type'               => $def['segment_type'],
+                    'name' => $def['name'],
+                    'description' => $def['description'],
+                    'segment_type' => $def['segment_type'],
                     'estimated_duration_minutes' => $def['duration'],
-                    'required_operators'         => $def['operators'],
-                    'standard_instruction'       => $def['instruction'],
-                    'is_active'                  => true,
+                    'required_operators' => $def['operators'],
+                    'standard_instruction' => $def['instruction'],
+                    'is_active' => true,
                 ]
             );
         }
@@ -781,93 +817,93 @@ class PrintShopDemoSeeder extends Seeder
         $schedules['dtg_cleaning'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Weekly DTG Printhead Cleaning'],
             [
-                'description'    => 'Clean DTG printhead nozzles to prevent clogging and colour shift',
-                'line_id'        => $lines['DTG']->id,
+                'description' => 'Clean DTG printhead nozzles to prevent clogging and colour shift',
+                'line_id' => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
-                'event_type'     => 'planned',
-                'frequency'      => 'weekly',
+                'event_type' => 'planned',
+                'frequency' => 'weekly',
                 'interval_value' => 1,
                 'preferred_time' => '06:00',
-                'next_due_at'    => now()->next('Monday')->setTime(6, 0),
-                'is_active'      => true,
+                'next_due_at' => now()->next('Monday')->setTime(6, 0),
+                'is_active' => true,
             ]
         );
 
         $schedules['embroidery_calibration'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Monthly Embroidery Machine Calibration'],
             [
-                'description'    => 'Calibrate embroidery machine tension, needle position, and hoop alignment',
-                'line_id'        => $lines['HAFT']->id,
+                'description' => 'Calibrate embroidery machine tension, needle position, and hoop alignment',
+                'line_id' => $lines['HAFT']->id,
                 'workstation_id' => $workstations['HAFT-1']->id,
-                'event_type'     => 'planned',
-                'frequency'      => 'monthly',
+                'event_type' => 'planned',
+                'frequency' => 'monthly',
                 'interval_value' => 1,
                 'preferred_time' => '07:00',
-                'next_due_at'    => now()->startOfMonth()->addMonth()->setTime(7, 0),
-                'is_active'      => true,
+                'next_due_at' => now()->startOfMonth()->addMonth()->setTime(7, 0),
+                'is_active' => true,
             ]
         );
 
         $schedules['screen_press'] = MaintenanceSchedule::updateOrCreate(
             ['name' => 'Bi-weekly Screen Press Maintenance'],
             [
-                'description'    => 'Inspect and maintain screen printing press — squeegee, clamps, off-contact',
-                'line_id'        => $lines['SITO']->id,
+                'description' => 'Inspect and maintain screen printing press — squeegee, clamps, off-contact',
+                'line_id' => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,
-                'event_type'     => 'planned',
-                'frequency'      => 'weekly',
+                'event_type' => 'planned',
+                'frequency' => 'weekly',
                 'interval_value' => 2,
                 'preferred_time' => '06:30',
-                'next_due_at'    => now()->addWeeks(2)->setTime(6, 30),
-                'is_active'      => true,
+                'next_due_at' => now()->addWeeks(2)->setTime(6, 30),
+                'is_active' => true,
             ]
         );
 
         // Events — 2 completed, 1 scheduled, 1 overdue
         $events = [
             [
-                'title'        => 'DTG Printhead Cleaning (completed)',
-                'event_type'   => 'planned',
-                'status'       => 'completed',
-                'line_id'      => $lines['DTG']->id,
+                'title' => 'DTG Printhead Cleaning (completed)',
+                'event_type' => 'planned',
+                'status' => 'completed',
+                'line_id' => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
-                'schedule_id'  => $schedules['dtg_cleaning']->id,
-                'scheduled_at'     => now()->subWeeks(2)->setTime(6, 0),
+                'schedule_id' => $schedules['dtg_cleaning']->id,
+                'scheduled_at' => now()->subWeeks(2)->setTime(6, 0),
                 'scheduled_end_at' => now()->subWeeks(2)->setTime(7, 0),
-                'description'  => 'Routine printhead cleaning completed without issues.',
+                'description' => 'Routine printhead cleaning completed without issues.',
             ],
             [
-                'title'        => 'Embroidery Calibration (completed)',
-                'event_type'   => 'planned',
-                'status'       => 'completed',
-                'line_id'      => $lines['HAFT']->id,
+                'title' => 'Embroidery Calibration (completed)',
+                'event_type' => 'planned',
+                'status' => 'completed',
+                'line_id' => $lines['HAFT']->id,
                 'workstation_id' => $workstations['HAFT-1']->id,
-                'schedule_id'  => $schedules['embroidery_calibration']->id,
-                'scheduled_at'     => now()->subMonth()->setTime(7, 0),
+                'schedule_id' => $schedules['embroidery_calibration']->id,
+                'scheduled_at' => now()->subMonth()->setTime(7, 0),
                 'scheduled_end_at' => now()->subMonth()->setTime(9, 0),
-                'description'  => 'Monthly calibration done. Tension adjusted on head 3.',
+                'description' => 'Monthly calibration done. Tension adjusted on head 3.',
             ],
             [
-                'title'        => 'Screen Press Maintenance (scheduled)',
-                'event_type'   => 'planned',
-                'status'       => 'pending',
-                'line_id'      => $lines['SITO']->id,
+                'title' => 'Screen Press Maintenance (scheduled)',
+                'event_type' => 'planned',
+                'status' => 'pending',
+                'line_id' => $lines['SITO']->id,
                 'workstation_id' => $workstations['SITO-1']->id,
-                'schedule_id'  => $schedules['screen_press']->id,
-                'scheduled_at'     => now()->addDays(1)->setTime(6, 30),
+                'schedule_id' => $schedules['screen_press']->id,
+                'scheduled_at' => now()->addDays(1)->setTime(6, 30),
                 'scheduled_end_at' => now()->addDays(1)->setTime(8, 30),
-                'description'  => 'Bi-weekly screen press inspection.',
+                'description' => 'Bi-weekly screen press inspection.',
             ],
             [
-                'title'        => 'DTG Printhead Cleaning (overdue)',
-                'event_type'   => 'planned',
-                'status'       => 'pending',
-                'line_id'      => $lines['DTG']->id,
+                'title' => 'DTG Printhead Cleaning (overdue)',
+                'event_type' => 'planned',
+                'status' => 'pending',
+                'line_id' => $lines['DTG']->id,
                 'workstation_id' => $workstations['DTG-1']->id,
-                'schedule_id'  => $schedules['dtg_cleaning']->id,
-                'scheduled_at'     => now()->setTime(14, 0),
+                'schedule_id' => $schedules['dtg_cleaning']->id,
+                'scheduled_at' => now()->setTime(14, 0),
                 'scheduled_end_at' => now()->setTime(15, 0),
-                'description'  => 'Weekly printhead cleaning — due today.',
+                'description' => 'Weekly printhead cleaning — due today.',
             ],
         ];
 
@@ -888,8 +924,8 @@ class PrintShopDemoSeeder extends Seeder
             [
                 'description' => 'Quality inspection for incoming garment blanks',
                 'material_id' => $materials['MAT-GAR-TSH-W']->id,
-                'criteria'    => ['fabric_weight', 'colour_consistency', 'stitching_quality'],
-                'is_active'   => true,
+                'criteria' => ['fabric_weight', 'colour_consistency', 'stitching_quality'],
+                'is_active' => true,
             ]
         );
 
@@ -898,8 +934,8 @@ class PrintShopDemoSeeder extends Seeder
             [
                 'description' => 'Quality verification for DTG ink batches',
                 'material_id' => $materials['MAT-INK-DTG-W']->id,
-                'criteria'    => ['viscosity', 'colour_accuracy', 'expiry_check'],
-                'is_active'   => true,
+                'criteria' => ['viscosity', 'colour_accuracy', 'expiry_check'],
+                'is_active' => true,
             ]
         );
     }
@@ -909,7 +945,9 @@ class PrintShopDemoSeeder extends Seeder
     private function seedOeeRecords(array $lines): void
     {
         foreach ($lines as $code => $line) {
-            if ($code === 'PACKING') continue; // skip non-production line
+            if ($code === 'PACKING') {
+                continue;
+            } // skip non-production line
 
             for ($day = -14; $day <= 0; $day++) {
                 $date = now()->addDays($day)->format('Y-m-d');
@@ -917,7 +955,7 @@ class PrintShopDemoSeeder extends Seeder
                 $downtime = rand(10, 60);
                 $operating = $planned - $downtime;
                 $totalProduced = rand(40, 200);
-                $scrap = rand(0, (int)($totalProduced * 0.08));
+                $scrap = rand(0, (int) ($totalProduced * 0.08));
                 $good = $totalProduced - $scrap;
 
                 $availability = round($operating / max($planned, 1) * 100, 1);
@@ -928,16 +966,16 @@ class PrintShopDemoSeeder extends Seeder
                 OeeRecord::updateOrCreate(
                     ['line_id' => $line->id, 'record_date' => $date],
                     [
-                        'planned_minutes'   => $planned,
+                        'planned_minutes' => $planned,
                         'operating_minutes' => $operating,
-                        'downtime_minutes'  => $downtime,
-                        'total_produced'    => $totalProduced,
-                        'good_produced'     => $good,
-                        'scrap_qty'         => $scrap,
-                        'availability_pct'  => $availability,
-                        'performance_pct'   => $performance,
-                        'quality_pct'       => $quality,
-                        'oee_pct'           => $oee,
+                        'downtime_minutes' => $downtime,
+                        'total_produced' => $totalProduced,
+                        'good_produced' => $good,
+                        'scrap_qty' => $scrap,
+                        'availability_pct' => $availability,
+                        'performance_pct' => $performance,
+                        'quality_pct' => $quality,
+                        'oee_pct' => $oee,
                     ]
                 );
             }

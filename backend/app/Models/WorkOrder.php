@@ -105,6 +105,76 @@ class WorkOrder extends Model
     }
 
     /**
+     * Best-effort estimate of total planned work in minutes for orders that do
+     * NOT have minute-level planning timestamps (those use
+     * {@see plannedDurationMinutes()} instead). Falls back through concrete
+     * batch-step durations, then the product's process-snapshot step estimates.
+     *
+     * Returns null when neither source yields a positive duration
+     * ("unestimated") so callers can surface the order rather than silently
+     * treating it as zero load.
+     */
+    public function estimatedDurationMinutes(): ?int
+    {
+        // 1. Concrete batch-step durations (actual planned runtimes per step).
+        if ($this->relationLoaded('batches')) {
+            $sum = 0;
+            foreach ($this->batches as $batch) {
+                if (! $batch->relationLoaded('steps')) {
+                    continue;
+                }
+                foreach ($batch->steps as $step) {
+                    $sum += (int) ($step->duration_minutes ?? 0);
+                }
+            }
+            if ($sum > 0) {
+                return $sum;
+            }
+        }
+
+        // 2. Process-snapshot step estimates captured from the product template.
+        $sum = 0;
+        foreach ($this->process_snapshot['steps'] ?? [] as $step) {
+            $sum += (int) ($step['estimated_duration_minutes'] ?? 0);
+        }
+
+        return $sum > 0 ? $sum : null;
+    }
+
+    /**
+     * Labor multiplier turning this order's machine-hours into person-hours for
+     * the schedule-capacity crew axis: the duration-weighted average operators
+     * across its process-snapshot steps — i.e. Σ(step minutes × operators) ÷
+     * Σ(step minutes), so true person-hours = machine-hours × this factor.
+     *
+     * Falls back to the heaviest step's operator count when no step has a
+     * duration, and to 1 when the snapshot has no steps/operators. A step with
+     * a missing or zero operator count is treated as needing one operator.
+     */
+    public function operatorFactor(): float
+    {
+        $totalMinutes = 0;
+        $weighted = 0;
+        $maxOperators = 0;
+
+        foreach ($this->process_snapshot['steps'] ?? [] as $step) {
+            $operators = max(1, (int) ($step['required_operators'] ?? 1));
+            $minutes = (int) ($step['estimated_duration_minutes'] ?? 0);
+            $maxOperators = max($maxOperators, $operators);
+            if ($minutes > 0) {
+                $totalMinutes += $minutes;
+                $weighted += $minutes * $operators;
+            }
+        }
+
+        if ($totalMinutes > 0) {
+            return $weighted / $totalMinutes;
+        }
+
+        return max(1, $maxOperators);
+    }
+
+    /**
      * Get the line that owns this work order.
      */
     public function line(): BelongsTo

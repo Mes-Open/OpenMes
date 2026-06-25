@@ -22,6 +22,7 @@ class TemplateStep extends Model
         'name',
         'instruction',
         'estimated_duration_minutes',
+        'required_operators',
         'min_duration_minutes',
         'requires_confirmation',
         'workstation_id',
@@ -35,6 +36,7 @@ class TemplateStep extends Model
         return [
             'step_number' => 'integer',
             'estimated_duration_minutes' => 'integer',
+            'required_operators' => 'integer',
             'min_duration_minutes' => 'integer',
             'requires_confirmation' => 'boolean',
             'is_optional' => 'boolean',
@@ -90,5 +92,19 @@ class TemplateStep extends Model
     public function effectiveDuration(): ?int
     {
         return $this->estimated_duration_minutes ?? $this->processSegment?->estimated_duration_minutes;
+    }
+
+    /**
+     * Resolve the effective operator requirement — step value wins; otherwise
+     * fall back to the linked Process Segment's default; otherwise one operator.
+     */
+    public function effectiveRequiredOperators(): int
+    {
+        // Treat a missing OR zero step value as "unset" so it defers to the
+        // segment default, then to one operator (validation enforces min:1, but
+        // factories/imports/direct writes could store 0).
+        return ($this->required_operators ?: null)
+            ?? $this->processSegment?->required_operators
+            ?? 1;
     }
 }

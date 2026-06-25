@@ -77,6 +77,14 @@ class Line extends Model
     }
 
     /**
+     * Crews explicitly assigned to staff this line.
+     */
+    public function crews(): BelongsToMany
+    {
+        return $this->belongsToMany(Crew::class, 'crew_line');
+    }
+
+    /**
      * Get the custom statuses defined for this line.
      */
     public function lineStatuses(): HasMany
