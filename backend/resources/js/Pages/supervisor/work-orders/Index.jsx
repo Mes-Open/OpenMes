@@ -18,7 +18,7 @@ export default function SupervisorWorkOrdersIndex() {
         { key: 'qty', label: __('Produced / Planned'), className: 'text-om-muted', render: (r) => `${Number(r.produced_qty).toFixed(0)} / ${Number(r.planned_qty).toFixed(0)}` },
         {
             key: 'status', label: __('Status'),
-            render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${WO_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{r.status}</span>,
+            render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${WO_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{__(r.status)}</span>,
         },
         { key: 'priority', label: __('Prio'), className: 'text-om-muted' },
         { key: 'due_date', label: __('Due'), className: 'text-om-muted', render: (r) => (r.due_date ? r.due_date.slice(0, 10) : '—') },
