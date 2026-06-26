@@ -34,9 +34,9 @@ export default function AlertsIndex() {
     const { data: orders = [] } = useLiveQuery((q) => q.from({ r: ordersC }));
 
     // Lookup tables (names + is_blocking) — all live over the one Reverb socket.
-    const { data: types } = useSyncedShape('issue_types_all');
-    const { data: lines } = useSyncedShape('lines_all');
-    const { data: users } = useSyncedShape('users');
+    const { data: types = [] } = useSyncedShape('issue_types_all');
+    const { data: lines = [] } = useSyncedShape('lines_all');
+    const { data: users = [] } = useSyncedShape('users');
 
     const derived = useMemo(() => {
         const typeById = new Map(types.map((t) => [String(t.id), t]));
