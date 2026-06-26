@@ -4,7 +4,7 @@ import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
-import { formatDate } from '../../../lib/i18n';
+import { __, timeAgo, formatDate } from '../../../lib/i18n';
 import { DataTable } from '@openmes/ui/table';
 
 /**
