@@ -2,14 +2,15 @@ import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
 import { siteFields } from './fields';
+import { __ } from '../../../lib/i18n';
 
 export default function SiteEdit() {
     const { site, companies = [] } = usePage().props;
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${site.name}`} />
-            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Site</h1>
+            <Head title={__('Edit :name', { name: site.name })} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('Edit Site')}</h1>
             <ResourceForm
                 action={`/admin/sites/${site.id}`}
                 method="put"
@@ -26,7 +27,7 @@ export default function SiteEdit() {
                     is_active: !!site.is_active,
                     custom_fields: site.custom_fields ?? {},
                 }}
-                submitLabel="Save Changes"
+                submitLabel={__('Save Changes')}
                 cancelHref="/admin/sites"
             />
         </div>

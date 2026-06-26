@@ -3,7 +3,7 @@ import { DatePicker, Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { useMemo, useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatNumber } from '../../../lib/i18n';
+import { formatNumber, __ } from '../../../lib/i18n';
 import OeeGauge from '../../../components/OeeGauge';
 
 const LINE_PALETTE = ['#2563eb', '#db2777', '#0891b2', '#16a34a', '#ea580c', '#7c3aed'];
