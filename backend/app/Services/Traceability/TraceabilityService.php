@@ -30,7 +30,10 @@ class TraceabilityService
     private const MAX_DEPTH = 10;
 
     /**
-     * Forward trace: every batch step / batch / work order that consumed the lot.
+     * Forward trace: every batch step / batch / work order that consumed the lot,
+     * plus - for a finished-goods lot (source_batch_id set) - the output pallet(s)
+     * it was packed onto and the customer order(s) it fulfils. Genealogy no longer
+     * dead-ends at the finished lot: it continues to pallet and customer order.
      *
      * @return array{lot: array, consumptions: \Illuminate\Support\Collection, work_orders: \Illuminate\Support\Collection}
      */
@@ -55,12 +58,63 @@ class TraceabilityService
             ->unique('id')
             ->values();
 
+        $packing = $this->finishedGoodsPacking($lot);
+
         return [
             'lot' => $lot->only(['id', 'lot_number', 'material_id', 'status', 'supplier_lot_no', 'source_container_no']),
             'consumptions' => $consumptions,
             'work_orders' => $workOrders,
             'total_consumed' => (float) $consumptions->sum('quantity_consumed'),
+            'is_finished_good' => $lot->source_batch_id !== null,
+            'pallets' => $packing['pallets'],
+            'customer_orders' => $packing['customer_orders'],
         ];
+    }
+
+    /**
+     * The output pallet(s) a finished-goods lot was packed onto and the customer
+     * order(s) it fulfils. Derived through the producing batch: a pallet pins to
+     * one batch (pallets.batch_id) and a finished lot pins to the same batch
+     * (material_lots.source_batch_id), so the link is the batch they share.
+     *
+     * A raw/inbound lot (no source_batch_id) returns empty collections.
+     *
+     * @return array{pallets: \Illuminate\Support\Collection, customer_orders: \Illuminate\Support\Collection}
+     */
+    private function finishedGoodsPacking(MaterialLot $lot): array
+    {
+        if ($lot->source_batch_id === null) {
+            return ['pallets' => collect(), 'customer_orders' => collect()];
+        }
+
+        // withTrashed: a finished lot must still resolve its pallets / customer
+        // order if the producing batch was later soft-deleted (recall readiness).
+        $pallets = Pallet::where('batch_id', $lot->source_batch_id)
+            ->with(['workOrder:id,order_no,customer_order_no'])
+            ->orderBy('pallet_no')
+            ->get();
+
+        $batch = Batch::withTrashed()
+            ->with(['workOrder' => fn ($q) => $q->withTrashed()->select('id', 'order_no', 'customer_order_no')])
+            ->find($lot->source_batch_id);
+
+        // Customer order(s): the producing batch's work order plus any pallet's
+        // own work order (normally the same), de-duplicated and null-stripped.
+        $customerOrders = collect([$batch?->workOrder?->customer_order_no])
+            ->merge($pallets->map(fn (Pallet $p) => $p->workOrder?->customer_order_no))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $pallets = $pallets->map(fn (Pallet $p) => [
+            'pallet_no' => $p->pallet_no,
+            'status' => $p->status instanceof PalletStatus ? $p->status->value : $p->status,
+            'qty' => (int) $p->qty,
+            'location' => $p->location,
+            'shipped_at' => $p->shipped_at?->format('Y-m-d H:i'),
+        ])->values();
+
+        return ['pallets' => $pallets, 'customer_orders' => $customerOrders];
     }
 
     /**
@@ -489,8 +543,11 @@ class TraceabilityService
 
     /**
      * Aggregated trace for a customer order number (non-unique): every work
-     * order carrying it, with its pallets and batches. Each pallet/lot links
-     * into the deeper pallet/batch trace from the console.
+     * order carrying it, with its pallets and batches. Each batch descends to
+     * the finished-goods lots it produced (output_lots) and the component lots
+     * consumed to make them (components), so a customer order traces backward
+     * all the way to the LOTs and components used. Each pallet/lot links into
+     * the deeper pallet/batch trace from the console.
      */
     public function customerOrderTrace(string $customerOrderNo): array
     {
@@ -500,6 +557,8 @@ class TraceabilityService
                 'pallets:id,work_order_id,batch_id,pallet_no,status',
                 'pallets.batch:id,lot_number',
                 'batches:id,work_order_id,batch_number,lot_number,status',
+                'batches.outputLots:id,source_batch_id,lot_number,material_id,status',
+                'batches.outputLots.material:id,name',
             ])
             ->orderByDesc('id')
             ->get();
@@ -519,6 +578,17 @@ class TraceabilityService
                     'batch_number' => $b->batch_number,
                     'lot_number' => $b->lot_number,
                     'status' => $b->status,
+                    'output_lots' => $b->outputLots->map(fn ($o) => [
+                        'lot_number' => $o->lot_number,
+                        'material' => $o->material?->name,
+                        'status' => $o->status,
+                    ])->values(),
+                    'components' => $this->batchInputLots($b)->map(fn ($lot) => [
+                        'lot_number' => $lot->lot_number,
+                        'material' => $lot->material?->name,
+                        'supplier_lot_no' => $lot->supplier_lot_no,
+                        'status' => $lot->status,
+                    ])->values(),
                 ])->values(),
             ])->values(),
         ];

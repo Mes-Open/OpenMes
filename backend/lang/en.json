@@ -3768,5 +3768,11 @@
     "Edit Subassembly: :name": "Edit Subassembly: :name",
     "Edit Workstation Type: :name": "Edit Workstation Type: :name",
     "Edit Workstation: :name": "Edit Workstation: :name",
-    "(currently at: :station)": "(currently at: :station)"
+    "(currently at: :station)": "(currently at: :station)",
+    "This is a finished-goods lot - it was not consumed further.": "This is a finished-goods lot - it was not consumed further.",
+    "Forward trace - packed & shipped": "Forward trace - packed & shipped",
+    "Output pallets": "Output pallets",
+    "This finished lot has not been packed onto a pallet yet.": "This finished lot has not been packed onto a pallet yet.",
+    "Customer orders": "Customer orders",
+    "Components used": "Components used"
 }

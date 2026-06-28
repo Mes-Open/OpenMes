@@ -3673,5 +3673,11 @@
     "Coming Soon": "Wkrótce",
     "Scrap reason updated successfully.": "Przyczyna odpadu zaktualizowana.",
     "View changes": "Zobacz zmiany",
-    "Planned Quantity": "Planowana ilość"
+    "Planned Quantity": "Planowana ilość",
+    "This is a finished-goods lot - it was not consumed further.": "To jest LOT wyrobu gotowego - nie był dalej zużywany.",
+    "Forward trace - packed & shipped": "Śledzenie w przód - spakowane i wysłane",
+    "Output pallets": "Palety wyjściowe",
+    "This finished lot has not been packed onto a pallet yet.": "Ten gotowy LOT nie został jeszcze spakowany na paletę.",
+    "Customer orders": "Zamówienia klienta",
+    "Components used": "Użyte komponenty"
 }
