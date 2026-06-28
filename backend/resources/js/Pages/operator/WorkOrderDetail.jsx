@@ -647,7 +647,7 @@ function ProductionControls({ batch }) {
 // Single Batch card
 // ---------------------------------------------------------------------------
 
-function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {} }) {
+function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} }) {
     const [expanded, setExpanded] = useState(defaultOpen);
     const showControls = batch.status === 'IN_PROGRESS' || batch.status === 'DONE';
 
@@ -717,7 +717,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {} })
                     </div>
 
                     {/* Steps */}
-                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} />
+                    <BatchStepList steps={batch.steps ?? []} labelTemplates={labelTemplates} stepPhotos={stepPhotos} stepMedia={stepMedia} stepChecklists={stepChecklists} />
 
                     {/* Production controls */}
                     {showControls && <ProductionControls batch={batch} />}
@@ -731,7 +731,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {} })
 // Batch Steps list (replaces the Livewire component)
 // ---------------------------------------------------------------------------
 
-function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
+function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} }) {
     const [inflightStepId, setInflightStepId] = useState(null);
     const [photoZoom, setPhotoZoom] = useState(null);
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
@@ -758,6 +758,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
             `/operator/batch-step-document/${doc.id}/validate`,
             {},
             { preserveScroll: true, onFinish: () => setInflightDocId(null) }
+        );
+    };
+
+    // Tick / un-tick a work-instruction checklist item on a step.
+    const [inflightCheckId, setInflightCheckId] = useState(null);
+    const handleToggleChecklist = (step, item) => {
+        setInflightCheckId(`${step.id}:${item.id}`);
+        router.post(
+            `/operator/batch-step/${step.id}/checklist/${item.id}/toggle`,
+            {},
+            { preserveScroll: true, onFinish: () => setInflightCheckId(null) }
         );
     };
 
@@ -800,6 +811,11 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                     const stepDocs = step.documents || [];
                     const blockingDocs = stepDocs.filter((d) => d.is_mandatory && d.requires_validation && !d.validated_at);
                     const isDocBlocked = blockingDocs.length > 0;
+                    const media = stepMedia[step.step_number] || [];
+                    const checklist = stepChecklists[step.step_number] || [];
+                    const completions = step.checklist_completions || [];
+                    const completedItemIds = new Set(completions.map((c) => c.checklist_item_id));
+                    const canCheck = step.status === 'IN_PROGRESS' || step.status === 'READY' || step.status === 'PENDING';
                     return (
                         <div key={step.id} className="bg-om-panel border border-om-line2 rounded-om-sm">
                         <div className="flex items-center gap-3 p-3">
@@ -885,11 +901,25 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                             />
                         </div>
 
+                        {media.length > 0 && <StepInstructions media={media} onZoom={setPhotoZoom} />}
+
+                        {checklist.length > 0 && (
+                            <StepChecklist
+                                step={step}
+                                items={checklist}
+                                completedItemIds={completedItemIds}
+                                completions={completions}
+                                canCheck={canCheck}
+                                inflightCheckId={inflightCheckId}
+                                onToggle={handleToggleChecklist}
+                            />
+                        )}
+
                         {stepDocs.length > 0 && (
                             <StepDocuments
                                 docs={stepDocs}
                                 blocked={isDocBlocked}
-                                canValidate={step.status === 'IN_PROGRESS' || step.status === 'READY' || step.status === 'PENDING'}
+                                canValidate={canCheck}
                                 inflightDocId={inflightDocId}
                                 onValidate={handleValidateDocument}
                             />
@@ -965,6 +995,71 @@ function StepDocuments({ docs = [], blocked, canValidate, inflightDocId, onValid
                                     <span className="font-mono text-[11px] text-om-downtime whitespace-nowrap">{__('Not validated')}</span>
                                 )
                             ) : null}
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    );
+}
+
+// Rich work instructions shown under a step: images (tap to zoom), inline PDFs
+// and videos. Tablet-friendly - large media, no tiny controls.
+function StepInstructions({ media = [], onZoom }) {
+    return (
+        <div className="border-t border-om-line2 px-3 py-2 space-y-3">
+            {media.map((m) => (
+                <div key={m.id}>
+                    {m.title && <p className="text-[12px] font-medium text-om-muted mb-1">{m.title}</p>}
+                    {m.media_type === 'image' && (
+                        <button type="button" onClick={() => onZoom({ url: m.url, caption: m.title })} className="block cursor-pointer">
+                            <img src={m.url} alt={m.title || ''} loading="lazy" className="max-h-56 rounded-om-sm border border-om-line bg-om-chip object-contain" />
+                        </button>
+                    )}
+                    {m.media_type === 'video' && (
+                        <video src={m.url} controls preload="metadata" className="w-full max-h-72 rounded-om-sm border border-om-line bg-black" />
+                    )}
+                    {m.media_type === 'pdf' && (
+                        <div>
+                            <embed src={m.url} type="application/pdf" className="w-full h-72 rounded-om-sm border border-om-line bg-om-chip" />
+                            <a href={m.url} target="_blank" rel="noopener noreferrer" className="inline-block mt-1 text-[12px] text-om-accent hover:underline">
+                                {__('Open PDF')}
+                            </a>
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Work-instruction checklist on a step: large tap targets, records who ticked.
+function StepChecklist({ step, items = [], completedItemIds, completions = [], canCheck, inflightCheckId, onToggle }) {
+    const byItem = Object.fromEntries(completions.map((c) => [c.checklist_item_id, c]));
+    return (
+        <div className="border-t border-om-line2 px-3 py-2">
+            <p className="text-[12px] font-semibold text-om-muted mb-1">{__('Checklist')}</p>
+            <ul className="space-y-1.5">
+                {items.map((item) => {
+                    const checked = completedItemIds.has(item.id);
+                    const c = byItem[item.id];
+                    const busy = inflightCheckId === `${step.id}:${item.id}`;
+                    return (
+                        <li key={item.id} className="flex items-center gap-2.5 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={!canCheck || busy}
+                                onChange={() => onToggle(step, item)}
+                                className="w-5 h-5 rounded border-om-line2 accent-om-accent shrink-0"
+                            />
+                            <span className={`flex-1 ${checked ? 'text-om-faint line-through' : 'text-om-ink'}`}>
+                                {item.label}
+                                {item.is_required && <span className="ml-1.5 text-[10px] uppercase tracking-wide text-om-downtime">{__('Required')}</span>}
+                            </span>
+                            {checked && c?.checked_by && (
+                                <span className="font-mono text-[11px] text-om-done whitespace-nowrap">{c.checked_by.name}</span>
+                            )}
                         </li>
                     );
                 })}
@@ -1492,7 +1587,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 // ---------------------------------------------------------------------------
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {} } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {} } = usePage().props;
 
     const [createBatchOpen, setCreateBatchOpen] = useState(false);
     const [reportIssueOpen, setReportIssueOpen] = useState(false);
@@ -1651,6 +1746,8 @@ export default function WorkOrderDetail() {
                                             defaultOpen={idx === 0}
                                             labelTemplates={labelTemplates}
                                             stepPhotos={stepPhotos}
+                                            stepMedia={stepMedia}
+                                            stepChecklists={stepChecklists}
                                         />
                                     ))}
                                 </div>

@@ -74,6 +74,18 @@ class TemplateStep extends Model
         return $this->hasMany(ProcessTemplatePhoto::class);
     }
 
+    /** Rich work-instruction media (images, PDFs, videos) for this step. */
+    public function media(): HasMany
+    {
+        return $this->hasMany(TemplateStepMedia::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** Checklist items defined on this step. */
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(TemplateStepChecklistItem::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     /**
      * Resolve the effective instruction — the step's own value overrides, but if
      * empty we fall back to the linked Process Segment's standard instruction.

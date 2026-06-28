@@ -7,7 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\BatchStepChecklistCompletion;
 use App\Models\BatchStepDocument;
+use App\Models\TemplateStepChecklistItem;
 use App\Models\WorkOrder;
 use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
@@ -132,6 +134,45 @@ class BatchController extends Controller
         $batchStepDocument->markValidated($request->user());
 
         return back()->with('success', 'Document validated.');
+    }
+
+    /**
+     * Toggle a work-instruction checklist item on a step: tick it (recording who
+     * and when) or un-tick it. The item is defined on the step's template; we
+     * verify it belongs to this step's template and step number before recording.
+     */
+    public function toggleChecklistItem(Request $request, BatchStep $batchStep, TemplateStepChecklistItem $checklistItem)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', 'This step does not belong to the selected line.');
+        }
+
+        // Anti-IDOR: the item must belong to this step's template and step number.
+        $templateId = $batchStep->batch?->workOrder?->process_snapshot['template_id'] ?? null;
+        $checklistItem->loadMissing('templateStep:id,step_number');
+        if ($checklistItem->process_template_id !== $templateId
+            || $checklistItem->templateStep?->step_number !== $batchStep->step_number) {
+            return back()->with('error', 'This checklist item does not belong to this step.');
+        }
+
+        $existing = BatchStepChecklistCompletion::where('batch_step_id', $batchStep->id)
+            ->where('checklist_item_id', $checklistItem->id)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+
+            return back()->with('success', 'Checklist item unchecked.');
+        }
+
+        BatchStepChecklistCompletion::create([
+            'batch_step_id' => $batchStep->id,
+            'checklist_item_id' => $checklistItem->id,
+            'checked_by_id' => $request->user()->id,
+            'checked_at' => now(),
+        ]);
+
+        return back()->with('success', 'Checklist item checked.');
     }
 
     /**

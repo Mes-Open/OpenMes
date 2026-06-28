@@ -124,6 +124,12 @@ class BatchStep extends Model
         ];
     }
 
+    /** Checklist-item completions recorded against this step (who/when). */
+    public function checklistCompletions(): HasMany
+    {
+        return $this->hasMany(BatchStepChecklistCompletion::class);
+    }
+
     /**
      * Mandatory, validatable documents on this step that have not been validated
      * yet - the documents that block completion. Empty when nothing blocks.
