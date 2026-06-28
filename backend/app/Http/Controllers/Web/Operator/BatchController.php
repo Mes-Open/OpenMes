@@ -137,6 +137,28 @@ class BatchController extends Controller
     }
 
     /**
+     * Stream a step document's uploaded file to the operator so they can read it
+     * before validating (line-scoped). Range-enabled via response()->file().
+     */
+    public function showDocumentFile(Request $request, BatchStepDocument $batchStepDocument)
+    {
+        $batchStepDocument->loadMissing('batchStep');
+        $step = $batchStepDocument->batchStep;
+
+        if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
+            abort(403);
+        }
+        abort_unless($batchStepDocument->file_path && \Illuminate\Support\Facades\Storage::exists($batchStepDocument->file_path), 404);
+
+        return response()->file(\Illuminate\Support\Facades\Storage::path($batchStepDocument->file_path), [
+            'Content-Type' => $batchStepDocument->mime_type ?? 'application/octet-stream',
+            'Content-Disposition' => 'inline',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
+    /**
      * Toggle a work-instruction checklist item on a step: tick it (recording who
      * and when) or un-tick it. The item is defined on the step's template; we
      * verify it belongs to this step's template and step number before recording.

@@ -54,6 +54,11 @@ class BatchStepDocumentController extends Controller
      */
     public function validateDocument(Request $request, BatchStepDocument $batchStepDocument): JsonResponse
     {
+        // Authorize against the owning work order (same gate as the other
+        // batch-step API actions) so a document can't be validated by id alone.
+        $batchStepDocument->loadMissing('batchStep.batch.workOrder');
+        $this->authorize('view', $batchStepDocument->batchStep->batch->workOrder);
+
         $batchStepDocument->markValidated($request->user());
 
         return response()->json([

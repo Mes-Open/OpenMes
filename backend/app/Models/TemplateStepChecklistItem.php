@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TemplateStepChecklistItem extends Model
 {
     use HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $fillable = [
         'process_template_id',

@@ -3790,5 +3790,6 @@
     "Not validated": "Not validated",
     "Backflush on pallet creation": "Backflush on pallet creation",
     "When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.": "When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.",
-    "Open PDF": "Open PDF"
+    "Open PDF": "Open PDF",
+    "This step is blocked: the required checklist item(s) \":items\" must be completed before it can be completed.": "This step is blocked: the required checklist item(s) \":items\" must be completed before it can be completed."
 }

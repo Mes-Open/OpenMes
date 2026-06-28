@@ -101,6 +101,33 @@ class OperatorProductionRateServiceTest extends TestCase
         $this->assertSame(100.0, $rates->first()['units_per_hour']);
     }
 
+    public function test_does_not_double_count_produced_qty_across_steps_of_one_batch(): void
+    {
+        $operator = User::factory()->create();
+        $workstation = Workstation::factory()->create(['line_id' => Line::factory()]);
+        // One 100-unit batch, two completed steps by the same pair: the same 100
+        // units pass through both steps - they are not produced twice.
+        $batch = Batch::factory()->create(['status' => Batch::STATUS_DONE, 'produced_qty' => 100]);
+        foreach ([60, 60] as $minutes) {
+            BatchStep::factory()->create([
+                'batch_id' => $batch->id,
+                'status' => BatchStep::STATUS_DONE,
+                'workstation_id' => $workstation->id,
+                'completed_by_id' => $operator->id,
+                'duration_minutes' => $minutes,
+                'completed_at' => now(),
+            ]);
+        }
+
+        $rate = $this->service->rateFor($operator->id, $workstation->id);
+
+        // 100 units over 2h = 50/h, not 200/2h = 100/h.
+        $this->assertSame(100.0, $rate['produced_units']);
+        $this->assertSame(2.0, $rate['hours']);
+        $this->assertSame(50.0, $rate['units_per_hour']);
+        $this->assertSame(2, $rate['steps_count']);
+    }
+
     public function test_filters_by_line(): void
     {
         $operator = User::factory()->create();

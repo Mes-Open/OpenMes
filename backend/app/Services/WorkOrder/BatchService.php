@@ -105,6 +105,16 @@ class BatchService
                 ));
             }
 
+            // Work-instruction control: required checklist items on this step must
+            // be ticked off before it can be completed.
+            $pendingChecklist = $step->pendingRequiredChecklistLabels();
+            if ($pendingChecklist->isNotEmpty()) {
+                throw new \Exception(__(
+                    'This step is blocked: the required checklist item(s) ":items" must be completed before it can be completed.',
+                    ['items' => $pendingChecklist->implode(', ')],
+                ));
+            }
+
             // Calculate duration
             $durationMinutes = null;
             if ($step->started_at) {

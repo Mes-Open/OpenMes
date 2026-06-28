@@ -11,6 +11,7 @@ use App\Models\WorkOrder;
 use App\Services\WorkOrder\BatchService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -43,6 +44,8 @@ class StepDocumentControlTest extends TestCase
 
         $this->operator = User::factory()->create();
         $this->operator->assignRole('Operator');
+        // On the work order's line, so line/policy-scoped actions are authorized.
+        $this->operator->lines()->attach($this->line);
     }
 
     /** First step of the batch, forced IN_PROGRESS so completion is reachable. */
@@ -187,6 +190,41 @@ class StepDocumentControlTest extends TestCase
             ->assertOk();
 
         $this->assertSame($this->operator->id, $doc->fresh()->validated_by_id);
+    }
+
+    public function test_api_validate_document_is_forbidden_for_an_unrelated_user(): void
+    {
+        // An operator not assigned to the work order's line cannot clear the gate
+        // by document id (IDOR guard on the API endpoint).
+        $step = $this->inProgressStep();
+        $doc = BatchStepDocument::factory()->create(['batch_step_id' => $step->id]);
+        $outsider = User::factory()->create();
+        $outsider->assignRole('Operator');
+
+        $this->actingAs($outsider, 'sanctum')
+            ->postJson("/api/v1/batch-step-documents/{$doc->id}/validate")
+            ->assertForbidden();
+
+        $this->assertNull($doc->fresh()->validated_at);
+    }
+
+    public function test_operator_can_stream_a_document_file(): void
+    {
+        Storage::fake('local');
+        $step = $this->inProgressStep();
+        $doc = BatchStepDocument::factory()->create([
+            'batch_step_id' => $step->id,
+            'file_path' => 'batch-step-documents/sop.pdf',
+            'mime_type' => 'application/pdf',
+        ]);
+        Storage::put($doc->file_path, '%PDF-1.4 fake');
+
+        $this->actingAs($this->operator)
+            ->withSession(['selected_line_id' => $this->line->id])
+            ->get(route('operator.batch-step-document.file', $doc))
+            ->assertOk()
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('Content-Type', 'application/pdf');
     }
 
     public function test_attach_endpoint_requires_a_name(): void

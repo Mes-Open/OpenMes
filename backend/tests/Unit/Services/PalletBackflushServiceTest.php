@@ -58,6 +58,28 @@ class PalletBackflushServiceTest extends TestCase
         $this->assertTrue($pallet->stockMovements()->whereKey($movement->id)->exists());
     }
 
+    public function test_backflush_for_pallet_books_a_batch_only_once(): void
+    {
+        // A batch split across several pallets (no explicit produced_qty, as the
+        // packaging station sends none) must consume its BOM once, not per pallet.
+        $material = Material::factory()->create(['stock_quantity' => 1000]);
+        $wo = WorkOrder::factory()->create([
+            'process_snapshot' => ['bom' => [
+                ['material_id' => $material->id, 'quantity_per_unit' => 2.0, 'scrap_percentage' => 0],
+            ]],
+        ]);
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id, 'produced_qty' => 100]);
+        $p1 = Pallet::factory()->create(['work_order_id' => $wo->id, 'batch_id' => $batch->id]);
+        $p2 = Pallet::factory()->create(['work_order_id' => $wo->id, 'batch_id' => $batch->id]);
+
+        $this->service->backflushForPallet($p1, null);
+        $this->service->backflushForPallet($p2, null);
+
+        // 100 * 2.0 deducted exactly once.
+        $this->assertEqualsWithDelta(800.0, (float) $material->fresh()->stock_quantity, 0.0001);
+        $this->assertSame(1, StockMovement::where('source_type', StockMovement::SOURCE_PALLET)->count());
+    }
+
     public function test_pallet_with_no_bom_consumes_nothing(): void
     {
         $material = Material::factory()->create(['stock_quantity' => 500]);

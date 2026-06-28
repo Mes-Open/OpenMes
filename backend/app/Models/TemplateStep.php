@@ -86,6 +86,15 @@ class TemplateStep extends Model
         return $this->hasMany(TemplateStepChecklistItem::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    /** Soft-deleting a step cascades to its rich-instruction media and checklist items. */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [TemplateStepMedia::class, 'template_step_id'],
+            [TemplateStepChecklistItem::class, 'template_step_id'],
+        ];
+    }
+
     /**
      * Resolve the effective instruction — the step's own value overrides, but if
      * empty we fall back to the linked Process Segment's standard instruction.

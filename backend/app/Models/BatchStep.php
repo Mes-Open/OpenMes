@@ -131,6 +131,33 @@ class BatchStep extends Model
     }
 
     /**
+     * Labels of the step's required checklist items (defined on the template
+     * step, resolved by template id + step number) that have not been ticked on
+     * this batch step yet - the items that block completion. Empty when none.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    public function pendingRequiredChecklistLabels(): \Illuminate\Support\Collection
+    {
+        $templateId = $this->batch?->workOrder?->process_snapshot['template_id'] ?? null;
+        if (! $templateId) {
+            return collect();
+        }
+
+        $required = TemplateStepChecklistItem::where('process_template_id', $templateId)
+            ->where('is_required', true)
+            ->whereHas('templateStep', fn ($q) => $q->where('step_number', $this->step_number))
+            ->pluck('label', 'id');
+        if ($required->isEmpty()) {
+            return collect();
+        }
+
+        $done = $this->checklistCompletions()->pluck('checklist_item_id')->all();
+
+        return $required->reject(fn ($label, $id) => in_array($id, $done, true))->values();
+    }
+
+    /**
      * Mandatory, validatable documents on this step that have not been validated
      * yet - the documents that block completion. Empty when nothing blocks.
      */

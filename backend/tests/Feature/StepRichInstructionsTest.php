@@ -164,6 +164,35 @@ class StepRichInstructionsTest extends TestCase
         $this->assertSame(0, BatchStepChecklistCompletion::count());
     }
 
+    public function test_required_checklist_item_blocks_step_completion(): void
+    {
+        $item = TemplateStepChecklistItem::factory()->required()->create([
+            'process_template_id' => $this->template->id,
+            'template_step_id' => $this->templateStep->id,
+            'label' => 'Safety lockout verified',
+        ]);
+        $service = app(\App\Services\WorkOrder\BatchService::class);
+
+        // Blocked while the required item is unchecked.
+        try {
+            $service->completeStep($this->batchStep, $this->operator);
+            $this->fail('Expected completion to be blocked by the required checklist item.');
+        } catch (\Exception) {
+            $this->assertSame(BatchStep::STATUS_IN_PROGRESS, $this->batchStep->fresh()->status);
+        }
+
+        // Tick it off → the gate clears and the step completes.
+        BatchStepChecklistCompletion::create([
+            'batch_step_id' => $this->batchStep->id,
+            'checklist_item_id' => $item->id,
+            'checked_by_id' => $this->operator->id,
+            'checked_at' => now(),
+        ]);
+
+        $service->completeStep($this->batchStep->fresh(), $this->operator);
+        $this->assertSame(BatchStep::STATUS_DONE, $this->batchStep->fresh()->status);
+    }
+
     public function test_media_streams_to_authenticated_user_with_safe_headers(): void
     {
         Storage::fake('local');

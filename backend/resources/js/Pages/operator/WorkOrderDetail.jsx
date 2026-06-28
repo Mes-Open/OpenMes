@@ -976,6 +976,11 @@ function StepDocuments({ docs = [], blocked, canValidate, inflightDocId, onValid
                                     {__('Mandatory')}
                                 </span>
                             )}
+                            {doc.file_path && (
+                                <a href={`/operator/batch-step-document/${doc.id}/file`} target="_blank" rel="noopener noreferrer" className="text-[12px] text-om-accent hover:underline">
+                                    {__('View')}
+                                </a>
+                            )}
                             <span className="flex-1" />
                             {validated ? (
                                 <span className="font-mono text-[11px] text-om-done whitespace-nowrap">

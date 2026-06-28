@@ -139,6 +139,8 @@ class ProcessTemplate extends Model
             [\App\Models\BomItem::class, 'process_template_id'],
             [\App\Models\QualityCheckTemplate::class, 'process_template_id'],
             [\App\Models\ProcessTemplatePhoto::class, 'process_template_id'],
+            [\App\Models\TemplateStepMedia::class, 'process_template_id'],
+            [\App\Models\TemplateStepChecklistItem::class, 'process_template_id'],
         ];
     }
 }

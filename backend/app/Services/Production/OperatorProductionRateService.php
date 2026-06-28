@@ -66,21 +66,37 @@ class OperatorProductionRateService
                 ->where('workstations.line_id', $lineId));
         }
 
-        $rows = $query
-            ->groupBy('batch_steps.completed_by_id', 'batch_steps.workstation_id')
+        // Group by batch first so a batch's produced_qty is counted once even
+        // when the same (operator, workstation) pair ran several of its steps -
+        // the same units pass through each step, they are not produced anew.
+        $perBatch = $query
+            ->groupBy('batch_steps.completed_by_id', 'batch_steps.workstation_id', 'batches.id')
             ->selectRaw(
                 'batch_steps.completed_by_id as operator_id, '.
                 'batch_steps.workstation_id as workstation_id, '.
-                'SUM(batches.produced_qty) as produced_units, '.
+                'MAX(batches.produced_qty) as produced_units, '.
                 'SUM(batch_steps.duration_minutes) as total_minutes, '.
                 'COUNT(*) as steps_count, '.
                 'MAX(batch_steps.completed_at) as last_produced_at'
             )
             ->get();
 
-        if ($rows->isEmpty()) {
+        if ($perBatch->isEmpty()) {
             return collect();
         }
+
+        // Fold the per-batch rows up to one row per (operator, workstation).
+        $rows = $perBatch
+            ->groupBy(fn ($r) => $r->operator_id.':'.$r->workstation_id)
+            ->map(fn ($group) => (object) [
+                'operator_id' => $group->first()->operator_id,
+                'workstation_id' => $group->first()->workstation_id,
+                'produced_units' => $group->sum('produced_units'),
+                'total_minutes' => $group->sum('total_minutes'),
+                'steps_count' => $group->sum('steps_count'),
+                'last_produced_at' => $group->max('last_produced_at'),
+            ])
+            ->values();
 
         // Resolve names once through Eloquent so soft-delete scopes still apply.
         $operatorNames = User::whereIn('id', $rows->pluck('operator_id')->unique())->pluck('name', 'id');

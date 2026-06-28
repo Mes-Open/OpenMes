@@ -253,6 +253,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
         // Document control: validate a mandatory document so its step can complete.
         Route::post('/batch-step-document/{batchStepDocument}/validate', [OperatorBatchController::class, 'validateDocument'])->name('batch-step-document.validate');
+        // Stream a step document's uploaded file (operators read it before validating).
+        Route::get('/batch-step-document/{batchStepDocument}/file', [OperatorBatchController::class, 'showDocumentFile'])->name('batch-step-document.file');
         // Work-instruction checklist: tick / un-tick a step checklist item.
         Route::post('/batch-step/{batchStep}/checklist/{checklistItem}/toggle', [OperatorBatchController::class, 'toggleChecklistItem'])->name('batch-step.checklist.toggle');
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,13 +12,14 @@ use Illuminate\Support\Facades\Storage;
  * Rich work-instruction media (image, PDF or video) attached to a process
  * template step. The file lives on the private disk under a server-generated
  * name; it is streamed to operators through an authenticated endpoint, never a
- * public URL. Hard-deleted (with disk cleanup) like its sibling
- * ProcessTemplatePhoto - a soft-deleted media row with a removed file is
- * meaningless.
+ * public URL. Soft-deletable (Admin -> Trash) - the disk file is removed only
+ * on permanent delete, so a soft-deleted media keeps its file and can be
+ * restored.
  */
 class TemplateStepMedia extends Model
 {
     use HasFactory;
+    use SoftDeletesWithAudit;
 
     protected $table = 'template_step_media';
 
@@ -52,7 +54,8 @@ class TemplateStepMedia extends Model
 
     protected static function booted(): void
     {
-        static::deleted(function (self $media) {
+        // Only drop the file on a permanent delete - a soft delete is reversible.
+        static::forceDeleted(function (self $media) {
             Storage::delete($media->storage_path);
         });
     }

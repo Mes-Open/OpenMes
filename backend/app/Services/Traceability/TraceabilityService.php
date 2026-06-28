@@ -563,6 +563,11 @@ class TraceabilityService
             ->orderByDesc('id')
             ->get();
 
+        // Precompute the consumed (component) lots for every batch in one pass,
+        // instead of two queries per batch inside the map below (N+1).
+        $batchIds = $workOrders->pluck('batches')->flatten(1)->pluck('id')->filter()->unique()->all();
+        $inputLotsByBatch = $this->inputLotsByBatch($batchIds);
+
         return [
             'customer_order_no' => $customerOrderNo,
             'work_orders' => $workOrders->map(fn ($wo) => [
@@ -583,7 +588,7 @@ class TraceabilityService
                         'material' => $o->material?->name,
                         'status' => $o->status,
                     ])->values(),
-                    'components' => $this->batchInputLots($b)->map(fn ($lot) => [
+                    'components' => collect($inputLotsByBatch[$b->id] ?? [])->map(fn ($lot) => [
                         'lot_number' => $lot->lot_number,
                         'material' => $lot->material?->name,
                         'supplier_lot_no' => $lot->supplier_lot_no,
@@ -592,6 +597,43 @@ class TraceabilityService
                 ])->values(),
             ])->values(),
         ];
+    }
+
+    /**
+     * Distinct consumed (component) material lots for many batches at once,
+     * keyed by batch id - two queries total regardless of batch count.
+     *
+     * @param  array<int, int>  $batchIds
+     * @return array<int, array<int, MaterialLot>>
+     */
+    private function inputLotsByBatch(array $batchIds): array
+    {
+        if (empty($batchIds)) {
+            return [];
+        }
+
+        $pairs = BatchStepLotConsumption::query()
+            ->join('batch_steps', 'batch_step_lot_consumption.batch_step_id', '=', 'batch_steps.id')
+            ->whereNull('batch_steps.deleted_at')
+            ->whereIn('batch_steps.batch_id', $batchIds)
+            ->select('batch_steps.batch_id', 'batch_step_lot_consumption.material_lot_id')
+            ->distinct()
+            ->get();
+
+        $lots = MaterialLot::with('material:id,name,code')
+            ->whereIn('id', $pairs->pluck('material_lot_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        $map = [];
+        foreach ($pairs as $pair) {
+            $lot = $lots->get($pair->material_lot_id);
+            if ($lot) {
+                $map[$pair->batch_id][] = $lot;
+            }
+        }
+
+        return $map;
     }
 
     /**

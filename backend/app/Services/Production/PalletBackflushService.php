@@ -2,10 +2,12 @@
 
 namespace App\Services\Production;
 
+use App\Models\Batch;
 use App\Models\Material;
 use App\Models\Pallet;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\Material\BomService;
 use App\Services\Material\StockMovementService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +28,10 @@ class PalletBackflushService
     /** System-settings key for the configurable milestone trigger. */
     public const SETTING_KEY = 'backflush_on_pallet_creation';
 
-    public function __construct(private readonly StockMovementService $stockMovements) {}
+    public function __construct(
+        private readonly StockMovementService $stockMovements,
+        private readonly BomService $bomService,
+    ) {}
 
     /** Whether milestone backflush on pallet creation is enabled. */
     public function isEnabled(): bool
@@ -38,6 +43,30 @@ class PalletBackflushService
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    /**
+     * Entry point from pallet creation. With an explicit produced quantity, book
+     * that pallet's consumption. Without one (the packaging station sends none,
+     * and a fresh pallet has qty 0), book the batch's BOM exactly once - at the
+     * first pallet milestone for the batch - so a batch split across several
+     * pallets is not consumed multiple times.
+     *
+     * @return \Illuminate\Support\Collection<int, StockMovement>
+     */
+    public function backflushForPallet(Pallet $pallet, ?float $explicitQty = null, ?User $user = null): Collection
+    {
+        if ($explicitQty !== null && $explicitQty > 0) {
+            return $this->backflush($pallet, $explicitQty, $user);
+        }
+
+        $pallet->loadMissing('batch');
+        $batch = $pallet->batch;
+        if (! $batch || $this->batchAlreadyBackflushed($batch, $pallet)) {
+            return collect();
+        }
+
+        return $this->backflush($pallet, $this->resolveQuantity($pallet, null), $user);
     }
 
     /**
@@ -70,7 +99,8 @@ class PalletBackflushService
      * one consume StockMovement per BOM component, deducting from stock and
      * linked to the pallet. Returns the booked movements (empty when there is
      * no BOM or the quantity is zero - the "pallet with no BOM consumption"
-     * case).
+     * case). The per-unit/scrap explosion is delegated to BomService so the
+     * formula stays single-sourced.
      *
      * @return \Illuminate\Support\Collection<int, StockMovement>
      */
@@ -80,27 +110,23 @@ class PalletBackflushService
             return collect();
         }
 
-        $bom = $this->resolveBom($pallet);
-        if (empty($bom)) {
+        $pallet->loadMissing('workOrder');
+        $rows = $this->bomService->calculateFromSnapshot($pallet->workOrder?->process_snapshot ?? [], $quantity);
+        $materialIds = collect($rows)->pluck('material_id')->filter()->unique();
+        if ($materialIds->isEmpty()) {
             return collect();
         }
 
-        return DB::transaction(function () use ($pallet, $quantity, $user, $bom) {
+        // Preload the materials in one query (no find()-in-loop).
+        $materials = Material::whereIn('id', $materialIds)->get()->keyBy('id');
+
+        return DB::transaction(function () use ($rows, $materials, $pallet, $user) {
             $movements = collect();
 
-            foreach ($bom as $item) {
-                $materialId = $item['material_id'] ?? null;
-                if (! $materialId) {
-                    continue;
-                }
-
-                $required = $this->requiredQty($item, $quantity);
-                if ($required <= 0) {
-                    continue;
-                }
-
-                $material = Material::find($materialId);
-                if (! $material) {
+            foreach ($rows as $item) {
+                $required = (float) ($item['required_qty'] ?? 0);
+                $material = $materials->get($item['material_id'] ?? null);
+                if (! $material || $required <= 0) {
                     continue;
                 }
 
@@ -119,21 +145,11 @@ class PalletBackflushService
         });
     }
 
-    /** The BOM (snapshot) backing this pallet's work order. */
-    private function resolveBom(Pallet $pallet): array
+    /** Has any other pallet of this batch already booked a backflush consumption? */
+    private function batchAlreadyBackflushed(Batch $batch, Pallet $current): bool
     {
-        $pallet->loadMissing('workOrder');
-        $snapshot = $pallet->workOrder?->process_snapshot ?? [];
-
-        return $snapshot['bom'] ?? [];
-    }
-
-    /** Required component qty for the produced quantity: per-unit + scrap%. */
-    private function requiredQty(array $item, float $quantity): float
-    {
-        $base = ((float) ($item['quantity_per_unit'] ?? 0)) * $quantity;
-        $scrap = $base * (((float) ($item['scrap_percentage'] ?? 0)) / 100);
-
-        return round($base + $scrap, 4);
+        return StockMovement::where('source_type', StockMovement::SOURCE_PALLET)
+            ->whereIn('source_id', $batch->pallets()->whereKeyNot($current->id)->pluck('id'))
+            ->exists();
     }
 }

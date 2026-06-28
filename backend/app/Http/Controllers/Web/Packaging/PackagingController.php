@@ -180,9 +180,11 @@ class PackagingController extends Controller
 
         // Milestone backflush: when enabled, declare the BOM consumption implied
         // by the produced quantity and deduct it from stock, linked to the pallet.
+        // Without an explicit produced_qty the batch is backflushed once (at its
+        // first pallet), so splitting a batch across pallets doesn't double-book.
         if ($backflush->isEnabled()) {
             $explicitQty = $request->filled('produced_qty') ? (float) $request->input('produced_qty') : null;
-            $backflush->backflush($pallet, $backflush->resolveQuantity($pallet, $explicitQty), $request->user());
+            $backflush->backflushForPallet($pallet, $explicitQty, $request->user());
         }
 
         return response()->json([

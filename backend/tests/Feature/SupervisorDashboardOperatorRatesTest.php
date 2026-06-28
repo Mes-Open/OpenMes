@@ -27,7 +27,8 @@ class SupervisorDashboardOperatorRatesTest extends TestCase
         $supervisor->assignRole('Supervisor');
 
         $operator = User::factory()->create();
-        $workstation = Workstation::factory()->create(['line_id' => Line::factory()]);
+        $line = Line::factory()->create();
+        $workstation = Workstation::factory()->create(['line_id' => $line->id]);
         $batch = Batch::factory()->create(['status' => Batch::STATUS_DONE, 'produced_qty' => 100]);
         BatchStep::factory()->create([
             'batch_id' => $batch->id,
@@ -38,8 +39,10 @@ class SupervisorDashboardOperatorRatesTest extends TestCase
             'completed_at' => now(),
         ]);
 
+        // Select the workstation's line explicitly - operator rates are scoped to
+        // the machine's line, and the dashboard otherwise auto-picks the first.
         $this->actingAs($supervisor)
-            ->get(route('supervisor.dashboard'))
+            ->get(route('supervisor.dashboard', ['line_id' => $line->id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('supervisor/Dashboard')

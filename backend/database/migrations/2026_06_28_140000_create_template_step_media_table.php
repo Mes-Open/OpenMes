@@ -27,6 +27,8 @@ return new class extends Migration
             $table->integer('sort_order')->default(0);
             $table->foreignId('uploaded_by_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
+            $table->softDeletes();
+            $table->foreignId('deleted_by_id')->nullable()->constrained('users')->nullOnDelete();
 
             $table->index(['process_template_id', 'template_step_id']);
         });
