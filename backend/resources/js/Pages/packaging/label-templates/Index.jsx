@@ -1,42 +1,43 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
+import { __ } from '../../../lib/i18n';
 
 export default function LabelTemplatesIndex() {
     const { typeLabels = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: 'Name', className: 'font-medium text-om-ink' },
-        { key: 'type', label: 'Type', className: 'text-om-muted', render: (r) => typeLabels[r.type] ?? r.type },
-        { key: 'size', label: 'Size', className: 'text-om-muted' },
-        { key: 'barcode_format', label: 'Barcode', className: 'font-mono text-om-muted' },
-        { key: 'is_default', label: 'Default', render: (r) => (r.is_default ? '★' : '') },
-        { key: 'is_active', label: 'Status', render: (r) => <ActiveBadge active={r.is_active} /> },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'type', label: __('Type'), className: 'text-om-muted', render: (r) => typeLabels[r.type] ?? r.type },
+        { key: 'size', label: __('Size'), className: 'text-om-muted' },
+        { key: 'barcode_format', label: __('Barcode'), className: 'font-mono text-om-muted' },
+        { key: 'is_default', label: __('Default'), render: (r) => (r.is_default ? '★' : '') },
+        { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 
     const actions = (r) => [
-        { label: 'Edit', icon: 'edit', href: `/packaging/label-templates/${r.id}/edit` },
-        ...(r.is_default ? [] : [{ label: 'Make default', onClick: () => router.post(`/packaging/label-templates/${r.id}/set-default`, {}, { preserveScroll: true }) }]),
+        { label: __('Edit'), icon: 'edit', href: `/packaging/label-templates/${r.id}/edit` },
+        ...(r.is_default ? [] : [{ label: __('Make default'), onClick: () => router.post(`/packaging/label-templates/${r.id}/set-default`, {}, { preserveScroll: true }) }]),
         {
-            label: 'Delete',
+            label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => { if (confirm(`Delete label template "${r.name}"?`)) router.delete(`/packaging/label-templates/${r.id}`, { preserveScroll: true }); },
+            onClick: () => { if (confirm(__('Delete label template ":name"?', { name: r.name }))) router.delete(`/packaging/label-templates/${r.id}`, { preserveScroll: true }); },
         },
     ];
 
     return (
         <>
-            <Head title="Label Templates" />
+            <Head title={__('Label Templates')} />
             <ResourceTable
                 shape="label_templates"
-                title="Label Templates"
+                title={__('Label Templates')}
                 createHref="/packaging/label-templates/create"
-                createLabel="+ New Template"
+                createLabel={__('+ New Template')}
                 columns={columns}
                 orderBy="name"
                 actions={actions}
-                emptyText="No label templates yet."
+                emptyText={__('No label templates yet.')}
             />
         </>
     );

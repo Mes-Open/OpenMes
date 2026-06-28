@@ -23,7 +23,8 @@ class SystemSettingsLanguageTest extends TestCase
     {
         parent::setUp();
 
-        Role::create(['name' => 'Admin', 'guard_name' => 'web']);
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
         $this->admin = User::factory()->create();
         $this->admin->assignRole('Admin');
     }

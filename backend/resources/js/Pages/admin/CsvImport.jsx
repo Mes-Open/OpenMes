@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 function Icon({ d, className = 'w-5 h-5' }) {
     return (
@@ -49,19 +50,19 @@ export default function CsvImport() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="CSV Import" />
+            <Head title={__('CSV Import')} />
 
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">Dashboard</Link>
+                <Link href="/admin/dashboard" className="hover:text-om-ink">{__('Dashboard')}</Link>
                 <span>/</span>
-                <span className="text-om-ink font-medium">CSV Import</span>
+                <span className="text-om-ink font-medium">{__('CSV Import')}</span>
             </nav>
 
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-om-ink">Import</h1>
-                    <p className="text-om-muted mt-1">Import work orders from a CSV, XLS or XLSX file with custom column mapping</p>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('Import')}</h1>
+                    <p className="text-om-muted mt-1">{__('Import work orders from a CSV, XLS or XLSX file with custom column mapping')}</p>
                 </div>
             </div>
 
@@ -78,7 +79,7 @@ export default function CsvImport() {
                         </div>
                         <div className="flex-1">
                             <p className="font-bold text-om-ink mb-1">
-                                {importResult.failed === 0 ? 'Import Completed' : 'Import Completed with errors'}
+                                {importResult.failed === 0 ? __('Import Completed') : __('Import Completed with errors')}
                             </p>
                             <div className="flex gap-6 text-sm">
                                 <span className="text-om-running font-medium">&#10003; {importResult.success} imported</span>
@@ -108,7 +109,7 @@ export default function CsvImport() {
 
                 {/* Upload Form */}
                 <div className="lg:col-span-2 card">
-                    <h2 className="text-xl font-bold text-om-ink mb-4">Upload File</h2>
+                    <h2 className="text-xl font-bold text-om-ink mb-4">{__('Upload File')}</h2>
                     <form
                         method="POST"
                         action="/admin/csv-import/upload"
@@ -130,11 +131,11 @@ export default function CsvImport() {
                                 className="mx-auto h-12 w-12 text-om-faint mb-3"
                             />
                             <p className="text-om-muted font-medium">
-                                Drop file here or <span className="text-om-accent">browse</span>
+                                {__('Drop file here or')} <span className="text-om-accent">{__('browse')}</span>
                             </p>
                             <p className="text-sm text-om-faint mt-1">Max 32 MB &middot; .csv, .txt, .xlsx, .xls</p>
                             <div className="mt-3 flex items-center justify-center gap-3 text-xs">
-                                <span className="text-om-faint">Sample files:</span>
+                                <span className="text-om-faint">{__('Sample files:')}</span>
                                 <a
                                     href="/samples/zlecenia-import.xlsx"
                                     download
@@ -170,13 +171,13 @@ export default function CsvImport() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                                <label className="form-label">Duplicate Strategy</label>
+                                <label className="form-label">{__('Duplicate Strategy')}</label>
                                 <input type="hidden" name="import_strategy" value={importStrategy} />
                                 <Dropdown
                                     options={[
-                                        { value: 'update_or_create', label: 'Update if exists, create if new' },
-                                        { value: 'skip_existing', label: 'Skip existing records' },
-                                        { value: 'error_on_duplicate', label: 'Error on duplicates' },
+                                        { value: 'update_or_create', label: __('Update if exists, create if new') },
+                                        { value: 'skip_existing', label: __('Skip existing records') },
+                                        { value: 'error_on_duplicate', label: __('Error on duplicates') },
                                     ]}
                                     value={importStrategy}
                                     onChange={(v) => setImportStrategy(v)}
@@ -184,11 +185,11 @@ export default function CsvImport() {
                                 />
                             </div>
                             <div>
-                                <label className="form-label">Load Mapping Profile (optional)</label>
+                                <label className="form-label">{__('Load Mapping Profile (optional)')}</label>
                                 <input type="hidden" name="mapping_id" value={mappingId} />
                                 <Dropdown
                                     options={[
-                                        { value: '', label: '— Map columns manually —' },
+                                        { value: '', label: __('— Map columns manually —') },
                                         ...savedMappings.map((m) => ({
                                             value: String(m.id),
                                             label: `${m.name}${m.is_default ? ' (default)' : ''}`,
@@ -203,11 +204,11 @@ export default function CsvImport() {
 
                         {/* Target line */}
                         <div className="mb-4">
-                            <label className="form-label">Assign all rows to Production Line (optional)</label>
+                            <label className="form-label">{__('Assign all rows to Production Line (optional)')}</label>
                             <input type="hidden" name="target_line_id" value={targetLineId} />
                             <Dropdown
                                 options={[
-                                    { value: '', label: '— Use line_code column from file —' },
+                                    { value: '', label: __('— Use line_code column from file —') },
                                     ...lines.map((line) => ({ value: String(line.id), label: line.name })),
                                 ]}
                                 value={targetLineId == null ? '' : String(targetLineId)}
@@ -215,7 +216,7 @@ export default function CsvImport() {
                                 className="w-full"
                             />
                             <p className="text-xs text-om-faint mt-1">
-                                If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.
+                                {__('If selected, every imported work order will be assigned to this line, overriding any line_code column in the file.')}
                             </p>
                         </div>
 
@@ -223,39 +224,39 @@ export default function CsvImport() {
                         {productionPeriod !== 'none' && (
                             <div className="mb-4 p-3 bg-om-chip border border-om-line rounded-om-sm">
                                 <p className="text-xs font-semibold text-om-accent uppercase tracking-wide mb-2">
-                                    Planning Period
+                                    {__('Planning Period')}
                                     <span className="font-normal normal-case">
-                                        {' '}— system is configured for <strong>{productionPeriod}</strong> production split
+                                        {' '}— {__('system is configured for :period production split', { period: __(productionPeriod.charAt(0).toUpperCase() + productionPeriod.slice(1)) })}
                                     </span>
                                 </p>
                                 <div className="grid grid-cols-2 gap-3">
                                     {productionPeriod === 'weekly' ? (
                                         <div>
-                                            <label className="form-label text-xs">Week Number (1–53)</label>
+                                            <label className="form-label text-xs">{__('Week Number (1–53)')}</label>
                                             <input
                                                 type="number"
                                                 name="import_week"
                                                 min="1"
                                                 max="53"
                                                 className="form-input w-full"
-                                                placeholder="e.g. current week"
+                                                placeholder={__('e.g. current week')}
                                             />
                                         </div>
                                     ) : (
                                         <div>
-                                            <label className="form-label text-xs">Month Number (1–12)</label>
+                                            <label className="form-label text-xs">{__('Month Number (1–12)')}</label>
                                             <input
                                                 type="number"
                                                 name="import_month"
                                                 min="1"
                                                 max="12"
                                                 className="form-input w-full"
-                                                placeholder="e.g. current month"
+                                                placeholder={__('e.g. current month')}
                                             />
                                         </div>
                                     )}
                                     <div>
-                                        <label className="form-label text-xs">Year</label>
+                                        <label className="form-label text-xs">{__('Year')}</label>
                                         <input
                                             type="number"
                                             name="production_year"
@@ -271,14 +272,14 @@ export default function CsvImport() {
 
                         <button type="submit" className="btn-touch btn-primary w-full">
                             <Icon d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" className="w-5 h-5 inline-block mr-2" />
-                            Upload &amp; Configure Mapping
+                            {__('Upload & Configure Mapping')}
                         </button>
                     </form>
 
                     {/* Field Reference */}
                     <details className="mt-6">
                         <summary className="text-sm font-medium text-om-muted cursor-pointer hover:text-om-ink">
-                            Available system fields reference
+                            {__('Available system fields reference')}
                         </summary>
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {Object.entries(systemFields).map(([key, label]) => (
@@ -286,13 +287,13 @@ export default function CsvImport() {
                                     <code className="text-om-accent font-mono shrink-0">{key}</code>
                                     <span className="text-om-muted">{label}</span>
                                     {(key === 'order_no' || key === 'quantity') && (
-                                        <span className="ml-auto text-om-blocked font-bold shrink-0">required</span>
+                                        <span className="ml-auto text-om-blocked font-bold shrink-0">{__('required')}</span>
                                     )}
                                 </div>
                             ))}
                             <div className="flex items-center gap-2 text-xs bg-om-chip rounded p-2 sm:col-span-2">
                                 <code className="text-purple-700 font-mono shrink-0">custom:field_name</code>
-                                <span className="text-om-muted">Any extra field — stored as JSON on the work order</span>
+                                <span className="text-om-muted">{__('Any extra field — stored as JSON on the work order')}</span>
                             </div>
                         </div>
                     </details>
@@ -302,9 +303,9 @@ export default function CsvImport() {
                 <div className="space-y-6">
                     {/* Saved Mapping Profiles */}
                     <div className="card">
-                        <h2 className="text-lg font-bold text-om-ink mb-3">Saved Mapping Profiles</h2>
+                        <h2 className="text-lg font-bold text-om-ink mb-3">{__('Saved Mapping Profiles')}</h2>
                         {savedMappings.length === 0 ? (
-                            <p className="text-sm text-om-muted">No saved profiles yet. Profiles are saved during import.</p>
+                            <p className="text-sm text-om-muted">{__('No saved profiles yet. Profiles are saved during import.')}</p>
                         ) : (
                             savedMappings.map((m) => {
                                 const colCount = Object.keys(m.mapping_config?.column_mappings ?? {}).length;
@@ -320,7 +321,7 @@ export default function CsvImport() {
                                             <form
                                                 method="POST"
                                                 action={`/admin/csv-import/mappings/${m.id}`}
-                                                onSubmit={(e) => !window.confirm('Delete mapping profile?') && e.preventDefault()}
+                                                onSubmit={(e) => !window.confirm(__('Delete mapping profile?')) && e.preventDefault()}
                                             >
                                                 <input type="hidden" name="_token" value={csrfToken} />
                                                 <input type="hidden" name="_method" value="DELETE" />
@@ -337,9 +338,9 @@ export default function CsvImport() {
 
                     {/* Recent Imports */}
                     <div className="card">
-                        <h2 className="text-lg font-bold text-om-ink mb-3">Recent Imports</h2>
+                        <h2 className="text-lg font-bold text-om-ink mb-3">{__('Recent Imports')}</h2>
                         {recentImports.length === 0 ? (
-                            <p className="text-sm text-om-muted">No imports yet.</p>
+                            <p className="text-sm text-om-muted">{__('No imports yet.')}</p>
                         ) : (
                             recentImports.map((imp) => (
                                 <div key={imp.id} className="py-2 border-b border-om-line2 last:border-0">
@@ -348,7 +349,7 @@ export default function CsvImport() {
                                             {imp.filename}
                                         </p>
                                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(imp.status)}`}>
-                                            {imp.status}
+                                            {__(imp.status)}
                                         </span>
                                     </div>
                                     <p className="text-xs text-om-muted">

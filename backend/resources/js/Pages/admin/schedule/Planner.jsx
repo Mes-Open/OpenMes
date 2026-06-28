@@ -484,7 +484,7 @@ export default function Planner() {
                             <button onClick={() => setBacklogCollapsed(false)}
                                     className="w-10 h-full bg-om-card border border-om-line2 rounded-om shadow-sm flex flex-col items-center pt-4 hover:bg-om-bg transition">
                                 <svg className="w-4 h-4 text-om-faint" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                                <span className="mt-2 text-[10px] font-medium text-om-muted" style={{ writingMode: 'vertical-lr' }}>Backlog ({backlogOrders.length})</span>
+                                <span className="mt-2 text-[10px] font-medium text-om-muted" style={{ writingMode: 'vertical-lr' }}>{__('Backlog')} ({backlogOrders.length})</span>
                             </button>
                         ) : (
                             <BacklogPanel
@@ -1419,7 +1419,7 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
             <div className="px-3 py-2.5 border-b border-om-line2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <svg className="w-4 h-4 text-om-faint" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    <span className="text-sm font-bold text-om-muted">Backlog</span>
+                    <span className="text-sm font-bold text-om-muted">{__('Backlog')}</span>
                     <span className="text-xs text-om-faint">({backlogOrders.length})</span>
                 </div>
                 <button onClick={onCollapse} className="p-1 rounded hover:bg-om-chip text-om-faint">
@@ -1430,7 +1430,7 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
             {/* Search */}
             <div className="px-3 py-2 border-b border-om-line2">
                 <input type="text" value={search} onChange={(e) => onSearch(e.target.value)}
-                       placeholder="Search orders..."
+                       placeholder={__('Search orders...')}
                        className="w-full text-xs border-om-line rounded-om-sm py-1.5 px-2.5 placeholder-om-faint" />
             </div>
 
@@ -1438,7 +1438,7 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
             <div className="px-3 py-2 border-b border-om-line2 space-y-2">
                 {/* Line filter */}
                 <div className="flex flex-wrap gap-1">
-                    <button onClick={() => onFilterLine('')} className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${filterLine === '' ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>All</button>
+                    <button onClick={() => onFilterLine('')} className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${filterLine === '' ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>{__('All')}</button>
                     {allLines.map((l) => (
                         <button key={l.id} onClick={() => onFilterLine(filterLine === String(l.id) ? '' : String(l.id))}
                                 className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${filterLine === String(l.id) ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>
@@ -1457,14 +1457,14 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                 </div>
                 {/* Sort */}
                 <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-om-faint">Sort:</span>
+                    <span className="text-[10px] text-om-faint">{__('Sort:')}</span>
                     <Dropdown
                         value={sort == null ? '' : String(sort)}
                         onChange={(v) => onSort(v)}
                         options={[
-                            { value: 'due_date', label: 'Due date' },
-                            { value: 'priority', label: 'Priority' },
-                            { value: 'planned_qty', label: 'Quantity' },
+                            { value: 'due_date', label: __('Due date') },
+                            { value: 'priority', label: __('Priority') },
+                            { value: 'planned_qty', label: __('Quantity') },
                         ]}
                     />
                 </div>
@@ -1474,10 +1474,10 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
                 {backlogOrders.length === 0 ? (
                     <div className="text-center py-8">
-                        <p className="text-xs text-om-faint">No unassigned orders</p>
+                        <p className="text-xs text-om-faint">{__('No unassigned orders')}</p>
                     </div>
                 ) : priorityKeys.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-om-faint">No results match filters</div>
+                    <div className="text-center py-8 text-xs text-om-faint">{__('No results match filters')}</div>
                 ) : (
                     priorityKeys.map((p) => {
                         const pl = PRIORITY_META[p] ?? PRIORITY_META[3];

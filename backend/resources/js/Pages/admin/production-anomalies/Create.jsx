@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 export default function ProductionAnomalyCreate() {
     const { workOrders = [], anomalyReasons = [], batches = [] } = usePage().props;
@@ -34,15 +35,15 @@ export default function ProductionAnomalyCreate() {
 
     return (
         <>
-            <Head title="Record Production Anomaly" />
+            <Head title={__('Record Production Anomaly')} />
             <div className="max-w-2xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-om-ink">Record Production Anomaly</h1>
-                        <p className="text-om-muted mt-1">Log a deviation from the production plan</p>
+                        <h1 className="text-3xl font-bold text-om-ink">{__('Record Production Anomaly')}</h1>
+                        <p className="text-om-muted mt-1">{__('Log a deviation from the production plan')}</p>
                     </div>
                     <Link href="/admin/production-anomalies" className="btn-touch btn-secondary">
-                        &larr; Back
+                        &larr; {__('Back')}
                     </Link>
                 </div>
 
@@ -53,13 +54,13 @@ export default function ProductionAnomalyCreate() {
                             {/* Work Order */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Work Order <span className="text-om-blocked">*</span>
+                                    {__('Work Order')} <span className="text-om-blocked">*</span>
                                 </label>
                                 <Dropdown
                                     value={data.work_order_id == null ? '' : String(data.work_order_id)}
                                     onChange={handleWorkOrderChange}
                                     className="w-full"
-                                    placeholder="— Select work order —"
+                                    placeholder={__('— Select work order —')}
                                     options={workOrders.map((wo) => ({
                                         value: String(wo.id),
                                         label: `${wo.order_no}${wo.product_name ? ` — ${wo.product_name}` : ''}`,
@@ -73,7 +74,7 @@ export default function ProductionAnomalyCreate() {
                             {/* Batch */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Batch <span className="text-om-faint text-xs">(optional)</span>
+                                    {__('Batch')} <span className="text-om-faint text-xs">(optional)</span>
                                 </label>
                                 <Dropdown
                                     value={data.batch_id == null ? '' : String(data.batch_id)}
@@ -81,12 +82,12 @@ export default function ProductionAnomalyCreate() {
                                     className="w-full"
                                     disabled={filteredBatches.length === 0}
                                     options={[
-                                        { value: '', label: '— No specific batch —' },
+                                        { value: '', label: __('— No specific batch —') },
                                         ...filteredBatches.map((b) => ({ value: String(b.id), label: b.label })),
                                     ]}
                                 />
                                 {data.work_order_id && filteredBatches.length === 0 && (
-                                    <p className="text-sm text-om-faint mt-1">No batches available for this work order.</p>
+                                    <p className="text-sm text-om-faint mt-1">{__('No batches available for this work order.')}</p>
                                 )}
                                 {errors.batch_id && (
                                     <p className="text-om-blocked text-sm mt-1">{errors.batch_id}</p>
@@ -96,13 +97,13 @@ export default function ProductionAnomalyCreate() {
                             {/* Anomaly Reason */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Anomaly Reason <span className="text-om-blocked">*</span>
+                                    {__('Anomaly Reason')} <span className="text-om-blocked">*</span>
                                 </label>
                                 <Dropdown
                                     value={data.anomaly_reason_id == null ? '' : String(data.anomaly_reason_id)}
                                     onChange={(v) => setData('anomaly_reason_id', v)}
                                     className="w-full"
-                                    placeholder="— Select reason —"
+                                    placeholder={__('— Select reason —')}
                                     options={anomalyReasons.map((r) => ({
                                         value: String(r.id),
                                         label: `${r.name}${r.category ? ` (${r.category})` : ''}`,
@@ -116,14 +117,14 @@ export default function ProductionAnomalyCreate() {
                             {/* Product Name */}
                             <div className="md:col-span-2">
                                 <label className="form-label">
-                                    Product Name <span className="text-om-blocked">*</span>
+                                    {__('Product Name')} <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="text"
                                     value={data.product_name}
                                     onChange={(e) => setData('product_name', e.target.value)}
                                     className="form-input w-full"
-                                    placeholder="Product being produced"
+                                    placeholder={__('Product being produced')}
                                     required
                                     maxLength={200}
                                 />
@@ -135,7 +136,7 @@ export default function ProductionAnomalyCreate() {
                             {/* Planned Qty */}
                             <div>
                                 <label className="form-label">
-                                    Planned Quantity <span className="text-om-blocked">*</span>
+                                    {__('Planned Quantity')} <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -155,7 +156,7 @@ export default function ProductionAnomalyCreate() {
                             {/* Actual Qty */}
                             <div>
                                 <label className="form-label">
-                                    Actual Quantity <span className="text-om-blocked">*</span>
+                                    {__('Actual Quantity')} <span className="text-om-blocked">*</span>
                                 </label>
                                 <input
                                     type="number"
@@ -174,14 +175,14 @@ export default function ProductionAnomalyCreate() {
 
                             {/* Comment */}
                             <div className="md:col-span-2">
-                                <label className="form-label">Comment</label>
+                                <label className="form-label">{__('Comment')}</label>
                                 <textarea
                                     value={data.comment}
                                     onChange={(e) => setData('comment', e.target.value)}
                                     rows={3}
                                     className="form-input w-full"
                                     maxLength={2000}
-                                    placeholder="Additional details about the anomaly..."
+                                    placeholder={__('Additional details about the anomaly...')}
                                 />
                                 {errors.comment && (
                                     <p className="text-om-blocked text-sm mt-1">{errors.comment}</p>
@@ -198,7 +199,7 @@ export default function ProductionAnomalyCreate() {
                                 disabled={processing}
                                 className="btn-touch btn-primary disabled:opacity-50"
                             >
-                                {processing ? 'Saving…' : 'Record Anomaly'}
+                                {processing ? __('Saving…') : __('Record Anomaly')}
                             </button>
                         </div>
                     </form>

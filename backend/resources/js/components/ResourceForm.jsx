@@ -97,7 +97,7 @@ export default function ResourceForm({
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
-                    {backLabel}
+                    {__(backLabel)}
                 </Link>
             )}
 
@@ -106,7 +106,7 @@ export default function ResourceForm({
             <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-6 max-w-2xl space-y-5">
                 {Object.keys(errors).length > 0 && (
                     <div className="bg-om-blocked-bg border border-om-blocked/20 rounded-om-sm p-3">
-                        <p className="text-[12.5px] font-semibold text-om-blocked">Please fix the following:</p>
+                        <p className="text-[12.5px] font-semibold text-om-blocked">{__('Please fix the following:')}</p>
                         <ul className="mt-1 text-[11.5px] text-om-blocked list-disc list-inside">
                             {Object.entries(errors).map(([field, msg]) => (
                                 <li key={field}>{(fields.find((f) => f.name === field)?.label ?? field)}: {msg}</li>
@@ -125,14 +125,14 @@ export default function ResourceForm({
 
                 <div className="flex items-center gap-3 pt-2">
                     <Button type="submit" variant="primary" loading={processing}>
-                        {processing ? 'Saving…' : submitLabel}
+                        {processing ? __('Saving…') : submitLabel}
                     </Button>
                     {cancelHref && (
                         <Link
                             href={cancelHref}
                             className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
                         >
-                            Cancel
+                            {__('Cancel')}
                         </Link>
                     )}
                 </div>

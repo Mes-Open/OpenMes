@@ -20,8 +20,8 @@ export default function NetRequirementsIndex() {
     const reqColumns = [
         { id: 'code', accessorKey: 'code', header: __('Code'), cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.code ?? '—'}</span> },
         { id: 'name', accessorKey: 'name', header: __('Component'), cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.name}</span> },
-        { id: 'required_qty', accessorFn: (r) => num(r.required_qty), header: __('Required'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.required_qty)}</span>, meta: { align: 'right' } },
-        { id: 'available_qty', accessorFn: (r) => num(r.available_qty), header: __('Available'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.available_qty)}</span>, meta: { align: 'right' } },
+        { id: 'required_qty', accessorFn: (r) => num(r.required_qty), header: __('Required Qty'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.required_qty)}</span>, meta: { align: 'right' } },
+        { id: 'available_qty', accessorFn: (r) => num(r.available_qty), header: __('Available Qty'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.available_qty)}</span>, meta: { align: 'right' } },
         { id: 'net_qty', accessorFn: (r) => num(r.net_qty), header: __('Net'), cell: ({ row }) => <span className={`tabular-nums font-medium ${row.original.is_short ? 'text-om-blocked' : 'text-om-running'}`}>{fmt(row.original.net_qty)}</span>, meta: { align: 'right' } },
         { id: 'uom', accessorKey: 'unit_of_measure', header: __('Unit'), cell: ({ row }) => <span className="text-om-faint">{row.original.unit_of_measure ?? '—'}</span> },
         {
@@ -37,8 +37,8 @@ export default function NetRequirementsIndex() {
     const shortageColumns = [
         { id: 'code', accessorKey: 'code', header: __('Code'), cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.code ?? '—'}</span> },
         { id: 'name', accessorKey: 'name', header: __('Component'), cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.name}</span> },
-        { id: 'required_qty', accessorFn: (r) => num(r.required_qty), header: __('Required'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.required_qty)}</span>, meta: { align: 'right' } },
-        { id: 'available_qty', accessorFn: (r) => num(r.available_qty), header: __('Available'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.available_qty)}</span>, meta: { align: 'right' } },
+        { id: 'required_qty', accessorFn: (r) => num(r.required_qty), header: __('Required Qty'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.required_qty)}</span>, meta: { align: 'right' } },
+        { id: 'available_qty', accessorFn: (r) => num(r.available_qty), header: __('Available Qty'), cell: ({ row }) => <span className="tabular-nums">{fmt(row.original.available_qty)}</span>, meta: { align: 'right' } },
         { id: 'net_qty', accessorFn: (r) => num(r.net_qty), header: __('Shortfall'), cell: ({ row }) => <span className="tabular-nums font-medium text-om-blocked">{fmt(row.original.net_qty)}</span>, meta: { align: 'right' } },
         {
             id: 'related', accessorFn: (r) => (r.related_work_orders ?? []).join(' '), header: __('Driving work orders'), enableSorting: false,

@@ -3,6 +3,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { DatePicker, Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 const ACTION_STYLES = {
     created: 'bg-om-running-bg text-om-running',
@@ -14,7 +15,7 @@ function ActionBadge({ action }) {
     const cls = ACTION_STYLES[action] ?? 'bg-om-chip text-om-muted';
     return (
         <span className={`px-2 py-1 rounded text-xs font-medium ${cls}`}>
-            {action ? action.charAt(0).toUpperCase() + action.slice(1) : '—'}
+            {action ? __(action.charAt(0).toUpperCase() + action.slice(1)) : '—'}
         </span>
     );
 }
@@ -30,7 +31,7 @@ function ExpandableChanges({ log }) {
                     onClick={() => setExpanded((v) => !v)}
                     className="text-om-accent hover:text-om-accent text-sm"
                 >
-                    {expanded ? 'Hide' : 'View'} Changes
+                    {expanded ? __('Hide') : __('View')} {__('Changes')}
                 </button>
                 {expanded && (
                     <div className="mt-2 p-3 bg-om-panel rounded text-xs">
@@ -49,13 +50,13 @@ function ExpandableChanges({ log }) {
     if (log.action === 'created') {
         return (
             <span className="text-om-muted text-sm">
-                Created with {Object.keys(log.after_state ?? {}).length} fields
+                {__('Created with :count fields', { count: Object.keys(log.after_state ?? {}).length })}
             </span>
         );
     }
 
     if (log.action === 'deleted') {
-        return <span className="text-om-muted text-sm">Record deleted</span>;
+        return <span className="text-om-muted text-sm">{__('Record deleted')}</span>;
     }
 
     return null;
@@ -129,7 +130,7 @@ export default function AuditLogs() {
         {
             id: 'timestamp',
             accessorFn: (log) => log.created_at ?? '',
-            header: 'Timestamp',
+            header: __('Timestamp'),
             cell: ({ row }) => {
                 const log = row.original;
                 return log.created_at
@@ -140,9 +141,9 @@ export default function AuditLogs() {
         },
         {
             id: 'user',
-            accessorFn: (log) => log.user?.name ?? 'System',
-            header: 'User',
-            cell: ({ row }) => row.original.user?.name ?? 'System',
+            accessorFn: (log) => log.user?.name ?? __('System'),
+            header: __('User'),
+            cell: ({ row }) => row.original.user?.name ?? __('System'),
             meta: { align: 'left' },
         },
         {
@@ -150,7 +151,7 @@ export default function AuditLogs() {
             accessorFn: (log) =>
                 (log.entity_type ? String(log.entity_type).split('\\').pop() : '—') +
                 (log.entity_id ? ` #${log.entity_id}` : ''),
-            header: 'Entity',
+            header: __('Entity'),
             cell: ({ row }) => {
                 const log = row.original;
                 return (
@@ -165,13 +166,13 @@ export default function AuditLogs() {
         {
             id: 'action',
             accessorFn: (log) => log.action ?? '',
-            header: 'Action',
+            header: __('Action'),
             cell: ({ row }) => <ActionBadge action={row.original.action} />,
             meta: { align: 'left' },
         },
         {
             id: 'details',
-            header: 'Details',
+            header: __('Details'),
             enableSorting: false,
             cell: ({ row }) => <ExpandableChanges log={row.original} />,
             meta: { align: 'left' },
@@ -180,24 +181,24 @@ export default function AuditLogs() {
 
     return (
         <>
-            <Head title="Audit Logs" />
+            <Head title={__('Audit Logs')} />
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-om-ink">Audit Logs</h1>
-                    <p className="text-om-muted mt-2">Track all system changes and user activities</p>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('Audit Logs')}</h1>
+                    <p className="text-om-muted mt-2">{__('Track all system changes and user activities')}</p>
                 </div>
 
                 {/* Filters */}
                 <div className="bg-om-card rounded-om-sm shadow-sm p-5 mb-6">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-lg font-bold text-om-ink">Filters</h2>
+                        <h2 className="text-lg font-bold text-om-ink">{__('Filters')}</h2>
                         <button
                             type="button"
                             onClick={() => setShowFilters((v) => !v)}
                             className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                         >
-                            {showFilters ? 'Hide Filters' : 'Show Filters'}
+                            {showFilters ? __('Hide Filters') : __('Show Filters')}
                         </button>
                     </div>
 
@@ -205,10 +206,10 @@ export default function AuditLogs() {
                         <div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">Entity Type</label>
+                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Entity Type')}</label>
                                     <Dropdown
                                         options={[
-                                            { value: '', label: 'All Types' },
+                                            { value: '', label: __('All Types') },
                                             ...entityTypes.map((t) => ({ value: String(t), label: t })),
                                         ]}
                                         value={form.entity_type == null ? '' : String(form.entity_type)}
@@ -218,10 +219,10 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">User</label>
+                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('User')}</label>
                                     <Dropdown
                                         options={[
-                                            { value: '', label: 'All Users' },
+                                            { value: '', label: __('All Users') },
                                             ...users.map((u) => ({ value: String(u.id), label: `${u.name} (${u.username})` })),
                                         ]}
                                         value={form.user_id == null ? '' : String(form.user_id)}
@@ -231,13 +232,13 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">Action</label>
+                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Action')}</label>
                                     <Dropdown
                                         options={[
-                                            { value: '', label: 'All Actions' },
-                                            { value: 'created', label: 'Created' },
-                                            { value: 'updated', label: 'Updated' },
-                                            { value: 'deleted', label: 'Deleted' },
+                                            { value: '', label: __('All Actions') },
+                                            { value: 'created', label: __('Created') },
+                                            { value: 'updated', label: __('Updated') },
+                                            { value: 'deleted', label: __('Deleted') },
                                         ]}
                                         value={form.action == null ? '' : String(form.action)}
                                         onChange={(v) => setForm((f) => ({ ...f, action: v }))}
@@ -246,7 +247,7 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">Start Date</label>
+                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Start Date')}</label>
                                     <DatePicker
                                         value={form.start_date || null}
                                         onChange={(iso) => setForm((f) => ({ ...f, start_date: iso ?? '' }))}
@@ -255,7 +256,7 @@ export default function AuditLogs() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-om-muted mb-1">End Date</label>
+                                    <label className="block text-sm font-medium text-om-muted mb-1">{__('End Date')}</label>
                                     <DatePicker
                                         value={form.end_date || null}
                                         onChange={(iso) => setForm((f) => ({ ...f, end_date: iso ?? '' }))}
@@ -270,20 +271,20 @@ export default function AuditLogs() {
                                     onClick={() => apply()}
                                     className="px-4 py-2 text-sm font-medium rounded-om-sm bg-om-ink text-om-on-ink hover:bg-om-ink-hover transition-colors"
                                 >
-                                    Apply Filters
+                                    {__('Apply Filters')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={clear}
                                     className="px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                                 >
-                                    Clear Filters
+                                    {__('Clear Filters')}
                                 </button>
                                 <a
                                     href={exportUrl()}
                                     className="ml-auto px-4 py-2 text-sm font-medium rounded-om-sm border border-om-line text-om-muted hover:bg-om-bg transition-colors"
                                 >
-                                    Export to CSV
+                                    {__('Export to CSV')}
                                 </a>
                             </div>
                         </div>
@@ -300,7 +301,7 @@ export default function AuditLogs() {
                     searchPlaceholder="Search audit logs…"
                     columnsLabel="Columns"
                     columnsMenuLabel="Toggle columns"
-                    emptyLabel="No audit logs found"
+                    emptyLabel={__('No audit logs found')}
                 />
 
                 {meta && (

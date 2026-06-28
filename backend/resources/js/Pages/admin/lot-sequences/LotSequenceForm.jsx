@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import { __ } from '../../../lib/i18n';
 
 const RESET_PERIODS = [
     { value: 'none', label: 'No reset' },
@@ -96,15 +97,15 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 
     return (
         <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
-            <TextField label="Name" required value={data.name} error={errors.name} onChange={(v) => setData('name', v)} />
+            <TextField label={__('Name')} required value={data.name} error={errors.name} onChange={(v) => setData('name', v)} />
 
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">Product Type</label>
+                <label className="block text-sm font-medium text-om-muted mb-1">{__('Product Type')}</label>
                 <Dropdown
                     value={data.product_type_id == null ? '' : String(data.product_type_id)}
                     onChange={(v) => setData('product_type_id', v)}
                     options={[
-                        { value: '', label: '— None (default sequence) —' },
+                        { value: '', label: `— ${__('None (default sequence)')} —` },
                         ...productTypes.map((p) => ({ value: String(p.id), label: p.name })),
                     ]}
                     className="w-full"
@@ -115,8 +116,8 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
             {/* Mode toggle */}
             <div className="flex rounded-om-sm border border-om-line2 overflow-hidden w-fit text-sm">
                 {[
-                    ['pattern', 'Pattern'],
-                    ['simple', 'Simple'],
+                    ['pattern', __('Pattern')],
+                    ['simple', __('Simple')],
                 ].map(([m, label]) => (
                     <button
                         key={m}
@@ -135,7 +136,7 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                 <div className="space-y-3">
                     <div>
                         <label className="block text-sm font-medium text-om-muted mb-1">
-                            Pattern <span className="text-om-blocked">*</span>
+                            {__('Pattern')} <span className="text-om-blocked">*</span>
                         </label>
                         <input
                             ref={patternInputRef}
@@ -165,32 +166,31 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                         ))}
                     </div>
                     <p className="text-xs text-om-muted">
-                        Click a token to insert it. Pattern must contain exactly one <code>[seq]</code>. Use{' '}
-                        <code>[date:y-m-d]</code> for a custom date format.
+                        {__('Click a token to insert it. Pattern must contain exactly one')} <code>[seq]</code>. {__('Use [date:y-m-d] for a custom date format.')}
                     </p>
 
                     {preview && (
                         <div className="rounded-om-sm bg-om-panel border border-om-line2 px-3 py-2 text-sm">
-                            <span className="text-om-muted">Preview: </span>
+                            <span className="text-om-muted">{__('Preview:')} </span>
                             <span className="font-mono font-medium text-om-ink">{preview}</span>
                         </div>
                     )}
                 </div>
             ) : (
                 <>
-                    <TextField label="Prefix" required value={data.prefix} error={errors.prefix} onChange={(v) => setData('prefix', v)} />
-                    <TextField label="Suffix" value={data.suffix} error={errors.suffix} onChange={(v) => setData('suffix', v)} />
+                    <TextField label={__('Prefix')} required value={data.prefix} error={errors.prefix} onChange={(v) => setData('prefix', v)} />
+                    <TextField label={__('Suffix')} value={data.suffix} error={errors.suffix} onChange={(v) => setData('suffix', v)} />
                     <Checkbox
                         checked={!!data.year_prefix}
                         onChange={(next) => setData('year_prefix', next)}
-                        label="Year Prefix"
+                        label={__('Year Prefix')}
                     />
                 </>
             )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">Pad Size</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Pad Size')}</label>
                     <input
                         type="number"
                         min={1}
@@ -202,11 +202,11 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                     {errors.pad_size && <p className="mt-1 text-xs text-om-blocked">{errors.pad_size}</p>}
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">Counter Reset</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Counter Reset')}</label>
                     <Dropdown
                         value={data.reset_period == null ? 'none' : String(data.reset_period)}
                         onChange={(v) => setData('reset_period', v)}
-                        options={RESET_PERIODS.map((o) => ({ value: String(o.value), label: o.label }))}
+                        options={RESET_PERIODS.map((o) => ({ value: String(o.value), label: __(o.label) }))}
                         className="w-full"
                     />
                     {errors.reset_period && <p className="mt-1 text-xs text-om-blocked">{errors.reset_period}</p>}
@@ -218,7 +218,7 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                     {submitLabel}
                 </Button>
                 <Link href="/admin/lot-sequences" className="text-om-muted hover:text-om-ink text-sm">
-                    Cancel
+                    {__('Cancel')}
                 </Link>
             </div>
         </form>

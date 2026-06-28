@@ -67,7 +67,7 @@ export default function IssuesIndex() {
         { key: 'reported_at', label: __('Reported'), className: 'text-om-muted', render: (r) => (r.reported_at ? r.reported_at.slice(0, 16).replace('T', ' ') : '—') },
         {
             key: 'status', label: __('Status'),
-            render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{r.status}</span>,
+            render: (r) => <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>{__(r.status)}</span>,
         },
         {
             key: 'disposition', label: __('Disposition'),

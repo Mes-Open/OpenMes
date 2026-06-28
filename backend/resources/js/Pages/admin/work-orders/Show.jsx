@@ -3,7 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import { WO_STATUS_STYLES } from './fields';
-import { formatDate, formatNumber } from '../../../lib/i18n';
+import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
@@ -35,22 +35,7 @@ function fmtDate(d) {
     return formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function timeAgo(d) {
-    if (!d) return '';
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return '';
-    const sec = Math.round((Date.now() - dt.getTime()) / 1000);
-    const abs = Math.abs(sec);
-    const past = sec >= 0;
-    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
-    for (const [name, s] of units) {
-        if (abs >= s) {
-            const n = Math.floor(abs / s);
-            return past ? `${n} ${name}${n > 1 ? 's' : ''} ago` : `in ${n} ${name}${n > 1 ? 's' : ''}`;
-        }
-    }
-    return past ? 'just now' : 'soon';
-}
+
 
 function BatchRow({ batch }) {
     const [open, setOpen] = useState(batch.is_first ?? false);
@@ -65,7 +50,7 @@ function BatchRow({ batch }) {
                 <div className="flex items-center gap-3">
                     <span className="font-semibold text-om-muted">Batch #{batch.batch_number}</span>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${batchStyle}`}>
-                        {batch.status.replace('_', ' ')}
+                        {__(batch.status)}
                     </span>
                     <span className="text-sm text-om-muted">
                         {fmtQty(batch.produced_qty)} / {fmtQty(batch.target_qty)}
@@ -128,13 +113,13 @@ function DoneModal({ workOrder, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-om-card rounded-om-sm shadow-xl p-6 w-full max-w-md mx-4">
-                <h3 className="text-lg font-bold text-om-ink mb-4">Complete Work Order</h3>
+                <h3 className="text-lg font-bold text-om-ink mb-4">{__('Complete Work Order')}</h3>
                 <p className="text-sm text-om-muted mb-4">
                     Enter the produced quantity for <strong>{workOrder.order_no}</strong>.
                 </p>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-om-muted mb-1">Produced Quantity</label>
+                        <label className="block text-sm font-medium text-om-muted mb-1">{__('Produced Quantity')}</label>
                         <input
                             type="number"
                             step="0.01"
@@ -185,13 +170,13 @@ export default function AdminWorkOrderShow() {
 
     return (
         <>
-            <Head title={`Work Order ${workOrder.order_no}`} />
+            <Head title={__('Work Order :no', { no: workOrder.order_no })} />
 
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-om-muted mb-4">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">Dashboard</Link>
+                <Link href="/admin/dashboard" className="hover:text-om-ink">{__('Dashboard')}</Link>
                 <span>/</span>
-                <Link href="/admin/work-orders" className="hover:text-om-ink">Work Orders</Link>
+                <Link href="/admin/work-orders" className="hover:text-om-ink">{__('Work Orders')}</Link>
                 <span>/</span>
                 <span className="text-om-muted font-medium">#{workOrder.order_no}</span>
             </nav>
@@ -309,35 +294,35 @@ export default function AdminWorkOrderShow() {
 
                         {/* Details */}
                         <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
-                            <h2 className="text-lg font-bold text-om-ink mb-4">Details</h2>
+                            <h2 className="text-lg font-bold text-om-ink mb-4">{__('Details')}</h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                                 <div>
-                                    <p className="text-om-muted">Order Number</p>
+                                    <p className="text-om-muted">{__('Order Number')}</p>
                                     <p className="font-mono font-semibold text-om-ink">{workOrder.order_no}</p>
                                 </div>
                                 <div>
-                                    <p className="text-om-muted">Line</p>
+                                    <p className="text-om-muted">{__('Line')}</p>
                                     <p className="font-medium text-om-ink">{workOrder.line_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-om-muted">Product Type</p>
+                                    <p className="text-om-muted">{__('Product Type')}</p>
                                     <p className="font-medium text-om-ink">{workOrder.product_type_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-om-muted">Planned Qty</p>
+                                    <p className="text-om-muted">{__('Planned Qty')}</p>
                                     <p className="font-medium text-om-ink">{fmtQty(workOrder.planned_qty)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-om-muted">Produced Qty</p>
+                                    <p className="text-om-muted">{__('Produced Qty')}</p>
                                     <p className="font-medium text-om-ink">{fmtQty(workOrder.produced_qty)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-om-muted">Priority</p>
+                                    <p className="text-om-muted">{__('Priority')}</p>
                                     <p className="font-medium text-om-ink">{workOrder.priority ?? '—'}</p>
                                 </div>
                                 {workOrder.due_date && (
                                     <div>
-                                        <p className="text-om-muted">Due Date</p>
+                                        <p className="text-om-muted">{__('Due Date')}</p>
                                         <p className={`font-medium ${isDuePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {fmtDate(workOrder.due_date)}
                                         </p>
@@ -345,13 +330,13 @@ export default function AdminWorkOrderShow() {
                                 )}
                                 {workOrder.description && (
                                     <div className="col-span-2 md:col-span-3">
-                                        <p className="text-om-muted">Description</p>
+                                        <p className="text-om-muted">{__('Description')}</p>
                                         <p className="font-medium text-om-ink">{workOrder.description}</p>
                                     </div>
                                 )}
                                 {workOrder.extra_data && Object.keys(workOrder.extra_data).length > 0 && (
                                     <div className="col-span-2 md:col-span-3">
-                                        <p className="text-om-muted mb-1">Extra Data</p>
+                                        <p className="text-om-muted mb-1">{__('Extra Data')}</p>
                                         <div className="grid grid-cols-2 gap-2">
                                             {Object.entries(workOrder.extra_data).map(([k, v]) => (
                                                 <div key={k} className="bg-om-panel rounded px-2 py-1">
@@ -375,7 +360,7 @@ export default function AdminWorkOrderShow() {
                                 <span className="text-sm font-normal text-om-faint">({workOrder.batches.length})</span>
                             </h2>
                             {workOrder.batches.length === 0 ? (
-                                <p className="text-sm text-om-faint py-4 text-center">No batches yet.</p>
+                                <p className="text-sm text-om-faint py-4 text-center">{__('No batches yet.')}</p>
                             ) : (
                                 <div className="space-y-3">
                                     {workOrder.batches.map((batch, i) => (
@@ -391,10 +376,10 @@ export default function AdminWorkOrderShow() {
 
                         {/* Progress */}
                         <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
-                            <h3 className="text-base font-bold text-om-ink mb-3">Progress</h3>
+                            <h3 className="text-base font-bold text-om-ink mb-3">{__('Progress')}</h3>
                             <div className="mb-3">
                                 <div className="flex justify-between text-sm text-om-muted mb-1">
-                                    <span>Completion</span>
+                                    <span>{__('Completion')}</span>
                                     <span>{pct.toFixed(1)}%</span>
                                 </div>
                                 <div className="w-full bg-om-line2 rounded-full h-3">
@@ -406,15 +391,15 @@ export default function AdminWorkOrderShow() {
                             </div>
                             <div className="space-y-1 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Planned:</span>
+                                    <span className="text-om-muted">{__('Planned:')}</span>
                                     <span className="font-medium">{fmtQty(workOrder.planned_qty)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Produced:</span>
+                                    <span className="text-om-muted">{__('Produced:')}</span>
                                     <span className="font-medium">{fmtQty(workOrder.produced_qty)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Batches:</span>
+                                    <span className="text-om-muted">{__('Batches:')}</span>
                                     <span className="font-medium">{workOrder.batches.length}</span>
                                 </div>
                             </div>
@@ -423,16 +408,16 @@ export default function AdminWorkOrderShow() {
                         {/* Issues */}
                         <div className="bg-om-card rounded-om-sm shadow-sm border border-om-line2 p-5">
                             <div className="flex justify-between items-center mb-3">
-                                <h3 className="text-base font-bold text-om-ink">Issues</h3>
+                                <h3 className="text-base font-bold text-om-ink">{__('Issues')}</h3>
                                 <Link
                                     href={`/admin/issues?search=${encodeURIComponent(workOrder.order_no)}`}
                                     className="text-xs text-om-accent hover:underline"
                                 >
-                                    Manage →
+                                    {__('Manage →')}
                                 </Link>
                             </div>
                             {workOrder.issues.length === 0 ? (
-                                <p className="text-sm text-om-faint text-center py-3">No issues.</p>
+                                <p className="text-sm text-om-faint text-center py-3">{__('No issues.')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {workOrder.issues.map((issue) => {
@@ -447,7 +432,7 @@ export default function AdminWorkOrderShow() {
                                                 <div className="flex justify-between">
                                                     <span className="font-medium text-om-ink">{issue.issue_type_name}</span>
                                                     <span className={`px-1.5 py-0.5 rounded text-xs ${issueStatusStyle}`}>
-                                                        {issue.status}
+                                                        {__(issue.status)}
                                                     </span>
                                                 </div>
                                                 <p className="text-om-muted mt-1 truncate">{issue.title}</p>
