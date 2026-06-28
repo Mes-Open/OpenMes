@@ -3692,5 +3692,7 @@
     "Mandatory": "Wymagany",
     "Validated": "Zwalidowany",
     "Validate": "Waliduj",
-    "Not validated": "Niezwalidowany"
+    "Not validated": "Niezwalidowany",
+    "Backflush on pallet creation": "Backflush przy tworzeniu palety",
+    "When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.": "Gdy włączone, utworzenie palety deklaruje konsumpcję z BOM dla wyprodukowanej ilości i odejmuje ją ze stanu w tym kamieniu milowym, zamiast w sposób ciągły."
 }

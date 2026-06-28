@@ -106,6 +106,7 @@ class SettingsController extends Controller
             'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
             'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']?->value ?? 'false', true) ?? false,
+            'backflush_on_pallet_creation' => json_decode($rows['backflush_on_pallet_creation']?->value ?? 'false', true) ?? false,
             'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
             'language' => json_decode($rows['language']?->value ?? '"en"', true) ?? 'en',
@@ -139,7 +140,7 @@ class SettingsController extends Controller
         $backups = [];
         $backupsDir = storage_path('app/backups');
         if (is_dir($backupsDir)) {
-            $backups = collect(glob($backupsDir . '/*.zip'))
+            $backups = collect(glob($backupsDir.'/*.zip'))
                 ->map(function ($file) {
                     return [
                         'filename' => basename($file),
@@ -328,6 +329,7 @@ class SettingsController extends Controller
             'allow_overproduction' => 'nullable|boolean',
             'force_sequential_steps' => 'nullable|boolean',
             'workstation_routing_enabled' => 'nullable|boolean',
+            'backflush_on_pallet_creation' => 'nullable|boolean',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
             // Single source of truth — the language switcher's configured locales.
@@ -361,6 +363,7 @@ class SettingsController extends Controller
             'allow_overproduction' => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
             'workstation_routing_enabled' => (bool) ($validated['workstation_routing_enabled'] ?? false),
+            'backflush_on_pallet_creation' => (bool) ($validated['backflush_on_pallet_creation'] ?? false),
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
             'language' => $validated['language'] ?? 'en',
