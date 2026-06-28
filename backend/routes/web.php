@@ -246,6 +246,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
+        // Document control: validate a mandatory document so its step can complete.
+        Route::post('/batch-step-document/{batchStepDocument}/validate', [OperatorBatchController::class, 'validateDocument'])->name('batch-step-document.validate');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
         Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');

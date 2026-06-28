@@ -58,6 +58,7 @@ class SoftDeleteRegistry
         'product_types' => Models\ProductType::class,
         'process_templates' => Models\ProcessTemplate::class,
         'template_steps' => Models\TemplateStep::class,
+        'batch_step_documents' => Models\BatchStepDocument::class,
         'bom_items' => Models\BomItem::class,
         'quality_check_templates' => Models\QualityCheckTemplate::class,
         'quality_control_triggers' => Models\QualityControlTrigger::class,

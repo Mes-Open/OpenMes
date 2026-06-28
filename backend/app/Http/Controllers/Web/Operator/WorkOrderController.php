@@ -229,6 +229,7 @@ class WorkOrderController extends Controller
             'productType',
             'batches.steps.startedBy',
             'batches.steps.completedBy',
+            'batches.steps.documents.validatedBy',
             'batches.workstation',
             'batches.processConfirmations.confirmedBy',
             'batches.qualityChecks.samples',

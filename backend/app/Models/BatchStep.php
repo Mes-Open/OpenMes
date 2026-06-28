@@ -107,6 +107,39 @@ class BatchStep extends Model
     }
 
     /**
+     * Documents attached to this step for shop-floor document control. A
+     * mandatory, validatable document must be validated before the step can be
+     * completed.
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(BatchStepDocument::class);
+    }
+
+    /** Soft-deleting a step cascades to its attached documents. */
+    public function softDeleteCascades(): array
+    {
+        return [
+            [BatchStepDocument::class, 'batch_step_id'],
+        ];
+    }
+
+    /**
+     * Mandatory, validatable documents on this step that have not been validated
+     * yet - the documents that block completion. Empty when nothing blocks.
+     */
+    public function blockingDocuments()
+    {
+        return $this->documents()->blocking();
+    }
+
+    /** Whether an unvalidated mandatory document is holding this step. */
+    public function isBlockedByDocuments(): bool
+    {
+        return $this->blockingDocuments()->exists();
+    }
+
+    /**
      * Whether this step's sequence prerequisites are met (so it may move from
      * PENDING to READY): the first step, any step when sequential enforcement is
      * off, or a step whose immediate predecessor is DONE/SKIPPED. Does NOT factor

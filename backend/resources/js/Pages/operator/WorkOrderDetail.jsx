@@ -7,7 +7,7 @@ import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
-import { formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
+import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
 
@@ -750,6 +750,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
         );
     };
 
+    // Validate a mandatory document so its step's completion gate clears.
+    const [inflightDocId, setInflightDocId] = useState(null);
+    const handleValidateDocument = (doc) => {
+        setInflightDocId(doc.id);
+        router.post(
+            `/operator/batch-step-document/${doc.id}/validate`,
+            {},
+            { preserveScroll: true, onFinish: () => setInflightDocId(null) }
+        );
+    };
+
     // Starting a step: first ask the server which material lots (if any) need
     // picking. With lots to pick, open the WO-time picking modal seeded with the
     // system's proposal; otherwise start the step directly (unchanged behavior).
@@ -786,8 +797,12 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                 {steps.map((step) => {
                     const isInflight = inflightStepId === step.id;
                     const photo = stepPhotos[step.step_number];
+                    const stepDocs = step.documents || [];
+                    const blockingDocs = stepDocs.filter((d) => d.is_mandatory && d.requires_validation && !d.validated_at);
+                    const isDocBlocked = blockingDocs.length > 0;
                     return (
-                        <div key={step.id} className="flex items-center gap-3 p-3 bg-om-panel border border-om-line2 rounded-om-sm">
+                        <div key={step.id} className="bg-om-panel border border-om-line2 rounded-om-sm">
+                        <div className="flex items-center gap-3 p-3">
                             <span className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full font-mono text-[11px] bg-om-chip text-om-muted">
                                 {step.step_number}
                             </span>
@@ -852,8 +867,9 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                             {step.status === 'IN_PROGRESS' && (
                                 <Button
                                     variant="primary"
-                                    disabled={isInflight}
+                                    disabled={isInflight || isDocBlocked}
                                     onClick={() => handleStepAction(step, 'complete')}
+                                    title={isDocBlocked ? __('Validate the mandatory document(s) before completing this step.') : undefined}
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
                                     {isInflight ? '…' : 'Complete'}
@@ -867,6 +883,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                                 templates={labelTemplates}
                                 label="Label"
                             />
+                        </div>
+
+                        {stepDocs.length > 0 && (
+                            <StepDocuments
+                                docs={stepDocs}
+                                blocked={isDocBlocked}
+                                canValidate={step.status === 'IN_PROGRESS' || step.status === 'READY' || step.status === 'PENDING'}
+                                inflightDocId={inflightDocId}
+                                onValidate={handleValidateDocument}
+                            />
+                        )}
                         </div>
                     );
                 })}
@@ -890,6 +917,58 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {} }) {
                     onClose={() => setPickModal(null)}
                 />
             )}
+        </div>
+    );
+}
+
+// Document control panel shown under a step: lists attached documents and lets
+// the operator validate mandatory ones. A blocked banner explains why the step
+// can't be completed until they are validated.
+function StepDocuments({ docs = [], blocked, canValidate, inflightDocId, onValidate }) {
+    return (
+        <div className="border-t border-om-line2 px-3 py-2 space-y-2">
+            {blocked && (
+                <p className="text-[12px] text-om-blocked bg-om-blocked-bg rounded px-2 py-1.5">
+                    {__('This step is blocked: a mandatory document must be validated before you can complete it.')}
+                </p>
+            )}
+            <ul className="space-y-1">
+                {docs.map((doc) => {
+                    const validated = !!doc.validated_at;
+                    const mandatory = doc.is_mandatory && doc.requires_validation;
+                    return (
+                        <li key={doc.id} className="flex items-center gap-2 text-sm">
+                            <span className="text-om-faint" aria-hidden="true">📄</span>
+                            <span className="text-om-ink">{doc.name}</span>
+                            {doc.reference && <span className="font-mono text-[11px] text-om-faint">{doc.reference}</span>}
+                            {mandatory && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-om-chip text-om-muted uppercase tracking-wide">
+                                    {__('Mandatory')}
+                                </span>
+                            )}
+                            <span className="flex-1" />
+                            {validated ? (
+                                <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
+                                    {__('Validated')}{doc.validated_by ? ` · ${doc.validated_by.name}` : ''}
+                                </span>
+                            ) : doc.requires_validation ? (
+                                canValidate ? (
+                                    <Button
+                                        variant="accent"
+                                        disabled={inflightDocId === doc.id}
+                                        onClick={() => onValidate(doc)}
+                                        className="px-3 py-1.5 text-[13px] whitespace-nowrap"
+                                    >
+                                        {inflightDocId === doc.id ? '…' : __('Validate')}
+                                    </Button>
+                                ) : (
+                                    <span className="font-mono text-[11px] text-om-downtime whitespace-nowrap">{__('Not validated')}</span>
+                                )
+                            ) : null}
+                        </li>
+                    );
+                })}
+            </ul>
         </div>
     );
 }

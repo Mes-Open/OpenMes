@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\BatchController;
 use App\Http\Controllers\Api\V1\BatchStepController;
+use App\Http\Controllers\Api\V1\BatchStepDocumentController;
 use App\Http\Controllers\Api\V1\BomItemController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ConnectivityController;
@@ -512,6 +513,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/batch-steps/{batchStep}/start', [BatchStepController::class, 'start']);
     Route::post('/batch-steps/{batchStep}/complete', [BatchStepController::class, 'complete']);
     Route::post('/batch-steps/{batchStep}/problem', [BatchStepController::class, 'problem']);
+
+    // Step document control: validate a mandatory document so its step can
+    // complete (any production user); attaching is Supervisor/Admin only.
+    Route::post('/batch-step-documents/{batchStepDocument}/validate', [BatchStepDocumentController::class, 'validateDocument']);
+    Route::middleware('role:Supervisor|Admin')
+        ->post('/batch-steps/{batchStep}/documents', [BatchStepDocumentController::class, 'store']);
 
     // Process Confirmations (per batch)
     Route::get('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'index']);

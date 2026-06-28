@@ -3778,5 +3778,14 @@
     "Units/h": "Units/h",
     "Steps": "Steps",
     "Operator production rate (units/h)": "Operator production rate (units/h)",
-    "No production recorded yet.": "No production recorded yet."
+    "No production recorded yet.": "No production recorded yet.",
+    "This step is blocked: the mandatory document(s) \":docs\" must be validated before it can be completed.": "This step is blocked: the mandatory document(s) \":docs\" must be validated before it can be completed.",
+    "Document attached.": "Document attached.",
+    "Document validated.": "Document validated.",
+    "Validate the mandatory document(s) before completing this step.": "Validate the mandatory document(s) before completing this step.",
+    "This step is blocked: a mandatory document must be validated before you can complete it.": "This step is blocked: a mandatory document must be validated before you can complete it.",
+    "Mandatory": "Mandatory",
+    "Validated": "Validated",
+    "Validate": "Validate",
+    "Not validated": "Not validated"
 }

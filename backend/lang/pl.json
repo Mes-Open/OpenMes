@@ -3683,5 +3683,14 @@
     "Units/h": "Szt./h",
     "Steps": "Kroki",
     "Operator production rate (units/h)": "Wydajność operatora (szt./h)",
-    "No production recorded yet.": "Brak zarejestrowanej produkcji."
+    "No production recorded yet.": "Brak zarejestrowanej produkcji.",
+    "This step is blocked: the mandatory document(s) \":docs\" must be validated before it can be completed.": "Ten krok jest zablokowany: wymagany dokument/y \":docs\" musi zostać zwalidowany przed jego zakończeniem.",
+    "Document attached.": "Dokument dodany.",
+    "Document validated.": "Dokument zwalidowany.",
+    "Validate the mandatory document(s) before completing this step.": "Zwaliduj wymagany dokument przed zakończeniem tego kroku.",
+    "This step is blocked: a mandatory document must be validated before you can complete it.": "Ten krok jest zablokowany: wymagany dokument musi zostać zwalidowany, zanim go zakończysz.",
+    "Mandatory": "Wymagany",
+    "Validated": "Zwalidowany",
+    "Validate": "Waliduj",
+    "Not validated": "Niezwalidowany"
 }

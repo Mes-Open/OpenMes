@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\BatchStepDocument;
 use App\Models\WorkOrder;
 use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
@@ -112,6 +113,25 @@ class BatchController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Validate a mandatory document attached to a step (shop-floor document
+     * control). Records who validated it and when; once validated, the step's
+     * completion gate clears. Idempotent.
+     */
+    public function validateDocument(Request $request, BatchStepDocument $batchStepDocument)
+    {
+        $batchStepDocument->loadMissing('batchStep');
+        $step = $batchStepDocument->batchStep;
+
+        if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
+            return back()->with('error', 'This document does not belong to the selected line.');
+        }
+
+        $batchStepDocument->markValidated($request->user());
+
+        return back()->with('success', 'Document validated.');
     }
 
     /**
