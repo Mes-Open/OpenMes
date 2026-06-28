@@ -606,6 +606,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/throughput', [AnalyticsController::class, 'throughput']);
         Route::get('/analytics/issue-stats', [AnalyticsController::class, 'issueStats']);
         Route::get('/analytics/step-performance', [AnalyticsController::class, 'stepPerformance']);
+        Route::get('/analytics/operator-rates', [AnalyticsController::class, 'operatorRates']);
 
         // Reports
         Route::get('/reports/production-summary', [ReportController::class, 'productionSummary']);

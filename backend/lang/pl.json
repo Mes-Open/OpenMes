@@ -3679,5 +3679,9 @@
     "Output pallets": "Palety wyjściowe",
     "This finished lot has not been packed onto a pallet yet.": "Ten gotowy LOT nie został jeszcze spakowany na paletę.",
     "Customer orders": "Zamówienia klienta",
-    "Components used": "Użyte komponenty"
+    "Components used": "Użyte komponenty",
+    "Units/h": "Szt./h",
+    "Steps": "Kroki",
+    "Operator production rate (units/h)": "Wydajność operatora (szt./h)",
+    "No production recorded yet.": "Brak zarejestrowanej produkcji."
 }
