@@ -19,6 +19,10 @@ class CreatePalletStationRequest extends FormRequest
             // re-checks that a chosen batch belongs to the work order.
             'batch_id' => ['nullable', 'integer', 'exists:batches,id'],
             'location' => ['nullable', 'string', 'max:100'],
+            // Produced quantity this pallet accounts for; drives the milestone
+            // backflush when enabled. Falls back to the batch quantity if omitted,
+            // so an explicit value must be strictly positive (0 != "omitted").
+            'produced_qty' => ['nullable', 'numeric', 'gt:0'],
         ];
     }
 }

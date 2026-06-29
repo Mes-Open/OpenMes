@@ -66,6 +66,7 @@ export default function System() {
         allow_overproduction: settings.allow_overproduction ?? false,
         force_sequential_steps: settings.force_sequential_steps ?? true,
         workstation_routing_enabled: settings.workstation_routing_enabled ?? false,
+        backflush_on_pallet_creation: settings.backflush_on_pallet_creation ?? false,
         scanner_mode: settings.scanner_mode ?? 'hid',
         workflow_mode: settings.workflow_mode ?? 'status',
         pin_login_enabled: settings.pin_login_enabled ?? false,
@@ -435,6 +436,17 @@ export default function System() {
                                     <div>
                                         <p className="text-[13px] font-medium text-om-ink">{__('Workstation routing')}</p>
                                         <p className={HELP_CLASS}>{__('When enabled, an operator assigned to a workstation can only start or complete steps assigned to that workstation.')}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <Switch
+                                        checked={data.backflush_on_pallet_creation}
+                                        onChange={(v) => setData('backflush_on_pallet_creation', v)}
+                                    />
+                                    <div>
+                                        <p className="text-[13px] font-medium text-om-ink">{__('Backflush on pallet creation')}</p>
+                                        <p className={HELP_CLASS}>{__('When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}</p>
                                     </div>
                                 </div>
                             </div>

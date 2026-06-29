@@ -386,6 +386,119 @@ function StepPhoto({ step, photo, baseUrl }) {
     );
 }
 
+// Per-step rich work-instruction authoring: upload media (image/PDF/video) and
+// manage checklist items. Reusable definition; operators see/complete it live.
+const MEDIA_ACCEPT = {
+    image: 'image/jpeg,image/png,image/webp',
+    pdf: 'application/pdf',
+    video: 'video/mp4,video/webm',
+};
+
+function StepInstructionsEditor({ step, productType, processTemplate }) {
+    const mediaBase = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/media`;
+    const checklistBase = `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/checklist-items`;
+    const media = (processTemplate.media ?? []).filter((m) => m.template_step_id === step.id);
+    const items = (processTemplate.checklist_items ?? []).filter((c) => c.template_step_id === step.id);
+
+    const mediaForm = useForm({ media_type: 'pdf', file: null, title: '', template_step_id: step.id });
+    const fileRef = useRef(null);
+    const itemForm = useForm({ label: '', is_required: false, template_step_id: step.id });
+
+    const onFile = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        mediaForm.transform(() => ({ media_type: mediaForm.data.media_type, title: mediaForm.data.title, template_step_id: step.id, file }));
+        mediaForm.post(mediaBase, {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => mediaForm.setData('title', ''),
+            onFinish: () => {
+                mediaForm.transform((d) => d);
+                if (fileRef.current) fileRef.current.value = '';
+            },
+        });
+    };
+
+    const addItem = (e) => {
+        e.preventDefault();
+        if (!itemForm.data.label.trim()) return;
+        itemForm.post(checklistBase, { preserveScroll: true, onSuccess: () => itemForm.reset('label', 'is_required') });
+    };
+
+    return (
+        <div className="mt-3 border-t border-om-line2 pt-3 space-y-3">
+            {/* Media */}
+            <div>
+                <p className="text-xs font-semibold text-om-muted mb-1.5">Work-instruction media</p>
+                {media.length > 0 && (
+                    <ul className="mb-2 space-y-1">
+                        {media.map((m) => (
+                            <li key={m.id} className="flex items-center gap-2 text-sm">
+                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">{m.media_type}</span>
+                                <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-om-accent hover:underline truncate max-w-[260px]">{m.title || m.original_name}</a>
+                                <button type="button" onClick={() => router.delete(`${mediaBase}/${m.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">Remove</button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                    <select
+                        value={mediaForm.data.media_type}
+                        onChange={(e) => mediaForm.setData('media_type', e.target.value)}
+                        className="form-select text-sm py-1"
+                    >
+                        <option value="image">Image</option>
+                        <option value="pdf">PDF</option>
+                        <option value="video">Video</option>
+                    </select>
+                    <input
+                        type="text"
+                        value={mediaForm.data.title}
+                        onChange={(e) => mediaForm.setData('title', e.target.value)}
+                        placeholder="Title (optional)"
+                        className="form-input text-sm py-1 flex-1 min-w-[120px]"
+                    />
+                    <button type="button" onClick={() => fileRef.current?.click()} disabled={mediaForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">
+                        {mediaForm.processing ? 'Uploading…' : 'Upload file'}
+                    </button>
+                    <input ref={fileRef} type="file" accept={MEDIA_ACCEPT[mediaForm.data.media_type]} className="hidden" onChange={onFile} />
+                </div>
+                {mediaForm.errors.file && <p className="text-xs text-om-blocked mt-1">{mediaForm.errors.file}</p>}
+            </div>
+
+            {/* Checklist */}
+            <div>
+                <p className="text-xs font-semibold text-om-muted mb-1.5">Checklist</p>
+                {items.length > 0 && (
+                    <ul className="mb-2 space-y-1">
+                        {items.map((c) => (
+                            <li key={c.id} className="flex items-center gap-2 text-sm">
+                                <span className="text-om-ink">{c.label}</span>
+                                {c.is_required && <span className="text-[10px] uppercase text-om-downtime">required</span>}
+                                <button type="button" onClick={() => router.delete(`${checklistBase}/${c.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">Remove</button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                <form onSubmit={addItem} className="flex flex-wrap items-center gap-2">
+                    <input
+                        type="text"
+                        value={itemForm.data.label}
+                        onChange={(e) => itemForm.setData('label', e.target.value)}
+                        placeholder="Add checklist item…"
+                        className="form-input text-sm py-1 flex-1 min-w-[160px]"
+                    />
+                    <label className="flex items-center gap-1.5 text-xs text-om-muted">
+                        <input type="checkbox" checked={itemForm.data.is_required} onChange={(e) => itemForm.setData('is_required', e.target.checked)} />
+                        Required
+                    </label>
+                    <button type="submit" disabled={itemForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">Add</button>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 function StepCard({
     step, photo, photosBaseUrl, isFirst, isLast, editingId, onEditStart, onEditCancel,
     productType, processTemplate, processSegments, workstations,
@@ -523,6 +636,8 @@ function StepCard({
                             )}
 
                             <StepPhoto step={step} photo={photo} baseUrl={photosBaseUrl} />
+
+                            <StepInstructionsEditor step={step} productType={productType} processTemplate={processTemplate} />
                         </div>
                     </div>
                 </div>
