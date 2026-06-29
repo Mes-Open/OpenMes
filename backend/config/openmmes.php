@@ -80,4 +80,16 @@ return [
     |
     */
     'default_pay_rate' => env('DEFAULT_PAY_RATE'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Admin Credentials
+    |--------------------------------------------------------------------------
+    |
+    | Used to recreate the admin user when resetting the system.
+    |
+    */
+    'admin_username' => env('ADMIN_USERNAME'),
+    'admin_email' => env('ADMIN_EMAIL'),
+    'admin_password' => env('ADMIN_PASSWORD'),
 ];

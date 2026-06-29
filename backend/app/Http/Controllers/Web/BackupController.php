@@ -371,9 +371,9 @@ class BackupController extends Controller
             $initiatingUsername = $request->user()?->username;
 
             // Check if admin environment variables are set explicitly
-            $adminUsername = env('ADMIN_USERNAME');
-            $adminEmail = env('ADMIN_EMAIL');
-            $adminPassword = env('ADMIN_PASSWORD');
+            $adminUsername = config('openmmes.admin_username');
+            $adminEmail = config('openmmes.admin_email');
+            $adminPassword = config('openmmes.admin_password');
 
             if (empty($adminUsername) || empty($adminEmail) || empty($adminPassword)) {
                 throw new \Exception(__('Admin creation failed: ADMIN_USERNAME, ADMIN_EMAIL, or ADMIN_PASSWORD is not configured.'));
