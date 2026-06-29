@@ -20,6 +20,7 @@ import { execSync } from 'child_process';
 // admin account alone cannot drive it; a dedicated operator is required.
 const ADMIN = process.env.ADMIN_USERNAME || 'admin';
 const PASS = process.env.ADMIN_PASSWORD || 'Admin1234!';
+const BACKEND = `${process.env.OPENMES_NAME_PREFIX || 'openmmes'}-backend`;
 const TS = Date.now().toString().slice(-6);
 
 const LINE = `Run Line ${TS}`;
@@ -37,7 +38,7 @@ test.setTimeout(240_000);
 // still goes through the forms). Looks it up in the running om106 database.
 function dbValue(sql: string): string {
   const php = `echo DB::selectOne("${sql}")->v;`.replace(/"/g, '\\"');
-  return execSync(`docker exec openmes-backend php artisan tinker --execute="${php}"`, { encoding: 'utf8' })
+  return execSync(`docker exec ${BACKEND} php artisan tinker --execute="${php}"`, { encoding: 'utf8' })
     .trim()
     .split('\n')
     .pop()!
@@ -45,7 +46,7 @@ function dbValue(sql: string): string {
 }
 
 function dbExec(php: string): void {
-  execSync(`docker exec openmes-backend php artisan tinker --execute="${php.replace(/"/g, '\\"')}"`, {
+  execSync(`docker exec ${BACKEND} php artisan tinker --execute="${php.replace(/"/g, '\\"')}"`, {
     encoding: 'utf8',
   });
 }

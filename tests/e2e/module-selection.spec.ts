@@ -7,10 +7,11 @@ import { execSync } from 'child_process';
 // shares the same ModuleRegistry enforcement.
 const ADMIN = process.env.ADMIN_USERNAME || 'admin';
 const PASS = process.env.ADMIN_PASSWORD || 'Admin1234!';
+const BACKEND = `${process.env.OPENMES_NAME_PREFIX || 'openmmes'}-backend`;
 
 function tinker(php: string): string {
   const e = php.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-  return execSync(`docker exec openmes-backend php artisan tinker --execute="${e}"`, { encoding: 'utf8' })
+  return execSync(`docker exec ${BACKEND} php artisan tinker --execute="${e}"`, { encoding: 'utf8' })
     .trim().split('\n').pop()!.trim();
 }
 
