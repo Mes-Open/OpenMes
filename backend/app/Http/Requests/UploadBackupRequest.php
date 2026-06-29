@@ -11,7 +11,9 @@ class UploadBackupRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        // Defense in depth: route is role:Admin gated, but an uploaded backup
+        // is later read by the restore flow, so enforce admin here too.
+        return $this->user()?->hasRole('Admin') ?? false;
     }
 
     /**
