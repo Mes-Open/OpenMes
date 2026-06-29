@@ -34,7 +34,7 @@ function tinker(php: string): string {
   // Escape for the shell double-quoted --execute="..." wrapper: protect PHP
   // strings (") AND PHP variables ($) from being expanded by /bin/sh.
   const escaped = php.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-  return execSync(`docker exec om106-backend php artisan tinker --execute="${escaped}"`, {
+  return execSync(`docker exec openmes-backend php artisan tinker --execute="${escaped}"`, {
     encoding: 'utf8',
   }).trim().split('\n').pop()!.trim();
 }

@@ -10,7 +10,7 @@ const PASS = process.env.ADMIN_PASSWORD || 'Admin1234!';
 
 function tinker(php: string): string {
   const e = php.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-  return execSync(`docker exec om106-backend php artisan tinker --execute="${e}"`, { encoding: 'utf8' })
+  return execSync(`docker exec openmes-backend php artisan tinker --execute="${e}"`, { encoding: 'utf8' })
     .trim().split('\n').pop()!.trim();
 }
 

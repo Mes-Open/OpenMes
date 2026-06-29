@@ -15,7 +15,7 @@ const WO = `WO-TRACE-${TS}`;
 
 function tinker(php: string): string {
   const escaped = php.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-  return execSync(`docker exec om106-backend php artisan tinker --execute="${escaped}"`, {
+  return execSync(`docker exec openmes-backend php artisan tinker --execute="${escaped}"`, {
     encoding: 'utf8',
   }).trim().split('\n').pop()!.trim();
 }

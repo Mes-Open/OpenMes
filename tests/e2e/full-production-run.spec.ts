@@ -37,7 +37,7 @@ test.setTimeout(240_000);
 // still goes through the forms). Looks it up in the running om106 database.
 function dbValue(sql: string): string {
   const php = `echo DB::selectOne("${sql}")->v;`.replace(/"/g, '\\"');
-  return execSync(`docker exec om106-backend php artisan tinker --execute="${php}"`, { encoding: 'utf8' })
+  return execSync(`docker exec openmes-backend php artisan tinker --execute="${php}"`, { encoding: 'utf8' })
     .trim()
     .split('\n')
     .pop()!
@@ -45,7 +45,7 @@ function dbValue(sql: string): string {
 }
 
 function dbExec(php: string): void {
-  execSync(`docker exec om106-backend php artisan tinker --execute="${php.replace(/"/g, '\\"')}"`, {
+  execSync(`docker exec openmes-backend php artisan tinker --execute="${php.replace(/"/g, '\\"')}"`, {
     encoding: 'utf8',
   });
 }
