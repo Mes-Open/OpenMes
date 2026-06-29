@@ -11,6 +11,8 @@ class ResetSystemRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        // Defense in depth: the route is already role:Admin gated, but this
+        // request wipes the database, so enforce the admin policy here too.
         return $this->user()?->hasRole('Admin') ?? false;
     }
 

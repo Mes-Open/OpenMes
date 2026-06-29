@@ -83,13 +83,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Admin Credentials
+    | Bootstrap Admin Account
     |--------------------------------------------------------------------------
     |
-    | Used to recreate the admin user when resetting the system.
+    | Credentials used to recreate the administrator after a system reset
+    | (Settings → System → Reset). Mirrors the ADMIN_* env the Docker entrypoint
+    | uses to create the first admin. Read via config() — NOT env() directly —
+    | so the values survive `config:cache` in production. The reset refuses to
+    | run when any of these is empty (no predictable default account).
     |
     */
-    'admin_username' => env('ADMIN_USERNAME'),
-    'admin_email' => env('ADMIN_EMAIL'),
-    'admin_password' => env('ADMIN_PASSWORD'),
+    'admin' => [
+        'username' => env('ADMIN_USERNAME'),
+        'email' => env('ADMIN_EMAIL'),
+        'password' => env('ADMIN_PASSWORD'),
+    ],
 ];
