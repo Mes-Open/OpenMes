@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import { __ } from '../../../lib/i18n';
 
 /**
  * Label template form. Beyond the scalar selects (type/size/barcode), it has a
