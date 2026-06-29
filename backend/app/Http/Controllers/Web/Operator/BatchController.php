@@ -150,9 +150,16 @@ class BatchController extends Controller
         }
         abort_unless($batchStepDocument->file_path && \Illuminate\Support\Facades\Storage::exists($batchStepDocument->file_path), 404);
 
+        // Only render a narrow safelist inline; anything else (HTML, SVG, ...) is
+        // forced to download, so an uploaded document can't run script in the
+        // operator's session. nosniff stops the browser second-guessing the type.
+        $inlineSafe = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
+        $mime = $batchStepDocument->mime_type ?? 'application/octet-stream';
+        $disposition = in_array($mime, $inlineSafe, true) ? 'inline' : 'attachment';
+
         return response()->file(\Illuminate\Support\Facades\Storage::path($batchStepDocument->file_path), [
-            'Content-Type' => $batchStepDocument->mime_type ?? 'application/octet-stream',
-            'Content-Disposition' => 'inline',
+            'Content-Type' => $mime,
+            'Content-Disposition' => $disposition.'; filename="'.addslashes($batchStepDocument->original_name ?? 'document').'"',
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, max-age=3600',
         ]);

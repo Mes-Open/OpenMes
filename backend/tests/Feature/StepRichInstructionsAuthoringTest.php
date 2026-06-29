@@ -110,6 +110,32 @@ class StepRichInstructionsAuthoringTest extends TestCase
             ])
             ->assertForbidden();
 
+        $this->actingAs($this->operator)
+            ->post($this->base().'/media', [
+                'media_type' => 'pdf',
+                'template_step_id' => $this->step->id,
+                'file' => UploadedFile::fake()->create('x.pdf', 10, 'application/pdf'),
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('template_step_checklist_items', 0);
+        $this->assertDatabaseCount('template_step_media', 0);
+    }
+
+    public function test_checklist_item_requires_a_label(): void
+    {
+        $this->actingAs($this->admin)
+            ->post($this->base().'/checklist-items', ['template_step_id' => $this->step->id])
+            ->assertSessionHasErrors('label');
+    }
+
+    public function test_guest_cannot_author(): void
+    {
+        $this->post($this->base().'/checklist-items', ['template_step_id' => $this->step->id, 'label' => 'x'])
+            ->assertRedirect();
+        $this->post($this->base().'/media', ['media_type' => 'pdf', 'template_step_id' => $this->step->id])
+            ->assertRedirect();
+
         $this->assertDatabaseCount('template_step_checklist_items', 0);
     }
 }

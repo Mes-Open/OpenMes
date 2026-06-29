@@ -227,6 +227,19 @@ class StepDocumentControlTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf');
     }
 
+    public function test_guest_cannot_use_document_control_endpoints(): void
+    {
+        $step = $this->inProgressStep();
+        $doc = BatchStepDocument::factory()->create(['batch_step_id' => $step->id]);
+
+        // API endpoints reject unauthenticated requests.
+        $this->postJson("/api/v1/batch-steps/{$step->id}/documents", ['name' => 'x'])->assertUnauthorized();
+        $this->postJson("/api/v1/batch-step-documents/{$doc->id}/validate")->assertUnauthorized();
+        // Web (session) endpoints redirect a guest to login.
+        $this->post(route('operator.batch-step-document.validate', $doc))->assertRedirect();
+        $this->get(route('operator.batch-step-document.file', $doc))->assertRedirect();
+    }
+
     public function test_attach_endpoint_requires_a_name(): void
     {
         $supervisor = User::factory()->create();

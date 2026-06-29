@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\OperatorRatesRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\Issue;
@@ -284,7 +285,7 @@ class AnalyticsController extends Controller
      * the one rate, or an explicit no-data state for a machine the worker has
      * never run.
      */
-    public function operatorRates(Request $request, OperatorProductionRateService $service)
+    public function operatorRates(OperatorRatesRequest $request, OperatorProductionRateService $service)
     {
         $operatorId = $request->filled('operator_id') ? (int) $request->query('operator_id') : null;
         $workstationId = $request->filled('workstation_id') ? (int) $request->query('workstation_id') : null;

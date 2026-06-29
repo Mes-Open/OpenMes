@@ -73,17 +73,21 @@ class BatchStepDocument extends Model
         return $this->is_mandatory && $this->requires_validation && ! $this->isValidated();
     }
 
-    /** Record who validated this document and when (idempotent). */
+    /**
+     * Record who validated this document and when. Idempotent and race-safe: a
+     * single conditional update (WHERE validated_at IS NULL) wins, so two
+     * concurrent validations can't overwrite each other's audit stamp.
+     */
     public function markValidated(User $user): void
     {
-        if ($this->isValidated()) {
-            return;
-        }
+        static::whereKey($this->getKey())
+            ->whereNull('validated_at')
+            ->update([
+                'validated_at' => now(),
+                'validated_by_id' => $user->id,
+            ]);
 
-        $this->forceFill([
-            'validated_at' => now(),
-            'validated_by_id' => $user->id,
-        ])->save();
+        $this->refresh();
     }
 
     /** Scope: documents that block step completion (mandatory + unvalidated). */

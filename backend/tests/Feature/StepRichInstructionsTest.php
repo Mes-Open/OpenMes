@@ -135,16 +135,24 @@ class StepRichInstructionsTest extends TestCase
         $completion = BatchStepChecklistCompletion::firstOrFail();
         $this->assertNotNull($completion->checked_at);
 
-        // Toggle again - un-checks (removes the row).
+        // Toggle again - un-checks (soft-deletes, keeping the who/when audit).
         $this->actingAs($this->operator)
             ->withSession(['selected_line_id' => $this->line->id])
             ->post(route('operator.batch-step.checklist.toggle', [$this->batchStep, $item]))
             ->assertSessionHas('success');
 
-        $this->assertDatabaseMissing('batch_step_checklist_completions', [
+        $this->assertSoftDeleted('batch_step_checklist_completions', [
             'batch_step_id' => $this->batchStep->id,
             'checklist_item_id' => $item->id,
         ]);
+
+        // And it can be re-checked afterwards (partial unique allows a new live row).
+        $this->actingAs($this->operator)
+            ->withSession(['selected_line_id' => $this->line->id])
+            ->post(route('operator.batch-step.checklist.toggle', [$this->batchStep, $item]))
+            ->assertSessionHas('success');
+        $this->assertSame(1, BatchStepChecklistCompletion::where('batch_step_id', $this->batchStep->id)
+            ->where('checklist_item_id', $item->id)->count());
     }
 
     public function test_checklist_toggle_rejects_item_from_another_template(): void
@@ -204,6 +212,15 @@ class StepRichInstructionsTest extends TestCase
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_guest_cannot_toggle_checklist_or_view_media(): void
+    {
+        $item = $this->checklistItem();
+        $media = $this->media();
+
+        $this->post(route('operator.batch-step.checklist.toggle', [$this->batchStep, $item]))->assertRedirect();
+        $this->get(route('process-templates.media.show', [$this->template, $media]))->assertRedirect();
     }
 
     public function test_media_route_is_scoped_to_its_template(): void

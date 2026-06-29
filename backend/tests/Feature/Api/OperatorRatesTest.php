@@ -87,6 +87,14 @@ class OperatorRatesTest extends TestCase
         $this->getJson('/api/v1/analytics/operator-rates')->assertUnauthorized();
     }
 
+    public function test_rejects_malformed_filters(): void
+    {
+        $this->actingAs($this->supervisor, 'sanctum')
+            ->getJson('/api/v1/analytics/operator-rates?date_from=not-a-date&days=0&operator_id=99999999')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['date_from', 'days', 'operator_id']);
+    }
+
     public function test_operator_role_is_forbidden(): void
     {
         $operator = User::factory()->create();

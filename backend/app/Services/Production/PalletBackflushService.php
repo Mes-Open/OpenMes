@@ -62,11 +62,21 @@ class PalletBackflushService
 
         $pallet->loadMissing('batch');
         $batch = $pallet->batch;
-        if (! $batch || $this->batchAlreadyBackflushed($batch, $pallet)) {
+        if (! $batch) {
             return collect();
         }
 
-        return $this->backflush($pallet, $this->resolveQuantity($pallet, null), $user);
+        // Lock the batch row so two concurrent pallet creates can't both pass the
+        // once-per-batch guard and double-deduct stock.
+        return DB::transaction(function () use ($pallet, $batch, $user) {
+            Batch::withTrashed()->whereKey($batch->id)->lockForUpdate()->first();
+
+            if ($this->batchAlreadyBackflushed($batch, $pallet)) {
+                return collect();
+            }
+
+            return $this->backflush($pallet, $this->resolveQuantity($pallet, null), $user);
+        });
     }
 
     /**
@@ -145,11 +155,16 @@ class PalletBackflushService
         });
     }
 
-    /** Has any other pallet of this batch already booked a backflush consumption? */
+    /**
+     * Has any other pallet of this batch already booked a backflush consumption?
+     * Includes soft-deleted pallets: their consumption movements survive the
+     * delete, so a later pallet must not rebook the batch just because an earlier
+     * one was removed.
+     */
     private function batchAlreadyBackflushed(Batch $batch, Pallet $current): bool
     {
         return StockMovement::where('source_type', StockMovement::SOURCE_PALLET)
-            ->whereIn('source_id', $batch->pallets()->whereKeyNot($current->id)->pluck('id'))
+            ->whereIn('source_id', $batch->pallets()->withTrashed()->whereKeyNot($current->id)->pluck('id'))
             ->exists();
     }
 }

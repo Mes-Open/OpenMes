@@ -60,6 +60,7 @@ class SoftDeleteRegistry
         'template_steps' => Models\TemplateStep::class,
         'template_step_media' => Models\TemplateStepMedia::class,
         'template_step_checklist_items' => Models\TemplateStepChecklistItem::class,
+        'batch_step_checklist_completions' => Models\BatchStepChecklistCompletion::class,
         'batch_step_documents' => Models\BatchStepDocument::class,
         'bom_items' => Models\BomItem::class,
         'quality_check_templates' => Models\QualityCheckTemplate::class,

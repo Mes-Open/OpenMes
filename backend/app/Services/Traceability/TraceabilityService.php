@@ -88,8 +88,10 @@ class TraceabilityService
         }
 
         // withTrashed: a finished lot must still resolve its pallets / customer
-        // order if the producing batch was later soft-deleted (recall readiness).
-        $pallets = Pallet::where('batch_id', $lot->source_batch_id)
+        // order if the pallet or the producing batch was later soft-deleted
+        // (recall readiness - the packed/shipped hop must not vanish).
+        $pallets = Pallet::withTrashed()
+            ->where('batch_id', $lot->source_batch_id)
             ->with(['workOrder:id,order_no,customer_order_no'])
             ->orderBy('pallet_no')
             ->get();
