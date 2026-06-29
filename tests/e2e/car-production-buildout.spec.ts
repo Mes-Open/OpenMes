@@ -13,6 +13,7 @@ import { execSync } from 'child_process';
 
 const ADMIN = process.env.ADMIN_USERNAME || 'admin';
 const PASS = process.env.ADMIN_PASSWORD || 'Admin1234!';
+const BACKEND = `${process.env.OPENMES_NAME_PREFIX || 'openmmes'}-backend`;
 const TS = Date.now().toString().slice(-6);
 
 const LINE = `Vehicle Assembly ${TS}`;
@@ -28,7 +29,7 @@ test.setTimeout(300_000);
 
 function tinker(php: string): string {
   const escaped = php.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-  return execSync(`docker exec openmes-backend php artisan tinker --execute="${escaped}"`, {
+  return execSync(`docker exec ${BACKEND} php artisan tinker --execute="${escaped}"`, {
     encoding: 'utf8',
   }).trim().split('\n').pop()!.trim();
 }
