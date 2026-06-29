@@ -44,10 +44,17 @@ function SelectCard({ value, current, onChange, label, desc, disabled }) {
 }
 
 export default function System() {
-    const { settings, availableLocales, appUrl, modules = [] } = usePage().props;
+    const { settings, availableLocales, appUrl, modules = [], backups = [] } = usePage().props;
 
     const [tab, setTab] = useState('general');
     const [sampleConfirm, setSampleConfirm] = useState(false);
+    // Backup / restore / reset UI state.
+    const [resetText, setResetText] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
+    const [resetCountdown, setResetCountdown] = useState(null);
+    const [isRestoring, setIsRestoring] = useState(false);
+    const [restoreCountdown, setRestoreCountdown] = useState(null);
+    const [statusMessage, setStatusMessage] = useState('');
     const { csrf_token } = usePage().props;
 
     const { data, setData, post, processing, errors } = useForm({
@@ -94,6 +101,121 @@ export default function System() {
             },
         });
     }
+
+    // Backup/restore/reset run via fetch (not Inertia) because they end by
+    // logging the user out + redirecting to '/'. A 5s countdown gives the
+    // backend time to finish the request before the redirect.
+    const redirectAfter = (setCount) => {
+        let count = 5;
+        setCount(count);
+        const interval = setInterval(() => {
+            count -= 1;
+            setCount(count);
+            if (count <= 0) {
+                clearInterval(interval);
+                window.location.href = '/';
+            }
+        }, 1000);
+    };
+
+    const postJson = (url) =>
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf_token, Accept: 'application/json' },
+        });
+
+    const handleResetSubmit = async (e) => {
+        e.preventDefault();
+        if (resetText !== 'RESET') return;
+        setIsResetting(true);
+        setStatusMessage(__('Resetting the system... Please wait...'));
+        try {
+            const res = await fetch('/settings/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf_token, Accept: 'application/json' },
+                body: JSON.stringify({ confirm_text: resetText }),
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                setStatusMessage(__('System reset successfully.'));
+                redirectAfter(setResetCountdown);
+            } else {
+                setIsResetting(false);
+                alert(result.message || __('An error occurred while resetting the system.'));
+            }
+        } catch (err) {
+            setIsResetting(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
+
+    const handleRestoreSubmit = async (e, filename) => {
+        e.preventDefault();
+        if (!confirm(__('Are you sure you want to restore the system from this backup? Current data will be overwritten.'))) return;
+        setIsRestoring(true);
+        setStatusMessage(__('Restoring system from backup... Please wait...'));
+        try {
+            const res = await postJson(`/settings/backups/restore/${filename}`);
+            const result = await res.json();
+            if (res.ok && result.success) {
+                setStatusMessage(__('System restored successfully.'));
+                redirectAfter(setRestoreCountdown);
+            } else {
+                setIsRestoring(false);
+                alert(result.message || __('An error occurred while restoring the system.'));
+            }
+        } catch (err) {
+            setIsRestoring(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
+
+    const handleUploadRestoreSubmit = async (e) => {
+        e.preventDefault();
+        if (!confirm(__('Are you sure you want to restore the system from this uploaded backup? Current data will be overwritten.'))) return;
+        const fileInput = e.target.elements.backup_file;
+        if (!fileInput || !fileInput.files[0]) {
+            alert(__('Please select a backup file.'));
+            return;
+        }
+        setIsRestoring(true);
+        setStatusMessage(__('Uploading backup file...'));
+        try {
+            const formData = new FormData();
+            formData.append('backup_file', fileInput.files[0]);
+            const uploadRes = await fetch('/settings/backups/upload', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrf_token, Accept: 'application/json' },
+                body: formData,
+            });
+            const uploadResult = await uploadRes.json();
+            if (!uploadRes.ok || !uploadResult.success) {
+                setIsRestoring(false);
+                alert(uploadResult.message || __('An error occurred while uploading the backup file.'));
+                return;
+            }
+            setStatusMessage(__('Restoring system from backup... Please wait...'));
+            const restoreRes = await postJson(`/settings/backups/restore/${uploadResult.filename}`);
+            const restoreResult = await restoreRes.json();
+            if (restoreRes.ok && restoreResult.success) {
+                setStatusMessage(__('System restored successfully.'));
+                redirectAfter(setRestoreCountdown);
+            } else {
+                setIsRestoring(false);
+                alert(restoreResult.message || __('An error occurred while restoring the system.'));
+            }
+        } catch (err) {
+            setIsRestoring(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
+
+    const formatBytes = (n) => {
+        if (!n) return '0 B';
+        const u = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(n) / Math.log(1024));
+        return `${(n / 1024 ** i).toFixed(1)} ${u[i]}`;
+    };
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -694,6 +816,92 @@ export default function System() {
                                 {__('Import Settings')}
                             </Button>
                         </form>
+                    </div>
+
+                    {/* Backup & Recovery */}
+                    <div>
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Backup & Recovery')}</h2>
+                        <p className={`${HELP_CLASS} mb-4`}>
+                            {__('Create and manage backups of the database and uploaded files. Full backups include all uploaded attachments; data-only backups contain database records only.')}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-3 mb-5">
+                            <form method="POST" action="/settings/backups/full">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <Button type="submit" variant="secondary">{__('Create Full Backup')}</Button>
+                            </form>
+                            <form method="POST" action="/settings/backups/data">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <Button type="submit" variant="secondary">{__('Create Data Backup')}</Button>
+                            </form>
+                        </div>
+
+                        {/* Upload a backup and restore from it */}
+                        <form onSubmit={handleUploadRestoreSubmit} className="flex flex-wrap items-center gap-3 mb-5">
+                            <input
+                                type="file"
+                                name="backup_file"
+                                accept=".zip"
+                                className="text-[13px] text-om-muted file:mr-3 file:py-2 file:px-4 file:rounded-om-sm file:border-0 file:text-[13px] file:font-semibold file:bg-om-chip file:text-om-ink hover:file:bg-om-line2 file:transition-colors file:cursor-pointer"
+                            />
+                            <Button type="submit" variant="primary" disabled={isRestoring}>{__('Upload & Restore')}</Button>
+                        </form>
+
+                        {/* Existing backups */}
+                        {backups.length > 0 ? (
+                            <div className="border border-om-line rounded-om divide-y divide-om-line">
+                                {backups.map((b) => (
+                                    <div key={b.filename} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
+                                        <div className="min-w-0">
+                                            <div className="font-mono text-om-ink truncate">{b.filename}</div>
+                                            <div className="text-om-faint text-[11.5px]">{formatBytes(b.size_bytes)} · {new Date(b.created_at).toLocaleString()}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <a href={`/settings/backups/download/${b.filename}`} className="text-[12.5px] font-semibold text-om-ink hover:underline">{__('Download')}</a>
+                                            <button type="button" onClick={(e) => handleRestoreSubmit(e, b.filename)} disabled={isRestoring} className="text-[12.5px] font-semibold text-om-accent hover:underline disabled:opacity-50">{__('Restore')}</button>
+                                            <form method="POST" action={`/settings/backups/${b.filename}`} onSubmit={(e) => !confirm(__('Delete backup ":name"?', { name: b.filename })) && e.preventDefault()}>
+                                                <input type="hidden" name="_token" value={csrf_token} />
+                                                <input type="hidden" name="_method" value="DELETE" />
+                                                <button type="submit" className="text-[12.5px] font-semibold text-om-blocked hover:underline">{__('Delete')}</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-[13px] text-om-faint">{__('No backups yet.')}</p>
+                        )}
+                    </div>
+
+                    {/* Reset System — destructive */}
+                    <div className="bg-om-blocked-bg border border-om-blocked/20 rounded-om p-6">
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-blocked mb-1">{__('Reset System')}</h2>
+                        <p className={`${HELP_CLASS} mb-4`}>
+                            {__('Wipe all data, re-seed defaults and recreate the admin account. This cannot be undone. You will be logged out.')}
+                        </p>
+                        <form onSubmit={handleResetSubmit} className="flex flex-wrap items-center gap-3">
+                            <input
+                                type="text"
+                                name="confirm_text"
+                                value={resetText}
+                                onChange={(e) => setResetText(e.target.value)}
+                                placeholder={__('Type RESET to confirm')}
+                                className="bg-om-card border border-om-line rounded-om-sm px-3 py-2 text-[13px] text-om-ink outline-none focus:border-om-blocked"
+                            />
+                            <Button type="submit" variant="danger" disabled={resetText !== 'RESET' || isResetting}>{__('Reset System')}</Button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Blocking overlay while a restore/reset runs */}
+            {(isResetting || isRestoring) && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-om-card border border-om-line rounded-om px-8 py-6 text-center max-w-sm">
+                        <p className="text-[14px] font-semibold text-om-ink mb-1">{statusMessage}</p>
+                        {(resetCountdown ?? restoreCountdown) != null && (
+                            <p className="text-[13px] text-om-muted">{__('Redirecting in :count s…', { count: resetCountdown ?? restoreCountdown })}</p>
+                        )}
                     </div>
                 </div>
             )}

@@ -135,11 +135,27 @@ class SettingsController extends Controller
         $corsMaxRow = DB::table('system_settings')->where('key', 'cors_max_age')->first();
         $settings['cors_max_age'] = json_decode($corsMaxRow?->value ?? '0', true) ?? 0;
 
+        // Backup inventory (both created backup_*.zip and uploaded_*.zip).
+        $backups = [];
+        $backupsDir = storage_path('app/backups');
+        if (is_dir($backupsDir)) {
+            $backups = collect(glob($backupsDir.'/*.zip'))
+                ->map(fn ($file) => [
+                    'filename' => basename($file),
+                    'size_bytes' => filesize($file),
+                    'created_at' => date('c', filemtime($file)),
+                ])
+                ->sortByDesc('created_at')
+                ->values()
+                ->toArray();
+        }
+
         return Inertia::render('settings/System', [
             'settings' => $settings,
             'availableLocales' => $availableLocales,
             'appUrl' => config('app.url'),
             'modules' => \App\Support\ModuleRegistry::forForm(),
+            'backups' => $backups,
         ]);
     }
 

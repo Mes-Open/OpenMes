@@ -176,6 +176,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/system', [\App\Http\Controllers\Web\SettingsController::class, 'updateSystemSettings'])->name('update-system')->middleware('role:Admin');
         // Admin-only sample data
         Route::post('/sample-data', [\App\Http\Controllers\Web\SettingsController::class, 'loadSampleData'])->name('sample-data')->middleware('role:Admin');
+
+        // Admin-only backup & recovery
+        Route::post('/backups/full', [\App\Http\Controllers\Web\BackupController::class, 'createFullBackup'])->name('backups.full')->middleware('role:Admin');
+        Route::post('/backups/data', [\App\Http\Controllers\Web\BackupController::class, 'createDataBackup'])->name('backups.data')->middleware('role:Admin');
+        Route::post('/backups/upload', [\App\Http\Controllers\Web\BackupController::class, 'uploadBackup'])->name('backups.upload')->middleware('role:Admin');
+        Route::get('/backups/download/{filename}', [\App\Http\Controllers\Web\BackupController::class, 'downloadBackup'])->name('backups.download')->middleware('role:Admin');
+        Route::delete('/backups/{filename}', [\App\Http\Controllers\Web\BackupController::class, 'deleteBackup'])->name('backups.delete')->middleware('role:Admin');
+        Route::post('/backups/restore/{filename}', [\App\Http\Controllers\Web\BackupController::class, 'restoreBackup'])->name('backups.restore')->middleware('role:Admin');
+        Route::post('/reset', [\App\Http\Controllers\Web\BackupController::class, 'resetSystem'])->name('reset')->middleware('role:Admin');
+
         // Admin-only settings export/import
         Route::get('/export', [\App\Http\Controllers\Web\SettingsController::class, 'exportSettings'])->name('export')->middleware('role:Admin');
         Route::post('/import', [\App\Http\Controllers\Web\SettingsController::class, 'importSettings'])->name('import')->middleware('role:Admin');
