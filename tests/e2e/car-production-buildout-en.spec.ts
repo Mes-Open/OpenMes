@@ -12,10 +12,10 @@ const ADMIN = 'admin';
 const PASS = adminPassMatch ? adminPassMatch[1].trim() : 'MFRz9GZBkM9UEYTfsaHPLG1P';
 const TS = Date.now().toString().slice(-6);
 
-const LINE = `Dây chuyền lắp ráp ô tô ${TS}`;
-const PRODUCT = `Xe điện Sedan ${TS}`;
+const LINE = `Car Assembly Line ${TS}`;
+const PRODUCT = `EV Sedan ${TS}`;
 const WO = `WO-CAR-${TS}`;
-const TRIGGER = `QC Trực tuyến ${TS}`;
+const TRIGGER = `In-line QC ${TS}`;
 const EAN = `40${TS}0000`.slice(0, 13).padEnd(13, '0');
 const OP_USER = `carop${TS}`;
 const OP_PASS = 'Operator123!';
@@ -27,7 +27,7 @@ test.setTimeout(900_000); // 15 mins for full UI flow
 test.use({
   video: 'on',
   viewport: { width: 1280, height: 720 },
-  locale: 'vi-VN',
+  locale: 'en-US',
   timezoneId: 'Asia/Ho_Chi_Minh',
 });
 
@@ -106,10 +106,10 @@ test('build an EV sedan production configuration from zero and run it', async ({
   // execSync(`docker exec openmes-backend php artisan cache:clear`, { stdio: 'ignore' });
   // execSync(`docker exec openmes-backend php artisan tinker --execute="\\App\\Models\\User::create(['name' => 'Administrator', 'username' => config('openmmes.admin_username') ?: 'admin', 'email' => config('openmmes.admin_email') ?: 'admin@example.com', 'password' => \\Illuminate\\Support\\Facades\\Hash::make(config('openmmes.admin_password') ?: 'Admin1234!'), 'force_password_change' => false, 'email_verified_at' => now()])->assignRole('Admin');"`, { stdio: 'ignore' });
   
-  await stepSubtitle(page, 'Đăng nhập bằng tài khoản Quản trị viên (Admin)');
+  await stepSubtitle(page, 'Login as Administrator');
   await login(page, ADMIN, PASS);
 
-  await stepSubtitle(page, 'Tạo dây chuyền sản xuất: ' + LINE);
+  await stepSubtitle(page, 'Create Production Line: ' + LINE);
   await test.step('create assembly line', async () => {
     await page.goto('/admin/lines/create');
     await page.fill('input[name="code"]', `CAR-${TS}`);
@@ -118,7 +118,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await page.waitForURL(/\/admin\/lines$/);
   });
 
-  await stepSubtitle(page, 'Tạo loại sản phẩm: ' + PRODUCT);
+  await stepSubtitle(page, 'Create Product Type: ' + PRODUCT);
   await test.step('create product type', async () => {
     await page.goto('/admin/product-types/create');
     await page.fill('input[name="code"]', `SED-${TS}`);
@@ -128,22 +128,22 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await page.waitForURL(/\/admin\/product-types$/);
   });
 
-  await stepSubtitle(page, 'Tạo quy trình và định mức vật tư (BOM)');
+  await stepSubtitle(page, 'Create Process Template & BOM (Bill of Materials)');
   await test.step('create active process template with a step', async () => {
     await page.goto('/admin/product-types');
     await page.locator('.bg-om-card', { hasText: PRODUCT }).getByRole('button', { name: /(View Details|Xem chi tiết)/i }).click();
     await page.locator('a:has-text("Create"), a:has-text("Tạo"), a:has-text("Thêm")').first().click();
-    await page.fill('input#name', `Quy trình lắp ráp xe ${TS}`);
+    await page.fill('input#name', `EV Sedan Assembly Process ${TS}`);
     await page.getByRole('button', { name: /(Create Template|Tạo|Lưu)/i }).first().click();
     await page.waitForURL(/\/admin\/product-types\/\d+\/process-templates\/\d+/);
     
     await page.getByRole('button', { name: /(Add Step|Thêm bước)/i }).first().click();
-    await page.locator('input[placeholder*="Attach component"], input[placeholder*="Gắn linh kiện"]').fill('Lắp ráp hoàn chỉnh & Kiểm tra');
+    await page.locator('input[placeholder*="Attach component"], input[placeholder*="Gắn linh kiện"]').fill('Final Assembly & Inspection');
     await page.locator('form').getByRole('button', { name: /(Add Step|Thêm bước)/i }).click();
-    await expect(page.getByText('Lắp ráp hoàn chỉnh')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Final Assembly')).toBeVisible({ timeout: 15_000 });
   });
 
-  await stepSubtitle(page, 'Tạo trạm sản xuất (Workstation)');
+  await stepSubtitle(page, 'Create Workstation on the Production Line');
   await test.step('create workstation', async () => {
     await page.goto('/admin/lines');
     await page.locator('tr', { hasText: LINE }).getByRole('link', { name: /(Cấu hình|Configure)/i }).click();
@@ -151,7 +151,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await page.getByRole('link', { name: /(Add Workstation|Thêm trạm|Create Workstation|Tạo trạm)/i }).first().click();
 
     await page.getByPlaceholder(/WS-A01/i).fill(`WB-${TS}`);
-    await page.getByPlaceholder(/Assembly Station 1/i).fill(`Trạm lắp ráp ${TS}`);
+    await page.getByPlaceholder(/Assembly Station 1/i).fill(`Assembly Station ${TS}`);
     await createBtn(page).click();
     await page.waitForURL(/\/admin\/lines\/\d+\/workstations$/);
   });
@@ -165,7 +165,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     { code: `ECU-${TS}`,     name: `ECU ${TS}`,     qtyPerUnit: 1, stock: 40 },
   ];
 
-  await stepSubtitle(page, 'Khai báo danh mục Nguyên vật liệu');
+  await stepSubtitle(page, 'Register Raw Materials (6 Components)');
   await test.step('create materials', async () => {
     for (const mat of bomDefs) {
       await page.goto('/admin/materials/create');
@@ -179,7 +179,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     }
   });
 
-  await stepSubtitle(page, 'Nhập kho lô vật tư ban đầu (Thiết lập tồn kho)');
+  await stepSubtitle(page, 'Create Initial Material Lots (Inventory Setup)');
   await test.step('create material lots for stock', async () => {
     for (const mat of bomDefs) {
       await page.goto('/admin/material-lots/create');
@@ -194,12 +194,12 @@ test('build an EV sedan production configuration from zero and run it', async ({
     }
   });
 
-  await stepSubtitle(page, 'Thêm cấu trúc BOM vào quy trình');
+  await stepSubtitle(page, 'Attach BOM Items to Process Template');
   await test.step('add BOM items', async () => {
     await page.goto('/admin/product-types');
     await page.locator('.bg-om-card').filter({ hasText: PRODUCT }).getByRole('button', { name: /View Details|Xem chi tiết/i }).click();
     await page.locator('a:has-text("View All"), a:has-text("Xem tất cả")').first().click();
-    await page.locator('.bg-om-card').filter({ hasText: `Quy trình lắp ráp xe ${TS}` }).getByRole('button', { name: /View Steps/i }).click();
+    await page.locator('.bg-om-card').filter({ hasText: `EV Sedan Assembly Process ${TS}` }).getByRole('button', { name: /View Steps/i }).click();
     await page.locator('a:has-text("BOM")').first().click();
     
     for (const mat of bomDefs) {
@@ -211,7 +211,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     }
   });
 
-  await stepSubtitle(page, 'Tạo Lệnh sản xuất (Work Order) dự kiến 50 xe');
+  await stepSubtitle(page, 'Create Work Order for 50 EV Sedans');
   await test.step('create planned work order', async () => {
     await page.goto('/admin/work-orders/create');
     await page.fill('input[name="order_no"]', WO);
@@ -225,7 +225,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await page.waitForURL(/\/admin\/work-orders$/);
   });
 
-  await stepSubtitle(page, 'Đăng ký dải mã vạch EAN cho Lệnh sản xuất');
+  await stepSubtitle(page, 'Register EAN Barcode for the Work Order');
   await test.step('register EAN', async () => {
     await page.goto('/packaging/eans');
     await pickDropdown(page.locator('form button[aria-haspopup="listbox"]').first(), new RegExp(WO));
@@ -234,7 +234,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await expect(page.getByText(EAN)).toBeVisible({ timeout: 15_000 });
   });
 
-  await stepSubtitle(page, 'Tạo trigger kiểm tra chất lượng tự động');
+  await stepSubtitle(page, 'Create In-line Quality Control Trigger');
   await test.step('create in-line QC trigger', async () => {
     await page.goto('/admin/quality-control-triggers/create');
     await page.fill('input[name="name"]', TRIGGER);
@@ -243,7 +243,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await page.waitForURL(/\/admin\/quality-control-triggers$/);
   });
 
-  await stepSubtitle(page, 'MRP: Hệ thống phát hiện thiếu hụt linh kiện cho lệnh SX');
+  await stepSubtitle(page, 'MRP: System Detects Material Shortages');
   await test.step('MRP net requirements shows part shortages', async () => {
     await page.goto('/admin/net-requirements');
     await page.waitForTimeout(3000); // Overview pause
@@ -253,7 +253,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await expect(wheelRow).toContainText(WO);
   });
 
-  await stepSubtitle(page, 'Nhập kho bổ sung vật tư sau khi MRP báo thiếu');
+  await stepSubtitle(page, 'Receive Additional Materials After MRP Shortage Alert');
   await test.step('receive missing materials', async () => {
     for (const mat of bomDefs) {
       const required = mat.qtyPerUnit * 50;
@@ -271,7 +271,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     }
   });
 
-  await stepSubtitle(page, 'Tạo tài khoản Vận hành viên và Phân quyền');
+  await stepSubtitle(page, 'Create Operator Account & Assign to Line');
   await test.step('create operator + assign to line', async () => {
     await page.goto('/admin/users/create');
     await page.locator('input[type="text"]').nth(0).fill(`Car Operator ${TS}`);
@@ -292,13 +292,13 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await expect(page.getByText(`Car Operator ${TS}`)).toBeVisible({ timeout: 15_000 });
   });
 
-  await stepSubtitle(page, 'Vận hành viên đăng nhập vào hệ thống xưởng');
+  await stepSubtitle(page, 'Operator Logs Into the Shop Floor');
   const opCtx = await browser.newContext({ ignoreHTTPSErrors: true });
   const op = await opCtx.newPage();
   await addClickHighlighter(op);
   await login(op, OP_USER, OP_PASS);
 
-  await stepSubtitle(op, 'Operator khai báo trạng thái trạm: Cleaning -> Running');
+  await stepSubtitle(op, 'Operator Sets Machine State: Cleaning -> Running');
   await test.step('operator sets machine state cleaning then running', async () => {
     await op.goto('/operator/select-line');
     await op.locator('form').getByRole('button', { name: /(Select|Chọn)/i }).first().click();
@@ -312,7 +312,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await op.waitForTimeout(1000);
   });
 
-  await stepSubtitle(op, 'Operator nhận Lệnh sản xuất và bắt đầu Lô (Batch)');
+  await stepSubtitle(op, 'Operator Picks Work Order & Starts a Batch');
   await test.step('operator starts a batch step', async () => {
     await op.goto('/operator/queue');
     await op.getByText(WO, { exact: false }).first().click();
@@ -381,7 +381,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
   });
 
   let palletNo = '';
-  await stepSubtitle(op, 'Khai báo đóng gói xe lên Pallet và quét mã vạch');
+  await stepSubtitle(op, 'Pack a Car onto a Pallet & Scan Barcode');
   await test.step('package a car onto a pallet', async () => {
     console.log('Going to packaging station...');
     await op.goto('/packaging/station');
@@ -415,7 +415,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     console.log('Pallet step done.');
   });
 
-  await stepSubtitle(page, 'Nhân viên QC: Thực hiện kiểm tra chất lượng theo Trigger');
+  await stepSubtitle(page, 'QC Inspector: Perform In-line Quality Control');
   await test.step('perform quality control linked to the pallet', async () => {
     await page.goto('/admin/quality-tasks');
     const row = page.locator('tr', { hasText: WO }).first();
@@ -455,7 +455,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     console.log('QC step done.');
   });
 
-  await stepSubtitle(page, 'Quản đốc: Xác nhận xuất hàng (Ship Pallet)');
+  await stepSubtitle(page, 'Supervisor: Ship the Passed Pallet');
   await test.step('ship the passed pallet', async () => {
     await page.goto('/admin/pallets');
     const palletRow = page.locator('tr', { hasText: palletNo });
@@ -470,7 +470,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await expect(page.locator('tr', { hasText: palletNo })).toContainText(/(Shipped|Đã xuất)/i);
   });
 
-  await stepSubtitle(page, 'Quản đốc: Ghi nhận sự cố không phù hợp (Non-conformance)');
+  await stepSubtitle(page, 'Supervisor: Report & Disposition a Non-Conformance');
   await test.step('set disposition on a non-conformance (#11)', async () => {
     
     // Navigate back to the Work Order in Operator view to report the issue
@@ -487,7 +487,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await pickDropdown(issueDialog.locator('button[aria-haspopup="listbox"]').first(), /.+/);
     
     await issueDialog.locator('input[placeholder="Brief summary of the issue"]').fill(`Car NCR ${TS}`);
-    await issueDialog.locator('textarea[placeholder*="Additional details"]').fill('Bánh xe bị trầy xước trong quá trình lắp.');
+    await issueDialog.locator('textarea[placeholder*="Additional details"]').fill('Wheel scratched during assembly.');
     await issueDialog.getByRole('button', { name: /(Report Issue|Báo cáo)/i }).click();
     await expect(issueDialog).toBeHidden({ timeout: 15_000 });
 
@@ -508,7 +508,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await pickDropdown(resolveDialog.locator('button[aria-haspopup="listbox"]').first(), /(Rework|Làm lại)/i);
     
     // Fill Root Cause (the first textarea)
-    await resolveDialog.locator('textarea').first().fill('Chuyển qua trạm làm lại để thay bánh xe.');
+    await resolveDialog.locator('textarea').first().fill('Moved to rework station to replace the wheel.');
     
     // Submit
     await resolveDialog.getByRole('button', { name: /(Record disposition|Ghi nhận)/i }).click();
@@ -517,16 +517,16 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await expect(issueRow).toContainText(/(Rework|Làm lại)/i);
   });
 
-  await stepSubtitle(page, 'Hoàn tất kịch bản sản xuất End-to-End');
+  await stepSubtitle(page, 'End-to-End Production Scenario Complete ✓');
   await page.screenshot({ path: 'test-results/car-production-buildout.png', fullPage: true });
 
   // Show overview screens in the clip as requested
-  await stepSubtitle(page, 'Tổng quan bảng điều khiển (Dashboard)');
+  await stepSubtitle(page, 'Dashboard Overview');
   await page.goto('/admin/dashboard');
   await expect(page.getByText(/(Active Work Orders|Lệnh Sản Xuất Đang Mở)/i)).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(3000);
 
-  await stepSubtitle(page, 'Tổng quan tiến độ Lệnh Sản Xuất');
+  await stepSubtitle(page, 'Work Orders Progress Overview');
   await page.goto('/admin/work-orders');
   await expect(page.locator('table')).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(3000);
