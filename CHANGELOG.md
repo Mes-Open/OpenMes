@@ -7,6 +7,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-06-30
+
+### Fixed
+- **Release workflow couldn't build the distributable ZIP** *(CI)*: the GitHub release workflow inlined the commit log into a shell assignment (`LOG="${{ … }}"`), so a commit message containing double quotes broke out of the string and bash ran part of it as a command (`serials: command not found`, exit 127) — failing the release before any `openmmes-*.zip` was attached. The release-notes variables (`VERSION`, `CUSTOM`, `LOG`) now pass through `env:` instead of `${{ }}` interpolation, so commit text is read verbatim.
+
 ## [0.16.0] - 2026-06-30
 
 ### Added
