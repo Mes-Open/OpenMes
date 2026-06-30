@@ -182,7 +182,7 @@ export default function ProductTypeShow({
                                 </Link>
                                 <Link
                                     href={`/admin/product-types/${productType.id}/process-templates/create`}
-                                    className="btn-touch btn-primary text-sm"
+                                    className="btn-touch btn-accent text-sm"
                                 >
                                     <svg className="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

@@ -56,7 +56,7 @@ export default function ModulesInstall() {
                         <button
                             type="submit"
                             disabled={!filename}
-                            className={`btn-touch btn-primary${!filename ? ' opacity-50 cursor-not-allowed' : ''}`}
+                            className={`btn-touch btn-accent${!filename ? ' opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {__('Install Module')}
                         </button>
