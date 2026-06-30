@@ -98,7 +98,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
     return (
         <div className="card mb-6" style={{ borderLeft: '4px solid #3b82f6' }}>
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-om-ink">Add New Step</h2>
+                <h2 className="text-xl font-bold text-om-ink">{__("Add New Step")}</h2>
                 <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink">
                     <Icon d="M6 18L18 6M6 6l12 12" />
                 </button>
@@ -112,7 +112,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                             value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                             onChange={(v) => applySegment(v)}
                             options={[
-                                { value: '', label: '— Define ad-hoc step —' },
+                                { value: '', label: __('— Define ad-hoc step —') },
                                 ...processSegments.map((seg) => ({
                                     value: String(seg.id),
                                     label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
@@ -146,7 +146,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                             value={data.workstation_id == null ? '' : String(data.workstation_id)}
                             onChange={(v) => setData('workstation_id', v)}
                             options={[
-                                { value: '', label: 'No specific workstation' },
+                                { value: '', label: __('No specific workstation') },
                                 ...workstations.map((ws) => ({
                                     value: String(ws.id),
                                     label: `${ws.name} (${ws.line_name ?? '-'})`,
@@ -229,7 +229,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                         value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                         onChange={(v) => setData('process_segment_id', v)}
                         options={[
-                            { value: '', label: '— None (ad-hoc step) —' },
+                            { value: '', label: __('— None (ad-hoc step) —') },
                             ...processSegments.map((seg) => ({
                                 value: String(seg.id),
                                 label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
@@ -262,7 +262,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                         value={data.workstation_id == null ? '' : String(data.workstation_id)}
                         onChange={(v) => setData('workstation_id', v)}
                         options={[
-                            { value: '', label: 'No specific workstation' },
+                            { value: '', label: __('No specific workstation') },
                             ...workstations.map((ws) => ({
                                 value: String(ws.id),
                                 label: `${ws.name} (${ws.line_name ?? '-'})`,
@@ -647,7 +647,7 @@ export default function ProcessTemplatesShow() {
                         className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4"
                     >
                         <Icon d="M15 19l-7-7 7-7" />
-                        Back to Templates
+                        {__("Back to Templates")}
                     </a>
 
                     <div className="flex items-center justify-between">
@@ -720,7 +720,7 @@ export default function ProcessTemplatesShow() {
 
                 {/* Steps List header */}
                 <div className="flex items-center gap-2 mb-4">
-                    <h2 className="text-xl font-bold text-om-ink">Production Steps</h2>
+                    <h2 className="text-xl font-bold text-om-ink">{__("Production Steps")}</h2>
                     <span className="text-sm text-om-muted">(first to last)</span>
                 </div>
 
@@ -753,7 +753,7 @@ export default function ProcessTemplatesShow() {
                         <svg className="mx-auto h-16 w-16 text-om-faint mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
-                        <p className="text-lg font-medium text-om-muted">No production steps yet</p>
+                        <p className="text-lg font-medium text-om-muted">{__("No production steps yet")}</p>
                         <p className="text-sm text-om-muted mt-1 mb-4">
                             Add steps to define the manufacturing process for this product.
                         </p>
@@ -820,14 +820,14 @@ function PhotosSection({ productType, processTemplate }) {
     };
 
     const handleDelete = (photo) => {
-        if (!confirm('Delete this photo?')) return;
+        if (!confirm(__('Delete this photo?'))) return;
         router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
     };
 
     return (
         <div className="mt-10">
             <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-xl font-bold text-om-ink">General Reference Photos</h2>
+                <h2 className="text-xl font-bold text-om-ink">{__("General Reference Photos")}</h2>
                 <span className="text-sm text-om-muted">({photos.length}/20)</span>
             </div>
 
@@ -835,7 +835,7 @@ function PhotosSection({ productType, processTemplate }) {
             <form onSubmit={submit} className="card mb-4 flex flex-wrap items-end gap-3">
                 <div>
                     <label className="block text-sm font-medium text-om-muted mb-1">
-                        Photo <span className="text-xs text-om-faint">(JPEG/PNG/WebP, max 10 MB)</span>
+                        {__("Photo")} <span className="text-xs text-om-faint">{__("(JPEG/PNG/WebP, max 10 MB)")}</span>
                     </label>
                     <input
                         ref={fileInputRef}
@@ -846,7 +846,7 @@ function PhotosSection({ productType, processTemplate }) {
                     />
                 </div>
                 <div className="flex-1 min-w-[200px]">
-                    <label className="block text-sm font-medium text-om-muted mb-1">Caption</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__("Caption")}</label>
                     <input
                         type="text"
                         value={form.data.caption}

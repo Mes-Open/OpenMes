@@ -50,35 +50,35 @@ export default function WorkOrdersIndex() {
     ];
 
     const actions = (r) => {
-        const a = [{ label: 'Edit', icon: 'edit', href: `/admin/work-orders/${r.id}/edit` }];
+        const a = [{ label: __('Edit'), icon: 'edit', href: `/admin/work-orders/${r.id}/edit` }];
         const s = r.status;
 
         if (s === 'PENDING') {
-            a.push({ label: 'Accept', onClick: () => post(r.id, 'accept') });
-            a.push({ label: 'Reject', onClick: () => post(r.id, 'reject') });
+            a.push({ label: __('Accept'), onClick: () => post(r.id, 'accept') });
+            a.push({ label: __('Reject'), onClick: () => post(r.id, 'reject') });
         } else if (s === 'ACCEPTED') {
-            a.push({ label: 'Reject', onClick: () => post(r.id, 'reject') });
+            a.push({ label: __('Reject'), onClick: () => post(r.id, 'reject') });
         } else if (s === 'IN_PROGRESS') {
-            a.push({ label: 'Pause', onClick: () => post(r.id, 'pause') });
+            a.push({ label: __('Pause'), onClick: () => post(r.id, 'pause') });
             a.push({
-                label: 'Complete',
+                label: __('Complete'),
                 onClick: () => {
                     const qty = prompt('Produced quantity to complete with:', r.planned_qty);
                     if (qty) post(r.id, 'complete', { produced_qty: qty });
                 },
             });
         } else if (s === 'PAUSED') {
-            a.push({ label: 'Resume', onClick: () => post(r.id, 'resume') });
+            a.push({ label: __('Resume'), onClick: () => post(r.id, 'resume') });
         }
 
         if (TERMINAL.includes(s)) {
-            a.push({ label: 'Reopen', onClick: () => post(r.id, 'reopen') });
+            a.push({ label: __('Reopen'), onClick: () => post(r.id, 'reopen') });
         } else {
-            a.push({ label: 'Cancel', variant: 'warning', onClick: () => { if (confirm(`Cancel work order ${r.order_no}?`)) post(r.id, 'cancel'); } });
+            a.push({ label: __('Cancel'), variant: 'warning', onClick: () => { if (confirm(`Cancel work order ${r.order_no}?`)) post(r.id, 'cancel'); } });
         }
 
         a.push({
-            label: 'Delete',
+            label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
             onClick: () => { if (confirm(`Delete work order ${r.order_no}? (only allowed if it has no batches)`)) router.delete(`/admin/work-orders/${r.id}`, { preserveScroll: true }); },

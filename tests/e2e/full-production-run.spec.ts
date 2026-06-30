@@ -36,18 +36,22 @@ test.setTimeout(240_000);
 // Resolve an id the UI doesn't expose in a URL (navigation only — every write
 // still goes through the forms). Looks it up in the running om106 database.
 function dbValue(sql: string): string {
-  const php = `echo DB::selectOne("${sql}")->v;`.replace(/"/g, '\\"');
-  return execSync(`docker exec openmes-backend php artisan tinker --execute="${php}"`, { encoding: 'utf8' })
-    .trim()
-    .split('\n')
-    .pop()!
-    .trim();
+  const tmp = require('os').tmpdir().replace(/\\/g, '/') + '/e2e-' + Date.now() + '-' + Math.floor(Math.random()*1000) + '.php';
+  sql = sql.replace(/\\\\/g, '\\');
+  require('fs').writeFileSync(tmp, `<?php require '/var/www/html/vendor/autoload.php'; $app = require '/var/www/html/bootstrap/app.php'; $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); echo DB::selectOne("${sql}")->v;`);
+  execSync(`docker cp "${tmp}" openmes-backend:/tmp/seed.php`, { stdio: 'ignore' });
+  const out = execSync(`docker exec openmes-backend php /tmp/seed.php`, { encoding: 'utf8' });
+  try { require('fs').unlinkSync(tmp); } catch {}
+  return out.trim().split('\n').pop()!.trim();
 }
 
 function dbExec(php: string): void {
-  execSync(`docker exec openmes-backend php artisan tinker --execute="${php.replace(/"/g, '\\"')}"`, {
-    encoding: 'utf8',
-  });
+  const tmp = require('os').tmpdir().replace(/\\/g, '/') + '/e2e-' + Date.now() + '-' + Math.floor(Math.random()*1000) + '.php';
+  php = php.replace(/\\\\/g, '\\');
+  require('fs').writeFileSync(tmp, `<?php require '/var/www/html/vendor/autoload.php'; $app = require '/var/www/html/bootstrap/app.php'; $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); ${php}`);
+  execSync(`docker cp "${tmp}" openmes-backend:/tmp/seed.php`, { stdio: 'ignore' });
+  execSync(`docker exec openmes-backend php /tmp/seed.php`, { encoding: 'utf8' });
+  try { require('fs').unlinkSync(tmp); } catch {}
 }
 
 async function login(page: Page, user: string, pass: string) {
@@ -138,7 +142,7 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
     await page.goto('/packaging/eans');
     await pickDropdown(page.locator('form button[aria-haspopup="listbox"]').first(), new RegExp(WO));
     await page.locator('input[placeholder*="5901234123457"]').fill(EAN);
-    await page.getByRole('button', { name: /Dodaj EAN/ }).click();
+    await page.getByRole('button', { name: /(Dodaj EAN|Add EAN|Thêm EAN)/i }).click();
     await expect(page.getByText(EAN)).toBeVisible({ timeout: 15_000 });
   });
 

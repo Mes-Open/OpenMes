@@ -1,4 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
+import { __ } from '../../../lib/i18n';
 import { Button, Checkbox } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
@@ -21,7 +22,7 @@ export default function ProcessTemplatesEdit() {
 
     return (
         <>
-            <Head title="Edit Process Template" />
+            <Head title={__("Edit Process Template")} />
 
             <div className="max-w-2xl mx-auto">
                 <div className="mb-6">
@@ -34,7 +35,7 @@ export default function ProcessTemplatesEdit() {
                         </svg>
                         Back to Templates
                     </a>
-                    <h1 className="text-3xl font-bold text-om-ink">Edit Process Template</h1>
+                    <h1 className="text-3xl font-bold text-om-ink">{__("Edit Process Template")}</h1>
                     <p className="text-sm text-om-muted mt-1">
                         {productType.name} — Version {processTemplate.version}
                     </p>

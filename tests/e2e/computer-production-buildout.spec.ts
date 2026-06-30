@@ -31,12 +31,13 @@ test.describe.configure({ mode: 'serial' });
 test.setTimeout(300_000);
 
 function tinker(php: string): string {
-  // Escape for the shell double-quoted --execute="..." wrapper: protect PHP
-  // strings (") AND PHP variables ($) from being expanded by /bin/sh.
-  const escaped = php.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-  return execSync(`docker exec openmes-backend php artisan tinker --execute="${escaped}"`, {
-    encoding: 'utf8',
-  }).trim().split('\n').pop()!.trim();
+  const tmp = require('os').tmpdir().replace(/\\/g, '/') + '/e2e-' + Date.now() + '-' + Math.floor(Math.random()*1000) + '.php';
+  php = php.replace(/\\\\/g, '\\');
+  require('fs').writeFileSync(tmp, `<?php require '/var/www/html/vendor/autoload.php'; $app = require '/var/www/html/bootstrap/app.php'; $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); ${php}`);
+  execSync(`docker cp "${tmp}" openmes-backend:/tmp/seed.php`, { stdio: 'ignore' });
+  const out = execSync(`docker exec openmes-backend php /tmp/seed.php`, { encoding: 'utf8' });
+  try { require('fs').unlinkSync(tmp); } catch {}
+  return out.trim().split('\n').pop()!.trim();
 }
 
 async function login(page: Page, user: string, pass: string) {
@@ -130,7 +131,7 @@ test('build a Desktop PC production configuration from zero and run it', async (
     await page.goto('/packaging/eans');
     await pickDropdown(page.locator('form button[aria-haspopup="listbox"]').first(), new RegExp(WO));
     await page.locator('input[placeholder*="5901234123457"]').fill(EAN);
-    await page.getByRole('button', { name: /Dodaj EAN/ }).click();
+    await page.getByRole('button', { name: /(Dodaj EAN|Add EAN|Thêm EAN)/i }).click();
     await expect(page.getByText(EAN)).toBeVisible({ timeout: 15_000 });
   });
   await test.step('create in-production QC trigger', async () => {

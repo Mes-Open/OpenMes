@@ -61,11 +61,11 @@ export default function ProductTypeShow({
 
     return (
         <>
-            <Head title="Product Type Details" />
+            <Head title={__("Product Type Details")} />
 
             {/* Breadcrumbs */}
             <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
-                <Link href="/admin/dashboard" className="hover:underline">Dashboard</Link>
+                <Link href="/admin/dashboard" className="hover:underline">{__("Dashboard")}</Link>
                 <span>/</span>
                 <Link href="/admin/product-types" className="hover:underline">Product Types</Link>
                 <span>/</span>
@@ -85,9 +85,9 @@ export default function ProductTypeShow({
                         <div className="flex items-center gap-4">
                             <h1 className="text-3xl font-bold text-om-ink">{productType.name}</h1>
                             {productType.is_active ? (
-                                <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">Active</span>
+                                <span className="px-3 py-1 bg-om-running-bg text-om-running rounded-full text-sm font-medium">{__("Active")}</span>
                             ) : (
-                                <span className="px-3 py-1 bg-om-chip text-om-muted rounded-full text-sm font-medium">Inactive</span>
+                                <span className="px-3 py-1 bg-om-chip text-om-muted rounded-full text-sm font-medium">{__("Inactive")}</span>
                             )}
                         </div>
                         <div className="flex gap-2">
@@ -139,7 +139,7 @@ export default function ProductTypeShow({
                     <div className="card">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-om-muted">Process Templates</p>
+                                <p className="text-sm text-om-muted">{__("Process Templates")}</p>
                                 <p className="text-3xl font-bold text-om-accent">{templateCount}</p>
                             </div>
                             <div className="bg-om-chip rounded-full p-3">
@@ -152,7 +152,7 @@ export default function ProductTypeShow({
                     <div className="card">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-om-muted">Work Orders</p>
+                                <p className="text-sm text-om-muted">{__("Work Orders")}</p>
                                 <p className="text-3xl font-bold text-om-ink">{totalWorkOrders}</p>
                             </div>
                             <div className="bg-om-chip rounded-full p-3">
@@ -172,7 +172,7 @@ export default function ProductTypeShow({
                     {/* Process Templates */}
                     <div className="card">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-om-ink">Process Templates</h2>
+                            <h2 className="text-xl font-bold text-om-ink">{__("Process Templates")}</h2>
                             <div className="flex gap-2">
                                 <Link
                                     href={`/admin/product-types/${productType.id}/process-templates`}
@@ -205,9 +205,9 @@ export default function ProductTypeShow({
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <p className="font-medium text-om-ink">{template.name}</p>
                                                     {template.is_active ? (
-                                                        <span className="px-2 py-1 bg-om-running-bg text-om-running rounded-full text-xs font-medium">Active</span>
+                                                        <span className="px-2 py-1 bg-om-running-bg text-om-running rounded-full text-xs font-medium">{__("Active")}</span>
                                                     ) : (
-                                                        <span className="px-2 py-1 bg-om-chip text-om-muted rounded-full text-xs font-medium">Inactive</span>
+                                                        <span className="px-2 py-1 bg-om-chip text-om-muted rounded-full text-xs font-medium">{__("Inactive")}</span>
                                                     )}
                                                 </div>
                                                 <p className="text-xs text-om-muted">
@@ -226,15 +226,15 @@ export default function ProductTypeShow({
                                 <svg className="mx-auto h-12 w-12 text-om-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <p className="text-om-muted mb-2">No process templates yet</p>
-                                <p className="text-sm text-om-muted">Process templates define how this product is manufactured.</p>
+                                <p className="text-om-muted mb-2">{__("No process templates yet")}</p>
+                                <p className="text-sm text-om-muted">{__("Process templates define how this product is manufactured.")}</p>
                             </div>
                         )}
                     </div>
 
                     {/* Recent Work Orders */}
                     <div className="card">
-                        <h2 className="text-xl font-bold text-om-ink mb-4">Recent Work Orders</h2>
+                        <h2 className="text-xl font-bold text-om-ink mb-4">{__("Recent Work Orders")}</h2>
                         {recentWorkOrders.length > 0 ? (
                             <>
                                 <div className="space-y-2">
@@ -266,7 +266,7 @@ export default function ProductTypeShow({
                                 <svg className="mx-auto h-12 w-12 text-om-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                                 </svg>
-                                <p className="text-om-muted">No work orders yet</p>
+                                <p className="text-om-muted">{__("No work orders yet")}</p>
                             </div>
                         )}
                     </div>

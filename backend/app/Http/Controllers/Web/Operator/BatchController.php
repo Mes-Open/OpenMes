@@ -54,18 +54,24 @@ class BatchController extends Controller
      */
     public function startStep(StartStepRequest $request, BatchStep $batchStep)
     {
+        \Log::info('startStep called for step ' . $batchStep->id . ' by user ' . $request->user()->id . ' (selected_line_id: ' . $request->session()->get('selected_line_id') . ')');
+        
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            \Log::error('stepBelongsToSelectedLine failed');
             return back()->with('error', 'This step does not belong to the selected line.');
         }
 
         try {
             $picksByMaterial = $this->reshapePicks($request->validated()['picks'] ?? []);
             $this->batchService->startStep($batchStep, $request->user(), $picksByMaterial);
+            \Log::info('startStep succeeded');
 
             return back()->with('success', 'Step started. Materials have been allocated.');
         } catch (InsufficientStockException|\DomainException $e) {
+            \Log::error('startStep domain error: ' . $e->getMessage());
             return back()->withErrors(['picks' => $e->getMessage()])->with('error', $e->getMessage());
         } catch (\Exception $e) {
+            \Log::error('startStep exception: ' . $e->getMessage());
             return back()->with('error', $e->getMessage());
         }
     }

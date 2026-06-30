@@ -67,7 +67,7 @@ class ProcessTemplateManagementController extends Controller
         $template = ProcessTemplate::create($validated);
 
         return redirect()->route('admin.product-types.process-templates.show', [$productType, $template])
-            ->with('success', 'Process template created successfully. Now add production steps.');
+            ->with('success', __('Process template created successfully. Now add production steps.'));
     }
 
     /**

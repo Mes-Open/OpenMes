@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { __ } from '../../../lib/i18n';
 import { Button, Checkbox, Dropdown, RadioGroup } from '@openmes/ui';
 import { useState } from 'react';
 
@@ -38,32 +39,32 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
         <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             {/* Account type */}
             <div>
-                <label className="block text-sm font-medium text-om-muted mb-1">Account Type</label>
+                <label className="block text-sm font-medium text-om-muted mb-1">{__("Account Type")}</label>
                 <RadioGroup
                     options={[
-                        { value: 'user', label: 'Personal user' },
-                        { value: 'workstation', label: 'Workstation' },
+                        { value: 'user', label: __('Personal user') },
+                        { value: 'workstation', label: __('Workstation') },
                     ]}
                     value={data.account_type}
                     onChange={(v) => setData('account_type', v)}
                 />
             </div>
 
-            <Field label="Name" error={errors.name} required>
+            <Field label={__("Name")} error={errors.name} required>
                 <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" />
             </Field>
-            <Field label="Username" error={errors.username} required>
+            <Field label={__("Username")} error={errors.username} required>
                 <input type="text" value={data.username} onChange={(e) => setData('username', e.target.value)} className="form-input w-full" />
             </Field>
-            <Field label="Email" error={errors.email} required>
+            <Field label={__("Email")} error={errors.email} required>
                 <input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} className="form-input w-full" />
             </Field>
 
             <div className="grid grid-cols-2 gap-4">
-                <Field label={isEdit ? 'Password (blank = keep)' : 'Password'} error={errors.password} required={!isEdit}>
+                <Field label={isEdit ? __("Password (blank = keep)") : __("Password")} error={errors.password} required={!isEdit}>
                     <input type="password" value={data.password} onChange={(e) => setData('password', e.target.value)} className="form-input w-full" autoComplete="new-password" />
                 </Field>
-                <Field label="Confirm Password">
+                <Field label={__("Confirm Password")}>
                     <input type="password" value={data.password_confirmation} onChange={(e) => setData('password_confirmation', e.target.value)} className="form-input w-full" autoComplete="new-password" />
                 </Field>
             </div>
@@ -71,26 +72,26 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
             <Checkbox
                 checked={!!data.force_password_change}
                 onChange={(next) => setData('force_password_change', next)}
-                label="Require password change at next login"
+                label={__("Require password change at next login")}
             />
 
             {isUser ? (
-                <Field label="Role" error={errors.role} required>
+                <Field label={__("Role")} error={errors.role} required>
                     <Dropdown
                         options={roles.map((r) => ({ value: String(r), label: r }))}
                         value={data.role == null ? '' : String(data.role)}
                         onChange={(v) => setData('role', v)}
-                        placeholder="— Select role —"
+                        placeholder={__("— Select role —")}
                         className="w-full"
                     />
                 </Field>
             ) : (
-                <Field label="Workstation" error={errors.workstation_id} required>
+                <Field label={__("Workstation")} error={errors.workstation_id} required>
                     <Dropdown
                         options={workstations.map((w) => ({ value: String(w.id), label: w.name }))}
                         value={data.workstation_id == null ? '' : String(data.workstation_id)}
                         onChange={(v) => setData('workstation_id', v)}
-                        placeholder="— Select workstation —"
+                        placeholder={__("— Select workstation —")}
                         className="w-full"
                     />
                 </Field>

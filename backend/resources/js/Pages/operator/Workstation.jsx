@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { __ } from '../../lib/i18n';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, Checkbox, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
@@ -355,10 +356,10 @@ function InfoModal({ info, onClose }) {
             >
                 <ModalHeader title="Order Details" subtitle={info.orderNo} onClose={onClose} />
                 <div className="px-[18px] py-4 space-y-3">
-                    <InfoRow label="Order #"><span className="font-mono text-[13px] font-medium text-om-ink">{info.orderNo}</span></InfoRow>
-                    <InfoRow label="Product"><span className="text-sm font-medium text-om-ink">{info.product}</span></InfoRow>
-                    <InfoRow label="Line"><span className="text-sm font-medium text-om-ink">{info.line}</span></InfoRow>
-                    <InfoRow label="Status"><span className="text-sm font-semibold text-om-ink">{info.status}</span></InfoRow>
+                    <InfoRow label={__("Order #")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.orderNo}</span></InfoRow>
+                    <InfoRow label={__("Product")}><span className="text-sm font-medium text-om-ink">{info.product}</span></InfoRow>
+                    <InfoRow label={__("Line")}><span className="text-sm font-medium text-om-ink">{info.line}</span></InfoRow>
+                    <InfoRow label={__("Status")}><span className="text-sm font-semibold text-om-ink">{info.status}</span></InfoRow>
                     <div className="grid grid-cols-3 gap-3 py-2">
                         <div className="text-center">
                             <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Planned</p>
@@ -373,8 +374,8 @@ function InfoModal({ info, onClose }) {
                             <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-accent">{info.remaining}</p>
                         </div>
                     </div>
-                    <InfoRow label="Priority"><span className="font-mono text-[13px] font-medium text-om-ink">{info.priority}</span></InfoRow>
-                    <InfoRow label="Due Date"><span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span></InfoRow>
+                    <InfoRow label={__("Priority")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.priority}</span></InfoRow>
+                    <InfoRow label={__("Due Date")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span></InfoRow>
                     {info.description && info.description !== '-' && (
                         <div>
                             <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Description</p>
@@ -599,13 +600,13 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
 
 function StatusBadge({ status }) {
     if (status === 'DONE') {
-        return <StatusPill status="done" label="Done" />;
+        return <StatusPill status="done" label={__("Done")} />;
     }
     if (status === 'IN_PROGRESS') {
-        return <StatusPill status="running" label="In Progress" />;
+        return <StatusPill status="running" label={__("In Progress")} />;
     }
     if (status === 'BLOCKED') {
-        return <StatusPill status="blocked" label="Blocked" />;
+        return <StatusPill status="blocked" label={__("Blocked")} />;
     }
     return <StatusPill status="pending" label={statusLabel(status)} />;
 }
@@ -750,7 +751,7 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                         ?
                     </IconButton>
                     {labelTemplates.some((t) => t.type === 'work_order') && (
-                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label="Label" />
+                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label={__("Label")} />
                     )}
                 </div>
             </td>

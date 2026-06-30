@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { __ } from '../../../lib/i18n';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
@@ -55,7 +56,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
     return (
         <div className="card mb-6" style={{ borderLeft: '4px solid #3b82f6' }}>
             <h3 className="text-lg font-semibold mb-4">
-                {isEdit ? `Edit BOM Item - ${item.material_name}` : 'Add Material to BOM'}
+                {isEdit ? `${__("Edit BOM Item")} - ${item.material_name}` : __("Add Material to BOM")}
             </h3>
             <form onSubmit={submit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -69,7 +70,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                     ) : (
                         <div>
                             <label className="block text-sm font-medium text-om-muted mb-1">
-                                Material <span className="text-om-blocked">*</span>
+                                {__("Material")} <span className="text-om-blocked">*</span>
                             </label>
                             <Dropdown
                                 value={data.material_id == null ? '' : String(data.material_id)}
@@ -89,7 +90,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
 
                     <div>
                         <label className="block text-sm font-medium text-om-muted mb-1">
-                            Quantity per Unit{unit ? ` (${unit})` : ''} <span className="text-om-blocked">*</span>
+                            {__("Quantity per Unit")}{unit ? ` (${unit})` : ''} <span className="text-om-blocked">*</span>
                         </label>
                         <input
                             type="number"
@@ -110,7 +111,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
 
                     <div>
                         <label className="block text-sm font-medium text-om-muted mb-1">
-                            Step (optional)
+                            {__("Step (optional)")}
                         </label>
                         <Dropdown
                             value={data.template_step_id == null ? '' : String(data.template_step_id)}
@@ -127,7 +128,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">Scrap %</label>
+                        <label className="block text-sm font-medium text-om-muted mb-1">{__("Scrap %")}</label>
                         <input
                             type="number"
                             step="0.01"
@@ -145,7 +146,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">Consumed At</label>
+                        <label className="block text-sm font-medium text-om-muted mb-1">{__("Consumed At")}</label>
                         <Dropdown
                             value={data.consumed_at == null ? '' : String(data.consumed_at)}
                             onChange={(v) => setData('consumed_at', v)}
@@ -159,7 +160,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-1">Notes</label>
+                        <label className="block text-sm font-medium text-om-muted mb-1">{__("Notes")}</label>
                         <input
                             type="text"
                             value={data.notes}
@@ -176,8 +177,8 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                     </button>
                     <button type="submit" disabled={processing} className="btn-touch btn-primary">
                         {isEdit
-                            ? (processing ? 'Saving…' : 'Save Changes')
-                            : (processing ? 'Adding…' : 'Add to BOM')}
+                            ? (processing ? __("Saving…") : __("Save Changes"))
+                            : (processing ? __("Adding…") : __("Add to BOM"))}
                     </button>
                 </div>
             </form>
@@ -197,7 +198,7 @@ export default function ProcessTemplatesBom() {
     };
 
     const handleRemove = (item) => {
-        if (!confirm('Remove this material from BOM?')) return;
+        if (!confirm(__('Remove this material from BOM?'))) return;
         router.delete(
             `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/bom/${item.id}`,
             { preserveScroll: true },
@@ -208,7 +209,7 @@ export default function ProcessTemplatesBom() {
         {
             id: 'material',
             accessorKey: 'material_name',
-            header: 'Material',
+            header: __('Material'),
             cell: ({ row }) => (
                 <>
                     <div className="text-sm font-medium text-om-ink">
@@ -221,7 +222,7 @@ export default function ProcessTemplatesBom() {
         {
             id: 'type',
             accessorKey: 'material_type_name',
-            header: 'Type',
+            header: __('Type'),
             cell: ({ row }) => (
                 <span
                     className={`px-2 py-1 rounded-full text-xs font-medium ${typeColorClass(
@@ -235,13 +236,13 @@ export default function ProcessTemplatesBom() {
         {
             id: 'step',
             accessorFn: (r) => (r.step_number != null ? `#${r.step_number} ${r.step_name}` : ''),
-            header: 'Step',
+            header: __('Step'),
             cell: ({ row }) => (
                 <span className="text-sm text-om-muted">
                     {row.original.step_number != null ? (
                         `#${row.original.step_number} ${row.original.step_name}`
                     ) : (
-                        <span className="text-om-faint">General</span>
+                        <span className="text-om-faint">{__("General")}</span>
                     )}
                 </span>
             ),
@@ -249,7 +250,7 @@ export default function ProcessTemplatesBom() {
         {
             id: 'qty_per_unit',
             accessorKey: 'quantity_per_unit',
-            header: 'Qty/Unit',
+            header: __('Qty/Unit'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className="text-sm font-mono">
@@ -260,7 +261,7 @@ export default function ProcessTemplatesBom() {
         {
             id: 'scrap',
             accessorKey: 'scrap_percentage',
-            header: 'Scrap %',
+            header: __('Scrap %'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className="text-sm">{row.original.scrap_percentage}%</span>
@@ -284,7 +285,7 @@ export default function ProcessTemplatesBom() {
         },
         {
             id: 'actions',
-            header: 'Actions',
+            header: __('Actions'),
             enableSorting: false,
             meta: { align: 'right' },
             cell: ({ row }) => (
@@ -326,7 +327,7 @@ export default function ProcessTemplatesBom() {
 
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold text-om-ink">Bill of Materials</h1>
+                            <h1 className="text-3xl font-bold text-om-ink">{__("Bill of Materials")}</h1>
                             <p className="text-sm text-om-muted mt-1">
                                 {processTemplate.name} (v{processTemplate.version}) &bull; {productType.name}
                             </p>
@@ -342,7 +343,7 @@ export default function ProcessTemplatesBom() {
                             <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                             </svg>
-                            Add Material
+                            {__("Add Material")}
                         </button>
                     </div>
                 </div>
@@ -379,7 +380,7 @@ export default function ProcessTemplatesBom() {
                     />
                 ) : (
                     <div className="card text-center py-12">
-                        <p className="text-om-muted text-lg mb-4">No materials in BOM yet.</p>
+                        <p className="text-om-muted text-lg mb-4">{__("No materials in BOM yet.")}</p>
                         <button
                             type="button"
                             onClick={() => setShowAddForm(true)}

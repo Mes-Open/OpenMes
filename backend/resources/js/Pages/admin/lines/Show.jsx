@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { __ } from '../../../lib/i18n';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
@@ -159,14 +160,14 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
         <div className="bg-om-card rounded-om-sm shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h2 className="text-xl font-bold text-om-ink">Assigned Product Types</h2>
-                    <p className="text-sm text-om-muted mt-0.5">Product types that can be produced on this line.</p>
+                    <h2 className="text-xl font-bold text-om-ink">{__("Assigned Product Types")}</h2>
+                    <p className="text-sm text-om-muted mt-0.5">{__("Product types that can be produced on this line.")}</p>
                 </div>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
                 {line.product_types.length === 0 ? (
-                    <p className="text-sm text-om-faint">No product types assigned — all types are allowed.</p>
+                    <p className="text-sm text-om-faint">{__("No product types assigned — all types are allowed.")}</p>
                 ) : (
                     line.product_types.map((pt) => (
                         <span
@@ -193,7 +194,7 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
                 {open && (
                     <form onSubmit={submit} className="mt-3">
                         {allProductTypes.length === 0 ? (
-                            <p className="text-sm text-om-muted">No active product types defined yet.</p>
+                            <p className="text-sm text-om-muted">{__("No active product types defined yet.")}</p>
                         ) : (
                             <>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-3">
@@ -242,7 +243,7 @@ function WorkstationsCard({ line, effectiveWorkstations }) {
         <div className="bg-om-card rounded-om-sm shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h2 className="text-xl font-bold text-om-ink">Workstations</h2>
+                    <h2 className="text-xl font-bold text-om-ink">{__("Workstations")}</h2>
                     {effectiveWorkstations.length === 0 || (effectiveWorkstations.length === 1 && effectiveWorkstations[0].is_line_itself) ? (
                         <p className="text-sm text-om-downtime mt-0.5 font-medium">
                             No workstations configured — line itself acts as a single workstation.
@@ -281,7 +282,7 @@ function WorkstationsCard({ line, effectiveWorkstations }) {
                             <p className="text-sm font-semibold text-om-ink truncate">{ws.name}</p>
                             <p className="text-xs text-om-faint font-mono">{ws.code}</p>
                             {ws.is_line_itself && (
-                                <p className="text-xs text-om-downtime">virtual (line = workstation)</p>
+                                <p className="text-xs text-om-downtime">{__("virtual (line = workstation)")}</p>
                             )}
                         </div>
                     </div>
@@ -505,13 +506,13 @@ function ViewTemplateCard({ line, allViewTemplates }) {
 
     return (
         <div className="bg-om-card rounded-om-sm shadow-sm p-6 mt-6">
-            <h2 className="text-xl font-bold text-om-ink mb-1">Workstation View</h2>
+            <h2 className="text-xl font-bold text-om-ink mb-1">{__("Workstation View")}</h2>
             <p className="text-sm text-om-muted mb-4">
                 Select a view template that defines which columns operators see in the Workstation view for this line.
             </p>
             <form onSubmit={submit} className="flex items-end gap-3">
                 <div className="flex-1">
-                    <label className="block text-sm font-medium text-om-muted mb-1">View Template</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__("View Template")}</label>
                     <Dropdown
                         options={[
                             { value: '', label: '— Default (no custom columns) —' },
@@ -593,7 +594,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
 
     return (
         <div className="bg-om-card rounded-om-sm shadow-sm p-6 mt-4">
-            <h2 className="text-xl font-bold text-om-ink mb-1">Workstation View Columns</h2>
+            <h2 className="text-xl font-bold text-om-ink mb-1">{__("Workstation View Columns")}</h2>
             <p className="text-sm text-om-muted mb-4">
                 Configure which columns operators see in the Workstation view for this line.{' '}
                 Columns with source <strong>extra_data</strong> pull values from the work order&apos;s imported data.{' '}
@@ -647,27 +648,27 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
                 {/* Add new column */}
                 <div className="flex flex-wrap gap-2 items-end border-t border-om-line2 pt-4 mb-4">
                     <div className="flex-1 min-w-[140px]">
-                        <label className="text-xs text-om-muted block mb-1">Column Label</label>
+                        <label className="text-xs text-om-muted block mb-1">{__("Column Label")}</label>
                         <input
                             type="text"
                             value={newLabel}
                             onChange={(e) => setNewLabel(e.target.value)}
-                            placeholder="e.g. Material"
+                            placeholder={__("e.g. Material")}
                             className="form-input w-full text-sm"
                         />
                     </div>
                     <div className="flex-1 min-w-[140px]">
-                        <label className="text-xs text-om-muted block mb-1">Data Key</label>
+                        <label className="text-xs text-om-muted block mb-1">{__("Data Key")}</label>
                         <input
                             type="text"
                             value={newKey}
                             onChange={(e) => setNewKey(e.target.value)}
-                            placeholder="e.g. material"
+                            placeholder={__("e.g. material")}
                             className="form-input w-full text-sm"
                         />
                     </div>
                     <div className="w-36">
-                        <label className="text-xs text-om-muted block mb-1">Source</label>
+                        <label className="text-xs text-om-muted block mb-1">{__("Source")}</label>
                         <Dropdown
                             options={[
                                 { value: 'extra_data', label: 'extra_data' },
@@ -798,7 +799,7 @@ export default function LineShow() {
                 >
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-om-muted">Workstations</p>
+                            <p className="text-sm text-om-muted">{__("Workstations")}</p>
                             <p className="text-3xl font-bold text-om-running">{line.workstations_count}</p>
                         </div>
                         <div className="bg-om-running-bg rounded-full p-3">

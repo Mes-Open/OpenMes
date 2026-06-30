@@ -14,10 +14,13 @@ const CUST = `CUST-PO-${TS}`;
 const WO = `WO-TRACE-${TS}`;
 
 function tinker(php: string): string {
-  const escaped = php.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-  return execSync(`docker exec openmes-backend php artisan tinker --execute="${escaped}"`, {
-    encoding: 'utf8',
-  }).trim().split('\n').pop()!.trim();
+  const tmp = require('os').tmpdir().replace(/\\/g, '/') + '/e2e-' + Date.now() + '-' + Math.floor(Math.random()*1000) + '.php';
+  php = php.replace(/\\\\/g, '\\');
+  require('fs').writeFileSync(tmp, `<?php require '/var/www/html/vendor/autoload.php'; $app = require '/var/www/html/bootstrap/app.php'; $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap(); ${php}`);
+  execSync(`docker cp "${tmp}" openmes-backend:/tmp/seed.php`, { stdio: 'ignore' });
+  const out = execSync(`docker exec openmes-backend php /tmp/seed.php`, { encoding: 'utf8' });
+  try { require('fs').unlinkSync(tmp); } catch {}
+  return out.trim().split('\n').pop()!.trim();
 }
 
 async function login(page: Page) {
