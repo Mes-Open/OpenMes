@@ -98,4 +98,18 @@ return [
         'email' => env('ADMIN_EMAIL'),
         'password' => env('ADMIN_PASSWORD'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Demo Mode
+    |--------------------------------------------------------------------------
+    |
+    | Marks an instance as a public demo. When on, the scheduled
+    | `demo:refresh-oee` command rolls the demo OEE/production data forward to
+    | today each day, so the OEE report never decays into N/A on a long-running
+    | demo. Off (default) on real installs — the command then no-ops and never
+    | touches production data.
+    |
+    */
+    'demo_mode' => env('DEMO_MODE', false),
 ];
