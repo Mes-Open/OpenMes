@@ -12,7 +12,7 @@
         <div class="text-center mb-8">
             <img src="/logo_open_mes.png" alt="OpenMES" class="h-16 md:h-20 mx-auto mb-2">
             <h1 class="text-2xl font-bold text-gray-800">Installation Wizard</h1>
-            <p class="text-gray-600 mt-2">Step 3 of 3: Create Admin Account</p>
+            <p class="text-gray-600 mt-2">Step 4 of 4: Create Admin Account</p>
         </div>
 
         <!-- Progress Indicator -->
@@ -29,7 +29,12 @@
                 </div>
                 <div class="w-8 h-1 bg-green-600"></div>
                 <div class="flex items-center">
-                    <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                    <a href="{{ route('install.modules') }}" class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold hover:bg-green-700 transition" title="Edit module selection">✓</a>
+                    <a href="{{ route('install.modules') }}" class="ml-2 text-sm font-medium text-green-700 hover:text-green-800">Modules</a>
+                </div>
+                <div class="w-8 h-1 bg-green-600"></div>
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">4</div>
                     <span class="ml-2 text-sm font-medium text-gray-800">Admin</span>
                 </div>
             </div>

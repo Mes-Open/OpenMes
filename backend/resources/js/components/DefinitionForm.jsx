@@ -1,4 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
+import { Checkbox, DatePicker, Dropdown } from '@openmes/ui';
 import { __ } from '../lib/i18n';
 
 /**
@@ -34,7 +35,7 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
     const isRange = RANGE_TYPES.includes(data.type);
 
     return (
-        <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6 max-w-2xl space-y-5">
+        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
             <SelectField label={__('Entity')} required value={data.entity_type} error={errors.entity_type}
                 placeholder={__('— Select entity —')} options={entities} onChange={(v) => setData('entity_type', v)} />
 
@@ -72,10 +73,10 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
 
             <div className="flex items-center gap-3 pt-2">
                 <button type="submit" disabled={processing}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                    className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover disabled:opacity-50">
                     {processing ? __('Saving…') : (submitLabel ?? __('Save'))}
                 </button>
-                <Link href="/admin/custom-fields" className="text-gray-500 hover:text-gray-800 text-sm">{__('Cancel')}</Link>
+                <Link href="/admin/custom-fields" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
             </div>
         </form>
     );
@@ -84,12 +85,16 @@ export default function DefinitionForm({ action, method = 'post', initial, entit
 function TextField({ label, value, error, onChange, required, help, type = 'text' }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {label} {required && <span className="text-om-blocked">*</span>}
             </label>
-            <input type={type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
-            {help && <p className="text-sm text-gray-500 mt-1">{help}</p>}
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {type === 'date' ? (
+                <DatePicker className="w-full" value={value || null} onChange={(iso) => onChange(iso ?? '')} />
+            ) : (
+                <input type={type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
+            )}
+            {help && <p className="text-sm text-om-muted mt-1">{help}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }
@@ -97,37 +102,37 @@ function TextField({ label, value, error, onChange, required, help, type = 'text
 function SelectField({ label, value, error, onChange, required, placeholder, options }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {label} {required && <span className="text-om-blocked">*</span>}
             </label>
-            <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full">
-                {placeholder && <option value="">{placeholder}</option>}
-                {options.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-            </select>
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            <Dropdown
+                className="w-full"
+                options={options.map((o) => ({ value: String(o.value), label: o.label }))}
+                value={value == null ? '' : String(value)}
+                onChange={(v) => onChange(v)}
+                placeholder={placeholder}
+            />
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }
 
 function CheckboxField({ label, checked, onChange }) {
     return (
-        <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
-            <input type="checkbox" checked={!!checked} onChange={(e) => onChange(e.target.checked)} />
-            {label}
-        </label>
+        <div className="pb-2">
+            <Checkbox checked={!!checked} onChange={(next) => onChange(next)} label={label} />
+        </div>
     );
 }
 
 function OptionsEditor({ options, setOption, addOption, removeOption, error }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {__('Options')} <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {__('Options')} <span className="text-om-blocked">*</span>
             </label>
             <div className="space-y-2">
-                {options.length === 0 && <p className="text-sm text-gray-400">{__('No options yet.')}</p>}
+                {options.length === 0 && <p className="text-sm text-om-faint">{__('No options yet.')}</p>}
                 {options.map((o, i) => (
                     <div key={i} className="flex items-center gap-2">
                         <input className="form-input flex-1" placeholder={__('value')} value={o.value ?? ''}
@@ -135,14 +140,14 @@ function OptionsEditor({ options, setOption, addOption, removeOption, error }) {
                         <input className="form-input flex-1" placeholder={__('label')} value={o.label ?? ''}
                             onChange={(e) => setOption(i, { label: e.target.value })} />
                         <button type="button" onClick={() => removeOption(i)}
-                            className="text-red-600 hover:text-red-800 text-sm px-2" title={__('Remove')}>✕</button>
+                            className="text-om-blocked hover:text-om-blocked text-sm px-2" title={__('Remove')}>✕</button>
                     </div>
                 ))}
             </div>
-            <button type="button" onClick={addOption} className="mt-2 text-sm text-blue-600 hover:text-blue-800">
+            <button type="button" onClick={addOption} className="mt-2 text-sm text-om-accent hover:text-om-accent">
                 {__('+ Add option')}
             </button>
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

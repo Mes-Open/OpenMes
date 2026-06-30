@@ -7,12 +7,12 @@ export default function ShiftsIndex() {
     const { lineNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
-        { key: 'line', label: __('Line'), className: 'text-gray-600', render: (r) => (r.line_id ? lineNames[r.line_id] ?? `#${r.line_id}` : __('Global')) },
-        { key: 'start_time', label: __('Start'), className: 'text-gray-600', render: (r) => (r.start_time ?? '').slice(0, 5) },
-        { key: 'end_time', label: __('End'), className: 'text-gray-600', render: (r) => (r.end_time ?? '').slice(0, 5) },
-        { key: 'sort_order', label: __('Order'), className: 'text-gray-600' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'line', label: __('Line'), className: 'text-om-muted', render: (r) => (r.line_id ? lineNames[r.line_id] ?? `#${r.line_id}` : __('Global')) },
+        { key: 'start_time', label: __('Start'), className: 'text-om-muted', render: (r) => (r.start_time ?? '').slice(0, 5) },
+        { key: 'end_time', label: __('End'), className: 'text-om-muted', render: (r) => (r.end_time ?? '').slice(0, 5) },
+        { key: 'sort_order', label: __('Order'), className: 'text-om-muted' },
         { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];
 

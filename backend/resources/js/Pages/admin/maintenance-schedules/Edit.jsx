@@ -8,7 +8,7 @@ export default function MaintenanceScheduleEdit() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${schedule.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Maintenance Schedule</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Maintenance Schedule</h1>
             <ResourceForm
                 action={`/admin/maintenance-schedules/${schedule.id}`}
                 method="put"

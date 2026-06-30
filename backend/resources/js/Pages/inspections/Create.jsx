@@ -1,6 +1,12 @@
+// Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Button, Dropdown, TextField } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+
+const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
+const INPUT_CLASS =
+    'w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
 
 export default function InspectionsCreate() {
     const { materials = [], plans = [] } = usePage().props;
@@ -9,7 +15,6 @@ export default function InspectionsCreate() {
         material_id: '',
         lot_number: '',
         supplier_lot_ref: '',
-        source_container_no: '',
         quantity_received: '',
         inspection_plan_id: '',
     });
@@ -24,133 +29,96 @@ export default function InspectionsCreate() {
             <Head title={__('Start Inspection')} />
 
             <div className="max-w-2xl mx-auto">
-                <h1 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">{__('Start Inspection')}</h1>
+                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-4">{__('Start Inspection')}</h1>
 
-                <form onSubmit={submit} className="card space-y-4">
+                <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-6 space-y-5">
                     {/* Material */}
                     <div>
-                        <label className="block text-sm font-medium mb-1">
-                            {__('Material')} <span className="text-red-500">*</span>
+                        <label className={LABEL_CLASS}>
+                            {__('Material')} <span className="text-om-accent">*</span>
                         </label>
-                        <select
-                            value={data.material_id}
-                            onChange={(e) => setData('material_id', e.target.value)}
-                            required
-                            className="form-input w-full"
-                        >
-                            <option value="">{__('-- choose --')}</option>
-                            {materials.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                    {m.code} — {m.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={data.material_id == null ? '' : String(data.material_id)}
+                            onChange={(v) => setData('material_id', v)}
+                            placeholder={__('-- choose --')}
+                            options={materials.map((m) => ({
+                                value: String(m.id),
+                                label: `${m.code} — ${m.name}`,
+                            }))}
+                            className="w-full"
+                        />
                         {errors.material_id && (
-                            <p className="text-red-600 text-xs mt-1">{errors.material_id}</p>
+                            <p className="text-[11.5px] text-om-blocked mt-1">{errors.material_id}</p>
                         )}
                     </div>
 
                     {/* Lot + Supplier ref */}
                     <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">
-                                {__('Lot number')} <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                maxLength={100}
-                                value={data.lot_number}
-                                onChange={(e) => setData('lot_number', e.target.value)}
-                                className="form-input w-full"
-                            />
-                            {errors.lot_number && (
-                                <p className="text-red-600 text-xs mt-1">{errors.lot_number}</p>
-                            )}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">{__('Supplier lot ref')}</label>
-                            <input
-                                type="text"
-                                maxLength={100}
-                                value={data.supplier_lot_ref}
-                                onChange={(e) => setData('supplier_lot_ref', e.target.value)}
-                                className="form-input w-full"
-                            />
-                            {errors.supplier_lot_ref && (
-                                <p className="text-red-600 text-xs mt-1">{errors.supplier_lot_ref}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Source container (scan) */}
-                    <div>
-                        <label className="block text-sm font-medium mb-1">{__('Source container no')}</label>
-                        <input
-                            type="text"
+                        <TextField
+                            label={<>{__('Lot number')} <span className="text-om-accent">*</span></>}
+                            mono
+                            required
                             maxLength={100}
-                            value={data.source_container_no}
-                            onChange={(e) => setData('source_container_no', e.target.value)}
-                            placeholder={__('Scan container barcode…')}
-                            className="form-input w-full font-mono"
+                            value={data.lot_number}
+                            onChange={(v) => setData('lot_number', v)}
+                            error={errors.lot_number}
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                            {__('Scan the barcode of the container/pallet the delivery arrived in. Carried onto the created material lot for traceability.')}
-                        </p>
-                        {errors.source_container_no && (
-                            <p className="text-red-600 text-xs mt-1">{errors.source_container_no}</p>
-                        )}
+                        <TextField
+                            label={__('Supplier lot ref')}
+                            mono
+                            maxLength={100}
+                            value={data.supplier_lot_ref}
+                            onChange={(v) => setData('supplier_lot_ref', v)}
+                            error={errors.supplier_lot_ref}
+                        />
                     </div>
 
                     {/* Quantity received */}
-                    <div>
-                        <label className="block text-sm font-medium mb-1">{__('Quantity received')}</label>
-                        <input
-                            type="number"
-                            step="0.001"
-                            min="0"
-                            value={data.quantity_received}
-                            onChange={(e) => setData('quantity_received', e.target.value)}
-                            className="form-input w-full"
-                        />
-                        {errors.quantity_received && (
-                            <p className="text-red-600 text-xs mt-1">{errors.quantity_received}</p>
-                        )}
-                    </div>
+                    <TextField
+                        label={__('Quantity received')}
+                        mono
+                        type="number"
+                        step="0.001"
+                        min="0"
+                        value={data.quantity_received}
+                        onChange={(v) => setData('quantity_received', v)}
+                        error={errors.quantity_received}
+                    />
 
                     {/* Inspection plan */}
                     <div>
-                        <label className="block text-sm font-medium mb-1">{__('Inspection plan')}</label>
-                        <select
-                            value={data.inspection_plan_id}
-                            onChange={(e) => setData('inspection_plan_id', e.target.value)}
-                            className="form-input w-full"
-                        >
-                            <option value="">{__('— no plan (ad-hoc) —')}</option>
-                            {plans.map((plan) => (
-                                <option key={plan.id} value={plan.id}>
-                                    {plan.name}
-                                    {plan.material ? ` (${plan.material.name})` : ''}
-                                    {plan.material_type ? ` (${plan.material_type.name})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <label className={LABEL_CLASS}>{__('Inspection plan')}</label>
+                        <Dropdown
+                            value={data.inspection_plan_id == null ? '' : String(data.inspection_plan_id)}
+                            onChange={(v) => setData('inspection_plan_id', v)}
+                            placeholder={__('— no plan (ad-hoc) —')}
+                            options={plans.map((plan) => ({
+                                value: String(plan.id),
+                                label: `${plan.name}${plan.material ? ` (${plan.material.name})` : ''}${
+                                    plan.material_type ? ` (${plan.material_type.name})` : ''
+                                }`,
+                            }))}
+                            className="w-full"
+                        />
+                        <p className="text-[12.5px] text-om-muted mt-1">
                             {__('If no plan is selected, you can still record results but no criteria will be pre-filled.')}
                         </p>
                         {errors.inspection_plan_id && (
-                            <p className="text-red-600 text-xs mt-1">{errors.inspection_plan_id}</p>
+                            <p className="text-[11.5px] text-om-blocked mt-1">{errors.inspection_plan_id}</p>
                         )}
                     </div>
 
                     {/* Actions */}
                     <div className="flex justify-end gap-2">
-                        <Link href="/inspections" className="btn-touch btn-secondary">
+                        <Link
+                            href="/inspections"
+                            className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
+                        >
                             {__('Cancel')}
                         </Link>
-                        <button type="submit" disabled={processing} className="btn-touch btn-primary disabled:opacity-50">
+                        <Button type="submit" variant="accent" loading={processing}>
                             {__('Start')}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

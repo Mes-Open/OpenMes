@@ -19,6 +19,12 @@ class PalletRequest extends FormRequest
 
         return [
             'work_order_id' => ['required', 'exists:work_orders,id'],
+            // One batch per pallet; nullable, and must belong to the chosen work order.
+            'batch_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('batches', 'id')->where(fn ($q) => $q->where('work_order_id', $this->input('work_order_id'))),
+            ],
             'qty' => ['nullable', 'integer', 'min:0'],
             'status' => ['required', Rule::enum(PalletStatus::class)],
             'location' => ['nullable', 'string', 'max:100'],

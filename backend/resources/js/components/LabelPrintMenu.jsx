@@ -11,8 +11,6 @@ import { Link } from '@inertiajs/react';
  *   id        — entity id (workOrder / batch / batchStep)
  *   templates — all active label templates [{id,name,type,size,barcode_format,is_default}]
  *   label     — button text (default 'Print Label')
- *   iconOnly  — hide the text label, render just the printer icon + chevron
- *               (saves space in dense tablet tables; `label` becomes the tooltip)
  */
 const KIND_TO_TYPE = {
     'work-order': 'work_order',
@@ -21,7 +19,7 @@ const KIND_TO_TYPE = {
     pallet: 'pallet',
 };
 
-export default function LabelPrintMenu({ kind, id, templates = [], label = 'Print Label', iconOnly = false }) {
+export default function LabelPrintMenu({ kind, id, templates = [], label = 'Print Label' }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     const wantType = KIND_TO_TYPE[kind];
@@ -46,11 +44,9 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
     if (applicable.length === 0) {
         return (
             <Link href="/packaging/label-templates"
-               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
-               title={iconOnly ? label : 'Configure label templates first'}
-               aria-label={iconOnly ? label : undefined}>
-                {printIcon}
-                {!iconOnly && 'Set up labels…'}
+               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-sm bg-om-chip hover:bg-om-line2 text-om-muted"
+               title="Configure label templates first">
+                {printIcon} Set up labels…
             </Link>
         );
     }
@@ -62,34 +58,32 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                title={iconOnly ? label : undefined}
-                aria-label={iconOnly ? label : undefined}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-sm bg-om-chip hover:bg-om-line2 text-om-muted"
             >
                 {printIcon}
-                {!iconOnly && label}
+                {label}
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
             {open && (
-                <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 z-50">
+                <div className="absolute right-0 mt-1 w-64 bg-om-card rounded-om-sm shadow-lg border border-om-line2 z-50">
                     <div className="p-2">
-                        <p className="px-2 py-1 text-xs text-gray-500 uppercase tracking-wide">Choose template</p>
+                        <p className="px-2 py-1 text-xs text-om-muted uppercase tracking-wide">Choose template</p>
                         {applicable.map((t) => (
                             <div key={t.id} className="px-2 py-1.5">
-                                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
+                                <p className="text-sm font-medium text-om-muted truncate">
                                     {t.name}
-                                    {t.is_default && <span className="text-[10px] text-blue-600 ml-1">default</span>}
+                                    {t.is_default && <span className="text-[10px] text-om-accent ml-1">default</span>}
                                 </p>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-om-muted">
                                     {t.size} mm · {String(t.barcode_format ?? '').toUpperCase()}
                                 </p>
                                 <div className="flex gap-2 mt-1">
                                     <a href={url(t.id, 'pdf')} target="_blank" rel="noreferrer"
-                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">PDF</a>
+                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-om-ink text-om-on-ink hover:bg-om-ink-hover">PDF</a>
                                     <a href={url(t.id, 'zpl')}
-                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-gray-700 text-white hover:bg-gray-800">ZPL</a>
+                                       className="flex-1 text-center text-xs px-2 py-1 rounded bg-om-ink text-om-on-ink hover:bg-om-ink-hover">ZPL</a>
                                 </div>
                             </div>
                         ))}

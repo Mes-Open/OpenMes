@@ -8,13 +8,14 @@ export default function SupervisorWorkOrderEdit() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${workOrder.order_no}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Work Order</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Work Order</h1>
             <ResourceForm
                 action={`/supervisor/work-orders/${workOrder.id}`}
                 method="put"
                 fields={woFields(lines, productTypes, { withStatus: true })}
                 initial={{
                     order_no: workOrder.order_no ?? '',
+                    customer_order_no: workOrder.customer_order_no ?? '',
                     line_id: workOrder.line_id != null ? String(workOrder.line_id) : '',
                     product_type_id: workOrder.product_type_id != null ? String(workOrder.product_type_id) : '',
                     planned_qty: workOrder.planned_qty ?? '',

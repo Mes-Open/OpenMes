@@ -69,7 +69,8 @@ class SerialTraceService
             'workOrder.productType:id,name,code',
             'batch:id,batch_number,lot_number',
             'material:id,name,code',
-            'history.workstation:id,name,code',
+            'history.workstation:id,name,code,line_id',
+            'history.workstation.line:id,name,code',
             'history.operator:id,name',
             'history.batchStep:id,name,step_number',
         ]);

@@ -106,6 +106,7 @@ class SettingsController extends Controller
             'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
             'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
             'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']?->value ?? 'false', true) ?? false,
+            'backflush_on_pallet_creation' => json_decode($rows['backflush_on_pallet_creation']?->value ?? 'false', true) ?? false,
             'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
             'language' => json_decode($rows['language']?->value ?? '"en"', true) ?? 'en',
@@ -135,10 +136,29 @@ class SettingsController extends Controller
         $corsMaxRow = DB::table('system_settings')->where('key', 'cors_max_age')->first();
         $settings['cors_max_age'] = json_decode($corsMaxRow?->value ?? '0', true) ?? 0;
 
+        // Read backups list
+        $backups = [];
+        $backupsDir = storage_path('app/backups');
+        if (is_dir($backupsDir)) {
+            $backups = collect(glob($backupsDir.'/*.zip'))
+                ->map(function ($file) {
+                    return [
+                        'filename' => basename($file),
+                        'size_bytes' => filesize($file),
+                        'created_at' => date('c', filemtime($file)),
+                    ];
+                })
+                ->sortByDesc('created_at')
+                ->values()
+                ->toArray();
+        }
+
         return Inertia::render('settings/System', [
             'settings' => $settings,
             'availableLocales' => $availableLocales,
             'appUrl' => config('app.url'),
+            'modules' => \App\Support\ModuleRegistry::forForm(),
+            'backups' => $backups,
         ]);
     }
 
@@ -273,10 +293,30 @@ class SettingsController extends Controller
      */
     public function loadSampleData()
     {
-        Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+        // Guard against a second load: re-running the demo seeder against an
+        // already-populated database races on unique keys (the 409s seen in the
+        // field). Once loaded, tell the admin instead of re-seeding.
+        if (DB::table('system_settings')->where('key', 'sample_data_loaded')->exists()) {
+            return redirect()->route('settings.system')
+                ->with('info', __('Sample data has already been loaded.'));
+        }
+
+        try {
+            Artisan::call('db:seed', ['--class' => 'PrintShopDemoSeeder', '--force' => true]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->route('settings.system')
+                ->with('error', __('Could not load sample data: :msg', ['msg' => $e->getMessage()]));
+        }
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'sample_data_loaded'],
+            ['value' => json_encode(true), 'updated_at' => now()],
+        );
 
         return redirect()->route('settings.system')
-            ->with('success', 'Sample data loaded successfully. Lines, work orders, operators and product types have been created.');
+            ->with('success', __('Sample data loaded successfully. Lines, work orders, operators and product types have been created.'));
     }
 
     /**
@@ -289,6 +329,7 @@ class SettingsController extends Controller
             'allow_overproduction' => 'nullable|boolean',
             'force_sequential_steps' => 'nullable|boolean',
             'workstation_routing_enabled' => 'nullable|boolean',
+            'backflush_on_pallet_creation' => 'nullable|boolean',
             'workflow_mode' => 'required|in:status,board_status',
             'pin_login_enabled' => 'nullable|boolean',
             // Single source of truth — the language switcher's configured locales.
@@ -309,6 +350,9 @@ class SettingsController extends Controller
             'default_currency' => 'nullable|string|size:3',
             'default_pay_type' => 'nullable|in:hourly,weekly,piece_rate',
             'default_pay_rate' => 'nullable|numeric|min:0',
+            // Optional feature modules (#144).
+            'enabled_modules' => 'nullable|array',
+            'enabled_modules.*' => ['string', Rule::in(\App\Support\ModuleRegistry::optionalKeys())],
         ]);
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
@@ -319,6 +363,7 @@ class SettingsController extends Controller
             'allow_overproduction' => (bool) ($validated['allow_overproduction'] ?? false),
             'force_sequential_steps' => (bool) ($validated['force_sequential_steps'] ?? false),
             'workstation_routing_enabled' => (bool) ($validated['workstation_routing_enabled'] ?? false),
+            'backflush_on_pallet_creation' => (bool) ($validated['backflush_on_pallet_creation'] ?? false),
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
             'language' => $validated['language'] ?? 'en',
@@ -353,6 +398,12 @@ class SettingsController extends Controller
                 ['key' => $key],
                 ['value' => json_encode($value)]
             );
+        }
+
+        // Optional feature modules (#144) — only when the section was submitted,
+        // so saving unrelated settings never resets the module selection.
+        if ($request->has('enabled_modules')) {
+            \App\Support\ModuleRegistry::save($validated['enabled_modules'] ?? []);
         }
 
         Cache::forget('cors_allowed_origins');

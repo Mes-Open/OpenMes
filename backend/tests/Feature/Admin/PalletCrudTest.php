@@ -102,7 +102,8 @@ class PalletCrudTest extends TestCase
 
     public function test_admin_can_update_pallet(): void
     {
-        $pallet = Pallet::factory()->create(['status' => 'open']);
+        // quality_status must be 'pass' to allow the shipped transition (#106 gate).
+        $pallet = Pallet::factory()->create(['status' => 'open', 'quality_status' => 'pass']);
 
         $this->actingAs($this->admin)
             ->put(route('admin.pallets.update', $pallet), [

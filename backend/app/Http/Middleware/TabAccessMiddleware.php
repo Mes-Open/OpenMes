@@ -32,7 +32,26 @@ class TabAccessMiddleware
             return $next($request);
         }
 
-        abort_unless($user->can(TabRegistry::permission($tab)), 403);
+        // A feature module switched off for this installation (#144) is gone —
+        // 404 so a deep link behaves like the area doesn't exist, not "forbidden".
+        abort_unless(\App\Support\ModuleRegistry::isTabEnabled($tab), 404);
+
+        if (! $user->can(TabRegistry::permission($tab))) {
+            // The dashboard is the admin panel's implicit home. Bouncing a user
+            // who CAN open other tabs with a hard 403 there is a dead end (the
+            // field 403 on /admin/dashboard). For that one case, on a normal
+            // navigation, send them to the first tab they can open instead.
+            // Every specific resource tab keeps a real 403 (the access-matrix
+            // contract) — and so does any API / non-GET request.
+            if ($tab === 'dashboard' && $request->isMethod('GET') && ! $request->expectsJson()) {
+                $landing = TabRegistry::firstAccessibleUrl($user);
+                if ($landing && trim($landing, '/') !== trim($request->path(), '/')) {
+                    return redirect($landing);
+                }
+            }
+
+            abort(403);
+        }
 
         return $next($request);
     }

@@ -112,6 +112,24 @@ class ShapeRegistry
             'table' => 'issue_types',
             'columns' => ['id', 'code', 'name', 'severity', 'is_blocking', 'is_active', 'created_at', 'updated_at'],
         ],
+        // Quality-control trigger config (#105) — admin list.
+        'quality_control_triggers' => [
+            'table' => 'quality_control_triggers',
+            'columns' => [
+                'id', 'name', 'trigger_type', 'quality_check_template_id', 'line_id', 'workstation_id',
+                'product_type_id', 'threshold_n', 'downtime_min_minutes', 'is_blocking', 'is_active',
+                'created_at', 'updated_at',
+            ],
+        ],
+        // Outstanding quality controls (#105) — the operator/supervisor "due" queue.
+        'quality_control_tasks_due' => [
+            'table' => 'quality_control_tasks',
+            'columns' => [
+                'id', 'quality_control_trigger_id', 'status', 'work_order_id', 'batch_id', 'workstation_id',
+                'line_id', 'due_reason', 'quality_check_id', 'issue_id', 'fired_at', 'created_at', 'updated_at',
+            ],
+            'where' => "status IN ('due', 'in_progress')",
+        ],
         'materials' => [
             'table' => 'materials',
             'columns' => ['id', 'code', 'name', 'description', 'material_type_id', 'unit_of_measure', 'tracking_type', 'default_scrap_percentage', 'external_code', 'external_system', 'stock_quantity', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
@@ -138,7 +156,7 @@ class ShapeRegistry
         ],
         'pallets' => [
             'table' => 'pallets',
-            'columns' => ['id', 'pallet_no', 'work_order_id', 'qty', 'status', 'location', 'erp_reference', 'created_at', 'updated_at'],
+            'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
         ],
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
@@ -157,7 +175,7 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'customer_order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [
@@ -174,7 +192,7 @@ class ShapeRegistry
         ],
         'material_lots' => [
             'table' => 'material_lots',
-            'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'source_container_no', 'created_at', 'updated_at'],
+            'columns' => ['id', 'lot_number', 'material_id', 'source_id', 'quantity_received', 'quantity_available', 'unit_of_measure', 'received_at', 'manufacturing_date', 'expiry_date', 'status', 'supplier_lot_no', 'supplier_reference', 'source_container_no', 'issue_id', 'hold_reason', 'held_at', 'held_by_id', 'released_at', 'released_by_id', 'created_at', 'updated_at'],
         ],
         'view_templates' => [
             'table' => 'view_templates',
@@ -191,7 +209,23 @@ class ShapeRegistry
         // All issues (any status) for the supervisor/admin issue management page.
         'issues_all' => [
             'table' => 'issues',
-            'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'work_order_id', 'issue_type_id', 'title', 'description', 'status', 'disposition', 'non_conforming_qty', 'root_cause', 'containment_action', 'nc_source', 'disposition_at', 'reported_by_id', 'assigned_to_id', 'reported_at', 'acknowledged_at', 'resolved_at', 'closed_at', 'material_id', 'source', 'custom_fields', 'created_at', 'updated_at'],
+        ],
+        'issue_actions' => [
+            'table' => 'issue_actions',
+            'columns' => ['id', 'issue_id', 'type', 'title', 'description', 'status', 'assigned_to_id', 'due_date', 'completed_at', 'completed_by_id', 'verified_at', 'verified_by_id', 'notes', 'created_at', 'updated_at'],
+        ],
+        // Outgoing webhooks (#20). NEVER sync `secret` — the HMAC signing key
+        // must not leave the server.
+        'webhooks' => [
+            'table' => 'webhooks',
+            'columns' => ['id', 'name', 'url', 'events', 'is_active', 'last_triggered_at', 'created_at', 'updated_at'],
+        ],
+        // Delivery log — payload/response_body are excluded to keep the stream
+        // light; the status/code/error are enough for the admin list.
+        'webhook_deliveries' => [
+            'table' => 'webhook_deliveries',
+            'columns' => ['id', 'webhook_id', 'event_type', 'status', 'attempts', 'response_code', 'error', 'delivered_at', 'created_at', 'updated_at'],
         ],
     ];
 

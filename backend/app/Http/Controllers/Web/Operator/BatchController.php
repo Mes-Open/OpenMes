@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Web\Operator;
 
+use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\BatchStepChecklistCompletion;
+use App\Models\BatchStepDocument;
+use App\Models\TemplateStepChecklistItem;
 use App\Models\WorkOrder;
 use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
+use App\Services\Material\MaterialAllocationService;
 use App\Services\Production\PackagingChecklistService;
 use App\Services\Production\ProcessConfirmationService;
 use App\Services\Production\QualityCheckService;
@@ -25,25 +31,72 @@ class BatchController extends Controller
         protected QualityCheckService $qcService,
         protected PackagingChecklistService $checklistService,
         protected BatchService $batchService,
+        protected MaterialAllocationService $allocationService,
     ) {}
+
+    /**
+     * Read-only proposal for the WO-time lot-picking modal shown before a step
+     * starts. Returns the materials this step start would lot-pick, each with the
+     * proposed split + candidate lots. Empty list → the UI skips the modal.
+     */
+    public function pickPreview(Request $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return response()->json(['message' => 'This step does not belong to the selected line.'], 403);
+        }
+
+        return response()->json([
+            'materials' => $this->allocationService->pickPreviewForStep($batchStep),
+        ]);
+    }
 
     /**
      * Start a batch step (React replacement for the old Livewire BatchStepList).
      * Delegates to BatchService::startStep, which also allocates BOM materials.
+     * Optionally accepts operator-chosen lot picks (WO-time "suggest + override").
      */
-    public function startStep(Request $request, BatchStep $batchStep)
+    public function startStep(StartStepRequest $request, BatchStep $batchStep)
     {
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
             return back()->with('error', 'This step does not belong to the selected line.');
         }
 
         try {
-            $this->batchService->startStep($batchStep, $request->user());
+            $picksByMaterial = $this->reshapePicks($request->validated()['picks'] ?? []);
+            $this->batchService->startStep($batchStep, $request->user(), $picksByMaterial);
 
             return back()->with('success', 'Step started. Materials have been allocated.');
+        } catch (InsufficientStockException|\DomainException $e) {
+            return back()->withErrors(['picks' => $e->getMessage()])->with('error', $e->getMessage());
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Reshape the validated picks payload into a material-keyed map for the
+     * allocation service: [material_id => [['material_lot_id'=>, 'picked_qty'=>], ...]].
+     *
+     * @param  array<int, array{material_id: int, lots: array<int, array{material_lot_id: int, picked_qty: float}>}>  $picks
+     * @return array<int, array<int, array{material_lot_id: int, picked_qty: float}>>
+     */
+    private function reshapePicks(array $picks): array
+    {
+        $out = [];
+        foreach ($picks as $row) {
+            $materialId = (int) ($row['material_id'] ?? 0);
+            if ($materialId <= 0) {
+                continue;
+            }
+            foreach ($row['lots'] ?? [] as $lot) {
+                $out[$materialId][] = [
+                    'material_lot_id' => (int) $lot['material_lot_id'],
+                    'picked_qty' => (float) $lot['picked_qty'],
+                ];
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -62,6 +115,93 @@ class BatchController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Validate a mandatory document attached to a step (shop-floor document
+     * control). Records who validated it and when; once validated, the step's
+     * completion gate clears. Idempotent.
+     */
+    public function validateDocument(Request $request, BatchStepDocument $batchStepDocument)
+    {
+        $batchStepDocument->loadMissing('batchStep');
+        $step = $batchStepDocument->batchStep;
+
+        if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
+            return back()->with('error', 'This document does not belong to the selected line.');
+        }
+
+        $batchStepDocument->markValidated($request->user());
+
+        return back()->with('success', 'Document validated.');
+    }
+
+    /**
+     * Stream a step document's uploaded file to the operator so they can read it
+     * before validating (line-scoped). Range-enabled via response()->file().
+     */
+    public function showDocumentFile(Request $request, BatchStepDocument $batchStepDocument)
+    {
+        $batchStepDocument->loadMissing('batchStep');
+        $step = $batchStepDocument->batchStep;
+
+        if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
+            abort(403);
+        }
+        abort_unless($batchStepDocument->file_path && \Illuminate\Support\Facades\Storage::exists($batchStepDocument->file_path), 404);
+
+        // Only render a narrow safelist inline; anything else (HTML, SVG, ...) is
+        // forced to download, so an uploaded document can't run script in the
+        // operator's session. nosniff stops the browser second-guessing the type.
+        $inlineSafe = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
+        $mime = $batchStepDocument->mime_type ?? 'application/octet-stream';
+        $disposition = in_array($mime, $inlineSafe, true) ? 'inline' : 'attachment';
+
+        return response()->file(\Illuminate\Support\Facades\Storage::path($batchStepDocument->file_path), [
+            'Content-Type' => $mime,
+            'Content-Disposition' => $disposition.'; filename="'.addslashes($batchStepDocument->original_name ?? 'document').'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
+    /**
+     * Toggle a work-instruction checklist item on a step: tick it (recording who
+     * and when) or un-tick it. The item is defined on the step's template; we
+     * verify it belongs to this step's template and step number before recording.
+     */
+    public function toggleChecklistItem(Request $request, BatchStep $batchStep, TemplateStepChecklistItem $checklistItem)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', 'This step does not belong to the selected line.');
+        }
+
+        // Anti-IDOR: the item must belong to this step's template and step number.
+        $templateId = $batchStep->batch?->workOrder?->process_snapshot['template_id'] ?? null;
+        $checklistItem->loadMissing('templateStep:id,step_number');
+        if ($checklistItem->process_template_id !== $templateId
+            || $checklistItem->templateStep?->step_number !== $batchStep->step_number) {
+            return back()->with('error', 'This checklist item does not belong to this step.');
+        }
+
+        $existing = BatchStepChecklistCompletion::where('batch_step_id', $batchStep->id)
+            ->where('checklist_item_id', $checklistItem->id)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+
+            return back()->with('success', 'Checklist item unchecked.');
+        }
+
+        BatchStepChecklistCompletion::create([
+            'batch_step_id' => $batchStep->id,
+            'checklist_item_id' => $checklistItem->id,
+            'checked_by_id' => $request->user()->id,
+            'checked_at' => now(),
+        ]);
+
+        return back()->with('success', 'Checklist item checked.');
     }
 
     /**
@@ -175,6 +315,7 @@ class BatchController extends Controller
     {
         $request->validate([
             'production_quantity' => 'nullable|numeric|min:0',
+            'pallet_id' => 'nullable|integer|exists:pallets,id',
             'samples' => 'required|array|min:1',
             'samples.*.sample_number' => 'required|integer',
             'samples.*.parameter_name' => 'required|string',
@@ -193,7 +334,16 @@ class BatchController extends Controller
             'is_passed' => isset($s['is_passed']) ? (bool) $s['is_passed'] : null,
         ])->toArray();
 
-        $check = $this->qcService->performCheck($batch, $request->user(), $samples, $request->input('production_quantity'));
+        // Optional pallet link (#106): the pallet must belong to the batch's work order.
+        $pallet = null;
+        if ($request->filled('pallet_id')) {
+            $pallet = \App\Models\Pallet::find($request->input('pallet_id'));
+            if ($pallet && $pallet->work_order_id !== $batch->work_order_id) {
+                return back()->with('error', __('That pallet belongs to a different work order.'));
+            }
+        }
+
+        $check = $this->qcService->performCheck($batch, $request->user(), $samples, $request->input('production_quantity'), null, null, $pallet);
 
         return back()->with($check->all_passed ? 'success' : 'warning',
             $check->all_passed ? 'Quality check passed.' : 'Quality check recorded — some samples failed.');

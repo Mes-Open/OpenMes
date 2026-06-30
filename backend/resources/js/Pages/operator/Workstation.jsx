@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Button, Checkbox, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
 import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import { formatDate, formatNumber } from '../../lib/i18n';
+
+// Geist White restyle: light-only v1 — former `dark:` variants removed.
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -43,6 +46,12 @@ function getCellValue(wo, col) {
     const v = wo[col.key];
     return v !== undefined && v !== null ? String(v) : '—';
 }
+
+// Shared Geist White idiom classes
+const fieldLabelCls = 'block mb-[7px] font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint';
+const inputCls =
+    'w-full text-[13px] text-om-ink placeholder:text-om-faint bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 outline-none transition-colors focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)]';
+const modalFooterCls = 'flex gap-3 border-t border-om-line2 bg-om-panel px-[18px] py-[14px]';
 
 // ─── column visibility hook ──────────────────────────────────────────────────
 
@@ -104,7 +113,7 @@ function TimedCorrectLink({ entry, qtyEditPolicy, qtyEditWindowMinutes }) {
     return (
         <Link
             href={`/operator/shift-entry/${entry.id}/correct`}
-            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-[6px] text-om-faint hover:text-om-accent hover:bg-om-selected transition-colors"
             title="Correct quantity"
             onClick={(e) => e.stopPropagation()}
         >
@@ -146,7 +155,7 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
     if (isDone) {
         return (
             <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
-                <span className="text-gray-400">{entryQty > 0 ? Math.round(entryQty) : 0}</span>
+                <span className="font-mono text-[13px] text-om-faint">{entryQty > 0 ? Math.round(entryQty) : 0}</span>
             </td>
         );
     }
@@ -177,10 +186,10 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
                         const qty = parseInt(inputVal, 10);
                         if (qty > 0 && inputVal !== defaultVal) submit();
                     }}
-                    className={`w-16 text-center text-sm font-semibold border border-gray-300 dark:border-gray-600 rounded px-1 py-1.5 tabular-nums focus:ring-2 focus:ring-blue-400 ${
+                    className={`w-16 text-center font-mono text-[15px] font-medium border rounded-om-sm px-1 py-2 outline-none transition-colors focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)] ${
                         entryQty > 0
-                            ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20'
-                            : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+                            ? 'text-om-accent bg-om-selected border-om-line'
+                            : 'bg-om-bg text-om-ink border-om-line'
                     }`}
                     placeholder="—"
                     min="1"
@@ -199,42 +208,63 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
     );
 }
 
-// ─── modals ──────────────────────────────────────────────────────────────────
+// ─── modals — §09 shell idiom: header hairline + mono subtitle, panel footer ──
+
+function ModalHeader({ title, subtitle, onClose }) {
+    return (
+        <div className="flex items-center justify-between border-b border-om-line2 px-[18px] py-4">
+            <div>
+                <div className="text-[15px] font-semibold text-om-ink">{title}</div>
+                {subtitle != null && (
+                    <div className="mt-[3px] font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{subtitle}</div>
+                )}
+            </div>
+            <button
+                type="button"
+                onClick={onClose}
+                className="cursor-pointer text-[18px] leading-none text-om-faint hover:text-om-muted"
+            >
+                ×
+            </button>
+        </div>
+    );
+}
 
 function StartModal({ modal, onClose }) {
     if (!modal.open) return null;
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className="relative bg-white dark:bg-gray-800 w-full max-w-sm rounded-xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-lg font-bold text-green-700 dark:text-green-400 mb-3">Start Production</h3>
-                <p className="text-gray-700 dark:text-gray-300 mb-2 text-lg">
-                    <strong>{modal.product}</strong>
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                    Order: <span className="font-mono">{modal.orderNo}</span>
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
-                    Planned: <strong>{fmt(modal.qty)}</strong> units
-                </p>
-                <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex-1 py-3 text-base rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium transition-colors"
-                    >
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
+            <div
+                className="relative w-full max-w-sm overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <ModalHeader title="Start Production" subtitle={modal.orderNo} onClose={onClose} />
+                <div className="px-[18px] py-4">
+                    <p className="text-om-ink mb-2 text-[17px] font-semibold tracking-[-0.01em]">
+                        {modal.product}
+                    </p>
+                    <p className="text-sm text-om-muted mb-1">
+                        Order: <span className="font-mono text-om-ink">{modal.orderNo}</span>
+                    </p>
+                    <p className="text-sm text-om-muted">
+                        Planned: <strong className="font-mono text-[15px] text-om-ink">{fmt(modal.qty)}</strong> units
+                    </p>
+                </div>
+                <div className={modalFooterCls}>
+                    <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
                         Cancel
-                    </button>
-                    <button
-                        type="button"
+                    </Button>
+                    <Button
+                        variant="accent"
                         onClick={() => {
                             onClose();
                             router.post(`/operator/workstation/${modal.id}/start`);
                         }}
-                        className="flex-1 py-3 text-base font-bold rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
+                        className="flex-1 px-6 py-4 text-[15px] font-semibold"
                     >
                         Start
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -260,51 +290,53 @@ function CompleteModal({ modal, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className="relative bg-white dark:bg-gray-800 w-full max-w-sm rounded-xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-3">Add Produced Quantity</h3>
-                <p className="text-gray-700 dark:text-gray-300 mb-1">
-                    <strong>{modal.product}</strong>
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                    Order: <span className="font-mono">{modal.orderNo}</span>
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Planned: <strong>{fmt(modal.planned)}</strong> | Already produced: <strong>{fmt(modal.produced)}</strong>
-                </p>
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
+            <div
+                className="relative w-full max-w-sm overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <ModalHeader title="Add Produced Quantity" subtitle={modal.orderNo} onClose={onClose} />
                 <form onSubmit={handleSubmit}>
-                    <div className="mb-5">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Quantity <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="number"
-                            value={qty}
-                            onChange={(e) => setQty(e.target.value)}
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-4 text-3xl font-bold text-center tabular-nums bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none"
-                            placeholder="0"
-                            min="0"
-                            step="1"
-                            required
-                            autoFocus
-                            inputMode="numeric"
-                        />
+                    <div className="px-[18px] py-4">
+                        <p className="text-om-ink mb-1 text-[17px] font-semibold tracking-[-0.01em]">
+                            {modal.product}
+                        </p>
+                        <p className="text-sm text-om-muted mb-1">
+                            Order: <span className="font-mono text-om-ink">{modal.orderNo}</span>
+                        </p>
+                        <p className="text-sm text-om-muted mb-4">
+                            Planned: <strong className="font-mono text-om-ink">{fmt(modal.planned)}</strong> | Already produced: <strong className="font-mono text-om-ink">{fmt(modal.produced)}</strong>
+                        </p>
+                        <div>
+                            <label className={fieldLabelCls}>
+                                Quantity <span className="text-om-blocked">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                value={qty}
+                                onChange={(e) => setQty(e.target.value)}
+                                className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-4 font-mono text-[30px] font-medium tracking-[-0.02em] text-center text-om-ink placeholder:text-om-faintest outline-none transition-colors focus:border-om-accent focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)]"
+                                placeholder="0"
+                                min="0"
+                                step="1"
+                                required
+                                autoFocus
+                                inputMode="numeric"
+                            />
+                        </div>
                     </div>
-                    <div className="flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 py-3 text-base rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium transition-colors"
-                        >
+                    <div className={modalFooterCls}>
+                        <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
                             Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="submit"
+                            variant="accent"
                             disabled={qty === '' || parseInt(qty, 10) < 0}
-                            className="flex-1 py-3 text-base font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 transition-colors"
+                            className="flex-1 px-6 py-4 text-[15px] font-semibold"
                         >
                             Confirm
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
@@ -316,55 +348,45 @@ function InfoModal({ info, onClose }) {
     if (!info) return null;
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">Order Details</h3>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div className="space-y-3">
-                    <InfoRow label="Order #"><span className="text-sm font-bold font-mono">{info.orderNo}</span></InfoRow>
-                    <InfoRow label="Product"><span className="text-sm font-medium">{info.product}</span></InfoRow>
-                    <InfoRow label="Line"><span className="text-sm font-medium">{info.line}</span></InfoRow>
-                    <InfoRow label="Status"><span className="text-sm font-bold">{info.status}</span></InfoRow>
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
+            <div
+                className="relative w-full max-w-md overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <ModalHeader title="Order Details" subtitle={info.orderNo} onClose={onClose} />
+                <div className="px-[18px] py-4 space-y-3">
+                    <InfoRow label="Order #"><span className="font-mono text-[13px] font-medium text-om-ink">{info.orderNo}</span></InfoRow>
+                    <InfoRow label="Product"><span className="text-sm font-medium text-om-ink">{info.product}</span></InfoRow>
+                    <InfoRow label="Line"><span className="text-sm font-medium text-om-ink">{info.line}</span></InfoRow>
+                    <InfoRow label="Status"><span className="text-sm font-semibold text-om-ink">{info.status}</span></InfoRow>
                     <div className="grid grid-cols-3 gap-3 py-2">
                         <div className="text-center">
-                            <p className="text-xs text-gray-500">Planned</p>
-                            <p className="text-lg font-bold text-gray-800 dark:text-white">{info.planned}</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Planned</p>
+                            <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{info.planned}</p>
                         </div>
                         <div className="text-center">
-                            <p className="text-xs text-gray-500">Produced</p>
-                            <p className="text-lg font-bold text-blue-600">{info.produced}</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Produced</p>
+                            <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-running">{info.produced}</p>
                         </div>
                         <div className="text-center">
-                            <p className="text-xs text-gray-500">Remaining</p>
-                            <p className="text-lg font-bold text-orange-600">{info.remaining}</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Remaining</p>
+                            <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-accent">{info.remaining}</p>
                         </div>
                     </div>
-                    <InfoRow label="Priority"><span className="text-sm font-medium">{info.priority}</span></InfoRow>
-                    <InfoRow label="Due Date"><span className="text-sm font-medium">{info.dueDate}</span></InfoRow>
+                    <InfoRow label="Priority"><span className="font-mono text-[13px] font-medium text-om-ink">{info.priority}</span></InfoRow>
+                    <InfoRow label="Due Date"><span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span></InfoRow>
                     {info.description && info.description !== '-' && (
                         <div>
-                            <p className="text-xs text-gray-500 mb-1">Description</p>
-                            <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded p-2">{info.description}</p>
+                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Description</p>
+                            <p className="text-sm text-om-ink bg-om-panel border border-om-line2 rounded-om-sm p-2">{info.description}</p>
                         </div>
                     )}
                 </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full mt-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
-                >
-                    Close
-                </button>
+                <div className={modalFooterCls}>
+                    <Button variant="primary" onClick={onClose} className="w-full px-6 py-4 text-[15px] font-semibold">
+                        Close
+                    </Button>
+                </div>
             </div>
         </div>
     );
@@ -372,8 +394,8 @@ function InfoModal({ info, onClose }) {
 
 function InfoRow({ label, children }) {
     return (
-        <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-            <span className="text-sm text-gray-500">{label}</span>
+        <div className="flex justify-between items-baseline border-b border-om-line2 pb-2">
+            <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{label}</span>
             {children}
         </div>
     );
@@ -408,99 +430,87 @@ function ReportModal({ report, issueTypes, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className="relative bg-white dark:bg-gray-800 w-full max-w-lg rounded-xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Report Issue</h3>
-                        <p className="text-sm text-gray-500 font-mono">{report.woNo}</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+            <div className="fixed inset-0 bg-[rgba(10,9,8,0.4)]" onClick={onClose} />
+            <div
+                className="relative w-full max-w-lg overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <ModalHeader title="Report Issue" subtitle={report.woNo} onClose={onClose} />
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Type <span className="text-red-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {issueTypes.map((t) => (
-                                <label
-                                    key={t.id}
-                                    className={`flex items-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-colors ${
-                                        String(typeId) === String(t.id)
-                                            ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20'
-                                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                                    }`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="issue_type_id"
-                                        value={t.id}
-                                        checked={String(typeId) === String(t.id)}
-                                        onChange={() => {
-                                            setTypeId(String(t.id));
-                                            if (!title) setTitle(t.name);
-                                        }}
-                                        className="sr-only"
-                                        required
-                                    />
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t.name}</span>
-                                </label>
-                            ))}
+                <form onSubmit={handleSubmit}>
+                    <div className="px-[18px] py-4 space-y-4">
+                        <div>
+                            <label className={fieldLabelCls}>
+                                Type <span className="text-om-blocked">*</span>
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {issueTypes.map((t) => (
+                                    <label
+                                        key={t.id}
+                                        className={`flex items-center gap-2 p-3 rounded-om-sm border cursor-pointer transition-colors ${
+                                            String(typeId) === String(t.id)
+                                                ? 'border-om-accent bg-om-selected shadow-[0_0_0_3px_rgba(234,90,43,0.12)]'
+                                                : 'border-om-line bg-om-bg hover:border-om-faintest'
+                                        }`}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="issue_type_id"
+                                            value={t.id}
+                                            checked={String(typeId) === String(t.id)}
+                                            onChange={() => {
+                                                setTypeId(String(t.id));
+                                                if (!title) setTitle(t.name);
+                                            }}
+                                            className="sr-only"
+                                            required
+                                        />
+                                        <span className="text-sm font-medium text-om-ink">{t.name}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className={fieldLabelCls}>
+                                Title <span className="text-om-blocked">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className={inputCls}
+                                required
+                                maxLength={255}
+                            />
+                        </div>
+
+                        <div>
+                            <label className={fieldLabelCls}>
+                                Details <span className="text-om-faint normal-case tracking-normal">(optional)</span>
+                            </label>
+                            <textarea
+                                value={desc}
+                                onChange={(e) => setDesc(e.target.value)}
+                                rows={3}
+                                className={`${inputCls} resize-none`}
+                                maxLength={2000}
+                            />
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Title <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none"
-                            required
-                            maxLength={255}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Details <span className="text-gray-400 text-xs">(optional)</span>
-                        </label>
-                        <textarea
-                            value={desc}
-                            onChange={(e) => setDesc(e.target.value)}
-                            rows={3}
-                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none resize-none"
-                            maxLength={2000}
-                        />
-                    </div>
-
-                    <div className="flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium transition-colors"
-                        >
+                    <div className={modalFooterCls}>
+                        <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
                             Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             type="submit"
+                            variant="danger"
                             disabled={!typeId || !title}
-                            className="flex-1 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-40 transition-colors"
+                            className="flex-1 px-6 py-4 text-[15px] font-semibold"
                         >
                             Submit Report
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
@@ -530,10 +540,10 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-2.5 rounded-om-sm border border-om-line bg-om-card hover:bg-om-chip transition-colors cursor-pointer"
                 title="Configure columns"
             >
-                <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                         d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -541,45 +551,41 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
             </button>
 
             {open && (
-                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 p-3">
+                <div className="absolute right-0 mt-2 w-64 bg-om-card rounded-om shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] border border-om-line z-50 p-3">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-200">Columns</span>
+                        <span className="text-sm font-semibold text-om-ink">Columns</span>
                         <button
                             type="button"
                             onClick={resetColumns}
-                            className="text-xs text-blue-500 hover:underline"
+                            className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-accent hover:underline cursor-pointer"
                         >
                             Reset
                         </button>
                     </div>
 
-                    <div className="text-xs text-gray-400 uppercase tracking-wider mb-1 mt-2">System fields</div>
+                    <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-2">System fields</div>
                     {systemCols.map((col) => (
-                        <label key={col.key} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                            <input
-                                type="checkbox"
+                        <div key={col.key} className="py-1 px-1 rounded-[6px] hover:bg-om-chip">
+                            <Checkbox
                                 checked={visibleKeys.includes(col.key)}
                                 onChange={() => toggleColumn(col.key)}
-                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                label={col.label}
                             />
-                            <span className="text-sm text-gray-700 dark:text-gray-300">{col.label}</span>
-                        </label>
+                        </div>
                     ))}
 
                     {extraCols.length > 0 && (
                         <>
-                            <div className="text-xs text-gray-400 uppercase tracking-wider mb-1 mt-3">Import data</div>
+                            <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-3">Import data</div>
                             {extraCols.map((col) => (
-                                <label key={col.key} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                                    <input
-                                        type="checkbox"
+                                <div key={col.key} className="flex items-center gap-2 py-1 px-1 rounded-[6px] hover:bg-om-chip">
+                                    <Checkbox
                                         checked={visibleKeys.includes(col.key)}
                                         onChange={() => toggleColumn(col.key)}
-                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        label={col.label}
                                     />
-                                    <span className="text-sm text-gray-700 dark:text-gray-300">{col.label}</span>
-                                    <span className="text-xs text-gray-400 ml-auto">{col.key}</span>
-                                </label>
+                                    <span className="font-mono text-[10px] text-om-faint ml-auto">{col.key}</span>
+                                </div>
                             ))}
                         </>
                     )}
@@ -593,31 +599,15 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
 
 function StatusBadge({ status }) {
     if (status === 'DONE') {
-        return (
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200">
-                Done
-            </span>
-        );
+        return <StatusPill status="done" label="Done" />;
     }
     if (status === 'IN_PROGRESS') {
-        return (
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200 animate-pulse">
-                In Progress
-            </span>
-        );
+        return <StatusPill status="running" label="In Progress" />;
     }
     if (status === 'BLOCKED') {
-        return (
-            <span className="px-3 py-1 rounded-full text-sm font-bold bg-red-200 text-red-800">
-                Blocked
-            </span>
-        );
+        return <StatusPill status="blocked" label="Blocked" />;
     }
-    return (
-        <span className="px-3 py-1 rounded-full text-sm font-bold bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
-            {statusLabel(status)}
-        </span>
-    );
+    return <StatusPill status="pending" label={statusLabel(status)} />;
 }
 
 // ─── row ─────────────────────────────────────────────────────────────────────
@@ -652,15 +642,15 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
     };
 
     const rowClass = [
-        'border-b-2 border-gray-400 dark:border-gray-500 transition-colors border-l-4',
+        'border-b border-om-line2 transition-colors border-l-[3px]',
         isDone
-            ? 'bg-green-100 dark:bg-green-900/30 border-l-green-500'
+            ? 'bg-om-done-bg/60 border-l-om-done'
             : isActive
-            ? 'bg-blue-100 dark:bg-blue-900/30 border-l-blue-500'
+            ? 'bg-om-running-bg/50 border-l-om-running'
             : wo.status === 'BLOCKED'
-            ? 'bg-red-50 dark:bg-red-900/20 border-l-red-500'
-            : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border-l-transparent',
-        !isDone ? 'cursor-pointer active:bg-gray-100 dark:active:bg-gray-700' : '',
+            ? 'bg-om-blocked-bg/50 border-l-om-blocked'
+            : 'hover:bg-om-panel border-l-transparent',
+        !isDone ? 'cursor-pointer active:bg-om-chip' : '',
     ]
         .join(' ')
         .trim();
@@ -669,7 +659,7 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
         <tr className={rowClass} onClick={handleRowClick}>
             {allColumns.map((col) =>
                 visibleKeys.includes(col.key) ? (
-                    <td key={col.key} className="px-3 py-3 text-sm text-gray-800 dark:text-gray-200">
+                    <td key={col.key} className="px-3 py-3 text-sm text-om-ink">
                         {col.key === 'status' ? (
                             <StatusBadge status={wo.status} />
                         ) : (
@@ -680,20 +670,20 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
             )}
 
             {/* To Produce */}
-            <td className="px-3 py-3 text-center font-bold text-gray-800 dark:text-gray-200 border-l-2 border-gray-200 dark:border-gray-600 tabular-nums">
+            <td className="px-3 py-3 text-center font-mono text-[15px] font-medium text-om-ink border-l border-om-line">
                 {fmt(planned)}
             </td>
 
             {/* Produced */}
-            <td className="px-3 py-3 text-center font-semibold text-gray-700 dark:text-gray-300 tabular-nums">
+            <td className="px-3 py-3 text-center font-mono text-[15px] text-om-muted">
                 {fmt(produced)}
             </td>
 
             {/* Remaining */}
-            <td className={`px-3 py-3 text-center font-bold tabular-nums ${
+            <td className={`px-3 py-3 text-center font-mono text-[15px] font-semibold ${
                 remaining <= 0
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                    : 'bg-blue-600 text-white'
+                    ? 'bg-om-running-bg text-om-running'
+                    : 'bg-om-accent text-white'
             }`}>
                 {fmt(remaining)}
             </td>
@@ -712,10 +702,10 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
 
             {/* Actions */}
             <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-1">
                     {!isDone && (
-                        <button
-                            type="button"
+                        <IconButton
+                            variant="primary"
                             onClick={() =>
                                 onComplete({
                                     open: true,
@@ -726,22 +716,21 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                                     produced,
                                 })
                             }
-                            className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow transition-colors"
+                            className="bg-om-accent hover:bg-om-accent hover:brightness-95"
                             title="Add produced quantity"
                         >
                             +
-                        </button>
+                        </IconButton>
                     )}
-                    <button
-                        type="button"
+                    <IconButton
+                        variant="danger"
                         onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })}
-                        className="w-10 h-10 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white text-lg font-bold shadow transition-colors"
                         title="Report problem"
                     >
                         !
-                    </button>
-                    <button
-                        type="button"
+                    </IconButton>
+                    <IconButton
+                        variant="default"
                         onClick={() =>
                             onInfo({
                                 orderNo: wo.order_no,
@@ -756,13 +745,12 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                                 description: wo.description ?? '-',
                             })
                         }
-                        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-400 hover:bg-gray-500 text-white text-sm font-bold shadow transition-colors"
                         title="Details"
                     >
                         ?
-                    </button>
+                    </IconButton>
                     {labelTemplates.some((t) => t.type === 'work_order') && (
-                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label="Label" iconOnly />
+                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label="Label" />
                     )}
                 </div>
             </td>
@@ -786,6 +774,8 @@ export default function Workstation() {
         qtyEditPolicy = 'none',
         qtyEditWindowMinutes = 60,
         labelTemplates = [],
+        machineStates = [],
+        machineStateOptions = [],
     } = usePage().props;
 
     const { visibleKeys, toggleColumn, resetColumns } = useVisibleColumns(allColumns, line?.id ?? 0);
@@ -825,22 +815,25 @@ export default function Workstation() {
             <LineSync lineId={line?.id} reloadOnly={['workOrders', 'shiftEntries']} />
 
             <div className="max-w-full mx-auto px-2 sm:px-4">
+                {machineStates.length > 0 && (
+                    <MachineStatePanel machines={machineStates} options={machineStateOptions} />
+                )}
                 {/* Header */}
                 <div className="mb-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{line?.name}</h1>
+                            <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-om-ink">{line?.name}</h1>
                         </div>
                         <div className="flex items-center gap-2">
                             {/* Mode toggle */}
-                            <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 gap-1">
+                            <div className="flex items-center bg-om-card border border-om-line rounded-om-sm p-1 gap-1">
                                 <Link
                                     href="/operator/queue"
-                                    className="px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-all"
+                                    className="px-3 py-1.5 rounded-[6px] text-sm font-medium text-om-muted hover:text-om-ink transition-colors"
                                 >
                                     Queue
                                 </Link>
-                                <span className="px-3 py-1.5 rounded-md text-sm font-medium bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400">
+                                <span className="px-3 py-1.5 rounded-[6px] text-sm font-semibold bg-om-ink text-om-on-ink">
                                     Workstation
                                 </span>
                             </div>
@@ -854,7 +847,7 @@ export default function Workstation() {
 
                             <Link
                                 href="/operator/select-line"
-                                className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 transition-colors"
+                                className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink border border-om-line bg-om-card hover:bg-om-chip transition-colors"
                             >
                                 Change Line
                             </Link>
@@ -864,18 +857,18 @@ export default function Workstation() {
                     {/* Week filter */}
                     {availableWeeks.length > 0 && (
                         <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 text-om-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">Select week:</span>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">Select week:</span>
 
                             <a
                                 href={weekUrl('all')}
-                                className={`px-4 py-2 rounded-full text-sm font-medium border-2 transition-colors ${
+                                className={`px-4 py-2.5 rounded-om-sm font-mono text-[12px] border transition-colors ${
                                     !weekFilter || weekFilter === 'all'
-                                        ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-200 shadow-sm'
-                                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                        ? 'bg-om-chip border-om-line text-om-ink'
+                                        : 'border-transparent text-om-muted hover:bg-om-chip'
                                 }`}
                             >
                                 All weeks
@@ -885,10 +878,10 @@ export default function Workstation() {
                                 <a
                                     key={wk}
                                     href={weekUrl(wk)}
-                                    className={`px-4 py-2 rounded-full text-sm font-medium border-2 transition-colors ${
+                                    className={`px-4 py-2.5 rounded-om-sm font-mono text-[12px] border transition-colors ${
                                         String(weekFilter) === String(wk)
-                                            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-300 shadow-sm'
-                                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                            ? 'bg-om-selected border-om-accent text-om-accent'
+                                            : 'border-transparent text-om-muted hover:bg-om-chip'
                                     }`}
                                 >
                                     {weekLabel(wk)}
@@ -902,20 +895,20 @@ export default function Workstation() {
                         <button
                             type="button"
                             disabled
-                            className="px-5 py-2.5 rounded-lg text-sm font-bold bg-yellow-400 text-yellow-900 opacity-60 cursor-not-allowed"
+                            className="px-6 py-3.5 rounded-om-sm text-[14px] font-semibold bg-om-downtime-bg text-om-downtime opacity-60 cursor-not-allowed"
                         >
                             Cleaning
                         </button>
                         <button
                             type="button"
                             disabled
-                            className="px-5 py-2.5 rounded-lg text-sm font-bold bg-red-500 text-white opacity-60 cursor-not-allowed"
+                            className="px-6 py-3.5 rounded-om-sm text-[14px] font-semibold bg-om-blocked-bg text-om-blocked opacity-60 cursor-not-allowed"
                         >
                             Failure
                         </button>
                     </div>
 
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                    <p className="text-xs text-om-faint mb-2">
                         Click a row to change production status. Use &quot;Z1&quot; or &quot;Z2&quot; columns to enter produced quantities per shift.
                     </p>
                 </div>
@@ -927,46 +920,46 @@ export default function Workstation() {
                         value={searchVal}
                         onChange={(e) => setSearchVal(e.target.value)}
                         placeholder="Search by order number, product or data..."
-                        className="w-full sm:w-96 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none"
+                        className={`${inputCls} sm:w-96`}
                         autoComplete="off"
                     />
                 </form>
 
                 {/* Table */}
                 {workOrders.length === 0 ? (
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow text-center py-16">
-                        <p className="text-gray-500 text-lg">No work orders found</p>
+                    <div className="bg-om-card border border-om-line rounded-om text-center py-16">
+                        <p className="text-om-faint text-lg">No work orders found</p>
                     </div>
                 ) : (
-                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow overflow-hidden">
+                    <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm border-collapse border-2 border-gray-400 dark:border-gray-500">
+                            <table className="min-w-full text-sm border-collapse">
                                 <thead>
-                                    <tr className="bg-gray-100 dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-600">
+                                    <tr className="bg-om-panel border-b border-om-line">
                                         {allColumns.map((col) =>
                                             visibleKeys.includes(col.key) ? (
                                                 <th
                                                     key={col.key}
-                                                    className="px-3 py-3 text-left text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap"
+                                                    className="px-3 py-3 text-left font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint whitespace-nowrap"
                                                 >
                                                     {col.label}
                                                 </th>
                                             ) : null,
                                         )}
-                                        <th className="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-l-2 border-gray-300 dark:border-gray-600">
+                                        <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint border-l border-om-line">
                                             To Produce
                                         </th>
-                                        <th className="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                                        <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint">
                                             Produced
                                         </th>
-                                        <th className="px-3 py-3 text-center text-xs font-bold uppercase tracking-wider bg-blue-600 text-white">
+                                        <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] bg-om-accent text-white">
                                             Remaining
                                         </th>
                                         {hasShifts &&
                                             lineShifts.map((shift) => (
                                                 <th
                                                     key={shift.id}
-                                                    className="px-3 py-3 text-center text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider"
+                                                    className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint"
                                                     title={`${shift.name} (${(shift.start_time ?? '').substring(0, 5)}–${(shift.end_time ?? '').substring(0, 5)})`}
                                                 >
                                                     {shift.code}
@@ -1012,6 +1005,52 @@ export default function Workstation() {
                 />
             )}
         </>
+    );
+}
+
+// Machine-state panel (#87): set a workstation's state (running/idle/setup/
+// waiting/cleaning/maintenance/stopped/fault) manually from the operator panel.
+const MACHINE_STATE_LABELS = {
+    RUNNING: 'Running', IDLE: 'Idle', STOPPED: 'Stopped', FAULT: 'Fault', SETUP: 'Setup',
+    WAITING: 'Waiting', CLEANING: 'Cleaning', MAINTENANCE: 'Maintenance',
+};
+const MACHINE_STATE_DOT = {
+    RUNNING: 'bg-om-running', IDLE: 'bg-amber-400', SETUP: 'bg-om-accent',
+    STOPPED: 'bg-om-faintest', FAULT: 'bg-om-blocked',
+    WAITING: 'bg-yellow-400', CLEANING: 'bg-purple-400', MAINTENANCE: 'bg-orange-400',
+};
+
+function MachineStatePanel({ machines, options }) {
+    const setState = (workstationId, state) => {
+        router.post(`/operator/workstation/machine-state/${workstationId}`, { state }, { preserveScroll: true });
+    };
+
+    return (
+        <div className="mb-4 bg-om-card border border-om-line rounded-om-sm p-3">
+            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">Machine state</p>
+            <div className="flex flex-wrap gap-3">
+                {machines.map((m) => (
+                    <div key={m.id} className="flex items-center gap-2 border border-om-line2 rounded-om-sm px-2.5 py-1.5">
+                        <span className={`w-2 h-2 rounded-full ${MACHINE_STATE_DOT[m.state] ?? 'bg-slate-300'}`} />
+                        <span className="text-sm font-medium text-om-ink">{m.name}</span>
+                        <select
+                            value={m.state ?? ''}
+                            onChange={(e) => setState(m.id, e.target.value)}
+                            className="form-input text-xs py-1"
+                            aria-label={`Set state for ${m.name}`}
+                        >
+                            {!m.state && <option value="" disabled>—</option>}
+                            {m.state && !options.includes(m.state) && (
+                                <option value={m.state}>{MACHINE_STATE_LABELS[m.state] ?? m.state}</option>
+                            )}
+                            {options.map((s) => (
+                                <option key={s} value={s}>{MACHINE_STATE_LABELS[s] ?? s}</option>
+                            ))}
+                        </select>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 

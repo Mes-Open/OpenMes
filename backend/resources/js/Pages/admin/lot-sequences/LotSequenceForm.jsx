@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useForm, usePage } from '@inertiajs/react';
+import { Button, Checkbox, Dropdown } from '@openmes/ui';
+import { __ } from '../../../lib/i18n';
 
 const RESET_PERIODS = [
     { value: 'none', label: 'No reset' },
@@ -94,38 +96,35 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
     };
 
     return (
-        <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6 max-w-2xl space-y-5">
-            <TextField label="Name" required value={data.name} error={errors.name} onChange={(v) => setData('name', v)} />
+        <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
+            <TextField label={__('Name')} required value={data.name} error={errors.name} onChange={(v) => setData('name', v)} />
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Product Type</label>
-                <select
-                    value={data.product_type_id ?? ''}
-                    onChange={(e) => setData('product_type_id', e.target.value)}
-                    className="form-input w-full"
-                >
-                    <option value="">— None (default sequence) —</option>
-                    {productTypes.map((p) => (
-                        <option key={p.id} value={String(p.id)}>
-                            {p.name}
-                        </option>
-                    ))}
-                </select>
-                {errors.product_type_id && <p className="mt-1 text-xs text-red-600">{errors.product_type_id}</p>}
+                <label className="block text-sm font-medium text-om-muted mb-1">{__('Product Type')}</label>
+                <Dropdown
+                    value={data.product_type_id == null ? '' : String(data.product_type_id)}
+                    onChange={(v) => setData('product_type_id', v)}
+                    options={[
+                        { value: '', label: `— ${__('None (default sequence)')} —` },
+                        ...productTypes.map((p) => ({ value: String(p.id), label: p.name })),
+                    ]}
+                    className="w-full"
+                />
+                {errors.product_type_id && <p className="mt-1 text-xs text-om-blocked">{errors.product_type_id}</p>}
             </div>
 
             {/* Mode toggle */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden w-fit text-sm">
+            <div className="flex rounded-om-sm border border-om-line2 overflow-hidden w-fit text-sm">
                 {[
-                    ['pattern', 'Pattern'],
-                    ['simple', 'Simple'],
+                    ['pattern', __('Pattern')],
+                    ['simple', __('Simple')],
                 ].map(([m, label]) => (
                     <button
                         key={m}
                         type="button"
                         onClick={() => switchMode(m)}
                         className={`px-4 py-1.5 font-medium ${
-                            mode === m ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                            mode === m ? 'bg-om-ink text-om-on-ink' : 'bg-om-card text-om-muted hover:bg-om-bg'
                         }`}
                     >
                         {label}
@@ -136,8 +135,8 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
             {mode === 'pattern' ? (
                 <div className="space-y-3">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Pattern <span className="text-red-500">*</span>
+                        <label className="block text-sm font-medium text-om-muted mb-1">
+                            {__('Pattern')} <span className="text-om-blocked">*</span>
                         </label>
                         <input
                             ref={patternInputRef}
@@ -148,7 +147,7 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                             className="form-input w-full font-mono"
                         />
                         {(errors.pattern || previewError) && (
-                            <p className="mt-1 text-xs text-red-600">{errors.pattern ?? previewError}</p>
+                            <p className="mt-1 text-xs text-om-blocked">{errors.pattern ?? previewError}</p>
                         )}
                     </div>
 
@@ -160,42 +159,38 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                                 type="button"
                                 onMouseDown={(e) => e.preventDefault() /* keep input focus/cursor */}
                                 onClick={() => insertToken(t)}
-                                className="px-2 py-0.5 rounded-full bg-gray-100 hover:bg-blue-100 text-xs font-mono text-gray-700 border border-gray-200"
+                                className="px-2 py-0.5 rounded-full bg-om-chip hover:bg-om-chip text-xs font-mono text-om-muted border border-om-line2"
                             >
                                 [{t}]
                             </button>
                         ))}
                     </div>
-                    <p className="text-xs text-gray-500">
-                        Click a token to insert it. Pattern must contain exactly one <code>[seq]</code>. Use{' '}
-                        <code>[date:y-m-d]</code> for a custom date format.
+                    <p className="text-xs text-om-muted">
+                        {__('Click a token to insert it. Pattern must contain exactly one')} <code>[seq]</code>. {__('Use [date:y-m-d] for a custom date format.')}
                     </p>
 
                     {preview && (
-                        <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-sm">
-                            <span className="text-gray-500">Preview: </span>
-                            <span className="font-mono font-medium text-gray-800">{preview}</span>
+                        <div className="rounded-om-sm bg-om-panel border border-om-line2 px-3 py-2 text-sm">
+                            <span className="text-om-muted">{__('Preview:')} </span>
+                            <span className="font-mono font-medium text-om-ink">{preview}</span>
                         </div>
                     )}
                 </div>
             ) : (
                 <>
-                    <TextField label="Prefix" required value={data.prefix} error={errors.prefix} onChange={(v) => setData('prefix', v)} />
-                    <TextField label="Suffix" value={data.suffix} error={errors.suffix} onChange={(v) => setData('suffix', v)} />
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                            type="checkbox"
-                            checked={!!data.year_prefix}
-                            onChange={(e) => setData('year_prefix', e.target.checked)}
-                        />
-                        Year Prefix
-                    </label>
+                    <TextField label={__('Prefix')} required value={data.prefix} error={errors.prefix} onChange={(v) => setData('prefix', v)} />
+                    <TextField label={__('Suffix')} value={data.suffix} error={errors.suffix} onChange={(v) => setData('suffix', v)} />
+                    <Checkbox
+                        checked={!!data.year_prefix}
+                        onChange={(next) => setData('year_prefix', next)}
+                        label={__('Year Prefix')}
+                    />
                 </>
             )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Pad Size</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Pad Size')}</label>
                     <input
                         type="number"
                         min={1}
@@ -204,35 +199,26 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
                         onChange={(e) => setData('pad_size', e.target.value)}
                         className="form-input w-full"
                     />
-                    {errors.pad_size && <p className="mt-1 text-xs text-red-600">{errors.pad_size}</p>}
+                    {errors.pad_size && <p className="mt-1 text-xs text-om-blocked">{errors.pad_size}</p>}
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Counter Reset</label>
-                    <select
-                        value={data.reset_period ?? 'none'}
-                        onChange={(e) => setData('reset_period', e.target.value)}
-                        className="form-input w-full"
-                    >
-                        {RESET_PERIODS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                                {o.label}
-                            </option>
-                        ))}
-                    </select>
-                    {errors.reset_period && <p className="mt-1 text-xs text-red-600">{errors.reset_period}</p>}
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Counter Reset')}</label>
+                    <Dropdown
+                        value={data.reset_period == null ? 'none' : String(data.reset_period)}
+                        onChange={(v) => setData('reset_period', v)}
+                        options={RESET_PERIODS.map((o) => ({ value: String(o.value), label: __(o.label) }))}
+                        className="w-full"
+                    />
+                    {errors.reset_period && <p className="mt-1 text-xs text-om-blocked">{errors.reset_period}</p>}
                 </div>
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-                <button
-                    type="submit"
-                    disabled={processing}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                >
-                    {processing ? 'Saving…' : submitLabel}
-                </button>
-                <Link href="/admin/lot-sequences" className="text-gray-500 hover:text-gray-800 text-sm">
-                    Cancel
+                <Button type="submit" variant="primary" loading={processing} disabled={processing}>
+                    {submitLabel}
+                </Button>
+                <Link href="/admin/lot-sequences" className="text-om-muted hover:text-om-ink text-sm">
+                    {__('Cancel')}
                 </Link>
             </div>
         </form>
@@ -242,11 +228,11 @@ export default function LotSequenceForm({ action, method, initial, submitLabel }
 function TextField({ label, required, value, error, onChange }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-                {label} {required && <span className="text-red-500">*</span>}
+            <label className="block text-sm font-medium text-om-muted mb-1">
+                {label} {required && <span className="text-om-blocked">*</span>}
             </label>
             <input type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="form-input w-full" />
-            {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            {error && <p className="mt-1 text-xs text-om-blocked">{error}</p>}
         </div>
     );
 }

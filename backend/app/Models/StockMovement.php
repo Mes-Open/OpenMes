@@ -36,6 +36,9 @@ class StockMovement extends Model
 
     public const SOURCE_RECEIPT = 'receipt';
 
+    // Milestone backflush booked when a pallet is created.
+    public const SOURCE_PALLET = 'pallet';
+
     protected $fillable = [
         'material_id',
         'movement_type',

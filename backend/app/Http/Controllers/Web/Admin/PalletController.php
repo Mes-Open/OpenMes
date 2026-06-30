@@ -41,7 +41,7 @@ class PalletController extends Controller
     {
         return Inertia::render('admin/pallets/Edit', [
             'pallet' => $pallet->only(
-                'id', 'pallet_no', 'work_order_id', 'qty', 'status', 'location', 'erp_reference',
+                'id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'location', 'erp_reference',
             ),
             'workOrders' => $this->workOrderOptions(),
             'statuses' => $this->statusOptions(),
@@ -51,7 +51,12 @@ class PalletController extends Controller
 
     public function update(PalletRequest $request, Pallet $pallet)
     {
-        $pallet->update($request->payload());
+        try {
+            $pallet->update($request->payload());
+        } catch (\DomainException $e) {
+            // Quality ship-gate (#106) rejected the closed → shipped transition.
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
 
         return redirect()->route('admin.pallets.index')
             ->with('success', __('Pallet updated.'));
@@ -69,8 +74,16 @@ class PalletController extends Controller
     {
         return WorkOrder::orderByDesc('id')
             ->limit(500)
+            ->with('batches:id,work_order_id,batch_number,lot_number')
             ->get(['id', 'order_no'])
-            ->map(fn (WorkOrder $wo) => ['id' => $wo->id, 'order_no' => $wo->order_no]);
+            ->map(fn (WorkOrder $wo) => [
+                'id' => $wo->id,
+                'order_no' => $wo->order_no,
+                'batches' => $wo->batches->map(fn ($b) => [
+                    'id' => $b->id,
+                    'label' => $b->displayLabel(),
+                ])->values(),
+            ]);
     }
 
     /** @return array<string, string> */

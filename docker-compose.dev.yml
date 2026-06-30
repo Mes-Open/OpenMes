@@ -82,6 +82,11 @@ services:
       - ./backend/vite.config.js:/var/www/html/vite.config.js:ro
       - ./backend/package.json:/var/www/html/package.json:ro
       - ./backend/package-lock.json:/var/www/html/package-lock.json:ro
+      # Workspace UI package — backend/package.json depends on it via
+      # `file:../packages/ui` (resolves to /var/www/packages/ui from the WORKDIR).
+      # Required for the runtime `npm ci` here, and lets edits to @openmes/ui
+      # rebuild live just like backend/resources.
+      - ./packages:/var/www/packages
       # Output the watcher writes — bind-mounted into the backend container too
       # so the live HTTP server picks up rebuilt bundles immediately.
       - ./backend/public/build:/var/www/html/public/build

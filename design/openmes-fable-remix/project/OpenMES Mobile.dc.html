@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #E9E8E3; -webkit-font-smoothing: antialiased; }
+  @keyframes omPulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  .om-scroll::-webkit-scrollbar { display: none; }
+  .om-scroll { scrollbar-width: none; }
+</style>
+</helmet>
+
+<div style="--bg:#F6F5F1;--panel:#FBFAF8;--card:#FFFFFF;--line:#E6E4DE;--line2:#EDEBE6;--ink:#1A1917;--muted:#6F6C66;--faint:#9B9892;--faintest:#C4C0B8;--chip:#F1EFEA;--accent:#EA5A2B;--running:#1C9A55;--runningBg:#E6F4EA;--pending:#6F6C66;--pendingBg:#F1EFEA;--blocked:#D6442F;--blockedBg:#FBEAE6;--downtime:#C9821E;--downtimeBg:#FAF0DD;--done:#54514B;--doneBg:#ECEBE7; font-family:'Geist',system-ui,sans-serif; background:#E9E8E3; min-height:100vh; padding:48px; display:flex; flex-direction:column; align-items:center; gap:16px;">
+
+  <div style="display:flex; align-items:center; gap:11px;">
+    <div style="width:24px; height:24px; border-radius:6px; background:linear-gradient(135deg,var(--accent) 0 50%,var(--ink) 50% 100%);"></div>
+    <span style="font-size:16px; font-weight:600; color:var(--ink); letter-spacing:-0.01em;">openmes mobile</span>
+    <span style="font-family:'Geist Mono',monospace; font-size:9.5px; color:var(--faint); border:1px solid var(--line); border-radius:5px; padding:2px 7px;">native · interactive</span>
+  </div>
+  <div style="font-size:13px; color:var(--muted); margin-bottom:6px;">Tap the tab bar, open a work order, log output, try the FAB ＋ and ⋯ menu.</div>
+
+  <!-- ░░ PHONE ░░ -->
+  <div style="width:390px; background:#1A1917; border-radius:46px; padding:11px; box-shadow:0 30px 70px -30px rgba(26,25,23,.55);">
+    <div style="position:relative; width:368px; height:798px; background:var(--bg); border-radius:36px; overflow:hidden;">
+
+      <!-- notch -->
+      <div style="position:absolute; top:0; left:50%; transform:translateX(-50%); width:128px; height:30px; background:#1A1917; border-bottom-left-radius:16px; border-bottom-right-radius:16px; z-index:40;"></div>
+      <!-- status bar -->
+      <div style="position:absolute; top:0; left:0; right:0; height:46px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 26px 7px; z-index:20;">
+        <span style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:500; color:var(--ink);">06:42</span>
+        <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--ink);">▰▰▰▰</span>
+      </div>
+
+      <!-- ══ TOP APP BAR (detail only) ══ -->
+      <sc-if value="{{ inDetail }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; top:46px; left:0; right:0; z-index:18; display:flex; align-items:center; gap:12px; padding:8px 16px 13px; background:var(--card); border-bottom:1px solid var(--line2);">
+          <span onClick="{{ back }}" style="font-size:24px; color:var(--ink); line-height:1; cursor:pointer; width:28px;">‹</span>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:15px; font-weight:600; color:var(--ink);">{{ detailWo.id }}</div>
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; color:var(--faint); margin-top:1px;">{{ detailWo.productUpper }}</div>
+          </div>
+          <span onClick="{{ openActions }}" style="width:32px;height:32px;border-radius:9px;background:var(--chip);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;">⋯</span>
+        </div>
+      </sc-if>
+
+      <!-- ══ SCROLL CONTENT ══ -->
+      <div class="om-scroll" style="position:absolute; top:0; left:0; right:0; bottom:0; overflow-y:auto; padding-top:{{ contentTop }}; padding-bottom:96px;">
+
+        <!-- ───── FLOOR ───── -->
+        <sc-if value="{{ isFloor }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:8px 18px 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint);">TUE MAY 26 · A-SHIFT</span>
+              <span style="display:flex; align-items:center; gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--running);animation:omPulse 2s infinite;"></span><span style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--running);">ONLINE</span></span>
+            </div>
+            <div style="font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink); margin-bottom:3px;">Today's floor</div>
+            <div style="font-size:13.5px; color:var(--muted); margin-bottom:18px;">WSZ-01 · 1 active, 1 blocked</div>
+
+            <!-- active WO -->
+            <div onClick="{{ activeWo.open }}" style="background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px; cursor:pointer;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted);">{{ activeWo.id }}</span>
+                <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:var(--running); background:var(--runningBg); border-radius:20px; padding:3px 8px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--running);animation:omPulse 2s infinite;"></span>RUNNING</span>
+              </div>
+              <div style="font-size:20px; font-weight:600; letter-spacing:-0.015em; color:var(--ink); margin-bottom:3px;">{{ activeWo.product }}</div>
+              <div style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--faint); margin-bottom:15px;">{{ activeWo.metaLine }}</div>
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--faint);">Progress</span>
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; color:var(--ink);">{{ activeWo.progLine }}</span>
+              </div>
+              <div style="height:6px; border-radius:20px; background:var(--chip); overflow:hidden;"><div style="width:{{ activeWo.pctStr }}; height:100%; background:var(--accent); border-radius:20px;"></div></div>
+            </div>
+
+            <!-- KPI trio -->
+            <div style="display:flex; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px 18px; margin-bottom:14px;">
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">OEE</div><div style="font-family:'Geist Mono',monospace; font-size:21px; font-weight:500; color:var(--ink);">78%</div></div>
+              <div style="width:1px; background:var(--line2);"></div>
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Issues</div><div style="font-family:'Geist Mono',monospace; font-size:21px; font-weight:500; color:var(--blocked);">3</div></div>
+              <div style="width:1px; background:var(--line2);"></div>
+              <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Done</div><div style="font-family:'Geist Mono',monospace; font-size:21px; font-weight:500; color:var(--ink);">14</div></div>
+            </div>
+
+            <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin:6px 2px 10px;">Up next</div>
+            <sc-for list="{{ upNext }}" as="q" hint-placeholder-count="2">
+              <div onClick="{{ q.open }}" style="display:flex; align-items:center; gap:13px; background:var(--card); border:1px solid var(--line); border-left:3px solid {{ q.bdr }}; border-radius:12px; padding:13px 15px; margin-bottom:9px; cursor:pointer;">
+                <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--faint);">{{ q.pos }}</span>
+                <div style="flex:1;"><div style="font-size:14px; font-weight:600; color:var(--ink);">{{ q.product }}</div><div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint); margin-top:2px;">{{ q.id }} · {{ q.planStr }} PCS</div></div>
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; font-weight:600; color:{{ q.dueClr }};">{{ q.due }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ───── QUEUE / ORDERS ───── -->
+        <sc-if value="{{ isList }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:8px 18px 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+              <div style="font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink);">{{ listTitle }}</div>
+              <span style="width:32px;height:32px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">AK</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:9px; background:var(--card); border:1px solid var(--line2); border-radius:11px; padding:11px 13px; margin-bottom:12px;">
+              <span style="width:13px;height:13px;border-radius:50%;border:2px solid var(--faint);flex-shrink:0;"></span>
+              <input value="{{ query }}" onInput="{{ onSearch }}" placeholder="Search work orders" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font-family:'Geist',sans-serif; font-size:13.5px; color:var(--ink);" />
+            </div>
+            <div style="display:flex; gap:3px; background:var(--card); border:1px solid var(--line2); border-radius:11px; padding:3px; margin-bottom:16px;">
+              <sc-for list="{{ filters }}" as="f" hint-placeholder-count="3"><span onClick="{{ f.go }}" style="{{ f.style }}">{{ f.label }}</span></sc-for>
+            </div>
+            <div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faintest); margin:0 2px 9px;">‹ Swipe a row for actions</div>
+            <sc-if value="{{ listEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center; padding:38px 20px; color:var(--faint); font-size:13.5px;">No work orders match.</div>
+            </sc-if>
+            <sc-for list="{{ listRows }}" as="w" hint-placeholder-count="5">
+              <div style="position:relative; border-radius:12px; overflow:hidden; margin-bottom:9px;">
+                <div style="position:absolute; top:0; right:0; bottom:0; display:flex; z-index:1;">
+                  <span onClick="{{ w.hold }}" style="width:68px; background:var(--downtime); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; cursor:pointer;">Hold</span>
+                  <span onClick="{{ w.block }}" style="width:68px; background:var(--blocked); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; cursor:pointer;">Block</span>
+                </div>
+                <div onPointerDown="{{ w.down }}" onPointerUp="{{ w.up }}" onClick="{{ w.tap }}" style="{{ w.fgStyle }}">
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:9px; margin-bottom:3px;">
+                      <span style="font-size:15px; font-weight:600; color:var(--ink);">{{ w.product }}</span>
+                      <span style="font-family:'Geist Mono',monospace; font-size:8.5px; letter-spacing:0.05em; color:{{ w.stClr }}; background:{{ w.stBg }}; border-radius:20px; padding:2px 7px;">{{ w.stLabel }}</span>
+                    </div>
+                    <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint);">{{ w.id }} · {{ w.madeStr }}/{{ w.planStr }} PCS</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; color:{{ w.dueClr }};">{{ w.due }}</div>
+                  </div>
+                  <span style="font-family:'Geist Mono',monospace; color:var(--faintest); font-size:16px;">{{ w.chev }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ───── ISSUES ───── -->
+        <sc-if value="{{ isIssues }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:8px 18px 0;">
+            <div style="font-size:28px; font-weight:600; letter-spacing:-0.025em; color:var(--ink); margin-bottom:3px;">Issues</div>
+            <div style="font-size:13.5px; color:var(--muted); margin-bottom:18px;">3 open · 1 blocking</div>
+            <sc-for list="{{ issues }}" as="is" hint-placeholder-count="4">
+              <div style="display:flex; align-items:flex-start; gap:13px; background:{{ is.cardBg }}; border:1px solid {{ is.cardBorder }}; border-left:3px solid {{ is.bdr }}; border-radius:12px; padding:14px 15px; margin-bottom:9px; opacity:{{ is.op }};">
+                <span style="margin-top:3px; width:9px;height:9px;border-radius:2px;background:{{ is.sevClr }};flex-shrink:0;"></span>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:14px; font-weight:600; color:var(--ink); margin-bottom:3px;">{{ is.title }}</div>
+                  <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint);">{{ is.metaLine }}</div>
+                </div>
+                <span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:{{ is.stateClr }};">{{ is.state }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ───── DETAIL ───── -->
+        <sc-if value="{{ inDetail }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:14px 18px 0;">
+            <div style="background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:{{ detailWo.stClr }}; background:{{ detailWo.stBg }}; border-radius:20px; padding:4px 10px;">{{ detailWo.stLabel }}</span>
+                <span style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--faint);">{{ detailWo.metaShort }}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--faint);">Progress</span>
+                <span style="font-family:'Geist Mono',monospace; font-size:14px; color:var(--ink);">{{ detailWo.progLine }}</span>
+              </div>
+              <div style="height:8px; border-radius:20px; background:var(--chip); overflow:hidden; margin-bottom:18px;"><div style="width:{{ detailWo.pctStr }}; height:100%; background:var(--accent); border-radius:20px;"></div></div>
+              <div style="display:flex; border:1px solid var(--line2); border-radius:12px; overflow:hidden;">
+                <div style="flex:1; padding:12px 14px; border-right:1px solid var(--line2);"><div style="font-family:'Geist Mono',monospace; font-size:8.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">Elapsed</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:var(--ink);">{{ detailWo.elapsed }}</div></div>
+                <div style="flex:1; padding:12px 14px; border-right:1px solid var(--line2);"><div style="font-family:'Geist Mono',monospace; font-size:8.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">Cycle</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:var(--ink);">{{ detailWo.cycle }}</div></div>
+                <div style="flex:1; padding:12px 14px;"><div style="font-family:'Geist Mono',monospace; font-size:8.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">ETA</div><div style="font-family:'Geist Mono',monospace; font-size:18px; font-weight:500; color:var(--ink);">{{ detailWo.eta }}</div></div>
+              </div>
+            </div>
+
+            <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); margin:4px 2px 10px;">Routing</div>
+            <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;">
+              <sc-for list="{{ detailWo.steps }}" as="st" hint-placeholder-count="6">
+                <div style="display:flex; align-items:center; gap:13px; padding:12px 15px; border-bottom:1px solid var(--line2);">
+                  <span style="width:23px;height:23px;border-radius:7px;background:{{ st.bg }};color:{{ st.clr }};display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:10px;font-weight:600;">{{ st.num }}</span>
+                  <span style="flex:1; font-size:13.5px; color:var(--ink);">{{ st.name }}</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:8.5px; letter-spacing:0.06em; color:{{ st.clr }};">{{ st.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+
+      <!-- ══ FAB ══ -->
+      <sc-if value="{{ showFab }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ openNew }}" style="position:absolute; right:18px; bottom:96px; width:54px; height:54px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:600; box-shadow:0 12px 26px -8px rgba(234,90,43,.6); z-index:22; cursor:pointer;">+</div>
+      </sc-if>
+
+      <!-- ══ DETAIL CTA ══ -->
+      <sc-if value="{{ inDetail }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:22; padding:14px 18px 22px; background:linear-gradient(to top, var(--bg) 70%, transparent); display:flex; gap:10px;">
+          <span onClick="{{ openOutput }}" style="flex:1; text-align:center; font-size:15px; font-weight:600; color:#fff; background:var(--ink); border-radius:13px; padding:15px; cursor:pointer;">+ Add output</span>
+          <span onClick="{{ openActions }}" style="width:52px; text-align:center; font-size:18px; color:var(--ink); background:var(--chip); border-radius:13px; padding:15px 0; cursor:pointer;">⋯</span>
+        </div>
+      </sc-if>
+
+      <!-- ══ BOTTOM TAB BAR ══ -->
+      <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute; left:0; right:0; bottom:0; height:82px; background:var(--card); border-top:1px solid var(--line2); display:flex; align-items:flex-start; padding:11px 6px 0; z-index:25;">
+          <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="4">
+            <div onClick="{{ tb.go }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; position:relative;">
+              <span style="{{ tb.icon }}"></span>
+              <sc-if value="{{ tb.badge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute; top:-3px; right:22px; min-width:15px; height:15px; border-radius:20px; background:var(--blocked); color:#fff; font-family:'Geist Mono',monospace; font-size:8.5px; display:flex; align-items:center; justify-content:center; padding:0 3px;">{{ tb.badge }}</span></sc-if>
+              <span style="font-size:9.5px; font-weight:{{ tb.weight }}; color:{{ tb.clr }};">{{ tb.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- ══ SNACKBAR ══ -->
+      <sc-if value="{{ snackShow }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:16px; right:16px; bottom:96px; z-index:35; background:var(--ink); border-radius:13px; padding:14px 16px; display:flex; align-items:center; gap:12px; box-shadow:0 14px 34px -14px rgba(0,0,0,.5);">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--running);"></span>
+          <span style="flex:1; font-size:13px; color:#fff;">{{ snackText }}</span>
+          <span onClick="{{ hideSnack }}" style="font-size:13px; font-weight:600; color:var(--accent); cursor:pointer;">Undo</span>
+        </div>
+      </sc-if>
+
+      <!-- ══ SCRIM ══ -->
+      <sc-if value="{{ anySheet }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeSheet }}" style="position:absolute; inset:0; background:rgba(10,9,8,.42); z-index:45;"></div>
+      </sc-if>
+
+      <!-- ══ OUTPUT BOTTOM SHEET ══ -->
+      <sc-if value="{{ sheetOutput }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:50; background:var(--card); border-top-left-radius:22px; border-top-right-radius:22px; padding:10px 20px 24px; box-shadow:0 -14px 44px -16px rgba(0,0,0,.45);">
+          <div style="width:38px; height:4px; border-radius:4px; background:var(--faintest); margin:0 auto 16px;"></div>
+          <div style="font-size:17px; font-weight:600; color:var(--ink); margin-bottom:3px;">Log output</div>
+          <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint); margin-bottom:18px;">{{ sheetWoLine }}</div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:11px;">Quantity to add</div>
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:20px;">
+            <span onClick="{{ dec }}" style="width:50px;height:50px;border-radius:14px;background:var(--card);border:1px solid var(--line);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;">−</span>
+            <span style="flex:1; text-align:center; font-family:'Geist Mono',monospace; font-size:34px; font-weight:500; color:var(--ink);">{{ qty }}</span>
+            <span onClick="{{ inc }}" style="width:50px;height:50px;border-radius:14px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;">+</span>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-top:1px solid var(--line2); margin-bottom:6px;">
+            <span style="font-size:13.5px; color:var(--ink);">Shift</span>
+            <div style="display:flex; gap:3px; background:var(--bg); border:1px solid var(--line2); border-radius:9px; padding:3px;">
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; font-weight:600; color:#fff; background:var(--ink); border-radius:6px; padding:5px 11px;">Z1</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted); padding:5px 11px;">Z2</span>
+            </div>
+          </div>
+          <span onClick="{{ confirmOutput }}" style="display:block; text-align:center; font-size:15px; font-weight:600; color:#fff; background:var(--accent); border-radius:13px; padding:16px; margin-top:12px; cursor:pointer;">Confirm + {{ qty }} pcs</span>
+        </div>
+      </sc-if>
+
+      <!-- ══ ACTION SHEET ══ -->
+      <sc-if value="{{ sheetActions }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:10px; right:10px; bottom:12px; z-index:50;">
+          <div style="background:rgba(255,255,255,.92); backdrop-filter:blur(8px); border-radius:15px; overflow:hidden; margin-bottom:8px;">
+            <div style="text-align:center; font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; color:var(--faint); padding:14px;">{{ actionsTitle }}</div>
+            <div style="height:1px; background:var(--line2);"></div>
+            <div onClick="{{ closeSheet }}" style="text-align:center; font-size:16px; color:var(--ink); padding:16px; cursor:pointer;">Edit order</div>
+            <div style="height:1px; background:var(--line2);"></div>
+            <div onClick="{{ closeSheet }}" style="text-align:center; font-size:16px; color:var(--ink); padding:16px; cursor:pointer;">Print LOT label</div>
+            <div style="height:1px; background:var(--line2);"></div>
+            <div onClick="{{ closeSheet }}" style="text-align:center; font-size:16px; color:var(--blocked); padding:16px; cursor:pointer;">Report blocking issue</div>
+          </div>
+          <div onClick="{{ closeSheet }}" style="text-align:center; font-size:16px; font-weight:600; color:var(--ink); background:var(--card); border-radius:15px; padding:16px; cursor:pointer;">Cancel</div>
+        </div>
+      </sc-if>
+
+      <!-- ══ NEW WO SHEET ══ -->
+      <sc-if value="{{ sheetNew }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:50; background:var(--card); border-top-left-radius:22px; border-top-right-radius:22px; padding:10px 20px 24px; box-shadow:0 -14px 44px -16px rgba(0,0,0,.45);">
+          <div style="width:38px; height:4px; border-radius:4px; background:var(--faintest); margin:0 auto 16px;"></div>
+          <div style="font-size:17px; font-weight:600; color:var(--ink); margin-bottom:18px;">New work order</div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Product</div>
+          <div style="font-size:14px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:13px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">HEPA-13 Standard <span style="color:var(--faint);">▾</span></div>
+          <div style="display:flex; gap:12px; margin-bottom:14px;">
+            <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Qty</div><div style="font-family:'Geist Mono',monospace; font-size:14px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:13px 14px;">250</div></div>
+            <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Due</div><div style="font-family:'Geist Mono',monospace; font-size:14px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:13px 14px;">26 May</div></div>
+          </div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Priority</div>
+          <div style="display:flex; gap:8px; margin-bottom:18px;">
+            <span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:#fff; background:var(--ink); border-radius:10px; padding:11px;">High</span>
+            <span style="flex:1; text-align:center; font-size:13px; font-weight:500; color:var(--muted); background:var(--chip); border-radius:10px; padding:11px;">Medium</span>
+            <span style="flex:1; text-align:center; font-size:13px; font-weight:500; color:var(--muted); background:var(--chip); border-radius:10px; padding:11px;">Low</span>
+          </div>
+          <span onClick="{{ confirmNew }}" style="display:block; text-align:center; font-size:15px; font-weight:600; color:#fff; background:var(--accent); border-radius:13px; padding:16px; cursor:pointer;">Create order</span>
+        </div>
+      </sc-if>
+
+      <!-- home indicator -->
+      <div style="position:absolute; bottom:7px; left:50%; transform:translateX(-50%); width:130px; height:5px; border-radius:5px; background:var(--ink); opacity:.22; z-index:60;"></div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { tab:'floor', detail:null, sheet:null, snack:false, snackMsg:'', qty:12, filter:'active', query:'', openRow:null, statusOverride:{} };
+
+  stepNames = ['Material stage','Frame prep','Media load','Pleating','Bonding','QA & pack'];
+
+  wos = [
+    { id:'WO-2026-001', product:'HEPA-13 Standard', status:'RUNNING', due:'13:42', plan:250, made:108, step:4, lot:'26-0512-A', batch:3, cycle:'2.94s', elapsed:'01:24', eta:'13:42' },
+    { id:'WO-2026-002', product:'Carbon Pre-Filter', status:'RUNNING', due:'11:05', plan:400, made:320, step:5, lot:'26-0510-C', batch:2, cycle:'1.80s', elapsed:'03:10', eta:'11:05' },
+    { id:'WO-2026-006', product:'Carbon Pre-Filter', status:'BLOCKED', due:'27 May', plan:300, made:60, step:2, lot:'26-0514-B', batch:1, cycle:'—', elapsed:'00:42', eta:'—' },
+    { id:'WO-2026-005', product:'HEPA Slim', status:'PENDING', due:'17:00', plan:120, made:0, step:0, lot:'—', batch:0, cycle:'—', elapsed:'—', eta:'—' },
+    { id:'WO-2026-007', product:'Polo Logo', status:'PENDING', due:'28 May', plan:140, made:0, step:0, lot:'—', batch:0, cycle:'—', elapsed:'—', eta:'—' },
+    { id:'WO-2026-003', product:'HEPA-13 Standard', status:'DONE', due:'25 May', plan:150, made:150, step:6, lot:'26-0508-A', batch:4, cycle:'2.88s', elapsed:'07:55', eta:'done' }
+  ];
+
+  issuesRaw = [
+    { id:'ISS-014', title:'Media tear on infeed roll', ctx:'WO-2026-006', time:'06:18', sev:'BLOCKING', state:'OPEN' },
+    { id:'ISS-013', title:'Pleat depth drift +0.4mm', ctx:'WO-2026-001', time:'05:52', sev:'MINOR', state:'OPEN' },
+    { id:'ISS-012', title:'Glue temp below setpoint', ctx:'WSZ-01', time:'04:30', sev:'MINOR', state:'ACK' },
+    { id:'ISS-011', title:'Frame misalignment at QA', ctx:'WO-2026-002', time:'Yest.', sev:'MINOR', state:'RESOLVED' }
+  ];
+
+  go(tab) { this.setState({ tab, detail:null, sheet:null, openRow:null }); }
+  openWo(id) { this.setState({ detail:id, sheet:null, openRow:null }); }
+  back() { this.setState({ detail:null }); }
+  openSheet(s) { this.setState({ sheet:s, qty:12 }); }
+  closeSheet() { this.setState({ sheet:null }); }
+  setFilter(f) { this.setState({ filter:f, openRow:null }); }
+  inc() { this.setState(s => ({ qty: s.qty + 1 })); }
+  dec() { this.setState(s => ({ qty: Math.max(0, s.qty - 1) })); }
+  fire(msg) { clearTimeout(this._t); this.setState({ snack:true, snackMsg:msg }); this._t = setTimeout(() => this.setState({ snack:false }), 3600); }
+  confirmOutput() { const q = this.state.qty; this.setState({ sheet:null }); this.fire('Output saved · +' + q + ' pcs'); }
+  confirmNew() { this.setState({ sheet:null, tab:'queue' }); this.fire('Work order created'); }
+  hideSnack() { clearTimeout(this._t); this.setState({ snack:false }); }
+  onSearch(e) { this.setState({ query: e.target.value }); }
+  swDown(id, e) { this._sw = { id, x: e.clientX }; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {} }
+  swUp(id, e) { if (!this._sw || this._sw.id !== id) return; const dx = e.clientX - this._sw.x; this._sw = null; this._moved = Math.abs(dx) > 10; let open = this.state.openRow === id; if (dx < -28) open = true; else if (dx > 28) open = false; this.setState({ openRow: open ? id : null }); }
+  swTap(id) { if (this._moved) { this._moved = false; return; } if (this.state.openRow === id) { this.setState({ openRow:null }); return; } this.openWo(id); }
+  rowHold(id) { this.setState({ openRow:null }); this.fire('On hold — supervisor notified'); }
+  rowBlock(id) { const o = { ...this.state.statusOverride, [id]:'BLOCKED' }; this.setState({ statusOverride:o, openRow:null }); this.fire('Marked blocked'); }
+
+  stDisp(t, status) {
+    const m = {
+      RUNNING:{ clr:t.running, bg:t.runningBg, label:'RUNNING', bdr:t.running },
+      PENDING:{ clr:t.pending, bg:t.pendingBg, label:'PENDING', bdr:'transparent' },
+      BLOCKED:{ clr:t.blocked, bg:t.blockedBg, label:'BLOCKED', bdr:t.blocked },
+      DONE:{ clr:t.done, bg:t.doneBg, label:'DONE', bdr:'transparent' }
+    };
+    return m[status];
+  }
+
+  decorate(t, w) {
+    const status = (this.state.statusOverride && this.state.statusOverride[w.id]) || w.status;
+    const d = this.stDisp(t, status);
+    const pct = w.plan ? Math.round(w.made / w.plan * 100) : 0;
+    return { ...w, status, pct, pctStr:pct + '%', planStr:String(w.plan), madeStr:String(w.made),
+      stClr:d.clr, stBg:d.bg, stLabel:d.label, bdr:d.bdr,
+      op: w.status === 'DONE' ? '0.55' : '1',
+      productUpper: w.product.toUpperCase(),
+      dueClr: String(w.due).includes(':') ? t.blocked : t.muted,
+      progLine: w.made + ' / ' + w.plan + ' · ' + pct + '%',
+      metaLine: w.lot === '—' ? 'WSZ-01 · NOT STARTED' : ('LINE WSZ-01 · STEP ' + w.step + '/6 ' + this.stepNames[w.step-1].toUpperCase()),
+      metaShort: w.lot === '—' ? 'NOT STARTED' : ('LOT ' + w.lot + ' · #' + w.batch),
+      open: () => this.openWo(w.id) };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const t = { bg:'#F6F5F1', card:'#FFFFFF', line:'#E6E4DE', line2:'#EDEBE6', ink:'#1A1917', muted:'#6F6C66', faint:'#9B9892', faintest:'#C4C0B8', chip:'#F1EFEA', accent:'#EA5A2B', running:'#1C9A55', runningBg:'#E6F4EA', pending:'#6F6C66', pendingBg:'#F1EFEA', blocked:'#D6442F', blockedBg:'#FBEAE6', downtime:'#C9821E', downtimeBg:'#FAF0DD', done:'#54514B', doneBg:'#ECEBE7' };
+
+    const all = this.wos.map(w => this.decorate(t, w));
+    const activeWo = all[0];
+    const detailWo = s.detail ? all.find(w => w.id === s.detail) : null;
+
+    // steps for detail
+    if (detailWo) {
+      const cur = detailWo.step;
+      const stMap = { done:{clr:t.running,bg:t.runningBg,label:'DONE'}, active:{clr:t.accent,bg:t.chip,label:'ACTIVE'}, blocked:{clr:t.blocked,bg:t.blockedBg,label:'BLOCKED'}, pending:{clr:t.faint,bg:'transparent',label:'·'} };
+      detailWo.steps = this.stepNames.map((name, i) => {
+        let st;
+        if (detailWo.status === 'DONE') st = 'done';
+        else if (i < cur - 1) st = 'done';
+        else if (i === cur - 1) st = detailWo.status === 'BLOCKED' ? 'blocked' : 'active';
+        else st = 'pending';
+        const m = stMap[st];
+        return { name, num:String(i+1), clr:m.clr, bg:m.bg, label:m.label };
+      });
+    }
+
+    // up next (floor): pending/blocked
+    const upNext = all.filter(w => w.status === 'PENDING' || w.status === 'BLOCKED').slice(0, 2)
+      .map((w, i) => ({ ...w, pos:String(i+1).padStart(2,'0') }));
+
+    // list rows filtered + searched + swipeable
+    const fmap = { active:['RUNNING','BLOCKED'], queued:['PENDING'], done:['DONE'] };
+    const q = s.query.trim().toLowerCase();
+    let listRows = all.filter(w => fmap[s.filter].includes(w.status));
+    if (q) listRows = listRows.filter(w => (w.product + ' ' + w.id).toLowerCase().includes(q));
+    listRows = listRows.map(w => ({ ...w,
+      chev: s.openRow === w.id ? '‹' : '›',
+      fgStyle: `position:relative; z-index:2; display:flex; align-items:center; gap:13px; background:${t.card}; border:1px solid ${t.line}; border-left:3px solid ${w.bdr === 'transparent' ? t.line : w.bdr}; border-radius:12px; padding:14px 15px; cursor:pointer; opacity:${w.op}; transform:translateX(${s.openRow === w.id ? '-136px' : '0px'}); transition:transform .18s ease; touch-action:pan-y; user-select:none;`,
+      down:(e)=>this.swDown(w.id,e), up:(e)=>this.swUp(w.id,e), tap:()=>this.swTap(w.id),
+      hold:()=>this.rowHold(w.id), block:()=>this.rowBlock(w.id) }));
+
+    const filters = [{k:'active',l:'Active'},{k:'queued',l:'Queued'},{k:'done',l:'Done'}].map(f => ({
+      label:f.l,
+      style:`flex:1;text-align:center;font-size:12.5px;font-weight:500;padding:8px;border-radius:8px;cursor:pointer;` + (s.filter===f.k ? `background:${t.ink};color:#fff;` : `color:${t.muted};`),
+      go:() => this.setFilter(f.k)
+    }));
+
+    // issues
+    const sevMap = { BLOCKING:{clr:t.blocked}, MINOR:{clr:t.downtime} };
+    const stateMap = { OPEN:t.accent, ACK:t.muted, RESOLVED:t.running };
+    const issues = this.issuesRaw.map(is => ({ ...is,
+      sevClr:sevMap[is.sev].clr, stateClr:stateMap[is.state],
+      bdr: is.state==='RESOLVED' ? 'transparent' : sevMap[is.sev].clr,
+      cardBg: is.sev==='BLOCKING' && is.state!=='RESOLVED' ? t.blockedBg : t.card,
+      cardBorder: is.sev==='BLOCKING' && is.state!=='RESOLVED' ? '#F3D6CF' : t.line,
+      op: is.state==='RESOLVED' ? '0.55' : '1',
+      metaLine: is.id + ' · ' + is.ctx + ' · ' + is.time }));
+
+    // tabs
+    const tabDefs = [
+      { key:'floor', label:'Floor' },
+      { key:'queue', label:'Queue' },
+      { key:'orders', label:'Orders' },
+      { key:'issues', label:'Issues', badge:'3' }
+    ];
+    const activeTab = s.detail ? null : s.tab;
+    const tabs = tabDefs.map(tb => {
+      const active = tb.key === activeTab;
+      const icon = active
+        ? `width:19px;height:19px;border-radius:4px;background:linear-gradient(135deg,${t.accent} 0 50%,${t.ink} 50% 100%);`
+        : `width:19px;height:19px;border-radius:4px;border:1.7px solid ${t.faintest};`;
+      return { label:tb.label, badge:tb.badge || null, icon,
+        clr: active ? t.ink : t.faint, weight: active ? '600' : '500',
+        go: () => this.go(tb.key) };
+    });
+
+    const isList = !s.detail && (s.tab === 'queue' || s.tab === 'orders');
+    const listTitle = s.tab === 'queue' ? 'Queue' : 'Work orders';
+
+    return {
+      // nav state
+      inDetail: !!s.detail, isFloor: !s.detail && s.tab === 'floor',
+      isList, isIssues: !s.detail && s.tab === 'issues', listTitle,
+      contentTop: s.detail ? '92px' : '46px',
+      showTabs: !s.detail, showFab: !s.detail && (s.tab === 'queue' || s.tab === 'orders'),
+      // data
+      activeWo, upNext, listRows, filters, issues, detailWo,
+      tabs, query: s.query, onSearch: (e) => this.onSearch(e), listEmpty: isList && listRows.length === 0,
+      // sheets
+      anySheet: !!s.sheet, sheetOutput: s.sheet === 'output', sheetActions: s.sheet === 'actions', sheetNew: s.sheet === 'new',
+      qty: String(s.qty),
+      sheetWoLine: detailWo ? (detailWo.id + ' · STEP ' + (detailWo.step||0) + '/6') : (activeWo.id + ' · STEP ' + activeWo.step + '/6'),
+      actionsTitle: detailWo ? (detailWo.id + ' ACTIONS') : 'WORK ORDER ACTIONS',
+      // snackbar
+      snackShow: s.snack, snackText: s.snackMsg,
+      // handlers
+      back: () => this.back(), openActions: () => this.openSheet('actions'), openOutput: () => this.openSheet('output'),
+      openNew: () => this.openSheet('new'), closeSheet: () => this.closeSheet(),
+      inc: () => this.inc(), dec: () => this.dec(), confirmOutput: () => this.confirmOutput(), confirmNew: () => this.confirmNew(),
+      hideSnack: () => this.hideSnack()
+    };
+  }
+}
+</script>
+</body>
+</html>

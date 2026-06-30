@@ -9,7 +9,7 @@ export default function WorkerAbsenceEdit({ absence }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="Edit Absence" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Absence</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Absence</h1>
             <ResourceForm
                 action={`/admin/worker-absences/${absence.id}`}
                 method="put"

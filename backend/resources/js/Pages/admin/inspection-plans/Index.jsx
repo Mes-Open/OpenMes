@@ -17,26 +17,26 @@ function asArray(v) {
 }
 
 function planStatus(r) {
-    if (!r.published_at) return { label: __('Draft'), cls: 'bg-amber-100 text-amber-800' };
-    if (r.is_active) return { label: __('Published'), cls: 'bg-green-100 text-green-800' };
-    return { label: __('Archived'), cls: 'bg-gray-100 text-gray-500' };
+    if (!r.published_at) return { label: __('Draft'), cls: 'bg-om-downtime-bg text-om-downtime' };
+    if (r.is_active) return { label: __('Published'), cls: 'bg-om-running-bg text-om-running' };
+    return { label: __('Archived'), cls: 'bg-om-chip text-om-muted' };
 }
 
 export default function InspectionPlansIndex() {
     const { materialNames = {}, materialTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
         {
             key: 'version',
             label: __('Version'),
-            className: 'text-gray-600 font-mono',
+            className: 'text-om-muted font-mono',
             render: (r) => `v${r.version ?? 1}`,
         },
         {
             key: 'scope',
             label: __('Scope'),
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) =>
                 r.material_id
                     ? `${__('Material')}: ${materialNames[r.material_id] ?? '?'}`
@@ -60,7 +60,7 @@ export default function InspectionPlansIndex() {
         if (!r.published_at) {
             items.push({
                 label: __('Publish'),
-                className: 'btn-touch text-sm bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50',
+                className: 'btn-touch text-sm bg-om-running-bg text-om-running hover:bg-om-running-bg',
                 onClick: () => {
                     if (confirm(__('Publish this version? It becomes the live plan used for new inspections.'))) {
                         router.post(`/admin/inspection-plans/${r.id}/publish`, {}, { preserveScroll: true });

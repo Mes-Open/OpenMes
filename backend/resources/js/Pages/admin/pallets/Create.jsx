@@ -6,12 +6,13 @@ export default function PalletCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Pallet" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New Pallet</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">New Pallet</h1>
             <PalletForm
                 action="/admin/pallets"
                 method="post"
                 initial={{
                     work_order_id: '',
+                    batch_id: '',
                     qty: 0,
                     status: 'open',
                     location: '',

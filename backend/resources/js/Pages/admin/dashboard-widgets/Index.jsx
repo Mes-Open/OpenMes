@@ -1,5 +1,7 @@
+// Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (reorder/toggle/save logic untouched).
 import { useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
+import { Badge, Button } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { __ } from '../../../lib/i18n';
 
@@ -63,26 +65,26 @@ export default function DashboardWidgetsIndex() {
             <Head title={__('Dashboard Setup')} />
             <div className="max-w-3xl mx-auto">
                 <div className="flex items-center gap-3 mb-6">
-                    <Link href="/settings" className="text-gray-500 dark:text-gray-400 hover:text-gray-700">
+                    <Link href="/settings" className="inline-flex size-[38px] items-center justify-center rounded-om-sm bg-om-chip text-om-ink transition-colors hover:bg-om-line2">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                         </svg>
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Dashboard Setup')}</h1>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">{__('Enable, disable, and reorder dashboard widgets')}</p>
+                        <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__('Dashboard Setup')}</h1>
+                        <p className="text-om-muted text-sm mt-0.5">{__('Enable, disable, and reorder dashboard widgets')}</p>
                     </div>
                 </div>
 
                 <div className="space-y-2">
                     {widgets.map((widget, index) => (
-                        <div key={widget.id} className="card flex items-center gap-3">
+                        <div key={widget.id} className="bg-om-card border border-om-line rounded-om p-4 flex items-center gap-3">
                             {/* Move buttons */}
                             <div className="flex flex-col shrink-0">
                                 <button
                                     onClick={() => moveUp(index)}
                                     disabled={index === 0}
-                                    className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed"
+                                    className="p-1 text-om-faint hover:text-om-ink cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
@@ -91,7 +93,7 @@ export default function DashboardWidgetsIndex() {
                                 <button
                                     onClick={() => moveDown(index)}
                                     disabled={index === widgets.length - 1}
-                                    className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed"
+                                    className="p-1 text-om-faint hover:text-om-ink cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -100,36 +102,32 @@ export default function DashboardWidgetsIndex() {
                             </div>
 
                             {/* Position number */}
-                            <span className="text-sm font-mono text-gray-400 dark:text-gray-500 w-6 text-center shrink-0">
+                            <span className="font-mono text-[12px] text-om-faint w-6 text-center shrink-0">
                                 {index + 1}
                             </span>
 
                             {/* Info */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">{widget.name}</h3>
-                                    <span
-                                        className={`px-2 py-0.5 rounded-full text-xs ${widget.source === 'builtin'
-                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                                            : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'}`}
-                                    >
+                                    <h3 className="text-[13.5px] font-semibold text-om-ink">{widget.name}</h3>
+                                    <Badge variant={widget.source === 'builtin' ? 'neutral' : 'outline'}>
                                         {widget.source === 'builtin' ? __('Built-in') : widget.module_name}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                    </Badge>
+                                    <span className="rounded-[20px] bg-om-chip px-[9px] py-[2px] font-mono text-[9.5px] uppercase tracking-[0.06em] text-om-muted">
                                         {widget.zone}
                                     </span>
                                 </div>
                                 {widget.description && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{widget.description}</p>
+                                    <p className="text-xs text-om-muted mt-0.5">{widget.description}</p>
                                 )}
                             </div>
 
                             {/* Toggle */}
                             <button
                                 onClick={() => toggleEnabled(index)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0 ${widget.enabled
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300'
-                                    : 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900 dark:text-red-300'}`}
+                                className={`px-3 py-1.5 rounded-om-sm text-[12px] font-semibold transition-colors cursor-pointer shrink-0 ${widget.enabled
+                                    ? 'text-om-running bg-om-running-bg hover:brightness-95'
+                                    : 'text-om-blocked bg-om-blocked-bg hover:brightness-95'}`}
                             >
                                 {widget.enabled ? __('Enabled') : __('Disabled')}
                             </button>
@@ -138,27 +136,28 @@ export default function DashboardWidgetsIndex() {
 
                     <div className="flex justify-between items-center mt-6">
                         <div>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">{__('Use arrows to reorder. Modules can register additional widgets.')}</p>
+                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Use arrows to reorder. Modules can register additional widgets.')}</p>
                             {dirty && (
-                                <p className="text-xs text-orange-600 font-medium mt-1">{__('You have unsaved changes!')}</p>
+                                <p className="text-xs text-om-accent font-medium mt-1">{__('You have unsaved changes!')}</p>
                             )}
                         </div>
-                        <button
+                        <Button
+                            variant="primary"
                             onClick={saveAll}
-                            className={`btn-touch btn-primary${dirty ? ' animate-pulse ring-2 ring-blue-400' : ''}`}
+                            className={dirty ? 'animate-pulse ring-2 ring-om-accent' : ''}
                         >
                             {__('Save')}
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
                 {/* Toast */}
                 {saved && (
-                    <div className="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-xl flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="fixed bottom-6 right-6 z-50 bg-om-ink text-om-on-ink px-5 py-3 rounded-om shadow-xl flex items-center gap-2">
+                        <svg className="w-5 h-5 text-om-running" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        <span>{__('Saved! Redirecting...')}</span>
+                        <span className="text-[13px]">{__('Saved! Redirecting...')}</span>
                     </div>
                 )}
             </div>

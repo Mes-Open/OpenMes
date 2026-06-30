@@ -5,34 +5,34 @@ import { TOOL_STATUS_LABELS } from './fields';
 import { __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
-    available: 'bg-green-100 text-green-800',
-    in_use: 'bg-blue-100 text-blue-800',
-    maintenance: 'bg-yellow-100 text-yellow-800',
-    retired: 'bg-gray-200 text-gray-600',
+    available: 'bg-om-running-bg text-om-running',
+    in_use: 'bg-om-chip text-om-accent',
+    maintenance: 'bg-om-downtime-bg text-om-downtime',
+    retired: 'bg-om-line2 text-om-muted',
 };
 
 export default function ToolsIndex() {
     const { workstationTypeNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
         {
             key: 'type',
             label: __('Workstation Type'),
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) => workstationTypeNames[r.workstation_type_id] ?? '—',
         },
         {
             key: 'status',
             label: __('Status'),
             render: (r) => (
-                <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
                     {TOOL_STATUS_LABELS[r.status] ?? r.status ?? '—'}
                 </span>
             ),
         },
-        { key: 'next_service_at', label: __('Next Service'), className: 'text-gray-600', render: (r) => (r.next_service_at ?? '—') },
+        { key: 'next_service_at', label: __('Next Service'), className: 'text-om-muted', render: (r) => (r.next_service_at ?? '—') },
     ];
 
     const actions = (r) => [

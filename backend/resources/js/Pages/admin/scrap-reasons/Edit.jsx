@@ -8,7 +8,7 @@ export default function ScrapReasonEdit({ scrapReason }) {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('Edit Scrap Reason')} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('Edit Scrap Reason')}</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('Edit Scrap Reason')}</h1>
             <ResourceForm
                 action={`/admin/scrap-reasons/${scrapReason.id}`}
                 method="put"

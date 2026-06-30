@@ -7,10 +7,10 @@ export default function SitesIndex() {
     const { counts = {}, companyNames = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
-        { key: 'company', label: __('Company'), className: 'text-gray-600', render: (r) => companyNames[r.company_id] ?? '—' },
-        { key: 'city', label: __('City'), className: 'text-gray-600' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
+        { key: 'company', label: __('Company'), className: 'text-om-muted', render: (r) => companyNames[r.company_id] ?? '—' },
+        { key: 'city', label: __('City'), className: 'text-om-muted' },
         { key: 'areas', label: __('Areas'), render: (r) => counts[r.id]?.areas ?? 0 },
         { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },
     ];

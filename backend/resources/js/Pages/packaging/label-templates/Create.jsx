@@ -19,7 +19,7 @@ export default function LabelTemplateCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('New Label Template')} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('New Label Template')}</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('New Label Template')}</h1>
             <LabelTemplateForm form={form} types={types} sizes={sizes} barcodeFormats={barcodeFormats} availableFields={availableFields} submitLabel="Create" onSubmit={submit} />
         </div>
     );

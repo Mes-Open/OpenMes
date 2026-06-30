@@ -30,7 +30,7 @@ export default function UserEdit() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${user.name}`} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">Edit Account</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">Edit Account</h1>
             <UserForm form={form} roles={roles} workstations={workstations} crews={crews} wageGroups={wageGroups} skills={skills} isEdit onSubmit={submit} />
         </div>
     );

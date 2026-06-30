@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Button } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 
 /**
  * Two-Factor Authentication (TOTP) settings.
+ * Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
  *
  * Props (TwoFactorController::enable):
  *   enabled        (bool)
@@ -12,6 +14,10 @@ import { __ } from '../../lib/i18n';
  *   qrCodeDataUri  (string)  — setup mode only
  *   recoveryCodes  (string[] | null) — shown once after confirm/regenerate
  */
+
+const INPUT_CLASS =
+    'w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
+
 export default function TwoFactor() {
     const { enabled, secret, qrCodeDataUri, recoveryCodes } = usePage().props;
 
@@ -35,13 +41,13 @@ export default function TwoFactor() {
             <Head title={__('Two-Factor Authentication')} />
             <div className="p-6 max-w-2xl mx-auto space-y-6">
                 <div>
-                    <Link href="/settings" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1">
+                    <Link href="/settings" className="text-[13px] text-om-muted hover:text-om-ink flex items-center gap-1 transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                         </svg>
                         {__('Back to Settings')}
                     </Link>
-                    <h1 className="mt-3 text-2xl font-bold text-gray-900 dark:text-white">{__('Two-Factor Authentication')}</h1>
+                    <h1 className="mt-3 text-[22px] font-semibold tracking-[-0.02em] text-om-ink">{__('Two-Factor Authentication')}</h1>
                 </div>
 
                 {recoveryCodes && recoveryCodes.length > 0 && (
@@ -68,19 +74,19 @@ function RecoveryCodes({ codes }) {
     };
 
     return (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-5">
-            <h2 className="text-sm font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wide">{__('Recovery codes')}</h2>
-            <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+        <div className="bg-om-downtime-bg border border-om-line rounded-om p-5">
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-ink font-semibold">{__('Recovery codes')}</h2>
+            <p className="text-[12.5px] text-om-muted mt-1">
                 {__("Store these somewhere safe. Each code can be used once if you lose access to your authenticator. They won't be shown again.")}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm">
+            <div className="mt-3 grid grid-cols-2 gap-2">
                 {codes.map((c, i) => (
-                    <span key={i} className="bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-800 rounded px-3 py-1.5 text-gray-800 dark:text-gray-100 select-all">
+                    <span key={i} className="bg-om-card border border-om-line rounded-om-sm px-3 py-1.5 font-mono text-[13px] text-om-ink select-all">
                         {c}
                     </span>
                 ))}
             </div>
-            <button type="button" onClick={copy} className="mt-3 text-sm text-amber-700 dark:text-amber-400 hover:underline">
+            <button type="button" onClick={copy} className="mt-3 text-[12.5px] text-om-accent hover:underline">
                 {copied ? __('Copied!') : __('Copy all')}
             </button>
         </div>
@@ -106,35 +112,35 @@ function SetupPanel({ secret, qrCodeDataUri }) {
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+        <div className="bg-om-card border border-om-line rounded-om p-6 space-y-4">
             <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">{__('Enable Two-Factor Authentication')}</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">{__('Enable Two-Factor Authentication')}</h2>
+                <p className="text-[12.5px] text-om-muted mt-1">
                     {__('Scan the QR code with your authenticator app (Google Authenticator, Authy, Microsoft Authenticator).')}
                 </p>
             </div>
 
             {qrCodeDataUri && (
                 <div className="text-center">
-                    <img src={qrCodeDataUri} alt={__('2FA QR code')} className="mx-auto rounded-lg border border-gray-200 dark:border-gray-600" />
+                    <img src={qrCodeDataUri} alt={__('2FA QR code')} className="mx-auto rounded-om-sm border border-om-line" />
                 </div>
             )}
 
             <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{__("Can't scan? Enter this key manually:")}</p>
+                <p className="text-[12.5px] text-om-muted mb-1">{__("Can't scan? Enter this key manually:")}</p>
                 <div className="flex gap-2">
-                    <code className="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-3 py-2 text-sm font-mono tracking-widest text-gray-800 dark:text-gray-100 select-all break-all">
+                    <code className="flex-1 bg-om-chip border border-om-line rounded-om-sm px-3 py-2 font-mono text-[13px] tracking-widest text-om-ink select-all break-all">
                         {secret}
                     </code>
-                    <button type="button" onClick={copySecret} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap">
+                    <Button type="button" variant="secondary" onClick={copySecret} className="whitespace-nowrap">
                         {copied ? __('Copied!') : __('Copy')}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
-            <form onSubmit={submit} className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+            <form onSubmit={submit} className="space-y-3 pt-2 border-t border-om-line">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]">
                         {__('Enter the 6-digit code to confirm')}
                     </label>
                     <input
@@ -145,13 +151,13 @@ function SetupPanel({ secret, qrCodeDataUri }) {
                         autoComplete="one-time-code"
                         maxLength={6}
                         autoFocus
-                        className="form-input w-full text-center text-2xl font-mono tracking-[0.5em]"
+                        className={`${INPUT_CLASS} text-center text-2xl font-mono tracking-[0.5em]`}
                     />
-                    {form.errors.code && <p className="mt-1 text-sm text-red-600">{form.errors.code}</p>}
+                    {form.errors.code && <p className="mt-1 text-[11.5px] text-om-blocked">{form.errors.code}</p>}
                 </div>
-                <button type="submit" disabled={form.processing || form.data.code.length !== 6} className="w-full px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                <Button type="submit" variant="accent" className="w-full" disabled={form.data.code.length !== 6} loading={form.processing}>
                     {form.processing ? __('Verifying…') : __('Enable Two-Factor Authentication')}
-                </button>
+                </Button>
             </form>
         </div>
     );
@@ -162,11 +168,11 @@ function SetupPanel({ secret, qrCodeDataUri }) {
 function ManagePanel() {
     return (
         <div className="space-y-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-3">
-                <span className="w-3 h-3 rounded-full bg-green-500" />
+            <div className="bg-om-card border border-om-line rounded-om p-5 flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-om-running" />
                 <div>
-                    <h2 className="font-bold text-gray-900 dark:text-white">{__('Two-factor authentication is on')}</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{__('Your account requires an authentication code at login.')}</p>
+                    <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">{__('Two-factor authentication is on')}</h2>
+                    <p className="text-[12.5px] text-om-muted">{__('Your account requires an authentication code at login.')}</p>
                 </div>
             </div>
 
@@ -196,14 +202,10 @@ function PasswordActionCard({ title, description, action, submitLabel, tone }) {
         form.post(action, { onSuccess: () => form.reset('password') });
     };
 
-    const btn = tone === 'red'
-        ? 'bg-red-600 hover:bg-red-700'
-        : 'bg-blue-600 hover:bg-blue-700';
-
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-            <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{description}</p>
+        <div className="bg-om-card border border-om-line rounded-om p-5">
+            <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">{title}</h3>
+            <p className="text-[12.5px] text-om-muted mt-1">{description}</p>
             <form onSubmit={submit} className="mt-3 flex gap-2 items-start">
                 <div className="flex-1">
                     <input
@@ -212,13 +214,19 @@ function PasswordActionCard({ title, description, action, submitLabel, tone }) {
                         onChange={(e) => form.setData('password', e.target.value)}
                         placeholder={__('Current password')}
                         autoComplete="current-password"
-                        className="form-input w-full"
+                        className={INPUT_CLASS}
                     />
-                    {form.errors.password && <p className="mt-1 text-sm text-red-600">{form.errors.password}</p>}
+                    {form.errors.password && <p className="mt-1 text-[11.5px] text-om-blocked">{form.errors.password}</p>}
                 </div>
-                <button type="submit" disabled={form.processing || !form.data.password} className={`px-5 py-3 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap ${btn}`}>
+                <Button
+                    type="submit"
+                    variant={tone === 'red' ? 'danger' : 'primary'}
+                    disabled={!form.data.password}
+                    loading={form.processing}
+                    className="whitespace-nowrap"
+                >
                     {submitLabel}
-                </button>
+                </Button>
             </form>
         </div>
     );

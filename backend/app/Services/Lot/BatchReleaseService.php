@@ -3,12 +3,33 @@
 namespace App\Services\Lot;
 
 use App\Models\Batch;
+use App\Models\BatchStepLotConsumption;
+use App\Models\MaterialLot;
+use App\Models\QualityControlTask;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class BatchReleaseService
 {
     public function __construct(private LotService $lotService) {}
+
+    /** Did this batch consume any material lot that is currently on hold? */
+    private function hasHeldConsumedLot(Batch $batch): bool
+    {
+        $stepIds = $batch->steps()->pluck('id');
+
+        if ($stepIds->isEmpty()) {
+            return false;
+        }
+
+        $lotIds = BatchStepLotConsumption::whereIn('batch_step_id', $stepIds)
+            ->pluck('material_lot_id')
+            ->unique();
+
+        return MaterialLot::whereIn('id', $lotIds)
+            ->whereIn('status', [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED])
+            ->exists();
+    }
 
     /**
      * Release a completed batch for production (semi-finished) or sale (finished goods).
@@ -26,6 +47,18 @@ class BatchReleaseService
 
         if (! in_array($releaseType, [Batch::RELEASE_FOR_PRODUCTION, Batch::RELEASE_FOR_SALE])) {
             throw new \RuntimeException("Invalid release type: {$releaseType}");
+        }
+
+        // Quality gate: don't release a batch whose work order is blocked by an
+        // open non-conformance, or that consumed a held (quarantined/rejected) lot.
+        if ($batch->workOrder?->isBlocked()) {
+            throw new \RuntimeException('Cannot release: the work order is blocked by an open non-conformance.');
+        }
+        if ($this->hasHeldConsumedLot($batch)) {
+            throw new \RuntimeException('Cannot release: a material lot consumed by this batch is on quality hold.');
+        }
+        if (QualityControlTask::hasOpenBlockingForBatch($batch->id)) {
+            throw new \RuntimeException('Cannot release: a required quality control is still outstanding for this batch.');
         }
 
         return DB::transaction(function () use ($batch, $user, $releaseType) {

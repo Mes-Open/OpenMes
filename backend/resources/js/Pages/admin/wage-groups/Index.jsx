@@ -7,8 +7,8 @@ export default function WageGroupsIndex() {
     const { counts = {} } = usePage().props;
 
     const columns = [
-        { key: 'code', label: __('Code'), className: 'font-mono text-gray-700' },
-        { key: 'name', label: __('Name'), className: 'font-medium text-gray-800' },
+        { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
+        { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
         { key: 'rate', label: __('Base Rate'), render: (r) => `${r.base_hourly_rate ?? '—'} ${r.currency ?? ''}`.trim() },
         { key: 'workers', label: __('Workers'), render: (r) => counts[r.id] ?? 0 },
         { key: 'is_active', label: __('Status'), render: (r) => <ActiveBadge active={r.is_active} /> },

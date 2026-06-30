@@ -116,7 +116,7 @@ class LabelGenerator
 
     private function labelDataForPallet(Pallet $pallet, LabelTemplate $template): array
     {
-        $pallet->loadMissing('workOrder.productType');
+        $pallet->loadMissing('workOrder.productType', 'batch');
         $wo = $pallet->workOrder;
         // Both the 1D barcode and the QR encode the pallet number, so scanning the
         // pallet anywhere resolves straight back to it.
@@ -130,7 +130,7 @@ class LabelGenerator
                 'product' => $wo?->productType?->name, // null hides the line (no stray "-")
                 'quantity' => $this->formatQty($pallet->qty).' '.($wo?->productType?->unit ?? 'pcs'),
                 'location' => $pallet->location,
-                'lot' => null,
+                'lot' => $pallet->batch?->lot_number ?: null,
                 'prod_date' => $pallet->created_at?->format('Y-m-d'),
             ],
             'barcode_value' => $barcodeValue,

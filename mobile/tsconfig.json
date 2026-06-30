@@ -1,0 +1,23 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // Resolve @openmes/ui's twin-platform files to the .native.tsx variant,
+    // mirroring Metro — so the shared package typechecks under strict mode.
+    "moduleSuffixes": [".native", ""],
+    // Keep @openmes/ui under mobile/node_modules/@openmes/ui (the file: dep
+    // symlink) instead of realpathing to ../packages/ui — that way the
+    // package's react/react-native imports typecheck against our copies.
+    // tsc-only: Metro resolves symlinks itself and ignores this option.
+    "preserveSymlinks": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ]
+}

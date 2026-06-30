@@ -173,6 +173,11 @@ if [ -z "$NAME_PREFIX" ]; then
 fi
 ok "Container name prefix: ${NAME_PREFIX} (containers: ${NAME_PREFIX}-backend, …)"
 
+# Always bring up the dev overlay: it adds the vite build --watch frontend
+# container and bind-mounts source, so .jsx edits on the server are rebuilt
+# automatically with no image rebuild.
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
+
 echo ""
 echo "  Credentials (saved in .env — keep them safe):"
 echo "  ┌─────────────────────────────────────────┐"

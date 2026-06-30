@@ -25,6 +25,7 @@ class QualityCheckController extends Controller
         $validated = $request->validate([
             'production_quantity' => 'nullable|numeric|min:0',
             'quality_check_template_id' => 'nullable|exists:quality_check_templates,id',
+            'pallet_id' => 'nullable|integer|exists:pallets,id',
             'notes' => 'nullable|string',
             'samples' => 'required|array|min:1',
             'samples.*.sample_number' => 'required|integer|min:1',
@@ -39,6 +40,15 @@ class QualityCheckController extends Controller
             ? QualityCheckTemplate::find($validated['quality_check_template_id'])
             : null;
 
+        // Optional pallet link (#106): the pallet must belong to the batch's work order.
+        $pallet = null;
+        if (! empty($validated['pallet_id'])) {
+            $pallet = \App\Models\Pallet::find($validated['pallet_id']);
+            if ($pallet && $pallet->work_order_id !== $batch->work_order_id) {
+                return response()->json(['message' => 'The pallet belongs to a different work order.'], 422);
+            }
+        }
+
         $check = $this->service->performCheck(
             $batch,
             $request->user(),
@@ -46,6 +56,7 @@ class QualityCheckController extends Controller
             $validated['production_quantity'] ?? null,
             $template,
             $validated['notes'] ?? null,
+            $pallet,
         );
 
         return response()->json([

@@ -13,7 +13,7 @@ export default function CrewBreakWindowsIndex() {
         {
             key: 'crew',
             label: 'Crew',
-            className: 'font-medium text-gray-800',
+            className: 'font-medium text-om-ink',
             render: (r) => crewNames[r.crew_id] ?? `#${r.crew_id}`,
         },
         { key: 'name', label: 'Name' },
@@ -25,14 +25,14 @@ export default function CrewBreakWindowsIndex() {
         {
             key: 'days',
             label: 'Days',
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) => formatDays(r.days_of_week ?? []),
         },
         {
             key: 'is_active',
             label: 'Status',
             render: (r) => (
-                <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? 'bg-om-running-bg text-om-running' : 'bg-om-chip text-om-muted'}`}>
                     {r.is_active ? __('Active') : __('Inactive')}
                 </span>
             ),

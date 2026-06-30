@@ -28,6 +28,7 @@ class SoftDeleteRegistry
         'workstation_types' => Models\WorkstationType::class,
         'subassemblies' => Models\Subassembly::class,
         'issue_types' => Models\IssueType::class,
+        'issue_actions' => Models\IssueAction::class,
         'line_statuses' => Models\LineStatus::class,
         'lot_sequences' => Models\LotSequence::class,
         'view_templates' => Models\ViewTemplate::class,
@@ -57,8 +58,14 @@ class SoftDeleteRegistry
         'product_types' => Models\ProductType::class,
         'process_templates' => Models\ProcessTemplate::class,
         'template_steps' => Models\TemplateStep::class,
+        'template_step_media' => Models\TemplateStepMedia::class,
+        'template_step_checklist_items' => Models\TemplateStepChecklistItem::class,
+        'batch_step_checklist_completions' => Models\BatchStepChecklistCompletion::class,
+        'batch_step_documents' => Models\BatchStepDocument::class,
         'bom_items' => Models\BomItem::class,
         'quality_check_templates' => Models\QualityCheckTemplate::class,
+        'quality_control_triggers' => Models\QualityControlTrigger::class,
+        'quality_control_tasks' => Models\QualityControlTask::class,
         'process_template_photos' => Models\ProcessTemplatePhoto::class,
         'process_segments' => Models\ProcessSegment::class,
         'materials' => Models\Material::class,
@@ -94,6 +101,9 @@ class SoftDeleteRegistry
         'machine_topics' => Models\MachineTopic::class,
         'topic_mappings' => Models\TopicMapping::class,
         'machine_tags' => Models\MachineTag::class,
+
+        // Integrations
+        'webhooks' => Models\Webhook::class,
     ];
 
     /** Attributes tried (in order) to label a trashed row in the Trash UI. */

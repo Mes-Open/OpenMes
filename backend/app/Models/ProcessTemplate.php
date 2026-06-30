@@ -69,6 +69,18 @@ class ProcessTemplate extends Model
         return $this->hasMany(ProcessTemplatePhoto::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    /** Rich work-instruction media (images, PDFs, videos) across this template's steps. */
+    public function stepMedia(): HasMany
+    {
+        return $this->hasMany(TemplateStepMedia::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** Checklist items across this template's steps. */
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(TemplateStepChecklistItem::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     /**
      * Generate a JSON snapshot of this template for work order storage.
      * This ensures work orders are immune to template changes.
@@ -97,7 +109,7 @@ class ProcessTemplate extends Model
                     'material_id' => $item->material_id,
                     'material_code' => $item->material->code,
                     'material_name' => $item->material->name,
-                    'material_type' => $item->material->materialType->code,
+                    'material_type' => $item->material->materialType?->code,
                     'tracking_type' => $item->material->tracking_type,
                     'unit_of_measure' => $item->material->unit_of_measure,
                     'quantity_per_unit' => (float) $item->quantity_per_unit,
@@ -127,6 +139,8 @@ class ProcessTemplate extends Model
             [\App\Models\BomItem::class, 'process_template_id'],
             [\App\Models\QualityCheckTemplate::class, 'process_template_id'],
             [\App\Models\ProcessTemplatePhoto::class, 'process_template_id'],
+            [\App\Models\TemplateStepMedia::class, 'process_template_id'],
+            [\App\Models\TemplateStepChecklistItem::class, 'process_template_id'],
         ];
     }
 }

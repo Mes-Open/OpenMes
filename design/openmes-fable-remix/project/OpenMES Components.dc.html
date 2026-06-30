@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #E9E8E3; -webkit-font-smoothing: antialiased; }
+  @keyframes omPulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  input, select, textarea { font-family: inherit; }
+</style>
+</helmet>
+
+<div style="--bg:#F6F5F1;--panel:#FBFAF8;--card:#FFFFFF;--line:#E6E4DE;--line2:#EDEBE6;--ink:#1A1917;--muted:#6F6C66;--faint:#9B9892;--faintest:#C4C0B8;--chip:#F1EFEA;--accent:#EA5A2B;--running:#1C9A55;--runningBg:#E6F4EA;--pending:#6F6C66;--pendingBg:#F1EFEA;--blocked:#D6442F;--blockedBg:#FBEAE6;--downtime:#C9821E;--downtimeBg:#FAF0DD;--done:#54514B;--doneBg:#ECEBE7;--radius:12px;--radiusSm:8px; font-family:'Geist',system-ui,sans-serif; background:#E9E8E3; min-height:100vh; padding:40px;">
+
+  <div style="max-width:1280px; margin:0 auto;">
+
+    <!-- header -->
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:8px;">
+      <div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <div style="width:24px; height:24px; border-radius:6px; background:linear-gradient(135deg,var(--accent) 0 50%,var(--ink) 50% 100%);"></div>
+          <span style="font-size:16px; font-weight:600; color:var(--ink); letter-spacing:-0.01em;">openmes</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:9.5px; color:var(--faint); border:1px solid var(--line); border-radius:5px; padding:2px 7px;">design system</span>
+        </div>
+        <h1 style="margin:0; font-size:32px; font-weight:600; letter-spacing:-0.025em; color:var(--ink);">Component reference</h1>
+        <p style="margin:9px 0 0; font-size:14px; color:var(--muted); max-width:560px; line-height:1.5;">Every building block in one place — Geist White system. Buttons, controls, inputs, status, alerts and overlays. Specimens are static for reference; live behaviour lives in the prototype.</p>
+      </div>
+      <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint); text-align:right; line-height:1.8;">
+        <div>GEIST · GEIST MONO</div>
+        <div>ACCENT #EA5A2B</div>
+        <div>RADIUS 12 / 8</div>
+      </div>
+    </div>
+
+    <div style="height:1px; background:var(--line); margin:26px 0;"></div>
+
+    <!-- ░░ COLOR TOKENS ░░ -->
+    <div style="margin-bottom:14px; font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--faint);">01 — State &amp; color tokens</div>
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:10px; margin-bottom:36px;">
+      <sc-for list="{{ tokens }}" as="t" hint-placeholder-count="7">
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+          <div style="height:54px; background:{{ t.clr }};"></div>
+          <div style="padding:9px 11px;">
+            <div style="font-size:11.5px; font-weight:600; color:var(--ink);">{{ t.name }}</div>
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; color:var(--faint); margin-top:2px;">{{ t.hex }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- two-column dense grid -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start;">
+
+      <!-- BUTTONS -->
+      <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+        <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">02 — Buttons</div>
+        <div style="display:flex; flex-wrap:wrap; gap:9px; margin-bottom:13px;">
+          <span style="font-size:13px; font-weight:600; color:#fff; background:var(--ink); border-radius:var(--radiusSm); padding:10px 16px;">Primary</span>
+          <span style="font-size:13px; font-weight:600; color:#fff; background:var(--accent); border-radius:var(--radiusSm); padding:10px 16px;">Accent</span>
+          <span style="font-size:13px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px;">Secondary</span>
+          <span style="font-size:13px; font-weight:600; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:var(--radiusSm); padding:9px 16px;">Ghost</span>
+          <span style="font-size:13px; font-weight:600; color:var(--blocked); background:var(--blockedBg); border-radius:var(--radiusSm); padding:10px 16px;">Danger</span>
+          <span style="font-size:13px; font-weight:600; color:var(--faint); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px; opacity:.6;">Disabled</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:9px;">
+          <span style="width:38px;height:38px;border-radius:var(--radiusSm);background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;">+</span>
+          <span style="width:38px;height:38px;border-radius:var(--radiusSm);background:var(--blockedBg);color:var(--blocked);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;">!</span>
+          <span style="width:38px;height:38px;border-radius:var(--radiusSm);background:var(--chip);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:16px;">⋯</span>
+          <span style="display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--muted); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px;"><span style="width:11px;height:11px;border-radius:50%;border:2px solid var(--faintest);border-top-color:var(--accent);display:inline-block;"></span>Saving…</span>
+        </div>
+      </div>
+
+      <!-- SWITCHES -->
+      <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+        <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">03 — Switches &amp; checkbox</div>
+        <div style="display:flex; flex-direction:column; gap:13px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="flex:1;"><div style="font-size:13px; color:var(--ink);">Auto-print LOT label</div><div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint); margin-top:2px;">ON</div></div>
+            <div style="width:42px;height:24px;border-radius:20px;background:var(--accent);position:relative;flex-shrink:0;"><span style="position:absolute;top:3px;left:21px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);"></span></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="flex:1;"><div style="font-size:13px; color:var(--ink);">Audible blocking alert</div><div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint); margin-top:2px;">OFF</div></div>
+            <div style="width:42px;height:24px;border-radius:20px;background:var(--faintest);position:relative;flex-shrink:0;"><span style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);"></span></div>
+          </div>
+          <div style="display:flex; gap:18px; padding-top:4px;">
+            <div style="display:flex; align-items:center; gap:9px;"><span style="width:18px;height:18px;border-radius:5px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">✓</span><span style="font-size:13px; color:var(--ink);">Checked</span></div>
+            <div style="display:flex; align-items:center; gap:9px;"><span style="width:18px;height:18px;border-radius:5px;border:2px solid var(--faintest);"></span><span style="font-size:13px; color:var(--ink);">Unchecked</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INPUTS -->
+      <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+        <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">04 — Inputs</div>
+        <div style="display:flex; flex-direction:column; gap:13px;">
+          <div>
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Lot number</div>
+            <input type="text" value="26-0512-A" style="width:100%; font-family:'Geist Mono',monospace; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 12px; outline:none;" />
+          </div>
+          <div style="display:flex; gap:11px;">
+            <div style="flex:1;">
+              <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Product</div>
+              <select style="width:100%; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 12px; outline:none;"><option>HEPA-13 Standard</option></select>
+            </div>
+            <div style="width:128px;">
+              <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Quantity</div>
+              <div style="display:flex; align-items:center; border:1px solid var(--line); border-radius:var(--radiusSm); overflow:hidden; background:var(--bg);">
+                <span style="padding:9px 12px; color:var(--muted); font-size:16px;">−</span>
+                <span style="flex:1; text-align:center; font-family:'Geist Mono',monospace; font-size:13px; color:var(--ink);">250</span>
+                <span style="padding:9px 12px; color:var(--muted); font-size:16px;">+</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Focused field</div>
+            <input type="text" value="Typing…" style="width:100%; font-size:13px; color:var(--ink); background:var(--card); border:1.5px solid var(--accent); border-radius:var(--radiusSm); padding:10px 12px; outline:none; box-shadow:0 0 0 3px rgba(234,90,43,.12);" />
+          </div>
+        </div>
+      </div>
+
+      <!-- SELECTION -->
+      <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+        <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">05 — Selection &amp; tabs</div>
+        <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:7px;">Segmented</div>
+        <div style="display:flex; gap:3px; background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:3px; margin-bottom:15px;">
+          <span style="flex:1; text-align:center; font-size:12.5px; font-weight:500; color:#fff; background:var(--ink); border-radius:6px; padding:7px;">Small</span>
+          <span style="flex:1; text-align:center; font-size:12.5px; font-weight:500; color:var(--muted); padding:7px;">Medium</span>
+          <span style="flex:1; text-align:center; font-size:12.5px; font-weight:500; color:var(--muted); padding:7px;">Large</span>
+        </div>
+        <div style="display:flex; gap:18px; margin-bottom:15px;">
+          <div style="display:flex; align-items:center; gap:9px;"><span style="width:18px;height:18px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);"></span></span><span style="font-size:13px; color:var(--ink);">Per batch</span></div>
+          <div style="display:flex; align-items:center; gap:9px;"><span style="width:18px;height:18px;border-radius:50%;border:2px solid var(--faintest);"></span><span style="font-size:13px; color:var(--ink);">Per shift</span></div>
+        </div>
+        <div style="display:flex; gap:22px; border-bottom:1px solid var(--line2);">
+          <span style="padding:9px 2px; font-size:13.5px; font-weight:500; color:var(--ink); border-bottom:2px solid var(--accent); margin-bottom:-1px;">Details</span>
+          <span style="padding:9px 2px; font-size:13.5px; font-weight:500; color:var(--muted);">Routing</span>
+          <span style="padding:9px 2px; font-size:13.5px; font-weight:500; color:var(--muted);">History</span>
+        </div>
+      </div>
+
+      <!-- STATUS / BADGES -->
+      <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+        <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">06 — Status &amp; badges</div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:11px;">
+          <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--running); background:var(--runningBg); border-radius:20px; padding:4px 10px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--running);animation:omPulse 2s infinite;"></span>RUNNING</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--pending); background:var(--pendingBg); border-radius:20px; padding:4px 10px;">PENDING</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--blocked); background:var(--blockedBg); border-radius:20px; padding:4px 10px;">BLOCKED</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--done); background:var(--doneBg); border-radius:20px; padding:4px 10px;">DONE</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+          <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--blocked); background:var(--blockedBg); border-radius:20px; padding:4px 10px;">BLOCKING</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; color:var(--downtime); background:var(--downtimeBg); border-radius:20px; padding:4px 10px;">MINOR</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#fff; background:var(--blocked); border-radius:20px; padding:2px 9px;">3</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted); background:var(--chip); border-radius:20px; padding:2px 9px;">12</span>
+          <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--accent); border:1px solid var(--accent); border-radius:20px; padding:2px 9px;">HIGH</span>
+          <span style="display:inline-flex; align-items:center; gap:5px; font-family:'Geist Mono',monospace; font-size:10px; color:var(--running);"><span style="width:7px;height:7px;border-radius:50%;background:var(--running);"></span>ONLINE</span>
+        </div>
+        <div style="margin-top:14px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--faint);">Progress bar</span><span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted);">43%</span></div>
+          <div style="height:7px; border-radius:20px; background:var(--chip); overflow:hidden;"><div style="width:43%; height:100%; background:var(--accent); border-radius:20px;"></div></div>
+        </div>
+      </div>
+
+      <!-- DROPDOWN MENU -->
+      <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px;">
+        <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">07 — Action menu</div>
+        <div style="display:flex; gap:18px; align-items:flex-start;">
+          <span style="display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:var(--radiusSm); padding:9px 16px;">Actions ⋯</span>
+          <div style="width:184px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 18px 44px -18px rgba(0,0,0,.3); padding:6px;">
+            <div style="font-size:13px; color:var(--ink); padding:9px 11px; border-radius:var(--radiusSm); background:var(--chip);">Edit order</div>
+            <div style="font-size:13px; color:var(--ink); padding:9px 11px;">Duplicate</div>
+            <div style="font-size:13px; color:var(--ink); padding:9px 11px;">Print label</div>
+            <div style="height:1px; background:var(--line2); margin:5px 0;"></div>
+            <div style="font-size:13px; color:var(--blocked); padding:9px 11px;">Delete</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ALERTS (full width) -->
+    <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-top:18px;">
+      <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">08 — Inline alerts</div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+        <sc-for list="{{ alerts }}" as="al" hint-placeholder-count="4">
+          <div style="display:flex; align-items:flex-start; gap:11px; background:{{ al.bg }}; border-radius:var(--radius); padding:14px 15px;">
+            <span style="margin-top:3px; width:9px;height:9px;border-radius:50%;background:{{ al.clr }};flex-shrink:0;"></span>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:var(--ink);">{{ al.title }}</div>
+              <div style="font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.45;">{{ al.body }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- OVERLAYS: toast + modals shown inline (full width) -->
+    <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-top:18px;">
+      <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:16px;">09 — Overlays — toast &amp; modals (static specimens)</div>
+      <div style="display:grid; grid-template-columns:300px 1fr 1fr; gap:18px; align-items:start;">
+
+        <!-- toasts stack -->
+        <div style="display:flex; flex-direction:column; gap:11px;">
+          <sc-for list="{{ toasts }}" as="to" hint-placeholder-count="3">
+            <div style="background:var(--card); border:1px solid var(--line); border-left:3px solid {{ to.clr }}; border-radius:var(--radius); padding:13px 15px; box-shadow:0 14px 34px -18px rgba(0,0,0,.3); display:flex; gap:11px; align-items:flex-start;">
+              <span style="margin-top:2px; width:10px;height:10px;border-radius:50%;background:{{ to.clr }};flex-shrink:0;"></span>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:600; color:var(--ink);">{{ to.title }}</div>
+                <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--muted); margin-top:3px;">{{ to.body }}</div>
+              </div>
+              <span style="color:var(--faint); font-size:15px;">×</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- confirm modal specimen -->
+        <div style="background:var(--bg); border:1px dashed var(--line); border-radius:var(--radius); padding:22px; display:flex; align-items:center; justify-content:center;">
+          <div style="width:100%; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px; box-shadow:0 20px 50px -20px rgba(0,0,0,.35);">
+            <div style="width:40px;height:40px;border-radius:11px;background:var(--blockedBg);color:var(--blocked);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin-bottom:14px;">!</div>
+            <div style="font-size:17px; font-weight:600; color:var(--ink); letter-spacing:-0.01em; margin-bottom:7px;">Delete WO-2026-007?</div>
+            <p style="margin:0 0 18px; font-size:12.5px; color:var(--muted); line-height:1.5;">This permanently removes the work order and its routing. Logged output stays in reports. Cannot be undone.</p>
+            <div style="display:flex; gap:9px; justify-content:flex-end;">
+              <span style="font-size:13px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px;">Cancel</span>
+              <span style="font-size:13px; font-weight:600; color:#fff; background:var(--blocked); border-radius:var(--radiusSm); padding:10px 16px;">Delete order</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- form modal specimen -->
+        <div style="background:var(--bg); border:1px dashed var(--line); border-radius:var(--radius); padding:22px; display:flex; align-items:center; justify-content:center;">
+          <div style="width:100%; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 20px 50px -20px rgba(0,0,0,.35); overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid var(--line2);">
+              <div><div style="font-size:15px; font-weight:600; color:var(--ink);">New work order</div><div style="font-family:'Geist Mono',monospace; font-size:9.5px; color:var(--faint); margin-top:3px;">LINE WSZ-01</div></div>
+              <span style="color:var(--faint); font-size:18px;">×</span>
+            </div>
+            <div style="padding:16px 18px; display:flex; flex-direction:column; gap:12px;">
+              <div><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:6px;">Product</div><div style="font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 12px;">HEPA-13 Standard</div></div>
+              <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:6px;">Qty</div><div style="font-family:'Geist Mono',monospace; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 12px;">250</div></div>
+                <div style="flex:1;"><div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:6px;">Due</div><div style="font-family:'Geist Mono',monospace; font-size:13px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 12px;">26 May</div></div>
+              </div>
+            </div>
+            <div style="display:flex; gap:9px; justify-content:flex-end; padding:14px 18px; border-top:1px solid var(--line2); background:var(--panel);">
+              <span style="font-size:13px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:10px 16px;">Cancel</span>
+              <span style="font-size:13px; font-weight:600; color:#fff; background:var(--ink); border-radius:var(--radiusSm); padding:10px 16px;">Create</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NATIVE MOBILE (full width) -->
+    <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-top:18px;">
+      <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:4px;">10 — Native mobile</div>
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:18px;">Touch patterns shown in context — bottom sheets, action sheets, tab bar, snackbar, FAB, swipe actions and pickers.</div>
+
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:18px; align-items:start;">
+
+        <!-- ① BOTTOM SHEET -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Bottom sheet</div>
+          <div style="position:relative; height:360px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden;">
+            <!-- faint underlying content -->
+            <div style="padding:16px 16px 0;">
+              <div style="height:13px; width:54%; background:var(--line); border-radius:5px; margin-bottom:10px;"></div>
+              <div style="height:42px; background:var(--card); border:1px solid var(--line2); border-radius:10px; margin-bottom:9px;"></div>
+              <div style="height:42px; background:var(--card); border:1px solid var(--line2); border-radius:10px;"></div>
+            </div>
+            <!-- scrim -->
+            <div style="position:absolute; inset:0; background:rgba(10,9,8,.4);"></div>
+            <!-- sheet -->
+            <div style="position:absolute; left:0; right:0; bottom:0; background:var(--card); border-top-left-radius:20px; border-top-right-radius:20px; padding:10px 18px 20px; box-shadow:0 -12px 40px -16px rgba(0,0,0,.4);">
+              <div style="width:38px; height:4px; border-radius:4px; background:var(--faintest); margin:0 auto 16px;"></div>
+              <div style="font-size:15px; font-weight:600; color:var(--ink); margin-bottom:3px;">Log output</div>
+              <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint); margin-bottom:16px;">WO-2026-001 · STEP 4/6</div>
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--line2);"><span style="font-size:13.5px; color:var(--ink);">Add to current batch</span><span style="width:18px;height:18px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);"></span></span></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--line2);"><span style="font-size:13.5px; color:var(--ink);">Start new batch</span><span style="width:18px;height:18px;border-radius:50%;border:2px solid var(--faintest);"></span></div>
+              <div style="text-align:center; font-size:14px; font-weight:600; color:#fff; background:var(--ink); border-radius:11px; padding:14px; margin-top:16px;">Confirm +12 pcs</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ② ACTION SHEET -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Action sheet</div>
+          <div style="position:relative; height:360px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden;">
+            <div style="position:absolute; inset:0; background:rgba(10,9,8,.4);"></div>
+            <div style="position:absolute; left:10px; right:10px; bottom:10px;">
+              <div style="background:rgba(255,255,255,.86); backdrop-filter:blur(8px); border-radius:14px; overflow:hidden; margin-bottom:8px;">
+                <div style="text-align:center; font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.06em; color:var(--faint); padding:13px;">WO-2026-007 ACTIONS</div>
+                <div style="height:1px; background:var(--line2);"></div>
+                <div style="text-align:center; font-size:15px; color:var(--ink); padding:15px;">Edit order</div>
+                <div style="height:1px; background:var(--line2);"></div>
+                <div style="text-align:center; font-size:15px; color:var(--ink); padding:15px;">Duplicate</div>
+                <div style="height:1px; background:var(--line2);"></div>
+                <div style="text-align:center; font-size:15px; font-weight:600; color:var(--blocked); padding:15px;">Delete order</div>
+              </div>
+              <div style="text-align:center; font-size:15px; font-weight:600; color:var(--ink); background:var(--card); border-radius:14px; padding:15px;">Cancel</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ③ ALERT DIALOG -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Alert dialog</div>
+          <div style="position:relative; height:360px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden;">
+            <div style="position:absolute; inset:0; background:rgba(10,9,8,.4); display:flex; align-items:center; justify-content:center; padding:24px;">
+              <div style="width:100%; background:var(--card); border-radius:16px; overflow:hidden; text-align:center;">
+                <div style="padding:22px 20px 18px;">
+                  <div style="width:42px;height:42px;border-radius:50%;background:var(--blockedBg);color:var(--blocked);display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700;margin:0 auto 14px;">!</div>
+                  <div style="font-size:16px; font-weight:600; color:var(--ink); margin-bottom:7px;">Blocking issue</div>
+                  <div style="font-size:12.5px; color:var(--muted); line-height:1.5;">Media tear on infeed roll. Production is halted until cleared.</div>
+                </div>
+                <div style="display:flex; border-top:1px solid var(--line2);">
+                  <div style="flex:1; font-size:14.5px; font-weight:500; color:var(--muted); padding:14px; border-right:1px solid var(--line2);">Dismiss</div>
+                  <div style="flex:1; font-size:14.5px; font-weight:600; color:var(--accent); padding:14px;">Report</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ④ BOTTOM TAB BAR + FAB -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Tab bar · FAB</div>
+          <div style="position:relative; height:360px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden;">
+            <div style="padding:16px 16px 0;">
+              <div style="font-size:17px; font-weight:600; color:var(--ink); margin-bottom:12px;">Floor</div>
+              <div style="height:62px; background:var(--card); border:1px solid var(--line2); border-radius:12px; margin-bottom:10px;"></div>
+              <div style="height:62px; background:var(--card); border:1px solid var(--line2); border-radius:12px; margin-bottom:10px;"></div>
+              <div style="height:62px; background:var(--card); border:1px solid var(--line2); border-radius:12px;"></div>
+            </div>
+            <!-- FAB -->
+            <div style="position:absolute; right:16px; bottom:80px; width:52px; height:52px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:600; box-shadow:0 10px 24px -8px rgba(234,90,43,.6);">+</div>
+            <!-- tab bar -->
+            <div style="position:absolute; left:0; right:0; bottom:0; height:64px; background:var(--card); border-top:1px solid var(--line2); display:flex; align-items:center; padding:0 6px;">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;"><span style="width:18px;height:18px;border-radius:4px;background:linear-gradient(135deg,var(--accent) 0 50%,var(--ink) 50% 100%);"></span><span style="font-size:9.5px; font-weight:600; color:var(--ink);">Floor</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;"><span style="width:18px;height:18px;border-radius:4px;border:1.6px solid var(--faintest);"></span><span style="font-size:9.5px; color:var(--faint);">Queue</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;"><span style="width:18px;height:18px;border-radius:4px;border:1.6px solid var(--faintest);"></span><span style="font-size:9.5px; color:var(--faint);">Orders</span></div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; position:relative;"><span style="width:18px;height:18px;border-radius:4px;border:1.6px solid var(--faintest);"></span><span style="position:absolute; top:-2px; right:18px; width:14px;height:14px;border-radius:50%;background:var(--blocked);color:#fff;font-family:'Geist Mono',monospace;font-size:8px;display:flex;align-items:center;justify-content:center;">3</span><span style="font-size:9.5px; color:var(--faint);">Issues</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ⑤ SNACKBAR + SWIPE ROW -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Snackbar · swipe row</div>
+          <div style="position:relative; height:360px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden; padding:16px 16px 0;">
+            <!-- swipe-to-action row -->
+            <div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.06em; color:var(--faint); margin-bottom:8px;">SWIPE LEFT TO REVEAL</div>
+            <div style="display:flex; border-radius:12px; overflow:hidden; margin-bottom:18px;">
+              <div style="flex:1; background:var(--card); border:1px solid var(--line2); border-right:none; border-radius:12px 0 0 12px; padding:13px 14px;">
+                <div style="font-size:14px; font-weight:600; color:var(--ink);">HEPA Slim</div>
+                <div style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint); margin-top:3px;">WO-2026-005 · 120 PCS</div>
+              </div>
+              <div style="width:58px; background:var(--downtime); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;">Hold</div>
+              <div style="width:58px; background:var(--blocked); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; border-radius:0 12px 12px 0;">Block</div>
+            </div>
+            <!-- pull to refresh -->
+            <div style="display:flex; flex-direction:column; align-items:center; gap:7px; margin-bottom:14px;">
+              <span style="width:20px;height:20px;border-radius:50%;border:2px solid var(--faintest);border-top-color:var(--accent);"></span>
+              <span style="font-family:'Geist Mono',monospace; font-size:10px; color:var(--faint);">Pull to refresh</span>
+            </div>
+            <!-- snackbar -->
+            <div style="position:absolute; left:14px; right:14px; bottom:14px; background:var(--ink); border-radius:12px; padding:14px 16px; display:flex; align-items:center; gap:12px;">
+              <span style="flex:1; font-size:13px; color:#fff;">Output saved · +12 pcs</span>
+              <span style="font-size:13px; font-weight:600; color:var(--accent);">Undo</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ⑥ SEARCH · SEGMENTED · STEPPER -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Search · segmented · stepper</div>
+          <div style="position:relative; height:360px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden; padding:16px;">
+            <!-- search -->
+            <div style="display:flex; align-items:center; gap:9px; background:var(--card); border:1px solid var(--line2); border-radius:11px; padding:11px 13px; margin-bottom:14px;">
+              <span style="width:13px;height:13px;border-radius:50%;border:2px solid var(--faint);"></span>
+              <span style="font-size:13.5px; color:var(--faint);">Search work orders</span>
+            </div>
+            <!-- segmented -->
+            <div style="display:flex; gap:3px; background:var(--card); border:1px solid var(--line2); border-radius:11px; padding:3px; margin-bottom:18px;">
+              <span style="flex:1; text-align:center; font-size:12.5px; font-weight:600; color:#fff; background:var(--ink); border-radius:8px; padding:9px;">Active</span>
+              <span style="flex:1; text-align:center; font-size:12.5px; font-weight:500; color:var(--muted); padding:9px;">Queued</span>
+              <span style="flex:1; text-align:center; font-size:12.5px; font-weight:500; color:var(--muted); padding:9px;">Done</span>
+            </div>
+            <!-- big stepper -->
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Quantity</div>
+            <div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">
+              <span style="width:48px;height:48px;border-radius:13px;background:var(--card);border:1px solid var(--line);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:24px;">−</span>
+              <span style="flex:1; text-align:center; font-family:'Geist Mono',monospace; font-size:30px; font-weight:500; color:var(--ink);">12</span>
+              <span style="width:48px;height:48px;border-radius:13px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;">+</span>
+            </div>
+            <!-- picker wheel -->
+            <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Picker</div>
+            <div style="position:relative; height:84px; background:var(--card); border:1px solid var(--line2); border-radius:11px; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;">
+              <span style="font-size:12px; color:var(--faintest);">Z1 · 06–14</span>
+              <span style="font-size:15px; font-weight:600; color:var(--ink);">Z2 · 14–22</span>
+              <span style="font-size:12px; color:var(--faintest);">Z3 · 22–06</span>
+              <div style="position:absolute; left:10px; right:10px; top:31px; height:22px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); pointer-events:none;"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MOBILE NAVIGATION (full width) -->
+    <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-top:18px;">
+      <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:4px;">11 — Mobile navigation</div>
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:18px;">Headers, large titles, drawer and segmented navigation.</div>
+
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:18px; align-items:start;">
+
+        <!-- ① TOP APP BAR -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Top app bar · back</div>
+          <div style="position:relative; height:300px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:12px; padding:16px 16px 14px; background:var(--card); border-bottom:1px solid var(--line2);">
+              <span style="font-size:20px; color:var(--ink); line-height:1;">‹</span>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:600; color:var(--ink);">WO-2026-001</div>
+                <div style="font-family:'Geist Mono',monospace; font-size:9.5px; color:var(--faint); margin-top:1px;">HEPA-13 STANDARD</div>
+              </div>
+              <span style="width:30px;height:30px;border-radius:8px;background:var(--chip);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:15px;">⋯</span>
+            </div>
+            <div style="padding:16px;">
+              <div style="height:60px; background:var(--card); border:1px solid var(--line2); border-radius:12px; margin-bottom:10px;"></div>
+              <div style="height:60px; background:var(--card); border:1px solid var(--line2); border-radius:12px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ② LARGE TITLE + SEARCH -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Large title · search</div>
+          <div style="position:relative; height:300px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden;">
+            <div style="padding:18px 16px 0;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint);">A-SHIFT · 06:00</span>
+                <span style="width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">AK</span>
+              </div>
+              <div style="font-size:27px; font-weight:600; letter-spacing:-0.025em; color:var(--ink); margin-bottom:14px;">Work orders</div>
+              <div style="display:flex; align-items:center; gap:9px; background:var(--card); border:1px solid var(--line2); border-radius:11px; padding:11px 13px; margin-bottom:14px;">
+                <span style="width:13px;height:13px;border-radius:50%;border:2px solid var(--faint);"></span>
+                <span style="font-size:13.5px; color:var(--faint);">Search</span>
+              </div>
+              <div style="height:54px; background:var(--card); border:1px solid var(--line2); border-radius:12px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ③ DRAWER MENU -->
+        <div>
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Drawer menu</div>
+          <div style="position:relative; height:300px; background:var(--bg); border:1px solid var(--line); border-radius:22px; overflow:hidden;">
+            <div style="position:absolute; inset:0; background:rgba(10,9,8,.4);"></div>
+            <div style="position:absolute; left:0; top:0; bottom:0; width:74%; background:var(--card); padding:18px 14px; box-shadow:14px 0 40px -16px rgba(0,0,0,.4);">
+              <div style="display:flex; align-items:center; gap:9px; padding:4px 6px 16px;">
+                <div style="width:22px; height:22px; border-radius:5px; background:linear-gradient(135deg,var(--accent) 0 50%,var(--ink) 50% 100%);"></div>
+                <span style="font-size:14.5px; font-weight:600; color:var(--ink);">openmes</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; background:var(--ink); color:#fff; margin-bottom:3px;"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,var(--accent) 0 50%,#fff 50% 100%);"></span><span style="font-size:13px; font-weight:500;">Floor</span></div>
+              <div style="display:flex; align-items:center; gap:10px; padding:9px 10px; color:var(--muted);"><span style="width:15px;height:15px;border-radius:3px;border:1.5px solid var(--faintest);"></span><span style="font-size:13px;">Queue</span></div>
+              <div style="display:flex; align-items:center; gap:10px; padding:9px 10px; color:var(--muted);"><span style="width:15px;height:15px;border-radius:3px;border:1.5px solid var(--faintest);"></span><span style="font-size:13px;">Work orders</span></div>
+              <div style="display:flex; align-items:center; gap:10px; padding:9px 10px; color:var(--muted);"><span style="width:15px;height:15px;border-radius:3px;border:1.5px solid var(--faintest);"></span><span style="font-size:13px;">Issues</span><span style="margin-left:auto; font-family:'Geist Mono',monospace; font-size:10px; color:#fff; background:var(--blocked); border-radius:20px; padding:1px 7px;">3</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- DATA TABLE (full width) -->
+    <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-top:18px;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:4px;">
+        <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint);">12 — Data table</div>
+        <div style="font-family:'Geist Mono',monospace; font-size:9.5px; color:var(--faintest);">maps to TanStack Table · column filters · sort · selection · pagination</div>
+      </div>
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">Fully interactive — type in a column filter, sort a header, select rows, page through.</div>
+
+      <!-- toolbar -->
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+        <div style="flex:1; max-width:300px; display:flex; align-items:center; gap:9px; background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:8px 12px;">
+          <span style="width:13px;height:13px;border-radius:50%;border:2px solid var(--faint);flex-shrink:0;"></span>
+          <input value="{{ tq }}" onInput="{{ onTq }}" placeholder="Search all columns" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font-family:'Geist',sans-serif; font-size:13px; color:var(--ink);" />
+        </div>
+        <div style="position:relative;">
+          <span onClick="{{ toggleColsMenu }}" style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:var(--radiusSm); padding:8px 13px; cursor:pointer;">Columns ▾</span>
+          <sc-if value="{{ colsMenu }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; top:42px; left:0; width:178px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 18px 44px -18px rgba(0,0,0,.3); padding:6px; z-index:20;">
+              <div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); padding:7px 9px 6px;">Toggle columns</div>
+              <sc-for list="{{ colMenuItems }}" as="c" hint-placeholder-count="6">
+                <div onClick="{{ c.go }}" style="display:flex; align-items:center; gap:10px; padding:8px 9px; border-radius:6px; cursor:pointer;">
+                  <span style="{{ c.checkStyle }}"><span style="color:#fff;font-size:10px;font-weight:700;line-height:1;">{{ c.checkMark }}</span></span>
+                  <span style="font-size:13px; color:var(--ink);">{{ c.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ showSel }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
+            <span style="font-family:'Geist Mono',monospace; font-size:11px; color:var(--muted);">{{ selLabel }}</span>
+            <span style="font-size:12.5px; font-weight:600; color:var(--ink); background:var(--chip); border-radius:var(--radiusSm); padding:7px 12px; cursor:pointer;">Print labels</span>
+            <span style="font-size:12.5px; font-weight:600; color:var(--blocked); background:var(--blockedBg); border-radius:var(--radiusSm); padding:7px 12px; cursor:pointer;">Mark blocked</span>
+            <span onClick="{{ clearSel }}" style="font-size:12.5px; color:var(--muted); cursor:pointer;">Clear</span>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;">
+        <!-- header -->
+        <div class="om-scroll" style="max-height:252px; overflow:auto;">
+        <div style="position:sticky; top:0; z-index:3;">
+        <div style="display:grid; grid-template-columns:{{ gridCols }}; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line2); background:var(--panel);">
+          <span onClick="{{ toggleAll }}" style="{{ headerCheckStyle }}"><span style="color:#fff;font-size:10px;font-weight:700;line-height:1;">{{ headerCheckMark }}</span></span>
+          <span onClick="{{ th.id.go }}" style="{{ th.id.style }}">{{ th.id.label }}{{ th.id.arrow }}<span onPointerDown="{{ th.id.rz }}" onClick="{{ th.id.rzStop }}" style="position:absolute; top:0; right:0; height:100%; width:9px; cursor:col-resize; display:flex; align-items:center; justify-content:flex-end;"><span style="width:1px; height:13px; background:var(--line2);"></span></span></span>
+          <span onClick="{{ th.product.go }}" style="{{ th.product.style }}">{{ th.product.label }}{{ th.product.arrow }}<span onPointerDown="{{ th.product.rz }}" onClick="{{ th.product.rzStop }}" style="position:absolute; top:0; right:0; height:100%; width:9px; cursor:col-resize; display:flex; align-items:center; justify-content:flex-end;"><span style="width:1px; height:13px; background:var(--line2);"></span></span></span>
+          <span onClick="{{ th.status.go }}" style="{{ th.status.style }}">{{ th.status.label }}{{ th.status.arrow }}<span onPointerDown="{{ th.status.rz }}" onClick="{{ th.status.rzStop }}" style="position:absolute; top:0; right:0; height:100%; width:9px; cursor:col-resize; display:flex; align-items:center; justify-content:flex-end;"><span style="width:1px; height:13px; background:var(--line2);"></span></span></span>
+          <span onClick="{{ th.prio.go }}" style="{{ th.prio.style }}">{{ th.prio.label }}{{ th.prio.arrow }}<span onPointerDown="{{ th.prio.rz }}" onClick="{{ th.prio.rzStop }}" style="position:absolute; top:0; right:0; height:100%; width:9px; cursor:col-resize; display:flex; align-items:center; justify-content:flex-end;"><span style="width:1px; height:13px; background:var(--line2);"></span></span></span>
+          <span onClick="{{ th.plan.go }}" style="{{ th.plan.style }}">{{ th.plan.label }}{{ th.plan.arrow }}<span onPointerDown="{{ th.plan.rz }}" onClick="{{ th.plan.rzStop }}" style="position:absolute; top:0; left:0; height:100%; width:9px; cursor:col-resize; display:flex; align-items:center; justify-content:flex-start;"><span style="width:1px; height:13px; background:var(--line2);"></span></span></span>
+          <span onClick="{{ th.made.go }}" style="{{ th.made.style }}">{{ th.made.label }}{{ th.made.arrow }}<span onPointerDown="{{ th.made.rz }}" onClick="{{ th.made.rzStop }}" style="position:absolute; top:0; left:0; height:100%; width:9px; cursor:col-resize; display:flex; align-items:center; justify-content:flex-start;"><span style="width:1px; height:13px; background:var(--line2);"></span></span></span>
+          <span onClick="{{ th.remain.go }}" style="{{ th.remain.style }}">{{ th.remain.label }}{{ th.remain.arrow }}<span onPointerDown="{{ th.remain.rz }}" onClick="{{ th.remain.rzStop }}" style="position:absolute; top:0; left:0; height:100%; width:9px; cursor:col-resize; display:flex; align-items:center; justify-content:flex-start;"><span style="width:1px; height:13px; background:var(--line2);"></span></span></span>
+        </div>
+        <!-- column filter row -->
+        <div style="display:grid; grid-template-columns:{{ gridCols }}; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line2); background:var(--card);">
+          <span></span>
+          <span style="overflow:hidden; padding-right:8px;"><input value="{{ fOrder }}" onInput="{{ onFOrder }}" placeholder="Filter…" style="{{ inputStyle }}" /></span>
+          <span style="overflow:hidden; padding-right:8px;"><input value="{{ fProduct }}" onInput="{{ onFProduct }}" placeholder="Filter product…" style="{{ inputStyle }}" /></span>
+          <span style="overflow:hidden; padding-right:8px;"><select value="{{ fStatus }}" onChange="{{ onFStatus }}" style="{{ selStyle }}"><option value="all">All status</option><option value="RUNNING">Running</option><option value="PENDING">Pending</option><option value="BLOCKED">Blocked</option><option value="DONE">Done</option></select></span>
+          <span style="overflow:hidden; padding-right:8px;"><select value="{{ fPrio }}" onChange="{{ onFPrio }}" style="{{ selStyle }}"><option value="all">All</option><option value="H">H</option><option value="M">M</option><option value="L">L</option></select></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        </div>
+        <!-- body -->
+        <sc-for list="{{ tableRows }}" as="r" hint-placeholder-count="5">
+          <div class="om-row" style="display:grid; grid-template-columns:{{ gridCols }}; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line2); background:{{ r.rowBg }};">
+            <span onClick="{{ r.toggleSel }}" style="{{ r.checkStyle }}"><span style="color:#fff;font-size:10px;font-weight:700;line-height:1;">{{ r.checkMark }}</span></span>
+            <span style="overflow:hidden; white-space:nowrap; font-family:'Geist Mono',monospace; font-size:12px; font-weight:500; color:var(--ink);">{{ r.id }}</span>
+            <span style="overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:13.5px; font-weight:500; color:var(--ink);">{{ r.product }}</span>
+            <span style="overflow:hidden;"><span style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.05em; color:{{ r.stClr }}; background:{{ r.stBg }}; border-radius:20px; padding:3px 9px;">{{ r.status }}</span></span>
+            <span style="overflow:hidden; font-family:'Geist Mono',monospace; font-size:12px; color:{{ r.prioClr }};">{{ r.prio }}</span>
+            <span style="overflow:hidden; font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:var(--ink);">{{ r.planStr }}</span>
+            <span style="overflow:hidden; font-family:'Geist Mono',monospace; font-size:13px; text-align:right; color:var(--muted);">{{ r.madeStr }}</span>
+            <span style="overflow:hidden; font-family:'Geist Mono',monospace; font-size:13px; font-weight:600; text-align:right; color:{{ r.remainClr }};">{{ r.remainStr }}</span>
+          </div>
+        </sc-for>
+        <sc-if value="{{ tableEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center; padding:34px; color:var(--faint); font-size:13.5px;">No rows match the filters.</div>
+        </sc-if>
+        </div>
+        <!-- footer / pagination -->
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 16px; background:var(--panel);">
+          <span style="font-family:'Geist Mono',monospace; font-size:10.5px; color:var(--faint);">{{ rangeLabel }}</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span onClick="{{ prevGo }}" style="{{ prevStyle }}">‹</span>
+            <sc-for list="{{ pages }}" as="p" hint-placeholder-count="2"><span onClick="{{ p.go }}" style="{{ p.style }}">{{ p.n }}</span></sc-for>
+            <span onClick="{{ nextGo }}" style="{{ nextStyle }}">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DROPDOWN / SELECT (full width) -->
+    <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-top:18px;">
+      <div style="font-family:'Geist Mono',monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--faint); margin-bottom:4px;">13 — Dropdown / select</div>
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:18px;">Custom dropdowns that replace native &lt;select&gt; — styled menus, single &amp; multi-select, selected-state checks.</div>
+
+      <div style="display:flex; gap:36px; flex-wrap:wrap; align-items:flex-start;">
+        <!-- single select -->
+        <div style="width:248px;">
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Single select</div>
+          <div style="position:relative;">
+            <div onClick="{{ toggleStatusDD }}" style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 13px; cursor:pointer;">
+              <span style="font-size:13.5px; color:var(--ink);">{{ ddStatusLabel }}</span>
+              <span style="color:var(--faint); font-size:11px;">▾</span>
+            </div>
+            <sc-if value="{{ ddStatusOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute; top:46px; left:0; right:0; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 18px 44px -18px rgba(0,0,0,.3); padding:6px; z-index:10;">
+                <sc-for list="{{ ddStatusItems }}" as="o" hint-placeholder-count="5">
+                  <div onClick="{{ o.go }}" style="{{ o.rowStyle }}">
+                    <span style="{{ o.txtStyle }}">{{ o.label }}</span>
+                    <span style="color:var(--accent); font-size:13px; font-weight:700; width:14px; text-align:right;">{{ o.mark }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <!-- multi select -->
+        <div style="width:248px;">
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Multi-select</div>
+          <div style="position:relative;">
+            <div onClick="{{ toggleLinesDD }}" style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--bg); border:1px solid var(--line); border-radius:var(--radiusSm); padding:10px 13px; cursor:pointer;">
+              <span style="font-size:13.5px; color:var(--ink);">{{ ddLinesLabel }}</span>
+              <span style="color:var(--faint); font-size:11px;">▾</span>
+            </div>
+            <sc-if value="{{ ddLinesOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute; top:46px; left:0; right:0; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 18px 44px -18px rgba(0,0,0,.3); padding:6px; z-index:10;">
+                <sc-for list="{{ ddLineItems }}" as="o" hint-placeholder-count="4">
+                  <div onClick="{{ o.go }}" style="display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:6px; cursor:pointer;">
+                    <span style="{{ o.checkStyle }}"><span style="color:#fff;font-size:10px;font-weight:700;line-height:1;">{{ o.mark }}</span></span>
+                    <span style="font-size:13px; color:var(--ink);">{{ o.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <!-- static open specimen (for reference even when others closed) -->
+        <div style="width:248px;">
+          <div style="font-family:'Geist Mono',monospace; font-size:9.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Menu anatomy</div>
+          <div style="background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 18px 44px -18px rgba(0,0,0,.18); padding:6px;">
+            <div style="font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--faint); padding:7px 9px 5px;">Sort by</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 11px; border-radius:6px; background:var(--chip);"><span style="font-size:13px; font-weight:600; color:var(--ink);">Newest first</span><span style="color:var(--accent); font-size:13px; font-weight:700;">✓</span></div>
+            <div style="padding:9px 11px; font-size:13px; color:var(--muted);">Oldest first</div>
+            <div style="padding:9px 11px; font-size:13px; color:var(--muted);">Priority</div>
+            <div style="height:1px; background:var(--line2); margin:5px 0;"></div>
+            <div style="padding:9px 11px; font-size:13px; color:var(--blocked);">Clear sort</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:24px; font-family:'Geist Mono',monospace; font-size:11px; color:var(--faint);">$ openmes design-system · 13 sections · Geist White · see OpenMES Prototype.dc.html for live behaviour</div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { tq:'', fOrder:'', fProduct:'', fStatus:'all', fPrio:'all', sort:[{key:'id',dir:'asc'}], hidden:{}, colsMenu:false, colW:{}, sel:{}, page:0, perPage:6, ddOpen:null, ddStatus:'all', ddLines:{ 'WSZ-01':true, 'WSZ-02':true } };
+
+  Wn = { id:130, product:200, status:116, prio:60, plan:70, made:70, remain:80 };
+  _rzMove = (e) => { if (!this._rz) return; const dx = e.clientX - this._rz.x; const w = Math.max(54, Math.round(this._rz.w + dx)); this.setState({ colW: { ...this.state.colW, [this._rz.key]: w } }); };
+  _rzUp = () => { this._rz = null; window.removeEventListener('pointermove', this._rzMove); window.removeEventListener('pointerup', this._rzUp); };
+
+  rows = [
+    { id:'WO-2026-001', product:'HEPA-13 Standard', status:'RUNNING', prio:'H', due:'26 May', plan:250, made:108 },
+    { id:'WO-2026-002', product:'Carbon Pre-Filter', status:'RUNNING', prio:'M', due:'26 May', plan:400, made:320 },
+    { id:'WO-2026-003', product:'HEPA-13 Standard', status:'DONE', prio:'M', due:'25 May', plan:150, made:150 },
+    { id:'WO-2026-004', product:'HEPA Slim', status:'DONE', prio:'L', due:'24 May', plan:200, made:200 },
+    { id:'WO-2026-005', product:'HEPA Slim', status:'PENDING', prio:'H', due:'17:00', plan:120, made:0 },
+    { id:'WO-2026-006', product:'Carbon Pre-Filter', status:'BLOCKED', prio:'H', due:'27 May', plan:300, made:60 },
+    { id:'WO-2026-007', product:'Polo Logo', status:'PENDING', prio:'L', due:'28 May', plan:140, made:0 },
+    { id:'WO-2026-008', product:'HEPA-13 Pro', status:'PENDING', prio:'M', due:'29 May', plan:180, made:0 },
+    { id:'WO-2026-009', product:'Carbon Deep-Bed', status:'BLOCKED', prio:'H', due:'27 May', plan:220, made:40 },
+    { id:'WO-2026-010', product:'HEPA Slim', status:'RUNNING', prio:'M', due:'26 May', plan:160, made:96 }
+  ];
+
+  set(k, v) { this.setState({ [k]: v, page: 0 }); }
+  onSort(key, shift) {
+    let sort = this.state.sort.map(x => ({ ...x }));
+    const idx = sort.findIndex(x => x.key === key);
+    if (shift) {
+      if (idx === -1) sort.push({ key, dir:'asc' });
+      else if (sort[idx].dir === 'asc') sort[idx].dir = 'desc';
+      else sort.splice(idx, 1);
+    } else {
+      if (idx !== -1 && sort.length === 1) { sort = sort[0].dir === 'asc' ? [{ key, dir:'desc' }] : []; }
+      else sort = [{ key, dir:'asc' }];
+    }
+    this.setState({ sort });
+  }
+  toggleCol(key) { const hidden = { ...this.state.hidden }; if (hidden[key]) delete hidden[key]; else hidden[key] = true; this.setState({ hidden }); }
+  toggleColsMenu() { this.setState({ colsMenu: !this.state.colsMenu }); }
+  rzDown(key, e) { if (e && e.stopPropagation) e.stopPropagation(); this._rz = { key, x:e.clientX, w: this.state.colW[key] || this.Wn[key] }; window.addEventListener('pointermove', this._rzMove); window.addEventListener('pointerup', this._rzUp); }
+  toggleDD(key) { this.setState(st => ({ ddOpen: st.ddOpen === key ? null : key })); }
+  pickStatus(v) { this.setState({ ddStatus:v, ddOpen:null }); }
+  toggleLine(v) { const dl = { ...this.state.ddLines }; if (dl[v]) delete dl[v]; else dl[v] = true; this.setState({ ddLines: dl }); }
+  toggleSel(id) { const sel = { ...this.state.sel }; if (sel[id]) delete sel[id]; else sel[id] = true; this.setState({ sel }); }
+  toggleAll(ids) { const all = ids.length>0 && ids.every(i => this.state.sel[i]); const sel = { ...this.state.sel }; if (all) ids.forEach(i => delete sel[i]); else ids.forEach(i => sel[i] = true); this.setState({ sel }); }
+  clearSel() { this.setState({ sel:{} }); }
+  setPage(p) { this.setState({ page:p }); }
+
+  renderVals() {
+    const s = this.state;
+    const T = { ink:'#1A1917', muted:'#6F6C66', faint:'#9B9892', faintest:'#C4C0B8', line:'#E6E4DE', line2:'#EDEBE6', chip:'#F1EFEA', bg:'#F6F5F1', card:'#FFFFFF', accent:'#EA5A2B', running:'#1C9A55', runningBg:'#E6F4EA', pending:'#6F6C66', pendingBg:'#F1EFEA', blocked:'#D6442F', blockedBg:'#FBEAE6', done:'#54514B', doneBg:'#ECEBE7' };
+    const stMap = { RUNNING:{clr:T.running,bg:T.runningBg}, PENDING:{clr:T.pending,bg:T.pendingBg}, BLOCKED:{clr:T.blocked,bg:T.blockedBg}, DONE:{clr:T.done,bg:T.doneBg} };
+    const statusRank = { RUNNING:0, BLOCKED:1, PENDING:2, DONE:3 };
+    const prioRank = { H:0, M:1, L:2 };
+
+    // filter
+    const tq = s.tq.trim().toLowerCase();
+    let filtered = this.rows.filter(r => {
+      if (tq && !(r.id + ' ' + r.product).toLowerCase().includes(tq)) return false;
+      if (s.fOrder && !r.id.toLowerCase().includes(s.fOrder.toLowerCase())) return false;
+      if (s.fProduct && !r.product.toLowerCase().includes(s.fProduct.toLowerCase())) return false;
+      if (s.fStatus !== 'all' && r.status !== s.fStatus) return false;
+      if (s.fPrio !== 'all' && r.prio !== s.fPrio) return false;
+      return true;
+    });
+    // multi-column sort
+    const valOf = (r, key) => {
+      if (key === 'product') return r.product;
+      if (key === 'status') return statusRank[r.status];
+      if (key === 'prio') return prioRank[r.prio];
+      if (key === 'plan') return r.plan;
+      if (key === 'made') return r.made;
+      if (key === 'remain') return r.plan - r.made;
+      return r.id;
+    };
+    const sorters = s.sort;
+    filtered.sort((a, b) => {
+      for (let i = 0; i < sorters.length; i++) {
+        const srt = sorters[i]; const d = srt.dir === 'asc' ? 1 : -1;
+        const av = valOf(a, srt.key), bv = valOf(b, srt.key);
+        if (av < bv) return -1 * d; if (av > bv) return 1 * d;
+      }
+      return 0;
+    });
+
+    const total = filtered.length;
+    const pageCount = Math.max(1, Math.ceil(total / s.perPage));
+    const page = Math.min(s.page, pageCount - 1);
+    const start = page * s.perPage;
+    const pageRows = filtered.slice(start, start + s.perPage);
+    const pageIds = pageRows.map(r => r.id);
+
+    const mkCheck = (on) => `width:17px;height:17px;border-radius:5px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;` + (on ? `background:${T.accent};` : `border:2px solid ${T.faintest};`);
+
+    const tableRows = pageRows.map(r => {
+      const d = stMap[r.status];
+      const remain = r.plan - r.made;
+      const on = !!s.sel[r.id];
+      return { ...r, planStr:String(r.plan), madeStr:String(r.made), remainStr:String(remain),
+        stClr:d.clr, stBg:d.bg,
+        prioClr: r.prio === 'H' ? T.blocked : (r.prio === 'M' ? T.muted : T.faint),
+        remainClr: remain === 0 ? T.running : T.accent,
+        rowBg: on ? '#FCF6F3' : T.card,
+        checkStyle: mkCheck(on), checkMark: on ? '✓' : '',
+        toggleSel: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleSel(r.id); } };
+    });
+
+    const cols = [ {key:'id',label:'Order',a:'left'}, {key:'product',label:'Product',a:'left'}, {key:'status',label:'Status',a:'left'}, {key:'prio',label:'Pri',a:'left'}, {key:'plan',label:'Plan',a:'right'}, {key:'made',label:'Made',a:'right'}, {key:'remain',label:'Remain',a:'right'} ];
+    const th = {};
+    cols.forEach(c => {
+      const si = s.sort.findIndex(x => x.key === c.key);
+      const active = si !== -1;
+      const arrowChar = active ? (s.sort[si].dir === 'asc' ? '↑' : '↓') : '';
+      const ord = (active && s.sort.length > 1) ? String(si + 1) : '';
+      th[c.key] = { label:c.label, arrow: active ? (' ' + arrowChar + ord) : '',
+        go:(e)=>this.onSort(c.key, !!(e && e.shiftKey)),
+        rz:(e)=>this.rzDown(c.key, e), rzStop:(e)=>{ if (e && e.stopPropagation) e.stopPropagation(); },
+        style:`position:relative; font-family:'Geist Mono',monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:${active?T.ink:T.faint}; cursor:pointer; text-align:${c.a}; user-select:none; overflow:hidden;` };
+    });
+    // column visibility
+    const vis = { id:true, product:!s.hidden.product, status:!s.hidden.status, prio:!s.hidden.prio, plan:!s.hidden.plan, made:!s.hidden.made, remain:!s.hidden.remain };
+    const order = ['id','product','status','prio','plan','made','remain'];
+    const gridCols = '38px ' + order.map(k => {
+      if (!vis[k]) return '0px';
+      if (s.colW[k]) return s.colW[k] + 'px';
+      return k === 'product' ? 'minmax(140px,1fr)' : this.Wn[k] + 'px';
+    }).join(' ');
+    const colMenuItems = [ {key:'product',label:'Product'}, {key:'status',label:'Status'}, {key:'prio',label:'Priority'}, {key:'plan',label:'Plan'}, {key:'made',label:'Made'}, {key:'remain',label:'Remain'} ].map(c => ({ label:c.label, go:()=>this.toggleCol(c.key), checkStyle: mkCheck(!s.hidden[c.key]), checkMark: !s.hidden[c.key] ? '✓' : '' }));
+
+    const allChecked = pageIds.length>0 && pageIds.every(i => s.sel[i]);
+    const selCount = Object.keys(s.sel).length;
+
+    const inputStyle = `width:100%; border:1px solid ${T.line}; border-radius:6px; padding:5px 8px; outline:none; background:${T.bg}; font-family:'Geist Mono',monospace; font-size:10.5px; color:${T.ink};`;
+    const selStyle = `width:100%; border:1px solid ${T.line}; border-radius:6px; padding:5px 6px; outline:none; background:${T.bg}; font-family:'Geist Mono',monospace; font-size:10.5px; color:${T.ink}; cursor:pointer;`;
+
+    const pages = [];
+    for (let i = 0; i < pageCount; i++) pages.push({ n:String(i+1), go:()=>this.setPage(i),
+      style:`min-width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:11px;cursor:pointer;` + (i===page ? `background:${T.ink};color:#fff;` : `color:${T.muted};border:1px solid ${T.line};`) });
+
+    return {
+      // table
+      tableRows, th, gridCols, colMenuItems, colsMenu: s.colsMenu, toggleColsMenu: ()=>this.toggleColsMenu(),
+      // dropdown reference
+      ddStatusOpen: s.ddOpen === 'status', toggleStatusDD: ()=>this.toggleDD('status'),
+      ddStatusLabel: ([ {v:'all',l:'All status'}, {v:'RUNNING',l:'Running'}, {v:'PENDING',l:'Pending'}, {v:'BLOCKED',l:'Blocked'}, {v:'DONE',l:'Done'} ].find(o=>o.v===s.ddStatus)||{l:'All status'}).l,
+      ddStatusItems: [ {v:'all',l:'All status'}, {v:'RUNNING',l:'Running'}, {v:'PENDING',l:'Pending'}, {v:'BLOCKED',l:'Blocked'}, {v:'DONE',l:'Done'} ].map(o => ({ label:o.l, go:()=>this.pickStatus(o.v), mark: s.ddStatus===o.v ? '✓' : '', rowStyle:`display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 11px; border-radius:6px; cursor:pointer; background:${s.ddStatus===o.v?T.chip:'transparent'};`, txtStyle:`font-size:13px; color:${s.ddStatus===o.v?T.ink:T.muted}; font-weight:${s.ddStatus===o.v?'600':'400'};` })),
+      ddLinesOpen: s.ddOpen === 'lines', toggleLinesDD: ()=>this.toggleDD('lines'),
+      ddLinesLabel: (Object.keys(s.ddLines).length===0 ? 'No lines' : (Object.keys(s.ddLines).length===4 ? 'All lines' : Object.keys(s.ddLines).length + ' lines selected')),
+      ddLineItems: ['WSZ-01','WSZ-02','WSP-01','QA-01'].map(v => ({ label:v, go:()=>this.toggleLine(v), checkStyle: mkCheck(!!s.ddLines[v]), mark: s.ddLines[v] ? '✓' : '' })),
+      tq: s.tq, onTq: (e)=>this.set('tq', e.target.value),
+      fOrder: s.fOrder, onFOrder: (e)=>this.set('fOrder', e.target.value),
+      fProduct: s.fProduct, onFProduct: (e)=>this.set('fProduct', e.target.value),
+      fStatus: s.fStatus, onFStatus: (e)=>this.set('fStatus', e.target.value),
+      fPrio: s.fPrio, onFPrio: (e)=>this.set('fPrio', e.target.value),
+      inputStyle, selStyle,
+      headerCheckStyle: mkCheck(allChecked), headerCheckMark: allChecked ? '✓' : '',
+      toggleAll: ()=>this.toggleAll(pageIds), clearSel: ()=>this.clearSel(),
+      selCount, selLabel: selCount + ' of ' + this.rows.length + ' row(s) selected', showSel: selCount>0,
+      tableEmpty: total === 0,
+      rangeLabel: total === 0 ? '0 results' : (String(start+1) + '–' + String(start+pageRows.length) + ' of ' + total),
+      pages, prevGo: ()=>this.setPage(Math.max(0, page-1)), nextGo: ()=>this.setPage(Math.min(pageCount-1, page+1)),
+      prevStyle: `width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;color:${page===0?T.faintest:T.muted};border:1px solid ${T.line};`,
+      nextStyle: `width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;color:${page>=pageCount-1?T.faintest:T.muted};border:1px solid ${T.line};`,
+      // existing
+      tokens: [
+        { name:'Running', hex:'#1C9A55', clr:'#1C9A55' },
+        { name:'Pending', hex:'#B6B2AA', clr:'#B6B2AA' },
+        { name:'Blocked', hex:'#D6442F', clr:'#D6442F' },
+        { name:'Downtime', hex:'#C9821E', clr:'#C9821E' },
+        { name:'Accent', hex:'#EA5A2B', clr:'#EA5A2B' },
+        { name:'Ink', hex:'#1A1917', clr:'#1A1917' },
+        { name:'Canvas', hex:'#F6F5F1', clr:'#F6F5F1' }
+      ],
+      alerts: [
+        { clr:'#1C9A55', bg:'#E6F4EA', title:'Batch #3 closed', body:'108 pcs accepted · LOT printed.' },
+        { clr:'#EA5A2B', bg:'#F1EFEA', title:'New work order', body:'WO-2026-008 added to queue.' },
+        { clr:'#C9821E', bg:'#FAF0DD', title:'Material low', body:'Filter media at 12% — reorder.' },
+        { clr:'#D6442F', bg:'#FBEAE6', title:'Production blocked', body:'Media tear — WO-2026-006 halted.' }
+      ],
+      toasts: [
+        { clr:'#1C9A55', title:'Output saved', body:'+12 pcs logged to WO-2026-001' },
+        { clr:'#C9821E', title:'Downtime started', body:'Reason — glue station warm-up' },
+        { clr:'#D6442F', title:'Sync failed', body:'Offline — retrying in 5s…' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

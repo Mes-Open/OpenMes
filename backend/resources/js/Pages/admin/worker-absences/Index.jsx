@@ -13,7 +13,7 @@ export default function WorkerAbsencesIndex() {
         {
             key: 'worker',
             label: 'Worker',
-            className: 'font-medium text-gray-800',
+            className: 'font-medium text-om-ink',
             render: (r) => workerNames[r.worker_id] ?? `#${r.worker_id}`,
         },
         { key: 'type', label: 'Type', render: (r) => ABSENCE_TYPE_LABELS[r.type] ?? r.type },
@@ -25,14 +25,14 @@ export default function WorkerAbsencesIndex() {
         {
             key: 'span',
             label: 'Span',
-            className: 'text-gray-600',
+            className: 'text-om-muted',
             render: (r) => (r.all_day ? 'All day' : `${time(r.start_time)}–${time(r.end_time)}`),
         },
         {
             key: 'status',
             label: 'Status',
             render: (r) => (
-                <span className={`px-2 py-0.5 rounded text-xs ${ABSENCE_STATUS_STYLES[r.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                <span className={`px-2 py-0.5 rounded text-xs ${ABSENCE_STATUS_STYLES[r.status] ?? 'bg-om-chip text-om-muted'}`}>
                     {r.status}
                 </span>
             ),

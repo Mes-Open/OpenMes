@@ -30,7 +30,7 @@ export default function WorkerEdit() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('Edit :name', { name: worker.name })} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('Edit Worker')}</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('Edit Worker')}</h1>
             <WorkerForm form={form} crews={crews} wageGroups={wageGroups} personnelClasses={personnelClasses} customFields={customFields} skills={skills} isEdit onSubmit={submit} />
         </div>
     );

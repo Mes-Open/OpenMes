@@ -1,27 +1,44 @@
+// Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (status transitions, modal post and batch logic untouched).
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Button, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
-import { WO_STATUS_STYLES } from '../../admin/work-orders/fields';
-import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
+import { __, formatDate, formatNumber } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
-const BATCH_STATUS_STYLES = {
-    PENDING: 'bg-gray-100 text-gray-600',
-    IN_PROGRESS: 'bg-blue-100 text-blue-600',
-    DONE: 'bg-green-100 text-green-600',
+// App status → Geist White pill state (labels stay the raw app statuses).
+const WO_PILL_STATUS = {
+    PENDING: 'pending',
+    ACCEPTED: 'pending',
+    IN_PROGRESS: 'running',
+    PAUSED: 'downtime',
+    BLOCKED: 'blocked',
+    DONE: 'done',
+    REJECTED: 'blocked',
+    CANCELLED: 'done',
+};
+
+const BATCH_PILL_STATUS = {
+    PENDING: 'pending',
+    IN_PROGRESS: 'running',
+    DONE: 'done',
 };
 
 const STEP_STATUS_STYLES = {
-    DONE: 'bg-green-100 text-green-700',
-    IN_PROGRESS: 'bg-blue-100 text-blue-700',
+    DONE: 'bg-om-running-bg text-om-running',
+    IN_PROGRESS: 'bg-om-selected text-om-accent',
 };
 
-const ISSUE_STATUS_STYLES = {
-    OPEN: 'bg-red-100 text-red-700',
-    ACKNOWLEDGED: 'bg-yellow-100 text-yellow-700',
-    RESOLVED: 'bg-green-100 text-green-700',
+const ISSUE_PILL_STATUS = {
+    OPEN: 'blocked',
+    ACKNOWLEDGED: 'downtime',
+    RESOLVED: 'running',
 };
+
+// Ghost-button classes for Inertia <Link>s (mirrors @openmes/ui Button ghost).
+const LINK_GHOST =
+    'inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-ink hover:bg-om-chip transition-colors';
 
 function fmtQty(n) {
     return formatNumber(Number(n ?? 0), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -45,7 +62,6 @@ function fmtDateTime(d) {
 
 function BatchRow({ batch, processSnapshot }) {
     const [open, setOpen] = useState(batch.is_first ?? false);
-    const batchStyle = BATCH_STATUS_STYLES[batch.status] ?? 'bg-gray-100 text-gray-400';
 
     // Build step-number → estimated_duration_minutes map from process_snapshot
     const snapshotSteps = {};
@@ -56,22 +72,23 @@ function BatchRow({ batch, processSnapshot }) {
     }
 
     return (
-        <div className="border border-gray-100 rounded-lg p-3">
+        <div className="border border-om-line rounded-om p-3">
             <div
                 className="flex items-center justify-between cursor-pointer"
                 onClick={() => setOpen((o) => !o)}
             >
                 <div className="flex items-center gap-3">
-                    <span className="font-semibold text-gray-700">Batch #{batch.batch_number}</span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${batchStyle}`}>
-                        {__(batch.status)}
-                    </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="font-semibold text-om-ink">Batch #{batch.batch_number}</span>
+                    <StatusPill
+                        status={BATCH_PILL_STATUS[batch.status] ?? 'pending'}
+                        label={batch.status.replace('_', ' ')}
+                    />
+                    <span className="font-mono text-[12px] text-om-muted">
                         {fmtQty(batch.produced_qty)} / {fmtQty(batch.target_qty)}
                     </span>
                 </div>
                 <svg
-                    className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+                    className={`w-4 h-4 text-om-faint transition-transform ${open ? 'rotate-180' : ''}`}
                     fill="none" stroke="currentColor" viewBox="0 0 24 24"
                 >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -81,28 +98,28 @@ function BatchRow({ batch, processSnapshot }) {
             {open && (
                 <div className="mt-3 space-y-1">
                     {(batch.steps ?? []).map((step) => {
-                        const stepStyle = STEP_STATUS_STYLES[step.status] ?? 'bg-gray-100 text-gray-500';
+                        const stepStyle = STEP_STATUS_STYLES[step.status] ?? 'bg-om-chip text-om-faint';
                         const estimated = snapshotSteps[step.step_number] ?? null;
                         const overTime = estimated && step.duration_minutes != null && step.duration_minutes > estimated;
                         return (
-                            <div key={step.id} className="flex items-center gap-3 py-1.5 px-2 rounded text-sm">
-                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${stepStyle}`}>
+                            <div key={step.id} className="flex items-center gap-3 py-1.5 px-2 rounded-om-sm text-sm hover:bg-om-bg">
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center font-mono text-xs flex-shrink-0 ${stepStyle}`}>
                                     {step.step_number}
                                 </span>
-                                <span className="flex-1 text-gray-700">{step.name}</span>
-                                <span className="text-xs text-gray-400">{__(step.status)}</span>
+                                <span className="flex-1 text-om-ink">{step.name}</span>
+                                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{step.status.replace('_', ' ')}</span>
                                 {step.duration_minutes != null ? (
-                                    <span className={`text-xs font-medium ${overTime ? 'text-red-500' : 'text-green-600'}`}>
+                                    <span className={`font-mono text-xs font-medium ${overTime ? 'text-om-blocked' : 'text-om-running'}`}>
                                         {step.duration_minutes}min{estimated ? ` / est. ${estimated}min` : ''}
                                     </span>
                                 ) : estimated ? (
-                                    <span className="text-xs text-gray-400">est. {estimated}min</span>
+                                    <span className="font-mono text-xs text-om-faint">est. {estimated}min</span>
                                 ) : null}
                             </div>
                         );
                     })}
                     {batch.started_at && (
-                        <p className="text-xs text-gray-400 pt-1">
+                        <p className="text-xs text-om-faint pt-1">
                             Started: {fmtDateTime(batch.started_at)}
                             {batch.completed_at ? ` · Completed: ${fmtDateTime(batch.completed_at)}` : ''}
                         </p>
@@ -124,14 +141,14 @@ function DoneModal({ workOrder, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">{__('Complete Work Order')}</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                    {__('Enter the produced quantity for :order_no.', { order_no: workOrder.order_no })}
+            <div className="bg-om-card border border-om-line rounded-om shadow-xl p-6 w-full max-w-md mx-4">
+                <h3 className="text-[16px] font-semibold text-om-ink mb-4">{__('Complete Work Order')}</h3>
+                <p className="text-sm text-om-muted mb-4">
+                    Enter the produced quantity for <strong className="font-mono text-om-ink">{workOrder.order_no}</strong>.
                 </p>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{__('Produced Quantity')}</label>
+                        <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1.5">{__('Produced Quantity')}</label>
                         <input
                             type="number"
                             step="0.01"
@@ -139,25 +156,18 @@ function DoneModal({ workOrder, onClose }) {
                             max={workOrder.planned_qty * 2}
                             value={qty}
                             onChange={(e) => setQty(e.target.value)}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 font-mono text-sm text-om-ink focus:outline-none focus:border-om-accent"
                             required
                         />
-                        <p className="text-xs text-gray-500 mt-1">{__('Planned:')} {fmtQty(workOrder.planned_qty)}</p>
+                        <p className="text-xs text-om-faint mt-1.5">{__('Planned:')} <span className="font-mono">{fmtQty(workOrder.planned_qty)}</span></p>
                     </div>
                     <div className="flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                        >
+                        <Button type="button" variant="secondary" onClick={onClose}>
                             Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
-                        >
+                        </Button>
+                        <Button type="submit" variant="accent">
                             Mark as Done
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
@@ -189,13 +199,11 @@ export default function SupervisorWorkOrderShow() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
                         <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-bold text-gray-800 font-mono">{workOrder.order_no}</h1>
-                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${WO_STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-700'}`}>
-                                {__(status)}
-                            </span>
+                            <h1 className="font-mono text-[26px] font-medium tracking-[-0.02em] text-om-ink">{workOrder.order_no}</h1>
+                            <StatusPill status={WO_PILL_STATUS[status] ?? 'pending'} label={status} />
                         </div>
-                        <p className="text-gray-500 mt-1">
-                            {__('Created :time', { time: timeAgo(workOrder.created_at) })}
+                        <p className="text-om-muted mt-1">
+                            Created {timeAgo(workOrder.created_at)}
                             {workOrder.product_type_name ? ` · ${workOrder.product_type_name}` : ''}
                         </p>
                     </div>
@@ -203,71 +211,59 @@ export default function SupervisorWorkOrderShow() {
                     <div className="flex flex-wrap gap-2">
                         {status === 'PENDING' && (
                             <>
-                                <button
-                                    onClick={() => post('accept')}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                                >
+                                <Button variant="primary" onClick={() => post('accept')}>
                                     Accept
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    variant="danger"
                                     onClick={() => { if (confirm('Reject this work order?')) post('reject'); }}
-                                    className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                                 >
                                     Reject
-                                </button>
+                                </Button>
                             </>
                         )}
                         {status === 'ACCEPTED' && (
-                            <button
+                            <Button
+                                variant="danger"
                                 onClick={() => { if (confirm('Reject this work order?')) post('reject'); }}
-                                className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                             >
                                 Reject
-                            </button>
+                            </Button>
                         )}
                         {status === 'IN_PROGRESS' && (
                             <>
-                                <button
-                                    onClick={() => post('pause')}
-                                    className="px-4 py-2 text-sm font-medium text-yellow-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                                >
+                                <Button variant="secondary" onClick={() => post('pause')}>
                                     Pause
-                                </button>
-                                <button
-                                    onClick={() => setShowDoneModal(true)}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
-                                >
+                                </Button>
+                                <Button variant="accent" onClick={() => setShowDoneModal(true)}>
                                     Done
-                                </button>
+                                </Button>
                             </>
                         )}
                         {status === 'PAUSED' && (
-                            <button
-                                onClick={() => post('resume')}
-                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                            >
+                            <Button variant="primary" onClick={() => post('resume')}>
                                 Resume
-                            </button>
+                            </Button>
                         )}
 
                         {isTerminal ? (
-                            <button
+                            <Button
+                                variant="primary"
                                 onClick={() => { if (confirm('Reopen this work order?')) post('reopen'); }}
-                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                             >
                                 Reopen
-                            </button>
+                            </Button>
                         ) : (
                             <>
                                 <Link
                                     href={`/supervisor/work-orders/${workOrder.id}/edit`}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                                    className={LINK_GHOST}
                                 >
                                     Edit
                                 </Link>
                                 <button
                                     onClick={() => { if (confirm('Cancel this work order?')) post('cancel'); }}
-                                    className="px-4 py-2 text-sm font-medium text-orange-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                                    className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-accent hover:bg-om-chip transition-colors cursor-pointer"
                                 >
                                     Cancel
                                 </button>
@@ -276,7 +272,7 @@ export default function SupervisorWorkOrderShow() {
 
                         <Link
                             href="/supervisor/work-orders"
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                            className={LINK_GHOST}
                         >
                             ← Back
                         </Link>
@@ -288,58 +284,58 @@ export default function SupervisorWorkOrderShow() {
                     <div className="lg:col-span-2 space-y-6">
 
                         {/* Details */}
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-                            <h2 className="text-lg font-bold text-gray-800 mb-4">{__('Details')}</h2>
+                        <div className="bg-om-card border border-om-line rounded-om p-5">
+                            <h2 className="text-[14px] font-semibold text-om-ink mb-4">{__('Details')}</h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                                 <div>
-                                    <p className="text-gray-500">{__('Order Number')}</p>
-                                    <p className="font-mono font-semibold text-gray-800">{workOrder.order_no}</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Order Number')}</p>
+                                    <p className="font-mono font-medium text-om-ink">{workOrder.order_no}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">{__('Line')}</p>
-                                    <p className="font-medium text-gray-800">{workOrder.line_name ?? '—'}</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Line')}</p>
+                                    <p className="font-medium text-om-ink">{workOrder.line_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">{__('Product Type')}</p>
-                                    <p className="font-medium text-gray-800">{workOrder.product_type_name ?? '—'}</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Product Type')}</p>
+                                    <p className="font-medium text-om-ink">{workOrder.product_type_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">{__('Planned Qty')}</p>
-                                    <p className="font-medium text-gray-800">{fmtQty(workOrder.planned_qty)}</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Planned Qty')}</p>
+                                    <p className="font-mono font-medium text-om-ink">{fmtQty(workOrder.planned_qty)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">{__('Produced Qty')}</p>
-                                    <p className="font-medium text-gray-800">{fmtQty(workOrder.produced_qty)}</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Produced Qty')}</p>
+                                    <p className="font-mono font-medium text-om-ink">{fmtQty(workOrder.produced_qty)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">{__('Priority')}</p>
-                                    <p className="font-medium text-gray-800">{workOrder.priority ?? '—'}</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Priority')}</p>
+                                    <p className="font-medium text-om-ink">{workOrder.priority ?? '—'}</p>
                                 </div>
                                 {workOrder.due_date && (
                                     <div>
-                                        <p className="text-gray-500">{__('Due Date')}</p>
-                                        <p className={`font-medium ${isDuePast ? 'text-red-600' : 'text-gray-800'}`}>
+                                        <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Due Date')}</p>
+                                        <p className={`font-medium ${isDuePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {fmtDate(workOrder.due_date)}
                                         </p>
                                     </div>
                                 )}
                                 {workOrder.description && (
                                     <div className="col-span-2 md:col-span-3">
-                                        <p className="text-gray-500">{__('Description')}</p>
-                                        <p className="font-medium text-gray-800">{workOrder.description}</p>
+                                        <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Description')}</p>
+                                        <p className="font-medium text-om-ink">{workOrder.description}</p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* Batches */}
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-                            <h2 className="text-lg font-bold text-gray-800 mb-4">
-                                {__('Batches')}{' '}
-                                <span className="text-sm font-normal text-gray-400">({workOrder.batches.length})</span>
+                        <div className="bg-om-card border border-om-line rounded-om p-5">
+                            <h2 className="text-[14px] font-semibold text-om-ink mb-4">
+                                Batches{' '}
+                                <span className="font-mono text-[12px] font-normal text-om-faint">({workOrder.batches.length})</span>
                             </h2>
                             {workOrder.batches.length === 0 ? (
-                                <p className="text-sm text-gray-400 py-4 text-center">{__('No batches yet.')}</p>
+                                <p className="text-sm text-om-faint py-4 text-center">{__('No batches yet.')}</p>
                             ) : (
                                 <div className="space-y-3">
                                     {workOrder.batches.map((batch, i) => (
@@ -358,66 +354,66 @@ export default function SupervisorWorkOrderShow() {
                     <div className="space-y-6">
 
                         {/* Progress */}
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-                            <h3 className="text-base font-bold text-gray-800 mb-3">{__('Progress')}</h3>
+                        <div className="bg-om-card border border-om-line rounded-om p-5">
+                            <h3 className="text-[14px] font-semibold text-om-ink mb-3">{__('Progress')}</h3>
                             <div className="mb-3">
-                                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                                    <span>{__('Completion')}</span>
-                                    <span>{pct.toFixed(1)}%</span>
+                                <div className="flex justify-between items-baseline text-sm mb-1.5">
+                                    <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Completion')}</span>
+                                    <span className="font-mono text-[12px] text-om-ink">{pct.toFixed(1)}%</span>
                                 </div>
-                                <div className="w-full bg-gray-200 rounded-full h-3">
+                                <div className="w-full bg-om-chip rounded-[20px] h-[7px] overflow-hidden">
                                     <div
-                                        className={`h-3 rounded-full ${pct >= 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                        className={`h-[7px] rounded-[20px] ${pct >= 100 ? 'bg-om-running' : 'bg-om-accent'}`}
                                         style={{ width: `${pct}%` }}
                                     />
                                 </div>
                             </div>
                             <div className="space-y-1 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-gray-500">{__('Planned:')}</span>
-                                    <span className="font-medium">{fmtQty(workOrder.planned_qty)}</span>
+                                    <span className="text-om-muted">{__('Planned:')}</span>
+                                    <span className="font-mono font-medium text-om-ink">{fmtQty(workOrder.planned_qty)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-gray-500">{__('Produced:')}</span>
-                                    <span className="font-medium">{fmtQty(workOrder.produced_qty)}</span>
+                                    <span className="text-om-muted">{__('Produced:')}</span>
+                                    <span className="font-mono font-medium text-om-ink">{fmtQty(workOrder.produced_qty)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-gray-500">{__('Batches:')}</span>
-                                    <span className="font-medium">{workOrder.batches.length}</span>
+                                    <span className="text-om-muted">{__('Batches:')}</span>
+                                    <span className="font-mono font-medium text-om-ink">{workOrder.batches.length}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Issues */}
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+                        <div className="bg-om-card border border-om-line rounded-om p-5">
                             <div className="flex justify-between items-center mb-3">
-                                <h3 className="text-base font-bold text-gray-800">{__('Issues')}</h3>
+                                <h3 className="text-[14px] font-semibold text-om-ink">{__('Issues')}</h3>
                                 <Link
                                     href="/supervisor/issues"
-                                    className="text-xs text-blue-600 hover:underline"
+                                    className="text-xs text-om-accent hover:underline"
                                 >
                                     {__('Manage →')}
                                 </Link>
                             </div>
                             {workOrder.issues.length === 0 ? (
-                                <p className="text-sm text-gray-400 text-center py-3">{__('No issues.')}</p>
+                                <p className="text-sm text-om-faint text-center py-3">{__('No issues.')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {workOrder.issues.map((issue) => {
                                         const isBlocking = ['OPEN', 'ACKNOWLEDGED'].includes(issue.status) && issue.is_blocking;
-                                        const issueStatusStyle = ISSUE_STATUS_STYLES[issue.status] ?? 'bg-gray-100 text-gray-500';
                                         return (
                                             <div
                                                 key={issue.id}
-                                                className={`p-2 rounded-lg text-xs ${isBlocking ? 'bg-red-50' : 'bg-gray-50'}`}
+                                                className={`p-2.5 rounded-om-sm text-xs ${isBlocking ? 'bg-om-blocked-bg' : 'bg-om-panel'}`}
                                             >
-                                                <div className="flex justify-between">
-                                                    <span className="font-medium text-gray-800">{issue.issue_type_name}</span>
-                                                    <span className={`px-1.5 py-0.5 rounded text-xs ${issueStatusStyle}`}>
-                                                        {__(issue.status)}
-                                                    </span>
+                                                <div className="flex justify-between items-center gap-2">
+                                                    <span className="font-medium text-om-ink">{issue.issue_type_name}</span>
+                                                    <StatusPill
+                                                        status={ISSUE_PILL_STATUS[issue.status] ?? 'pending'}
+                                                        label={issue.status}
+                                                    />
                                                 </div>
-                                                <p className="text-gray-600 mt-1 truncate">{issue.title}</p>
+                                                <p className="text-om-muted mt-1 truncate">{issue.title}</p>
                                             </div>
                                         );
                                     })}

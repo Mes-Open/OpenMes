@@ -27,6 +27,7 @@ export const ICONS = {
     packaging: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
     settings: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z',
     chart: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+    webhook: 'M13 10V3L4 14h7v7l9-11h-7z',
 };
 
 /**
@@ -34,9 +35,9 @@ export const ICONS = {
  * `alert: true` marks the Alerts item so it can show the badge + red active.
  */
 export const ADMIN_LINKS = [
-    { label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
-    { label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
-    { label: 'Schedule', href: '/admin/schedule', icon: 'calendar', match: ['/admin/schedule'], exact: true },
+    { key: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
+    { key: 'alerts', label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
+    { key: 'schedule', label: 'Schedule', href: '/admin/schedule', icon: 'calendar', match: ['/admin/schedule'], exact: true },
     // Hidden for now — re-enable to restore the Employees tab in the sidebar.
     // { label: 'Employees', href: '/admin/schedule/employees', icon: 'users', match: ['/admin/schedule/employees'] },
 ];
@@ -95,11 +96,13 @@ export const ADMIN_GROUPS = [
         key: 'reports',
         label: 'Reports',
         icon: 'chart',
-        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports'],
+        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements'],
         children: [
             { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'] },
             { label: 'Production Cost', href: '/admin/cost-reports', match: ['/admin/cost-reports'] },
             { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'] },
+            { label: 'Non-conformance', href: '/admin/non-conformance-reports', match: ['/admin/non-conformance-reports'] },
+            { label: 'Net requirements', href: '/admin/net-requirements', match: ['/admin/net-requirements'] },
         ],
     },
     {
@@ -172,7 +175,18 @@ export const ADMIN_GROUPS = [
         ],
     },
     {
+        key: 'webhooks',
+        label: 'Webhooks',
+        icon: 'webhook',
+        href: '/admin/webhooks',
+        match: ['/admin/webhooks'],
+        children: [
+            { label: 'Endpoints', href: '/admin/webhooks', match: ['/admin/webhooks'], exact: true },
+        ],
+    },
+    {
         key: 'adminGroup',
+        tab: 'admin',
         label: 'Admin',
         icon: 'shield',
         match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/trash'],
@@ -186,6 +200,7 @@ export const ADMIN_GROUPS = [
     },
     {
         key: 'modulesGroup',
+        tab: 'modules',
         label: 'Modules',
         icon: 'cube',
         href: '/admin/modules',

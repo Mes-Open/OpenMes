@@ -1,10 +1,13 @@
 import { Head, useForm } from '@inertiajs/react';
+import { Button, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
 import { __ } from '../../lib/i18n';
 
 /**
  * Onboarding Step 1 — Create a Production Line.
  * POST /onboarding/step/1 → OnboardingController@storeStep1
+ *
+ * Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
  */
 export default function Step1() {
     const form = useForm({ name: '', code: '', description: '' });
@@ -18,68 +21,49 @@ export default function Step1() {
     return (
         <>
             <Head title={__('Step 1 — Production Line')} />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">{__('Create a Production Line')}</h2>
-            <p className="text-gray-600 mb-6">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 1/4</div>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Create a Production Line')}</h2>
+            <p className="text-sm text-om-muted mb-6">
                 {__('A production line is a physical area where manufacturing happens. Start by creating your first one.')}
             </p>
 
             <form onSubmit={submit}>
                 <div className="space-y-4">
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                            {__('Line Name')} <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                             id="name"
-                             type="text"
-                             value={data.name}
-                             onChange={(e) => setData('name', e.target.value)}
-                             required
-                             placeholder={__('e.g. Injection Line 1')}
-                             className={`w-full rounded-lg border px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
-                        />
-                        {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-                    </div>
+                    <TextField
+                        label={<>{__('Line Name')} <span className="text-om-accent">*</span></>}
+                        id="name"
+                        value={data.name}
+                        onChange={(v) => setData('name', v)}
+                        error={errors.name}
+                        required
+                        placeholder={__('e.g. Injection Line 1')}
+                    />
 
-                    <div>
-                        <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
-                            {__('Code')} <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            id="code"
-                            type="text"
-                            value={data.code}
-                            onChange={(e) => setData('code', e.target.value)}
-                            required
-                            placeholder={__('e.g. INJ-01')}
-                            className={`w-full rounded-lg border px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition ${errors.code ? 'border-red-500' : 'border-gray-300'}`}
-                        />
-                        {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code}</p>}
-                    </div>
+                    <TextField
+                        label={<>{__('Code')} <span className="text-om-accent">*</span></>}
+                        id="code"
+                        value={data.code}
+                        onChange={(v) => setData('code', v)}
+                        error={errors.code}
+                        required
+                        placeholder={__('e.g. INJ-01')}
+                    />
 
-                    <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                            {__('Description')}
-                        </label>
-                        <textarea
-                            id="description"
-                            rows={2}
-                            value={data.description}
-                            onChange={(e) => setData('description', e.target.value)}
-                            placeholder={__('Optional description')}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition"
-                        />
-                    </div>
+                    <TextField
+                        label={__('Description')}
+                        id="description"
+                        multiline
+                        rows={2}
+                        value={data.description}
+                        onChange={(v) => setData('description', v)}
+                        placeholder={__('Optional description')}
+                    />
                 </div>
 
                 <div className="flex justify-end mt-6">
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="btn-touch btn-primary disabled:opacity-50"
-                    >
+                    <Button type="submit" variant="accent" loading={processing}>
                         {processing ? __('Saving…') : __('Next: Product Type →')}
-                    </button>
+                    </Button>
                 </div>
             </form>
         </>

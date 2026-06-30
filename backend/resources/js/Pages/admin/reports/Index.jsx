@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatDateTime, formatNumber } from '../../../lib/i18n';
 
 const STATUS_BADGE = {
-    DONE: 'bg-green-100 text-green-800',
-    CANCELLED: 'bg-gray-100 text-gray-600',
-    REJECTED: 'bg-red-100 text-red-700',
+    DONE: 'bg-om-running-bg text-om-running',
+    CANCELLED: 'bg-om-chip text-om-muted',
+    REJECTED: 'bg-om-blocked-bg text-om-blocked',
 };
 
 const PRESET_LABELS = {
@@ -72,14 +74,141 @@ export default function ReportsIndex() {
     const links = orders?.links ?? [];
     const lastPage = orders?.last_page ?? 1;
 
+    const columns = useMemo(
+        () => [
+            {
+                id: 'order_no',
+                accessorKey: 'order_no',
+                header: __('Order'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="font-medium text-om-accent">
+                            <Link href={`/admin/reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
+                                {r.order_no}
+                            </Link>
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'product',
+                accessorFn: (r) => r.product_name ?? '',
+                header: __('Product'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="text-om-muted">
+                            {r.product_name ?? '—'}
+                            {r.product_code && (
+                                <span className="text-xs text-om-faint font-mono ml-1">{r.product_code}</span>
+                            )}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'line',
+                accessorFn: (r) => r.line_name ?? '',
+                header: __('Line'),
+                cell: ({ row }) => <span className="text-om-muted">{row.original.line_name ?? '—'}</span>,
+            },
+            {
+                id: 'status',
+                accessorKey: 'status',
+                header: __('Status'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                STATUS_BADGE[r.status] ?? 'bg-om-chip text-om-muted'
+                            }`}
+                        >
+                            {__(r.status)}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'completed',
+                accessorKey: 'completed_at',
+                header: __('Completed'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="text-om-muted whitespace-nowrap">
+                            {r.completed_at ? formatDateTime(r.completed_at) : '—'}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'produced_planned',
+                accessorFn: (r) => r.produced_qty,
+                header: `${__('Produced')} / ${__('Planned')}`,
+                meta: { align: 'right' },
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="font-mono">
+                            {formatNumber(r.produced_qty)} / {formatNumber(r.planned_qty)}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'execution',
+                accessorKey: 'execution_minutes',
+                header: __('Execution'),
+                cell: ({ row }) => (
+                    <span className="text-om-muted whitespace-nowrap">
+                        {fmtDuration(row.original.execution_minutes)}
+                    </span>
+                ),
+            },
+            {
+                id: 'lots',
+                accessorFn: (r) => (r.lots ? r.lots.join(', ') : ''),
+                header: __('LOTs'),
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return (
+                        <span className="font-mono text-xs text-om-muted">
+                            {r.lots.length ? r.lots.slice(0, 2).join(', ') : '—'}
+                            {r.lots.length > 2 && <span className="text-om-faint"> +{r.lots.length - 2}</span>}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'issues',
+                accessorKey: 'issues_count',
+                header: __('Issues'),
+                meta: { align: 'right' },
+                cell: ({ row }) => {
+                    const r = row.original;
+                    return r.issues_count > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-om-downtime-bg text-om-downtime">
+                            {r.issues_count}
+                        </span>
+                    ) : (
+                        <span className="text-om-faintest">0</span>
+                    );
+                },
+            },
+        ],
+        []
+    );
+
     return (
         <>
             <Head title={__('Work Order History')} />
             <div className="max-w-7xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Work Order History')}</h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                        <h1 className="text-3xl font-bold text-om-ink">{__('Work Order History')}</h1>
+                        <p className="text-om-muted mt-1">
                             {__('Completed, cancelled and rejected orders — full execution record.')}
                         </p>
                     </div>
@@ -107,10 +236,10 @@ export default function ReportsIndex() {
                             key={p}
                             type="button"
                             onClick={() => setPreset(p)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                            className={`px-3 py-1.5 rounded-om-sm text-sm font-medium border ${
                                 form.preset === p
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-600 hover:bg-gray-50'
+                                    ? 'bg-om-ink text-om-on-ink border-om-accent'
+                                    : 'bg-om-card text-om-muted border-om-line2 hover:bg-om-bg'
                             }`}
                         >
                             {__(PRESET_LABELS[p] ?? p)}
@@ -119,68 +248,57 @@ export default function ReportsIndex() {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-3">
                     {form.preset === 'custom' && (
                         <>
                             <Field label={__('From')}>
-                                <input
-                                    type="date"
-                                    value={form.from}
-                                    onChange={(e) => setForm((f) => ({ ...f, from: e.target.value }))}
-                                    className="form-input py-1.5 text-sm"
+                                <DatePicker
+                                    value={form.from || null}
+                                    onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
+                                    className="w-44"
                                 />
                             </Field>
                             <Field label={__('To')}>
-                                <input
-                                    type="date"
-                                    value={form.to}
-                                    onChange={(e) => setForm((f) => ({ ...f, to: e.target.value }))}
-                                    className="form-input py-1.5 text-sm"
+                                <DatePicker
+                                    value={form.to || null}
+                                    onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
+                                    className="w-44"
                                 />
                             </Field>
                         </>
                     )}
                     <Field label={__('Status')}>
-                        <select
-                            value={form.status}
-                            onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {statusOptions.map((s) => (
-                                <option key={s} value={s}>
-                                    {__(s)}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.status == null ? '' : String(form.status)}
+                            onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...statusOptions.map((s) => ({ value: String(s), label: __(s) })),
+                            ]}
+                            className="w-44"
+                        />
                     </Field>
                     <Field label={__('Line')}>
-                        <select
-                            value={form.line_id}
-                            onChange={(e) => setForm((f) => ({ ...f, line_id: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {lines.map((l) => (
-                                <option key={l.id} value={l.id}>
-                                    {l.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.line_id == null ? '' : String(form.line_id)}
+                            onChange={(v) => setForm((f) => ({ ...f, line_id: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...lines.map((l) => ({ value: String(l.id), label: l.name })),
+                            ]}
+                            className="w-44"
+                        />
                     </Field>
                     <Field label={__('Product Type')}>
-                        <select
-                            value={form.product_type_id}
-                            onChange={(e) => setForm((f) => ({ ...f, product_type_id: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {productTypes.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.product_type_id == null ? '' : String(form.product_type_id)}
+                            onChange={(v) => setForm((f) => ({ ...f, product_type_id: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...productTypes.map((p) => ({ value: String(p.id), label: p.name })),
+                            ]}
+                            className="w-44"
+                        />
                     </Field>
                     <Field label={__('Search')}>
                         <input
@@ -201,85 +319,14 @@ export default function ReportsIndex() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-200 dark:border-slate-700">
-                                <th className="px-4 py-3">{__('Order')}</th>
-                                <th className="px-4 py-3">{__('Product')}</th>
-                                <th className="px-4 py-3">{__('Line')}</th>
-                                <th className="px-4 py-3">{__('Status')}</th>
-                                <th className="px-4 py-3">{__('Completed')}</th>
-                                <th className="px-4 py-3 text-right">
-                                    {__('Produced')} / {__('Planned')}
-                                </th>
-                                <th className="px-4 py-3">{__('Execution')}</th>
-                                <th className="px-4 py-3">{__('LOTs')}</th>
-                                <th className="px-4 py-3 text-right">{__('Issues')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                            {rows.map((r) => (
-                                <tr
-                                    key={r.id}
-                                    className="hover:bg-gray-50 dark:hover:bg-slate-700/40 cursor-pointer"
-                                    onClick={() => router.visit(`/admin/reports/${r.id}`)}
-                                >
-                                    <td className="px-4 py-3 font-medium text-blue-600">
-                                        <Link href={`/admin/reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
-                                            {r.order_no}
-                                        </Link>
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                                        {r.product_name ?? '—'}
-                                        {r.product_code && (
-                                            <span className="text-xs text-gray-400 font-mono ml-1">{r.product_code}</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.line_name ?? '—'}</td>
-                                    <td className="px-4 py-3">
-                                        <span
-                                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                STATUS_BADGE[r.status] ?? 'bg-gray-100 text-gray-600'
-                                            }`}
-                                        >
-                                            {__(r.status)}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                                        {r.completed_at ? formatDateTime(r.completed_at) : '—'}
-                                    </td>
-                                    <td className="px-4 py-3 text-right font-mono">
-                                        {formatNumber(r.produced_qty)} / {formatNumber(r.planned_qty)}
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                                        {fmtDuration(r.execution_minutes)}
-                                    </td>
-                                    <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-400">
-                                        {r.lots.length ? r.lots.slice(0, 2).join(', ') : '—'}
-                                        {r.lots.length > 2 && <span className="text-gray-400"> +{r.lots.length - 2}</span>}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {r.issues_count > 0 ? (
-                                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">
-                                                {r.issues_count}
-                                            </span>
-                                        ) : (
-                                            <span className="text-gray-300">0</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {rows.length === 0 && (
-                                <tr>
-                                    <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
-                                        {__('No orders match the current filters.')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={rows}
+                    columns={columns}
+                    paginated={false}
+                    searchPlaceholder={__('Order no. or LOT')}
+                    emptyLabel={__('No orders match the current filters.')}
+                    onRowClick={(r) => router.visit(`/admin/reports/${r.id}`)}
+                />
 
                 {/* Pagination */}
                 {lastPage > 1 && (
@@ -292,10 +339,10 @@ export default function ReportsIndex() {
                                 onClick={() => link.url && goPage(new URL(link.url).searchParams.get('page'))}
                                 className={`px-3 py-1 text-sm rounded border ${
                                     link.active
-                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        ? 'bg-om-ink text-om-on-ink border-om-accent'
                                         : link.url
-                                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:border-slate-600'
-                                        : 'border-gray-200 text-gray-400 cursor-default'
+                                        ? 'border-om-line text-om-muted hover:bg-om-bg'
+                                        : 'border-om-line2 text-om-faint cursor-default'
                                 }`}
                                 dangerouslySetInnerHTML={{ __html: link.label }}
                             />
@@ -309,9 +356,9 @@ export default function ReportsIndex() {
 
 function SummaryCard({ label, value }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-500 uppercase">{label}</div>
-            <div className="text-2xl font-bold text-gray-800 dark:text-gray-100 mt-1">{value}</div>
+        <div className="bg-om-card rounded-om-sm shadow-sm p-4">
+            <div className="text-xs text-om-muted uppercase">{label}</div>
+            <div className="text-2xl font-bold text-om-ink mt-1">{value}</div>
         </div>
     );
 }
@@ -319,7 +366,7 @@ function SummaryCard({ label, value }) {
 function Field({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+            <label className="block text-xs font-medium text-om-muted mb-1">{label}</label>
             {children}
         </div>
     );

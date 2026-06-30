@@ -59,10 +59,16 @@ class MaterialLot extends Model
         'supplier_reference',
         'source_container_no',
         'inspection_id',
+        'issue_id',
         'source_batch_id',
         'created_by_id',
         'tenant_id',
         'extra_data',
+        'hold_reason',
+        'held_at',
+        'held_by_id',
+        'released_at',
+        'released_by_id',
     ];
 
     protected function casts(): array
@@ -74,7 +80,14 @@ class MaterialLot extends Model
             'quantity_received' => 'decimal:4',
             'quantity_available' => 'decimal:4',
             'extra_data' => 'array',
+            'held_at' => 'datetime',
+            'released_at' => 'datetime',
         ];
+    }
+
+    public function isOnHold(): bool
+    {
+        return $this->status === self::STATUS_QUARANTINE;
     }
 
     // ── Relations ───────────────────────────────────────────────────────────
@@ -92,6 +105,22 @@ class MaterialLot extends Model
     public function inspection(): BelongsTo
     {
         return $this->belongsTo(Inspection::class);
+    }
+
+    /** The non-conformance (issue) this lot is held against, if any. */
+    public function issue(): BelongsTo
+    {
+        return $this->belongsTo(Issue::class);
+    }
+
+    public function heldBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'held_by_id');
+    }
+
+    public function releasedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'released_by_id');
     }
 
     /**

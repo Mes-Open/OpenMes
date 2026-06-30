@@ -4,8 +4,10 @@ namespace App\Services\WorkOrder;
 
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\QualityControlTask;
 use App\Models\User;
 use App\Services\Material\MaterialAllocationService;
+use App\Services\Quality\QualityTriggerService;
 use Illuminate\Support\Facades\DB;
 
 class BatchService
@@ -13,18 +15,29 @@ class BatchService
     public function __construct(
         protected WorkOrderService $workOrderService,
         protected MaterialAllocationService $allocationService,
+        protected QualityTriggerService $qualityTriggerService,
     ) {}
 
     /**
      * Start a batch step.
      *
+     * @param  array<int, array<int, array{material_lot_id: int|string, picked_qty: int|float|string}>>  $picksByMaterial
+     *                                                                                                                     Operator-chosen lot picks keyed by material id (WO-time "suggest +
+     *                                                                                                                     override"). Empty → automatic FEFO/FIFO/LIFO picking as before.
+     *
      * @throws \Exception
      */
-    public function startStep(BatchStep $step, User $user): BatchStep
+    public function startStep(BatchStep $step, User $user, array $picksByMaterial = []): BatchStep
     {
-        return DB::transaction(function () use ($step, $user) {
+        return DB::transaction(function () use ($step, $user, $picksByMaterial) {
             // Enforce workstation routing (if enabled)
             $this->guardWorkstationRouting($step, $user);
+
+            // Hard gate: an outstanding blocking quality control must be done
+            // before more work happens on this batch (#105).
+            if (QualityControlTask::hasOpenBlockingForBatch($step->batch_id)) {
+                throw new \Exception(__('A required quality control is outstanding for this batch and must be completed first.'));
+            }
 
             // Validate step can be started
             if (! $step->canStart()) {
@@ -45,16 +58,22 @@ class BatchService
             $this->updateBatchStatus($batch);
 
             // Allocate materials when batch first transitions to IN_PROGRESS
-            // (covers BOM rows with consumed_at='start' or unspecified).
+            // (covers BOM rows with consumed_at='start' or unspecified). Attribute
+            // these allocations to this (first) step for genealogy.
             if ($wasPending && $batch->fresh()->status === Batch::STATUS_IN_PROGRESS) {
-                $this->allocationService->allocateForBatch($batch, $user);
+                $this->allocationService->allocateForBatch($batch, $user, $picksByMaterial, attributeStepId: $step->id);
             }
 
             // Always check for BOM rows targeted at *this* step (consumed_at='during').
-            $this->allocationService->allocateForStep($step, $user);
+            $this->allocationService->allocateForStep($step, $user, $picksByMaterial);
 
             // Update work order status
             $this->workOrderService->updateWorkOrderStatus($batch->workOrder);
+
+            // Quality-control triggers: batch just entered production (#105).
+            if ($wasPending && $batch->fresh()->status === Batch::STATUS_IN_PROGRESS) {
+                $this->qualityTriggerService->fireInProduction($batch->fresh());
+            }
 
             return $step->fresh();
         });
@@ -74,6 +93,26 @@ class BatchService
             // Validate step can be completed
             if (! $step->canComplete()) {
                 throw new \Exception('Step cannot be completed. Current status: '.$step->status);
+            }
+
+            // Document control: a mandatory, validatable document attached to this
+            // step must be validated before the step can be completed.
+            $pendingDocs = $step->blockingDocuments()->pluck('name');
+            if ($pendingDocs->isNotEmpty()) {
+                throw new \Exception(__(
+                    'This step is blocked: the mandatory document(s) ":docs" must be validated before it can be completed.',
+                    ['docs' => $pendingDocs->implode(', ')],
+                ));
+            }
+
+            // Work-instruction control: required checklist items on this step must
+            // be ticked off before it can be completed.
+            $pendingChecklist = $step->pendingRequiredChecklistLabels();
+            if ($pendingChecklist->isNotEmpty()) {
+                throw new \Exception(__(
+                    'This step is blocked: the required checklist item(s) ":items" must be completed before it can be completed.',
+                    ['items' => $pendingChecklist->implode(', ')],
+                ));
             }
 
             // Calculate duration
@@ -100,10 +139,14 @@ class BatchService
             // If batch is complete, update produced quantity and consume materials
             if ($batch->status === Batch::STATUS_DONE) {
                 // End-of-batch BOM rows (consumed_at='end') get allocated now,
-                // immediately before everything is marked consumed.
-                $this->allocationService->allocateForBatchEnd($batch, $user);
+                // immediately before everything is marked consumed. Attribute to
+                // the completing step so the genealogy bridge has a step to record.
+                $this->allocationService->allocateForBatchEnd($batch, $user, attributeStepId: $step->id);
                 $this->completeBatch($batch, $data['produced_qty'] ?? $batch->target_qty);
                 $this->allocationService->consumeForBatch($batch);
+
+                // Quality-control triggers: every-N-units checks (#105).
+                $this->qualityTriggerService->fireForUnits($batch->fresh());
             }
 
             // Update work order status

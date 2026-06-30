@@ -1,12 +1,13 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import LotSequenceForm from './LotSequenceForm';
+import { __ } from '../../../lib/i18n';
 
 export default function LotSequenceCreate() {
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="New LOT Sequence" />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">New LOT Sequence</h1>
+            <Head title={__('New LOT Sequence')} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('New LOT Sequence')}</h1>
             <LotSequenceForm
                 action="/admin/lot-sequences"
                 method="post"
@@ -20,7 +21,7 @@ export default function LotSequenceCreate() {
                     year_prefix: false,
                     reset_period: 'none',
                 }}
-                submitLabel="Create"
+                submitLabel={__('Create')}
             />
         </div>
     );

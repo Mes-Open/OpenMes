@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\BatchController;
 use App\Http\Controllers\Api\V1\BatchStepController;
+use App\Http\Controllers\Api\V1\BatchStepDocumentController;
 use App\Http\Controllers\Api\V1\BomItemController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ConnectivityController;
@@ -26,7 +27,6 @@ use App\Http\Controllers\Api\V1\LineStatusController;
 use App\Http\Controllers\Api\V1\LotSequenceController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
 use App\Http\Controllers\Api\V1\MaintenanceScheduleController;
-use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MaterialLotController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\V1\ProductionAnomalyController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\QualityCheckController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\ScrapEntryController;
 use App\Http\Controllers\Api\V1\ScrapReasonController;
 use App\Http\Controllers\Api\V1\ShiftController;
@@ -513,6 +514,12 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/batch-steps/{batchStep}/complete', [BatchStepController::class, 'complete']);
     Route::post('/batch-steps/{batchStep}/problem', [BatchStepController::class, 'problem']);
 
+    // Step document control: validate a mandatory document so its step can
+    // complete (any production user); attaching is Supervisor/Admin only.
+    Route::post('/batch-step-documents/{batchStepDocument}/validate', [BatchStepDocumentController::class, 'validateDocument']);
+    Route::middleware('role:Supervisor|Admin')
+        ->post('/batch-steps/{batchStep}/documents', [BatchStepDocumentController::class, 'store']);
+
     // Process Confirmations (per batch)
     Route::get('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'index']);
     Route::post('/batches/{batch}/confirmations', [ProcessConfirmationController::class, 'store']);
@@ -540,6 +547,11 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/issues/{issue}/close', [IssueController::class, 'close']);
     Route::delete('/issues/{issue}', [IssueController::class, 'destroy']); // Admin only (enforced in controller)
     Route::get('/issues/stats/line', [IssueController::class, 'lineStats']);
+    // Non-conformance disposition + actions (#11)
+    Route::put('/issues/{issue}/disposition', [IssueController::class, 'disposition']);
+    Route::get('/issues/{issue}/actions', [IssueController::class, 'actions']);
+    Route::post('/issues/{issue}/actions', [IssueController::class, 'storeAction']);
+    Route::put('/issue-actions/{action}', [IssueController::class, 'updateAction']);
 
     // Issue Types
     Route::get('/issue-types', [IssueTypeController::class, 'index']);
@@ -601,6 +613,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/throughput', [AnalyticsController::class, 'throughput']);
         Route::get('/analytics/issue-stats', [AnalyticsController::class, 'issueStats']);
         Route::get('/analytics/step-performance', [AnalyticsController::class, 'stepPerformance']);
+        Route::get('/analytics/operator-rates', [AnalyticsController::class, 'operatorRates']);
 
         // Reports
         Route::get('/reports/production-summary', [ReportController::class, 'productionSummary']);
@@ -608,6 +621,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/reports/downtime', [ReportController::class, 'downtimeReport']);
         Route::get('/reports/scrap-pareto', [ReportController::class, 'scrapPareto']);
         Route::get('/reports/scrap-rate', [ReportController::class, 'scrapRate']);
+        Route::get('/reports/non-conformance-pareto', [ReportController::class, 'nonConformancePareto']);
+        Route::get('/reports/net-requirements', [ReportController::class, 'netRequirements']);
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
     });
 

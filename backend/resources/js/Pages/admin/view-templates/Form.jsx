@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import RepeatableRows from '../../../components/RepeatableRows';
+import { __ } from '../../../lib/i18n';
 
 const COLUMN_FIELDS = [
     { name: 'label', label: 'Label', placeholder: 'Quantity' },
@@ -18,36 +19,43 @@ const COLUMN_FIELDS = [
 export default function ViewTemplateForm({ form, submitLabel, onSubmit }) {
     const { data, setData, errors, processing } = form;
 
+    const translatedFields = COLUMN_FIELDS.map(f => ({
+        ...f,
+        label: __(f.label),
+        placeholder: f.placeholder ? __(f.placeholder) : undefined,
+        options: f.options ? f.options.map(o => ({ ...o, label: __(o.label) })) : undefined
+    }));
+
     return (
-        <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-sm p-6 max-w-3xl space-y-5">
+        <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-om-muted mb-1">{__('Name')} <span className="text-om-blocked">*</span></label>
                 <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" autoFocus />
-                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+                {errors.name && <p className="mt-1 text-xs text-om-blocked">{errors.name}</p>}
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-om-muted mb-1">{__('Description')}</label>
                 <textarea value={data.description ?? ''} onChange={(e) => setData('description', e.target.value)} rows={2} className="form-input w-full" />
-                {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description}</p>}
+                {errors.description && <p className="mt-1 text-xs text-om-blocked">{errors.description}</p>}
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Columns <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-om-muted mb-2">{__('Columns')} <span className="text-om-blocked">*</span></label>
                 <RepeatableRows
                     value={data.columns}
                     onChange={(rows) => setData('columns', rows)}
-                    fields={COLUMN_FIELDS}
-                    addLabel="+ Add column"
+                    fields={translatedFields}
+                    addLabel={__('+ Add column')}
                     newRow={() => ({ label: '', key: '', source: 'field' })}
                 />
-                {errors.columns && <p className="mt-1 text-xs text-red-600">{errors.columns}</p>}
+                {errors.columns && <p className="mt-1 text-xs text-om-blocked">{errors.columns}</p>}
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-                <button type="submit" disabled={processing} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-                    {processing ? 'Saving…' : submitLabel}
+                <button type="submit" disabled={processing} className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover disabled:opacity-50">
+                    {processing ? __('Saving…') : submitLabel}
                 </button>
-                <Link href="/admin/view-templates" className="text-gray-500 hover:text-gray-800 text-sm">Cancel</Link>
+                <Link href="/admin/view-templates" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
             </div>
         </form>
     );

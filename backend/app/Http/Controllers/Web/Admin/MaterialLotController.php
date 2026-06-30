@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\HoldMaterialLotRequest;
+use App\Models\Issue;
 use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\MaterialSource;
+use App\Services\Quality\MaterialHoldService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -180,6 +183,32 @@ class MaterialLotController extends Controller
 
         return redirect()->route('admin.material-lots.index')
             ->with('success', __('Material lot deleted.'));
+    }
+
+    /** Put a lot on quality hold (QUARANTINE), optionally against an issue. */
+    public function hold(HoldMaterialLotRequest $request, MaterialLot $materialLot, MaterialHoldService $service)
+    {
+        $issue = $request->filled('issue_id') ? Issue::find($request->integer('issue_id')) : null;
+
+        try {
+            $service->hold($materialLot, $request->validated()['reason'], $request->user(), $issue);
+        } catch (\DomainException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', __('Lot placed on hold.'));
+    }
+
+    /** Release a held lot back to RELEASED. */
+    public function release(Request $request, MaterialLot $materialLot, MaterialHoldService $service)
+    {
+        try {
+            $service->release($materialLot, $request->user());
+        } catch (\DomainException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', __('Lot released.'));
     }
 
     /**

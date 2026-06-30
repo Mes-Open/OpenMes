@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { DatePicker, Dropdown } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import { __, formatNumber } from '../../../lib/i18n';
 import CostMethodology from './CostMethodology';
@@ -63,14 +65,104 @@ export default function CostReportsIndex() {
     const links = orders?.links ?? [];
     const lastPage = orders?.last_page ?? 1;
 
+    const columns = useMemo(
+        () => [
+            {
+                id: 'order',
+                accessorKey: 'order_no',
+                header: __('Order'),
+                cell: ({ row }) => (
+                    <Link
+                        href={`/admin/cost-reports/${row.original.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-om-accent"
+                    >
+                        {row.original.order_no}
+                    </Link>
+                ),
+            },
+            {
+                id: 'product',
+                accessorKey: 'product_name',
+                header: __('Product'),
+                cell: ({ row }) => <span className="text-om-muted">{row.original.product_name ?? '—'}</span>,
+            },
+            {
+                id: 'line',
+                accessorKey: 'line_name',
+                header: __('Line'),
+                cell: ({ row }) => <span className="text-om-muted">{row.original.line_name ?? '—'}</span>,
+            },
+            {
+                id: 'produced',
+                accessorKey: 'produced_qty',
+                header: __('Produced'),
+                meta: { align: 'right' },
+                cell: ({ row }) => <span className="font-mono">{formatNumber(row.original.produced_qty)}</span>,
+            },
+            {
+                id: 'material_cost',
+                accessorKey: 'material_cost',
+                header: __('Material cost'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono">{money(row.original.material_cost, row.original.currency)}</span>
+                ),
+            },
+            {
+                id: 'labor_cost',
+                accessorKey: 'labor_cost',
+                header: __('Labor cost'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono">{money(row.original.labor_cost, row.original.currency)}</span>
+                ),
+            },
+            {
+                id: 'additional_cost',
+                accessorKey: 'additional_cost',
+                header: __('Additional costs'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono">{money(row.original.additional_cost, row.original.currency)}</span>
+                ),
+            },
+            {
+                id: 'total_cost',
+                accessorKey: 'total_cost',
+                header: __('Total cost'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono font-semibold text-om-ink">
+                        {money(row.original.total_cost, row.original.currency)}
+                    </span>
+                ),
+            },
+            {
+                id: 'cost_per_unit',
+                accessorKey: 'cost_per_unit',
+                header: __('Cost per unit'),
+                meta: { align: 'right' },
+                cell: ({ row }) => (
+                    <span className="font-mono">
+                        {row.original.cost_per_unit == null
+                            ? '—'
+                            : money(row.original.cost_per_unit, row.original.currency)}
+                    </span>
+                ),
+            },
+        ],
+        [],
+    );
+
     return (
         <>
             <Head title={__('Production Cost Report')} />
             <div className="max-w-7xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">{__('Production Cost Report')}</h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-1">
+                        <h1 className="text-3xl font-bold text-om-ink">{__('Production Cost Report')}</h1>
+                        <p className="text-om-muted mt-1">
                             {__('Material, labor and additional cost per finished work order.')}
                         </p>
                     </div>
@@ -80,13 +172,13 @@ export default function CostReportsIndex() {
                 </div>
 
                 {summary.mixed_currency && (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-2">
+                    <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2">
                         {__('Mixed currencies - totals are summed without conversion.')}
                     </div>
                 )}
 
                 {summary.limited && (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-2">
+                    <div className="rounded-om-sm bg-om-downtime-bg border border-om-line text-om-downtime text-sm px-4 py-2">
                         {__('Large result set: summary totals cover the first 10000 orders. Narrow the filters for an exact total.')}
                     </div>
                 )}
@@ -112,10 +204,10 @@ export default function CostReportsIndex() {
                             key={p}
                             type="button"
                             onClick={() => setPreset(p)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                            className={`px-3 py-1.5 rounded-om-sm text-sm font-medium border ${
                                 form.preset === p
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-600 hover:bg-gray-50'
+                                    ? 'bg-om-ink text-om-on-ink border-om-accent'
+                                    : 'bg-om-card text-om-muted border-om-line2 hover:bg-om-bg'
                             }`}
                         >
                             {__(PRESET_LABELS[p] ?? p)}
@@ -124,54 +216,46 @@ export default function CostReportsIndex() {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
+                <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-3">
                     {form.preset === 'custom' && (
                         <>
                             <Field label={__('From')}>
-                                <input
-                                    type="date"
-                                    value={form.from}
-                                    onChange={(e) => setForm((f) => ({ ...f, from: e.target.value }))}
-                                    className="form-input py-1.5 text-sm"
+                                <DatePicker
+                                    value={form.from || null}
+                                    onChange={(iso) => setForm((f) => ({ ...f, from: iso ?? '' }))}
+                                    className="w-44"
                                 />
                             </Field>
                             <Field label={__('To')}>
-                                <input
-                                    type="date"
-                                    value={form.to}
-                                    onChange={(e) => setForm((f) => ({ ...f, to: e.target.value }))}
-                                    className="form-input py-1.5 text-sm"
+                                <DatePicker
+                                    value={form.to || null}
+                                    onChange={(iso) => setForm((f) => ({ ...f, to: iso ?? '' }))}
+                                    className="w-44"
                                 />
                             </Field>
                         </>
                     )}
                     <Field label={__('Line')}>
-                        <select
-                            value={form.line_id}
-                            onChange={(e) => setForm((f) => ({ ...f, line_id: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {lines.map((l) => (
-                                <option key={l.id} value={l.id}>
-                                    {l.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.line_id == null ? '' : String(form.line_id)}
+                            onChange={(v) => setForm((f) => ({ ...f, line_id: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...lines.map((l) => ({ value: String(l.id), label: l.name })),
+                            ]}
+                            className="w-full"
+                        />
                     </Field>
                     <Field label={__('Product Type')}>
-                        <select
-                            value={form.product_type_id}
-                            onChange={(e) => setForm((f) => ({ ...f, product_type_id: e.target.value }))}
-                            className="form-input py-1.5 text-sm"
-                        >
-                            <option value="">{__('All')}</option>
-                            {productTypes.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Dropdown
+                            value={form.product_type_id == null ? '' : String(form.product_type_id)}
+                            onChange={(v) => setForm((f) => ({ ...f, product_type_id: v }))}
+                            options={[
+                                { value: '', label: __('All') },
+                                ...productTypes.map((p) => ({ value: String(p.id), label: p.name })),
+                            ]}
+                            className="w-full"
+                        />
                     </Field>
                     <Field label={__('Search')}>
                         <input
@@ -183,7 +267,7 @@ export default function CostReportsIndex() {
                             className="form-input py-1.5 text-sm"
                         />
                     </Field>
-                    <button type="button" onClick={() => apply()} className="btn-touch btn-primary">
+                    <button type="button" onClick={() => apply()} className="btn-touch btn-accent">
                         {__('Apply')}
                     </button>
                     <button type="button" onClick={clear} className="btn-touch btn-secondary">
@@ -192,57 +276,14 @@ export default function CostReportsIndex() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-200 dark:border-slate-700">
-                                <th className="px-4 py-3">{__('Order')}</th>
-                                <th className="px-4 py-3">{__('Product')}</th>
-                                <th className="px-4 py-3">{__('Line')}</th>
-                                <th className="px-4 py-3 text-right">{__('Produced')}</th>
-                                <th className="px-4 py-3 text-right">{__('Material cost')}</th>
-                                <th className="px-4 py-3 text-right">{__('Labor cost')}</th>
-                                <th className="px-4 py-3 text-right">{__('Additional costs')}</th>
-                                <th className="px-4 py-3 text-right">{__('Total cost')}</th>
-                                <th className="px-4 py-3 text-right">{__('Cost per unit')}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                            {rows.map((r) => (
-                                <tr
-                                    key={r.id}
-                                    className="hover:bg-gray-50 dark:hover:bg-slate-700/40 cursor-pointer"
-                                    onClick={() => router.visit(`/admin/cost-reports/${r.id}`)}
-                                >
-                                    <td className="px-4 py-3 font-medium text-blue-600">
-                                        <Link href={`/admin/cost-reports/${r.id}`} onClick={(e) => e.stopPropagation()}>
-                                            {r.order_no}
-                                        </Link>
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{r.product_name ?? '—'}</td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{r.line_name ?? '—'}</td>
-                                    <td className="px-4 py-3 text-right font-mono">{formatNumber(r.produced_qty)}</td>
-                                    <td className="px-4 py-3 text-right font-mono">{money(r.material_cost, r.currency)}</td>
-                                    <td className="px-4 py-3 text-right font-mono">{money(r.labor_cost, r.currency)}</td>
-                                    <td className="px-4 py-3 text-right font-mono">{money(r.additional_cost, r.currency)}</td>
-                                    <td className="px-4 py-3 text-right font-mono font-semibold text-gray-800 dark:text-gray-100">
-                                        {money(r.total_cost, r.currency)}
-                                    </td>
-                                    <td className="px-4 py-3 text-right font-mono">
-                                        {r.cost_per_unit == null ? '—' : money(r.cost_per_unit, r.currency)}
-                                    </td>
-                                </tr>
-                            ))}
-                            {rows.length === 0 && (
-                                <tr>
-                                    <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
-                                        {__('No orders match the current filters.')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={rows}
+                    columns={columns}
+                    searchable={false}
+                    paginated={false}
+                    emptyLabel={__('No orders match the current filters.')}
+                    onRowClick={(r) => router.visit(`/admin/cost-reports/${r.id}`)}
+                />
 
                 {/* Pagination */}
                 {lastPage > 1 && (
@@ -255,10 +296,10 @@ export default function CostReportsIndex() {
                                 onClick={() => link.url && goPage(new URL(link.url).searchParams.get('page'))}
                                 className={`px-3 py-1 text-sm rounded border ${
                                     link.active
-                                        ? 'bg-blue-600 text-white border-blue-600'
+                                        ? 'bg-om-ink text-om-on-ink border-om-accent'
                                         : link.url
-                                        ? 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:border-slate-600'
-                                        : 'border-gray-200 text-gray-400 cursor-default'
+                                        ? 'border-om-line text-om-muted hover:bg-om-bg'
+                                        : 'border-om-line2 text-om-faint cursor-default'
                                 }`}
                                 dangerouslySetInnerHTML={{ __html: link.label }}
                             />
@@ -272,9 +313,9 @@ export default function CostReportsIndex() {
 
 function SummaryCard({ label, value }) {
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-500 uppercase">{label}</div>
-            <div className="text-2xl font-bold text-gray-800 dark:text-gray-100 mt-1">{value}</div>
+        <div className="bg-om-card rounded-om-sm shadow-sm p-4">
+            <div className="text-xs text-om-muted uppercase">{label}</div>
+            <div className="text-2xl font-bold text-om-ink mt-1">{value}</div>
         </div>
     );
 }
@@ -282,7 +323,7 @@ function SummaryCard({ label, value }) {
 function Field({ label, children }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+            <label className="block text-xs font-medium text-om-muted mb-1">{label}</label>
             {children}
         </div>
     );

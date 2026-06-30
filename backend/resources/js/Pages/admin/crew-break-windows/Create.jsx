@@ -10,7 +10,7 @@ export default function CrewBreakWindowCreate() {
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('New Break Window')} />
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">{__('New Break Window')}</h1>
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('New Break Window')}</h1>
             <ResourceForm
                 action="/admin/crew-break-windows"
                 method="post"
