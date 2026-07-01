@@ -140,6 +140,18 @@ class Pallet extends Model
         return $this->hasMany(QualityCheck::class);
     }
 
+    /**
+     * Stock movements booked against this pallet - the milestone backflush
+     * consumption declared when the pallet was created. Linked via the
+     * StockMovement source_type/source_id pair, so each consumption is auditable
+     * and traceable to its pallet.
+     */
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class, 'source_id')
+            ->where('source_type', StockMovement::SOURCE_PALLET);
+    }
+
     public function isOpen(): bool
     {
         return $this->status === PalletStatus::Open;

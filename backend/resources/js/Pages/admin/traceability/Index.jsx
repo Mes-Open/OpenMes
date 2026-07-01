@@ -238,7 +238,9 @@ function MaterialLotResult({ forward, backward, recall }) {
                     </span>
                 </div>
                 {forward.work_orders.length === 0 ? (
-                    <p className="text-sm text-om-muted">{__('This lot has not been consumed yet.')}</p>
+                    <p className="text-sm text-om-muted">
+                        {forward.is_finished_good ? __('This is a finished-goods lot - it was not consumed further.') : __('This lot has not been consumed yet.')}
+                    </p>
                 ) : (
                     <>
                         <ul className="space-y-2">
@@ -256,6 +258,44 @@ function MaterialLotResult({ forward, backward, recall }) {
                     </>
                 )}
             </Card>
+
+            {/* Finished-goods forward leg: output pallet(s) + customer order(s) */}
+            {forward.is_finished_good && (
+                <Card>
+                    <h3 className="text-lg font-bold text-om-ink mb-3">{__('Forward trace - packed & shipped')}</h3>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <h4 className="text-sm font-semibold text-om-muted mb-2">{__('Output pallets')} ({forward.pallets.length})</h4>
+                            {forward.pallets.length === 0 ? (
+                                <p className="text-sm text-om-muted">{__('This finished lot has not been packed onto a pallet yet.')}</p>
+                            ) : (
+                                <ul className="space-y-1">
+                                    {forward.pallets.map((p, i) => (
+                                        <li key={i} className="flex items-center gap-2 text-sm">
+                                            <Link href={traceLink(p.pallet_no)} className="font-mono text-om-accent hover:underline">{p.pallet_no}</Link>
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{p.status}</span>
+                                            <span className="text-xs text-om-faint">{p.qty}{p.location ? ` · ${p.location}` : ''}{p.shipped_at ? ` · ${p.shipped_at}` : ''}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-semibold text-om-muted mb-2">{__('Customer orders')} ({forward.customer_orders.length})</h4>
+                            {forward.customer_orders.length === 0 ? (
+                                <p className="text-xs text-om-faint">—</p>
+                            ) : (
+                                <div className="flex flex-wrap gap-2">
+                                    {forward.customer_orders.map((co, i) => (
+                                        <Link key={i} href={traceLink(co)} className="px-2 py-1 rounded bg-om-chip text-om-accent text-xs font-mono hover:bg-om-line2">{co}</Link>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+            )}
 
             {/* Backward */}
             <Card>
@@ -469,10 +509,28 @@ function CustomerOrderResult({ data }) {
                                 {wo.batches.length === 0 ? (
                                     <p className="text-xs text-om-faint">—</p>
                                 ) : wo.batches.map((b, bi) => (
-                                    <div key={bi} className="flex items-center gap-2 text-sm mb-1">
-                                        <span className="text-om-muted">#{b.batch_number}</span>
-                                        {b.lot_number && <Link href={traceLink(b.lot_number)} className="font-mono text-om-accent hover:underline">{b.lot_number}</Link>}
-                                        <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{b.status}</span>
+                                    <div key={bi} className="mb-2">
+                                        <div className="flex items-center gap-2 text-sm">
+                                            <span className="text-om-muted">#{b.batch_number}</span>
+                                            {b.lot_number && <Link href={traceLink(b.lot_number)} className="font-mono text-om-accent hover:underline">{b.lot_number}</Link>}
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-om-chip text-om-muted">{b.status}</span>
+                                        </div>
+                                        {b.output_lots?.length > 0 && (
+                                            <div className="ml-3 mt-0.5">
+                                                <span className="text-xs text-om-faint mr-1">{__('Output lots')}:</span>
+                                                {b.output_lots.map((o, oi) => (
+                                                    <Link key={oi} href={traceLink(o.lot_number)} className="inline-block mr-1 mb-0.5 font-mono text-xs text-om-accent hover:underline" title={o.material ?? ''}>{o.lot_number}</Link>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {b.components?.length > 0 && (
+                                            <div className="ml-3 mt-0.5">
+                                                <span className="text-xs text-om-faint mr-1">{__('Components used')}:</span>
+                                                {b.components.map((c, ci) => (
+                                                    <Link key={ci} href={traceLink(c.lot_number)} className="inline-block mr-1 mb-0.5 font-mono text-xs text-om-accent hover:underline" title={c.material ?? ''}>{c.lot_number}</Link>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

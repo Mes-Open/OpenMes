@@ -267,7 +267,7 @@ export default function CostReportsIndex() {
                             className="form-input py-1.5 text-sm"
                         />
                     </Field>
-                    <button type="button" onClick={() => apply()} className="btn-touch btn-primary">
+                    <button type="button" onClick={() => apply()} className="btn-touch btn-accent">
                         {__('Apply')}
                     </button>
                     <button type="button" onClick={clear} className="btn-touch btn-secondary">

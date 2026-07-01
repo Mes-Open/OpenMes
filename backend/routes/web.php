@@ -164,6 +164,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/process-templates/{process_template}/photos/{photo}', [\App\Http\Controllers\Web\Admin\ProcessTemplatePhotoController::class, 'show'])
         ->name('process-templates.photos.show');
 
+    // Rich work-instruction media (image/PDF/video) — same authenticated stream
+    // model as photos; Range-enabled so operators can seek videos on a tablet.
+    Route::get('/process-templates/{process_template}/media/{media}', [\App\Http\Controllers\Web\Admin\TemplateStepMediaController::class, 'show'])
+        ->name('process-templates.media.show');
+
     // Settings
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Web\SettingsController::class, 'index'])->name('index');
@@ -246,6 +251,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
+        // Document control: validate a mandatory document so its step can complete.
+        Route::post('/batch-step-document/{batchStepDocument}/validate', [OperatorBatchController::class, 'validateDocument'])->name('batch-step-document.validate');
+        // Stream a step document's uploaded file (operators read it before validating).
+        Route::get('/batch-step-document/{batchStepDocument}/file', [OperatorBatchController::class, 'showDocumentFile'])->name('batch-step-document.file');
+        // Work-instruction checklist: tick / un-tick a step checklist item.
+        Route::post('/batch-step/{batchStep}/checklist/{checklistItem}/toggle', [OperatorBatchController::class, 'toggleChecklistItem'])->name('batch-step.checklist.toggle');
 
         Route::post('/issue', [OperatorIssueController::class, 'store'])->name('issue.store');
         Route::post('/scrap', [OperatorScrapController::class, 'store'])->name('scrap.store');
@@ -482,6 +493,15 @@ Route::middleware('auth')->group(function () {
             Route::post('/{process_template}/photos', [\App\Http\Controllers\Web\Admin\ProcessTemplatePhotoController::class, 'store'])
                 ->middleware('throttle:30,1')->name('photos.store');
             Route::delete('/{process_template}/photos/{photo}', [\App\Http\Controllers\Web\Admin\ProcessTemplatePhotoController::class, 'destroy'])->name('photos.destroy');
+
+            // Rich work-instruction media (image/PDF/video) per step — uploads throttled.
+            Route::post('/{process_template}/media', [\App\Http\Controllers\Web\Admin\TemplateStepMediaController::class, 'store'])
+                ->middleware('throttle:30,1')->name('media.store');
+            Route::delete('/{process_template}/media/{media}', [\App\Http\Controllers\Web\Admin\TemplateStepMediaController::class, 'destroy'])->name('media.destroy');
+
+            // Per-step checklist items (work-instruction sign-offs).
+            Route::post('/{process_template}/checklist-items', [\App\Http\Controllers\Web\Admin\TemplateStepChecklistController::class, 'store'])->name('checklist-items.store');
+            Route::delete('/{process_template}/checklist-items/{checklistItem}', [\App\Http\Controllers\Web\Admin\TemplateStepChecklistController::class, 'destroy'])->name('checklist-items.destroy');
 
             // BOM Management (nested under process templates)
             Route::get('/{process_template}/bom', [BomManagementController::class, 'index'])->name('bom');

@@ -10,6 +10,7 @@ use App\Models\PackagingScanLog;
 use App\Models\Pallet;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
+use App\Services\Production\PalletBackflushService;
 use App\Support\ShiftWindow;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -150,7 +151,7 @@ class PackagingController extends Controller
         ]);
     }
 
-    public function createPallet(CreatePalletStationRequest $request)
+    public function createPallet(CreatePalletStationRequest $request, PalletBackflushService $backflush)
     {
         $workOrder = WorkOrder::findOrFail($request->integer('work_order_id'));
 
@@ -176,6 +177,15 @@ class PackagingController extends Controller
             'location' => $request->input('location'),
             'qty' => 0,
         ]);
+
+        // Milestone backflush: when enabled, declare the BOM consumption implied
+        // by the produced quantity and deduct it from stock, linked to the pallet.
+        // Without an explicit produced_qty the batch is backflushed once (at its
+        // first pallet), so splitting a batch across pallets doesn't double-book.
+        if ($backflush->isEnabled()) {
+            $explicitQty = $request->filled('produced_qty') ? (float) $request->input('produced_qty') : null;
+            $backflush->backflushForPallet($pallet, $explicitQty, $request->user());
+        }
 
         return response()->json([
             'pallet' => $this->palletPayload($pallet->fresh(['workOrder.line', 'batch'])),

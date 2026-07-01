@@ -7,6 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
+use App\Models\BatchStepChecklistCompletion;
+use App\Models\BatchStepDocument;
+use App\Models\TemplateStepChecklistItem;
 use App\Models\WorkOrder;
 use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
@@ -118,6 +121,93 @@ class BatchController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Validate a mandatory document attached to a step (shop-floor document
+     * control). Records who validated it and when; once validated, the step's
+     * completion gate clears. Idempotent.
+     */
+    public function validateDocument(Request $request, BatchStepDocument $batchStepDocument)
+    {
+        $batchStepDocument->loadMissing('batchStep');
+        $step = $batchStepDocument->batchStep;
+
+        if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
+            return back()->with('error', 'This document does not belong to the selected line.');
+        }
+
+        $batchStepDocument->markValidated($request->user());
+
+        return back()->with('success', 'Document validated.');
+    }
+
+    /**
+     * Stream a step document's uploaded file to the operator so they can read it
+     * before validating (line-scoped). Range-enabled via response()->file().
+     */
+    public function showDocumentFile(Request $request, BatchStepDocument $batchStepDocument)
+    {
+        $batchStepDocument->loadMissing('batchStep');
+        $step = $batchStepDocument->batchStep;
+
+        if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
+            abort(403);
+        }
+        abort_unless($batchStepDocument->file_path && \Illuminate\Support\Facades\Storage::exists($batchStepDocument->file_path), 404);
+
+        // Only render a narrow safelist inline; anything else (HTML, SVG, ...) is
+        // forced to download, so an uploaded document can't run script in the
+        // operator's session. nosniff stops the browser second-guessing the type.
+        $inlineSafe = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
+        $mime = $batchStepDocument->mime_type ?? 'application/octet-stream';
+        $disposition = in_array($mime, $inlineSafe, true) ? 'inline' : 'attachment';
+
+        return response()->file(\Illuminate\Support\Facades\Storage::path($batchStepDocument->file_path), [
+            'Content-Type' => $mime,
+            'Content-Disposition' => $disposition.'; filename="'.addslashes($batchStepDocument->original_name ?? 'document').'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
+    /**
+     * Toggle a work-instruction checklist item on a step: tick it (recording who
+     * and when) or un-tick it. The item is defined on the step's template; we
+     * verify it belongs to this step's template and step number before recording.
+     */
+    public function toggleChecklistItem(Request $request, BatchStep $batchStep, TemplateStepChecklistItem $checklistItem)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', 'This step does not belong to the selected line.');
+        }
+
+        // Anti-IDOR: the item must belong to this step's template and step number.
+        $templateId = $batchStep->batch?->workOrder?->process_snapshot['template_id'] ?? null;
+        $checklistItem->loadMissing('templateStep:id,step_number');
+        if ($checklistItem->process_template_id !== $templateId
+            || $checklistItem->templateStep?->step_number !== $batchStep->step_number) {
+            return back()->with('error', 'This checklist item does not belong to this step.');
+        }
+
+        $existing = BatchStepChecklistCompletion::where('batch_step_id', $batchStep->id)
+            ->where('checklist_item_id', $checklistItem->id)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+
+            return back()->with('success', 'Checklist item unchecked.');
+        }
+
+        BatchStepChecklistCompletion::create([
+            'batch_step_id' => $batchStep->id,
+            'checklist_item_id' => $checklistItem->id,
+            'checked_by_id' => $request->user()->id,
+            'checked_at' => now(),
+        ]);
+
+        return back()->with('success', 'Checklist item checked.');
     }
 
     /**

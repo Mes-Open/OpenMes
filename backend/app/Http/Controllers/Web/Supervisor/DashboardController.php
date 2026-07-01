@@ -7,6 +7,7 @@ use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
 use App\Models\WorkOrder;
+use App\Services\Production\OperatorProductionRateService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,22 @@ class DashboardController extends Controller
             'throughput' => $this->getThroughputData($lineId),
             'issueStats' => $this->getIssueStats($lineId),
             'recentIssues' => $recentIssues,
+            'operatorRates' => $this->getOperatorRates($lineId),
         ]);
+    }
+
+    /**
+     * Top operator × machine production rates (units/hour) for the dashboard.
+     * Computed live from completed step events by OperatorProductionRateService.
+     */
+    protected function getOperatorRates($lineId, int $limit = 8, int $days = 90)
+    {
+        // Bound to a rolling window so the dashboard doesn't aggregate the entire
+        // batch_steps history (which grows unbounded) on every load.
+        return app(OperatorProductionRateService::class)
+            ->rates($lineId ? (int) $lineId : null, Carbon::now()->subDays($days)->startOfDay())
+            ->take($limit)
+            ->values();
     }
 
     protected function getOverviewStats($lineId)

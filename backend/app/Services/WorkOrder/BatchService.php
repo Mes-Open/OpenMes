@@ -95,6 +95,26 @@ class BatchService
                 throw new \Exception('Step cannot be completed. Current status: '.$step->status);
             }
 
+            // Document control: a mandatory, validatable document attached to this
+            // step must be validated before the step can be completed.
+            $pendingDocs = $step->blockingDocuments()->pluck('name');
+            if ($pendingDocs->isNotEmpty()) {
+                throw new \Exception(__(
+                    'This step is blocked: the mandatory document(s) ":docs" must be validated before it can be completed.',
+                    ['docs' => $pendingDocs->implode(', ')],
+                ));
+            }
+
+            // Work-instruction control: required checklist items on this step must
+            // be ticked off before it can be completed.
+            $pendingChecklist = $step->pendingRequiredChecklistLabels();
+            if ($pendingChecklist->isNotEmpty()) {
+                throw new \Exception(__(
+                    'This step is blocked: the required checklist item(s) ":items" must be completed before it can be completed.',
+                    ['items' => $pendingChecklist->implode(', ')],
+                ));
+            }
+
             // Calculate duration
             $durationMinutes = null;
             if ($step->started_at) {

@@ -129,6 +129,11 @@ class TraceabilityController extends Controller
                 'status' => $wo->status,
             ])->values(),
             'total_consumed' => $f['total_consumed'],
+            // Finished-goods forward leg: pallet(s) packed onto + customer order(s).
+            // Already plain arrays/strings from the service - passed straight through.
+            'is_finished_good' => $f['is_finished_good'],
+            'pallets' => $f['pallets'],
+            'customer_orders' => $f['customer_orders'],
         ];
     }
 

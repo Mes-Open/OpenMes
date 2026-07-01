@@ -15,9 +15,47 @@ const ISSUE_PILL_STATUS = {
 };
 
 export default function SupervisorDashboard() {
-    const { lines = [], selectedLineId, stats = {}, throughput = {}, issueStats = {}, recentIssues = [] } = usePage().props;
+    const { lines = [], selectedLineId, stats = {}, throughput = {}, issueStats = {}, recentIssues = [], operatorRates = [] } = usePage().props;
 
     const changeLine = (id) => router.get('/supervisor/dashboard', id ? { line_id: id } : {}, { preserveState: false });
+
+    const rateColumns = useMemo(() => [
+        {
+            id: 'operator',
+            accessorFn: (r) => r.operator_name ?? '—',
+            header: __('Operator'),
+            cell: ({ row }) => <span className="font-medium text-om-ink">{row.original.operator_name ?? '—'}</span>,
+        },
+        {
+            id: 'machine',
+            accessorFn: (r) => r.workstation_name ?? '—',
+            header: __('Machine'),
+            cell: ({ row }) => (
+                <span className="text-om-muted">
+                    {row.original.workstation_name ?? '—'}
+                    {row.original.workstation_code && <span className="ml-1 font-mono text-[11px] text-om-faint">{row.original.workstation_code}</span>}
+                </span>
+            ),
+        },
+        {
+            id: 'line',
+            accessorFn: (r) => r.line_name ?? '—',
+            header: __('Line'),
+            cell: ({ row }) => <span className="text-om-faint">{row.original.line_name ?? '—'}</span>,
+        },
+        {
+            id: 'units_per_hour',
+            accessorKey: 'units_per_hour',
+            header: __('Units/h'),
+            cell: ({ row }) => <span className="font-mono text-om-ink">{row.original.units_per_hour}</span>,
+        },
+        {
+            id: 'steps_count',
+            accessorFn: (r) => r.steps_count ?? 0,
+            header: __('Steps'),
+            cell: ({ row }) => <span className="font-mono text-[12px] text-om-faint">{row.original.steps_count}</span>,
+        },
+    ], []);
 
     const issueColumns = useMemo(() => [
         {
@@ -83,6 +121,17 @@ export default function SupervisorDashboard() {
                         <BarList labels={issueStats.by_type?.labels} values={issueStats.by_type?.values} unit="" color="bg-om-downtime" />
                     </Card>
                 </div>
+
+                <Card title={__('Operator production rate (units/h)')}>
+                    <DataTable
+                        data={operatorRates}
+                        columns={rateColumns}
+                        searchable={false}
+                        columnToggle={false}
+                        paginated={false}
+                        emptyLabel={__('No production recorded yet.')}
+                    />
+                </Card>
 
                 <Card title={__('Recent issues')}>
                     <DataTable

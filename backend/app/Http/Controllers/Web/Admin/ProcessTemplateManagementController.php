@@ -85,6 +85,8 @@ class ProcessTemplateManagementController extends Controller
             'steps.workstation.line',
             'steps.processSegment',
             'photos.uploadedBy',
+            'stepMedia',
+            'checklistItems',
         ]);
         $workstations = Workstation::active()->with('line')->orderBy('name')->get();
         $processSegments = \App\Models\ProcessSegment::query()
@@ -132,6 +134,20 @@ class ProcessTemplateManagementController extends Controller
                     'file_size' => $p->file_size_human ?? null,
                     'uploaded_by' => $p->uploadedBy?->name,
                     'created_at' => $p->created_at->format('Y-m-d H:i'),
+                ]),
+                'media' => $processTemplate->stepMedia->map(fn ($m) => [
+                    'id' => $m->id,
+                    'template_step_id' => $m->template_step_id,
+                    'media_type' => $m->media_type,
+                    'title' => $m->title,
+                    'original_name' => $m->original_name,
+                    'url' => route('process-templates.media.show', [$processTemplate, $m]),
+                ]),
+                'checklist_items' => $processTemplate->checklistItems->map(fn ($c) => [
+                    'id' => $c->id,
+                    'template_step_id' => $c->template_step_id,
+                    'label' => $c->label,
+                    'is_required' => (bool) $c->is_required,
                 ]),
             ],
             'workstations' => $workstations->map(fn ($w) => [

@@ -170,6 +170,99 @@ class PalletTraceabilityTest extends TestCase
         $this->assertContains('WO-PT-2', $orderNos);
     }
 
+    public function test_finished_goods_lot_traces_forward_to_pallet_and_customer_order(): void
+    {
+        $s = $this->scenario('PO-FWD');
+        // Finished-goods lot produced by the batch (source_batch_id = batch),
+        // i.e. the output of the batch the pallet was packed from.
+        $fgLot = MaterialLot::factory()->create([
+            'lot_number' => 'FG-LOT-1',
+            'material_id' => $s['material']->id,
+            'source_batch_id' => $s['batch']->id,
+        ]);
+
+        $forward = app(TraceabilityService::class)->forwardTrace($fgLot->fresh());
+
+        $this->assertTrue($forward['is_finished_good']);
+        $palletNos = collect($forward['pallets'])->pluck('pallet_no')->all();
+        $this->assertContains($s['pallet']->pallet_no, $palletNos);
+        $this->assertContains('PO-FWD', $forward['customer_orders']->all());
+    }
+
+    public function test_unlinked_finished_lot_traces_forward_without_a_pallet(): void
+    {
+        // Finished lot whose batch has no pallet: the forward leg must still
+        // resolve (empty pallets, customer order from the producing work order)
+        // and never error - the "unlinked LOT" edge case.
+        $wo = WorkOrder::factory()->create(['order_no' => 'WO-UL', 'customer_order_no' => 'PO-UL']);
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id, 'lot_number' => 'FG-UL']);
+        $material = Material::factory()->create();
+        $fgLot = MaterialLot::factory()->create([
+            'lot_number' => 'FG-LOT-UL',
+            'material_id' => $material->id,
+            'source_batch_id' => $batch->id,
+        ]);
+
+        $forward = app(TraceabilityService::class)->forwardTrace($fgLot->fresh());
+
+        $this->assertTrue($forward['is_finished_good']);
+        $this->assertCount(0, $forward['pallets']);
+        $this->assertSame(['PO-UL'], $forward['customer_orders']->all());
+    }
+
+    public function test_raw_lot_forward_has_no_finished_goods_packing(): void
+    {
+        // A raw inbound lot (no source batch) is not a finished good: no pallets
+        // and no customer orders on the forward leg.
+        $material = Material::factory()->create();
+        $raw = MaterialLot::factory()->create(['lot_number' => 'RAW-FWD', 'material_id' => $material->id]);
+
+        $forward = app(TraceabilityService::class)->forwardTrace($raw->fresh());
+
+        $this->assertFalse($forward['is_finished_good']);
+        $this->assertCount(0, $forward['pallets']);
+        $this->assertCount(0, $forward['customer_orders']);
+    }
+
+    public function test_customer_order_trace_reaches_output_lots_and_components(): void
+    {
+        $s = $this->scenario('PO-DEEP');
+        // The batch's finished-goods output lot.
+        MaterialLot::factory()->create([
+            'lot_number' => 'FG-OUT-1',
+            'material_id' => $s['material']->id,
+            'source_batch_id' => $s['batch']->id,
+        ]);
+
+        $data = app(TraceabilityService::class)->customerOrderTrace('PO-DEEP');
+
+        $batch = collect($data['work_orders'])->firstWhere('order_no', 'WO-PT-1')['batches'][0];
+        $outputLotNos = collect($batch['output_lots'])->pluck('lot_number')->all();
+        $componentLotNos = collect($batch['components'])->pluck('lot_number')->all();
+
+        $this->assertContains('FG-OUT-1', $outputLotNos); // reaches the finished LOT
+        $this->assertContains('RAW-1', $componentLotNos);  // reaches the components used
+    }
+
+    public function test_console_traces_a_finished_lot_to_its_pallet_and_customer_order(): void
+    {
+        $s = $this->scenario('PO-CON-FG');
+        // Distinct lot_number so resolve() hits the material-lot branch, not the
+        // batch branch (batch lot_number is FG-9).
+        MaterialLot::factory()->create([
+            'lot_number' => 'FG-LOT-CON',
+            'material_id' => $s['material']->id,
+            'source_batch_id' => $s['batch']->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.traceability.index', ['q' => 'FG-LOT-CON']))
+            ->assertOk()
+            ->assertSee('FG-LOT-CON')
+            ->assertSee($s['pallet']->pallet_no)
+            ->assertSee('PO-CON-FG');
+    }
+
     public function test_console_traces_a_pallet_end_to_end(): void
     {
         $s = $this->scenario();
