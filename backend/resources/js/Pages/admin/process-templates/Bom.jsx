@@ -102,13 +102,13 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                             className={`form-input w-full${errors.quantity_per_unit ? ' border-om-blocked' : ''}`}
                         />
                         <p className="mt-1 text-xs text-om-faint">
-                            How much of this material is needed per one finished product unit.
+                            {__("How much of this material is needed per one finished product unit.")}
                         </p>
                         {errors.quantity_per_unit && (
                             <p className="mt-1 text-sm text-om-blocked">{errors.quantity_per_unit}</p>
                         )}
                     </div>
-
+ 
                     <div>
                         <label className="block text-sm font-medium text-om-muted mb-1">
                             {__("Step (optional)")}
@@ -117,7 +117,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                             value={data.template_step_id == null ? '' : String(data.template_step_id)}
                             onChange={(v) => setData('template_step_id', v)}
                             options={[
-                                { value: '', label: 'All steps / general' },
+                                { value: '', label: __('All steps / general') },
                                 ...steps.map((s) => ({
                                     value: String(s.id),
                                     label: `#${s.step_number} - ${s.name}`,
@@ -126,7 +126,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                             className="w-full"
                         />
                     </div>
-
+ 
                     <div>
                         <label className="block text-sm font-medium text-om-muted mb-1">{__("Scrap %")}</label>
                         <input
@@ -140,7 +140,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                         />
                         {selectedMaterial?.default_scrap_percentage != null && (
                             <p className="mt-1 text-xs text-om-faint">
-                                Pre-filled from the material default ({selectedMaterial.default_scrap_percentage}%); adjust if needed.
+                                {__("Pre-filled from the material default (:percentage%); adjust if needed.", { percentage: selectedMaterial.default_scrap_percentage })}
                             </p>
                         )}
                     </div>
@@ -151,9 +151,9 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                             value={data.consumed_at == null ? '' : String(data.consumed_at)}
                             onChange={(v) => setData('consumed_at', v)}
                             options={[
-                                { value: 'start', label: 'Start of step' },
-                                { value: 'during', label: 'During step' },
-                                { value: 'end', label: 'End of step' },
+                                { value: 'start', label: __('Start of step') },
+                                { value: 'during', label: __('During step') },
+                                { value: 'end', label: __('End of step') },
                             ]}
                             className="w-full"
                         />
@@ -165,7 +165,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                             type="text"
                             value={data.notes}
                             onChange={(e) => setData('notes', e.target.value)}
-                            placeholder="Optional notes"
+                            placeholder={__("Optional notes")}
                             className="form-input w-full"
                         />
                     </div>
@@ -173,7 +173,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
 
                 <div className="flex justify-end gap-3 mt-4">
                     <button type="button" onClick={onCancel} className="btn-touch btn-secondary">
-                        Cancel
+                        {__("Cancel")}
                     </button>
                     <button type="submit" disabled={processing} className="btn-touch btn-primary">
                         {isEdit
@@ -386,7 +386,7 @@ export default function ProcessTemplatesBom() {
                             onClick={() => setShowAddForm(true)}
                             className="btn-touch btn-primary"
                         >
-                            Add First Material
+                            {__("Add First Material")}
                         </button>
                     </div>
                 )}

@@ -240,7 +240,7 @@ function Field({ field, value, error, setData }) {
                 />
             )}
 
-            {help && <p className="text-[12px] text-om-muted mt-1">{help}</p>}
+            {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
             {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
         </div>
     );

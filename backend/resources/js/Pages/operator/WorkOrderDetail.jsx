@@ -128,7 +128,7 @@ function BomSection({ workOrder }) {
         {
             id: 'material',
             accessorFn: (r) => r.material_name,
-            header: 'Material',
+            header: __('Material'),
             meta: { align: 'left', flex: true },
             cell: ({ row }) => (
                 <>
@@ -140,7 +140,7 @@ function BomSection({ workOrder }) {
         {
             id: 'type',
             accessorFn: (r) => r.material_type,
-            header: 'Type',
+            header: __('Type'),
             meta: { align: 'left' },
             cell: ({ row }) => (
                 <span className={`px-2 py-0.5 rounded-[20px] font-mono text-[10px] uppercase tracking-[0.06em] ${bomTypeBadge(row.original.material_type)}`}>
@@ -151,7 +151,7 @@ function BomSection({ workOrder }) {
         {
             id: 'per_unit',
             accessorFn: (r) => r.quantity_per_unit,
-            header: 'Per Unit',
+            header: __('Per Unit'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className="font-mono text-om-ink">
@@ -165,7 +165,7 @@ function BomSection({ workOrder }) {
                 const base = r.quantity_per_unit * workOrder.planned_qty;
                 return base + base * (r.scrap_percentage / 100);
             },
-            header: `Total (${Math.round(workOrder.planned_qty)} pcs)`,
+            header: `${__('Total')} (${Math.round(workOrder.planned_qty)} ${__('pcs')})`,
             meta: { align: 'right' },
             cell: ({ row }) => {
                 const item = row.original;
@@ -176,7 +176,7 @@ function BomSection({ workOrder }) {
                     <span className="font-mono font-medium text-om-ink">
                         {fmtQty(total)} {item.unit_of_measure}
                         {item.scrap_percentage > 0 && (
-                            <span className="text-xs text-om-faint ml-1">(+{item.scrap_percentage}% scrap)</span>
+                            <span className="text-xs text-om-faint ml-1">(+{item.scrap_percentage}% {__('scrap')})</span>
                         )}
                     </span>
                 );
@@ -185,11 +185,11 @@ function BomSection({ workOrder }) {
         {
             id: 'step',
             accessorFn: (r) => r.step_number,
-            header: 'Step',
+            header: __('Step'),
             meta: { align: 'left' },
             cell: ({ row }) => (
                 <span className="font-mono text-[12px] text-om-muted">
-                    {row.original.step_number ? `#${row.original.step_number}` : 'General'}
+                    {row.original.step_number ? `#${row.original.step_number}` : __('General')}
                 </span>
             ),
         },
@@ -204,9 +204,9 @@ function BomSection({ workOrder }) {
                 className="flex justify-between items-center w-full text-left cursor-pointer"
                 onClick={() => setOpen((v) => !v)}
             >
-                <h2 className={sectionLabelCls}>Recipe / Materials</h2>
+                <h2 className={sectionLabelCls}>{__('Recipe / Materials')}</h2>
                 <div className="flex items-center gap-2">
-                    <Badge variant="neutral">{bom.length} items</Badge>
+                    <Badge variant="neutral">{bom.length} {__('items')}</Badge>
                     <ChevronIcon open={open} />
                 </div>
             </button>
@@ -243,9 +243,9 @@ function ProcessPhotosSection({ photos = [] }) {
                 className="flex justify-between items-center w-full text-left cursor-pointer"
                 onClick={() => setOpen((v) => !v)}
             >
-                <h2 className={sectionLabelCls}>Work Instructions</h2>
+                <h2 className={sectionLabelCls}>{__('Work Instructions')}</h2>
                 <div className="flex items-center gap-2">
-                    <Badge variant="neutral">{photos.length} photos</Badge>
+                    <Badge variant="neutral">{photos.length} {__('photos')}</Badge>
                     <ChevronIcon open={open} />
                 </div>
             </button>
@@ -540,11 +540,11 @@ function ConfirmParametersRow({ batch }) {
                 onClick={handleClick}
                 className="px-5 py-3 text-[14px]"
             >
-                Confirm Parameters
+                {__('Confirm Parameters')}
             </Button>
             {lastConfirm && (
                 <span className="font-mono text-[11px] text-om-running">
-                    Last: {formatDateTime(new Date(lastConfirm.confirmed_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {__('Last:')} {formatDateTime(new Date(lastConfirm.confirmed_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
             )}
         </div>
@@ -567,7 +567,7 @@ function ProductionControls({ batch }) {
     return (
         <div className="border-t border-om-line2 pt-4 space-y-3">
             <h4 className={sectionLabelCls}>
-                Production Controls
+                {__('Production Controls')}
             </h4>
 
             {/* Confirm Parameters */}
@@ -581,12 +581,12 @@ function ProductionControls({ batch }) {
                         onClick={() => setShowQc((v) => !v)}
                         className="px-5 py-3 text-[14px]"
                     >
-                        Quality Check ({qcCount})
+                        {__('Quality Check (:count)', { count: qcCount })}
                     </Button>
                     {qcCount < 3 ? (
-                        <span className="font-mono text-[11px] text-om-downtime">{3 - qcCount} more needed</span>
+                        <span className="font-mono text-[11px] text-om-downtime">{__(':count more needed', { count: 3 - qcCount })}</span>
                     ) : (
-                        <span className="font-mono text-[11px] text-om-running">Min. requirement met</span>
+                        <span className="font-mono text-[11px] text-om-running">{__('Min. requirement met')}</span>
                     )}
                 </div>
                 {showQc && <QualityCheckForm batch={batch} onClose={() => setShowQc(false)} />}
@@ -600,7 +600,7 @@ function ProductionControls({ batch }) {
                         onClick={() => setShowChecklist((v) => !v)}
                         className="px-5 py-3 text-[14px]"
                     >
-                        Packaging Checklist
+                        {__('Packaging Checklist')}
                     </Button>
                     {showChecklist && (
                         <PackagingChecklistForm batch={batch} onClose={() => setShowChecklist(false)} />
@@ -609,7 +609,7 @@ function ProductionControls({ batch }) {
             ) : (
                 <div className="text-sm">
                     <span className={batch.packaging_checklist.all_passed ? 'text-om-running' : 'text-om-blocked'}>
-                        Packaging: {batch.packaging_checklist.all_passed ? 'All passed' : 'Some items failed'}
+                        {__('Packaging')}: {batch.packaging_checklist.all_passed ? __('All passed') : __('Some items failed')}
                     </span>
                 </div>
             )}
@@ -622,7 +622,7 @@ function ProductionControls({ batch }) {
                         onClick={() => setShowRelease((v) => !v)}
                         className="px-6 py-3.5 text-[15px]"
                     >
-                        Release Batch
+                        {__('Release Batch')}
                     </Button>
                     {showRelease && <ReleaseForm batch={batch} onClose={() => setShowRelease(false)} />}
                 </div>
@@ -803,7 +803,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
 
     return (
         <div>
-            <h4 className={`${sectionLabelCls} mb-2`}>Steps</h4>
+            <h4 className={`${sectionLabelCls} mb-2`}>{__('Steps')}</h4>
             <div className="space-y-2">
                 {steps.map((step) => {
                     const isInflight = inflightStepId === step.id;
@@ -841,29 +841,29 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 {step.name}
                             </span>
 
-                            {/* Status label for terminal states */}
+                             {/* Status label for terminal states */}
                             {step.status === 'DONE' && (
                                 <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
-                                    Done{step.completed_by ? ` by ${step.completed_by.name}` : ''}
+                                    {step.completed_by ? __('Done by :name', { name: step.completed_by.name }) : __('Done')}
                                 </span>
                             )}
                             {step.status === 'SKIPPED' && (
-                                <span className="font-mono text-[11px] text-om-faint whitespace-nowrap">Skipped</span>
+                                <span className="font-mono text-[11px] text-om-faint whitespace-nowrap">{__('Skipped')}</span>
                             )}
                             {step.status === 'IN_PROGRESS' && !inflightStepId && (
                                 <span className="font-mono text-[11px] text-om-running whitespace-nowrap">
-                                    In progress{step.started_by ? ` by ${step.started_by.name}` : ''}
+                                    {step.started_by ? __('In progress by :name', { name: step.started_by.name }) : __('In progress')}
                                 </span>
                             )}
                             {/* Fallback for older data without explicit status field */}
                             {!step.status && step.completed_at && (
                                 <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
-                                    Done{step.completed_by ? ` by ${step.completed_by.name}` : ''}
+                                    {step.completed_by ? __('Done by :name', { name: step.completed_by.name }) : __('Done')}
                                 </span>
                             )}
                             {!step.status && !step.completed_at && step.started_at && (
                                 <span className="font-mono text-[11px] text-om-running whitespace-nowrap">
-                                    In progress{step.started_by ? ` by ${step.started_by.name}` : ''}
+                                    {step.started_by ? __('In progress by :name', { name: step.started_by.name }) : __('In progress')}
                                 </span>
                             )}
 
@@ -1159,7 +1159,7 @@ function LotPickModal({ step, materials, onClose }) {
     };
 
     return (
-        <ModalShell title="Pick material lots" subtitle={step.name} onClose={onClose}>
+        <ModalShell title={__("Pick material lots")} subtitle={step.name} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="max-h-[60vh] space-y-5 overflow-y-auto px-[18px] py-4">
                     {materials.map((m) => {
@@ -1182,8 +1182,8 @@ function LotPickModal({ step, materials, onClose }) {
                                 {lines.length === 0 && (
                                     <p className={errorCls}>
                                         {m.candidates.length === 0
-                                            ? 'No lots available for this material'
-                                            : 'Add a lot to allocate the required quantity.'}
+                                            ? __('No lots available for this material')
+                                            : __('Add a lot to allocate the required quantity.')}
                                     </p>
                                 )}
 
@@ -1198,8 +1198,8 @@ function LotPickModal({ step, materials, onClose }) {
                                                         {cand?.lot_number ?? `#${ln.material_lot_id}`}
                                                     </span>
                                                     <span className="font-mono text-[10px] text-om-faint">
-                                                        avail {fmtQty(cand?.quantity_available, 4)}
-                                                        {cand?.expiry_date ? ` · exp ${formatDate(cand.expiry_date)}` : ''}
+                                                        {__('avail')} {fmtQty(cand?.quantity_available, 4)}
+                                                        {cand?.expiry_date ? ` · ${__('exp')} ${formatDate(cand.expiry_date)}` : ''}
                                                     </span>
                                                 </div>
                                                 <input
@@ -1232,11 +1232,11 @@ function LotPickModal({ step, materials, onClose }) {
                                         }}
                                         className={`${inputCls} mt-2`}
                                     >
-                                        <option value="">+ Add lot…</option>
+                                        <option value="">{__('+ Add lot…')}</option>
                                         {remaining.map((c) => (
                                             <option key={c.id} value={c.id}>
-                                                {c.lot_number} — avail {fmtQty(c.quantity_available, 4)}
-                                                {c.expiry_date ? ` (exp ${formatDate(c.expiry_date)})` : ''}
+                                                {c.lot_number} — {__('avail')} {fmtQty(c.quantity_available, 4)}
+                                                {c.expiry_date ? ` (${__('exp')} ${formatDate(c.expiry_date)})` : ''}
                                             </option>
                                         ))}
                                     </select>
@@ -1244,10 +1244,10 @@ function LotPickModal({ step, materials, onClose }) {
 
                                 <div className="mt-2 flex justify-between font-mono text-[11px]">
                                     <span className="text-om-faint">
-                                        Required {fmtQty(m.required_qty, 4)} {m.unit_of_measure}
+                                        {__('Required')} {fmtQty(m.required_qty, 4)} {m.unit_of_measure}
                                     </span>
                                     <span className={balanced ? 'text-om-done' : 'text-om-blocked'}>
-                                        Allocated {fmtQty(allocated, 4)}
+                                        {__('Allocated')} {fmtQty(allocated, 4)}
                                     </span>
                                 </div>
                             </div>
@@ -1259,7 +1259,7 @@ function LotPickModal({ step, materials, onClose }) {
                         Cancel
                     </Button>
                     <Button variant="accent" type="submit" disabled={!allValid || submitting}>
-                        {submitting ? '…' : 'Confirm picks & start'}
+                        {submitting ? '…' : __('Confirm picks & start')}
                     </Button>
                 </div>
             </form>
@@ -1726,21 +1726,21 @@ export default function WorkOrderDetail() {
                         {/* Batches */}
                         <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h2 className={sectionLabelCls}>Batches</h2>
+                                <h2 className={sectionLabelCls}>{__('Batches')}</h2>
                                 {canCreateBatch && (
                                     <Button
                                         variant="accent"
                                         onClick={() => setCreateBatchOpen(true)}
                                         className="px-5 py-3 text-[14px]"
                                     >
-                                        + Create Batch
+                                        {__('+ Create Batch')}
                                     </Button>
                                 )}
                             </div>
 
                             {(!workOrder.batches || workOrder.batches.length === 0) ? (
                                 <div className="text-center py-8 bg-om-panel border border-om-line2 rounded-om-sm">
-                                    <p className="text-sm text-om-faint">No batches created yet.</p>
+                                    <p className="text-sm text-om-faint">{__('No batches created yet.')}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -1804,7 +1804,7 @@ export default function WorkOrderDetail() {
                             </div>
 
                             {(!workOrder.issues || workOrder.issues.length === 0) ? (
-                                <p className="text-sm text-om-faint text-center py-4">No issues reported.</p>
+                                <p className="text-sm text-om-faint text-center py-4">{__('No issues reported.')}</p>
                             ) : (
                                 <div className="space-y-3">
                                     {workOrder.issues.slice(0, 5).map((issue) => (

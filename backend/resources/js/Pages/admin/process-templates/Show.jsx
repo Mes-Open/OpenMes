@@ -337,7 +337,7 @@ function StepPhoto({ step, photo, baseUrl }) {
     };
 
     const remove = () => {
-        if (confirm('Delete this step photo?')) {
+        if (confirm(__('Delete this step photo?'))) {
             router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
         }
     };
@@ -355,10 +355,10 @@ function StepPhoto({ step, photo, baseUrl }) {
                     </button>
                     <div className="flex flex-col gap-1">
                         <button type="button" onClick={pick} disabled={form.processing} className="text-xs text-om-accent hover:underline text-left">
-                            {form.processing ? 'Uploading…' : 'Replace photo'}
+                            {form.processing ? __('Uploading…') : __('Replace photo')}
                         </button>
                         <button type="button" onClick={remove} className="text-xs text-om-blocked hover:underline text-left">
-                            Remove
+                            {__('Remove')}
                         </button>
                     </div>
                 </>
@@ -370,7 +370,7 @@ function StepPhoto({ step, photo, baseUrl }) {
                     className="flex items-center gap-2 px-3 py-2 rounded-om-sm border border-dashed border-om-line text-sm text-om-muted hover:border-blue-400 hover:text-om-accent disabled:opacity-50"
                 >
                     <Icon d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z" className="w-4 h-4" />
-                    {form.processing ? 'Uploading…' : 'Add step photo'}
+                    {form.processing ? __('Uploading…') : __('Add step photo')}
                 </button>
             )}
             {form.errors.photo && <span className="text-xs text-om-blocked">{form.errors.photo}</span>}
@@ -429,14 +429,14 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
         <div className="mt-3 border-t border-om-line2 pt-3 space-y-3">
             {/* Media */}
             <div>
-                <p className="text-xs font-semibold text-om-muted mb-1.5">Work-instruction media</p>
+                <p className="text-xs font-semibold text-om-muted mb-1.5">{__('Work-instruction media')}</p>
                 {media.length > 0 && (
                     <ul className="mb-2 space-y-1">
                         {media.map((m) => (
                             <li key={m.id} className="flex items-center gap-2 text-sm">
-                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">{m.media_type}</span>
+                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">{__(m.media_type)}</span>
                                 <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-om-accent hover:underline truncate max-w-[260px]">{m.title || m.original_name}</a>
-                                <button type="button" onClick={() => router.delete(`${mediaBase}/${m.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">Remove</button>
+                                <button type="button" onClick={() => router.delete(`${mediaBase}/${m.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">{__('Remove')}</button>
                             </li>
                         ))}
                     </ul>
@@ -447,19 +447,19 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                         onChange={(e) => mediaForm.setData('media_type', e.target.value)}
                         className="form-select text-sm py-1"
                     >
-                        <option value="image">Image</option>
-                        <option value="pdf">PDF</option>
-                        <option value="video">Video</option>
+                        <option value="image">{__('Image')}</option>
+                        <option value="pdf">{__('PDF')}</option>
+                        <option value="video">{__('Video')}</option>
                     </select>
                     <input
                         type="text"
                         value={mediaForm.data.title}
                         onChange={(e) => mediaForm.setData('title', e.target.value)}
-                        placeholder="Title (optional)"
+                        placeholder={__('Title (optional)')}
                         className="form-input text-sm py-1 flex-1 min-w-[120px]"
                     />
                     <button type="button" onClick={() => fileRef.current?.click()} disabled={mediaForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">
-                        {mediaForm.processing ? 'Uploading…' : 'Upload file'}
+                        {mediaForm.processing ? __('Uploading…') : __('Upload file')}
                     </button>
                     <input ref={fileRef} type="file" accept={MEDIA_ACCEPT[mediaForm.data.media_type]} className="hidden" onChange={onFile} />
                 </div>
@@ -468,14 +468,14 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
 
             {/* Checklist */}
             <div>
-                <p className="text-xs font-semibold text-om-muted mb-1.5">Checklist</p>
+                <p className="text-xs font-semibold text-om-muted mb-1.5">{__('Checklist')}</p>
                 {items.length > 0 && (
                     <ul className="mb-2 space-y-1">
                         {items.map((c) => (
                             <li key={c.id} className="flex items-center gap-2 text-sm">
                                 <span className="text-om-ink">{c.label}</span>
-                                {c.is_required && <span className="text-[10px] uppercase text-om-downtime">required</span>}
-                                <button type="button" onClick={() => router.delete(`${checklistBase}/${c.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">Remove</button>
+                                {c.is_required && <span className="text-[10px] uppercase text-om-downtime">{__('required')}</span>}
+                                <button type="button" onClick={() => router.delete(`${checklistBase}/${c.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">{__('Remove')}</button>
                             </li>
                         ))}
                     </ul>
@@ -485,14 +485,14 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                         type="text"
                         value={itemForm.data.label}
                         onChange={(e) => itemForm.setData('label', e.target.value)}
-                        placeholder="Add checklist item…"
+                        placeholder={__('Add checklist item…')}
                         className="form-input text-sm py-1 flex-1 min-w-[160px]"
                     />
                     <label className="flex items-center gap-1.5 text-xs text-om-muted">
                         <input type="checkbox" checked={itemForm.data.is_required} onChange={(e) => itemForm.setData('is_required', e.target.checked)} />
-                        Required
+                        {__('Required')}
                     </label>
-                    <button type="submit" disabled={itemForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">Add</button>
+                    <button type="submit" disabled={itemForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">{__('Add')}</button>
                 </form>
             </div>
         </div>
@@ -836,7 +836,7 @@ export default function ProcessTemplatesShow() {
                 {/* Steps List header */}
                 <div className="flex items-center gap-2 mb-4">
                     <h2 className="text-xl font-bold text-om-ink">{__("Production Steps")}</h2>
-                    <span className="text-sm text-om-muted">(first to last)</span>
+                    <span className="text-sm text-om-muted">({__("first to last")})</span>
                 </div>
 
                 {steps.length > 0 ? (
@@ -870,7 +870,7 @@ export default function ProcessTemplatesShow() {
                         </svg>
                         <p className="text-lg font-medium text-om-muted">{__("No production steps yet")}</p>
                         <p className="text-sm text-om-muted mt-1 mb-4">
-                            Add steps to define the manufacturing process for this product.
+                            {__("Add steps to define the manufacturing process for this product.")}
                         </p>
                         <button
                             type="button"
@@ -878,7 +878,7 @@ export default function ProcessTemplatesShow() {
                             className="inline-block btn-touch btn-primary"
                         >
                             <Icon d="M12 4v16m8-8H4" className="w-5 h-5 inline-block mr-2" />
-                            Add First Step
+                            {__("Add First Step")}
                         </button>
                     </div>
                 )}
@@ -966,8 +966,7 @@ function PhotosSection({ productType, processTemplate }) {
                         type="text"
                         value={form.data.caption}
                         onChange={(e) => form.setData('caption', e.target.value)}
-                        maxLength={255}
-                        placeholder="Optional description"
+                            placeholder={__("Optional description")}
                         className="form-input w-full"
                     />
                 </div>
@@ -976,12 +975,12 @@ function PhotosSection({ productType, processTemplate }) {
                     disabled={form.processing || !form.data.photo}
                     className="btn-touch btn-primary disabled:opacity-50"
                 >
-                    {form.processing ? 'Uploading…' : 'Upload'}
+                    {form.processing ? __('Uploading…') : __('Upload')}
                 </button>
                 {form.errors.photo && <p className="w-full text-sm text-om-blocked">{form.errors.photo}</p>}
                 {form.errors.caption && <p className="w-full text-sm text-om-blocked">{form.errors.caption}</p>}
             </form>
-
+ 
             {/* Photo grid */}
             {photos.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -1001,7 +1000,7 @@ function PhotosSection({ productType, processTemplate }) {
                                 />
                             </button>
                             <div className="mt-2 text-xs text-om-muted truncate" title={photo.caption || ''}>
-                                {photo.caption || <span className="text-om-faint">No caption</span>}
+                                {photo.caption || <span className="text-om-faint">{__("No caption")}</span>}
                             </div>
                             <div className="text-[10px] text-om-faint">
                                 {photo.width}×{photo.height} • {photo.file_size}
@@ -1010,7 +1009,7 @@ function PhotosSection({ productType, processTemplate }) {
                                 type="button"
                                 onClick={() => handleDelete(photo)}
                                 className="absolute top-3 right-3 bg-om-card/90 text-om-blocked rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                                title="Delete photo"
+                                title={__("Delete photo")}
                             >
                                 <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
                             </button>
@@ -1019,7 +1018,7 @@ function PhotosSection({ productType, processTemplate }) {
                 </div>
             ) : (
                 <div className="card text-center py-8 text-sm text-om-muted">
-                    No reference photos yet. Upload assembly/work-instruction images for operators.
+                    {__("No reference photos yet. Upload assembly/work-instruction images for operators.")}
                 </div>
             )}
 
