@@ -40,9 +40,9 @@ async function switchToAdmin(page: Page) {
 }
 
 test.describe.configure({ mode: 'serial' });
-test.setTimeout(60_000); // 6 mins for full UI flow
+test.setTimeout(360_000); // 6 mins for full UI flow
 test.use({
-  video: 'on',
+  video: { mode: 'on', size: { width: 1280, height: 720 } },
   viewport: { width: 1280, height: 720 },
   locale: 'vi-VN',
   timezoneId: 'Asia/Ho_Chi_Minh',
@@ -108,20 +108,17 @@ async function pickDropdown(button, optionName: string | RegExp) {
 }
 
 test.beforeAll(() => {
-  // Optionally trigger the seeder or reset DB if needed:
-  // execSync('docker exec openmes-backend php artisan migrate:fresh --seed');
-  console.log('Enabling lot tracking...');
-  execSync('docker exec openmes-backend php artisan tinker --execute="\\DB::table(\'system_settings\')->where(\'key\', \'lot_tracking_enabled\')->update([\'value\' => \'true\']);"');
+  // DB reset + lot tracking is now handled externally by reset-test.cmd
 });
 
 test('build an EV sedan production configuration from zero and run it', async ({ page, browser }) => {
   await addClickHighlighter(page);
   
   // RESET
-  console.log('[Setup] Refreshing database...');
-  execSync(`docker exec openmes-backend php artisan migrate:fresh --seed --force`, { stdio: 'ignore' });
-  execSync(`docker exec openmes-backend php artisan cache:clear`, { stdio: 'ignore' });
-  execSync(`docker exec openmes-backend php artisan tinker --execute="\\App\\Models\\User::create(['name' => 'Administrator', 'username' => config('openmmes.admin_username') ?: 'admin', 'email' => config('openmmes.admin_email') ?: 'admin@example.com', 'password' => \\Illuminate\\Support\\Facades\\Hash::make(config('openmmes.admin_password') ?: 'Admin1234!'), 'force_password_change' => false, 'email_verified_at' => now()])->assignRole('Admin');"`, { stdio: 'ignore' });
+  // console.log('[Setup] Refreshing database...');
+  // execSync(`docker exec openmes-backend php artisan migrate:fresh --seed --force`, { stdio: 'ignore' });
+  // execSync(`docker exec openmes-backend php artisan cache:clear`, { stdio: 'ignore' });
+  // execSync(`docker exec openmes-backend php artisan tinker --execute="\\App\\Models\\User::create(['name' => 'Administrator', 'username' => config('openmmes.admin_username') ?: 'admin', 'email' => config('openmmes.admin_email') ?: 'admin@example.com', 'password' => \\Illuminate\\Support\\Facades\\Hash::make(config('openmmes.admin_password') ?: 'Admin1234!'), 'force_password_change' => false, 'email_verified_at' => now()])->assignRole('Admin');"`, { stdio: 'ignore' });
   
   await stepSubtitle(page, 'Đăng nhập bằng tài khoản Quản trị viên (Admin)');
   await login(page, ADMIN, PASS);
@@ -496,7 +493,8 @@ test('build an EV sedan production configuration from zero and run it', async ({
   await stepSubtitle(page, 'Quản đốc: Ghi nhận sự cố không phù hợp (Non-conformance)');
   await test.step('set disposition on a non-conformance (#11)', async () => {
     
-    // Navigate back to the Work Order in Operator view to report the issue
+    // Switch to Operator session to report the issue
+    await switchToOperator(page);
     await page.goto('/operator/queue');
     await page.getByText(WO, { exact: false }).first().click();
     await page.waitForURL(/\/operator\/work-order\/\d+/);
@@ -515,6 +513,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await expect(issueDialog).toBeHidden({ timeout: 15_000 });
 
     // Now switch to Admin view to set disposition
+    await switchToAdmin(page);
     await page.goto('/admin/issues');
     
     // Open Disposition Modal

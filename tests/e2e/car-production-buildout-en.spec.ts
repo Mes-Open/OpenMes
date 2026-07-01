@@ -23,7 +23,7 @@ const DEFAULT_USER = 'admin';
 const DEFAULT_PASS = 'MFRz9GZBkM9UEYTfsaHPLG1P';
 
 test.describe.configure({ mode: 'serial' });
-test.setTimeout(60_000); // 6 mins for full UI flow
+test.setTimeout(360_000); // 6 mins for full UI flow
 let adminCookies: any[] = [];
 let opCookies: any[] = [];
 
@@ -44,7 +44,7 @@ async function switchToAdmin(page: import('@playwright/test').Page) {
 }
 
 test.use({
-  video: 'on',
+  video: { mode: 'on', size: { width: 1280, height: 720 } },
   viewport: { width: 1280, height: 720 },
   locale: 'en-US',
   timezoneId: 'Asia/Ho_Chi_Minh',
@@ -110,10 +110,7 @@ async function pickDropdown(button, optionName: string | RegExp) {
 }
 
 test.beforeAll(() => {
-  // Optionally trigger the seeder or reset DB if needed:
-  // execSync('docker exec openmes-backend php artisan migrate:fresh --seed');
-  console.log('Enabling lot tracking...');
-  execSync('docker exec openmes-backend php artisan tinker --execute="\\DB::table(\'system_settings\')->where(\'key\', \'lot_tracking_enabled\')->update([\'value\' => \'true\']);"');
+  // DB reset + lot tracking is now handled externally by reset-test_en.cmd
 });
 
 test('build an EV sedan production configuration from zero and run it', async ({ page, browser }) => {
@@ -491,7 +488,8 @@ test('build an EV sedan production configuration from zero and run it', async ({
   await stepSubtitle(page, 'Supervisor: Report & Disposition a Non-Conformance');
   await test.step('set disposition on a non-conformance (#11)', async () => {
     
-    // Navigate back to the Work Order in Operator view to report the issue
+    // Switch to Operator session to report the issue
+    await switchToOperator(page);
     await page.goto('/operator/queue');
     await page.getByText(WO, { exact: false }).first().click();
     await page.waitForURL(/\/operator\/work-order\/\d+/);
@@ -510,6 +508,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await expect(issueDialog).toBeHidden({ timeout: 15_000 });
 
     // Now switch to Admin view to set disposition
+    await switchToAdmin(page);
     await page.goto('/admin/issues');
     
     // Open Disposition Modal
