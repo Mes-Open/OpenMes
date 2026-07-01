@@ -1,0 +1,77 @@
+import { useState } from "react";
+import { Head, Link, useForm, usePage } from "@inertiajs/react";
+import { Button, ConfirmDialog, TextField } from "@openmes/ui";
+import AppLayout from "../../layouts/AppLayout";
+import { __ } from "../../lib/i18n";
+function ApiTokens() {
+  const { tokens, newToken, newTokenName, appUrl, csrf_token } = usePage().props;
+  const [copied, setCopied] = useState(false);
+  const [revoke, setRevoke] = useState(null);
+  const { data, setData, post, processing, errors, reset } = useForm({ name: "" });
+  function handleCreate(e) {
+    e.preventDefault();
+    post("/settings/api-tokens", {
+      onSuccess: () => reset("name")
+    });
+  }
+  function handleCopy() {
+    if (newToken) {
+      navigator.clipboard.writeText(newToken).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2e3);
+      });
+    }
+  }
+  const exampleUrl = appUrl ?? window.location.origin;
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-4xl mx-auto" }, /* @__PURE__ */ React.createElement(Head, { title: __("API Tokens") }), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 mb-6" }, /* @__PURE__ */ React.createElement(Link, { href: "/settings", className: "text-om-muted hover:text-om-ink transition-colors" }, /* @__PURE__ */ React.createElement("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, /* @__PURE__ */ React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M15 19l-7-7 7-7" }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-[26px] font-semibold tracking-[-0.02em] text-om-ink" }, __("API Tokens")), /* @__PURE__ */ React.createElement("p", { className: "text-om-muted text-[12.5px] mt-0.5" }, __("Manage personal access tokens for external integrations")))), newToken && /* @__PURE__ */ React.createElement("div", { className: "mb-6 p-4 bg-om-downtime-bg border border-om-line rounded-om" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start gap-3" }, /* @__PURE__ */ React.createElement("svg", { className: "w-5 h-5 text-om-downtime mt-0.5 flex-shrink-0", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, /* @__PURE__ */ React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" })), /* @__PURE__ */ React.createElement("div", { className: "flex-1" }, /* @__PURE__ */ React.createElement("p", { className: "text-[13px] font-semibold text-om-ink mb-1" }, __("Token created: :name", { name: newTokenName })), /* @__PURE__ */ React.createElement("p", { className: "text-om-muted text-[12.5px] mb-3" }, __("Copy this token now \u2014 it will not be shown again.")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("code", { className: "flex-1 bg-om-chip rounded-om-sm px-3 py-2 font-mono text-[13px] break-all text-om-ink select-all" }, newToken), /* @__PURE__ */ React.createElement(Button, { type: "button", variant: "secondary", onClick: handleCopy, className: "flex-shrink-0" }, /* @__PURE__ */ React.createElement("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, /* @__PURE__ */ React.createElement("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" })), copied ? __("Copied!") : __("Copy")))))), /* @__PURE__ */ React.createElement("div", { className: "bg-om-card border border-om-line rounded-om p-6 mb-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4 pb-3 border-b border-om-line" }, __("Generate New Token")), /* @__PURE__ */ React.createElement("form", { onSubmit: handleCreate, className: "flex items-start gap-3" }, /* @__PURE__ */ React.createElement(
+    TextField,
+    {
+      className: "flex-1",
+      label: __("Token Name"),
+      id: "token_name",
+      value: data.name,
+      onChange: (v) => setData("name", v),
+      error: errors.name,
+      placeholder: __("e.g. PrestaShop Integration"),
+      required: true
+    }
+  ), /* @__PURE__ */ React.createElement(Button, { type: "submit", variant: "accent", loading: processing, className: "mt-[22px]" }, __("Generate Token")))), /* @__PURE__ */ React.createElement("div", { className: "bg-om-card border border-om-line rounded-om p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4 pb-3 border-b border-om-line" }, __("Active Tokens")), !tokens || tokens.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "text-om-muted text-[12.5px] py-4 text-center" }, __("No tokens generated yet.")) : /* @__PURE__ */ React.createElement("div", { className: "divide-y divide-om-line" }, tokens.map((token) => /* @__PURE__ */ React.createElement("div", { key: token.id, className: "flex items-center justify-between py-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex-1" }, /* @__PURE__ */ React.createElement("p", { className: "text-[13.5px] font-medium text-om-ink" }, token.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11.5px] text-om-muted mt-0.5" }, __("Created by :name", { name: token.tokenable_name ?? __("Unknown") }), "\xA0\xB7\xA0", token.created_at_formatted, token.last_used_at_human ? /* @__PURE__ */ React.createElement(React.Fragment, null, "\xA0\xB7\xA0", __("Last used :time", { time: token.last_used_at_human })) : /* @__PURE__ */ React.createElement(React.Fragment, null, "\xA0\xB7\xA0", __("Never used")))), /* @__PURE__ */ React.createElement(
+    "form",
+    {
+      method: "POST",
+      action: `/settings/api-tokens/${token.id}`,
+      onSubmit: (e) => {
+        e.preventDefault();
+        setRevoke({ token, form: e.currentTarget });
+      }
+    },
+    /* @__PURE__ */ React.createElement("input", { type: "hidden", name: "_token", value: csrf_token }),
+    /* @__PURE__ */ React.createElement("input", { type: "hidden", name: "_method", value: "DELETE" }),
+    /* @__PURE__ */ React.createElement("button", { type: "submit", className: "text-om-blocked hover:underline text-[12.5px] font-medium" }, __("Revoke"))
+  ))))), revoke && /* @__PURE__ */ React.createElement(
+    ConfirmDialog,
+    {
+      open: true,
+      onClose: () => setRevoke(null),
+      onConfirm: () => revoke.form.submit(),
+      title: __("Revoke token ':name'? This cannot be undone.", { name: revoke.token.name }),
+      confirmLabel: __("Revoke"),
+      cancelLabel: __("Cancel")
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "bg-om-card border border-om-line rounded-om p-6 mt-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-3" }, __("How to use")), /* @__PURE__ */ React.createElement("p", { className: "text-[12.5px] text-om-muted mb-3" }, __("Include the token in the"), " ", /* @__PURE__ */ React.createElement("code", { className: "bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink" }, "Authorization"), " ", __("header for all API requests:")), /* @__PURE__ */ React.createElement("pre", { className: "bg-om-chip text-om-ink font-mono text-[12px] rounded-om-sm p-4 overflow-x-auto" }, `Authorization: Bearer <your-token>
+
+# Example \u2014 create a work order:
+POST ${exampleUrl}/api/v1/work-orders
+Content-Type: application/json
+Authorization: Bearer <your-token>
+
+{
+  "order_no": "PS-0001234",
+  "planned_qty": 5,
+  "description": "From PrestaShop order #1234"
+}`)));
+}
+ApiTokens.layout = (page) => /* @__PURE__ */ React.createElement(AppLayout, null, page);
+export {
+  ApiTokens as default
+};

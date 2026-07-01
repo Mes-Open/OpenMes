@@ -23,7 +23,26 @@ const DEFAULT_USER = 'admin';
 const DEFAULT_PASS = 'MFRz9GZBkM9UEYTfsaHPLG1P';
 
 test.describe.configure({ mode: 'serial' });
-test.setTimeout(900_000); // 15 mins for full UI flow
+test.setTimeout(60_000); // 6 mins for full UI flow
+let adminCookies: any[] = [];
+let opCookies: any[] = [];
+
+async function switchToOperator(page: import('@playwright/test').Page) {
+  adminCookies = await page.context().cookies();
+  await page.context().clearCookies();
+  if (opCookies.length > 0) {
+    await page.context().addCookies(opCookies);
+  }
+}
+
+async function switchToAdmin(page: import('@playwright/test').Page) {
+  opCookies = await page.context().cookies();
+  await page.context().clearCookies();
+  if (adminCookies.length > 0) {
+    await page.context().addCookies(adminCookies);
+  }
+}
+
 test.use({
   video: 'on',
   viewport: { width: 1280, height: 720 },
@@ -101,10 +120,10 @@ test('build an EV sedan production configuration from zero and run it', async ({
   await addClickHighlighter(page);
   
   // RESET
-  console.log('[Setup] Refreshing database...');
-  // execSync(`docker exec openmes-backend php artisan migrate:fresh --seed --force`, { stdio: 'ignore' });
-  // execSync(`docker exec openmes-backend php artisan cache:clear`, { stdio: 'ignore' });
-  // execSync(`docker exec openmes-backend php artisan tinker --execute="\\App\\Models\\User::create(['name' => 'Administrator', 'username' => config('openmmes.admin_username') ?: 'admin', 'email' => config('openmmes.admin_email') ?: 'admin@example.com', 'password' => \\Illuminate\\Support\\Facades\\Hash::make(config('openmmes.admin_password') ?: 'Admin1234!'), 'force_password_change' => false, 'email_verified_at' => now()])->assignRole('Admin');"`, { stdio: 'ignore' });
+  //console.log('[Setup] Refreshing database...');
+  //execSync(`docker exec openmes-backend php artisan migrate:fresh --seed --force`, { stdio: 'ignore' });
+  //execSync(`docker exec openmes-backend php artisan cache:clear`, { stdio: 'ignore' });
+  //execSync(`docker exec openmes-backend php artisan tinker --execute="\\App\\Models\\User::create(['name' => 'Administrator', 'username' => config('openmmes.admin_username') ?: 'admin', 'email' => config('openmmes.admin_email') ?: 'admin@example.com', 'password' => \\Illuminate\\Support\\Facades\\Hash::make(config('openmmes.admin_password') ?: 'Admin1234!'), 'force_password_change' => false, 'email_verified_at' => now()])->assignRole('Admin');"`, { stdio: 'ignore' });
   
   await stepSubtitle(page, 'Login as Administrator');
   await login(page, ADMIN, PASS);
@@ -220,7 +239,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await page.fill('input[name="planned_qty"]', '50');
     const dateStr = new Date().toISOString().split('T')[0];
     await page.getByText('Select date').first().click();
-    await page.getByRole('button', { name: dateStr }).click();
+    await page.getByRole('button', { name: dateStr }).first().click();
     await createBtn(page).click();
     await page.waitForURL(/\/admin\/work-orders$/);
   });
@@ -264,7 +283,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
         await page.fill('input[name="quantity_received"]', String(required - mat.stock));
         await pickFormSelect(page, 2, /(Released|Phát hành)/i);
         await page.getByText('Select date').first().click();
-        await page.getByRole('button', { name: new Date().toISOString().split('T')[0], exact: true }).click();
+        await page.getByRole('button', { name: new Date().toISOString().split('T')[0], exact: true }).first().click();
         await createBtn(page).click();
         await page.waitForURL(/\/admin\/material-lots$/);
       }
@@ -286,54 +305,52 @@ test('build an EV sedan production configuration from zero and run it', async ({
     await page.goto('/admin/lines');
     await page.locator('tr', { hasText: LINE }).getByRole('link', { name: /(Configure|Cấu hình)/i }).first().click();
     const opForm = page.locator('form').filter({ has: page.getByRole('button', { name: /(Assign|Phân công)/i, exact: true }) });
-    await opForm.locator('button[aria-haspopup="listbox"]').click();
-    await page.getByRole('option', { name: new RegExp(OP_USER) }).click();
+    const opValue = await opForm.locator('select > option', { hasText: new RegExp(OP_USER) }).getAttribute('value');
+    await opForm.locator('select').selectOption(opValue);
     await opForm.getByRole('button', { name: /(Assign|Phân công)/i, exact: true }).click();
-    await expect(page.getByText(`Car Operator ${TS}`)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(`Car Operator ${TS}`).first()).toBeVisible({ timeout: 15_000 });
   });
 
   await stepSubtitle(page, 'Operator Logs Into the Shop Floor');
-  const opCtx = await browser.newContext({ ignoreHTTPSErrors: true });
-  const op = await opCtx.newPage();
-  await addClickHighlighter(op);
-  await login(op, OP_USER, OP_PASS);
+  await switchToOperator(page);
+  await login(page, OP_USER, OP_PASS);
 
-  await stepSubtitle(op, 'Operator Sets Machine State: Cleaning -> Running');
+  await stepSubtitle(page, 'Operator Sets Machine State: Cleaning -> Running');
   await test.step('operator sets machine state cleaning then running', async () => {
-    await op.goto('/operator/select-line');
-    await op.locator('form').getByRole('button', { name: /(Select|Chọn)/i }).first().click();
-    await op.waitForURL(/\/operator\/(queue|workstation)/);
-    await op.goto('/operator/workstation'); // Ensure we are on workstation for state change
-    const select = op.locator(`select`);
+    await page.goto('/operator/select-line');
+    await page.locator('form').getByRole('button', { name: /(Select|Chọn)/i }).first().click();
+    await page.waitForURL(/\/operator\/(queue|workstation)/);
+    await page.goto('/operator/workstation'); // Ensure we are on workstation for state change
+    const select = page.locator(`select`);
     await expect(select).toBeVisible({ timeout: 15_000 });
     await select.selectOption('CLEANING');
-    await op.waitForTimeout(1000);
+    await page.waitForTimeout(1000);
     await select.selectOption('RUNNING');
-    await op.waitForTimeout(1000);
+    await page.waitForTimeout(1000);
   });
 
-  await stepSubtitle(op, 'Operator Picks Work Order & Starts a Batch');
+  await stepSubtitle(page, 'Operator Picks Work Order & Starts a Batch');
   await test.step('operator starts a batch step', async () => {
-    await op.goto('/operator/queue');
-    await op.getByText(WO, { exact: false }).first().click();
-    await op.waitForURL(/\/operator\/work-order\/\d+/);
-    await op.getByRole('button', { name: /(Create Batch|Tạo lô|Thêm)/i }).first().click();
+    await page.goto('/operator/queue');
+    await page.getByText(WO, { exact: false }).first().click();
+    await page.waitForURL(/\/operator\/work-order\/\d+/);
+    await page.getByRole('button', { name: /(Create Batch|Tạo lô|Thêm)/i }).first().click();
     
     // Đặt số lượng lô (batch) là 1 để Lệnh Sản Xuất không bị hoàn thành 100%
     // Nếu hoàn thành 100%, Work Order sẽ chuyển sang trạng thái DONE và không cho phép báo cáo sự cố (Report Issue) nữa.
-    const batchDialog = op.locator('.fixed.inset-0.z-50');
+    const batchDialog = page.locator('.fixed.inset-0.z-50');
     await batchDialog.locator('input[type="number"]').first().fill('1');
     await batchDialog.getByRole('button', { name: /(Create Batch|Tạo lô|Lưu)/i }).click();
     
     // Ensure the batch is visible
-    const batchCard = op.locator('.bg-om-card').filter({ hasText: /Batch #1/i }).first();
+    const batchCard = page.locator('.bg-om-card').filter({ hasText: /Batch #1/i }).first();
     await expect(batchCard).toBeVisible({ timeout: 15_000 });
     
     // Expand the batch accordion if not already expanded
     const startBtn = batchCard.getByRole('button', { name: /^(Start|Bắt đầu)$/i }).first();
     let isStartVisible = false;
     for (let i = 0; i < 3; i++) {
-      await op.waitForTimeout(1000); // Give React a moment to render defaults or process the click
+      await page.waitForTimeout(1000); // Give React a moment to render defaults or process the click
       if (await startBtn.isVisible()) {
         isStartVisible = true;
         break;
@@ -350,15 +367,15 @@ test('build an EV sedan production configuration from zero and run it', async ({
 
     // Handle lot pick modal if it appears (due to BOM material allocation)
     try {
-      const confirmBtn = op.getByRole('button', { name: /(Confirm picks|Xác nhận)/i }).first();
+      const confirmBtn = page.getByRole('button', { name: /(Confirm picks|Xác nhận)/i }).first();
       await expect(confirmBtn).toBeVisible({ timeout: 5000 });
 
       if (await confirmBtn.isDisabled()) {
-        const selects = await op.locator('select').all();
+        const selects = await page.locator('select').all();
         for (const select of selects) {
           // Select the first actual lot option (index 1, since index 0 is "+ Add lot...")
           await select.selectOption({ index: 1 });
-          await op.waitForTimeout(200);
+          await page.waitForTimeout(200);
         }
       }
 
@@ -374,48 +391,49 @@ test('build an EV sedan production configuration from zero and run it', async ({
     // Bấm luôn nút Complete để hoàn thành step, chờ API xử lý xong trước khi chuyển trang
     console.log('Clicking Complete button and waiting for response...');
     await Promise.all([
-      op.waitForResponse(res => res.url().includes('complete') && res.status() >= 200),
+      page.waitForResponse(res => res.url().includes('complete') && res.status() >= 200),
       completeBtn.click({ force: true })
     ]);
     console.log('Complete button click finished.');
   });
 
   let palletNo = '';
-  await stepSubtitle(op, 'Pack a Car onto a Pallet & Scan Barcode');
+  await stepSubtitle(page, 'Pack a Car onto a Pallet & Scan Barcode');
   await test.step('package a car onto a pallet', async () => {
     console.log('Going to packaging station...');
-    await op.goto('/packaging/station');
-    const woDropdown = op.locator('label', { hasText: /Create pallet for order|Tạo pallet cho lệnh/i }).locator('..').locator('button[aria-haspopup="listbox"]');
+    await page.goto('/packaging/station');
+    const woDropdown = page.locator('label', { hasText: /Create pallet for order|Tạo pallet cho lệnh/i }).locator('..').locator('button[aria-haspopup="listbox"]');
     await pickDropdown(woDropdown, new RegExp(WO));
     console.log('Clicking create pallet...');
-    await op.getByRole('button', { name: /(Create pallet|Tạo pallet)/i }).click();
+    await page.getByRole('button', { name: /(Create pallet|Tạo pallet)/i }).click();
     console.log('Waiting for active pallet text...');
-    await expect(op.getByText(/(Active pallet|Pallet đang mở)/i)).toBeVisible({ timeout: 15_000 });
-    palletNo = (await op.locator('text=/PAL-\\d{6}/').first().innerText()).trim();
+    await expect(page.getByText(/(Active pallet|Pallet đang mở)/i)).toBeVisible({ timeout: 15_000 });
+    palletNo = (await page.locator('text=/PAL-\\d{6}/').first().innerText()).trim();
     console.log('Clicking on page to focus...');
-    await op.getByRole('heading', { name: /(Pack(ing|aging) Station|Trạm đóng gói)/i }).click();
+    await page.getByRole('heading', { name: /(Pack(ing|aging) Station|Trạm đóng gói)/i }).click();
     
     // Type EAN quickly to avoid the 500ms buffer clear
-    await op.keyboard.type(EAN, { delay: 10 });
-    await op.keyboard.press('Enter');
+    await page.keyboard.type(EAN, { delay: 10 });
+    await page.keyboard.press('Enter');
     
     // Check if error flash appears
-    const errorFlash = op.locator('.bg-om-blocked-bg');
+    const errorFlash = page.locator('.bg-om-blocked-bg');
     if (await errorFlash.isVisible({ timeout: 2000 }).catch(() => false)) {
        const errText = await errorFlash.innerText();
        console.log('Packaging scan error:', errText);
     }
     
     console.log('Waiting for scanned EAN to appear...');
-    await expect(op.getByText(new RegExp(EAN))).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(new RegExp(EAN))).toBeVisible({ timeout: 15_000 });
     console.log('Clicking close pallet...');
-    await op.getByRole('button', { name: /(Close pallet|Đóng pallet)/i }).click();
+    await page.getByRole('button', { name: /(Close pallet|Đóng pallet)/i }).click();
     console.log('Waiting for pallet to close...');
-    await expect(op.getByText(/(Active pallet|Pallet đang mở)/i)).toBeHidden({ timeout: 15_000 });
+    await expect(page.getByText(/(Active pallet|Pallet đang mở)/i)).toBeHidden({ timeout: 15_000 });
     console.log('Pallet step done.');
   });
 
   await stepSubtitle(page, 'QC Inspector: Perform In-line Quality Control');
+  await switchToAdmin(page);
   await test.step('perform quality control linked to the pallet', async () => {
     await page.goto('/admin/quality-tasks');
     const row = page.locator('tr', { hasText: WO }).first();
@@ -474,13 +492,13 @@ test('build an EV sedan production configuration from zero and run it', async ({
   await test.step('set disposition on a non-conformance (#11)', async () => {
     
     // Navigate back to the Work Order in Operator view to report the issue
-    await op.goto('/operator/queue');
-    await op.getByText(WO, { exact: false }).first().click();
-    await op.waitForURL(/\/operator\/work-order\/\d+/);
+    await page.goto('/operator/queue');
+    await page.getByText(WO, { exact: false }).first().click();
+    await page.waitForURL(/\/operator\/work-order\/\d+/);
 
     // Click Report Issue
-    await op.getByRole('button', { name: /(Report Issue|Báo cáo sự cố|\+ Report|\+ Báo cáo)/i }).first().click();
-    const issueDialog = op.locator('.fixed.inset-0.z-50');
+    await page.getByRole('button', { name: /(Report Issue|Báo cáo sự cố|\+ Report|\+ Báo cáo)/i }).first().click();
+    const issueDialog = page.locator('.fixed.inset-0.z-50');
     await expect(issueDialog).toBeVisible({ timeout: 5_000 });
     
     // Fill Issue Type via dropdown (Select type...)
@@ -523,7 +541,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
   // Show overview screens in the clip as requested
   await stepSubtitle(page, 'Dashboard Overview');
   await page.goto('/admin/dashboard');
-  await expect(page.getByText(/(Active Work Orders|Lệnh Sản Xuất Đang Mở)/i)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/(Recent Work Orders|Lệnh Sản Xuất Đang Mở)/i)).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(3000);
 
   await stepSubtitle(page, 'Work Orders Progress Overview');
@@ -531,5 +549,4 @@ test('build an EV sedan production configuration from zero and run it', async ({
   await expect(page.locator('table')).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(3000);
 
-  await opCtx.close();
-});
+  });

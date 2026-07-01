@@ -7,7 +7,7 @@ import LineSync from '../../components/LineSync';
 import LabelPrintMenu from '../../components/LabelPrintMenu';
 import CustomFields from '../../components/CustomFields';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
-import { formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
+import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
 
 // Geist White restyle: light-only v1 — former `dark:` variants removed.
 
@@ -1461,13 +1461,13 @@ export default function WorkOrderDetail() {
                             kind="work-order"
                             id={workOrder.id}
                             templates={labelTemplates}
-                            label="Print WO Label"
+                            label={__('Print WO Label')}
                         />
                         <Link
                             href="/operator/queue"
                             className="inline-flex items-center justify-center rounded-om-sm border border-om-line bg-om-card px-5 py-3 text-sm font-semibold text-om-ink hover:bg-om-chip transition-colors"
                         >
-                            ← Back to Queue
+                            ← {__('Back to Queue')}
                         </Link>
                     </div>
                 </div>
@@ -1477,39 +1477,39 @@ export default function WorkOrderDetail() {
                     <div className="lg:col-span-2 space-y-6">
                         {/* Work Order Details card */}
                         <div className={cardCls}>
-                            <h2 className={`${sectionLabelCls} mb-4`}>Work Order Details</h2>
+                            <h2 className={`${sectionLabelCls} mb-4`}>{__('WORK ORDER DETAILS')}</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <p className={fieldLabelCls}>Order Number</p>
+                                    <p className={fieldLabelCls}>{__('ORDER NUMBER')}</p>
                                     <p className="font-mono text-[15px] font-medium text-om-ink">{workOrder.order_no}</p>
                                 </div>
 
                                 {workOrder.product_type && (
                                     <div>
-                                        <p className={fieldLabelCls}>Product Type</p>
+                                        <p className={fieldLabelCls}>{__('PRODUCT TYPE')}</p>
                                         <p className="font-medium text-om-ink">{workOrder.product_type.name}</p>
                                     </div>
                                 )}
 
                                 {workOrder.line && (
                                     <div>
-                                        <p className={fieldLabelCls}>Line</p>
+                                        <p className={fieldLabelCls}>{__('LINE')}</p>
                                         <p className="font-medium text-om-ink">{workOrder.line.name}</p>
                                     </div>
                                 )}
 
                                 <div>
-                                    <p className={fieldLabelCls}>Priority</p>
+                                    <p className={fieldLabelCls}>{__('PRIORITY')}</p>
                                     <p className="font-mono text-[15px] font-medium text-om-ink">{workOrder.priority}</p>
                                 </div>
 
                                 <div>
-                                    <p className={fieldLabelCls}>Planned Quantity</p>
+                                    <p className={fieldLabelCls}>{__('PLANNED QUANTITY')}</p>
                                     <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(plannedQty)}</p>
                                 </div>
 
                                 <div>
-                                    <p className={fieldLabelCls}>Produced Quantity</p>
+                                    <p className={fieldLabelCls}>{__('PRODUCED QUANTITY')}</p>
                                     <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">
                                         {fmtQty(producedQty)}
                                         {plannedQty > 0 && (
@@ -1521,8 +1521,8 @@ export default function WorkOrderDetail() {
                                 </div>
 
                                 {dueDateStr && (
-                                    <div>
-                                        <p className={fieldLabelCls}>Due Date</p>
+                                    <div className="col-span-2 pt-2 border-t border-om-line2">
+                                        <p className={fieldLabelCls}>{__('DUE DATE')}</p>
                                         <p className={`font-mono text-[15px] font-medium ${dueDatePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {formatDate(new Date(dueDateStr), { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </p>
@@ -1530,9 +1530,9 @@ export default function WorkOrderDetail() {
                                 )}
 
                                 {workOrder.description && (
-                                    <div className="md:col-span-2">
-                                        <p className={fieldLabelCls}>Description</p>
-                                        <p className="font-medium text-om-ink">{workOrder.description}</p>
+                                    <div className="col-span-2 pt-2 border-t border-om-line2">
+                                        <p className={fieldLabelCls}>{__('DESCRIPTION')}</p>
+                                        <p className="text-[15px] font-medium text-om-ink">{workOrder.description}</p>
                                     </div>
                                 )}
                             </div>
@@ -1583,25 +1583,25 @@ export default function WorkOrderDetail() {
                     <div className="space-y-6">
                         {/* Progress */}
                         <div className={cardCls}>
-                            <h3 className={`${sectionLabelCls} mb-4`}>Progress</h3>
-                            <div className="mb-4">
+                            <h3 className={`${sectionLabelCls} mb-4`}>{__('PROGRESS')}</h3>
+                            <div className="mb-6">
                                 <div className="flex justify-between items-baseline mb-2">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Completion</span>
-                                    <span className="font-mono text-[13px] text-om-ink">{fmtQty(pct, 1)}%</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('COMPLETION')}</span>
+                                    <span className="font-mono text-[13px] font-medium text-om-ink">{fmtQty(pct, 1)}%</span>
                                 </div>
                                 <ProgressBar value={pct} color={pct >= 100 ? 'var(--color-om-running)' : undefined} />
                             </div>
-                            <div className="space-y-2 text-sm">
+                            <div className="space-y-3 pt-4 border-t border-om-line2">
                                 <div className="flex justify-between items-baseline">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Planned:</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('PLANNED:')}</span>
                                     <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(plannedQty)}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Produced:</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('PRODUCED:')}</span>
                                     <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(producedQty)}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Remaining:</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('REMAINING:')}</span>
                                     <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-accent">{fmtQty(remaining)}</span>
                                 </div>
                             </div>
@@ -1610,15 +1610,15 @@ export default function WorkOrderDetail() {
                         {/* Issues */}
                         <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className={sectionLabelCls}>Issues</h3>
+                                <h3 className={sectionLabelCls}>{__('ISSUES')}</h3>
                                 {canReportIssue && (
-                                    <Button
-                                        variant="danger"
+                                    <button
+                                        type="button"
                                         onClick={() => setReportIssueOpen(true)}
-                                        className="px-4 py-2.5 text-[13px]"
+                                        className="inline-flex items-center justify-center rounded-om-sm bg-om-blocked-bg px-4 py-2.5 text-[13px] font-semibold text-om-blocked hover:bg-[#ffe1e1] transition-colors cursor-pointer"
                                     >
-                                        + Report
-                                    </Button>
+                                        + {__('Report')}
+                                    </button>
                                 )}
                             </div>
 
@@ -1665,56 +1665,56 @@ export default function WorkOrderDetail() {
                         {/* Scrap */}
                         <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className={sectionLabelCls}>Scrap</h3>
+                                <h3 className={sectionLabelCls}>{__('SCRAP')}</h3>
                                 {canReportScrap && (
                                     <button
                                         type="button"
                                         onClick={() => setReportScrapOpen(true)}
                                         className="inline-flex items-center justify-center rounded-om-sm bg-om-downtime-bg px-4 py-2.5 text-[13px] font-semibold text-om-downtime hover:bg-[#f5e7c8] transition-colors cursor-pointer"
                                     >
-                                        + Report
+                                        + {__('Report')}
                                     </button>
                                 )}
                             </div>
 
                             <div className="flex justify-between items-baseline text-sm mb-2">
-                                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Total scrap:</span>
-                                <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(totalScrap)}</span>
+                                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('TOTAL SCRAP:')}</span>
+                                <span className="font-mono text-[15px] font-medium text-om-ink">{fmtQty(totalScrap)}</span>
                             </div>
                             {qualityPct !== null && (
                                 <div className="flex justify-between items-baseline text-sm mb-3">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Quality:</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('Quality:')}</span>
                                     <span className={`font-mono text-[15px] font-medium ${qualityPct < 100 ? 'text-om-downtime' : 'text-om-running'}`}>
                                         {qualityPct.toFixed(1)}%
                                     </span>
                                 </div>
                             )}
 
-                            {scrapEntries.length === 0 ? (
-                                <p className="text-sm text-om-faint text-center py-4">No scrap reported.</p>
+                            {(!scrapEntries || scrapEntries.length === 0) ? (
+                                <p className="text-sm text-om-faint text-center py-4">{__('No scrap reported.')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {scrapEntries.slice(0, 5).map((entry) => (
                                         <div key={entry.id} className="p-3 rounded-om-sm bg-om-panel border border-om-line2">
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className="text-xs font-semibold text-om-ink">
-                                                    {entry.scrap_reason?.name ?? 'Unknown'}
-                                                </span>
                                                 <span className="font-mono text-[13px] font-medium text-om-ink">{fmtQty(entry.quantity)}</span>
+                                                <span className="font-mono text-[11px] text-om-muted">
+                                                    {entry.reported_at ? new Date(entry.reported_at).toLocaleString() : ''}
+                                                </span>
                                             </div>
+                                            <p className="text-[13px] text-om-muted">
+                                                {entry.scrap_reason?.name || __('Unknown reason')}
+                                                {entry.reported_by ? ` ${__('by')} ${entry.reported_by.name}` : ''}
+                                            </p>
                                             {entry.notes && (
-                                                <p className="text-xs text-om-muted">
+                                                <p className="text-xs text-om-muted mt-1">
                                                     {entry.notes.length > 80 ? `${entry.notes.slice(0, 80)}…` : entry.notes}
                                                 </p>
                                             )}
-                                            <p className="font-mono text-[10px] text-om-faint mt-1">
-                                                {entry.reported_at ? new Date(entry.reported_at).toLocaleString() : ''}
-                                                {entry.reported_by ? ` by ${entry.reported_by.name}` : ''}
-                                            </p>
                                         </div>
                                     ))}
                                     {scrapEntries.length > 5 && (
-                                        <p className="font-mono text-[10px] text-om-faint text-center">+{scrapEntries.length - 5} more</p>
+                                        <p className="font-mono text-[10px] text-om-faint text-center">+{scrapEntries.length - 5} {__('more')}</p>
                                     )}
                                 </div>
                             )}

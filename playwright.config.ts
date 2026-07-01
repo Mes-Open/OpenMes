@@ -12,10 +12,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     ignoreHTTPSErrors: true,
-    video: {
-      mode: 'on',
-      size: { width: 1280 * 0.75, height: 720 * 0.75 }
-    },
+    video: 'on',
   },
   projects: [
     {

@@ -1,0 +1,1 @@
+<?php App\\Models\\User::first();

@@ -45,6 +45,6 @@ class IssueController extends Controller
             $workOrder->update(['status' => WorkOrder::STATUS_BLOCKED]);
         }
 
-        return redirect()->back()->with('success', 'Issue reported successfully.');
+        return redirect()->back()->with('success', __('Issue reported successfully.'));
     }
 }

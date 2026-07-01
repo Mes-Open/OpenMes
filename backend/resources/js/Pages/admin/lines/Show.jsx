@@ -51,22 +51,22 @@ function LineStatusesCard({ line, lineStatuses }) {
         <div className="bg-om-card rounded-om-sm shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h2 className="text-xl font-bold text-om-ink">Line Statuses</h2>
+                    <h2 className="text-xl font-bold text-om-ink">{__('Line Statuses')}</h2>
                     <p className="text-sm text-om-muted mt-0.5">
-                        Kanban statuses available for work orders on this line. Global statuses are shown in gray.
+                        {__('Kanban statuses available for work orders on this line. Global statuses are shown in gray.')}
                     </p>
                 </div>
                 <Link href="/admin/line-statuses" className="text-sm text-om-accent hover:underline">
-                    Manage global statuses →
+                    {__('Manage global statuses')} →
                 </Link>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
                 {lineStatuses.length === 0 ? (
                     <p className="text-sm text-om-muted">
-                        No statuses yet. Add one below or{' '}
+                        {__('No statuses yet. Add one below or')}{' '}
                         <Link href="/admin/line-statuses" className="text-om-accent hover:underline">
-                            manage global statuses
+                            {__('manage global statuses')}
                         </Link>
                         .
                     </p>
@@ -78,14 +78,14 @@ function LineStatusesCard({ line, lineStatuses }) {
                             style={{ backgroundColor: status.color }}
                         >
                             {status.name}
-                            {status.is_default && <span className="text-xs opacity-75">(default)</span>}
+                            {status.is_default && <span className="text-xs opacity-75">({__('default')})</span>}
                             {status.line_id === null ? (
-                                <span className="text-xs opacity-60">global</span>
+                                <span className="text-xs opacity-60">{__('global')}</span>
                             ) : (
                                 <button
                                     onClick={() => deleteStatus(status.id)}
                                     className="ml-1 opacity-75 hover:opacity-100"
-                                    title="Delete"
+                                    title={__('Delete')}
                                 >
                                     <Icon d="M6 18L18 6M6 6l12 12" className="w-3.5 h-3.5" />
                                 </button>
@@ -97,7 +97,7 @@ function LineStatusesCard({ line, lineStatuses }) {
 
             <form onSubmit={submit} className="border-t border-om-line2 pt-4 flex items-end gap-3 flex-wrap">
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs text-om-muted">Color</label>
+                    <label className="text-xs text-om-muted">{__('Color')}</label>
                     <input
                         type="color"
                         value={form.data.color}
@@ -107,19 +107,19 @@ function LineStatusesCard({ line, lineStatuses }) {
                     />
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-[160px]">
-                    <label className="text-xs text-om-muted">Status name (line-specific)</label>
+                    <label className="text-xs text-om-muted">{__('Status name (line-specific)')}</label>
                     <input
                         type="text"
                         value={form.data.name}
                         onChange={(e) => form.setData('name', e.target.value)}
-                        placeholder="e.g. Waiting for parts"
+                        placeholder={__('e.g. Waiting for parts')}
                         className="form-input py-1.5 text-sm"
                         maxLength={100}
                         required
                     />
                 </div>
                 <div className="flex flex-col gap-1 w-20">
-                    <label className="text-xs text-om-muted">Order</label>
+                    <label className="text-xs text-om-muted">{__('Order')}</label>
                     <input
                         type="number"
                         value={form.data.sort_order}
@@ -130,7 +130,7 @@ function LineStatusesCard({ line, lineStatuses }) {
                 </div>
                 <Button type="submit" variant="ghost" loading={form.processing}>
                     <Icon d="M12 4v16m8-8H4" className="w-4 h-4 inline-block mr-1" />
-                    Add to this line
+                    {__('Add to this line')}
                 </Button>
             </form>
         </div>
@@ -188,7 +188,7 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
                     className="text-sm text-om-accent hover:text-om-accent font-medium flex items-center gap-1"
                 >
                     <Icon d="M12 4v16m8-8H4" className="w-4 h-4" />
-                    <span>{open ? 'Hide selector' : 'Change assignment'}</span>
+                    <span>{open ? __('Hide selector') : __('Change assignment')}</span>
                 </button>
 
                 {open && (
@@ -222,10 +222,10 @@ function ProductTypesCard({ line, allProductTypes, assignedTypeIds: initialAssig
                                     })}
                                 </div>
                                 <p className="text-xs text-om-faint mb-3">
-                                    Leave all unchecked to allow all product types on this line.
+                                    {__('Leave all unchecked to allow all product types on this line.')}
                                 </p>
                                 <Button type="submit" variant="primary" loading={form.processing}>
-                                    Save Assignment
+                                    {__('Save Assignment')}
                                 </Button>
                             </>
                         )}
@@ -246,11 +246,11 @@ function WorkstationsCard({ line, effectiveWorkstations }) {
                     <h2 className="text-xl font-bold text-om-ink">{__("Workstations")}</h2>
                     {effectiveWorkstations.length === 0 || (effectiveWorkstations.length === 1 && effectiveWorkstations[0].is_line_itself) ? (
                         <p className="text-sm text-om-downtime mt-0.5 font-medium">
-                            No workstations configured — line itself acts as a single workstation.
+                            {__('No workstations configured — line itself acts as a single workstation.')}
                         </p>
                     ) : (
                         <p className="text-sm text-om-muted mt-0.5">
-                            {line.workstations_count} workstation(s) on this line.
+                            {__(':count workstation(s) on this line.', { count: line.workstations_count })}
                         </p>
                     )}
                 </div>
@@ -314,7 +314,7 @@ function OperatorsCard({ line, availableOperators }) {
     return (
         <div className="bg-om-card rounded-om-sm shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-om-ink">Assigned Operators</h2>
+                <h2 className="text-xl font-bold text-om-ink">{__('Assigned Operators')}</h2>
             </div>
 
             {line.users.length > 0 ? (
@@ -346,24 +346,28 @@ function OperatorsCard({ line, availableOperators }) {
                         d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                         className="mx-auto h-12 w-12 text-om-faint mb-2"
                     />
-                    <p className="text-om-muted">No operators assigned yet</p>
+                    <p className="text-om-muted">{__('No operators assigned yet')}</p>
                 </div>
             )}
 
             {availableOperators.length > 0 ? (
                 <form onSubmit={submit} className="border-t border-om-line2 pt-4">
-                    <label className="block text-sm font-medium text-om-muted mb-1">Assign New Operator</label>
+                    <label className="text-sm font-medium text-om-muted block mb-2">{__('Assign New Operator')}</label>
                     <div className="flex gap-2">
-                        <Dropdown
-                            options={availableOperators.map((op) => ({ value: String(op.id), label: `${op.name} (${op.username})` }))}
-                            value={form.data.user_id == null ? '' : String(form.data.user_id)}
-                            onChange={(v) => form.setData('user_id', v)}
-                            placeholder="Select an operator..."
-                            className="flex-1"
-                        />
-                        <Button type="submit" variant="primary" loading={form.processing}>
-                            <Icon d="M12 4v16m8-8H4" />
-                            Assign
+                        <select
+                            value={form.data.user_id}
+                            onChange={(e) => form.setData('user_id', e.target.value)}
+                            className="form-select flex-1 text-sm bg-om-bg border-om-line"
+                        >
+                            <option value="">{__('Select an operator..')}</option>
+                            {availableOperators.map((op) => (
+                                <option key={op.id} value={op.id}>
+                                    {op.name} ({op.username})
+                                </option>
+                            ))}
+                        </select>
+                        <Button type="submit" variant="primary" disabled={form.processing || !form.data.user_id}>
+                            + {__('Assign')}
                         </Button>
                     </div>
                     {form.errors.user_id && <p className="mt-1 text-xs text-om-blocked">{form.errors.user_id}</p>}
@@ -384,7 +388,7 @@ function OperatorsCard({ line, availableOperators }) {
 function WorkOrdersCard({ line, workOrders }) {
     return (
         <div className="bg-om-card rounded-om-sm shadow-sm p-6">
-            <h2 className="text-xl font-bold text-om-ink mb-4">Recent Work Orders</h2>
+            <h2 className="text-xl font-bold text-om-ink mb-4">{__('Recent Work Orders')}</h2>
 
             {workOrders.length > 0 ? (
                 <>
@@ -396,7 +400,7 @@ function WorkOrdersCard({ line, workOrders }) {
                                         <p className="font-medium text-om-ink">{wo.work_order_number}</p>
                                         <p className="text-sm text-om-muted">{wo.product_name}</p>
                                         <p className="text-xs text-om-muted mt-1">
-                                            Quantity: {wo.planned_qty} | Created: {wo.created_at?.slice(0, 16).replace('T', ' ')}
+                                            {__('Quantity')}: {wo.planned_qty} | {__('Created')}: {wo.created_at?.slice(0, 16).replace('T', ' ')}
                                         </p>
                                     </div>
                                     <span
@@ -404,7 +408,7 @@ function WorkOrdersCard({ line, workOrders }) {
                                             WORK_ORDER_STATUS_CLASSES[wo.status] ?? 'bg-om-chip text-om-ink'
                                         }`}
                                     >
-                                        {WORK_ORDER_STATUS_LABELS[wo.status] ?? wo.status}
+                                        {__(WORK_ORDER_STATUS_LABELS[wo.status] ?? wo.status)}
                                     </span>
                                 </div>
                             </div>
@@ -441,26 +445,27 @@ function DefaultViewCard({ line }) {
     };
 
     const current = line.default_operator_view ?? 'queue';
+    const opts = [
+        {
+            value: 'queue',
+            label: __('Queue'),
+            desc: __('Standard work order list with status, batches, priority and actions.'),
+        },
+        {
+            value: 'workstation',
+            label: __('Workstation'),
+            desc: __('Flat production table with quantities, Z1/Z2 shift inputs and inline entry.'),
+        },
+    ];
 
     return (
         <div className="bg-om-card rounded-om-sm shadow-sm p-6 mt-6">
-            <h2 className="text-xl font-bold text-om-ink mb-1">Default Operator View</h2>
+            <h2 className="text-xl font-bold text-om-ink mb-1">{__('Default Operator View')}</h2>
             <p className="text-sm text-om-muted mb-4">
-                Choose which view operators see by default when they select this line.
+                {__('Choose which view operators see by default when they select this line.')}
             </p>
             <div className="flex gap-3">
-                {[
-                    {
-                        value: 'queue',
-                        label: 'Queue',
-                        desc: 'Standard work order list with status, batches, priority and actions.',
-                    },
-                    {
-                        value: 'workstation',
-                        label: 'Workstation',
-                        desc: 'Flat production table with quantities, Z1/Z2 shift inputs and inline entry.',
-                    },
-                ].map((opt) => (
+                {opts.map((opt) => (
                     <label
                         key={opt.value}
                         className={`flex-1 flex items-center gap-3 p-4 rounded-om-sm border-2 cursor-pointer transition-colors ${
@@ -508,14 +513,14 @@ function ViewTemplateCard({ line, allViewTemplates }) {
         <div className="bg-om-card rounded-om-sm shadow-sm p-6 mt-6">
             <h2 className="text-xl font-bold text-om-ink mb-1">{__("Workstation View")}</h2>
             <p className="text-sm text-om-muted mb-4">
-                Select a view template that defines which columns operators see in the Workstation view for this line.
+                {__('Select a view template that defines which columns operators see in the Workstation view for this line.')}
             </p>
             <form onSubmit={submit} className="flex items-end gap-3">
                 <div className="flex-1">
                     <label className="block text-sm font-medium text-om-muted mb-1">{__("View Template")}</label>
                     <Dropdown
                         options={[
-                            { value: '', label: '— Default (no custom columns) —' },
+                            { value: '', label: __('— Default (no custom columns) —') },
                             ...allViewTemplates.map((tpl) => ({ value: String(tpl.id), label: `${tpl.name} (${tpl.columns_count} columns)` })),
                         ]}
                         value={form.data.view_template_id == null ? '' : String(form.data.view_template_id)}
@@ -524,7 +529,7 @@ function ViewTemplateCard({ line, allViewTemplates }) {
                     />
                 </div>
                 <Button type="submit" variant="primary" loading={form.processing}>
-                    Save
+                    {__('Save')}
                 </Button>
             </form>
             {allViewTemplates.length === 0 && (
@@ -596,7 +601,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
         <div className="bg-om-card rounded-om-sm shadow-sm p-6 mt-4">
             <h2 className="text-xl font-bold text-om-ink mb-1">{__("Workstation View Columns")}</h2>
             <p className="text-sm text-om-muted mb-4">
-                Configure which columns operators see in the Workstation view for this line.{' '}
+                {__('Configure which columns operators see in the Workstation view for this line.')}{' '}
                 Columns with source <strong>extra_data</strong> pull values from the work order&apos;s imported data.{' '}
                 Columns with source <strong>field</strong> pull from work order fields (order_no, description, due_date, priority).
             </p>
@@ -691,7 +696,7 @@ function ViewColumnsCard({ line, viewColumns: initialColumns }) {
 
                 <div className="flex justify-end">
                     <Button type="submit" variant="primary" loading={processing}>
-                        Save View Columns
+                        {__('Save View Columns')}
                     </Button>
                 </div>
             </form>
@@ -730,7 +735,7 @@ export default function LineShow() {
                     className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4 text-sm"
                 >
                     <Icon d="M15 19l-7-7 7-7" />
-                    Back to Production Lines
+                    {__('Back to Production Lines')}
                 </Link>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -814,7 +819,7 @@ export default function LineShow() {
                 <div className="bg-om-card rounded-om-sm shadow-sm p-5">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-om-muted">Assigned Operators</p>
+                            <p className="text-sm text-om-muted">{__('Assigned Operators')}</p>
                             <p className="text-3xl font-bold text-om-ink">{line.users_count}</p>
                         </div>
                         <div className="bg-om-chip rounded-full p-3">
