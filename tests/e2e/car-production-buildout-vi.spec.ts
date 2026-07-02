@@ -373,7 +373,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     
     await startBtn.click({ force: true });
 
-    const confirmBtn = page.getByRole('button', { name: /(Confirm picks|Xác nhận)/i }).first();
+    const confirmBtn = page.getByRole('button', { name: /(Confirm picks & start|Xác nhận chọn & bắt đầu)/i }).first();
     if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       if (await confirmBtn.isDisabled()) {
         const selects = await page.locator('select').all();
