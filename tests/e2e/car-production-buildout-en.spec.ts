@@ -1,15 +1,13 @@
 import { test, expect, Page } from '@playwright/test';
-import { execSync } from 'child_process';
-
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const envPath = resolve(__dirname, '../../.env');
-const envContent = readFileSync(envPath, 'utf-8');
+const envContent = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
 const adminPassMatch = envContent.match(/^ADMIN_PASSWORD=(.*)$/m);
 
 const ADMIN = 'admin';
-const PASS = adminPassMatch ? adminPassMatch[1].trim() : 'MFRz9GZBkM9UEYTfsaHPLG1P';
+const PASS = process.env.ADMIN_PASSWORD?.trim() || (adminPassMatch ? adminPassMatch[1].trim() : 'MFRz9GZBkM9UEYTfsaHPLG1P');
 const TS = Date.now().toString().slice(-6);
 
 const LINE = `Car Assembly Line ${TS}`;
@@ -98,7 +96,7 @@ async function addClickHighlighter(page: Page) {
   });
 }
 
-const createBtn = (page: Page) => page.getByRole('button', { name: /(Create|Tạo|Lưu|Thêm|Save)/i }).first();
+const createBtn = (page: Page) => page.getByRole('button', { name: /(Create|Save)/i }).first();
 
 async function pickFormSelect(page: Page, index: number, optionName: string | RegExp) {
   await page.locator('form button[aria-haspopup="listbox"]').nth(index).click();
@@ -115,12 +113,6 @@ test.beforeAll(() => {
 
 test('build an EV sedan production configuration from zero and run it', async ({ page, browser }) => {
   await addClickHighlighter(page);
-  
-  // RESET
-  //console.log('[Setup] Refreshing database...');
-  //execSync(`docker exec openmes-backend php artisan migrate:fresh --seed --force`, { stdio: 'ignore' });
-  //execSync(`docker exec openmes-backend php artisan cache:clear`, { stdio: 'ignore' });
-  //execSync(`docker exec openmes-backend php artisan tinker --execute="\\App\\Models\\User::create(['name' => 'Administrator', 'username' => config('openmmes.admin_username') ?: 'admin', 'email' => config('openmmes.admin_email') ?: 'admin@example.com', 'password' => \\Illuminate\\Support\\Facades\\Hash::make(config('openmmes.admin_password') ?: 'Admin1234!'), 'force_password_change' => false, 'email_verified_at' => now()])->assignRole('Admin');"`, { stdio: 'ignore' });
   
   await stepSubtitle(page, 'Login as Administrator');
   await login(page, ADMIN, PASS);
@@ -362,11 +354,8 @@ test('build an EV sedan production configuration from zero and run it', async ({
     
     await startBtn.click({ force: true });
 
-    // Handle lot pick modal if it appears (due to BOM material allocation)
-    try {
-      const confirmBtn = page.getByRole('button', { name: /(Confirm picks|Xác nhận)/i }).first();
-      await expect(confirmBtn).toBeVisible({ timeout: 5000 });
-
+    const confirmBtn = page.getByRole('button', { name: /Confirm picks/i }).first();
+    if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       if (await confirmBtn.isDisabled()) {
         const selects = await page.locator('select').all();
         for (const select of selects) {
@@ -378,17 +367,14 @@ test('build an EV sedan production configuration from zero and run it', async ({
 
       await expect(confirmBtn).toBeEnabled({ timeout: 2000 });
       await confirmBtn.click();
-    } catch (e) {
-      // If modal does not appear or we fail to pick, log it so we know
-      console.log('Lot pick modal skipped or failed:', e.message);
     }
 
-    const completeBtn = batchCard.getByRole('button', { name: /(Complete|Hoàn thành)/i }).first();
+    const completeBtn = batchCard.getByRole('button', { name: /Complete/i }).first();
     await expect(completeBtn).toBeVisible({ timeout: 15_000 });
-    // Bấm luôn nút Complete để hoàn thành step, chờ API xử lý xong trước khi chuyển trang
+    // Click Complete to finish the step, waiting for the API response before navigating away
     console.log('Clicking Complete button and waiting for response...');
     await Promise.all([
-      page.waitForResponse(res => res.url().includes('complete') && res.status() >= 200),
+      page.waitForResponse(res => res.url().includes('complete') && res.ok()),
       completeBtn.click({ force: true })
     ]);
     console.log('Complete button click finished.');

@@ -1,14 +1,14 @@
 import { test, expect, Page } from '@playwright/test';
 
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const envPath = resolve(__dirname, '../../.env');
-const envContent = readFileSync(envPath, 'utf-8');
+const envContent = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
 const adminPassMatch = envContent.match(/^ADMIN_PASSWORD=(.*)$/m);
 
 const ADMIN = 'admin';
-const PASS = adminPassMatch ? adminPassMatch[1].trim() : 'MFRz9GZBkM9UEYTfsaHPLG1P';
+const PASS = process.env.ADMIN_PASSWORD?.trim() || (adminPassMatch ? adminPassMatch[1].trim() : 'MFRz9GZBkM9UEYTfsaHPLG1P');
 const TS = Date.now().toString().slice(-6);
 
 const LINE = `Dây chuyền lắp ráp ô tô ${TS}`;
@@ -373,11 +373,8 @@ test('build an EV sedan production configuration from zero and run it', async ({
     
     await startBtn.click({ force: true });
 
-    // Handle lot pick modal if it appears (due to BOM material allocation)
-    try {
-      const confirmBtn = page.getByRole('button', { name: /(Confirm picks|Xác nhận)/i }).first();
-      await expect(confirmBtn).toBeVisible({ timeout: 5000 });
-
+    const confirmBtn = page.getByRole('button', { name: /(Confirm picks|Xác nhận)/i }).first();
+    if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       if (await confirmBtn.isDisabled()) {
         const selects = await page.locator('select').all();
         for (const select of selects) {
@@ -389,9 +386,6 @@ test('build an EV sedan production configuration from zero and run it', async ({
 
       await expect(confirmBtn).toBeEnabled({ timeout: 2000 });
       await confirmBtn.click();
-    } catch (e) {
-      // If modal does not appear or we fail to pick, log it so we know
-      console.log('Lot pick modal skipped or failed:', e.message);
     }
 
     const completeBtn = batchCard.getByRole('button', { name: /(Complete|Hoàn thành)/i }).first();
@@ -399,7 +393,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
     // Bấm luôn nút Complete để hoàn thành step, chờ API xử lý xong trước khi chuyển trang
     console.log('Clicking Complete button and waiting for response...');
     await Promise.all([
-      page.waitForResponse(res => res.url().includes('complete') && res.status() >= 200),
+      page.waitForResponse(res => res.url().includes('complete') && res.ok()),
       completeBtn.click({ force: true })
     ]);
     console.log('Complete button click finished.');
