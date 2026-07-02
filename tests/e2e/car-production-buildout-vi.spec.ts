@@ -354,24 +354,14 @@ test('build an EV sedan production configuration from zero and run it', async ({
     const batchCard = page.locator('.bg-om-card').filter({ hasText: /Batch|Lô #1/i }).first();
     await expect(batchCard).toBeVisible({ timeout: 15_000 });
     
-    // Expand the batch accordion if not already expanded
+    // Click accordion header if startBtn is not visible to expand it
     const startBtn = batchCard.getByRole('button', { name: /^(Start|Bắt đầu)$/i }).first();
-    let isStartVisible = false;
-    for (let i = 0; i < 3; i++) {
-      await page.waitForTimeout(1000); // Give React a moment to render defaults or process the click
-      if (await startBtn.isVisible()) {
-        isStartVisible = true;
-        break;
-      }
-      // Click the header to toggle
+    if (!await startBtn.isVisible()) {
       await batchCard.locator('button').first().click({ force: true });
+      await page.waitForTimeout(1000);
     }
-    
-    if (!isStartVisible) {
-      await expect(startBtn).toBeVisible({ timeout: 5000 });
-    }
-    
-    await startBtn.click({ force: true });
+    await expect(startBtn).toBeVisible({ timeout: 10000 });
+    await startBtn.click();
 
     const confirmBtn = page.getByRole('button', { name: /(Confirm picks & start|Xác nhận chọn & bắt đầu)/i }).first();
     if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
