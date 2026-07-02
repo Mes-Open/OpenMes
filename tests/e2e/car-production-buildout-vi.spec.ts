@@ -111,7 +111,7 @@ async function addClickHighlighter(page: Page) {
   });
 }
 
-const createBtn = (page: Page) => page.getByRole('button', { name: /(Create|Tạo|Lưu|Thêm|Save)/i }).first();
+const createBtn = (page: Page) => page.getByRole('button', { name: /^(Create|Tạo|Lưu|Thêm|Save)$/i }).first();
 
 async function pickFormSelect(page: Page, index: number, optionName: string | RegExp) {
   await page.locator('form button[aria-haspopup="listbox"]').nth(index).click();
