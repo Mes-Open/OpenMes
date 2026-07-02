@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
+import { __ } from '../lib/i18n';
 
 /**
  * Label-print dropdown — React replacement for the old <x-label-print-dropdown>
@@ -45,8 +46,8 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
         return (
             <Link href="/packaging/label-templates"
                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-om-sm text-sm bg-om-chip hover:bg-om-line2 text-om-muted"
-               title="Configure label templates first">
-                {printIcon} Set up labels…
+               title={__('Configure label templates first')}>
+                {printIcon} {__('Set up labels…')}
             </Link>
         );
     }
@@ -69,12 +70,12 @@ export default function LabelPrintMenu({ kind, id, templates = [], label = 'Prin
             {open && (
                 <div className="absolute right-0 mt-1 w-64 bg-om-card rounded-om-sm shadow-lg border border-om-line2 z-50">
                     <div className="p-2">
-                        <p className="px-2 py-1 text-xs text-om-muted uppercase tracking-wide">Choose template</p>
+                        <p className="px-2 py-1 text-xs text-om-muted uppercase tracking-wide">{__('Choose template')}</p>
                         {applicable.map((t) => (
                             <div key={t.id} className="px-2 py-1.5">
                                 <p className="text-sm font-medium text-om-muted truncate">
                                     {t.name}
-                                    {t.is_default && <span className="text-[10px] text-om-accent ml-1">default</span>}
+                                    {t.is_default && <span className="text-[10px] text-om-accent ml-1">{__('default')}</span>}
                                 </p>
                                 <p className="text-xs text-om-muted">
                                     {t.size} mm · {String(t.barcode_format ?? '').toUpperCase()}

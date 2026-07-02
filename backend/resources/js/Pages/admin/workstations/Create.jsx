@@ -45,6 +45,7 @@ export default function WorkstationCreate() {
                     </label>
                     <input
                         type="text"
+                        name="code"
                         value={form.data.code}
                         onChange={(e) => form.setData('code', e.target.value)}
                         placeholder={__('e.g., WS-A01, ASSEMBLY-1')}
@@ -62,6 +63,7 @@ export default function WorkstationCreate() {
                     </label>
                     <input
                         type="text"
+                        name="name"
                         value={form.data.name}
                         onChange={(e) => form.setData('name', e.target.value)}
                         placeholder={__('e.g., Assembly Station 1, Quality Check Point')}

@@ -35,7 +35,7 @@ class IssueManagementController extends Controller
     public function acknowledge(Request $request, Issue $issue)
     {
         if ($issue->status !== Issue::STATUS_OPEN) {
-            return redirect()->back()->with('error', 'Issue is not in OPEN status.');
+            return redirect()->back()->with('error', __('Issue is not in OPEN status.'));
         }
 
         $issue->update([
@@ -43,7 +43,7 @@ class IssueManagementController extends Controller
             'acknowledged_at' => now(),
         ]);
 
-        return redirect()->back()->with('success', 'Issue acknowledged.');
+        return redirect()->back()->with('success', __('Issue acknowledged.'));
     }
 
     public function resolve(Request $request, Issue $issue)
@@ -53,7 +53,7 @@ class IssueManagementController extends Controller
         ]);
 
         if (! in_array($issue->status, [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])) {
-            return redirect()->back()->with('error', 'Issue is already resolved or closed.');
+            return redirect()->back()->with('error', __('Issue is already resolved or closed.'));
         }
 
         $issue->update([
@@ -70,18 +70,18 @@ class IssueManagementController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Issue resolved.');
+        return redirect()->back()->with('success', __('Issue resolved.'));
     }
 
     public function close(Issue $issue)
     {
         if ($issue->status !== Issue::STATUS_RESOLVED) {
-            return redirect()->back()->with('error', 'Only resolved issues can be closed.');
+            return redirect()->back()->with('error', __('Only resolved issues can be closed.'));
         }
 
         // Closure gate: every corrective/preventive action must be verified.
         if ($issue->hasUnverifiedActions()) {
-            return redirect()->back()->with('error', 'Cannot close: all corrective/preventive actions must be verified first.');
+            return redirect()->back()->with('error', __('Cannot close: all corrective/preventive actions must be verified first.'));
         }
 
         $issue->update([
@@ -89,7 +89,7 @@ class IssueManagementController extends Controller
             'closed_at' => now(),
         ]);
 
-        return redirect()->back()->with('success', 'Issue closed.');
+        return redirect()->back()->with('success', __('Issue closed.'));
     }
 
     /**
@@ -99,7 +99,7 @@ class IssueManagementController extends Controller
     {
         $service->setDisposition($issue, $request->validated(), $request->user()->id);
 
-        return redirect()->back()->with('success', 'Disposition recorded.');
+        return redirect()->back()->with('success', __('Disposition recorded.'));
     }
 
     // ── Corrective / preventive actions (CAPA) ───────────────────────────────

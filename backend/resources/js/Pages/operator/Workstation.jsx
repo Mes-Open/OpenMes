@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { __ } from '../../lib/i18n';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, Checkbox, IconButton, StatusPill } from '@openmes/ui';
 import OperatorLayout from '../../layouts/OperatorLayout';
@@ -355,10 +356,10 @@ function InfoModal({ info, onClose }) {
             >
                 <ModalHeader title="Order Details" subtitle={info.orderNo} onClose={onClose} />
                 <div className="px-[18px] py-4 space-y-3">
-                    <InfoRow label="Order #"><span className="font-mono text-[13px] font-medium text-om-ink">{info.orderNo}</span></InfoRow>
-                    <InfoRow label="Product"><span className="text-sm font-medium text-om-ink">{info.product}</span></InfoRow>
-                    <InfoRow label="Line"><span className="text-sm font-medium text-om-ink">{info.line}</span></InfoRow>
-                    <InfoRow label="Status"><span className="text-sm font-semibold text-om-ink">{info.status}</span></InfoRow>
+                    <InfoRow label={__("Order #")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.orderNo}</span></InfoRow>
+                    <InfoRow label={__("Product")}><span className="text-sm font-medium text-om-ink">{info.product}</span></InfoRow>
+                    <InfoRow label={__("Line")}><span className="text-sm font-medium text-om-ink">{info.line}</span></InfoRow>
+                    <InfoRow label={__("Status")}><span className="text-sm font-semibold text-om-ink">{info.status}</span></InfoRow>
                     <div className="grid grid-cols-3 gap-3 py-2">
                         <div className="text-center">
                             <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Planned</p>
@@ -373,8 +374,8 @@ function InfoModal({ info, onClose }) {
                             <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-accent">{info.remaining}</p>
                         </div>
                     </div>
-                    <InfoRow label="Priority"><span className="font-mono text-[13px] font-medium text-om-ink">{info.priority}</span></InfoRow>
-                    <InfoRow label="Due Date"><span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span></InfoRow>
+                    <InfoRow label={__("Priority")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.priority}</span></InfoRow>
+                    <InfoRow label={__("Due Date")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.dueDate}</span></InfoRow>
                     {info.description && info.description !== '-' && (
                         <div>
                             <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Description</p>
@@ -563,26 +564,26 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
                         </button>
                     </div>
 
-                    <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-2">System fields</div>
+                    <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-2">{__('System fields')}</div>
                     {systemCols.map((col) => (
                         <div key={col.key} className="py-1 px-1 rounded-[6px] hover:bg-om-chip">
                             <Checkbox
                                 checked={visibleKeys.includes(col.key)}
                                 onChange={() => toggleColumn(col.key)}
-                                label={col.label}
+                                label={__(col.label)}
                             />
                         </div>
                     ))}
 
                     {extraCols.length > 0 && (
                         <>
-                            <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-3">Import data</div>
+                            <div className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-om-faint mb-1 mt-3">{__('Import data')}</div>
                             {extraCols.map((col) => (
                                 <div key={col.key} className="flex items-center gap-2 py-1 px-1 rounded-[6px] hover:bg-om-chip">
                                     <Checkbox
                                         checked={visibleKeys.includes(col.key)}
                                         onChange={() => toggleColumn(col.key)}
-                                        label={col.label}
+                                        label={__(col.label)}
                                     />
                                     <span className="font-mono text-[10px] text-om-faint ml-auto">{col.key}</span>
                                 </div>
@@ -599,13 +600,13 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
 
 function StatusBadge({ status }) {
     if (status === 'DONE') {
-        return <StatusPill status="done" label="Done" />;
+        return <StatusPill status="done" label={__("Done")} />;
     }
     if (status === 'IN_PROGRESS') {
-        return <StatusPill status="running" label="In Progress" />;
+        return <StatusPill status="running" label={__("In Progress")} />;
     }
     if (status === 'BLOCKED') {
-        return <StatusPill status="blocked" label="Blocked" />;
+        return <StatusPill status="blocked" label={__("Blocked")} />;
     }
     return <StatusPill status="pending" label={statusLabel(status)} />;
 }
@@ -750,7 +751,7 @@ function WorkOrderRow({ wo, allColumns, visibleKeys, lineShifts, shiftEntries, q
                         ?
                     </IconButton>
                     {labelTemplates.some((t) => t.type === 'work_order') && (
-                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label="Label" />
+                        <LabelPrintMenu kind="work-order" id={wo.id} templates={labelTemplates} label={__("Label")} />
                     )}
                 </div>
             </td>
@@ -909,7 +910,7 @@ export default function Workstation() {
                     </div>
 
                     <p className="text-xs text-om-faint mb-2">
-                        Click a row to change production status. Use &quot;Z1&quot; or &quot;Z2&quot; columns to enter produced quantities per shift.
+                        {__('Click a row to change production status. Use "Z1" or "Z2" columns to enter produced quantities per shift.')}
                     </p>
                 </div>
 
@@ -919,7 +920,7 @@ export default function Workstation() {
                         type="text"
                         value={searchVal}
                         onChange={(e) => setSearchVal(e.target.value)}
-                        placeholder="Search by order number, product or data..."
+                        placeholder={__('Search by order number, product or data...')}
                         className={`${inputCls} sm:w-96`}
                         autoComplete="off"
                     />
@@ -928,7 +929,7 @@ export default function Workstation() {
                 {/* Table */}
                 {workOrders.length === 0 ? (
                     <div className="bg-om-card border border-om-line rounded-om text-center py-16">
-                        <p className="text-om-faint text-lg">No work orders found</p>
+                        <p className="text-om-faint text-lg">{__('No work orders found')}</p>
                     </div>
                 ) : (
                     <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
@@ -942,18 +943,18 @@ export default function Workstation() {
                                                     key={col.key}
                                                     className="px-3 py-3 text-left font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint whitespace-nowrap"
                                                 >
-                                                    {col.label}
+                                                    {__(col.label)}
                                                 </th>
                                             ) : null,
                                         )}
                                         <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint border-l border-om-line">
-                                            To Produce
+                                            {__('To Produce')}
                                         </th>
                                         <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-om-faint">
-                                            Produced
+                                            {__('Produced')}
                                         </th>
                                         <th className="px-3 py-3 text-center font-mono text-[9px] font-normal uppercase tracking-[0.1em] bg-om-accent text-white">
-                                            Remaining
+                                            {__('Remaining')}
                                         </th>
                                         {hasShifts &&
                                             lineShifts.map((shift) => (
@@ -1027,7 +1028,7 @@ function MachineStatePanel({ machines, options }) {
 
     return (
         <div className="mb-4 bg-om-card border border-om-line rounded-om-sm p-3">
-            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">Machine state</p>
+            <p className="text-[10px] uppercase tracking-[0.08em] text-om-faint mb-2">{__('Machine state')}</p>
             <div className="flex flex-wrap gap-3">
                 {machines.map((m) => (
                     <div key={m.id} className="flex items-center gap-2 border border-om-line2 rounded-om-sm px-2.5 py-1.5">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { __ } from '../../lib/i18n';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Dropdown, ProgressBar, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
@@ -104,7 +105,7 @@ function ReportIssueModal({ open, onClose, woId, woNo, issueTypes }) {
                     {/* header — §09 hairline */}
                     <div className="flex items-center justify-between px-5 py-4 border-b border-om-line2">
                         <div>
-                            <h3 className="text-[15px] font-semibold text-om-ink">Report Issue</h3>
+                            <h3 className="text-[15px] font-semibold text-om-ink">{__("Report Issue")}</h3>
                             <p className="mt-[3px] font-mono text-[11px] text-om-faint">{woNo}</p>
                         </div>
                         <button type="button" onClick={onClose}
@@ -240,7 +241,7 @@ function DoneQtyModal({ open, onClose, woId, woNo, statusId }) {
                     {/* header — §09 hairline */}
                     <div className="flex items-center justify-between px-5 py-4 border-b border-om-line2">
                         <div>
-                            <h3 className="text-[15px] font-semibold text-om-ink">Complete Work Order</h3>
+                            <h3 className="text-[15px] font-semibold text-om-ink">{__("Complete Work Order")}</h3>
                             <p className="mt-[3px] font-mono text-[11px] text-om-faint">{woNo}</p>
                         </div>
                         <button type="button" onClick={onClose}
@@ -320,7 +321,7 @@ function ReportDowntimeModal({ open, onClose, downtimeReasons }) {
                     {/* header — §09 hairline */}
                     <div className="flex items-center justify-between px-5 py-4 border-b border-om-line2">
                         <div>
-                            <h3 className="text-[15px] font-semibold text-om-ink">Report Downtime</h3>
+                            <h3 className="text-[15px] font-semibold text-om-ink">{__("Report Downtime")}</h3>
                             <p className="mt-[3px] text-sm text-om-muted">Record a production stoppage for this line</p>
                         </div>
                         <button type="button" onClick={onClose}
@@ -696,7 +697,7 @@ export default function Queue() {
 
     return (
         <>
-            <Head title="Work Order Queue" />
+            <Head title={__("Work Order Queue")} />
 
             {/* Live sync */}
             <LineSync lineId={line.id} reloadOnly={['activeWorkOrders', 'completedWorkOrders', 'workstationQueue']} />
@@ -706,7 +707,7 @@ export default function Queue() {
                 {/* ── Header ── */}
                 <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-om-ink">Work Order Queue</h1>
+                        <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-om-ink">{__("Work Order Queue")}</h1>
                         <p className="text-sm text-om-muted mt-2">
                             Line: {line.name}
                             {selectedWorkstation && (
@@ -900,9 +901,7 @@ export default function Queue() {
 
                 {/* ── Active Work Orders ── */}
                 <div className="mb-8">
-                    <h2 className="text-lg font-semibold tracking-[-0.01em] text-om-ink mb-3">
-                        Active Work Orders
-                        <span className="font-mono text-[12px] font-normal text-om-faint ml-2">({activeWorkOrders.length})</span>
+                    <h2 className="text-lg font-semibold tracking-[-0.01em] text-om-ink mb-3">{__("Active Work Orders")}<span className="font-mono text-[12px] font-normal text-om-faint ml-2">({activeWorkOrders.length})</span>
                     </h2>
 
                     {activeWorkOrders.length === 0 ? (
@@ -910,7 +909,7 @@ export default function Queue() {
                             <svg className="mx-auto h-12 w-12 text-om-faintest" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
-                            <h3 className="mt-2 text-sm font-medium text-om-ink">No active work orders</h3>
+                            <h3 className="mt-2 text-sm font-medium text-om-ink">{__("No active work orders")}</h3>
                             <p className="mt-1 text-sm text-om-muted">There are no work orders currently in progress on this line.</p>
                         </div>
                     ) : (
@@ -1005,7 +1004,7 @@ export default function Queue() {
                                               className="block bg-om-card border border-om-line rounded-om p-6 cursor-pointer transition-opacity opacity-70 hover:opacity-100">
                                             <div className="flex items-center justify-between mb-4">
                                                 <h3 className="font-mono text-[15px] font-semibold text-om-ink">{wo.order_no}</h3>
-                                                <StatusPill status="done" label="Completed" />
+                                                <StatusPill status="done" label={__("Completed")} />
                                             </div>
                                             <div className="mb-3">
                                                 <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Product</p>

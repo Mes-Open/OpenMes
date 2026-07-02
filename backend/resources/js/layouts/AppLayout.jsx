@@ -122,12 +122,12 @@ function FlashMessages() {
         <div className="mb-4 space-y-2">
             {flash.success && (
                 <div className="p-3 rounded-om-sm bg-om-running-bg border border-om-line text-om-running text-[13px]">
-                    {flash.success}
+                    {__(flash.success)}
                 </div>
             )}
             {flash.error && (
                 <div className="p-3 rounded-om-sm bg-om-blocked-bg border border-om-line text-om-blocked text-[13px]">
-                    {flash.error}
+                    {__(flash.error)}
                 </div>
             )}
         </div>
