@@ -435,7 +435,10 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                         {media.map((m) => (
                             <li key={m.id} className="flex items-center gap-2 text-sm">
                                 <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">
-                                    {__(m.media_type ? m.media_type.charAt(0).toUpperCase() + m.media_type.slice(1) : '')}
+                                    {m.media_type === 'image' && __('Image')}
+                                    {m.media_type === 'pdf' && __('PDF')}
+                                    {m.media_type === 'video' && __('Video')}
+                                    {!['image', 'pdf', 'video'].includes(m.media_type) && __(m.media_type ? m.media_type.charAt(0).toUpperCase() + m.media_type.slice(1) : '')}
                                 </span>
                                 <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-om-accent hover:underline truncate max-w-[260px]">{m.title || m.original_name}</a>
                                 <button type="button" onClick={() => router.delete(`${mediaBase}/${m.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">{__('Remove')}</button>
