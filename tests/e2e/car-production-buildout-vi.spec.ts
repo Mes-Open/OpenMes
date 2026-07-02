@@ -177,7 +177,7 @@ test('build an EV sedan production configuration from zero and run it', async ({
 
     await page.getByPlaceholder(/WS-A01/i).fill(`WB-${TS}`);
     await page.getByPlaceholder(/Assembly Station 1/i).fill(`Trạm lắp ráp ${TS}`);
-    await createBtn(page).click();
+    await page.getByRole('button', { name: /(Tạo Trạm làm việc|Create Workstation|Create)/i }).first().click();
     await page.waitForURL(/\/admin\/lines\/\d+\/workstations$/);
   });
 
