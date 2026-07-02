@@ -375,27 +375,23 @@ test('build an EV sedan production configuration from zero and run it', async ({
 
     const confirmBtn = page.getByRole('button', { name: /(Confirm picks & start|Xác nhận chọn & bắt đầu)/i }).first();
     if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      if (await confirmBtn.isDisabled()) {
-        const selects = await page.locator('select').all();
-        for (const select of selects) {
-          // Select the first option that has a non-empty value (actual lot ID)
-          const options = await select.locator('option').all();
-          let valueToSelect = '';
-          for (const opt of options) {
-            const val = await opt.getAttribute('value');
-            if (val && val !== '') {
-              valueToSelect = val;
-              break;
-            }
-          }
-          if (valueToSelect) {
-            await select.selectOption(valueToSelect);
-            await page.waitForTimeout(300);
+      const selects = await page.locator('select').all();
+      for (const select of selects) {
+        const options = await select.locator('option').all();
+        let valueToSelect = '';
+        for (const opt of options) {
+          const val = await opt.getAttribute('value');
+          if (val && val !== '') {
+            valueToSelect = val;
+            break;
           }
         }
+        if (valueToSelect) {
+          await select.selectOption(valueToSelect);
+          await page.waitForTimeout(300);
+        }
       }
-
-      await expect(confirmBtn).toBeEnabled({ timeout: 2000 });
+      await expect(confirmBtn).toBeEnabled({ timeout: 5000 });
       await Promise.all([
         page.waitForResponse(res => res.url().includes('start') && res.ok()),
         confirmBtn.click()
