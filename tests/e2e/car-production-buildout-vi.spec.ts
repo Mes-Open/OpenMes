@@ -378,9 +378,20 @@ test('build an EV sedan production configuration from zero and run it', async ({
       if (await confirmBtn.isDisabled()) {
         const selects = await page.locator('select').all();
         for (const select of selects) {
-          // Select the first actual lot option (index 1, since index 0 is "+ Add lot...")
-          await select.selectOption({ index: 1 });
-          await page.waitForTimeout(200);
+          // Select the first option that has a non-empty value (actual lot ID)
+          const options = await select.locator('option').all();
+          let valueToSelect = '';
+          for (const opt of options) {
+            const val = await opt.getAttribute('value');
+            if (val && val !== '') {
+              valueToSelect = val;
+              break;
+            }
+          }
+          if (valueToSelect) {
+            await select.selectOption(valueToSelect);
+            await page.waitForTimeout(300);
+          }
         }
       }
 

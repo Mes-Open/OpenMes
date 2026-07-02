@@ -1194,10 +1194,10 @@ function LotPickModal({ step, materials, onClose }) {
                                         return (
                                             <div key={ln.material_lot_id} className="flex items-center gap-2">
                                                 <div className="min-w-0 flex-1">
-                                                    <span className="block truncate font-mono text-[12px] text-om-ink">
+                                                    <span className="block font-mono text-[13px] text-om-ink">
                                                         {cand?.lot_number ?? `#${ln.material_lot_id}`}
                                                     </span>
-                                                    <span className="font-mono text-[10px] text-om-faint">
+                                                    <span className="font-mono text-[11px] text-om-muted">
                                                         {__('avail')} {fmtQty(cand?.quantity_available, 4)}
                                                         {cand?.expiry_date ? ` · ${__('exp')} ${formatDate(cand.expiry_date)}` : ''}
                                                     </span>
