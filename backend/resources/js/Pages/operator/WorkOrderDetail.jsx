@@ -1187,38 +1187,40 @@ function LotPickModal({ step, materials, onClose }) {
                                     </p>
                                 )}
 
-                                <div className="space-y-1.5">
+                                <div className="space-y-3">
                                     {lines.map((ln, idx) => {
                                         const cand = candById[m.material_id][ln.material_lot_id];
                                         const over = Number(ln.picked_qty) > (cand?.quantity_available ?? 0) + EPSILON;
                                         return (
-                                            <div key={ln.material_lot_id} className="flex items-center gap-2">
+                                            <div key={ln.material_lot_id} className="flex items-center justify-between gap-3 border-b border-om-line2 pb-2.5 last:border-0 last:pb-0">
                                                 <div className="min-w-0 flex-1">
-                                                    <span className="block font-mono text-[13px] text-om-ink">
+                                                    <div className="font-mono text-[12px] font-semibold text-om-ink break-all leading-normal">
                                                         {cand?.lot_number ?? `#${ln.material_lot_id}`}
-                                                    </span>
-                                                    <span className="font-mono text-[11px] text-om-muted">
-                                                        {__('avail')} {fmtQty(cand?.quantity_available, 4)}
-                                                        {cand?.expiry_date ? ` · ${__('exp')} ${formatDate(cand.expiry_date)}` : ''}
-                                                    </span>
+                                                    </div>
+                                                    <div className="font-mono text-[11px] text-om-faint mt-0.5">
+                                                        {__('avail')}: <span className="text-om-muted font-medium">{fmtQty(cand?.quantity_available, 4)}</span>
+                                                        {cand?.expiry_date ? ` · ${__('exp')}: ${formatDate(cand.expiry_date)}` : ''}
+                                                    </div>
                                                 </div>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    min="0"
-                                                    inputMode="decimal"
-                                                    value={ln.picked_qty}
-                                                    onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
-                                                    className={`${inputCls} w-28 text-right ${over ? 'border-om-blocked' : ''}`}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeLine(m.material_id, idx)}
-                                                    className="cursor-pointer px-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
-                                                    title="Remove lot"
-                                                >
-                                                    ×
-                                                </button>
+                                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                    <input
+                                                        type="number"
+                                                        step="0.0001"
+                                                        min="0"
+                                                        inputMode="decimal"
+                                                        value={ln.picked_qty}
+                                                        onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
+                                                        className="text-[12px] text-om-ink bg-om-bg border border-om-line rounded-om-sm px-2 py-1 outline-none w-20 text-right focus:border-om-accent transition-colors font-mono"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeLine(m.material_id, idx)}
+                                                        className="cursor-pointer p-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
+                                                        title="Remove lot"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
                                             </div>
                                         );
                                     })}
