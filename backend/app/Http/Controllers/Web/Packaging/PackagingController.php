@@ -70,7 +70,7 @@ class PackagingController extends Controller
             return response()->json(['message' => __('Work order not found')], 404);
         }
 
-        if (! in_array($workOrder->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])) {
+        if (! WorkOrder::whereKey($workOrder->id)->packable()->exists()) {
             return response()->json([
                 'message' => __('Work order not in a packable state (current: :status)', ['status' => $workOrder->status]),
             ], 422);
@@ -276,7 +276,7 @@ class PackagingController extends Controller
             ->get()
             ->groupBy('work_order_id');
 
-        return WorkOrder::whereIn('status', [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])
+        return WorkOrder::packable()
             ->with('productType', 'line', 'batches:id,work_order_id,batch_number,lot_number')
             ->orderByDesc('priority')
             ->get()
@@ -312,11 +312,11 @@ class PackagingController extends Controller
         $shiftStart = $this->currentShiftStart();
         $todayPacked = PackagingScanLog::where('scanned_at', '>=', $shiftStart)->count();
 
-        $plan = WorkOrder::whereIn('status', [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])
+        $plan = WorkOrder::packable()
             ->whereHas('eans')
             ->sum('planned_qty');
 
-        $totalPacked = WorkOrder::whereIn('status', [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])
+        $totalPacked = WorkOrder::packable()
             ->whereHas('eans')
             ->sum('packed_qty');
 

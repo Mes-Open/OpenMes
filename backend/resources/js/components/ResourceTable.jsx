@@ -117,7 +117,7 @@ export default function ResourceTable({
     emptyText = 'Nothing here yet.',
     filterFn,
     subtitle,
-    pageSize = 12,
+    pageSize = 50,
     enableSelection = false,
     bulkActions,
     selectionLabel,

@@ -67,17 +67,17 @@ export default function MaterialLotsIndex() {
     ];
 
     const actions = (r) => {
-        const list = [{ label: 'Edit', icon: 'edit', href: `/admin/material-lots/${r.id}/edit` }];
+        const list = [{ label: __('Edit'), icon: 'edit', href: `/admin/material-lots/${r.id}/edit` }];
 
         // Quality hold / release.
         if (r.status === 'received' || r.status === 'released') {
-            list.push({ label: 'Hold', variant: 'warning', onClick: () => openHold(r) });
+            list.push({ label: __('Hold'), variant: 'warning', onClick: () => openHold(r) });
         } else if (r.status === 'quarantine') {
-            list.push({ label: 'Release', variant: 'primary', onClick: () => setReleaseFor(r) });
+            list.push({ label: __('Release'), variant: 'primary', onClick: () => setReleaseFor(r) });
         }
 
         list.push({
-            label: 'Delete',
+            label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
             onClick: () => {
