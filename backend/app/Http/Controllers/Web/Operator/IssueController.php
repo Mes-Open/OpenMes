@@ -24,7 +24,7 @@ class IssueController extends Controller
 
         // Verify work order belongs to selected line
         if ($workOrder->line_id != $request->session()->get('selected_line_id')) {
-            return back()->with('error', 'This work order does not belong to the selected line.');
+            return back()->with('error', __('This work order does not belong to the selected line.'));
         }
 
         $issueType = IssueType::findOrFail($validated['issue_type_id']);
