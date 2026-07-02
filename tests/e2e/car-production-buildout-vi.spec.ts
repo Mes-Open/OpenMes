@@ -396,7 +396,10 @@ test('build an EV sedan production configuration from zero and run it', async ({
       }
 
       await expect(confirmBtn).toBeEnabled({ timeout: 2000 });
-      await confirmBtn.click();
+      await Promise.all([
+        page.waitForResponse(res => res.url().includes('start') && res.ok()),
+        confirmBtn.click()
+      ]);
     }
 
     const completeBtn = batchCard.getByRole('button', { name: /(Complete|Hoàn thành)/i }).first();
