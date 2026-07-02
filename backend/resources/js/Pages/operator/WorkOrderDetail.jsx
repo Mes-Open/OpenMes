@@ -348,14 +348,14 @@ function QualityCheckForm({ batch, onClose }) {
         <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <form onSubmit={submit}>
                 <div className="mb-3">
-                    <label className={fieldLabelCls}>Production Quantity</label>
+                    <label className={fieldLabelCls}>{__('Production Quantity')}</label>
                     <input
                         type="number"
                         step="0.01"
                         value={productionQty}
                         onChange={(e) => setProductionQty(e.target.value)}
                         className={`${inputCls} font-mono`}
-                        placeholder="Current production qty"
+                        placeholder={__('Current production qty')}
                     />
                 </div>
 
@@ -364,7 +364,7 @@ function QualityCheckForm({ batch, onClose }) {
                     const fitIdx = (s - 1) * 2 + 1;
                     return (
                         <div key={s} className="mb-2 p-2 bg-om-card border border-om-line2 rounded-om-sm">
-                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Sample #{s}</p>
+                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__('Sample #')}{s}</p>
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <input
@@ -373,15 +373,15 @@ function QualityCheckForm({ batch, onClose }) {
                                         value={samples[dimIdx].value_numeric}
                                         onChange={(e) => updateSample(dimIdx, 'value_numeric', e.target.value)}
                                         className={`${inputCls} font-mono`}
-                                        placeholder="Dimension"
+                                        placeholder={__('Dimension')}
                                         required
                                     />
                                 </div>
                                 <div>
                                     <Dropdown
                                         options={[
-                                            { value: '1', label: 'Pass' },
-                                            { value: '0', label: 'Fail' },
+                                            { value: '1', label: __('Pass') },
+                                            { value: '0', label: __('Fail') },
                                         ]}
                                         value={samples[fitIdx].value_boolean == null ? '' : String(samples[fitIdx].value_boolean)}
                                         onChange={(v) => updateSample(fitIdx, 'value_boolean', v)}
@@ -395,7 +395,7 @@ function QualityCheckForm({ batch, onClose }) {
 
                 <div className="flex gap-2 mt-2">
                     <Button type="submit" variant="accent" disabled={processing} className="px-5 py-3 text-[14px]">
-                        Submit QC
+                        {__('Submit QC')}
                     </Button>
                     <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                         Cancel
@@ -425,10 +425,10 @@ function PackagingChecklistForm({ batch, onClose }) {
     };
 
     const checks = [
-        ['udi_readable', 'UDI code readable'],
-        ['packaging_condition', 'Packaging in good condition'],
-        ['labels_readable', 'Labels readable'],
-        ['label_matches_product', 'Label matches product'],
+        ['udi_readable', __('UDI code readable')],
+        ['packaging_condition', __('Packaging in good condition')],
+        ['labels_readable', __('Labels readable')],
+        ['label_matches_product', __('Label matches product')],
     ];
 
     return (
@@ -445,7 +445,7 @@ function PackagingChecklistForm({ batch, onClose }) {
                 ))}
                 <div className="flex gap-2 mt-2">
                     <Button type="submit" variant="accent" disabled={form.processing} className="px-5 py-3 text-[14px]">
-                        Submit Checklist
+                        {__('Submit Checklist')}
                     </Button>
                     <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                         Cancel
@@ -474,7 +474,7 @@ function ReleaseForm({ batch, onClose }) {
         <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <div className="mb-3">
                 <label className={fieldLabelCls}>
-                    Scrap quantity (optional)
+                    {__('Scrap quantity (optional)')}
                 </label>
                 <input
                     type="number"
@@ -486,7 +486,7 @@ function ReleaseForm({ batch, onClose }) {
                     placeholder="0"
                 />
             </div>
-            <p className="text-sm mb-3 text-om-muted">Release this batch?</p>
+            <p className="text-sm mb-3 text-om-muted">{__('Release this batch?')}</p>
             <div className="flex gap-3 flex-wrap">
                 <Button
                     variant="secondary"
@@ -494,7 +494,7 @@ function ReleaseForm({ batch, onClose }) {
                     onClick={() => submitWith('for_production')}
                     className="px-5 py-3 text-[14px]"
                 >
-                    For Production
+                    {__('For Production')}
                 </Button>
                 <Button
                     variant="accent"
@@ -502,7 +502,7 @@ function ReleaseForm({ batch, onClose }) {
                     onClick={() => submitWith('for_sale')}
                     className="px-5 py-3 text-[14px]"
                 >
-                    For Sale
+                    {__('For Sale')}
                 </Button>
                 <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                     Cancel
@@ -1294,13 +1294,13 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
     };
 
     return (
-        <ModalShell title="Create New Batch" subtitle={workOrder.order_no} onClose={onClose}>
+        <ModalShell title={__("Create New Batch")} subtitle={workOrder.order_no} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="px-[18px] py-4">
                     {/* Quantity */}
                     <div className="mb-4">
                         <label className={fieldLabelCls}>
-                            Quantity
+                            {__('Quantity')}
                         </label>
                         <input
                             type="number"
@@ -1312,7 +1312,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                             className={`${inputCls} font-mono text-[15px]`}
                             required
                         />
-                        <p className="mt-1 font-mono text-[11px] text-om-faint">Remaining: {fmtQty(remaining)}</p>
+                        <p className="mt-1 font-mono text-[11px] text-om-faint">{__('Remaining')}: {fmtQty(remaining)}</p>
                         {form.errors.target_qty && (
                             <p className={errorCls}>{form.errors.target_qty}</p>
                         )}
@@ -1322,7 +1322,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                     {workstations.length > 0 && (
                         <div className="mb-4">
                             <label className={fieldLabelCls}>
-                                Workstation
+                                {__('Workstation')}
                             </label>
                             {workstations.length === 1 ? (
                                 <>
@@ -1336,7 +1336,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                                     options={workstations.map((ws) => ({ value: String(ws.id), label: ws.name }))}
                                     value={form.data.workstation_id == null ? '' : String(form.data.workstation_id)}
                                     onChange={(v) => form.setData('workstation_id', v)}
-                                    placeholder="— Select workstation —"
+                                    placeholder={__('— Select workstation —')}
                                     className="w-full"
                                 />
                             )}
@@ -1351,7 +1351,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                         <Checkbox
                             checked={form.data.auto_lot}
                             onChange={(next) => form.setData('auto_lot', next)}
-                            label="Auto-generate LOT number"
+                            label={__('Auto-generate LOT number')}
                         />
                     </div>
 
@@ -1359,14 +1359,14 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                     {!form.data.auto_lot && (
                         <div className="mb-4">
                             <label className={fieldLabelCls}>
-                                LOT Number (manual)
+                                {__('LOT Number (manual)')}
                             </label>
                             <input
                                 type="text"
                                 value={form.data.lot_number}
                                 onChange={(e) => form.setData('lot_number', e.target.value)}
                                 className={`${inputCls} font-mono`}
-                                placeholder="Leave empty for no LOT"
+                                placeholder={__('Leave empty for no LOT')}
                             />
                             {form.errors.lot_number && (
                                 <p className={errorCls}>{form.errors.lot_number}</p>
@@ -1389,7 +1389,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                         disabled={form.processing}
                         className="px-6 py-4 text-[15px] font-semibold"
                     >
-                        Create Batch
+                        {__('Create Batch')}
                     </Button>
                 </div>
             </form>
@@ -1416,21 +1416,21 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
     };
 
     return (
-        <ModalShell title="Report Issue" subtitle={workOrder.order_no} onClose={onClose}>
+        <ModalShell title={__("Report Issue")} subtitle={workOrder.order_no} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="px-[18px] py-4 space-y-4">
                     <div>
                         <label className={fieldLabelCls}>
-                            Issue Type <span className="text-om-blocked">*</span>
+                            {__('Issue Type')} <span className="text-om-blocked">*</span>
                         </label>
                         <Dropdown
                             options={issueTypes.map((type) => ({
                                 value: String(type.id),
-                                label: `${type.name}${type.is_blocking ? ' ⚠ Blocking' : ''}`,
+                                label: `${type.name}${type.is_blocking ? ` ${__('⚠ Blocking')}` : ''}`,
                             }))}
                             value={form.data.issue_type_id == null ? '' : String(form.data.issue_type_id)}
                             onChange={(v) => form.setData('issue_type_id', v)}
-                            placeholder="— Select type —"
+                            placeholder={__('— Select type —')}
                             className="w-full"
                         />
                         {form.errors.issue_type_id && (
@@ -1440,14 +1440,14 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
 
                     <div>
                         <label className={fieldLabelCls}>
-                            Title <span className="text-om-blocked">*</span>
+                            {__('Title')} <span className="text-om-blocked">*</span>
                         </label>
                         <input
                             type="text"
                             value={form.data.title}
                             onChange={(e) => form.setData('title', e.target.value)}
                             className={inputCls}
-                            placeholder="Brief summary of the issue"
+                            placeholder={__('Brief summary of the issue')}
                             required
                             maxLength={255}
                         />
@@ -1458,14 +1458,14 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
 
                     <div>
                         <label className={fieldLabelCls}>
-                            Description
+                            {__('Description')}
                         </label>
                         <textarea
                             value={form.data.description}
                             onChange={(e) => form.setData('description', e.target.value)}
                             rows={3}
                             className={`${inputCls} resize-none`}
-                            placeholder="Additional details…"
+                            placeholder={__('Additional details…')}
                             maxLength={2000}
                         />
                         {form.errors.description && (
@@ -1486,7 +1486,7 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
                         disabled={form.processing}
                         className="px-6 py-4 text-[15px] font-semibold"
                     >
-                        Report Issue
+                        {__('Report Issue')}
                     </Button>
                 </div>
             </form>
@@ -1512,12 +1512,12 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
     };
 
     return (
-        <ModalShell title="Report Scrap" subtitle={workOrder.order_no} onClose={onClose}>
+        <ModalShell title={__("Report Scrap")} subtitle={workOrder.order_no} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="px-[18px] py-4 space-y-4">
                     <div>
                         <label className={fieldLabelCls}>
-                            Reason <span className="text-om-blocked">*</span>
+                            {__('Reason')} <span className="text-om-blocked">*</span>
                         </label>
                         <Dropdown
                             options={scrapReasons.map((reason) => ({
@@ -1526,7 +1526,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                             }))}
                             value={form.data.scrap_reason_id == null ? '' : String(form.data.scrap_reason_id)}
                             onChange={(v) => form.setData('scrap_reason_id', v)}
-                            placeholder="— Select reason —"
+                            placeholder={__('— Select reason —')}
                             className="w-full"
                         />
                         {form.errors.scrap_reason_id && (
@@ -1536,7 +1536,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 
                     <div>
                         <label className={fieldLabelCls}>
-                            Quantity <span className="text-om-blocked">*</span>
+                            {__('Quantity')} <span className="text-om-blocked">*</span>
                         </label>
                         <input
                             type="number"
@@ -1555,14 +1555,14 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 
                     <div>
                         <label className={fieldLabelCls}>
-                            Notes
+                            {__('Notes')}
                         </label>
                         <textarea
                             value={form.data.notes}
                             onChange={(e) => form.setData('notes', e.target.value)}
                             rows={3}
                             className={`${inputCls} resize-none`}
-                            placeholder="Additional details…"
+                            placeholder={__('Additional details…')}
                             maxLength={2000}
                         />
                         {form.errors.notes && (
@@ -1581,7 +1581,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                         disabled={form.processing}
                         className="px-6 py-4 text-[15px] font-semibold"
                     >
-                        Report Scrap
+                        {__('Report Scrap')}
                     </Button>
                 </div>
             </form>
