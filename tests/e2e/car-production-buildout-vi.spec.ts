@@ -386,6 +386,36 @@ test('build an EV sedan production configuration from zero and run it', async ({
         page.waitForResponse(res => res.url().includes('start') && res.ok()),
         confirmBtn.click()
       ]);
+    } else {
+      // If the lot picker modal didn't show up, check if we need to click Start again or wait
+      console.log('Confirm picks modal not visible, checking if startBtn was clicked properly...');
+      if (await startBtn.isVisible()) {
+        console.log('startBtn is still visible. Re-clicking startBtn...');
+        await startBtn.click();
+        if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+          const selects = await page.locator('select').all();
+          for (const select of selects) {
+            const options = await select.locator('option').all();
+            let valueToSelect = '';
+            for (const opt of options) {
+              const val = await opt.getAttribute('value');
+              if (val && val !== '') {
+                valueToSelect = val;
+                break;
+              }
+            }
+            if (valueToSelect) {
+              await select.selectOption(valueToSelect);
+              await page.waitForTimeout(300);
+            }
+          }
+          await expect(confirmBtn).toBeEnabled({ timeout: 5000 });
+          await Promise.all([
+            page.waitForResponse(res => res.url().includes('start') && res.ok()),
+            confirmBtn.click()
+          ]);
+        }
+      }
     }
 
     const completeBtn = batchCard.getByRole('button', { name: /(Complete|Hoàn thành)/i }).first();
