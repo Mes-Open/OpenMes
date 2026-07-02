@@ -250,7 +250,9 @@ function WorkstationsCard({ line, effectiveWorkstations }) {
                         </p>
                     ) : (
                         <p className="text-sm text-om-muted mt-0.5">
-                            {__(':count workstation(s) on this line.', { count: line.workstations_count })}
+                            {line.workstations_count === 1
+                                ? __('1 workstation on this line.')
+                                : __(':count workstations on this line.', { count: line.workstations_count })}
                         </p>
                     )}
                 </div>

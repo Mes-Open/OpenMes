@@ -106,32 +106,32 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                         className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-om-muted hover:bg-om-bg rounded-om-sm"
                     >
                         <span>
-                            Worker profile{' '}
-                            <span className="font-normal text-om-faint">— optional, only for shop-floor staff</span>
+                            {__('Worker profile')}{' '}
+                            <span className="font-normal text-om-faint">— {__('optional, only for shop-floor staff')}</span>
                         </span>
                         <span className="text-om-faint">{showWorker ? '▲' : '▼'}</span>
                     </button>
                     {showWorker && (
                 <div className="border-t border-om-line2 p-4 space-y-4">
-                    <p className="text-xs text-om-faint">Fill in a worker code to link/create a shop-floor worker profile for this account. Leave this collapsed for office/admin accounts.</p>
+                    <p className="text-xs text-om-faint">{__('Fill in a worker code to link/create a shop-floor worker profile for this account. Leave this collapsed for office/admin accounts.')}</p>
                     <div className="grid grid-cols-2 gap-4">
-                        <Field label="Worker Code" error={errors.worker_code}>
+                        <Field label={__('Worker Code')} error={errors.worker_code}>
                             <input type="text" value={data.worker_code} onChange={(e) => setData('worker_code', e.target.value)} className="form-input w-full" />
                         </Field>
-                        <Field label="Phone" error={errors.worker_phone}>
+                        <Field label={__('Phone')} error={errors.worker_phone}>
                             <input type="text" value={data.worker_phone} onChange={(e) => setData('worker_phone', e.target.value)} className="form-input w-full" />
                         </Field>
-                        <Field label="Crew">
+                        <Field label={__('Crew')}>
                             <Dropdown
-                                options={[{ value: '', label: '— None —' }, ...crews.map((c) => ({ value: String(c.id), label: c.name }))]}
+                                options={[{ value: '', label: `— ${__('None')} —` }, ...crews.map((c) => ({ value: String(c.id), label: c.name }))]}
                                 value={data.worker_crew_id == null ? '' : String(data.worker_crew_id)}
                                 onChange={(v) => setData('worker_crew_id', v)}
                                 className="w-full"
                             />
                         </Field>
-                        <Field label="Wage Group">
+                        <Field label={__('Wage Group')}>
                             <Dropdown
-                                options={[{ value: '', label: '— None —' }, ...wageGroups.map((g) => ({ value: String(g.id), label: g.name }))]}
+                                options={[{ value: '', label: `— ${__('None')} —` }, ...wageGroups.map((g) => ({ value: String(g.id), label: g.name }))]}
                                 value={data.worker_wage_group_id == null ? '' : String(data.worker_wage_group_id)}
                                 onChange={(v) => setData('worker_wage_group_id', v)}
                                 className="w-full"
@@ -140,9 +140,9 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-om-muted mb-2">Skills &amp; level (1–5)</label>
+                        <label className="block text-sm font-medium text-om-muted mb-2">{__('Skills & level (1–5)')}</label>
                         <div className="border border-om-line2 rounded divide-y">
-                            {skills.length === 0 && <p className="px-3 py-2 text-sm text-om-faint">No skills defined.</p>}
+                            {skills.length === 0 && <p className="px-3 py-2 text-sm text-om-faint">{__('No skills defined.')}</p>}
                             {skills.map((skill) => {
                                 const id = String(skill.id);
                                 const on = selectedSkills.has(id);
@@ -174,9 +174,9 @@ export default function UserForm({ form, roles, workstations, crews, wageGroups,
 
             <div className="flex items-center gap-3 pt-2">
                 <Button type="submit" variant="primary" loading={processing} disabled={processing}>
-                    {processing ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Account'}
+                    {processing ? __('Saving…') : isEdit ? __('Save Changes') : __('Create Account')}
                 </Button>
-                <Link href="/admin/users" className="text-om-muted hover:text-om-ink text-sm">Cancel</Link>
+                <Link href="/admin/users" className="text-om-muted hover:text-om-ink text-sm">{__('Cancel')}</Link>
             </div>
         </form>
     );

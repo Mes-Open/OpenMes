@@ -7,7 +7,7 @@ import { PRODUCT_TYPE_FIELDS } from './fields';
 export default function ProductTypeEdit({ productType, customFields = [] }) {
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${productType.name}`} />
+            <Head title={`${__("Edit")} ${productType.name}`} />
             <ResourceForm
                 title={__("Edit Product Type")}
                 breadcrumbs={[
@@ -29,7 +29,7 @@ export default function ProductTypeEdit({ productType, customFields = [] }) {
                     is_active: !!productType.is_active,
                     custom_fields: productType.custom_fields ?? {},
                 }}
-                submitLabel="Save Changes"
+                submitLabel={__("Save Changes")}
                 cancelHref="/admin/product-types"
             />
         </div>

@@ -63,7 +63,7 @@ export default function WorkOrdersIndex() {
             a.push({
                 label: __('Complete'),
                 onClick: () => {
-                    const qty = prompt('Produced quantity to complete with:', r.planned_qty);
+                    const qty = prompt(__('Produced quantity to complete with:'), r.planned_qty);
                     if (qty) post(r.id, 'complete', { produced_qty: qty });
                 },
             });
@@ -74,14 +74,14 @@ export default function WorkOrdersIndex() {
         if (TERMINAL.includes(s)) {
             a.push({ label: __('Reopen'), onClick: () => post(r.id, 'reopen') });
         } else {
-            a.push({ label: __('Cancel'), variant: 'warning', onClick: () => { if (confirm(`Cancel work order ${r.order_no}?`)) post(r.id, 'cancel'); } });
+            a.push({ label: __('Cancel'), variant: 'warning', onClick: () => { if (confirm(__('Cancel work order :order?', { order: r.order_no }))) post(r.id, 'cancel'); } });
         }
 
         a.push({
             label: __('Delete'),
             icon: 'delete',
             variant: 'danger',
-            onClick: () => { if (confirm(`Delete work order ${r.order_no}? (only allowed if it has no batches)`)) router.delete(`/admin/work-orders/${r.id}`, { preserveScroll: true }); },
+            onClick: () => { if (confirm(__('Delete work order :order? (only allowed if it has no batches)', { order: r.order_no }))) router.delete(`/admin/work-orders/${r.id}`, { preserveScroll: true }); },
         });
         return a;
     };

@@ -67,7 +67,7 @@ export default function ProductTypeShow({
             <nav className="text-sm text-om-muted mb-4 flex items-center gap-1">
                 <Link href="/admin/dashboard" className="hover:underline">{__("Dashboard")}</Link>
                 <span>/</span>
-                <Link href="/admin/product-types" className="hover:underline">Product Types</Link>
+                <Link href="/admin/product-types" className="hover:underline">{__("Product Types")}</Link>
                 <span>/</span>
                 <span className="text-om-ink">{productType.name}</span>
             </nav>
@@ -79,7 +79,7 @@ export default function ProductTypeShow({
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
-                        Back
+                        {__("Back")}
                     </Link>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -98,7 +98,7 @@ export default function ProductTypeShow({
                                 <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
-                                Edit Product Type
+                                {__("Edit Product Type")}
                             </Link>
                             <button
                                 type="button"
@@ -110,14 +110,14 @@ export default function ProductTypeShow({
                                         <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                                         </svg>
-                                        Deactivate
+                                        {__("Deactivate")}
                                     </>
                                 ) : (
                                     <>
                                         <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        Activate
+                                        {__("Activate")}
                                     </>
                                 )}
                             </button>
@@ -178,7 +178,7 @@ export default function ProductTypeShow({
                                     href={`/admin/product-types/${productType.id}/process-templates`}
                                     className="btn-touch btn-secondary text-sm"
                                 >
-                                    View All
+                                    {__("View All")}
                                 </Link>
                                 <Link
                                     href={`/admin/product-types/${productType.id}/process-templates/create`}
@@ -187,7 +187,7 @@ export default function ProductTypeShow({
                                     <svg className="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                     </svg>
-                                    Create
+                                    {__("Create")}
                                 </Link>
                             </div>
                         </div>
@@ -211,7 +211,7 @@ export default function ProductTypeShow({
                                                     )}
                                                 </div>
                                                 <p className="text-xs text-om-muted">
-                                                    Version {template.version} &bull; {template.steps?.length ?? 0} steps
+                                                    {__("Version")} {template.version} &bull; {__(":count steps", { count: template.steps?.length ?? 0 })}
                                                 </p>
                                             </div>
                                             <svg className="w-5 h-5 text-om-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -245,7 +245,7 @@ export default function ProductTypeShow({
                                                     <p className="font-medium text-om-ink">{wo.work_order_number}</p>
                                                     <p className="text-sm text-om-muted">{wo.product_name}</p>
                                                     <p className="text-xs text-om-muted mt-1">
-                                                        Quantity: {wo.planned_qty} | {wo.created_at ? wo.created_at.substring(0, 16).replace('T', ' ') : '—'}
+                                                        {__("Quantity:")} {wo.planned_qty} | {wo.created_at ? wo.created_at.substring(0, 16).replace('T', ' ') : '—'}
                                                     </p>
                                                 </div>
                                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-ink'}`}>
@@ -257,7 +257,7 @@ export default function ProductTypeShow({
                                 </div>
                                 {totalWorkOrders > 10 && (
                                     <p className="text-sm text-om-muted text-center mt-4">
-                                        Showing 10 most recent of {totalWorkOrders} total work orders
+                                        {__("Showing 10 most recent of :total total work orders", { total: totalWorkOrders })}
                                     </p>
                                 )}
                             </>

@@ -1,5 +1,4 @@
 import { test, expect, Page } from '@playwright/test';
-import { execSync } from 'child_process';
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -53,7 +52,7 @@ test.use({
 async function login(page: Page, user: string, pass: string) {
   await page.goto('/login');
   
-  await stepSubtitle(page, 'Đổi ngôn ngữ sang Tiếng Việt ngay tại màn hình đăng nhập');
+  //await stepSubtitle(page, 'Đổi ngôn ngữ sang Tiếng Việt ngay tại màn hình đăng nhập');
   
   // Wait for the language dropdown to be visible
   const langDropdown = page.locator('button[aria-haspopup="listbox"]').first();
@@ -130,11 +129,6 @@ test.beforeAll(() => {
 test('build an EV sedan production configuration from zero and run it', async ({ page, browser }) => {
   await addClickHighlighter(page);
   
-  // RESET
-  //console.log('[Setup] Refreshing database...');
-  //execSync(`docker exec openmes-backend php artisan migrate:fresh --seed --force`, { stdio: 'ignore' });
-  //execSync(`docker exec openmes-backend php artisan cache:clear`, { stdio: 'ignore' });
-  //execSync(`docker exec openmes-backend php artisan tinker --execute="\\App\\Models\\User::create(['name' => 'Administrator', 'username' => config('openmmes.admin_username') ?: 'admin', 'email' => config('openmmes.admin_email') ?: 'admin@example.com', 'password' => \\Illuminate\\Support\\Facades\\Hash::make(config('openmmes.admin_password') ?: 'Admin1234!'), 'force_password_change' => false, 'email_verified_at' => now()])->assignRole('Admin');"`, { stdio: 'ignore' });
   
   await stepSubtitle(page, 'Đăng nhập bằng tài khoản Quản trị viên (Admin)');
   await login(page, ADMIN, PASS);

@@ -8,7 +8,7 @@ export default function MaterialEdit() {
     const { material, materialTypes = [], customFields = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title={`Edit ${material.name}`} />
+            <Head title={`${__("Edit")} ${material.name}`} />
             <h1 className="text-3xl font-bold text-om-ink mb-6">{__("Edit Material")}</h1>
             <ResourceForm
                 action={`/admin/materials/${material.id}`}
@@ -28,7 +28,7 @@ export default function MaterialEdit() {
                     is_active: !!material.is_active,
                     custom_fields: material.custom_fields ?? {},
                 }}
-                submitLabel="Save Changes"
+                submitLabel={__("Save Changes")}
                 cancelHref="/admin/materials"
             />
         </div>

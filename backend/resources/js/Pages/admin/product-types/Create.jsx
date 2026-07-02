@@ -21,7 +21,7 @@ export default function ProductTypeCreate({ customFields = [] }) {
                 fields={PRODUCT_TYPE_FIELDS}
                 customFields={customFields}
                 initial={{ code: '', name: '', description: '', unit_of_measure: 'pcs', is_active: true, custom_fields: {} }}
-                submitLabel="Create"
+                submitLabel={__("Create")}
                 cancelHref="/admin/product-types"
             />
         </div>

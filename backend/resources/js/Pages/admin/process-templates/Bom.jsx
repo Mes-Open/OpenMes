@@ -62,7 +62,7 @@ function MaterialForm({ productType, processTemplate, materials, steps, item, on
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {isEdit ? (
                         <div>
-                            <label className="block text-sm font-medium text-om-muted mb-1">Material</label>
+                            <label className="block text-sm font-medium text-om-muted mb-1">{__("Material")}</label>
                             <div className="form-input w-full bg-om-panel text-om-muted">
                                 {item.material_code} - {item.material_name}
                             </div>

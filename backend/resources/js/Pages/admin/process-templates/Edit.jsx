@@ -33,29 +33,29 @@ export default function ProcessTemplatesEdit() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                         </svg>
-                        Back to Templates
+                        {__("Back to Templates")}
                     </a>
                     <h1 className="text-3xl font-bold text-om-ink">{__("Edit Process Template")}</h1>
                     <p className="text-sm text-om-muted mt-1">
-                        {productType.name} — Version {processTemplate.version}
+                        {productType.name} — {__("Version")} {processTemplate.version}
                     </p>
                 </div>
 
                 <div className="card">
                     <form onSubmit={submit}>
                         <div className="mb-6">
-                            <label htmlFor="name" className="form-label">Template Name</label>
+                            <label htmlFor="name" className="form-label">{__("Template Name")}</label>
                             <input
                                 type="text"
                                 id="name"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 className={`form-input w-full${errors.name ? ' border-om-blocked' : ''}`}
-                                placeholder="e.g., Standard Assembly Process, Quality Inspection v2"
+                                placeholder={__("e.g., Standard Assembly Process, Quality Inspection v2")}
                                 required
                                 autoFocus
                             />
-                            <p className="text-sm text-om-muted mt-1">Descriptive name for this manufacturing process</p>
+                            <p className="text-sm text-om-muted mt-1">{__("Descriptive name for this manufacturing process")}</p>
                             {errors.name && <p className="text-om-blocked text-sm mt-1">{errors.name}</p>}
                         </div>
 
@@ -63,7 +63,7 @@ export default function ProcessTemplatesEdit() {
                             <Checkbox
                                 checked={data.is_active}
                                 onChange={(next) => setData('is_active', next)}
-                                label="Active (template is ready for use in work orders)"
+                                label={__("Active (template is ready for use in work orders)")}
                             />
                         </div>
 
@@ -72,10 +72,10 @@ export default function ProcessTemplatesEdit() {
                                 href={`/admin/product-types/${productType.id}/process-templates`}
                                 className="btn-touch btn-secondary"
                             >
-                                Cancel
+                                {__("Cancel")}
                             </a>
                             <Button type="submit" variant="primary" loading={processing} disabled={processing}>
-                                {processing ? 'Saving…' : 'Update Template'}
+                                {processing ? __('Saving…') : __('Update Template')}
                             </Button>
                         </div>
                     </form>

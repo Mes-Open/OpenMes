@@ -219,7 +219,7 @@ function Field({ field, value, error, setData }) {
                     className="w-full"
                     value={value || null}
                     onChange={(iso) => set(iso ?? '')}
-                    placeholder={placeholder || __('Select date')}
+                    placeholder={placeholder ? __(placeholder) : __('Select date')}
                 />
             ) : type === 'color' ? (
                 <input
