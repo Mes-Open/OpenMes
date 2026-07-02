@@ -877,7 +877,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                     onClick={() => handleStart(step)}
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
-                                    {isInflight ? '…' : 'Start'}
+                                    {isInflight ? '…' : __('Start')}
                                 </Button>
                             )}
                             {step.status === 'IN_PROGRESS' && (
@@ -888,7 +888,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                     title={isDocBlocked ? __('Validate the mandatory document(s) before completing this step.') : undefined}
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
-                                    {isInflight ? '…' : 'Complete'}
+                                    {isInflight ? '…' : __('Complete')}
                                 </Button>
                             )}
 
