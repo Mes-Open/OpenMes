@@ -9,9 +9,14 @@ import {
     View,
     type StyleProp,
     type ViewStyle,
+    Platform,
 } from 'react-native';
 
 import { colors, fonts } from '../tokens';
+
+// react-native-web draws the browser's default focus outline on <input>;
+// suppress it — the design's own focus ring (accent border/halo) replaces it.
+const WEB_OUTLINE_RESET = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as object) : null;
 
 export interface SearchFieldProps {
     value: string;
@@ -35,7 +40,7 @@ export function SearchField({ value, onChange, placeholder, autoFocus = false, s
                 returnKeyType="search"
                 autoCapitalize="none"
                 autoCorrect={false}
-                style={styles.input}
+                style={[styles.input, WEB_OUTLINE_RESET]}
             />
         </View>
     );

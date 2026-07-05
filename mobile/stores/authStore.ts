@@ -9,6 +9,13 @@ import type { Role, User } from '@/types/api';
 interface AuthState {
   token: string | null;
   user: User | null;
+  /**
+   * Admin-panel tab keys the backend says this user may reach, from the
+   * me/login payload — drives sidebar filtering identically to the web
+   * (see AppLayout's showTab). Null when the backend didn't send it (older
+   * server): callers fall back to showing everything.
+   */
+  accessibleTabs: string[] | null;
   activeLineId: number | null;
   /** Operator's selected workstation on the active line, used for step routing. */
   activeWorkstationId: number | null;
@@ -43,6 +50,7 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       token: null,
       user: null,
+      accessibleTabs: null,
       activeLineId: null,
       activeWorkstationId: null,
       hydrated: false,
@@ -50,11 +58,13 @@ export const useAuthStore = create<AuthState>()(
         set((s) => ({
           token,
           user,
+          accessibleTabs: user.accessible_tabs ?? null,
           activeLineId: pickDefaultLine(user, s.activeLineId),
         })),
       setUser: (user) =>
         set((s) => ({
           user,
+          accessibleTabs: user.accessible_tabs ?? null,
           activeLineId: pickDefaultLine(user, s.activeLineId),
         })),
       setActiveLineId: (id) =>
@@ -62,7 +72,7 @@ export const useAuthStore = create<AuthState>()(
         set({ activeLineId: id, activeWorkstationId: null }),
       setActiveWorkstationId: (id) => set({ activeWorkstationId: id }),
       clear: () =>
-        set({ token: null, user: null, activeLineId: null, activeWorkstationId: null }),
+        set({ token: null, user: null, accessibleTabs: null, activeLineId: null, activeWorkstationId: null }),
       setHydrated: () => set({ hydrated: true }),
     }),
     {
@@ -71,6 +81,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         token: state.token,
         user: state.user,
+        accessibleTabs: state.accessibleTabs,
         activeLineId: state.activeLineId,
         activeWorkstationId: state.activeWorkstationId,
       }),

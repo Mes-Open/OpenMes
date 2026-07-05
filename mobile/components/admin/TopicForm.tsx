@@ -121,7 +121,7 @@ export function TopicForm({ initial, connections, lockedConnectionId, mode, subm
               {PAYLOAD_FORMATS.map((f) => (
                 <SelectionChip
                   key={f.id}
-                  label={f.label}
+                  label={t(f.label)}
                   active={f.id === value}
                   onPress={() => onChange(f.id)}
                 />

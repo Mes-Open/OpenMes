@@ -1,150 +1,145 @@
+/**
+ * Audit logs — mirrors the web admin AuditLogs page (Pages/admin/AuditLogs.jsx)
+ * via the shared DataTable: the web's column set (Timestamp / User / Entity /
+ * Action). The web's Details (before/after diff) column is omitted — the mobile
+ * feed doesn't carry state snapshots. The entity-type filter, action filter and
+ * CSV export stay as toolbar controls beside the DataTable search. Immutable
+ * change feed, read via useAuditLogs.
+ */
 import { format, parseISO } from 'date-fns';
 import { useState } from 'react';
-import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { LegendList } from '@legendapp/list';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as WebBrowser from 'expo-web-browser';
 
-import { Card } from '@/components/ui/Card';
-import { Field } from '@/components/ui/Field';
+import { Dropdown, colors, fonts } from '@openmes/ui';
+import { SearchField } from '@openmes/ui/native';
+import { DataTable } from '@openmes/ui/table';
+
 import { Button } from '@/components/ui/Button';
 import { Mono } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { useAuditLogs } from '@/hooks/queries/useAuditLogs';
-import { auditLogsExportUrl, type AuditAction } from '@/api/auditLogs';
+import { auditLogsExportUrl, type AuditAction, type AuditLog } from '@/api/auditLogs';
 
-const ACTIONS: { id: AuditAction | 'all'; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'created', label: 'Created' },
-  { id: 'updated', label: 'Updated' },
-  { id: 'deleted', label: 'Deleted' },
-];
+const ACTIONS: AuditAction[] = ['created', 'updated', 'deleted'];
+const humanize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const ACTION_TONE: Record<string, { fg: string; bg: string }> = {
+  created: { fg: colors.running, bg: colors.runningBg },
+  updated: { fg: colors.accent, bg: colors.chip },
+  deleted: { fg: colors.blocked, bg: colors.blockedBg },
+};
 
 export function AuditLogsScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-
-  const [action, setAction] = useState<AuditAction | 'all'>('all');
+  const { t } = useTranslation();
+  const [action, setAction] = useState<AuditAction | ''>('');
   const [entityType, setEntityType] = useState('');
 
-  const filters = {
-    action: action === 'all' ? undefined : action,
+  const query = useAuditLogs({
+    action: action || undefined,
     entity_type: entityType.trim() || undefined,
     per_page: 50,
-  };
-  const query = useAuditLogs(filters);
-
-  const total = query.data?.meta?.total ?? query.data?.data.length ?? 0;
+  });
+  const rows: AuditLog[] = query.data?.data ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader back title="Audit logs" subtitle={`IMMUTABLE · ${total} ENTRIES`} />
-      <View style={[styles.toolbar, { borderBottomColor: palette.border }]}>
-        <View style={styles.chipRow}>
-          {ACTIONS.map((a) => {
-            const active = a.id === action;
-            return (
-              <Pressable
-                key={a.id}
-                onPress={() => setAction(a.id)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: active ? '#241a08' : 'transparent',
-                    borderColor: active ? BRAND.amber : palette.border,
-                  },
-                ]}>
-                <Text style={[styles.chipText, { color: active ? BRAND.amber : palette.textMuted }]}>
-                  {a.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Audit Logs')}</Text>
+        <View style={{ flex: 1 }} />
+        <View style={{ width: 160 }}>
+          <Dropdown
+            value={action}
+            onChange={(v) => setAction(v as AuditAction | '')}
+            placeholder={t('All actions')}
+            options={[{ value: '', label: t('All actions') }, ...ACTIONS.map((a) => ({ value: a, label: humanize(a) }))]}
+          />
         </View>
-        <Field
-          label="Entity type filter"
-          value={entityType}
-          onChangeText={setEntityType}
-          placeholder="e.g. WorkOrder, User"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
         <Button
-          title="Export CSV"
+          title={t('Export CSV')}
           variant="outline"
+          size="sm"
           onPress={() =>
             WebBrowser.openBrowserAsync(
-              auditLogsExportUrl({
-                action: action === 'all' ? undefined : action,
-                entity_type: entityType.trim() || undefined,
-              }),
+              auditLogsExportUrl({ action: action || undefined, entity_type: entityType.trim() || undefined }),
             )
           }
         />
       </View>
-      {query.isLoading ? (
+
+      <View style={styles.filters}>
+        <SearchField value={entityType} onChange={setEntityType} placeholder={t('Filter by entity type')} />
+      </View>
+
+      {query.isLoading && !query.data ? (
         <LoadingState />
-      ) : query.isError ? (
+      ) : query.isError && !query.data ? (
         <ErrorState error={query.error} onRetry={query.refetch} />
       ) : (
-        <LegendList
-          data={query.data?.data ?? []}
-          keyExtractor={(l) => String(l.id)}
-          contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          ListEmptyComponent={<EmptyState title="No audit logs match these filters" />}
-          renderItem={({ item }) => {
-            const tone = actionTone(item.action, palette);
-            return (
-              <Card accent={tone.accent}>
-                <View style={styles.row}>
-                  <View style={[styles.actionPill, { backgroundColor: tone.bg }]}>
-                    <Mono size={9.5} color={tone.fg} letterSpacing={0.6} weight="700">
-                      {item.action.toUpperCase()}
-                    </Mono>
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={styles.tableWrap}
+          refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} tintColor={colors.accent} />}>
+          <DataTable<AuditLog>
+            data={rows}
+            searchPlaceholder={t('Search audit logs…')}
+            columnsLabel={t('Columns')}
+            columnsMenuLabel={t('Toggle columns')}
+            searchKeys={['entity_type', 'entity_name']}
+            emptyText={t('No audit logs found')}
+            columns={[
+              {
+                key: 'timestamp',
+                label: t('Timestamp'),
+                width: 140,
+                render: (log) => {
+                  try {
+                    return <Mono size={10} color={colors.faint}>{format(parseISO(log.created_at), 'yyyy-MM-dd HH:mm:ss')}</Mono>;
+                  } catch {
+                    return '—';
+                  }
+                },
+              },
+              { key: 'user', label: t('User'), width: 100, render: (log) => log.user?.username ?? 'system' },
+              {
+                key: 'entity',
+                label: t('Entity'),
+                flex: 1,
+                render: (log) => (
+                  <View>
+                    <Text numberOfLines={1} style={styles.name}>{`${log.entity_name ?? log.entity_type} #${log.entity_id}`}</Text>
+                    {log.ip_address ? <Mono size={9} color={colors.faint} style={{ marginTop: 2 }}>{log.ip_address}</Mono> : null}
                   </View>
-                  <Text style={[styles.entity, { color: palette.text }]} numberOfLines={1}>
-                    {item.entity_name ?? item.entity_type} #{item.entity_id}
-                  </Text>
-                </View>
-                <Mono size={11} color={palette.textFaint} style={{ marginTop: 6 }}>
-                  {(item.user?.username ?? 'system').toUpperCase()}
-                  {' · '}
-                  {format(parseISO(item.created_at), 'd MMM yyyy, HH:mm:ss')}
-                  {item.ip_address ? ` · ${item.ip_address}` : ''}
-                </Mono>
-              </Card>
-            );
-          }}
-          refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} />}
-        />
+                ),
+              },
+              {
+                key: 'action',
+                label: t('Action'),
+                width: 96,
+                render: (log) => {
+                  const tone = ACTION_TONE[log.action] ?? { fg: colors.muted, bg: colors.chip };
+                  return (
+                    <View style={[styles.pill, { backgroundColor: tone.bg }]}>
+                      <Mono size={9} color={tone.fg} letterSpacing={0.5}>{log.action.toUpperCase()}</Mono>
+                    </View>
+                  );
+                },
+              },
+            ]}
+          />
+        </ScrollView>
       )}
     </View>
   );
 }
 
-function actionTone(a: string, palette: { success: string; warning: string; danger: string; info: string }) {
-  switch (a) {
-    case 'created':
-      return { bg: '#E6F4EA', fg: '#0f7a4f', accent: palette.success };
-    case 'updated':
-      return { bg: '#F1EFEA', fg: '#1d4ed8', accent: palette.info };
-    case 'deleted':
-      return { bg: '#FBEAE6', fg: '#991b1b', accent: palette.danger };
-    default:
-      return { bg: '#F1EFEA', fg: '#6F6C66', accent: '#9B9892' };
-  }
-}
-
 const styles = StyleSheet.create({
-  toolbar: { padding: 18, paddingTop: 14, gap: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
-  chipText: { fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
-  list: { padding: 18 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  entity: { flex: 1, fontSize: 14, fontWeight: '600', letterSpacing: -0.2 },
-  actionPill: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 4 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingTop: 16 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  filters: { paddingHorizontal: 18, paddingVertical: 12 },
+  tableWrap: { paddingHorizontal: 14, paddingBottom: 24 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  pill: { alignSelf: 'flex-start', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 3 },
 });

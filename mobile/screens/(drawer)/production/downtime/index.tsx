@@ -1,25 +1,29 @@
-import { format, formatDistanceToNowStrict, parseISO, startOfDay, startOfWeek } from 'date-fns';
+/**
+ * Downtime history — production downtime events for the active line, in the
+ * table pattern (Reason / Kind / Started / Duration). A time-window filter
+ * (all / this shift / today / this week) narrows the list. Read via REST
+ * useDowntimes; scoped to the operator's active line.
+ */
+import { format, parseISO, startOfWeek } from 'date-fns';
 import { useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/Card';
-import { Mono, SectionLabel } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Dropdown, colors, fonts } from '@openmes/ui';
+
+import { Mono } from '@/components/ui/Mono';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useDowntimes } from '@/hooks/queries/useDowntime';
 import { useAuthStore } from '@/stores/authStore';
 import type { DowntimeReason, ProductionDowntime } from '@/api/downtime';
 
 type FilterId = 'all' | 'shift' | 'today' | 'week';
 
-const FILTERS: { id: FilterId; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'shift', label: 'This shift' },
-  { id: 'today', label: 'Today' },
-  { id: 'week', label: 'This week' },
-];
+const KIND_COLOR: Record<string, { fg: string; bg: string }> = {
+  planned: { fg: colors.pending, bg: colors.pendingBg },
+  changeover: { fg: colors.downtime, bg: colors.downtimeBg },
+  unplanned: { fg: colors.blocked, bg: colors.blockedBg },
+};
 
 function shiftStart(now: Date): Date {
   const h = now.getHours();
@@ -36,12 +40,8 @@ function shiftStart(now: Date): Date {
 }
 
 export function DowntimeHistoryScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+  const { t } = useTranslation();
   const activeLineId = useAuthStore((s) => s.activeLineId);
-  const lineName = useAuthStore((s) =>
-    s.user?.lines?.find((l) => l.id === s.activeLineId)?.name ?? '',
-  );
 
   const [filter, setFilter] = useState<FilterId>('today');
 
@@ -55,8 +55,7 @@ export function DowntimeHistoryScreen() {
   const filtered = useMemo(() => {
     const events = query.data ?? [];
     const now = new Date();
-    if (filter === 'all') return events;
-    if (filter === 'today') return events;
+    if (filter === 'all' || filter === 'today') return events;
     if (filter === 'shift') {
       const start = shiftStart(now).getTime();
       return events.filter((e) => {
@@ -80,210 +79,103 @@ export function DowntimeHistoryScreen() {
     return events;
   }, [filter, query.data]);
 
-  const summary = useMemo(() => {
-    const all = filtered;
-    let planned = 0;
-    let unplanned = 0;
-    let changeover = 0;
-    for (const e of all) {
-      const min = e.duration_minutes ?? 0;
-      const kind = e.reason?.kind;
-      if (kind === 'planned') planned += min;
-      else if (kind === 'changeover') changeover += min;
-      else unplanned += min;
-    }
-    return {
-      total: planned + unplanned + changeover,
-      planned,
-      unplanned,
-      changeover,
-    };
-  }, [filtered]);
-
-  if (query.isLoading) return <LoadingState />;
-  if (query.isError) return <ErrorState error={query.error} onRetry={query.refetch} />;
+  const options = useMemo(
+    () => [
+      { value: 'all', label: t('All') },
+      { value: 'shift', label: t('This shift') },
+      { value: 'today', label: t('Today') },
+      { value: 'week', label: t('This week') },
+    ],
+    [t],
+  );
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader
-        back
-        title="Downtime history"
-        subtitle={`${lineName ? `${lineName.toUpperCase()} · ` : ''}${filtered.length} EVENT${filtered.length === 1 ? '' : 'S'}`}
-      />
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} />}>
-        <View style={styles.statsRow}>
-          {[
-            { l: 'TOTAL', v: summary.total, c: palette.text },
-            { l: 'PLANNED', v: summary.planned, c: palette.info },
-            { l: 'CHANGEOVER', v: summary.changeover, c: palette.warning },
-            { l: 'UNPLANNED', v: summary.unplanned, c: palette.danger },
-          ].map((s) => (
-            <View
-              key={s.l}
-              style={[styles.statTile, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <Mono size={9.5} color={palette.textFaint} letterSpacing={0.6}>{s.l}</Mono>
-              <Text style={{ color: s.c, fontFamily: MONO, fontSize: 18, fontWeight: '700', marginTop: 4 }}>
-                {s.v}
-                <Text style={{ fontSize: 11, color: palette.textFaint }}>min</Text>
-              </Text>
-            </View>
-          ))}
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Downtime')}</Text>
+        <View style={{ flex: 1 }} />
+        <View style={{ width: 150 }}>
+          <Dropdown value={filter} onChange={(v) => setFilter(v as FilterId)} options={options} />
         </View>
+      </View>
 
+      {query.isLoading && !query.data ? (
+        <LoadingState />
+      ) : query.isError && !query.data ? (
+        <ErrorState error={query.error} onRetry={query.refetch} />
+      ) : (
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ flexDirection: 'row', gap: 6 }}>
-          {FILTERS.map((f) => {
-            const active = f.id === filter;
-            return (
-              <Pressable
-                key={f.id}
-                onPress={() => setFilter(f.id)}
-                style={[
-                  styles.filter,
-                  {
-                    backgroundColor: active ? palette.surfaceInverse : palette.surface,
-                    borderColor: active ? palette.surfaceInverse : palette.border,
-                  },
-                ]}>
-                <Mono
-                  size={11}
-                  color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.text}
-                  weight="600"
-                  letterSpacing={0.5}>
-                  {f.label.toUpperCase()}
-                </Mono>
-              </Pressable>
-            );
-          })}
+          style={styles.screen}
+          contentContainerStyle={styles.tableWrap}
+          refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} tintColor={colors.accent} />}>
+          <View style={[styles.row, styles.headerRow]}>
+            <HCell flex={1.6}>{t('Reason')}</HCell>
+            <HCell w={104}>{t('Kind')}</HCell>
+            <HCell w={104}>{t('Started')}</HCell>
+            <HCell w={72}>{t('Duration')}</HCell>
+          </View>
+          {filtered.map((e) => (
+            <DowntimeRow key={e.id} event={e} />
+          ))}
+          {filtered.length === 0 ? <Text style={styles.empty}>{t('No downtime.')}</Text> : null}
         </ScrollView>
-
-        <SectionLabel>Events</SectionLabel>
-        {filtered.length === 0 ? (
-          <Card>
-            <Mono size={11} color={palette.textFaint} style={{ textAlign: 'center', padding: 14 }}>
-              NO DOWNTIME — KEEP IT UP.
-            </Mono>
-          </Card>
-        ) : (
-          <Card style={{ padding: 0, overflow: 'hidden' }}>
-            {filtered.map((e, i) => (
-              <Row
-                key={e.id}
-                e={e}
-                last={i === filtered.length - 1}
-                palette={palette}
-              />
-            ))}
-          </Card>
-        )}
-      </ScrollView>
+      )}
     </View>
   );
 }
 
-function Row({
-  e,
-  last,
-  palette,
-}: {
-  e: ProductionDowntime;
-  last: boolean;
-  palette: typeof Colors.light;
-}) {
-  const kind = e.reason?.kind ?? 'unplanned';
-  const kindMeta = kindAppearance(kind, palette);
-  const railColor = kindMeta.color;
-  const ago = (() => {
+function DowntimeRow({ event }: { event: ProductionDowntime }) {
+  const { t } = useTranslation();
+  const kind: NonNullable<DowntimeReason['kind']> = event.reason?.kind ?? 'unplanned';
+  const meta = KIND_COLOR[kind] ?? KIND_COLOR.unplanned;
+  const started = (() => {
     try {
-      return formatDistanceToNowStrict(parseISO(e.started_at), { addSuffix: true });
+      return format(parseISO(event.started_at), 'MM-dd HH:mm');
     } catch {
-      return '';
+      return '—';
     }
   })();
-  const dur = e.duration_minutes ?? Math.max(0, Math.floor((Date.now() - new Date(e.started_at).getTime()) / 60000));
+  const dur = event.duration_minutes ?? Math.max(0, Math.floor((Date.now() - new Date(event.started_at).getTime()) / 60000));
 
   return (
-    <View
-      style={[
-        styles.row,
-        {
-          borderLeftColor: railColor,
-          borderBottomColor: last ? 'transparent' : palette.border,
-          borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth,
-        },
-      ]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Text style={[styles.reasonName, { color: palette.text }]}>
-            {e.reason?.name ?? 'Unknown'}
-          </Text>
-          <View
-            style={[
-              styles.tag,
-              { backgroundColor: kindMeta.soft },
-            ]}>
-            <Mono size={9} color={kindMeta.color} weight="700" letterSpacing={0.5}>
-              {kindMeta.label}
-            </Mono>
-          </View>
+    <View style={[styles.row, styles.dataRow]}>
+      <View style={{ flex: 1.6 }}>
+        <Text numberOfLines={1} style={styles.title}>{event.reason?.name ?? t('Unknown')}</Text>
+        {event.notes ? <Text numberOfLines={1} style={styles.notes}>{event.notes}</Text> : null}
+      </View>
+      <View style={{ width: 104 }}>
+        <View style={[styles.kindPill, { backgroundColor: meta.bg }]}>
+          <Mono size={9} color={meta.fg} letterSpacing={0.5}>{t(kind.charAt(0).toUpperCase() + kind.slice(1)).toUpperCase()}</Mono>
         </View>
-        {e.notes ? (
-          <Text style={[styles.notes, { color: palette.textMuted }]} numberOfLines={2}>
-            "{e.notes}"
-          </Text>
-        ) : null}
-        <Mono size={10} color={palette.textFaint} letterSpacing={0.4} style={{ marginTop: 4 }}>
-          {ago.toUpperCase()}
-          {e.reported_by_user?.username ? ` · ${e.reported_by_user.username.toUpperCase()}` : ''}
-          {!e.ended_at ? ' · LIVE' : ''}
-        </Mono>
       </View>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Mono size={18} color={railColor} weight="700">{dur}</Mono>
-        <Mono size={9} color={palette.textFaint} letterSpacing={0.4}>MIN</Mono>
+      <View style={{ width: 104 }}>
+        <Mono size={10} color={colors.muted}>{started}</Mono>
       </View>
+      <View style={{ width: 72 }}>
+        <Mono size={11} color={colors.ink}>{dur} {t('min')}</Mono>
+      </View>
+    </View>
+  );
+}
+
+function HCell({ children, w, flex }: { children: React.ReactNode; w?: number; flex?: number }) {
+  return (
+    <View style={{ width: w, flex }}>
+      <Mono size={9} color={colors.faint} letterSpacing={0.6}>{String(children).toUpperCase()}</Mono>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 16, gap: 14, paddingBottom: 32 },
-  statsRow: { flexDirection: 'row', gap: 8 },
-  statTile: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 1 },
-  filter: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  row: {
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    borderLeftWidth: 3,
-  },
-  reasonName: { fontSize: 13, fontWeight: '600' },
-  tag: { paddingVertical: 2, paddingHorizontal: 5, borderRadius: 3 },
-  notes: { fontSize: 12, fontStyle: 'italic', marginTop: 4 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  tableWrap: { paddingHorizontal: 14, paddingBottom: 24 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
+  headerRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
+  dataRow: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
+  title: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  notes: { fontSize: 11.5, color: colors.muted, fontFamily: fonts.sans.native.regular, marginTop: 2 },
+  kindPill: { alignSelf: 'flex-start', paddingVertical: 3, paddingHorizontal: 7, borderRadius: 4 },
+  empty: { fontSize: 13, color: colors.faint, fontFamily: fonts.sans.native.regular, padding: 16 },
 });
-
-/** Per-kind row appearance. Planned = blue (informational, no OEE loss);
- *  changeover = amber (counts as availability loss but expected); unplanned =
- *  red (true loss). Mirrors backend `DowntimeKind::badgeColor`. */
-function kindAppearance(
-  kind: NonNullable<DowntimeReason['kind']>,
-  palette: typeof Colors.light,
-): { color: string; soft: string; label: string } {
-  if (kind === 'planned') {
-    return { color: palette.info, soft: palette.infoSoft, label: 'PLANNED' };
-  }
-  if (kind === 'changeover') {
-    return { color: palette.warning, soft: palette.warningSoft, label: 'CHANGEOVER' };
-  }
-  return { color: palette.danger, soft: palette.dangerSoft, label: 'UNPLANNED' };
-}

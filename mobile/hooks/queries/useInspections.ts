@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import * as insp from '@/api/inspections';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
 
 const inv = (qc: ReturnType<typeof useQueryClient>, key: string) =>
   qc.invalidateQueries({ queryKey: [key] });
@@ -9,38 +8,19 @@ const inv = (qc: ReturnType<typeof useQueryClient>, key: string) =>
 // ── Inspection plans ────────────────────────────────────────────────────────
 
 /**
- * Live inspection plans via Electric (migrated from REST `listInspectionPlans`).
- * Filters are applied client-side over the synced row set.
- *
- * Fidelity note: the `inspection_plans` shape does NOT include `criteria`
- * (stored as JSON in the DB but not exposed in the shape columns). The
- * `material` and `materialType` relation objects are also absent. Use
- * `useInspectionPlan(id)` (REST) when criteria or relation data is required.
+ * Inspection plans via REST `listInspectionPlans`.
+ * The server applies material_id / material_type_id / active filters and
+ * returns the criteria JSON plus material/materialType relations.
  */
 export function useInspectionPlans(opts: insp.InspectionPlanFilters = {}) {
-  const { material_id, material_type_id, active } = opts;
-
-  return useElectricShape<Row, insp.InspectionPlan[]>('inspection_plans', {
-    select: (rows) => {
-      let out = rows as unknown as insp.InspectionPlan[];
-
-      if (material_id !== undefined) {
-        out = out.filter((r) => r.material_id === material_id);
-      }
-      if (material_type_id !== undefined) {
-        out = out.filter((r) => r.material_type_id === material_type_id);
-      }
-      if (active !== undefined) {
-        out = out.filter((r) => r.is_active === active);
-      }
-
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['inspection-plans', opts],
+    queryFn: () => insp.listInspectionPlans(opts),
   });
 }
 
 /** REST: detail-by-id — includes criteria JSON and relation fields not
- *  present in the Electric shape. */
+ *  present in the list response. */
 export function useInspectionPlan(id: number | undefined) {
   return useQuery({
     queryKey: ['inspection-plan', id],
@@ -82,7 +62,7 @@ export function useDeleteInspectionPlan() {
 // There is no `inspections` shape — inspection records are runtime/transactional.
 // All inspection hooks remain on REST.
 
-/** REST: list inspections — no Electric shape for runtime inspection records. */
+/** REST: list inspections — the list endpoint returns runtime inspection records. */
 export function useInspections(opts: insp.InspectionFilters = {}) {
   return useQuery({
     queryKey: ['inspections', opts],

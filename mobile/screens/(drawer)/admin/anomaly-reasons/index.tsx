@@ -1,123 +1,90 @@
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
-
-import { ListItem } from '@/components/ui/ListItem';
-import { ListScreen } from '@/components/ui/ListScreen';
-import { Mono } from '@/components/ui/Mono';
-import { SearchBar } from '@/components/ui/SearchBar';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useAnomalyReasons } from '@/hooks/queries/useOps';
-
-type SevFilter = 'all' | 'minor' | 'major' | 'scrap' | 'inactive';
-
-const SEV_COLORS: Record<string, string> = {
-  minor: BRAND.amber,
-  major: '#D6442F',
-  scrap: '#7c3aed',
-  cosmetic: '#9B9892',
-};
-
 /**
- * Catalog list screen — anomaly reasons is the visual template the design
- * specifies for all catalog entities (cost-sources, companies,
- * subassemblies, lot-sequences also follow this layout).
- *
- * Pattern: search bar + filter chips with counts + card with colored-icon
- * rows + inline severity badge + dim/OFF for inactive entries.
+ * Anomaly Reasons — 1:1 with the web admin/anomaly-reasons table
+ * (Pages/admin/anomaly-reasons/Index.jsx): the shared DataTable with the web's
+ * column set (Code / Name / Category / Status) and per-row actions (Edit /
+ * Delete). The web toggle-active and "Used" count have no mobile REST
+ * counterpart, so they're omitted. Data via REST useAnomalyReasons.
  */
+import { useRouter } from 'expo-router';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+
+import { colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
+import { Button } from '@/components/ui/Button';
+import { Mono } from '@/components/ui/Mono';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { useAnomalyReasons, useDeleteAnomalyReason } from '@/hooks/queries/useOps';
+import type { AnomalyReason } from '@/api/ops';
+
 export function AnomalyReasonsList() {
-  const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<SevFilter>('all');
-  const [search, setSearch] = useState('');
+  const router = useRouter();
 
-  // Always include inactive — the "Inactive" filter chip toggles visibility
-  // rather than refetching, so we have everything in hand for counts.
   const query = useAnomalyReasons({ include_inactive: true });
-  const all = query.data ?? [];
+  const del = useDeleteAnomalyReason();
+  const rows = query.data ?? [];
 
-  const counts = useMemo(() => {
-    const c = { all: all.length, minor: 0, major: 0, scrap: 0, inactive: 0 };
-    for (const r of all) {
-      const sev = (r.category ?? '').toLowerCase();
-      if (!r.is_active) c.inactive++;
-      if (sev === 'minor') c.minor++;
-      else if (sev === 'major') c.major++;
-      else if (sev === 'scrap') c.scrap++;
-    }
-    return c;
-  }, [all]);
+  const onDelete = (r: AnomalyReason) =>
+    Alert.alert(t('Delete anomaly reason'), t('Delete "{{name}}"?', { name: r.name }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () => del.mutate(r.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return all.filter((r) => {
-      const sev = (r.category ?? '').toLowerCase();
-      if (filter === 'inactive' && r.is_active) return false;
-      if (filter !== 'all' && filter !== 'inactive' && sev !== filter) return false;
-      if (q && !`${r.code} ${r.name}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [all, filter, search]);
+  if (query.isLoading && !query.data) return <LoadingState />;
+  if (query.isError && !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
 
   return (
-    <ListScreen
-      title={t('Anomaly reasons')}
-      eyebrow={`${t('ADMIN').toUpperCase()} · ${t('CATALOG').toUpperCase()} · ${all.length} ${t('ENTRIES').toUpperCase()}`}
-      newRoute="/admin/anomaly-reasons/new"
-      filters={[
-        { id: 'all', label: t('All'), count: counts.all },
-        { id: 'minor', label: t('Minor'), count: counts.minor },
-        { id: 'major', label: t('Major'), count: counts.major },
-        { id: 'scrap', label: t('Scrap'), count: counts.scrap },
-        { id: 'inactive', label: t('Inactive'), count: counts.inactive },
-      ]}
-      activeFilter={filter}
-      onFilterChange={(id) => setFilter(id as SevFilter)}
-      extraHeader={
-        <View style={{ gap: 10 }}>
-          <SearchBar
-            placeholder="Search by code or name"
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
-      }
-      items={filtered}
-      keyExtractor={(r) => String(r.id)}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      error={query.error}
-      isFetching={query.isFetching}
-      onRefresh={query.refetch}
-      emptyTitle={t('No anomaly reasons')}
-      renderItem={(item) => {
-        const sev = (item.category ?? 'minor').toLowerCase();
-        const sevColor = SEV_COLORS[sev] ?? palette.textMuted;
-        return (
-          <ListItem
-            icon="flag"
-            iconColor={sevColor}
-            title={item.name}
-            inlineBadge={item.category ? { label: item.category, color: sevColor } : undefined}
-            subtitle={item.code}
-            disabled={!item.is_active}
-            trailing={
-              !item.is_active ? (
-                <Mono size={9} color={palette.textFaint} weight="700" letterSpacing={0.5}>
-                  {t('OFF').toUpperCase()}
-                </Mono>
-              ) : undefined
-            }
-            onPress={() => router.push(`/admin/anomaly-reasons/${item.id}` as never)}
-            chevron={false}
-          />
-        );
-      }}
-    />
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} tintColor={colors.accent} />}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Anomaly Reasons')}</Text>
+        <View style={{ flex: 1 }} />
+        <Button title={t('+ New Reason')} size="sm" onPress={() => router.push('/admin/anomaly-reasons/new' as never)} />
+      </View>
+
+      <DataTable<AnomalyReason>
+        data={rows as AnomalyReason[]}
+        searchPlaceholder={t('Search…')}
+        columnsLabel={t('Columns')}
+        columnsMenuLabel={t('Toggle columns')}
+        searchKeys={['code', 'name']}
+        emptyText={t('No anomaly reasons yet.')}
+        onRowPress={(r) => router.push(`/admin/anomaly-reasons/${r.id}` as never)}
+        columns={[
+          { key: 'code', label: t('Code'), width: 96, render: (r) => <Mono size={11} color={colors.muted}>{r.code}</Mono> },
+          { key: 'name', label: t('Name'), flex: 1.4, render: (r) => <Text numberOfLines={1} style={styles.name}>{r.name}</Text> },
+          { key: 'category', label: t('Category'), flex: 1, render: (r) => r.category ?? '—' },
+          {
+            key: 'is_active',
+            label: t('Status'),
+            width: 90,
+            render: (r) => (
+              <StatusPill status={r.is_active === false ? 'CANCELLED' : 'IN_PROGRESS'} label={r.is_active === false ? t('Inactive') : t('Active')} />
+            ),
+          },
+        ]}
+        actions={(r) => [
+          { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/admin/anomaly-reasons/${r.id}` as never) },
+          { label: t('Delete'), icon: 'delete', onPress: () => onDelete(r) },
+        ]}
+      />
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, paddingBottom: 32 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
+});

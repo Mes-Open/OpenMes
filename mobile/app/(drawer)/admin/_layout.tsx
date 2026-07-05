@@ -20,7 +20,7 @@ export default function AdminLayout() {
   if (!user) return null;
   const role = getRole(user);
   if (role !== "Admin") {
-    return <Redirect href={role === "Supervisor" ? "/supervisor" : "/operator"} />;
+    return <Redirect href={role === "Supervisor" ? "/supervisor" : "/orders/work-orders"} />;
   }
 
   return (
@@ -55,6 +55,12 @@ export default function AdminLayout() {
         options={{ title: "Anomaly reasons" }}
       />
       <Stack.Screen
+        name="scrap-reasons/index"
+        options={{ title: "Scrap reasons" }}
+      />
+      <Stack.Screen name="scrap-reasons/new" options={{ headerShown: false, title: "New scrap reason" }} />
+      <Stack.Screen name="scrap-reasons/[id]" options={{ headerShown: false, title: "Edit scrap reason" }} />
+      <Stack.Screen
         name="subassemblies/index"
         options={{ title: "Subassemblies" }}
       />
@@ -71,33 +77,32 @@ export default function AdminLayout() {
         options={{ title: "Alerts dashboard" }}
       />
       <Stack.Screen name="oee/index" />
-      <Stack.Screen name="subiekt/index" />
       <Stack.Screen name="materials/index" options={{ title: "Materials" }} />
-      <Stack.Screen name="wall/index" options={{ title: "Plant Wall" }} />
+      <Stack.Screen name="materials/new" options={{ headerShown: false, title: "New material" }} />
+      <Stack.Screen name="materials/[id]/index" options={{ headerShown: false, title: "Material" }} />
+      <Stack.Screen name="materials/[id]/edit" options={{ headerShown: false, title: "Edit material" }} />
+      <Stack.Screen name="line-statuses/index" options={{ title: "Line statuses" }} />
+      <Stack.Screen name="schedule-capacity/index" options={{ title: "Capacity" }} />
+      <Stack.Screen name="pallets/index" options={{ title: "Pallets" }} />
+      <Stack.Screen name="integrations/index" options={{ title: "Integrations" }} />
+      <Stack.Screen name="custom-fields/index" options={{ title: "Custom fields" }} />
+      <Stack.Screen name="qc-triggers/index" options={{ title: "QC triggers" }} />
+      <Stack.Screen name="webhooks/new" options={{ headerShown: false, title: "New webhook" }} />
+      <Stack.Screen name="webhooks/[id]/edit" options={{ headerShown: false, title: "Edit webhook" }} />
+      <Stack.Screen name="integrations/new" options={{ headerShown: false, title: "New integration" }} />
+      <Stack.Screen name="integrations/[id]/edit" options={{ headerShown: false, title: "Edit integration" }} />
+      <Stack.Screen name="custom-fields/new" options={{ headerShown: false, title: "New custom field" }} />
+      <Stack.Screen name="custom-fields/[id]/edit" options={{ headerShown: false, title: "Edit custom field" }} />
+      <Stack.Screen name="qc-triggers/new" options={{ headerShown: false, title: "New QC trigger" }} />
+      <Stack.Screen name="qc-triggers/[id]/edit" options={{ headerShown: false, title: "Edit QC trigger" }} />
+      <Stack.Screen name="pallets/new" options={{ headerShown: false, title: "New pallet" }} />
+      <Stack.Screen name="pallets/[id]/edit" options={{ headerShown: false, title: "Edit pallet" }} />
+      <Stack.Screen name="view-templates/new" options={{ headerShown: false, title: "New view template" }} />
+      <Stack.Screen name="view-templates/[id]/edit" options={{ headerShown: false, title: "Edit view template" }} />
       <Stack.Screen name="dashboard/index" options={{ title: "Dashboard" }} />
       <Stack.Screen name="orders/index" options={{ title: "Orders" }} />
       <Stack.Screen name="work-orders/[id]" options={{ title: "Work order" }} />
       <Stack.Screen name="schedule/index" options={{ title: "Schedule" }} />
-      <Stack.Screen
-        name="catalog-admin/index"
-        options={{ title: "Catalog admin" }}
-      />
-      <Stack.Screen
-        name="connectivity-admin/index"
-        options={{ title: "Connectivity admin" }}
-      />
-      <Stack.Screen
-        name="hr-command/index"
-        options={{ title: "HR command" }}
-      />
-      <Stack.Screen
-        name="quality-command/index"
-        options={{ title: "Quality command" }}
-      />
-      <Stack.Screen
-        name="maintenance-command/index"
-        options={{ title: "Maintenance command" }}
-      />
       <Stack.Screen
         name="lot-genealogy/index"
         options={{ title: "Lot genealogy" }}
@@ -106,6 +111,8 @@ export default function AdminLayout() {
         name="issue-types/index"
         options={{ title: "Issue types" }}
       />
+      <Stack.Screen name="issue-types/new" options={{ headerShown: false, title: "New issue type" }} />
+      <Stack.Screen name="issue-types/[id]" options={{ headerShown: false, title: "Edit issue type" }} />
       <Stack.Screen
         name="connectivity-mappings/index"
         options={{ title: "Topic mappings" }}

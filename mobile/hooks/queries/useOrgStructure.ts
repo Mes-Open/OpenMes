@@ -9,6 +9,10 @@ import {
   deleteLineStatus,
   getDivision,
   getFactory,
+  listFactories,
+  listAllDivisions,
+  listFactoryDivisions,
+  listGlobalLineStatuses,
   listLineStatuses,
   reorderLineStatuses,
   toggleDivisionActive,
@@ -19,27 +23,20 @@ import {
   type Division,
   type Factory,
 } from '@/api/orgStructure';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
 
 const inv = (qc: ReturnType<typeof useQueryClient>, key: string) => qc.invalidateQueries({ queryKey: [key] });
 
 // ── Factories ────────────────────────────────────────────────────────────────
 
 /**
- * Live factories list via Electric (migrated from REST `listFactories`).
- * Uses `factories` shape (all factories).
- * `include_inactive` filter applied client-side.
- *
- * Shape fidelity note: `factories` shape carries raw table columns only —
- * the REST-computed `divisions_count` is not present in the shape rows.
+ * Factories list via REST `listFactories`.
+ * `include_inactive` is pushed to the backend; results sorted by name.
  */
 export function useFactories(includeInactive = false) {
-  return useElectricShape<Row, Factory[]>('factories', {
-    select: (rows) => {
-      let out = rows as unknown as Factory[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['factories', includeInactive],
+    queryFn: () => listFactories(includeInactive),
+    select: (rows) => [...rows].sort((a, b) => a.name.localeCompare(b.name)),
   });
 }
 
@@ -76,23 +73,16 @@ export function useToggleFactoryActive() {
 // ── Divisions ────────────────────────────────────────────────────────────────
 
 /**
- * Live divisions for a factory via Electric (migrated from REST
- * `listFactoryDivisions`). Uses `divisions` shape (all divisions, all
- * factories) and filters by `factory_id` + `include_inactive` client-side.
- *
- * Shape fidelity note: `divisions` shape carries raw table columns only —
- * the REST-computed `lines_count` is not present in the shape rows.
+ * Divisions for a factory via REST `listFactoryDivisions`.
+ * `factory_id` (route) and `include_inactive` are handled by the backend;
+ * results sorted by name.
  */
 export function useFactoryDivisions(factoryId: number | undefined, includeInactive = false) {
-  return useElectricShape<Row, Division[]>('divisions', {
+  return useQuery({
+    queryKey: ['factory', factoryId, 'divisions', includeInactive],
+    queryFn: () => listFactoryDivisions(factoryId as number, includeInactive),
     enabled: typeof factoryId === 'number' && Number.isFinite(factoryId),
-    select: (rows) => {
-      let out = (rows as unknown as Division[]).filter(
-        (r) => Number(r.factory_id) === (factoryId as number),
-      );
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+    select: (rows) => [...rows].sort((a, b) => a.name.localeCompare(b.name)),
   });
 }
 
@@ -110,7 +100,10 @@ export function useCreateDivision() {
   return useMutation({
     mutationFn: (vars: { factoryId: number; payload: { code: string; name: string; description?: string; is_active?: boolean } }) =>
       createDivision(vars.factoryId, vars.payload),
-    onSuccess: (_d, vars) => qc.invalidateQueries({ queryKey: ['factory', vars.factoryId, 'divisions'] }),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['factory', vars.factoryId, 'divisions'] });
+      qc.invalidateQueries({ queryKey: ['divisions'] });
+    },
   });
 }
 export function useUpdateDivision() {
@@ -123,16 +116,36 @@ export function useUpdateDivision() {
 }
 export function useDeleteDivision() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: deleteDivision, onSuccess: () => inv(qc, 'factory') });
+  return useMutation({
+    mutationFn: deleteDivision,
+    onSuccess: () => {
+      inv(qc, 'factory');
+      inv(qc, 'divisions');
+    },
+  });
 }
 export function useToggleDivisionActive() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: toggleDivisionActive, onSuccess: () => inv(qc, 'factory') });
+  return useMutation({
+    mutationFn: toggleDivisionActive,
+    onSuccess: () => {
+      inv(qc, 'factory');
+      inv(qc, 'divisions');
+    },
+  });
 }
 
 // ── Line Statuses ─────────────────────────────────────────────────────────────
 // `line_statuses_global` shape only contains rows where line_id IS NULL
 // (global/template statuses). Per-line statuses must remain on REST.
+
+/** Global line-status catalog (line_id = null) — the admin Line Statuses page. */
+export function useGlobalLineStatuses() {
+  return useQuery({
+    queryKey: ['line-statuses', 'global'],
+    queryFn: listGlobalLineStatuses,
+  });
+}
 
 export function useLineStatuses(lineId: number | undefined) {
   return useQuery({
@@ -166,5 +179,13 @@ export function useReorderLineStatuses() {
   return useMutation({
     mutationFn: (vars: { lineId: number; statusIds: number[] }) => reorderLineStatuses(vars.lineId, vars.statusIds),
     onSuccess: () => inv(qc, 'line'),
+  });
+}
+
+
+export function useAllDivisions(includeInactive = false) {
+  return useQuery({
+    queryKey: ['divisions', 'all', includeInactive],
+    queryFn: () => listAllDivisions(includeInactive),
   });
 }

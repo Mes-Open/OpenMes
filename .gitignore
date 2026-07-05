@@ -82,3 +82,5 @@ cloudflared.deb
 # (Packaging was promoted to core; remaining modules ship via private repos)
 modules/*
 !modules/README.md
+
+.playwright-mcp

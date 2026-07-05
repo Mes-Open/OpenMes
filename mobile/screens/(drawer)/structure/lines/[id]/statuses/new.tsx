@@ -1,19 +1,21 @@
+/**
+ * New line status — adds a line-specific Kanban column (name, color, default /
+ * done flags), mirroring the "add status" form on the web line Show page.
+ * Writes via REST useCreateLineStatus.
+ */
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { ActiveToggleCard } from '@/components/ui/ActiveToggleCard';
+import { colors, fonts, radius } from '@openmes/ui';
+
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { DetailScreen } from '@/components/ui/Detail';
 import { Field } from '@/components/ui/Field';
-import { Mono, SectionLabel } from '@/components/ui/Mono';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { Mono } from '@/components/ui/Mono';
+import { Switch } from '@/components/ui/Switch';
 import { useCreateLineStatus } from '@/hooks/queries/useOrgStructure';
-import type { Control } from 'react-hook-form';
 
 const PRESETS = [
   { name: 'Slate', value: '#64748b' },
@@ -25,12 +27,10 @@ const PRESETS = [
 ];
 
 export function NewLineStatusScreen() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const lineId = Number(id);
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-  const { t } = useTranslation();
 
   const [name, setName] = useState('');
   const [color, setColor] = useState(PRESETS[0].value);
@@ -39,120 +39,83 @@ export function NewLineStatusScreen() {
 
   const m = useCreateLineStatus();
 
-  const valid = name.trim();
+  const errors = useMemo(() => {
+    const e: Record<string, string> = {};
+    if (!name.trim()) e.name = 'Required';
+    return e;
+  }, [name]);
+
+  const onSave = () => {
+    if (Object.keys(errors).length > 0) return;
+    m.mutate(
+      {
+        lineId,
+        payload: { name: name.trim(), color, is_default: isDefault, is_done_status: isDoneStatus },
+      },
+      {
+        onSuccess: () => router.back(),
+        onError: (e: Error) => Alert.alert(t('Could not create'), e.message),
+      },
+    );
+  };
 
   return (
-    <DetailScreen>
-      <Card style={{ gap: 12 }}>
-        <SectionLabel>Status</SectionLabel>
-        <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. In setup, On hold" />
-        <View style={{ gap: 8 }}>
-          <Mono size={10} color={palette.textFaint} letterSpacing={0.8}>{t('COLOR').toUpperCase()}</Mono>
-          <View style={styles.colorRow}>
-            {PRESETS.map((p) => {
-              const active = p.value === color;
-              return (
-                <Pressable
-                  key={p.value}
-                  onPress={() => setColor(p.value)}
-                  style={[
-                    styles.swatch,
-                    {
-                      backgroundColor: p.value,
-                      borderColor: active ? palette.text : 'transparent',
-                    },
-                  ]}>
-                  {active ? <FontAwesome name="check" size={12} color="#fff" /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-          <Field
-            label="Custom color (hex)"
-            value={color}
-            onChangeText={setColor}
-            autoCapitalize="characters"
-          />
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.h1}>{t('New status')}</Text>
+
+      <Field label="Name" value={name} onChangeText={setName} error={errors.name} required placeholder="e.g. Waiting for parts" />
+
+      <View style={{ gap: 8 }}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Color').toUpperCase()} *</Mono>
+        <View style={styles.colorRow}>
+          {PRESETS.map((p) => {
+            const active = p.value === color;
+            return (
+              <Pressable
+                key={p.value}
+                onPress={() => setColor(p.value)}
+                style={[styles.swatch, { backgroundColor: p.value, borderColor: active ? colors.ink : 'transparent' }]}>
+                {active ? <FontAwesome name="check" size={12} color="#fff" /> : null}
+              </Pressable>
+            );
+          })}
         </View>
-      </Card>
+      </View>
 
-      <SimpleSwitchCard
-        title="Default status"
-        description="NEW WORK ORDERS START HERE"
-        value={isDefault}
-        onChange={setIsDefault}
-      />
-      <SimpleSwitchCard
-        title="Done status"
-        description="MARKS THE ORDER AS EFFECTIVELY COMPLETE"
-        value={isDoneStatus}
-        onChange={setIsDoneStatus}
-      />
+      <Field label="Custom color (hex)" value={color} onChangeText={setColor} autoCapitalize="characters" mono />
 
-      <Button
-        title="Create status"
-        size="lg"
-        loading={m.isPending}
-        disabled={!valid}
-        onPress={() =>
-          m.mutate(
-            {
-              lineId,
-              payload: { name: name.trim(), color, is_default: isDefault, is_done_status: isDoneStatus },
-            },
-            {
-              onSuccess: () => router.back(),
-              onError: (e: Error) => Alert.alert('Could not create', e.message),
-            },
-          )
-        }
-      />
-    </DetailScreen>
-  );
-}
-
-import { Text } from 'react-native';
-import { Switch } from '@/components/ui/Switch';
-
-function SimpleSwitchCard({
-  title,
-  description,
-  value,
-  onChange,
-}: {
-  title: string;
-  description: string;
-  value: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-  const { t } = useTranslation();
-  return (
-    <Card>
       <View style={styles.toggleRow}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.toggleTitle, { color: palette.text }]}>{t(title)}</Text>
-          <Mono size={11} color={palette.textFaint} style={{ marginTop: 3 }}>
-            {t(description).toUpperCase()}
-          </Mono>
+          <Text style={styles.toggleTitle}>{t('Default status')}</Text>
+          <Mono size={9} color={colors.faint}>{t('New work orders start here').toUpperCase()}</Mono>
         </View>
-        <Switch value={value} onValueChange={onChange} />
+        <Switch value={isDefault} onValueChange={setIsDefault} />
       </View>
-    </Card>
+
+      <View style={styles.toggleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.toggleTitle}>{t('Done status')}</Text>
+          <Mono size={9} color={colors.faint}>{t('Marks the order as effectively complete').toUpperCase()}</Mono>
+        </View>
+        <Switch value={isDoneStatus} onValueChange={setIsDoneStatus} />
+      </View>
+
+      <View style={styles.actions}>
+        <Button title={t('Cancel')} variant="ghost" onPress={() => router.back()} />
+        <View style={{ flex: 1 }} />
+        <Button title={t('Save')} onPress={onSave} loading={m.isPending} disabled={m.isPending} />
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
   colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  swatch: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  toggleTitle: { fontSize: 14, fontWeight: '600', letterSpacing: -0.2 },
+  swatch: { width: 40, height: 40, borderRadius: 10, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 14 },
+  toggleTitle: { fontSize: 14, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
 });

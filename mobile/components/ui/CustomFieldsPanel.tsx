@@ -1,5 +1,8 @@
 // Light-only v1: no theming here — formatting logic only; all visuals delegate to StatPanel.
+import { useTranslation } from 'react-i18next';
+
 import { StatPanel } from '@/components/ui/Detail';
+import i18n from '@/lib/i18n';
 import type { CustomFieldDefinition, CustomFieldValues } from '@/types/api';
 
 interface Props {
@@ -14,6 +17,7 @@ interface Props {
  * labels match. Renders nothing when no values are set.
  */
 export function CustomFieldsPanel({ definitions, values, title = 'Custom fields' }: Props) {
+  const { t } = useTranslation();
   if (!values) return null;
 
   const items = definitions
@@ -25,13 +29,13 @@ export function CustomFieldsPanel({ definitions, values, title = 'Custom fields'
 
   if (items.length === 0) return null;
 
-  return <StatPanel title={title} items={items} />;
+  return <StatPanel title={t(title)} items={items} />;
 }
 
 function formatValue(def: CustomFieldDefinition, value: unknown): string {
   const options = def.config?.options ?? [];
 
-  if (def.type === 'boolean') return value ? 'Yes' : 'No';
+  if (def.type === 'boolean') return value ? i18n.t('Yes') : i18n.t('No');
 
   if (def.type === 'multiselect') {
     const set = Array.isArray(value) ? (value as unknown[]) : [];

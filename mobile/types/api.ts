@@ -53,6 +53,8 @@ export interface Line {
   description?: string | null;
   division_id?: number | null;
   is_active?: boolean;
+  area_id?: number | null;
+  area?: { id: number; name: string } | null;
   workstations_count?: number;
   work_orders_count?: number;
   users_count?: number;
@@ -82,6 +84,8 @@ export interface User {
   role?: Role | string;
   roles?: UserRole[];
   lines?: Line[];
+  /** Admin-panel tab keys this user may reach — drives sidebar filtering, mirrors the web. */
+  accessible_tabs?: string[] | null;
 }
 
 export interface LoginResponse {
@@ -104,8 +108,13 @@ export interface WorkOrder {
   produced_qty?: number;
   priority?: number | string | null;
   due_date?: string | null;
+  completed_at?: string | null;
   line_id?: number | null;
   line?: Line | null;
+  /** Operator board status (Queue view). Serialized on the model; the relation
+   *  object is not eager-loaded by the list endpoint, so the id is resolved
+   *  against useLineStatuses(lineId) client-side. */
+  line_status_id?: number | null;
   product_type_id?: number | null;
   product_type?: ProductType | null;
   notes?: string | null;
@@ -136,6 +145,7 @@ export interface BatchStep {
 export interface Batch {
   id: number;
   work_order_id: number;
+  batch_number?: number | null;
   status: BatchStatus;
   target_qty: number;
   produced_qty?: number;
@@ -148,10 +158,15 @@ export interface Batch {
   work_order?: WorkOrder;
 }
 
+export type IssueSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
 export interface IssueType {
   id: number;
+  code?: string;
   name: string;
+  severity?: IssueSeverity;
   is_blocking?: boolean;
+  is_active?: boolean;
   description?: string | null;
 }
 

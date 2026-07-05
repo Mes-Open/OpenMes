@@ -1,39 +1,46 @@
-import { FontAwesome } from '@expo/vector-icons';
+/**
+ * Packaging EANs — 1:1 with the web packaging EAN table
+ * (Pages/packaging/eans/Index.jsx): the shared DataTable with the web's column
+ * set (Order / Product / Status / EAN / Packed-Plan) and a per-row delete action.
+ * Rows show the barcode bound to a work order plus its packing progress (joined
+ * client-side from the packaging items). "New EAN" opens the bind form. A filter
+ * narrows to active/closed. Keeps the existing EAN-per-row hooks.
+ */
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/Card';
-import { ListScreen } from '@/components/ui/ListScreen';
+import { Dropdown, colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
+import { Button } from '@/components/ui/Button';
 import { Mono } from '@/components/ui/Mono';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import {
-  useDeleteEan,
-  useEans,
-  usePackagingItems,
-  usePackagingStats,
-} from '@/hooks/queries/usePackaging';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { useDeleteEan, useEans, usePackagingItems } from '@/hooks/queries/usePackaging';
 import type { WorkOrderEan } from '@/api/packaging';
 
 type FilterId = 'all' | 'active' | 'closed';
 
+type Progress = { packed: number; target: number; done: boolean };
+
+const progressStatus = (p?: Progress): string =>
+  p?.done ? 'DONE' : p && p.packed > 0 ? 'IN_PROGRESS' : 'PENDING';
+
 export function EansList() {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+  const { t } = useTranslation();
+  const router = useRouter();
   const [filter, setFilter] = useState<FilterId>('all');
 
   const query = useEans({});
-  const stats = usePackagingStats();
   const items = usePackagingItems();
   const deleteMutation = useDeleteEan();
 
-  // Build a map of WO id → packed/target (planned) for the per-EAN bar.
-  // Backend doesn't expose this on the EAN endpoint, so we join client-side.
+  // WO id → packed/target/done, for the per-EAN progress + status columns.
   const woProgress = useMemo(() => {
-    const map = new Map<number, { packed: number; target: number; done: boolean }>();
-    (items.data ?? []).forEach((it) => {
-      map.set(it.id, { packed: it.packed_qty, target: it.planned_qty, done: it.done });
-    });
+    const map = new Map<number, Progress>();
+    (items.data ?? []).forEach((it) => map.set(it.id, { packed: it.packed_qty, target: it.planned_qty, done: it.done }));
     return map;
   }, [items.data]);
 
@@ -47,229 +54,110 @@ export function EansList() {
     });
   }, [filter, all, woProgress]);
 
-  const onDelete = (id: number, ean: string) =>
-    Alert.alert('Delete EAN', `Remove "${ean}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+  const options = useMemo(
+    () => [
+      { value: 'all', label: t('All') },
+      { value: 'active', label: t('Active') },
+      { value: 'closed', label: t('Closed') },
+    ],
+    [t],
+  );
+
+  const onDelete = (e: WorkOrderEan) =>
+    Alert.alert(t('Delete EAN'), t('Remove "{{ean}}"?', { ean: e.ean }), [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('Delete'),
         style: 'destructive',
-        onPress: () =>
-          deleteMutation.mutate(id, {
-            onError: (e: Error) => Alert.alert('Could not delete', e.message),
-          }),
+        onPress: () => deleteMutation.mutate(e.id, { onError: (err: Error) => Alert.alert(t('Could not delete'), err.message) }),
       },
     ]);
 
-  // Stats for the dark hero card. Backend gives `today_packed` + `total_packed`.
-  // Active EAN count comes from the unfiltered EAN list.
-  const today = stats.data?.today_packed ?? 0;
-  const totalPacked = stats.data?.total_packed ?? 0;
-  const activeEans = all.length;
-
   return (
-    <ListScreen
-      title="Packaging EANs"
-      eyebrow={`PAKOWANIE · ${all.length} EAN${all.length === 1 ? '' : 'S'}`}
-      newRoute="/pakowanie/eans/new"
-      extraHeader={
-        <View style={{ gap: 14 }}>
-          <View style={styles.statsCard}>
-            <StatCol label="PACKED TODAY" value={fmtNum(today)} sub="↑ TODAY" />
-            <View style={styles.divider} />
-            <StatCol
-              label="TOTAL PACKED"
-              value={fmtNum(totalPacked)}
-              sub={stats.data?.shift_start ? 'SINCE SHIFT START' : ''}
-            />
-            <View style={styles.divider} />
-            <StatCol
-              label="ACTIVE EAN"
-              value={String(activeEans)}
-              sub={items.data ? `ON ${countLines(items.data)} LINES` : ''}
-            />
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ flexDirection: 'row', gap: 6 }}>
-            {(
-              [
-                { id: 'all', label: 'All' },
-                { id: 'active', label: 'Active' },
-                { id: 'closed', label: 'Closed' },
-              ] as { id: FilterId; label: string }[]
-            ).map((f) => {
-              const active = f.id === filter;
-              return (
-                <Pressable
-                  key={f.id}
-                  onPress={() => setFilter(f.id)}
-                  style={[
-                    styles.filter,
-                    {
-                      backgroundColor: active ? palette.surfaceInverse : palette.surface,
-                      borderColor: active ? palette.surfaceInverse : palette.border,
-                    },
-                  ]}>
-                  <Mono
-                    size={11}
-                    color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.text}
-                    weight="600"
-                    letterSpacing={0.4}>
-                    {f.label.toUpperCase()}
-                  </Mono>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Packaging EANs')}</Text>
+        <View style={{ flex: 1 }} />
+        <View style={{ width: 130 }}>
+          <Dropdown value={filter} onChange={(v) => setFilter(v as FilterId)} options={options} />
         </View>
-      }
-      items={filtered}
-      keyExtractor={(e) => String(e.id)}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      error={query.error}
-      isFetching={query.isFetching}
-      onRefresh={query.refetch}
-      emptyTitle="No EANs"
-      emptySubtitle="Tap + to bind one to a work order."
-      renderItem={(item) => (
-        <EanCard
-          item={item}
-          progress={item.work_order_id ? woProgress.get(item.work_order_id) : null}
-          onDelete={() => onDelete(item.id, item.ean)}
-        />
-      )}
-    />
-  );
-}
+        <Button title={t('New EAN')} size="sm" onPress={() => router.push('/pakowanie/eans/new' as never)} />
+      </View>
 
-function StatCol({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <View style={{ flex: 1, paddingHorizontal: 4 }}>
-      <Mono size={9.5} color="#6F6C66" letterSpacing={0.7}>{label}</Mono>
-      <Text style={styles.statValue}>{value}</Text>
-      {sub ? (
-        <Mono size={9.5} color="#7a7a82" letterSpacing={0.4} style={{ marginTop: 3 }}>
-          {sub}
-        </Mono>
-      ) : null}
+      {query.isLoading && !query.data ? (
+        <LoadingState />
+      ) : query.isError && !query.data ? (
+        <ErrorState error={query.error} onRetry={query.refetch} />
+      ) : (
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={styles.tableWrap}
+          refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} tintColor={colors.accent} />}>
+          <DataTable<WorkOrderEan>
+            data={filtered}
+            searchPlaceholder={t('Search…')}
+            columnsLabel={t('Columns')}
+            columnsMenuLabel={t('Toggle columns')}
+            searchKeys={['ean']}
+            emptyText={t('No EANs.')}
+            columns={[
+              {
+                key: 'order',
+                label: t('Order'),
+                width: 100,
+                render: (e) =>
+                  e.work_order?.order_no ? (
+                    <Mono size={11} color={colors.accent}>{e.work_order.order_no}</Mono>
+                  ) : (
+                    <Text style={styles.dash}>—</Text>
+                  ),
+              },
+              {
+                key: 'product',
+                label: t('Product'),
+                flex: 1.3,
+                render: (e) => <Text numberOfLines={1} style={styles.cellText}>{e.work_order?.product_type?.name ?? '—'}</Text>,
+              },
+              {
+                key: 'status',
+                label: t('Status'),
+                width: 100,
+                render: (e) => {
+                  const status = progressStatus(e.work_order_id ? woProgress.get(e.work_order_id) : undefined);
+                  return <StatusPill status={status} />;
+                },
+              },
+              {
+                key: 'ean',
+                label: t('EAN'),
+                flex: 1.3,
+                render: (e) => <Mono size={11.5} color={colors.ink}>{e.ean}</Mono>,
+              },
+              {
+                key: 'packed',
+                label: t('Packed'),
+                width: 80,
+                align: 'right',
+                render: (e) => {
+                  const p = e.work_order_id ? woProgress.get(e.work_order_id) : undefined;
+                  const target = p?.target ?? 0;
+                  return <Mono size={11} color={colors.muted}>{target > 0 ? `${p?.packed ?? 0}/${target}` : '—'}</Mono>;
+                },
+              },
+            ]}
+            actions={(e) => [{ label: t('Delete'), icon: 'delete', variant: 'danger', onPress: () => onDelete(e) }]}
+          />
+        </ScrollView>
+      )}
     </View>
   );
 }
 
-function EanCard({
-  item,
-  progress,
-  onDelete,
-}: {
-  item: WorkOrderEan;
-  progress: { packed: number; target: number; done: boolean } | null | undefined;
-  onDelete: () => void;
-}) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-
-  const target = progress?.target ?? 0;
-  const packed = progress?.packed ?? 0;
-  const pct = target > 0 ? Math.min(100, Math.round((packed / target) * 100)) : 0;
-  const fillColor = pct === 0 ? '#cfccc4' : pct < 100 ? BRAND.amber : palette.success;
-
-  return (
-    <Card style={{ gap: 10 }}>
-      <View style={styles.row}>
-        <View style={[styles.iconWrap, { backgroundColor: palette.surfaceAlt }]}>
-          <FontAwesome name="qrcode" size={18} color={palette.text} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[styles.ean, { color: palette.text, fontFamily: MONO }]} numberOfLines={1}>
-            {item.ean}
-          </Text>
-          {item.work_order?.product_type ? (
-            <Text style={[styles.product, { color: palette.textMuted }]} numberOfLines={1}>
-              {item.work_order.product_type.name}
-            </Text>
-          ) : null}
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          {item.work_order?.order_no ? (
-            <Mono size={10.5} color={palette.textFaint}>{item.work_order.order_no}</Mono>
-          ) : null}
-          <Pressable
-            onPress={onDelete}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.deleteBtn,
-              {
-                borderColor: palette.border,
-                backgroundColor: palette.dangerSoft,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}>
-            <FontAwesome name="trash" size={12} color={palette.danger} />
-          </Pressable>
-        </View>
-      </View>
-      <View style={styles.barRow}>
-        <View style={[styles.barTrack, { backgroundColor: palette.surfaceAlt }]}>
-          <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: fillColor }]} />
-        </View>
-        <Mono size={12} color={palette.text} weight="600" style={{ minWidth: 70, textAlign: 'right' }}>
-          {target > 0 ? `${packed}/${target}` : '— / —'}
-        </Mono>
-      </View>
-    </Card>
-  );
-}
-
-function fmtNum(n: number) {
-  return n.toLocaleString('en-US');
-}
-
-function countLines(items: { line?: string | null }[]) {
-  const set = new Set<string>();
-  items.forEach((i) => {
-    if (i.line) set.add(i.line);
-  });
-  return set.size;
-}
-
 const styles = StyleSheet.create({
-  statsCard: {
-    backgroundColor: '#F6F5F1',
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: 'row',
-  },
-  divider: { width: StyleSheet.hairlineWidth, backgroundColor: '#2c2c30', marginHorizontal: 4 },
-  statValue: {
-    color: BRAND.amber,
-    fontFamily: MONO,
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: -0.5,
-    marginTop: 4,
-  },
-  filter: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconWrap: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  ean: { fontSize: 13, fontWeight: '700', letterSpacing: 0.4 },
-  product: { fontSize: 12, marginTop: 3 },
-  deleteBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  barRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  barTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
-  barFill: { height: '100%' },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  tableWrap: { paddingHorizontal: 14, paddingBottom: 24 },
+  cellText: { fontSize: 12.5, color: colors.muted, fontFamily: fonts.sans.native.regular },
+  dash: { fontSize: 13, color: colors.faintest },
 });

@@ -1,34 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import * as ops from '@/api/ops';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
 
 const inv = (qc: ReturnType<typeof useQueryClient>, key: string) => qc.invalidateQueries({ queryKey: [key] });
 
 // Companies
 /**
- * Live company list via Electric `companies` shape.
- * Filtering (include_inactive, type, q) applied client-side.
+ * Company list via REST `listCompanies`.
+ * The server applies include_inactive / type / q filters.
  */
 export function useCompanies(opts: Parameters<typeof ops.listCompanies>[0] = {}) {
-  const includeInactive = opts.include_inactive ?? false;
-  const type = opts.type;
-  const q = opts.q?.trim().toLowerCase() ?? '';
-
-  return useElectricShape<Row, ops.Company[]>('companies', {
-    select: (rows) => {
-      let out = rows as unknown as ops.Company[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      if (type) out = out.filter((r) => r.type === type);
-      if (q) {
-        out = out.filter(
-          (r) =>
-            r.name.toLowerCase().includes(q) ||
-            (r.code ?? '').toLowerCase().includes(q),
-        );
-      }
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['companies', opts],
+    queryFn: () => ops.listCompanies(opts),
   });
 }
 export function useCompany(id: number | undefined) {
@@ -60,16 +44,13 @@ export function useToggleCompanyActive() {
 
 // Cost sources
 /**
- * Live cost-source list via Electric `cost_sources` shape.
- * The `includeInactive` flag is applied client-side.
+ * Cost-source list via REST `listCostSources`.
+ * The server applies the include_inactive flag.
  */
 export function useCostSources(includeInactive = false) {
-  return useElectricShape<Row, ops.CostSource[]>('cost_sources', {
-    select: (rows) => {
-      let out = rows as unknown as ops.CostSource[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['cost-sources', includeInactive],
+    queryFn: () => ops.listCostSources(includeInactive),
   });
 }
 export function useCostSource(id: number | undefined) {
@@ -101,20 +82,13 @@ export function useToggleCostSourceActive() {
 
 // Anomaly reasons
 /**
- * Live anomaly-reason list via Electric `anomaly_reasons` shape.
- * Filtering (include_inactive, category) applied client-side.
+ * Anomaly-reason list via REST `listAnomalyReasons`.
+ * The server applies include_inactive / category filters.
  */
 export function useAnomalyReasons(opts: Parameters<typeof ops.listAnomalyReasons>[0] = {}) {
-  const includeInactive = opts.include_inactive ?? false;
-  const category = opts.category;
-
-  return useElectricShape<Row, ops.AnomalyReason[]>('anomaly_reasons', {
-    select: (rows) => {
-      let out = rows as unknown as ops.AnomalyReason[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      if (category) out = out.filter((r) => r.category === category);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['anomaly-reasons', opts],
+    queryFn: () => ops.listAnomalyReasons(opts),
   });
 }
 export function useAnomalyReason(id: number | undefined) {
@@ -142,22 +116,14 @@ export function useDeleteAnomalyReason() {
 
 // Subassemblies
 /**
- * Live subassembly list via Electric `subassemblies` shape.
- * Filtering (include_inactive, product_type_id) applied client-side.
- * Note: the REST `product_type` relation object is not present in the shape
- * (only the raw `product_type_id` FK column is available).
+ * Subassembly list via REST `listSubassemblies`.
+ * The server applies include_inactive / product_type_id filters and returns
+ * the product_type relation.
  */
 export function useSubassemblies(opts: Parameters<typeof ops.listSubassemblies>[0] = {}) {
-  const includeInactive = opts.include_inactive ?? false;
-  const productTypeId = opts.product_type_id;
-
-  return useElectricShape<Row, ops.Subassembly[]>('subassemblies', {
-    select: (rows) => {
-      let out = rows as unknown as ops.Subassembly[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      if (productTypeId !== undefined) out = out.filter((r) => r.product_type_id === productTypeId);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['subassemblies', opts],
+    queryFn: () => ops.listSubassemblies(opts),
   });
 }
 export function useSubassembly(id: number | undefined) {
@@ -185,29 +151,14 @@ export function useDeleteSubassembly() {
 
 // Shifts
 /**
- * Live shift list via Electric `shifts` shape.
- * Filtering (include_inactive, line_id) applied client-side.
- * Note: the REST `line` relation object is not present in the shape
- * (only the raw `line_id` FK column is available). `days_of_week` is
- * also absent from the shape columns — consumers relying on that field
- * should use the detail hook (`useShift`) instead.
+ * Shift list via REST `listShifts`.
+ * The server applies include_inactive / line_id filters and returns the line
+ * relation plus days_of_week.
  */
 export function useShifts(opts: Parameters<typeof ops.listShifts>[0] = {}) {
-  const includeInactive = opts.include_inactive ?? false;
-  const lineId = opts.line_id;
-
-  return useElectricShape<Row, ops.Shift[]>('shifts', {
-    select: (rows) => {
-      let out = rows as unknown as ops.Shift[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      if (lineId !== undefined) out = out.filter((r) => r.line_id === lineId);
-      // Shape has sort_order; Shift type doesn't declare it, so cast through Row.
-      return [...out].sort(
-        (a, b) =>
-          ((a as unknown as Record<string, unknown>).sort_order as number ?? 0) -
-          ((b as unknown as Record<string, unknown>).sort_order as number ?? 0),
-      );
-    },
+  return useQuery({
+    queryKey: ['shifts', opts],
+    queryFn: () => ops.listShifts(opts),
   });
 }
 export function useShift(id: number | undefined) {

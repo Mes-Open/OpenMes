@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { z } from 'zod';
 
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export function CompanyForm({ initial, mode, onSubmit, submitting }: Props) {
+  const { t } = useTranslation();
   const { control, handleSubmit, formState: { isValid } } = useForm<CompanyFormValues>({
     resolver: zodResolver(companySchema),
     mode: 'onChange',
@@ -70,12 +72,12 @@ export function CompanyForm({ initial, mode, onSubmit, submitting }: Props) {
           name="type"
           render={({ field: { value, onChange } }) => (
             <ChipRow>
-              {TYPES.map((t) => (
+              {TYPES.map((opt) => (
                 <SelectionChip
-                  key={t.id}
-                  label={t.label}
-                  active={t.id === value}
-                  onPress={() => onChange(t.id)}
+                  key={opt.id}
+                  label={t(opt.label)}
+                  active={opt.id === value}
+                  onPress={() => onChange(opt.id)}
                 />
               ))}
             </ChipRow>

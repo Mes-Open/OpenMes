@@ -1,24 +1,32 @@
+/**
+ * Work-order detail — mirrors the web admin work-order Show page: order_no
+ * eyebrow + product + status, a completion progress block, a LINE / BATCHES /
+ * DUE meta box, status transitions, the batches table and links out to
+ * anomalies / costs / attachments. Re-skin only — the Log-output bottom sheet,
+ * create-batch flow and TransitionButtons keep their exact behavior.
+ */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { LegendList } from '@legendapp/list';
 import { FontAwesome } from '@expo/vector-icons';
+import { format, isValid, parseISO } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import * as WebBrowser from 'expo-web-browser';
 
+import { colors, fonts, radius } from '@openmes/ui';
+import { BigStepper, BottomSheet } from '@openmes/ui/native';
+
 import { createBatch } from '@/api/batches';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
-import { Mono, SectionLabel } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Mono } from '@/components/ui/Mono';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { TransitionButtons } from '@/components/workorders/TransitionButtons';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useBatches } from '@/hooks/queries/useBatch';
+import { useIssues } from '@/hooks/queries/useIssues';
 import { useWorkOrder } from '@/hooks/queries/useWorkOrders';
 import { useLotPreview } from '@/hooks/queries/useLot';
 import { useWorkstations } from '@/hooks/queries/useLines';
@@ -30,14 +38,13 @@ export function WorkOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const numericId = Number(id);
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const qc = useQueryClient();
   const { t } = useTranslation();
   const serverUrl = useSettingsStore((s) => s.serverUrl);
 
   const wo = useWorkOrder(numericId);
   const batches = useBatches(numericId);
+  const issues = useIssues(Number.isFinite(numericId) ? { work_order_id: numericId } : {});
 
   useWorkOrderRealtime(Number.isFinite(numericId) ? numericId : undefined);
 
@@ -45,6 +52,8 @@ export function WorkOrderDetailScreen() {
   const [qty, setQty] = useState('');
   const [lotOverride, setLotOverride] = useState('');
   const [workstationId, setWorkstationId] = useState<number | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetQty, setSheetQty] = useState(1);
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -62,7 +71,22 @@ export function WorkOrderDetailScreen() {
       qc.invalidateQueries({ queryKey: ['work-order', numericId] });
       router.push(`/work-orders/${numericId}/run/${batch.id}`);
     },
-    onError: (err: Error) => Alert.alert('Could not create batch', err.message),
+    onError: (err: Error) => Alert.alert(t('Could not create batch'), err.message),
+  });
+
+  // Quick "Log output" path (design: OpenMES Mobile.dc.html bottom sheet) — start
+  // a batch of N pcs with defaults (auto lot, default workstation), then drop into
+  // the run screen to produce. The full +NEW BATCH form covers lot/workstation.
+  const quickLog = useMutation({
+    mutationFn: () =>
+      createBatch(numericId, { target_qty: sheetQty, workstation_id: null, lot_number: null }),
+    onSuccess: (batch) => {
+      setSheetOpen(false);
+      qc.invalidateQueries({ queryKey: ['batches', numericId] });
+      qc.invalidateQueries({ queryKey: ['work-order', numericId] });
+      router.push(`/work-orders/${numericId}/run/${batch.id}`);
+    },
+    onError: (err: Error) => Alert.alert(t('Could not start batch'), err.message),
   });
 
   if (wo.isLoading) return <LoadingState />;
@@ -70,222 +94,251 @@ export function WorkOrderDetailScreen() {
 
   const data = wo.data;
   const batchList = batches.data ?? data.batches ?? [];
-  const planned = data.planned_qty ?? 0;
-  const produced = data.produced_qty ?? 0;
-  const pct = planned > 0 ? Math.min(100, Math.round((produced / planned) * 100)) : 0;
+  const planned = Number(data.planned_qty ?? 0);
+  const produced = Number(data.produced_qty ?? 0);
+  const pct = planned > 0 ? Math.min(100, (produced / planned) * 100) : 0;
   const overdue = isWorkOrderOverdue(data);
+  const issueList = issues.data ?? [];
+  const priorityLabel =
+    data.priority != null && String(data.priority).trim() !== '' ? String(data.priority) : '—';
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader back title={data.order_no} subtitle={data.product_type?.name?.toUpperCase()} />
-    <LegendList
-      style={{ backgroundColor: palette.background }}
-      data={batchList}
-      keyExtractor={(b) => String(b.id)}
-      contentContainerStyle={styles.container}
-      refreshControl={
-        <RefreshControl
-          refreshing={wo.isFetching || batches.isFetching}
-          onRefresh={() => {
-            wo.refetch();
-            batches.refetch();
-          }}
-        />
-      }
-      ListHeaderComponent={
-        <View style={{ gap: 18 }}>
-          {/* Hero meta */}
-          <View>
-            <View style={styles.headerRow}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Mono size={11} color={palette.textFaint}>{data.order_no}</Mono>
-                <Text style={[styles.product, { color: palette.text }]} numberOfLines={2}>
-                  {data.product_type?.name ?? 'Work order'}
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
-                  <Mono size={11} color={palette.textFaint}>
-                    {planned} {t('PCS PLANNED').toUpperCase()}
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1} numberOfLines={1}>{data.order_no}</Text>
+        <StatusPill status={data.status} />
+      </View>
+      <LegendList
+        style={styles.screen}
+        data={batchList}
+        keyExtractor={(b) => String(b.id)}
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={wo.isFetching || batches.isFetching}
+            tintColor={colors.accent}
+            onRefresh={() => {
+              wo.refetch();
+              batches.refetch();
+            }}
+          />
+        }
+        ListHeaderComponent={
+          <View style={{ gap: 18 }}>
+            {/* Hero */}
+            <View>
+              <Mono size={11} color={colors.faint}>{data.order_no}</Mono>
+              <Text style={styles.product} numberOfLines={2}>
+                {data.product_type?.name ?? t('Work order')}
+              </Text>
+              <View style={styles.heroMetaRow}>
+                <Mono size={11} color={colors.faint}>
+                  {planned} {t('PCS PLANNED').toUpperCase()}
+                </Mono>
+                {overdue ? (
+                  <Mono size={11} color={colors.blocked} weight="700">
+                    · {t('Overdue').toUpperCase()}
                   </Mono>
-                  {overdue ? (
-                    <Mono size={11} color={palette.danger} weight="700">
-                      · {t('Overdue').toUpperCase()}
-                    </Mono>
-                  ) : null}
-                </View>
+                ) : null}
               </View>
-              <StatusPill status={data.status} />
             </View>
 
+            {/* Progress */}
             {planned > 0 ? (
-              <View style={styles.heroProgress}>
-                <View style={styles.heroProgressRow}>
-                  <Mono size={11} color={palette.textMuted}>
+              <View style={styles.box}>
+                <View style={styles.progressRow}>
+                  <Mono size={11} color={colors.muted}>
                     {produced}/{planned} {t('produced')}
                   </Mono>
-                  <Mono size={11} color={palette.text} weight="700">
-                    {pct}%
-                  </Mono>
+                  <Mono size={11} color={colors.ink} weight="700">{pct.toFixed(1)}%</Mono>
                 </View>
-                <View style={[styles.barTrack, { backgroundColor: palette.surfaceAlt }]}>
+                <View style={styles.barTrack}>
                   <View style={[styles.barFill, { width: `${pct}%` }]} />
                 </View>
               </View>
             ) : null}
 
+            {/* Meta */}
             <View style={styles.metaGrid}>
-              <MetaCard label={t('LINE')} value={data.line?.name ?? '—'} />
-              <MetaCard label={t('BATCHES')} value={String(batchList.length)} />
-              <MetaCard
-                label={t('DUE')}
-                value={data.due_date ? data.due_date.slice(5, 10) : '—'}
-                tone={overdue ? 'danger' : undefined}
+              <MetaCell label={t('LINE')} value={data.line?.name ?? '—'} />
+              <MetaCell label={t('PRIORITY')} value={priorityLabel} />
+              <MetaCell label={t('BATCHES')} value={String(batchList.length)} />
+              <MetaCell label={t('DUE')} value={fmtDueDate(data.due_date)} danger={overdue} />
+            </View>
+
+            <Button
+              title={t('Log output')}
+              onPress={() => {
+                setSheetQty(Math.max(1, planned - produced));
+                setSheetOpen(true);
+              }}
+              leftIcon={<FontAwesome name="plus" size={13} color="#FFFFFF" />}
+            />
+
+            <TransitionButtons workOrderId={data.id} status={data.status} />
+
+            {/* Links */}
+            <View style={styles.quickRow}>
+              <QuickAction
+                icon="exclamation-triangle"
+                label={t('Anomalies')}
+                onPress={() => router.push(`/work-orders/${data.id}/costs?tab=anomalies` as never)}
+              />
+              <QuickAction
+                icon="dollar"
+                label={t('Costs')}
+                onPress={() => router.push(`/work-orders/${data.id}/costs` as never)}
+              />
+              <QuickAction
+                icon="paperclip"
+                label={t('Files')}
+                onPress={() => router.push(`/work-orders/${data.id}/costs?tab=attachments` as never)}
+              />
+              <QuickAction
+                icon="print"
+                label={t('Print')}
+                onPress={() => WebBrowser.openBrowserAsync(`${serverUrl}/admin/work-orders/${data.id}`)}
               />
             </View>
-          </View>
 
-          <TransitionButtons workOrderId={data.id} status={data.status} />
-
-          <View style={styles.quickRow}>
-            <QuickAction
-              icon="exclamation-triangle"
-              label={t('Anomalies')}
-              onPress={() =>
-                router.push(`/work-orders/${data.id}/costs?tab=anomalies` as never)
-              }
-            />
-            <QuickAction
-              icon="dollar"
-              label={t('Costs')}
-              onPress={() => router.push(`/work-orders/${data.id}/costs` as never)}
-            />
-            <QuickAction
-              icon="paperclip"
-              label={t('Files')}
-              onPress={() =>
-                router.push(`/work-orders/${data.id}/costs?tab=attachments` as never)
-              }
-            />
-            <QuickAction
-              icon="print"
-              label={t('Print')}
-              onPress={() =>
-                WebBrowser.openBrowserAsync(`${serverUrl}/admin/work-orders/${data.id}`)
-              }
-            />
-          </View>
-
-          <View>
-            <SectionLabel
-              right={
-                showCreate ? null : (
-                  <Pressable onPress={() => setShowCreate(true)}>
-                    <Mono size={11} color={BRAND.amber} weight="700">+ {t('NEW BATCH').toUpperCase()}</Mono>
+            {/* Issues (mirrors the web Show page's Issues sidebar) */}
+            {issueList.length > 0 ? (
+              <View style={{ gap: 8 }}>
+                <View style={styles.sectionHead}>
+                  <Mono size={9} color={colors.faint} letterSpacing={0.6}>
+                    {t('Issues').toUpperCase()} · {issueList.length}
+                  </Mono>
+                </View>
+                {issueList.map((issue) => (
+                  <Pressable
+                    key={issue.id}
+                    onPress={() => router.push(`/issues/${issue.id}` as never)}
+                    style={({ pressed }) => [styles.issueRow, { opacity: pressed ? 0.6 : 1 }]}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.issueTitle} numberOfLines={1}>
+                        {issue.issue_type?.name ?? issue.description ?? t('Issue')}
+                      </Text>
+                      {issue.created_at ? (
+                        <Mono size={9} color={colors.faint} style={{ marginTop: 3 }}>
+                          {fmtDueDate(issue.created_at)}
+                        </Mono>
+                      ) : null}
+                    </View>
+                    <StatusPill status={issue.status} />
+                    <Text style={styles.issueChevron}>›</Text>
                   </Pressable>
-                )
-              }>
-              {`Batches · ${batchList.length}`}
-            </SectionLabel>
-          </View>
-
-          {showCreate ? (
-            <CreateBatchForm
-              qty={qty}
-              setQty={setQty}
-              lotOverride={lotOverride}
-              setLotOverride={setLotOverride}
-              workstationId={workstationId}
-              setWorkstationId={setWorkstationId}
-              productTypeId={data.product_type_id ?? undefined}
-              lineId={data.line_id ?? undefined}
-              loading={createMutation.isPending}
-              onSubmit={() => createMutation.mutate()}
-              onCancel={() => {
-                setShowCreate(false);
-                setQty('');
-                setLotOverride('');
-                setWorkstationId(null);
-              }}
-            />
-          ) : null}
-        </View>
-      }
-      ListEmptyComponent={
-        <EmptyState title="No batches yet" subtitle="Create a batch to start production." />
-      }
-      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-      renderItem={({ item }) => {
-        const total = item.steps?.length ?? 0;
-        const done = item.steps?.filter((s) => s.status === 'DONE').length ?? 0;
-        const stepPct = total > 0 ? Math.round((done / total) * 100) : 0;
-        return (
-          <Card onPress={() => router.push(`/work-orders/${numericId}/run/${item.id}`)}>
-            <View style={styles.headerRow}>
-              <View style={[styles.batchIcon, { backgroundColor: palette.surfaceAlt }]}>
-                <Mono size={11} color={palette.text} weight="700">#{item.id}</Mono>
+                ))}
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: palette.text, fontSize: 14, fontWeight: '600' }}>
-                  {t('Batch')} #{item.id}
-                </Text>
-                <Mono size={11} color={palette.textFaint} style={{ marginTop: 2 }}>
+            ) : null}
+
+            {/* Batches */}
+            <View style={styles.sectionHead}>
+              <Mono size={9} color={colors.faint} letterSpacing={0.6}>
+                {t('Batches').toUpperCase()} · {batchList.length}
+              </Mono>
+              <View style={{ flex: 1 }} />
+              {showCreate ? null : (
+                <Pressable onPress={() => setShowCreate(true)} hitSlop={8}>
+                  <Mono size={11} color={colors.accent} weight="700">+ {t('New batch').toUpperCase()}</Mono>
+                </Pressable>
+              )}
+            </View>
+
+            {showCreate ? (
+              <CreateBatchForm
+                qty={qty}
+                setQty={setQty}
+                lotOverride={lotOverride}
+                setLotOverride={setLotOverride}
+                workstationId={workstationId}
+                setWorkstationId={setWorkstationId}
+                productTypeId={data.product_type_id ?? undefined}
+                lineId={data.line_id ?? undefined}
+                loading={createMutation.isPending}
+                onSubmit={() => createMutation.mutate()}
+                onCancel={() => {
+                  setShowCreate(false);
+                  setQty('');
+                  setLotOverride('');
+                  setWorkstationId(null);
+                }}
+              />
+            ) : null}
+
+            {batchList.length > 0 ? (
+              <View style={[styles.row, styles.headerRow]}>
+                <HCell w={64}>{t('Batch')}</HCell>
+                <HCell flex={1}>{t('Qty')}</HCell>
+                <HCell w={72}>{t('Steps')}</HCell>
+                <HCell w={96}>{t('Status')}</HCell>
+              </View>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={<Text style={styles.empty}>{t('No batches yet.')}</Text>}
+        renderItem={({ item }) => {
+          const total = item.steps?.length ?? 0;
+          const done = item.steps?.filter((s) => s.status === 'DONE').length ?? 0;
+          return (
+            <Pressable
+              onPress={() => router.push(`/work-orders/${numericId}/run/${item.id}`)}
+              style={({ pressed }) => [styles.row, styles.dataRow, { opacity: pressed ? 0.6 : 1 }]}>
+              <View style={{ width: 64 }}>
+                <Mono size={11} color={colors.ink}>#{item.batch_number ?? item.id}</Mono>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Mono size={11} color={colors.muted}>
                   {item.produced_qty ?? 0}/{item.target_qty} {t('PCS').toUpperCase()}
-                  {total > 0 ? ` · ${done}/${total} ${t('STEPS').toUpperCase()}` : ''}
                 </Mono>
               </View>
-              <StatusPill status={item.status} />
-            </View>
-            {total > 0 ? (
-              <View style={styles.batchSteps}>
-                {Array.from({ length: total }).map((_, i) => {
-                  const s = item.steps?.[i];
-                  const k = s?.status === 'DONE' ? 'done' : s?.status === 'IN_PROGRESS' ? 'running' : 'queued';
-                  return (
-                    <View
-                      key={i}
-                      style={[
-                        styles.stepBlock,
-                        {
-                          backgroundColor:
-                            k === 'done' ? palette.success : k === 'running' ? BRAND.amber : palette.surfaceAlt,
-                        },
-                      ]}
-                    />
-                  );
-                })}
+              <View style={{ width: 72 }}>
+                <Mono size={11} color={colors.muted}>{total > 0 ? `${done}/${total}` : '—'}</Mono>
               </View>
-            ) : null}
-            {stepPct > 0 ? (
-              <Mono size={10} color={palette.textFaint} style={{ marginTop: 6 }}>
-                {stepPct}% {t('COMPLETE').toUpperCase()}
-              </Mono>
-            ) : null}
-          </Card>
-        );
-      }}
-    />
+              <View style={{ width: 96 }}>
+                <StatusPill status={item.status} />
+              </View>
+            </Pressable>
+          );
+        }}
+      />
+      <BottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title={t('Log output')}
+        subtitle={`${data.order_no} · ${produced}/${planned} ${t('PCS').toUpperCase()}`}
+        footer={
+          <Button
+            title={`${t('Start batch')} · ${sheetQty} ${t('PCS').toUpperCase()}`}
+            onPress={() => quickLog.mutate()}
+            loading={quickLog.isPending}
+          />
+        }>
+        <View style={{ alignItems: 'center', paddingVertical: 6 }}>
+          <BigStepper value={sheetQty} onChange={setSheetQty} min={1} />
+          <Mono size={11} color={colors.faint} style={{ marginTop: 12 }}>
+            {t('PCS').toUpperCase()}
+          </Mono>
+        </View>
+      </BottomSheet>
     </View>
   );
 }
 
-function MetaCard({ label, value, tone }: { label: string; value: string; tone?: 'danger' }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-  const isDanger = tone === 'danger';
+/** Day-first localized date, matching the web Show page's fmtDate ('dd MMM yyyy'). */
+function fmtDueDate(dateStr?: string | null): string {
+  if (!dateStr) return '—';
+  const d = parseISO(dateStr);
+  return isValid(d) ? format(d, 'dd MMM yyyy') : '—';
+}
+
+function MetaCell({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
+  const tint = danger ? colors.blocked : colors.faint;
   return (
-    <View
-      style={[
-        styles.metaCard,
-        { backgroundColor: palette.surface, borderColor: isDanger ? palette.danger : palette.border },
-      ]}>
-      <Mono size={10} color={isDanger ? palette.danger : palette.textFaint} letterSpacing={0.6}>{label}</Mono>
-      <Text
-        style={[
-          styles.metaValue,
-          { color: isDanger ? palette.danger : palette.text, fontFamily: MONO },
-        ]}
-        numberOfLines={1}>
+    <View style={[styles.metaCard, danger ? { borderColor: colors.blocked } : null]}>
+      <Mono size={9} color={tint} letterSpacing={0.6}>{label}</Mono>
+      <Mono size={14} color={danger ? colors.blocked : colors.ink} weight="600" numberOfLines={1} style={{ marginTop: 4 }}>
         {value}
-      </Text>
+      </Mono>
     </View>
   );
 }
@@ -299,17 +352,12 @@ function QuickAction({
   label: string;
   onPress: () => void;
 }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.quickItem,
-        { backgroundColor: palette.surface, borderColor: palette.border, opacity: pressed ? 0.85 : 1 },
-      ]}>
-      <FontAwesome name={icon} size={14} color={palette.textMuted} />
-      <Text style={{ fontSize: 12, fontWeight: '600', color: palette.text }}>{label}</Text>
+      style={({ pressed }) => [styles.quickItem, { opacity: pressed ? 0.7 : 1 }]}>
+      <FontAwesome name={icon} size={14} color={colors.muted} />
+      <Text style={styles.quickLabel}>{label}</Text>
     </Pressable>
   );
 }
@@ -339,20 +387,20 @@ function CreateBatchForm({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+  const { t } = useTranslation();
   const lotPreview = useLotPreview(productTypeId, !lotOverride.trim());
   const workstations = useWorkstations(lineId);
   const stations = (workstations.data ?? []).filter((w) => w.is_active);
 
   return (
-    <Card style={{ gap: 12 }}>
+    <View style={[styles.box, { gap: 12 }]}>
       <Field
         label="Quantity"
         value={qty}
         onChangeText={setQty}
         keyboardType="number-pad"
         placeholder="e.g. 50"
+        mono
       />
 
       <Field
@@ -361,14 +409,15 @@ function CreateBatchForm({
         onChangeText={setLotOverride}
         placeholder={lotPreview.data ?? 'Auto-generated'}
         autoCapitalize="characters"
-        hint={!lotOverride.trim() && lotPreview.data ? `Next: ${lotPreview.data}` : undefined}
+        mono
+        hint={!lotOverride.trim() && lotPreview.data ? t('Next: {{lot}}', { lot: lotPreview.data }) : undefined}
       />
 
       {stations.length > 0 ? (
         <View style={{ gap: 8 }}>
-          <Mono size={10} color={palette.textFaint} letterSpacing={0.8}>WORKSTATION (OPTIONAL)</Mono>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            <ChipBtn label="None" active={workstationId == null} onPress={() => setWorkstationId(null)} />
+          <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Workstation (optional)').toUpperCase()}</Mono>
+          <View style={styles.chipWrap}>
+            <ChipBtn label={t('None')} active={workstationId == null} onPress={() => setWorkstationId(null)} />
             {stations.map((w) => (
               <ChipBtn
                 key={w.id}
@@ -381,52 +430,51 @@ function CreateBatchForm({
         </View>
       ) : null}
 
-      <View style={{ flexDirection: 'row', gap: 8 }}>
+      <View style={styles.formActions}>
+        <Button title={t('Cancel')} variant="ghost" onPress={onCancel} />
+        <View style={{ flex: 1 }} />
         <Button
-          title="Create"
+          title={t('Create')}
           onPress={onSubmit}
           loading={loading}
           disabled={!qty || Number(qty) <= 0}
-          style={{ flex: 1 }}
         />
-        <Button title="Cancel" variant="outline" onPress={onCancel} style={{ flex: 1 }} />
       </View>
-    </Card>
+    </View>
   );
 }
 
 function ChipBtn({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
     <Pressable
       onPress={onPress}
-      style={{
-        paddingVertical: 7,
-        paddingHorizontal: 12,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: active ? BRAND.amber : palette.border,
-        backgroundColor: active ? '#FAF0DD' : 'transparent',
-      }}>
-      <Text style={{ fontSize: 12, fontWeight: '600', color: active ? '#8a5a0e' : palette.text }}>
-        {label}
-      </Text>
+      style={[styles.chip, active ? styles.chipActive : null]}>
+      <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{label}</Text>
     </Pressable>
   );
 }
 
+function HCell({ children, w, flex }: { children: React.ReactNode; w?: number; flex?: number }) {
+  return (
+    <View style={{ width: w, flex }}>
+      <Mono size={9} color={colors.faint} letterSpacing={0.6}>{String(children).toUpperCase()}</Mono>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { padding: 18, gap: 10 },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  product: { fontSize: 22, fontWeight: '600', letterSpacing: -0.3, marginTop: 4 },
-  heroProgress: { gap: 6, marginTop: 14 },
-  heroProgressRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  barTrack: { height: 6, borderRadius: 1, overflow: 'hidden' },
-  barFill: { height: '100%', backgroundColor: BRAND.amber },
-  metaGrid: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  metaCard: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 1, gap: 4 },
-  metaValue: { fontSize: 14, fontWeight: '600', letterSpacing: 0.2 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
+  h1: { flex: 1, fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  container: { paddingHorizontal: 14, paddingBottom: 24, gap: 10 },
+  product: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.3, marginTop: 4 },
+  heroMetaRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 14 },
+  progressRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  barTrack: { height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.chip },
+  barFill: { height: '100%', borderRadius: 3, backgroundColor: colors.accent },
+  metaGrid: { flexDirection: 'row', gap: 8 },
+  metaCard: { flex: 1, padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   quickRow: { flexDirection: 'row', gap: 8 },
   quickItem: {
     flex: 1,
@@ -435,10 +483,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
   },
-  batchIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  batchSteps: { flexDirection: 'row', gap: 4, marginTop: 12 },
-  stepBlock: { flex: 1, height: 4, borderRadius: 1 },
+  quickLabel: { fontSize: 12, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2 },
+  issueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+  },
+  issueTitle: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  issueChevron: { fontFamily: fonts.mono.native.regular, fontSize: 16, color: colors.faintest },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  chipActive: { borderColor: colors.accent, backgroundColor: colors.runningBg },
+  chipText: { fontSize: 12, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  chipTextActive: { color: colors.accent },
+  formActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
+  headerRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
+  dataRow: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
+  empty: { fontSize: 13, color: colors.faint, fontFamily: fonts.sans.native.regular, padding: 16 },
 });

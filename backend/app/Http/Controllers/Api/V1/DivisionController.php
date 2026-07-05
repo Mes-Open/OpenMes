@@ -13,10 +13,26 @@ class DivisionController extends Controller
 {
     public function index(Request $request, Factory $factory): JsonResponse
     {
-        $query = $factory->divisions()->withCount('lines');
-        if (!$request->boolean('include_inactive')) {
+        $query = $factory->divisions()->withCount(['lines', 'crews']);
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
+
+        return response()->json(['data' => $query->orderBy('name')->get()]);
+    }
+
+    /**
+     * Global divisions list (all factories) — powers the admin Divisions page,
+     * mirroring the web Pages/admin/divisions/Index.jsx (factory name + crews
+     * count per row).
+     */
+    public function all(Request $request): JsonResponse
+    {
+        $query = Division::query()->with('factory:id,name')->withCount(['lines', 'crews']);
+        if (! $request->boolean('include_inactive')) {
+            $query->where('is_active', true);
+        }
+
         return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
@@ -25,6 +41,7 @@ class DivisionController extends Controller
         $this->authorize('view', $division);
         $division->loadCount('lines');
         $division->load('factory');
+
         return response()->json(['data' => $division]);
     }
 
@@ -40,6 +57,7 @@ class DivisionController extends Controller
         $data['factory_id'] = $factory->id;
         $data['is_active'] = $data['is_active'] ?? true;
         $d = Division::create($data);
+
         return response()->json(['message' => 'Division created', 'data' => $d->load('factory')], 201);
     }
 
@@ -53,6 +71,7 @@ class DivisionController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
         $division->update($data);
+
         return response()->json(['message' => 'Division updated', 'data' => $division->fresh()]);
     }
 
@@ -65,13 +84,15 @@ class DivisionController extends Controller
             ], 422);
         }
         $division->delete();
+
         return response()->json(['message' => 'Division deleted']);
     }
 
     public function toggleActive(Division $division): JsonResponse
     {
         $this->authorize('update', $division);
-        $division->update(['is_active' => !$division->is_active]);
+        $division->update(['is_active' => ! $division->is_active]);
+
         return response()->json([
             'message' => $division->is_active ? 'Activated' : 'Deactivated',
             'data' => $division,

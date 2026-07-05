@@ -12,16 +12,14 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as WebBrowser from 'expo-web-browser';
 
-import { Card } from '@/components/ui/Card';
+import { colors, fonts, radius } from '@openmes/ui';
+
 import { DraggableBlockBar } from '@/components/schedule/DraggableBlockBar';
 import { EditScheduleModal } from '@/components/schedule/EditScheduleModal';
 import { LiveDot } from '@/components/ui/LiveDot';
 import { Mono, SectionLabel } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useDeviceClass } from '@/hooks/useDeviceClass';
 import { useScheduleRealtime } from '@/hooks/useScheduleRealtime';
 import { useOperatorsOnShift, useScheduleEvents } from '@/hooks/queries/useSystem';
@@ -48,8 +46,6 @@ const LINE_LABEL_WIDTH = 56;
 const ROW_GAP = 8;
 
 export function ScheduleScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const canSeeSchedule = isSupervisorOrAdmin(user);
@@ -183,30 +179,15 @@ export function ScheduleScreen() {
   const isError = linesQuery.isError;
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader
-        title={t('Schedule')}
-        subtitle={`${format(selectedDay, 'EEE dd MMM').toUpperCase()} · A-SHIFT 06–14`}
-        rightSlot={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <LiveDot />
-            <Pressable
-              onPress={() => setSelectedDay(today)}
-              hitSlop={8}
-              style={{
-                width: 36,
-                height: 36,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: palette.border,
-              }}>
-              <FontAwesome name="calendar" size={16} color={palette.text} />
-            </Pressable>
-          </View>
-        }
-      />
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Schedule')}</Text>
+        <View style={{ flex: 1 }} />
+        <LiveDot />
+        <Pressable onPress={() => setSelectedDay(today)} hitSlop={8} style={styles.todayBtn}>
+          <FontAwesome name="calendar" size={16} color={colors.ink} />
+        </Pressable>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -256,13 +237,13 @@ export function ScheduleScreen() {
                 style={[
                   styles.modeChip,
                   {
-                    backgroundColor: active ? palette.surfaceInverse : 'transparent',
-                    borderColor: active ? palette.surfaceInverse : palette.border,
+                    backgroundColor: active ? colors.ink : 'transparent',
+                    borderColor: active ? colors.ink : colors.line,
                   },
                 ]}>
                 <Mono
                   size={11}
-                  color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.textMuted}
+                  color={active ? '#fff' : colors.muted}
                   weight="700"
                   letterSpacing={0.6}>
                   {m === 'day' ? t('Day').toUpperCase() : t('Week').toUpperCase()}
@@ -301,13 +282,13 @@ export function ScheduleScreen() {
                 style={[
                   styles.dayCell,
                   {
-                    backgroundColor: active ? palette.surfaceInverse : 'transparent',
-                    borderColor: active ? palette.surfaceInverse : palette.border,
+                    backgroundColor: active ? colors.ink : 'transparent',
+                    borderColor: active ? colors.ink : colors.line,
                   },
                 ]}>
                 <Mono
                   size={10}
-                  color={active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.textFaint}
+                  color={active ? '#fff' : colors.faint}
                   letterSpacing={0.6}>
                   {format(d, 'EEE').toUpperCase()}
                 </Mono>
@@ -315,8 +296,8 @@ export function ScheduleScreen() {
                   style={[
                     styles.dayNum,
                     {
-                      color: active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.text,
-                      fontFamily: MONO,
+                      color: active ? '#fff' : colors.ink,
+                      fontFamily: fonts.mono.native.semibold,
                     },
                   ]}>
                   {format(d, 'd')}
@@ -335,7 +316,7 @@ export function ScheduleScreen() {
           <View>
             <SectionLabel
               right={
-                <Mono size={11} color={palette.textFaint}>00:00 → 24:00 · DRAG</Mono>
+                <Mono size={11} color={colors.faint}>00:00 → 24:00 · DRAG</Mono>
               }>
               Hour · Line
             </SectionLabel>
@@ -352,7 +333,7 @@ export function ScheduleScreen() {
                     <View
                       key={line.id}
                       style={[styles.stickyLabelCell, { height: ROW_HEIGHT, marginTop: ROW_GAP }]}>
-                      <Mono size={10} color={palette.textMuted} weight="700" letterSpacing={0.4}>
+                      <Mono size={10} color={colors.muted} weight="700" letterSpacing={0.4}>
                         {label}
                       </Mono>
                     </View>
@@ -371,7 +352,7 @@ export function ScheduleScreen() {
                   <View style={styles.hourHeader}>
                     {HOUR_LABELS.slice(0, -1).map((h) => (
                       <View key={h} style={[styles.hourHeaderCell, { width: HOUR_COL_WIDTH }]}>
-                        <Mono size={10} color={palette.textFaint} letterSpacing={0.4}>
+                        <Mono size={10} color={colors.faint} letterSpacing={0.4}>
                           {h}
                         </Mono>
                       </View>
@@ -391,7 +372,7 @@ export function ScheduleScreen() {
                   contentContainerStyle={{ width: TIMELINE_WIDTH }}>
                   {lines.length === 0 ? (
                     <View style={{ paddingVertical: 24 }}>
-                      <Mono size={11} color={palette.textFaint}>NO LINES CONFIGURED</Mono>
+                      <Mono size={11} color={colors.faint}>NO LINES CONFIGURED</Mono>
                     </View>
                   ) : (
                     <View style={{ gap: ROW_GAP, width: TIMELINE_WIDTH }}>
@@ -419,7 +400,7 @@ export function ScheduleScreen() {
           <View>
             <SectionLabel
               right={
-                <Mono size={11} color={palette.textFaint}>
+                <Mono size={11} color={colors.faint}>
                   {`${events.length}`}
                 </Mono>
               }>
@@ -449,12 +430,12 @@ export function ScheduleScreen() {
               }
               style={({ pressed }) => [
                 styles.openWeb,
-                { borderColor: palette.text, opacity: pressed ? 0.85 : 1 },
+                { borderColor: colors.ink, opacity: pressed ? 0.85 : 1 },
               ]}>
-              <Mono size={12} color={palette.text} weight="700" letterSpacing={0.6}>
+              <Mono size={12} color={colors.ink} weight="700" letterSpacing={0.6}>
                 {t('Open planner on web').toUpperCase()}
               </Mono>
-              <FontAwesome name="external-link" size={12} color={palette.text} />
+              <FontAwesome name="external-link" size={12} color={colors.ink} />
             </Pressable>
           </View>
         ) : null}
@@ -462,7 +443,7 @@ export function ScheduleScreen() {
         {/* Operators on shift */}
         <SectionLabel
           right={
-            <Mono size={11} color={palette.textFaint}>
+            <Mono size={11} color={colors.faint}>
               {`${onSiteCount} / ${operators.length}`}
             </Mono>
           }>
@@ -503,8 +484,6 @@ function WeeklyPlanner({
   events: ScheduleEvent[];
   onPickDay: (d: Date) => void;
 }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
 
   const days = useMemo(
@@ -539,14 +518,14 @@ function WeeklyPlanner({
             style={[
               styles.weekCol,
               {
-                backgroundColor: palette.surface,
-                borderColor: isToday ? BRAND.amber : palette.border,
+                backgroundColor: colors.card,
+                borderColor: isToday ? colors.accent : colors.line,
               },
             ]}>
             <View style={styles.weekColHead}>
               <Mono
                 size={10}
-                color={isToday ? BRAND.amber : palette.textFaint}
+                color={isToday ? colors.accent : colors.faint}
                 letterSpacing={0.7}
                 weight="700">
                 {format(d, 'EEE').toUpperCase()}
@@ -554,17 +533,17 @@ function WeeklyPlanner({
               <Text
                 style={[
                   styles.weekColDate,
-                  { color: isToday ? BRAND.amber : palette.text, fontFamily: MONO },
+                  { color: isToday ? colors.accent : colors.ink, fontFamily: fonts.mono.native.semibold },
                 ]}>
                 {format(d, 'd')}
               </Text>
-              <Mono size={10} color={palette.textFaint} letterSpacing={0.4}>
+              <Mono size={10} color={colors.faint} letterSpacing={0.4}>
                 {list.length}
               </Mono>
             </View>
             <View style={styles.weekColBody}>
               {list.length === 0 ? (
-                <Mono size={10} color={palette.textFaint} letterSpacing={0.4}>
+                <Mono size={10} color={colors.faint} letterSpacing={0.4}>
                   —
                 </Mono>
               ) : (
@@ -582,7 +561,7 @@ function WeeklyPlanner({
                       {e.starts_at ? format(new Date(e.starts_at), 'HH:mm') : '—'}
                     </Mono>
                     <Text
-                      style={[styles.weekChipTitle, { color: palette.text }]}
+                      style={[styles.weekChipTitle, { color: colors.ink }]}
                       numberOfLines={1}>
                       {e.title}
                     </Text>
@@ -590,7 +569,7 @@ function WeeklyPlanner({
                 ))
               )}
               {list.length > 6 ? (
-                <Mono size={9} color={palette.textFaint} letterSpacing={0.4}>
+                <Mono size={9} color={colors.faint} letterSpacing={0.4}>
                   +{list.length - 6} {t('more')}
                 </Mono>
               ) : null}
@@ -611,51 +590,47 @@ function LiveTile({
   value: number;
   tone: 'primary' | 'danger' | 'amber' | 'muted';
 }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const color =
     tone === 'danger'
-      ? palette.danger
+      ? colors.blocked
       : tone === 'primary'
-      ? palette.success
+      ? colors.running
       : tone === 'amber'
-      ? BRAND.amber
-      : palette.textMuted;
+      ? colors.accent
+      : colors.muted;
   return (
-    <View style={[styles.liveTile, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-      <Mono size={10} color={palette.textFaint} letterSpacing={0.6}>
+    <View style={[styles.liveTile, { backgroundColor: colors.card, borderColor: colors.line }]}>
+      <Mono size={10} color={colors.faint} letterSpacing={0.6}>
         {label}
       </Mono>
-      <Text style={[styles.liveValue, { color, fontFamily: MONO }]}>{value}</Text>
+      <Text style={[styles.liveValue, { color, fontFamily: fonts.mono.native.semibold }]}>{value}</Text>
     </View>
   );
 }
 
 function EventRow({ event }: { event: ScheduleEvent }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const start = event.starts_at ? new Date(event.starts_at) : null;
   const timeLabel = start ? format(start, 'HH:mm') : '—';
   const icon: React.ComponentProps<typeof FontAwesome>['name'] =
     event.type === 'maintenance' ? 'wrench' : 'cube';
 
   return (
-    <Card>
+    <View style={styles.card}>
       <View style={styles.eventRow}>
-        <View style={[styles.eventIcon, { backgroundColor: palette.surfaceAlt }]}>
-          <FontAwesome name={icon} size={14} color={palette.textMuted} />
+        <View style={[styles.eventIcon, { backgroundColor: colors.chip }]}>
+          <FontAwesome name={icon} size={14} color={colors.muted} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[styles.eventTitle, { color: palette.text }]} numberOfLines={1}>
+          <Text style={[styles.eventTitle, { color: colors.ink }]} numberOfLines={1}>
             {event.title}
           </Text>
-          <Mono size={11} color={palette.textFaint} style={{ marginTop: 2 }}>
+          <Mono size={11} color={colors.faint} style={{ marginTop: 2 }}>
             {timeLabel}
           </Mono>
         </View>
         <StatusPill status={event.status} />
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -670,15 +645,12 @@ function GanttRow({
   onBlockPress?: (b: MockGanttBlock) => void;
   canEdit: boolean;
 }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-
   return (
     <View
       style={[
         styles.rowTrack,
         {
-          backgroundColor: palette.surfaceAlt,
+          backgroundColor: colors.chip,
           height: ROW_HEIGHT,
           width: TIMELINE_WIDTH,
         },
@@ -691,7 +663,7 @@ function GanttRow({
             styles.gridLine,
             {
               left: (i + 1) * HOUR_COL_WIDTH,
-              backgroundColor: scheme === 'dark' ? '#E6E4DE' : '#dcd8ce',
+              backgroundColor: '#dcd8ce',
               pointerEvents: 'none',
             },
           ]}
@@ -700,7 +672,7 @@ function GanttRow({
       {/* Now indicator */}
       {nowOffsetPx != null ? (
         <View
-          style={[styles.nowLine, { left: nowOffsetPx, backgroundColor: BRAND.amber, pointerEvents: 'none' }]}
+          style={[styles.nowLine, { left: nowOffsetPx, backgroundColor: colors.accent, pointerEvents: 'none' }]}
         />
       ) : null}
       {/* Blocks — draggable on long-press for users who can write to the
@@ -721,17 +693,14 @@ function GanttRow({
 }
 
 function OperatorRow({ op }: { op: OperatorOnShift }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-
   const statusStyle =
     op.status === 'in'
-      ? { bg: palette.successSoft, fg: palette.success, label: 'In', dot: palette.success }
+      ? { bg: colors.runningBg, fg: colors.running, label: 'In', dot: colors.running }
       : op.status === 'break'
-      ? { bg: '#FAF0DD', fg: '#8a5a0e', label: 'Break', dot: '#EA5A2B' }
+      ? { bg: colors.downtimeBg, fg: colors.downtime, label: 'Break', dot: colors.accent }
       : op.status === 'no-show'
-      ? { bg: palette.dangerSoft, fg: palette.danger, label: 'No-show', dot: palette.danger }
-      : { bg: palette.surfaceAlt, fg: palette.textFaint, label: 'Out', dot: palette.textFaint };
+      ? { bg: colors.blockedBg, fg: colors.blocked, label: 'No-show', dot: colors.blocked }
+      : { bg: colors.chip, fg: colors.faint, label: 'Out', dot: colors.faint };
 
   const initials =
     op.name
@@ -744,24 +713,23 @@ function OperatorRow({ op }: { op: OperatorOnShift }) {
   const lineLabel = op.line_code ?? op.line_name ?? null;
 
   return (
-    <Card style={styles.opRow}>
-      <View style={[styles.avatar, { backgroundColor: palette.surfaceInverse }]}>
+    <View style={[styles.card, styles.opRow]}>
+      <View style={[styles.avatar, { backgroundColor: colors.ink }]}>
         <Text
           style={{
-            color: scheme === 'dark' ? '#1A1917' : '#fff',
-            fontFamily: MONO,
+            color: '#fff',
+            fontFamily: fonts.mono.native.semibold,
             fontSize: 13,
-            fontWeight: '700',
             letterSpacing: 0.4,
           }}>
           {initials}
         </Text>
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[styles.opName, { color: palette.text }]} numberOfLines={1}>
+        <Text style={[styles.opName, { color: colors.ink }]} numberOfLines={1}>
           {op.name}
         </Text>
-        <Mono size={11} color={palette.textFaint} style={{ marginTop: 3 }}>
+        <Mono size={11} color={colors.faint} style={{ marginTop: 3 }}>
           {[lineLabel, op.crew].filter(Boolean).join(' · ').toUpperCase() || 'UNASSIGNED'}
         </Mono>
       </View>
@@ -771,7 +739,7 @@ function OperatorRow({ op }: { op: OperatorOnShift }) {
           {statusStyle.label}
         </Mono>
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -797,14 +765,34 @@ function blockColor(status: MockGanttBlock['status']): { bg: string; fg: string 
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  todayBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
   scroll: { padding: 18, gap: 18, paddingBottom: 32 },
+
+  card: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line2,
+    borderRadius: radius.md,
+    padding: 14,
+  },
 
   liveStrip: { flexDirection: 'row', gap: 8 },
   modeRow: { flexDirection: 'row', gap: 8 },
   modeChip: {
     paddingVertical: 6,
     paddingHorizontal: 14,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: 1,
   },
 
@@ -818,7 +806,7 @@ const styles = StyleSheet.create({
     flexBasis: '13%',
     flexGrow: 1,
     minWidth: 96,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     padding: 8,
     gap: 8,
@@ -830,7 +818,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 4,
   },
-  weekColDate: { fontSize: 18, fontWeight: '700', letterSpacing: -0.4 },
+  weekColDate: { fontSize: 18, letterSpacing: -0.4 },
   weekColBody: { gap: 6 },
   weekChip: {
     borderLeftWidth: 3,
@@ -839,27 +827,27 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     gap: 2,
   },
-  weekChipTitle: { fontSize: 11, fontWeight: '600', letterSpacing: -0.1 },
+  weekChipTitle: { fontSize: 11, fontFamily: fonts.sans.native.medium, letterSpacing: -0.1 },
 
   liveTile: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     gap: 4,
   },
-  liveValue: { fontSize: 24, fontWeight: '700', letterSpacing: -0.4 },
+  liveValue: { fontSize: 24, letterSpacing: -0.4 },
 
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   eventIcon: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  eventTitle: { fontSize: 14, fontWeight: '600', letterSpacing: -0.2 },
+  eventTitle: { fontSize: 14, fontFamily: fonts.sans.native.semibold, letterSpacing: -0.2 },
 
   openWeb: {
     marginTop: 12,
@@ -868,7 +856,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
   },
 
@@ -876,12 +864,12 @@ const styles = StyleSheet.create({
   dayCell: {
     width: 48,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     gap: 4,
   },
-  dayNum: { fontSize: 18, fontWeight: '700', letterSpacing: -0.4 },
+  dayNum: { fontSize: 18, letterSpacing: -0.4 },
 
   timelineFrame: { flexDirection: 'row', gap: 8 },
   stickyLabelCol: { alignItems: 'flex-start' },
@@ -894,16 +882,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   gridLine: { position: 'absolute', top: 0, bottom: 0, width: 1 },
-  block: {
-    position: 'absolute',
-    top: 4,
-    bottom: 4,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  blockText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   nowLine: {
     position: 'absolute',
     top: -2,
@@ -916,18 +894,18 @@ const styles = StyleSheet.create({
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  opName: { fontSize: 14, fontWeight: '600', letterSpacing: -0.2 },
+  opName: { fontSize: 14, fontFamily: fonts.sans.native.semibold, letterSpacing: -0.2 },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 4,
     paddingHorizontal: 10,
-    borderRadius: 999,
+    borderRadius: radius.pill,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
 });

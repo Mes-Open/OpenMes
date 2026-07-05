@@ -27,7 +27,8 @@ export interface CsvUploadResult {
   upload_id: string;
   filename: string;
   headers: string[];
-  preview: Array<Record<string, string>>;
+  /** Each preview row is an array of values aligned to `headers` (by index). */
+  preview: string[][];
   total_rows: number;
 }
 
@@ -54,11 +55,14 @@ export const uploadCsv = (opts: {
 
 export type CsvImportStrategy = 'update_or_create' | 'skip_existing' | 'error_on_duplicate';
 
+/** Maps a system field key (order_no, planned_qty, …) to its CSV column header. */
+export type CsvColumnMap = Record<string, { csv_column: string }>;
+
 export interface CsvMapping {
   import_strategy: CsvImportStrategy;
-  columns: Record<string, string>;
-  /** Optional defaults for required fields not present in the file (e.g. line_id, planning period). */
-  defaults?: Record<string, string | number | boolean | null>;
+  columns: CsvColumnMap;
+  /** "Assign all rows to this line" — overrides any per-row line_code column. */
+  target_line_id?: number | null;
 }
 
 export interface CsvExecuteInput {

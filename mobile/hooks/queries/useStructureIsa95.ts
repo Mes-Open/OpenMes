@@ -2,8 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import * as sites from '@/api/sites';
 import * as areas from '@/api/areas';
-import type { Area, Site } from '@/api/sites';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
 
 const inv = (qc: ReturnType<typeof useQueryClient>, key: string) =>
   qc.invalidateQueries({ queryKey: [key] });
@@ -11,25 +9,15 @@ const inv = (qc: ReturnType<typeof useQueryClient>, key: string) =>
 // ── Sites ───────────────────────────────────────────────────────────────────
 
 /**
- * Live sites list via Electric (migrated from REST `listSites`).
- * Uses `sites` shape (all sites). Filters applied client-side.
- *
- * Shape fidelity note: `sites` shape carries raw table columns only — the
- * REST-computed `areas_count` and `lines_count` are not present in shape rows.
- * The nested `company` relation object is also absent (only `company_id` is
- * available).
+ * Sites list via REST `listSites`.
+ * `include_inactive` and `company_id` are pushed to the backend;
+ * results sorted by name.
  */
 export function useSites(opts: sites.SiteFilters = {}) {
-  const includeInactive = opts.include_inactive ?? false;
-  const companyId = opts.company_id;
-
-  return useElectricShape<Row, Site[]>('sites', {
-    select: (rows) => {
-      let out = rows as unknown as Site[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      if (companyId !== undefined) out = out.filter((r) => Number(r.company_id) === companyId);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['sites', opts],
+    queryFn: () => sites.listSites(opts),
+    select: (rows) => [...rows].sort((a, b) => a.name.localeCompare(b.name)),
   });
 }
 
@@ -73,24 +61,15 @@ export function useDeleteSite() {
 // ── Areas ───────────────────────────────────────────────────────────────────
 
 /**
- * Live areas list via Electric (migrated from REST `listAreas`).
- * Uses `areas` shape (all areas). Filters applied client-side.
- *
- * Shape fidelity note: `areas` shape carries raw table columns only — the
- * REST-computed `lines_count` is not present in shape rows. The nested `site`
- * relation object is also absent (only `site_id` is available).
+ * Areas list via REST `listAreas`.
+ * `include_inactive` and `site_id` are pushed to the backend;
+ * results sorted by name.
  */
 export function useAreas(opts: areas.AreaFilters = {}) {
-  const includeInactive = opts.include_inactive ?? false;
-  const siteId = opts.site_id;
-
-  return useElectricShape<Row, Area[]>('areas', {
-    select: (rows) => {
-      let out = rows as unknown as Area[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      if (siteId !== undefined) out = out.filter((r) => Number(r.site_id) === siteId);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['areas', opts],
+    queryFn: () => areas.listAreas(opts),
+    select: (rows) => [...rows].sort((a, b) => a.name.localeCompare(b.name)),
   });
 }
 

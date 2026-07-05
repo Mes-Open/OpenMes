@@ -19,7 +19,7 @@ class LineController extends Controller
 
         if ($user->hasAnyRole(['Admin', 'Supervisor'])) {
             $query = Line::query()->with('workstations');
-            if (!$includeInactive) {
+            if (! $includeInactive) {
                 $query->where('is_active', true);
             }
         } else {
@@ -33,15 +33,23 @@ class LineController extends Controller
             $query->where('division_id', $divisionId);
         }
         if ($q = $request->query('q')) {
-            $needle = '%' . strtolower($q) . '%';
+            $needle = '%'.strtolower($q).'%';
             $query->where(function ($qb) use ($needle) {
                 $qb->whereRaw('LOWER(name) LIKE ?', [$needle])
                     ->orWhereRaw('LOWER(code) LIKE ?', [$needle]);
             });
         }
 
+        // Counts + area names power the web-mirroring lines table
+        // (Stations / Work Orders / Operators / Area columns).
+        $lines = $query
+            ->withCount(['workstations', 'workOrders', 'users'])
+            ->with('area:id,name')
+            ->orderBy('name')
+            ->get();
+
         return response()->json([
-            'data' => $query->orderBy('name')->get(),
+            'data' => $lines,
         ]);
     }
 
@@ -101,7 +109,7 @@ class LineController extends Controller
     {
         $this->authorize('update', $line);
 
-        $line->update(['is_active' => !$line->is_active]);
+        $line->update(['is_active' => ! $line->is_active]);
 
         return response()->json([
             'message' => $line->is_active ? 'Line activated' : 'Line deactivated',

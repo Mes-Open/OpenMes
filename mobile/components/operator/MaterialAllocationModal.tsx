@@ -101,6 +101,7 @@ export function MaterialAllocationModal({ batchId, onConfirm, onCancel, confirmL
 function MaterialRow({ line }: { line: MaterialAllocationLine }) {
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
+  const { t } = useTranslation();
   const insufficient = !line.sufficient;
   return (
     <View
@@ -124,7 +125,7 @@ function MaterialRow({ line }: { line: MaterialAllocationLine }) {
           {line.required_qty} {line.unit_of_measure}
         </Mono>
         <Mono size={10} color={insufficient ? palette.danger : palette.textFaint} style={{ marginTop: 2 }}>
-          AVAIL {line.available_qty}
+          {t('Avail').toUpperCase()} {line.available_qty}
         </Mono>
       </View>
     </View>

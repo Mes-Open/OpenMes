@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
 
@@ -41,7 +42,31 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
-  return next(context, moduleName, platform);
+  const resolved = next(context, moduleName, platform);
+
+  // On web (Expo web / react-native-web), force every @openmes/ui dual component
+  // to its NATIVE twin (index.native.tsx) instead of the Tailwind DOM twin
+  // (index.web.jsx). The web twins style themselves with Tailwind `om-*` classes
+  // that only exist in the Laravel/Vite app — on Expo web there's no Tailwind, so
+  // the DOM twins render UNSTYLED (e.g. a bare <select>). The native twins style
+  // via RN StyleSheet + shared tokens, which react-native-web renders faithfully,
+  // so the mobile app looks 1:1 with the design on web too. `react-native` imports
+  // inside the native twin still resolve to react-native-web (platform stays web).
+  if (
+    platform === 'web' &&
+    resolved &&
+    resolved.type === 'sourceFile' &&
+    typeof resolved.filePath === 'string' &&
+    resolved.filePath.includes(`${path.sep}packages${path.sep}ui${path.sep}src${path.sep}`) &&
+    /index\.web\.(jsx?|tsx?)$/.test(resolved.filePath)
+  ) {
+    const nativePath = resolved.filePath.replace(/index\.web\.(jsx?|tsx?)$/, 'index.native.tsx');
+    if (fs.existsSync(nativePath)) {
+      return { type: 'sourceFile', filePath: nativePath };
+    }
+  }
+
+  return resolved;
 };
 
 module.exports = config;

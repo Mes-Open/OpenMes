@@ -1,79 +1,127 @@
+/**
+ * Crews — 1:1 with the web admin/crews table (Pages/admin/crews/Index.jsx):
+ * the shared DataTable (search + Columns menu + pagination) with the web's
+ * column set (Code / Name / Division / Leader / Workers / Status) and
+ * per-row actions (edit / toggle-active / delete), plus the mobile-only
+ * "show inactive" toggle. Data via REST useCrews.
+ */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { ListItem } from '@/components/ui/ListItem';
-import { ListScreen } from '@/components/ui/ListScreen';
+import { Button, colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
 import { Mono } from '@/components/ui/Mono';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { Switch } from '@/components/ui/Switch';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { useCrews } from '@/hooks/queries/useHr';
+import { useDeleteCrew, useToggleCrewActive } from '@/hooks/mutations/hr';
+import type { Crew } from '@/api/hr';
 
 export function CrewsList() {
+  const { t } = useTranslation();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const [includeInactive, setIncludeInactive] = useState(false);
-  const query = useCrews(includeInactive);
-  const items = query.data ?? [];
+  const q = useCrews(includeInactive);
+  const toggle = useToggleCrewActive();
+  const del = useDeleteCrew();
+  const rows = q.data ?? [];
+
+  const confirmDelete = (crew: Crew) => {
+    Alert.alert(t('Delete crew'), t('Delete "{{name}}"?', { name: crew.name }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () =>
+          del.mutate(crew.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
+  };
 
   return (
-    <ListScreen
-      title="Crews"
-      eyebrow={`HR · ${items.length} CREWS`}
-      newRoute="/hr/crews/new"
-      extraHeader={
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Crews')}</Text>
+        <View style={{ flex: 1 }} />
         <View style={styles.toggle}>
-          <Mono size={11} color={palette.textFaint} letterSpacing={0.6}>SHOW INACTIVE</Mono>
+          <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Show inactive').toUpperCase()}</Mono>
           <Switch value={includeInactive} onValueChange={setIncludeInactive} />
         </View>
-      }
-      items={items}
-      keyExtractor={(c) => String(c.id)}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      error={query.error}
-      isFetching={query.isFetching}
-      onRefresh={query.refetch}
-      emptyTitle="No crews"
-      renderItem={(item) => (
-        <ListItem
-          icon="users"
-          title={item.name}
-          eyebrow={item.code}
-          subtitle={
-            [
-              item.leader ? `LED BY ${(item.leader.name ?? item.leader.username).toUpperCase()}` : null,
-              item.workers_count != null ? `${item.workers_count} WORKERS` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ') || undefined
-          }
-          trailing={
-            <StatusPill
-              status={item.is_active ? 'IN_PROGRESS' : 'CANCELLED'}
-              label={item.is_active ? 'Active' : 'Inactive'}
-            />
-          }
-          onPress={() => router.push(`/hr/crews/${item.id}` as never)}
-          chevron={false}
-        />
+        <Button size="sm" onPress={() => router.push('/hr/crews/new' as never)}>{t('New Crew')}</Button>
+      </View>
+
+      {q.isLoading && !q.data ? (
+        <LoadingState />
+      ) : q.isError && !q.data ? (
+        <ErrorState error={q.error} onRetry={q.refetch} />
+      ) : (
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={styles.tableWrap}
+          refreshControl={<RefreshControl refreshing={q.isFetching} onRefresh={q.refetch} tintColor={colors.accent} />}>
+          <DataTable<Crew>
+            data={rows}
+            searchPlaceholder={t('Search…')}
+            columnsLabel={t('Columns')}
+            columnsMenuLabel={t('Toggle columns')}
+            searchKeys={['code', 'name']}
+            emptyText={t('No crews yet.')}
+            onRowPress={(c) => router.push(`/hr/crews/${c.id}` as never)}
+            columns={[
+              {
+                key: 'code',
+                label: t('Code'),
+                width: 90,
+                render: (c) => <Mono size={11} color={colors.muted}>{c.code}</Mono>,
+              },
+              {
+                key: 'name',
+                label: t('Name'),
+                flex: 1.4,
+                render: (c) => <Text numberOfLines={1} style={styles.name}>{c.name}</Text>,
+              },
+              { key: 'division', label: t('Division'), flex: 1, render: (c) => c.division?.name ?? '—' },
+              {
+                key: 'leader',
+                label: t('Leader'),
+                flex: 1,
+                render: (c) => (c.leader ? c.leader.name ?? c.leader.username : '—'),
+              },
+              { key: 'workers_count', label: t('Workers'), width: 80, render: (c) => String(c.workers_count ?? 0) },
+              {
+                key: 'status',
+                label: t('Status'),
+                width: 90,
+                render: (c) => (
+                  <StatusPill status={c.is_active ? 'IN_PROGRESS' : 'CANCELLED'} label={t(c.is_active ? 'Active' : 'Inactive')} />
+                ),
+              },
+            ]}
+            actions={(c) => [
+              { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/hr/crews/${c.id}` as never) },
+              {
+                label: c.is_active ? t('Deactivate') : t('Activate'),
+                icon: c.is_active ? 'deactivate' : 'activate',
+                onPress: () => toggle.mutate(c.id, { onError: (e: Error) => Alert.alert(t('Could not update'), e.message) }),
+              },
+              { label: t('Delete'), icon: 'delete', onPress: () => confirmDelete(c) },
+            ]}
+          />
+        </ScrollView>
       )}
-    />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  toggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#00000010',
-  },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tableWrap: { paddingHorizontal: 18, paddingBottom: 24 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
 });

@@ -1,114 +1,159 @@
 /**
  * TextField — Geist White system (design ref: OpenMES Components.dc.html §04).
- * Native twin of index.web.jsx — identical props API. Focus state is tracked
- * via onFocus/onBlur; the 3px web focus ring is emulated by a focusRing-tinted
- * wrapper pad so the field itself keeps its layout.
+ * Native twin of index.web.jsx. Extends RN TextInputProps, so keyboardType,
+ * secureTextEntry, autoCapitalize, multiline, value/onChangeText, etc. all pass
+ * through. Adds label (+ optional required asterisk / labelHint), error, hint,
+ * mono, and a trailing `suffix`. Focus tints a 3px focusRing halo (web parity).
  */
-import React from 'react';
-import { StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import React, { useState } from 'react';
+import {
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+    type StyleProp,
+    type TextInputProps,
+    type ViewStyle,
+    Platform,
+} from 'react-native';
 
 import { colors, fonts, monoLabel, radius } from '../tokens';
 
-export interface TextFieldProps {
+// react-native-web draws the browser's default focus outline on <input>;
+// suppress it — the design's own focus ring (accent border/halo) replaces it.
+const WEB_OUTLINE_RESET = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as object) : null;
+
+export interface TextFieldProps extends TextInputProps {
     label?: string;
-    value: string;
-    onChange?: (text: string) => void;
-    placeholder?: string;
-    mono?: boolean;
-    multiline?: boolean;
     error?: string;
-    style?: StyleProp<ViewStyle>;
+    hint?: string;
+    /** Mono hint shown at the right of the label row (e.g. "13 OR 14 DIGITS"). */
+    labelHint?: string;
+    /** Marks the label with a red asterisk. */
+    required?: boolean;
+    /** Render the value in monospace (codes / IDs / EANs). */
+    mono?: boolean;
+    /** Trailing affordance shown inside the field (unit, icon, etc.). */
+    suffix?: React.ReactNode;
+    /** Style for the outer wrapper (the `style` prop lands on the input itself). */
+    containerStyle?: StyleProp<ViewStyle>;
 }
 
 export function TextField({
     label,
-    value,
-    onChange,
-    placeholder,
-    mono = false,
-    multiline = false,
     error,
+    hint,
+    labelHint,
+    required,
+    mono = false,
+    suffix,
+    placeholder,
     style,
+    onFocus,
+    onBlur,
+    containerStyle,
+    ...rest
 }: TextFieldProps) {
-    const [focused, setFocused] = React.useState(false);
+    const [focused, setFocused] = useState(false);
 
     return (
-        <View style={style}>
-            {label != null && <Text style={styles.label}>{label}</Text>}
+        <View style={[styles.wrap, containerStyle]}>
+            {label != null && (
+                <View style={styles.labelRow}>
+                    <Text style={styles.label}>
+                        {label}
+                        {required ? <Text style={{ color: colors.blocked }}>{' *'}</Text> : null}
+                    </Text>
+                    {labelHint ? <Text style={styles.labelHint}>{labelHint}</Text> : null}
+                </View>
+            )}
             <View style={[styles.ring, focused && styles.ringFocused]}>
-                <TextInput
-                    accessibilityLabel={label}
-                    value={value}
-                    placeholder={placeholder}
-                    placeholderTextColor={colors.faint}
-                    multiline={multiline}
-                    onChangeText={onChange}
-                    onFocus={() => setFocused(true)}
-                    onBlur={() => setFocused(false)}
-                    style={[
-                        styles.input,
-                        mono && styles.inputMono,
-                        multiline && styles.inputMultiline,
-                        error != null && styles.inputError,
-                        focused && styles.inputFocused,
-                    ]}
-                />
+                <View style={[styles.inputWrap, focused && styles.inputWrapFocused, error != null && styles.inputWrapError]}>
+                    <TextInput
+                        placeholder={placeholder}
+                        placeholderTextColor={colors.faint}
+                        accessibilityLabel={label}
+                        {...rest}
+                        onFocus={(e) => {
+                            setFocused(true);
+                            onFocus?.(e);
+                        }}
+                        onBlur={(e) => {
+                            setFocused(false);
+                            onBlur?.(e);
+                        }}
+                        style={[
+                            styles.input,
+                            { fontFamily: mono ? fonts.mono.native.regular : fonts.sans.native.regular },
+                            style,
+                        ]}
+                    />
+                    {suffix ? <View style={styles.suffix}>{suffix}</View> : null}
+                </View>
             </View>
-            {error != null && <Text style={styles.error}>{error}</Text>}
+            {error != null ? (
+                <Text style={styles.error}>{error}</Text>
+            ) : hint != null ? (
+                <Text style={styles.hint}>{hint}</Text>
+            ) : null}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
+    wrap: { gap: 6 },
+    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
     label: {
         ...monoLabel,
-        fontFamily: fonts.mono.native.regular,
+        fontFamily: fonts.mono.native.medium,
         color: colors.faint,
-        marginBottom: 7,
     },
-    /** Always-mounted ring wrapper — 3px pad pulled back by margin so layout is stable. */
+    labelHint: {
+        fontSize: 10,
+        fontFamily: fonts.mono.native.regular,
+        letterSpacing: 0.4,
+        color: colors.faint,
+    },
+    /** Always-mounted focus halo — 3px pad pulled back by margin so layout is stable. */
     ring: {
         padding: 3,
         margin: -3,
         borderRadius: radius.sm + 3,
         backgroundColor: 'transparent',
     },
-    ringFocused: {
-        backgroundColor: colors.focusRing,
-    },
-    input: {
-        fontSize: 13,
-        color: colors.ink,
-        fontFamily: fonts.sans.native.regular,
+    ringFocused: { backgroundColor: colors.focusRing },
+    inputWrap: {
         backgroundColor: colors.bg,
         borderWidth: 1,
         borderColor: colors.line,
         borderRadius: radius.sm,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
+        paddingHorizontal: 14,
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
-    inputMono: {
-        fontFamily: fonts.mono.native.regular,
+    inputWrapFocused: { borderColor: colors.accent, backgroundColor: colors.card },
+    inputWrapError: { borderColor: colors.blocked },
+    input: {
+        flex: 1,
+        fontSize: 14,
+        color: colors.ink,
+        paddingVertical: 12,
     },
-    inputMultiline: {
-        minHeight: 74,
-        textAlignVertical: 'top',
-    },
-    inputError: {
-        borderColor: colors.blocked,
-    },
-    // Border thickens 1 → 1.5; padding gives the 0.5px back so text doesn't shift.
-    inputFocused: {
-        borderWidth: 1.5,
-        borderColor: colors.accent,
-        backgroundColor: colors.card,
-        paddingVertical: 9.5,
-        paddingHorizontal: 11.5,
-    },
+    suffix: { alignItems: 'center', justifyContent: 'center' },
     error: {
-        marginTop: 5,
-        fontSize: 11.5,
+        fontSize: 11,
+        fontFamily: fonts.mono.native.regular,
+        letterSpacing: 0.4,
+        marginTop: 2,
         color: colors.blocked,
-        fontFamily: fonts.sans.native.regular,
+    },
+    hint: {
+        fontSize: 10.5,
+        fontFamily: fonts.mono.native.regular,
+        letterSpacing: 0.3,
+        marginTop: 2,
+        color: colors.faint,
     },
 });

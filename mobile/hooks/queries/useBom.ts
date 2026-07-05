@@ -10,6 +10,7 @@ import {
   getMaterialType,
   importMaterials,
   listBomItems,
+  listMaterials,
   listMaterialTypes,
   updateBomItem,
   updateMaterial,
@@ -19,7 +20,6 @@ import {
   type MaterialImportRow,
   type MaterialInput,
 } from '@/api/bom';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
 
 // ── Material Types ────────────────────────────────────────────────────────
 
@@ -41,35 +41,12 @@ export function useMaterialType(id: number | undefined) {
 
 // ── Materials ─────────────────────────────────────────────────────────────
 
-/**
- * Live material list via Electric `materials` shape.
- * Filtering (material_type_id, is_active, search, external_system) applied client-side.
- * Fidelity note: the shape carries raw table columns only — the REST-computed
- * `material_type` relation object and v0.9 enrichment fields (min_stock_level,
- * supplier_name, supplier_code, unit_price, price_currency, ean, last_stock_sync_at)
- * are absent. Consumers needing those fields should use `useMaterial(id)`.
- */
+// REST — the server applies material_type_id / is_active / search / external_system
+// filters and returns the material rows (with the material_type relation).
 export function useMaterials(filters: MaterialFilters = {}) {
-  const materialTypeId = filters.material_type_id;
-  const isActive = filters.is_active;
-  const search = filters.search?.trim().toLowerCase() ?? '';
-  const externalSystem = filters.external_system;
-
-  return useElectricShape<Row, Material[]>('materials', {
-    select: (rows) => {
-      let out = rows as unknown as Material[];
-      if (materialTypeId !== undefined) out = out.filter((r) => r.material_type_id === materialTypeId);
-      if (isActive !== undefined) out = out.filter((r) => (r.is_active ?? true) === isActive);
-      if (externalSystem) out = out.filter((r) => r.external_system === externalSystem);
-      if (search) {
-        out = out.filter(
-          (r) =>
-            r.name.toLowerCase().includes(search) ||
-            (r.code ?? '').toLowerCase().includes(search),
-        );
-      }
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['materials', filters],
+    queryFn: () => listMaterials(filters),
   });
 }
 

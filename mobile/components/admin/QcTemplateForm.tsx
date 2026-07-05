@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 import { FontAwesome } from '@expo/vector-icons';
@@ -40,6 +41,7 @@ interface Props {
 }
 
 export function QcTemplateForm({ initial, mode, onSubmit, submitting }: Props) {
+  const { t } = useTranslation();
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
 
@@ -104,11 +106,11 @@ export function QcTemplateForm({ initial, mode, onSubmit, submitting }: Props) {
               style={styles.addBtn}>
               <FontAwesome name="plus" size={11} color="#1a1208" />
               <Mono size={11} color="#1a1208" weight="700" letterSpacing={0.4}>
-                ADD PARAM
+                {t('ADD PARAM')}
               </Mono>
             </Pressable>
           }>
-          {`Parameters · ${fields.length}`}
+          {`${t('Parameters')} · ${fields.length}`}
         </SectionLabel>
 
         {fields.map((f, idx) => {
@@ -119,29 +121,29 @@ export function QcTemplateForm({ initial, mode, onSubmit, submitting }: Props) {
               style={[styles.paramBox, { borderColor: palette.border, backgroundColor: palette.surfaceAlt }]}>
               <View style={styles.paramHeader}>
                 <Mono size={10} color={palette.textFaint} letterSpacing={0.6}>
-                  PARAM {idx + 1}
+                  {t('PARAM')} {idx + 1}
                 </Mono>
                 {fields.length > 1 ? (
                   <Pressable onPress={() => remove(idx)} hitSlop={6}>
-                    <Mono size={11} color={palette.danger} weight="700">REMOVE</Mono>
+                    <Mono size={11} color={palette.danger} weight="700">{t('REMOVE')}</Mono>
                   </Pressable>
                 ) : null}
               </View>
               <ControlledField control={control} name={`parameters.${idx}.name` as const} label="Name" />
               <View style={{ gap: 8 }}>
-                <Mono size={10} color={palette.textFaint} letterSpacing={0.8}>TYPE</Mono>
+                <Mono size={10} color={palette.textFaint} letterSpacing={0.8}>{t('TYPE')}</Mono>
                 <ChipRow>
                   {(
                     [
                       { id: 'measurement', label: 'Measurement' },
                       { id: 'pass_fail', label: 'Pass / fail' },
                     ] as const
-                  ).map((t) => (
+                  ).map((opt) => (
                     <SelectionChip
-                      key={t.id}
-                      label={t.label}
-                      active={type === t.id}
-                      onPress={() => setValue(`parameters.${idx}.type`, t.id, { shouldValidate: true })}
+                      key={opt.id}
+                      label={t(opt.label)}
+                      active={type === opt.id}
+                      onPress={() => setValue(`parameters.${idx}.type`, opt.id, { shouldValidate: true })}
                     />
                   ))}
                 </ChipRow>

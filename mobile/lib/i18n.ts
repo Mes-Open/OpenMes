@@ -4,10 +4,12 @@ import { initReactI18next } from 'react-i18next';
 
 import en from '@/lang/en.json';
 import pl from '@/lang/pl.json';
+import de from '@/lang/de.json';
+import tr from '@/lang/tr.json';
 
-export type AppLocale = 'en' | 'pl';
+export type AppLocale = 'en' | 'pl' | 'de' | 'tr';
 
-export const SUPPORTED_LOCALES: AppLocale[] = ['en', 'pl'];
+export const SUPPORTED_LOCALES: AppLocale[] = ['en', 'pl', 'de', 'tr'];
 
 export function detectDeviceLocale(): AppLocale {
   const locales = Localization.getLocales();
@@ -21,6 +23,8 @@ i18n
     resources: {
       en: { translation: en },
       pl: { translation: pl },
+      de: { translation: de },
+      tr: { translation: tr },
     },
     lng: detectDeviceLocale(),
     fallbackLng: 'en',

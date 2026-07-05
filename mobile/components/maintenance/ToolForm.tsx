@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -31,6 +32,7 @@ const STATUSES: { id: ToolStatus; label: string }[] = [
 ];
 
 export function ToolForm({ initial, mode, onSubmit, submitting }: Props) {
+  const { t } = useTranslation();
   const [code, setCode] = useState(initial?.code ?? '');
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
@@ -69,7 +71,7 @@ export function ToolForm({ initial, mode, onSubmit, submitting }: Props) {
           {STATUSES.map((s) => (
             <SelectionChip
               key={s.id}
-              label={s.label}
+              label={t(s.label)}
               active={s.id === status}
               onPress={() => setStatus(s.id)}
             />

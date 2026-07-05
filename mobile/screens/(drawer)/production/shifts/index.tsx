@@ -1,121 +1,139 @@
+/**
+ * Shifts — 1:1 with the web admin shifts table (Pages/admin/shifts/Index.jsx):
+ * the shared DataTable (search + Columns menu) with the web's column set
+ * (Code / Name / Line / Start / End / Order / Status) and per-row actions
+ * (Edit / Delete). A status filter toggles inactive rows. Data via REST.
+ */
+import { useMemo, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/Card';
-import { InactiveToggle } from '@/components/ui/InactiveToggle';
-import { ListScreen } from '@/components/ui/ListScreen';
+import { Dropdown, colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
+import { Button } from '@/components/ui/Button';
 import { Mono } from '@/components/ui/Mono';
 import { StatusPill } from '@/components/ui/StatusPill';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useShifts } from '@/hooks/queries/useOps';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { useDeleteShift, useShifts } from '@/hooks/queries/useOps';
 
-const DAY_LABELS = ['', 'M', 'T', 'W', 'T', 'F', 'S', 'S'];
+type Shift = {
+  id: number;
+  code?: string | null;
+  name: string;
+  line?: { name: string } | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  sort_order?: number | null;
+  is_active?: boolean;
+};
 
 export function ShiftsList() {
+  const { t } = useTranslation();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-  const [includeInactive, setIncludeInactive] = useState(false);
+  const [scope, setScope] = useState('active');
+
+  const includeInactive = scope === 'all';
   const query = useShifts({ include_inactive: includeInactive });
-  const items = query.data ?? [];
+  const del = useDeleteShift();
+  const rows = query.data ?? [];
+
+  const options = useMemo(
+    () => [
+      { value: 'active', label: t('Active only') },
+      { value: 'all', label: t('All statuses') },
+    ],
+    [t],
+  );
+
+  const onDelete = (shift: Shift) =>
+    Alert.alert(t('Delete shift'), t('Delete "{{name}}"?', { name: shift.name }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () => del.mutate(shift.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
+
+  if (query.isLoading && !query.data) return <LoadingState />;
+  if (query.isError && !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
 
   return (
-    <ListScreen
-      title="Shifts"
-      eyebrow={`PRODUCTION · ${items.length} SHIFTS`}
-      newRoute="/production/shifts/new"
-      extraHeader={<InactiveToggle value={includeInactive} onValueChange={setIncludeInactive} />}
-      items={items}
-      keyExtractor={(s) => String(s.id)}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      error={query.error}
-      isFetching={query.isFetching}
-      onRefresh={query.refetch}
-      emptyTitle="No shifts"
-      renderItem={(item) => {
-        const days: number[] = item.days_of_week ?? [];
-        return (
-          <Card onPress={() => router.push(`/production/shifts/${item.id}` as never)}>
-            <View style={styles.headerRow}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Mono size={11} color={palette.textFaint}>
-                  {item.line ? item.line.name.toUpperCase() : 'ALL LINES'}
-                </Mono>
-                <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-              </View>
-              <StatusPill
-                status={item.is_active ? 'IN_PROGRESS' : 'CANCELLED'}
-                label={item.is_active ? 'Active' : 'Inactive'}
-              />
-            </View>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} tintColor={colors.accent} />}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Shifts')}</Text>
+        <View style={{ flex: 1 }} />
+        <View style={{ width: 150 }}>
+          <Dropdown value={scope} onChange={(v) => setScope(v as string)} options={options} />
+        </View>
+        <Button title={t('+ New Shift')} size="sm" onPress={() => router.push('/production/shifts/new' as never)} />
+      </View>
 
-            <View style={styles.timeRow}>
-              <Text style={[styles.time, { color: BRAND.amber, fontFamily: MONO }]}>
-                {item.start_time?.slice(0, 5) ?? '—'}
-              </Text>
-              <View style={[styles.timeBar, { backgroundColor: palette.surfaceAlt }]}>
-                <View
-                  style={[
-                    styles.timeBarFill,
-                    { backgroundColor: BRAND.amber, opacity: item.is_active ? 1 : 0.3 },
-                  ]}
-                />
-              </View>
-              <Text style={[styles.time, { color: BRAND.amber, fontFamily: MONO }]}>
-                {item.end_time?.slice(0, 5) ?? '—'}
-              </Text>
-            </View>
-
-            <View style={styles.dayRow}>
-              {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-                const active = days.includes(d);
-                return (
-                  <View
-                    key={d}
-                    style={[
-                      styles.dayChip,
-                      {
-                        backgroundColor: active ? palette.surfaceInverse : palette.surfaceAlt,
-                      },
-                    ]}>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: '600',
-                        color: active ? (scheme === 'dark' ? '#1A1917' : '#fff') : palette.textFaint,
-                        fontFamily: MONO,
-                      }}>
-                      {DAY_LABELS[d] ?? String(d)}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </Card>
-        );
-      }}
-    />
+      <DataTable<Shift>
+        data={rows as unknown as Shift[]}
+        searchPlaceholder={t('Search…')}
+        columnsLabel={t('Columns')}
+        columnsMenuLabel={t('Toggle columns')}
+        searchKeys={['code', 'name']}
+        emptyText={t('No shifts yet.')}
+        onRowPress={(s) => router.push(`/production/shifts/${s.id}` as never)}
+        columns={[
+          {
+            key: 'code',
+            label: t('Code'),
+            width: 90,
+            render: (s) => <Mono size={11} color={colors.muted}>{s.code ?? '—'}</Mono>,
+          },
+          {
+            key: 'name',
+            label: t('Name'),
+            flex: 1.4,
+            render: (s) => <Text numberOfLines={1} style={styles.name}>{s.name}</Text>,
+          },
+          { key: 'line', label: t('Line'), flex: 1, render: (s) => s.line ? s.line.name : t('Global') },
+          {
+            key: 'start_time',
+            label: t('Start'),
+            width: 64,
+            render: (s) => <Mono size={11} color={colors.muted}>{s.start_time?.slice(0, 5) ?? '—'}</Mono>,
+          },
+          {
+            key: 'end_time',
+            label: t('End'),
+            width: 64,
+            render: (s) => <Mono size={11} color={colors.muted}>{s.end_time?.slice(0, 5) ?? '—'}</Mono>,
+          },
+          {
+            key: 'sort_order',
+            label: t('Order'),
+            width: 60,
+            render: (s) => <Mono size={11} color={colors.muted}>{s.sort_order != null ? String(s.sort_order) : '—'}</Mono>,
+          },
+          {
+            key: 'status',
+            label: t('Status'),
+            width: 90,
+            render: (s) => <StatusPill status={s.is_active ? 'IN_PROGRESS' : 'CANCELLED'} label={s.is_active ? t('Active') : t('Inactive')} />,
+          },
+        ]}
+        actions={(s) => [
+          { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/production/shifts/${s.id}` as never) },
+          { label: t('Delete'), icon: 'delete', variant: 'danger', onPress: () => onDelete(s) },
+        ]}
+      />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  name: { fontSize: 14, fontWeight: '600', letterSpacing: -0.2, marginTop: 3 },
-  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
-  time: { fontSize: 16, fontWeight: '600', letterSpacing: 0.4 },
-  timeBar: { flex: 1, height: 4, borderRadius: 2, overflow: 'hidden' },
-  timeBarFill: { height: '100%', width: '100%' },
-  dayRow: { flexDirection: 'row', gap: 4, marginTop: 12 },
-  dayChip: {
-    flex: 1,
-    height: 28,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, paddingBottom: 32 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
 });

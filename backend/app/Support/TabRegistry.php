@@ -54,6 +54,27 @@ class TabRegistry
         return array_keys(self::TABS);
     }
 
+    /**
+     * Tab keys the given user may access — granted by role AND with the feature
+     * module enabled for this install (#144). The single source of truth shared
+     * by the Inertia nav filter (HandleInertiaRequests) and the mobile API
+     * (AuthController) so web and mobile nav filtering can't drift.
+     *
+     * @return array<int, string>
+     */
+    public static function accessibleFor($user): array
+    {
+        if (! $user) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            self::keys(),
+            fn (string $key) => $user->can(self::permission($key))
+                && ModuleRegistry::isTabEnabled($key),
+        ));
+    }
+
     /** tab key => label, for the matrix rows. @return array<string, string> */
     public static function labels(): array
     {

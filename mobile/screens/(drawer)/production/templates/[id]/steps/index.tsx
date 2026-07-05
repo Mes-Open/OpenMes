@@ -1,16 +1,21 @@
+/**
+ * Template step editor — the mobile counterpart of the web process-templates
+ * Show step builder. Lists the ordered steps as bordered rows with move
+ * up/down, inline edit and delete, plus an inline "add step" form. Reorder,
+ * add, update and delete all go through the same mutations as before.
+ */
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+
+import { colors, fonts, radius } from '@openmes/ui';
 
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { DetailScreen } from '@/components/ui/Detail';
 import { Field } from '@/components/ui/Field';
 import { Mono } from '@/components/ui/Mono';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useProcessTemplate } from '@/hooks/queries/useProductTypes';
 import {
   useAddTemplateStep,
@@ -20,13 +25,10 @@ import {
 } from '@/hooks/mutations/productTypes';
 import type { TemplateStep } from '@/api/processTemplates';
 
-const TABS = ['Steps', 'QC templates', 'BOM'];
-
 export function StepsEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const processTemplateId = Number(id);
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+  const { t } = useTranslation();
 
   const tpl = useProcessTemplate(processTemplateId);
   const add = useAddTemplateStep(processTemplateId);
@@ -36,22 +38,21 @@ export function StepsEditor() {
   const [name, setName] = useState('');
   const [instruction, setInstruction] = useState('');
   const [duration, setDuration] = useState('');
-  // Tabs are visual placeholders for now — only Steps is wired here.
-  // QC templates lives at /qc-templates; BOM is web-only.
-  // TODO(template-builder): wire QC + BOM panels into the same builder.
-  const [activeTab, setActiveTab] = useState(0);
 
-  if (tpl.isLoading) return <LoadingState />;
+  if (tpl.isLoading && !tpl.data) return <LoadingState />;
   if (tpl.isError || !tpl.data) return <ErrorState error={tpl.error} onRetry={tpl.refetch} />;
 
   const steps = (tpl.data.steps ?? []).slice().sort((a, b) => a.step_number - b.step_number);
+  const totalMin = steps.reduce((acc, s) => acc + (s.estimated_duration_minutes ?? 0), 0);
 
-  // Total duration roll-up — mirrors design "32m 30s total" line.
-  const totalMin = steps.reduce(
-    (acc, s) => acc + (s.estimated_duration_minutes ?? 0),
-    0,
-  );
-  const totalLabel = totalMin > 0 ? `${totalMin}M TOTAL · ` : '';
+  const subtitle = [
+    `v${tpl.data.version}`,
+    (tpl.data.is_active ? t('Active') : t('Draft')).toUpperCase(),
+    totalMin > 0 ? `${totalMin}M ${t('Total').toUpperCase()}` : null,
+    `${steps.length} ${(steps.length === 1 ? t('Step') : t('Steps')).toUpperCase()}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const move = (idx: number, dir: -1 | 1) => {
     const next = [...steps];
@@ -60,7 +61,7 @@ export function StepsEditor() {
     const [removed] = next.splice(idx, 1);
     next.splice(target, 0, removed);
     reorder.mutate(next.map((s) => s.id), {
-      onError: (e: Error) => Alert.alert('Reorder failed', e.message),
+      onError: (e: Error) => Alert.alert(t('Reorder failed'), e.message),
     });
   };
 
@@ -78,135 +79,57 @@ export function StepsEditor() {
         instruction: instruction || null,
         estimated_duration_minutes: duration ? Number(duration) : null,
       },
-      { onSuccess: reset, onError: (e: Error) => Alert.alert('Add failed', e.message) },
+      { onSuccess: reset, onError: (e: Error) => Alert.alert(t('Add failed'), e.message) },
     );
   };
 
   return (
-    <DetailScreen>
-      <View>
-        <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>
-          {(tpl.data.product_type?.name ?? 'TEMPLATE').toUpperCase()}
-        </Mono>
-        <Text style={[styles.heading, { color: palette.text }]}>{tpl.data.name}</Text>
-        <View style={styles.versionRow}>
-          <View
-            style={[
-              styles.versionPill,
-              { backgroundColor: tpl.data.is_active ? palette.success : palette.textFaint },
-            ]}>
-            <Mono size={10} color="#fff" weight="700" letterSpacing={0.5}>
-              v{tpl.data.version} {tpl.data.is_active ? 'ACTIVE' : 'DRAFT'}
-            </Mono>
-          </View>
-          <Mono size={10.5} color={palette.textFaint} letterSpacing={0.4}>
-            {totalLabel}
-            {steps.length} STEP{steps.length === 1 ? '' : 'S'}
-          </Mono>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.head}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.h1}>{tpl.data.name}</Text>
+          <Mono size={10} color={colors.faint} letterSpacing={0.4} style={{ marginTop: 4 }}>{subtitle}</Mono>
         </View>
+        {!showAdd ? <Button title={t('Add step')} size="sm" onPress={() => setShowAdd(true)} /> : null}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={[styles.tabsTrack, { backgroundColor: palette.surfaceAlt }]}
-        contentContainerStyle={{ padding: 4, gap: 4 }}>
-        {TABS.map((t, i) => {
-          const active = i === activeTab;
-          return (
-            <Pressable
-              key={t}
-              onPress={() => setActiveTab(i)}
-              style={[
-                styles.tab,
-                active && {
-                  backgroundColor: palette.surface,
-                  boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.06)',
-                },
-              ]}>
-              <Mono
-                size={11}
-                color={active ? palette.text : palette.textMuted}
-                weight="600"
-                letterSpacing={0.5}>
-                {t.toUpperCase()}
-              </Mono>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <View style={{ gap: 10 }}>
+        {steps.map((step, idx) => (
+          <StepRow
+            key={step.id}
+            step={step}
+            processTemplateId={processTemplateId}
+            canMoveUp={idx > 0}
+            canMoveDown={idx < steps.length - 1}
+            onMoveUp={() => move(idx, -1)}
+            onMoveDown={() => move(idx, +1)}
+          />
+        ))}
 
-      {activeTab === 0 ? (
-        <View style={{ gap: 8 }}>
-          {steps.map((step, idx) => (
-            <StepRow
-              key={step.id}
-              step={step}
-              processTemplateId={processTemplateId}
-              canMoveUp={idx > 0}
-              canMoveDown={idx < steps.length - 1}
-              onMoveUp={() => move(idx, -1)}
-              onMoveDown={() => move(idx, +1)}
+        {steps.length === 0 && !showAdd ? <Text style={styles.empty}>{t('No steps defined yet.')}</Text> : null}
+
+        {showAdd ? (
+          <View style={styles.box}>
+            <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('New step').toUpperCase()}</Mono>
+            <Field label="Name" value={name} onChangeText={setName} required />
+            <Field
+              label="Instruction"
+              value={instruction}
+              onChangeText={setInstruction}
+              multiline
+              numberOfLines={3}
+              style={{ minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }}
             />
-          ))}
-
-          {showAdd ? (
-            <Card style={{ gap: 12 }}>
-              <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>NEW STEP</Mono>
-              <Field label="Name" value={name} onChangeText={setName} required />
-              <Field
-                label="Instruction"
-                value={instruction}
-                onChangeText={setInstruction}
-                multiline
-                numberOfLines={3}
-                style={{ minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }}
-              />
-              <Field
-                label="Duration min"
-                value={duration}
-                onChangeText={setDuration}
-                keyboardType="number-pad"
-                mono
-                suffix={<Text style={{ fontFamily: MONO, fontSize: 11, color: palette.textFaint }}>MIN</Text>}
-              />
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Button title="Cancel" variant="outline" onPress={reset} style={{ flex: 1 }} />
-                <Button
-                  title="Add step"
-                  onPress={onAdd}
-                  disabled={!name.trim()}
-                  loading={add.isPending}
-                  style={{ flex: 2 }}
-                  leftIcon={<FontAwesome name="plus" size={13} color="#1a1208" />}
-                />
-              </View>
-            </Card>
-          ) : (
-            <Pressable
-              onPress={() => setShowAdd(true)}
-              style={({ pressed }) => [
-                styles.addBtn,
-                {
-                  borderColor: palette.border,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}>
-              <FontAwesome name="plus" size={14} color={palette.textMuted} />
-              <Mono size={12} color={palette.textMuted} weight="600" letterSpacing={0.5}>
-                ADD STEP
-              </Mono>
-            </Pressable>
-          )}
-        </View>
-      ) : (
-        <Card>
-          <Mono size={11} color={palette.textFaint} letterSpacing={0.6}>
-            {activeTab === 1 ? 'OPEN QC TEMPLATES SUB-SCREEN.' : 'BOM IS WEB-ADMIN ONLY.'}
-          </Mono>
-        </Card>
-      )}
-    </DetailScreen>
+            <Field label="Duration min" value={duration} onChangeText={setDuration} keyboardType="number-pad" mono />
+            <View style={styles.formActions}>
+              <Button title={t('Cancel')} variant="ghost" onPress={reset} />
+              <View style={{ flex: 1 }} />
+              <Button title={t('Add step')} onPress={onAdd} disabled={!name.trim()} loading={add.isPending} />
+            </View>
+          </View>
+        ) : null}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -225,9 +148,7 @@ function StepRow({
   onMoveUp: () => void;
   onMoveDown: () => void;
 }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
-
+  const { t } = useTranslation();
   const upd = useUpdateTemplateStep(processTemplateId);
   const del = useDeleteTemplateStep(processTemplateId);
 
@@ -238,9 +159,6 @@ function StepRow({
     step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
   );
 
-  // Heuristic: name contains "QC" or "INSPECT" → tinted purple per design.
-  // TODO(template-builder): replace with a real `is_qc` flag from API.
-  const isQc = /\b(qc|inspect|quality)\b/i.test(step.name);
   const dur = step.estimated_duration_minutes;
 
   useEffect(() => {
@@ -259,89 +177,44 @@ function StepRow({
           estimated_duration_minutes: duration ? Number(duration) : null,
         },
       },
-      { onSuccess: () => setEditing(false), onError: (e: Error) => Alert.alert('Save failed', e.message) },
+      { onSuccess: () => setEditing(false), onError: (e: Error) => Alert.alert(t('Save failed'), e.message) },
     );
   };
 
   const remove = () => {
-    Alert.alert('Delete step', `Delete "${step.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('Delete step'), step.name, [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('Delete'),
         style: 'destructive',
-        onPress: () => del.mutate(step.id, { onError: (e: Error) => Alert.alert('Delete failed', e.message) }),
+        onPress: () => del.mutate(step.id, { onError: (e: Error) => Alert.alert(t('Delete failed'), e.message) }),
       },
     ]);
   };
 
+  const meta = [step.workstation?.name?.toUpperCase(), dur != null ? `${dur}M` : null].filter(Boolean).join(' · ');
+
   return (
-    <Card
-      style={{
-        gap: editing ? 12 : 0,
-        borderColor: isQc ? '#cfa8e8' : palette.border,
-      }}>
-      <View style={styles.row}>
-        <View
-          style={[
-            styles.numBadge,
-            { backgroundColor: isQc ? '#f1e5fa' : palette.surfaceAlt },
-          ]}>
-          <Text
-            style={{
-              color: isQc ? '#7c3aed' : palette.text,
-              fontSize: 12,
-              fontWeight: '700',
-              fontFamily: MONO,
-            }}>
-            {String(step.step_number).padStart(2, '0')}
-          </Text>
+    <View style={styles.box}>
+      <View style={styles.rowTop}>
+        <View style={styles.numBadge}>
+          <Mono size={11} color={colors.accent}>{String(step.step_number).padStart(2, '0')}</Mono>
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[styles.stepName, { color: palette.text }]} numberOfLines={1}>
-            {step.name}
-          </Text>
-          {(step.workstation?.name || dur != null || isQc) ? (
-            <Mono
-              size={10.5}
-              color={palette.textFaint}
-              letterSpacing={0.4}
-              style={{ marginTop: 4 }}>
-              {[
-                step.workstation?.name?.toUpperCase(),
-                dur != null ? `${dur}M` : null,
-                isQc ? 'QC' : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </Mono>
+          <Text numberOfLines={1} style={styles.stepName}>{step.name}</Text>
+          {meta ? (
+            <Mono size={10} color={colors.faint} letterSpacing={0.4} style={{ marginTop: 4 }}>{meta}</Mono>
           ) : null}
         </View>
-        <View style={{ flexDirection: 'row', gap: 4 }}>
-          <Pressable
-            onPress={onMoveUp}
-            disabled={!canMoveUp}
-            hitSlop={4}
-            style={[styles.moveBtn, { borderColor: palette.border, opacity: canMoveUp ? 1 : 0.3 }]}>
-            <FontAwesome name="arrow-up" size={11} color={palette.text} />
-          </Pressable>
-          <Pressable
-            onPress={onMoveDown}
-            disabled={!canMoveDown}
-            hitSlop={4}
-            style={[styles.moveBtn, { borderColor: palette.border, opacity: canMoveDown ? 1 : 0.3 }]}>
-            <FontAwesome name="arrow-down" size={11} color={palette.text} />
-          </Pressable>
-          <Pressable
-            onPress={() => setEditing((v) => !v)}
-            hitSlop={4}
-            style={[styles.moveBtn, { borderColor: palette.border }]}>
-            <FontAwesome name={editing ? 'times' : 'pencil'} size={11} color={palette.text} />
-          </Pressable>
+        <View style={styles.iconRow}>
+          <IconBtn name="arrow-up" onPress={onMoveUp} disabled={!canMoveUp} />
+          <IconBtn name="arrow-down" onPress={onMoveDown} disabled={!canMoveDown} />
+          <IconBtn name={editing ? 'times' : 'pencil'} onPress={() => setEditing((v) => !v)} />
         </View>
       </View>
 
       {editing ? (
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 10, marginTop: 12 }}>
           <Field label="Name" value={name} onChangeText={setName} required />
           <Field
             label="Instruction"
@@ -351,55 +224,41 @@ function StepRow({
             numberOfLines={3}
             style={{ minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }}
           />
-          <Field
-            label="Duration min"
-            value={duration}
-            onChangeText={setDuration}
-            keyboardType="number-pad"
-            mono
-            suffix={<Text style={{ fontFamily: MONO, fontSize: 11, color: palette.textFaint }}>MIN</Text>}
-          />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button title="Delete" variant="danger" onPress={remove} loading={del.isPending} style={{ flex: 1 }} />
-            <Button title="Save" onPress={save} loading={upd.isPending} style={{ flex: 2 }} />
+          <Field label="Duration min" value={duration} onChangeText={setDuration} keyboardType="number-pad" mono />
+          <View style={styles.formActions}>
+            <Button title={t('Delete')} variant="danger" onPress={remove} loading={del.isPending} />
+            <View style={{ flex: 1 }} />
+            <Button title={t('Save')} onPress={save} loading={upd.isPending} />
           </View>
         </View>
       ) : null}
-    </Card>
+    </View>
+  );
+}
+
+function IconBtn({ name, onPress, disabled }: { name: React.ComponentProps<typeof FontAwesome>['name']; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={4}
+      style={[styles.iconBtn, { opacity: disabled ? 0.3 : 1 }]}>
+      <FontAwesome name={name} size={12} color={colors.ink} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  heading: { fontSize: 24, fontWeight: '600', letterSpacing: -0.4, marginTop: 4 },
-  versionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  versionPill: { paddingVertical: 3, paddingHorizontal: 7, borderRadius: 4 },
-  tabsTrack: { borderRadius: 10, flexGrow: 0 },
-  tab: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 7 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  numBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepName: { fontSize: 13, fontWeight: '600', letterSpacing: -0.1 },
-  moveBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtn: {
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 14, gap: 12 },
+  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  numBadge: { width: 32, height: 32, borderRadius: radius.sm, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  stepName: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  iconRow: { flexDirection: 'row', gap: 6 },
+  iconBtn: { width: 30, height: 30, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  formActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  empty: { fontSize: 13, color: colors.faint, fontFamily: fonts.sans.native.regular, paddingVertical: 8 },
 });

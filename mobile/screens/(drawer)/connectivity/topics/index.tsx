@@ -1,57 +1,40 @@
-import { FontAwesome } from '@expo/vector-icons';
-import { LegendList } from '@legendapp/list';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+/**
+ * Topics list — the subscribed-topic table behind every connection
+ * (Topic / Format / Rate). The web renders topics as cards inside the connection
+ * Show page; this is the mobile table view, on the shared DataTable, with the
+ * same per-topic actions (edit, delete). Rate + the "silent" flag are derived
+ * client-side from the recent message tail (no per-topic rate endpoint). Rows
+ * open the topic detail; a search box filters by pattern or connection.
+ */
 import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import {
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+
+import { colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+import { SearchField } from '@openmes/ui/native';
 
 import { Mono } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { SearchBar } from '@/components/ui/SearchBar';
-import {
-  EmptyState,
-  ErrorState,
-  LoadingState,
-} from '@/components/ui/StateViews';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useMessages, useTopics } from '@/hooks/queries/useConnectivity';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { useDeleteTopic, useMessages, useTopics } from '@/hooks/queries/useConnectivity';
 import type { MachineTopic } from '@/api/connectivity';
 
-const DARK = Colors.dark;
-
-/**
- * Topics list — dark surface matching ScreenTopicsList from gaps.jsx. Silent
- * topics (no messages in the last 5 min) get a red rail + warning row tint;
- * healthy topics show msg/min rate in amber.
- */
 export function TopicsList() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ machine_connection_id?: string }>();
-  const connId = params.machine_connection_id
-    ? Number(params.machine_connection_id)
-    : undefined;
   const { t } = useTranslation();
+  const params = useLocalSearchParams<{ machine_connection_id?: string }>();
+  const connId = params.machine_connection_id ? Number(params.machine_connection_id) : undefined;
   const [search, setSearch] = useState('');
 
   const topicsQ = useTopics({ machine_connection_id: connId });
-  // Recent messages used to compute per-topic rate + silent flag.
-  const messagesQ = useMessages({
-    machine_connection_id: connId,
-    per_page: 200,
-  });
+  const messagesQ = useMessages({ machine_connection_id: connId, per_page: 200 });
+  const del = useDeleteTopic();
 
-  // Build per-topic stats from the recent message tail. The backend doesn't
-  // expose a rate-per-topic endpoint, so we compute it client-side.
+  // Per-topic stats from the recent message tail (rate + silent flag).
   const stats = useMemo(() => {
     const out: Record<string, { count: number; newest: number }> = {};
-    const msgs = messagesQ.data?.data ?? [];
-    for (const m of msgs) {
+    for (const m of messagesQ.data?.data ?? []) {
       try {
         const ts = new Date(m.received_at).getTime();
         const entry = out[m.topic] ?? { count: 0, newest: 0 };
@@ -68,154 +51,99 @@ export function TopicsList() {
     const q = search.trim().toLowerCase();
     if (!q) return all;
     return all.filter((tp) =>
-      `${tp.topic_pattern} ${tp.machine_connection?.name ?? ''}`
-        .toLowerCase()
-        .includes(q),
+      `${tp.topic_pattern} ${tp.machine_connection?.name ?? ''}`.toLowerCase().includes(q),
     );
   }, [topicsQ.data, search]);
 
-  const silentCount = useMemo(() => {
-    const fiveMinAgo = Date.now() - 5 * 60_000;
-    return (topicsQ.data ?? []).filter((tp) => {
-      const s = stats[tp.topic_pattern];
-      return !s || s.newest < fiveMinAgo;
-    }).length;
-  }, [topicsQ.data, stats]);
+  const onDelete = (tp: MachineTopic) =>
+    Alert.alert(t('Delete topic'), t('Delete "{{name}}"?', { name: tp.topic_pattern }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () => del.mutate(tp.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: DARK.background }}>
-      <ScreenHeader
-        back
-        variant="dark"
-        title={t('Topics')}
-        subtitle={`MQTT · ${items.length} ${t('subscribed').toUpperCase()} · ${silentCount} ${t('silent').toUpperCase()}`}
-      />
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Topics')}</Text>
+      </View>
 
-      {topicsQ.isLoading ? (
+      <View style={styles.filters}>
+        <SearchField value={search} onChange={setSearch} placeholder={t('Search topics')} />
+      </View>
+
+      {topicsQ.isLoading && !topicsQ.data ? (
         <LoadingState />
-      ) : topicsQ.isError ? (
+      ) : topicsQ.isError && !topicsQ.data ? (
         <ErrorState error={topicsQ.error} onRetry={topicsQ.refetch} />
       ) : (
-        <LegendList
-          style={{ backgroundColor: DARK.background }}
-          contentContainerStyle={styles.list}
-          data={items}
-          keyExtractor={(tp) => String(tp.id)}
-          ListHeaderComponent={
-            <View style={{ marginBottom: 14 }}>
-              <SearchBar
-                placeholder="Search topics"
-                value={search}
-                onChangeText={setSearch}
-              />
-            </View>
-          }
-          ItemSeparatorComponent={() => (
-            <View
-              style={{
-                height: StyleSheet.hairlineWidth,
-                backgroundColor: DARK.border,
-              }}
-            />
-          )}
-          renderItem={({ item, index }) => (
-            <TopicRow
-              topic={item}
-              stat={stats[item.topic_pattern]}
-              first={index === 0}
-              last={index === items.length - 1}
-              onPress={() =>
-                router.push(`/connectivity/topics/${item.id}` as never)
-              }
-            />
-          )}
-          ListEmptyComponent={
-            <EmptyState title={t('No topics')} />
-          }
-          refreshControl={
-            <RefreshControl
-              tintColor={DARK.text}
-              refreshing={topicsQ.isFetching}
-              onRefresh={topicsQ.refetch}
-            />
-          }
-        />
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={styles.tableWrap}
+          refreshControl={<RefreshControl refreshing={topicsQ.isFetching} onRefresh={topicsQ.refetch} tintColor={colors.accent} />}>
+          <DataTable<MachineTopic>
+            data={items}
+            searchable={false}
+            columnsLabel={t('Columns')}
+            columnsMenuLabel={t('Toggle columns')}
+            emptyText={t('No topics.')}
+            onRowPress={(tp) => router.push(`/connectivity/topics/${tp.id}` as never)}
+            columns={[
+              {
+                key: 'topic',
+                label: t('Topic'),
+                flex: 1.6,
+                render: (tp) => {
+                  const connName = tp.machine_connection?.name ?? `#${tp.machine_connection_id}`;
+                  return (
+                    <View>
+                      <Mono size={11.5} color={colors.ink} numberOfLines={1}>{tp.topic_pattern}</Mono>
+                      <Mono size={9} color={colors.faint} letterSpacing={0.3}>{connName.toUpperCase()}</Mono>
+                    </View>
+                  );
+                },
+              },
+              {
+                key: 'format',
+                label: t('Format'),
+                width: 80,
+                render: (tp) => <Mono size={10} color={colors.muted}>{(tp.payload_format ?? '—').toUpperCase()}</Mono>,
+              },
+              {
+                key: 'rate',
+                label: t('Rate'),
+                width: 72,
+                render: (tp) => {
+                  const stat = stats[tp.topic_pattern];
+                  const silent = !stat || stat.newest < Date.now() - 5 * 60_000;
+                  const rate = stat ? Math.round(stat.count / 5) : 0;
+                  return (
+                    <View>
+                      <Mono size={12} color={silent ? colors.blocked : colors.running}>{silent ? '0' : String(rate)}</Mono>
+                      <Mono size={8} color={colors.faint} letterSpacing={0.4}>{silent ? t('Silent').toUpperCase() : t('Msg/min').toUpperCase()}</Mono>
+                    </View>
+                  );
+                },
+              },
+            ]}
+            actions={(tp) => [
+              { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/connectivity/topics/${tp.id}/edit` as never) },
+              { label: t('Delete'), icon: 'delete', variant: 'danger', onPress: () => onDelete(tp) },
+            ]}
+          />
+        </ScrollView>
       )}
     </View>
   );
 }
 
-function TopicRow({
-  topic,
-  stat,
-  first,
-  last,
-  onPress,
-}: {
-  topic: MachineTopic;
-  stat?: { count: number; newest: number };
-  first?: boolean;
-  last?: boolean;
-  onPress: () => void;
-}) {
-  const { t } = useTranslation();
-  const silent = !stat || stat.newest < Date.now() - 5 * 60_000;
-  // Per-minute rate over the last 5 min window
-  const rate = stat ? Math.round(stat.count / 5) : 0;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        {
-          backgroundColor: silent ? '#1f0e0e' : DARK.surface,
-          borderLeftColor: silent ? DARK.danger : 'transparent',
-          borderTopLeftRadius: first ? 14 : 0,
-          borderTopRightRadius: first ? 14 : 0,
-          borderBottomLeftRadius: last ? 14 : 0,
-          borderBottomRightRadius: last ? 14 : 0,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}>
-      <FontAwesome name="rss" size={14} color={silent ? DARK.danger : BRAND.amber} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Mono size={11} color={DARK.text} weight="600" numberOfLines={1}>
-          {topic.topic_pattern}
-        </Mono>
-        <Mono
-          size={10}
-          color={DARK.textFaint}
-          letterSpacing={0.3}
-          style={{ marginTop: 3 }}>
-          {(topic.machine_connection?.name ?? `CONN #${topic.machine_connection_id}`).toUpperCase()}
-          {topic.payload_format ? ` · ${topic.payload_format.toUpperCase()}` : ''}
-        </Mono>
-      </View>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Text
-          style={{
-            fontFamily: 'GeistMono_600SemiBold',
-            fontSize: 13,
-            color: silent ? DARK.danger : BRAND.amber,
-          }}>
-          {silent ? '0' : rate}
-        </Text>
-        <Mono size={9} color={DARK.textFaint} letterSpacing={0.4} style={{ marginTop: 2 }}>
-          {silent ? t('SILENT').toUpperCase() : t('MSG/MIN').toUpperCase()}
-        </Mono>
-      </View>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  list: { padding: 16 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderLeftWidth: 3,
-  },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 8 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  filters: { paddingHorizontal: 18, paddingBottom: 10 },
+  tableWrap: { paddingHorizontal: 14, paddingBottom: 24 },
 });

@@ -9,7 +9,7 @@ class MaterialService
 {
     public function list(array $filters = []): Collection
     {
-        $query = Material::with('materialType');
+        $query = Material::with('materialType')->withCount('bomItems');
 
         if (isset($filters['material_type_id'])) {
             $query->where('material_type_id', $filters['material_type_id']);

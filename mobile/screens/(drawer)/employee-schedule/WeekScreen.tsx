@@ -12,6 +12,8 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-n
 import { keepPreviousData, useQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
+import { colors } from '@openmes/ui';
+
 import { ActivityTimeline } from '@/components/employee-schedule/ActivityTimeline';
 import { iconForActivity } from '@/components/employee-schedule/activityIcons';
 import type { ActivityType } from '@/api/employeeActivities';
@@ -19,8 +21,6 @@ import { PlannerHeader } from '@/components/employee-schedule/PlannerHeader';
 import { WeekRowsSkeleton, WeekSkeleton } from '@/components/employee-schedule/WeekSkeleton';
 import { Mono } from '@/components/ui/Mono';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useDeviceClass } from '@/hooks/useDeviceClass';
 import { useEmployeeScheduleUrlState } from '@/hooks/useEmployeeScheduleUrlState';
 import { useWorkers } from '@/hooks/queries/useHr';
@@ -29,8 +29,6 @@ import { fetchDayPlan, formatMinutes, onDutyMinutes } from '@/api/employeeActivi
 import { useAuthStore } from '@/stores/authStore';
 
 export function WeekScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
   const { useTabletLayout } = useDeviceClass();
 
@@ -84,7 +82,7 @@ export function WeekScreen() {
     : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <PlannerHeader
         eyebrow={t('Employee week plan')}
         title={
@@ -110,7 +108,7 @@ export function WeekScreen() {
             <RefreshControl
               refreshing={dayQueries.some((q) => q.isRefetching)}
               onRefresh={() => dayQueries.forEach((q) => q.refetch())}
-              tintColor={palette.tint}
+              tintColor={colors.accent}
             />
           }>
           {/* Hour ruler (tablet only) */}
@@ -118,12 +116,12 @@ export function WeekScreen() {
             <View
               style={[
                 styles.rulerCard,
-                { backgroundColor: palette.surface, borderColor: palette.border },
+                { backgroundColor: colors.card, borderColor: colors.line },
               ]}>
               <View style={styles.rulerRow}>
                 <Mono
                   size={9.5}
-                  color={palette.textMuted}
+                  color={colors.muted}
                   letterSpacing={0.6}
                   upper
                   style={{ width: 140 }}>
@@ -135,7 +133,7 @@ export function WeekScreen() {
                       key={h}
                       size={9}
                       weight="700"
-                      color={palette.textMuted}
+                      color={colors.muted}
                       letterSpacing={0.3}
                       style={{ position: 'absolute', left: `${(h / 24) * 100}%` }}>
                       {String(h).padStart(2, '0')}:00
@@ -144,7 +142,7 @@ export function WeekScreen() {
                 </View>
                 <Mono
                   size={9.5}
-                  color={palette.textMuted}
+                  color={colors.muted}
                   letterSpacing={0.6}
                   upper
                   style={{ width: 80, textAlign: 'right' }}>
@@ -182,8 +180,8 @@ export function WeekScreen() {
                   style={[
                     styles.dayCard,
                     {
-                      backgroundColor: palette.surface,
-                      borderColor: isToday ? BRAND.amber : palette.border,
+                      backgroundColor: colors.card,
+                      borderColor: isToday ? colors.accent : colors.line,
                     },
                   ]}>
                   {useTabletLayout ? (
@@ -192,14 +190,14 @@ export function WeekScreen() {
                         <Mono
                           size={13}
                           weight="700"
-                          color={isToday ? BRAND.amber : palette.text}
+                          color={isToday ? colors.accent : colors.ink}
                           letterSpacing={-0.2}
                           style={{ fontFamily: undefined }}>
                           {format(d, 'EEE')}
                         </Mono>
                         <Mono
                           size={10.5}
-                          color={palette.textMuted}
+                          color={colors.muted}
                           letterSpacing={0.3}
                           style={{ marginTop: 2 }}>
                           {format(d, 'dd MMM')}
@@ -218,13 +216,13 @@ export function WeekScreen() {
                         <Mono
                           size={16}
                           weight="700"
-                          color={palette.success}
+                          color={colors.running}
                           letterSpacing={-0.3}>
                           {formatMinutes(dayOnDuty)}
                         </Mono>
                         <Mono
                           size={8.5}
-                          color={palette.textMuted}
+                          color={colors.muted}
                           letterSpacing={0.4}
                           upper
                           style={{ marginTop: 2 }}>
@@ -244,7 +242,7 @@ export function WeekScreen() {
                           <Mono
                             size={13}
                             weight="700"
-                            color={isToday ? BRAND.amber : palette.text}
+                            color={isToday ? colors.accent : colors.ink}
                             letterSpacing={-0.2}
                             style={{ fontFamily: undefined }}>
                             {format(d, 'EEE dd MMM')}
@@ -254,11 +252,11 @@ export function WeekScreen() {
                           <Mono
                             size={14}
                             weight="700"
-                            color={palette.success}
+                            color={colors.running}
                             letterSpacing={-0.3}>
                             {formatMinutes(dayOnDuty)}
                           </Mono>
-                          <Mono size={8} color={palette.textMuted} letterSpacing={0.4} upper>
+                          <Mono size={8} color={colors.muted} letterSpacing={0.4} upper>
                             {t('On duty')}
                           </Mono>
                         </View>
@@ -282,7 +280,7 @@ export function WeekScreen() {
           <View
             style={[
               styles.legendCard,
-              { backgroundColor: palette.surface, borderColor: palette.border },
+              { backgroundColor: colors.card, borderColor: colors.line },
             ]}>
             {Object.entries(typeMeta)
               .filter(([k]) => k !== 'off' && k !== 'custom')
@@ -293,7 +291,7 @@ export function WeekScreen() {
                     size={11}
                     color={(def as any).color}
                   />
-                  <Mono size={9.5} color={palette.textMuted} letterSpacing={0.4} upper>
+                  <Mono size={9.5} color={colors.muted} letterSpacing={0.4} upper>
                     {(def as any).label}
                   </Mono>
                 </View>

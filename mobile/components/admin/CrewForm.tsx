@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { z } from 'zod';
 
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function CrewForm({ initial, mode, onSubmit, submitting }: Props) {
+  const { t } = useTranslation();
   const usersQuery = useUsers({ role: 'Supervisor' });
 
   const { control, handleSubmit, formState: { isValid } } = useForm<CrewFormValues>({
@@ -62,7 +64,7 @@ export function CrewForm({ initial, mode, onSubmit, submitting }: Props) {
 
       <Card style={{ gap: 12 }}>
         <SectionLabel
-          right={<Mono size={11} color="#9B9892">PICK A SUPERVISOR</Mono>}>
+          right={<Mono size={11} color="#9B9892">{t('PICK A SUPERVISOR')}</Mono>}>
           Leader (optional)
         </SectionLabel>
         <Controller
@@ -70,7 +72,7 @@ export function CrewForm({ initial, mode, onSubmit, submitting }: Props) {
           name="leader_id"
           render={({ field: { value, onChange } }) => (
             <ChipRow>
-              <SelectionChip label="None" active={value === null} onPress={() => onChange(null)} />
+              <SelectionChip label={t('None')} active={value === null} onPress={() => onChange(null)} />
               {(usersQuery.data?.data ?? []).map((u) => (
                 <SelectionChip
                   key={u.id}

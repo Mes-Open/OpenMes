@@ -180,7 +180,7 @@ export function MappingForm({
               {ACTION_TYPES.map((a) => (
                 <SelectionChip
                   key={a.id}
-                  label={a.label}
+                  label={t(a.label)}
                   active={a.id === value}
                   onPress={() => onChange(a.id)}
                 />
