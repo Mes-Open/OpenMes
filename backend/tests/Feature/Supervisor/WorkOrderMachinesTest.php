@@ -29,6 +29,25 @@ class WorkOrderMachinesTest extends TestCase
         $this->supervisor->assignRole('Supervisor');
     }
 
+    public function test_guest_is_redirected_from_order_machines_view(): void
+    {
+        $workOrder = WorkOrder::factory()->create();
+
+        $this->get(route('supervisor.work-orders.show', $workOrder))
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_user_without_supervisor_role_cannot_open_order_machines_view(): void
+    {
+        $workOrder = WorkOrder::factory()->create();
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        $this->actingAs($operator)
+            ->get(route('supervisor.work-orders.show', $workOrder))
+            ->assertForbidden();
+    }
+
     public function test_supervisor_sees_order_machines_with_current_statuses(): void
     {
         $line = Line::factory()->create(['name' => 'Assembly']);

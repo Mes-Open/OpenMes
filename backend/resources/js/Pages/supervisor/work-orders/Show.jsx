@@ -46,6 +46,9 @@ const MACHINE_PILL_STATUS = {
     STOPPED: 'downtime',
     FAULT: 'blocked',
     SETUP: 'pending',
+    WAITING: 'downtime',
+    CLEANING: 'pending',
+    MAINTENANCE: 'downtime',
     UNKNOWN: 'pending',
 };
 
