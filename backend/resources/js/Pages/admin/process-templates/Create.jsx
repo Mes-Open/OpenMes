@@ -1,4 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
+import { __ } from '../../../lib/i18n';
 import { Button, Checkbox } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 
@@ -19,7 +20,7 @@ export default function ProcessTemplatesCreate() {
 
     return (
         <>
-            <Head title="Create Process Template" />
+            <Head title={__("Create Process Template")} />
 
             <div className="max-w-2xl mx-auto">
                 <div className="mb-6">
@@ -30,34 +31,33 @@ export default function ProcessTemplatesCreate() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                         </svg>
-                        Back to Templates
+                        {__("Back to Templates")}
                     </a>
-                    <h1 className="text-3xl font-bold text-om-ink">Create Process Template</h1>
+                    <h1 className="text-3xl font-bold text-om-ink">{__("Create Process Template")}</h1>
                     <p className="text-sm text-om-muted mt-1">{productType.name}</p>
                 </div>
 
                 <div className="card">
                     <form onSubmit={submit}>
                         <div className="mb-6">
-                            <label htmlFor="name" className="form-label">Template Name</label>
+                            <label htmlFor="name" className="form-label">{__("Template Name")}</label>
                             <input
                                 type="text"
                                 id="name"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 className={`form-input w-full${errors.name ? ' border-om-blocked' : ''}`}
-                                placeholder="e.g., Standard Assembly Process, Quality Inspection v2"
+                                placeholder={__("e.g., Standard Assembly Process, Quality Inspection v2")}
                                 required
                                 autoFocus
                             />
-                            <p className="text-sm text-om-muted mt-1">Descriptive name for this manufacturing process</p>
+                            <p className="text-sm text-om-muted mt-1">{__("Descriptive name for this manufacturing process")}</p>
                             {errors.name && <p className="text-om-blocked text-sm mt-1">{errors.name}</p>}
                         </div>
 
                         <div className="mb-6 p-4 bg-om-chip border border-om-line rounded-om-sm">
                             <p className="text-sm text-om-accent">
-                                <strong>Note:</strong> Version number will be assigned automatically. After creating the
-                                template, you'll be able to add production steps.
+                                <strong>{__("Note:")}</strong> {__("Version number will be assigned automatically. After creating the template, you'll be able to add production steps.")}
                             </p>
                         </div>
 
@@ -65,7 +65,7 @@ export default function ProcessTemplatesCreate() {
                             <Checkbox
                                 checked={data.is_active}
                                 onChange={(next) => setData('is_active', next)}
-                                label="Active (template is ready for use in work orders)"
+                                label={__("Active (template is ready for use in work orders)")}
                             />
                         </div>
 
@@ -73,11 +73,9 @@ export default function ProcessTemplatesCreate() {
                             <a
                                 href={`/admin/product-types/${productType.id}/process-templates`}
                                 className="btn-touch btn-secondary"
-                            >
-                                Cancel
-                            </a>
+                            >{__("Cancel")}</a>
                             <Button type="submit" variant="primary" loading={processing} disabled={processing}>
-                                {processing ? 'Creating…' : 'Create Template'}
+                                {processing ? __("Creating…") : __("Create Template")}
                             </Button>
                         </div>
                     </form>

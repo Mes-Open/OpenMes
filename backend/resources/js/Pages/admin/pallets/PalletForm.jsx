@@ -1,5 +1,6 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
+import { __ } from '../../../lib/i18n';
 
 export default function PalletForm({ action, method, initial, submitLabel }) {
     const { workOrders = [], statuses = [] } = usePage().props;
@@ -18,12 +19,12 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
         <form onSubmit={submit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-2xl space-y-5">
             <div>
                 <label className="block text-sm font-medium text-om-muted mb-1">
-                    Work order <span className="text-om-blocked">*</span>
+                    {__('Work order')} <span className="text-om-blocked">*</span>
                 </label>
                 <Dropdown
                     value={data.work_order_id == null ? '' : String(data.work_order_id)}
                     onChange={(v) => { setData('work_order_id', v); setData('batch_id', ''); }}
-                    placeholder="— Select work order —"
+                    placeholder={__('— Select work order —')}
                     options={workOrders.map((wo) => ({ value: String(wo.id), label: wo.order_no }))}
                     className="w-full"
                 />
@@ -32,11 +33,11 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 
             {batches.length > 0 && (
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">Batch</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Batch')}</label>
                     <Dropdown
                         value={data.batch_id == null ? '' : String(data.batch_id)}
                         onChange={(v) => setData('batch_id', v)}
-                        placeholder="— None —"
+                        placeholder={__('— None —')}
                         options={batches.map((b) => ({ value: String(b.id), label: b.label }))}
                         className="w-full"
                     />
@@ -46,7 +47,7 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-om-muted mb-1">Quantity</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__('Quantity')}</label>
                     <input
                         type="number"
                         min={0}
@@ -58,7 +59,7 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-om-muted mb-1">
-                        Status <span className="text-om-blocked">*</span>
+                        {__('Status')} <span className="text-om-blocked">*</span>
                     </label>
                     <Dropdown
                         value={data.status == null ? '' : String(data.status)}
@@ -71,13 +72,13 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
             </div>
 
             <TextField
-                label="Location"
+                label={__('Location')}
                 value={data.location}
                 error={errors.location}
                 onChange={(v) => setData('location', v)}
             />
             <TextField
-                label="ERP reference"
+                label={__('ERP reference')}
                 value={data.erp_reference}
                 error={errors.erp_reference}
                 onChange={(v) => setData('erp_reference', v)}
@@ -89,10 +90,10 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                     disabled={processing}
                     className="bg-om-ink text-om-on-ink px-4 py-2 rounded-om-sm text-sm font-medium hover:bg-om-ink-hover disabled:opacity-50"
                 >
-                    {processing ? 'Saving…' : submitLabel}
+                    {processing ? __('Saving…') : submitLabel}
                 </button>
                 <Link href="/admin/pallets" className="text-om-muted hover:text-om-ink text-sm">
-                    Cancel
+                    {__('Cancel')}
                 </Link>
             </div>
         </form>

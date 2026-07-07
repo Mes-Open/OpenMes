@@ -128,7 +128,7 @@ function BomSection({ workOrder }) {
         {
             id: 'material',
             accessorFn: (r) => r.material_name,
-            header: 'Material',
+            header: __('Material'),
             meta: { align: 'left', flex: true },
             cell: ({ row }) => (
                 <>
@@ -140,7 +140,7 @@ function BomSection({ workOrder }) {
         {
             id: 'type',
             accessorFn: (r) => r.material_type,
-            header: 'Type',
+            header: __('Type'),
             meta: { align: 'left' },
             cell: ({ row }) => (
                 <span className={`px-2 py-0.5 rounded-[20px] font-mono text-[10px] uppercase tracking-[0.06em] ${bomTypeBadge(row.original.material_type)}`}>
@@ -151,7 +151,7 @@ function BomSection({ workOrder }) {
         {
             id: 'per_unit',
             accessorFn: (r) => r.quantity_per_unit,
-            header: 'Per Unit',
+            header: __('Per Unit'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className="font-mono text-om-ink">
@@ -165,7 +165,7 @@ function BomSection({ workOrder }) {
                 const base = r.quantity_per_unit * workOrder.planned_qty;
                 return base + base * (r.scrap_percentage / 100);
             },
-            header: `Total (${Math.round(workOrder.planned_qty)} pcs)`,
+            header: `${__('Total')} (${Math.round(workOrder.planned_qty)} ${__('pcs')})`,
             meta: { align: 'right' },
             cell: ({ row }) => {
                 const item = row.original;
@@ -176,7 +176,7 @@ function BomSection({ workOrder }) {
                     <span className="font-mono font-medium text-om-ink">
                         {fmtQty(total)} {item.unit_of_measure}
                         {item.scrap_percentage > 0 && (
-                            <span className="text-xs text-om-faint ml-1">(+{item.scrap_percentage}% scrap)</span>
+                            <span className="text-xs text-om-faint ml-1">(+{item.scrap_percentage}% {__('scrap')})</span>
                         )}
                     </span>
                 );
@@ -185,11 +185,11 @@ function BomSection({ workOrder }) {
         {
             id: 'step',
             accessorFn: (r) => r.step_number,
-            header: 'Step',
+            header: __('Step'),
             meta: { align: 'left' },
             cell: ({ row }) => (
                 <span className="font-mono text-[12px] text-om-muted">
-                    {row.original.step_number ? `#${row.original.step_number}` : 'General'}
+                    {row.original.step_number ? `#${row.original.step_number}` : __('General')}
                 </span>
             ),
         },
@@ -204,9 +204,9 @@ function BomSection({ workOrder }) {
                 className="flex justify-between items-center w-full text-left cursor-pointer"
                 onClick={() => setOpen((v) => !v)}
             >
-                <h2 className={sectionLabelCls}>Recipe / Materials</h2>
+                <h2 className={sectionLabelCls}>{__('Recipe / Materials')}</h2>
                 <div className="flex items-center gap-2">
-                    <Badge variant="neutral">{bom.length} items</Badge>
+                    <Badge variant="neutral">{bom.length} {__('items')}</Badge>
                     <ChevronIcon open={open} />
                 </div>
             </button>
@@ -243,9 +243,9 @@ function ProcessPhotosSection({ photos = [] }) {
                 className="flex justify-between items-center w-full text-left cursor-pointer"
                 onClick={() => setOpen((v) => !v)}
             >
-                <h2 className={sectionLabelCls}>Work Instructions</h2>
+                <h2 className={sectionLabelCls}>{__('Work Instructions')}</h2>
                 <div className="flex items-center gap-2">
-                    <Badge variant="neutral">{photos.length} photos</Badge>
+                    <Badge variant="neutral">{photos.length} {__('photos')}</Badge>
                     <ChevronIcon open={open} />
                 </div>
             </button>
@@ -348,14 +348,14 @@ function QualityCheckForm({ batch, onClose }) {
         <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <form onSubmit={submit}>
                 <div className="mb-3">
-                    <label className={fieldLabelCls}>Production Quantity</label>
+                    <label className={fieldLabelCls}>{__('Production Quantity')}</label>
                     <input
                         type="number"
                         step="0.01"
                         value={productionQty}
                         onChange={(e) => setProductionQty(e.target.value)}
                         className={`${inputCls} font-mono`}
-                        placeholder="Current production qty"
+                        placeholder={__('Current production qty')}
                     />
                 </div>
 
@@ -364,7 +364,7 @@ function QualityCheckForm({ batch, onClose }) {
                     const fitIdx = (s - 1) * 2 + 1;
                     return (
                         <div key={s} className="mb-2 p-2 bg-om-card border border-om-line2 rounded-om-sm">
-                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Sample #{s}</p>
+                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__('Sample #')}{s}</p>
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <input
@@ -373,15 +373,15 @@ function QualityCheckForm({ batch, onClose }) {
                                         value={samples[dimIdx].value_numeric}
                                         onChange={(e) => updateSample(dimIdx, 'value_numeric', e.target.value)}
                                         className={`${inputCls} font-mono`}
-                                        placeholder="Dimension"
+                                        placeholder={__('Dimension')}
                                         required
                                     />
                                 </div>
                                 <div>
                                     <Dropdown
                                         options={[
-                                            { value: '1', label: 'Pass' },
-                                            { value: '0', label: 'Fail' },
+                                            { value: '1', label: __('Pass') },
+                                            { value: '0', label: __('Fail') },
                                         ]}
                                         value={samples[fitIdx].value_boolean == null ? '' : String(samples[fitIdx].value_boolean)}
                                         onChange={(v) => updateSample(fitIdx, 'value_boolean', v)}
@@ -395,7 +395,7 @@ function QualityCheckForm({ batch, onClose }) {
 
                 <div className="flex gap-2 mt-2">
                     <Button type="submit" variant="accent" disabled={processing} className="px-5 py-3 text-[14px]">
-                        Submit QC
+                        {__('Submit QC')}
                     </Button>
                     <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                         Cancel
@@ -425,10 +425,10 @@ function PackagingChecklistForm({ batch, onClose }) {
     };
 
     const checks = [
-        ['udi_readable', 'UDI code readable'],
-        ['packaging_condition', 'Packaging in good condition'],
-        ['labels_readable', 'Labels readable'],
-        ['label_matches_product', 'Label matches product'],
+        ['udi_readable', __('UDI code readable')],
+        ['packaging_condition', __('Packaging in good condition')],
+        ['labels_readable', __('Labels readable')],
+        ['label_matches_product', __('Label matches product')],
     ];
 
     return (
@@ -445,7 +445,7 @@ function PackagingChecklistForm({ batch, onClose }) {
                 ))}
                 <div className="flex gap-2 mt-2">
                     <Button type="submit" variant="accent" disabled={form.processing} className="px-5 py-3 text-[14px]">
-                        Submit Checklist
+                        {__('Submit Checklist')}
                     </Button>
                     <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                         Cancel
@@ -474,7 +474,7 @@ function ReleaseForm({ batch, onClose }) {
         <div className="mt-3 p-4 bg-om-panel border border-om-line2 rounded-om-sm">
             <div className="mb-3">
                 <label className={fieldLabelCls}>
-                    Scrap quantity (optional)
+                    {__('Scrap quantity (optional)')}
                 </label>
                 <input
                     type="number"
@@ -486,7 +486,7 @@ function ReleaseForm({ batch, onClose }) {
                     placeholder="0"
                 />
             </div>
-            <p className="text-sm mb-3 text-om-muted">Release this batch?</p>
+            <p className="text-sm mb-3 text-om-muted">{__('Release this batch?')}</p>
             <div className="flex gap-3 flex-wrap">
                 <Button
                     variant="secondary"
@@ -494,7 +494,7 @@ function ReleaseForm({ batch, onClose }) {
                     onClick={() => submitWith('for_production')}
                     className="px-5 py-3 text-[14px]"
                 >
-                    For Production
+                    {__('For Production')}
                 </Button>
                 <Button
                     variant="accent"
@@ -502,7 +502,7 @@ function ReleaseForm({ batch, onClose }) {
                     onClick={() => submitWith('for_sale')}
                     className="px-5 py-3 text-[14px]"
                 >
-                    For Sale
+                    {__('For Sale')}
                 </Button>
                 <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                     Cancel
@@ -540,11 +540,11 @@ function ConfirmParametersRow({ batch }) {
                 onClick={handleClick}
                 className="px-5 py-3 text-[14px]"
             >
-                Confirm Parameters
+                {__('Confirm Parameters')}
             </Button>
             {lastConfirm && (
                 <span className="font-mono text-[11px] text-om-running">
-                    Last: {formatDateTime(new Date(lastConfirm.confirmed_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {__('Last:')} {formatDateTime(new Date(lastConfirm.confirmed_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
             )}
         </div>
@@ -567,7 +567,7 @@ function ProductionControls({ batch }) {
     return (
         <div className="border-t border-om-line2 pt-4 space-y-3">
             <h4 className={sectionLabelCls}>
-                Production Controls
+                {__('Production Controls')}
             </h4>
 
             {/* Confirm Parameters */}
@@ -581,12 +581,12 @@ function ProductionControls({ batch }) {
                         onClick={() => setShowQc((v) => !v)}
                         className="px-5 py-3 text-[14px]"
                     >
-                        Quality Check ({qcCount})
+                        {__('Quality Check (:count)', { count: qcCount })}
                     </Button>
                     {qcCount < 3 ? (
-                        <span className="font-mono text-[11px] text-om-downtime">{3 - qcCount} more needed</span>
+                        <span className="font-mono text-[11px] text-om-downtime">{__(':count more needed', { count: 3 - qcCount })}</span>
                     ) : (
-                        <span className="font-mono text-[11px] text-om-running">Min. requirement met</span>
+                        <span className="font-mono text-[11px] text-om-running">{__('Min. requirement met')}</span>
                     )}
                 </div>
                 {showQc && <QualityCheckForm batch={batch} onClose={() => setShowQc(false)} />}
@@ -600,7 +600,7 @@ function ProductionControls({ batch }) {
                         onClick={() => setShowChecklist((v) => !v)}
                         className="px-5 py-3 text-[14px]"
                     >
-                        Packaging Checklist
+                        {__('Packaging Checklist')}
                     </Button>
                     {showChecklist && (
                         <PackagingChecklistForm batch={batch} onClose={() => setShowChecklist(false)} />
@@ -609,7 +609,7 @@ function ProductionControls({ batch }) {
             ) : (
                 <div className="text-sm">
                     <span className={batch.packaging_checklist.all_passed ? 'text-om-running' : 'text-om-blocked'}>
-                        Packaging: {batch.packaging_checklist.all_passed ? 'All passed' : 'Some items failed'}
+                        {__('Packaging')}: {batch.packaging_checklist.all_passed ? __('All passed') : __('Some items failed')}
                     </span>
                 </div>
             )}
@@ -622,7 +622,7 @@ function ProductionControls({ batch }) {
                         onClick={() => setShowRelease((v) => !v)}
                         className="px-6 py-3.5 text-[15px]"
                     >
-                        Release Batch
+                        {__('Release Batch')}
                     </Button>
                     {showRelease && <ReleaseForm batch={batch} onClose={() => setShowRelease(false)} />}
                 </div>
@@ -803,7 +803,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
 
     return (
         <div>
-            <h4 className={`${sectionLabelCls} mb-2`}>Steps</h4>
+            <h4 className={`${sectionLabelCls} mb-2`}>{__('Steps')}</h4>
             <div className="space-y-2">
                 {steps.map((step) => {
                     const isInflight = inflightStepId === step.id;
@@ -841,29 +841,29 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 {step.name}
                             </span>
 
-                            {/* Status label for terminal states */}
+                             {/* Status label for terminal states */}
                             {step.status === 'DONE' && (
                                 <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
-                                    Done{step.completed_by ? ` by ${step.completed_by.name}` : ''}
+                                    {step.completed_by ? __('Done by :name', { name: step.completed_by.name }) : __('Done')}
                                 </span>
                             )}
                             {step.status === 'SKIPPED' && (
-                                <span className="font-mono text-[11px] text-om-faint whitespace-nowrap">Skipped</span>
+                                <span className="font-mono text-[11px] text-om-faint whitespace-nowrap">{__('Skipped')}</span>
                             )}
                             {step.status === 'IN_PROGRESS' && !inflightStepId && (
                                 <span className="font-mono text-[11px] text-om-running whitespace-nowrap">
-                                    In progress{step.started_by ? ` by ${step.started_by.name}` : ''}
+                                    {step.started_by ? __('In progress by :name', { name: step.started_by.name }) : __('In progress')}
                                 </span>
                             )}
                             {/* Fallback for older data without explicit status field */}
                             {!step.status && step.completed_at && (
                                 <span className="font-mono text-[11px] text-om-done whitespace-nowrap">
-                                    Done{step.completed_by ? ` by ${step.completed_by.name}` : ''}
+                                    {step.completed_by ? __('Done by :name', { name: step.completed_by.name }) : __('Done')}
                                 </span>
                             )}
                             {!step.status && !step.completed_at && step.started_at && (
                                 <span className="font-mono text-[11px] text-om-running whitespace-nowrap">
-                                    In progress{step.started_by ? ` by ${step.started_by.name}` : ''}
+                                    {step.started_by ? __('In progress by :name', { name: step.started_by.name }) : __('In progress')}
                                 </span>
                             )}
 
@@ -877,7 +877,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                     onClick={() => handleStart(step)}
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
-                                    {isInflight ? '…' : 'Start'}
+                                    {isInflight ? '…' : __('Start')}
                                 </Button>
                             )}
                             {step.status === 'IN_PROGRESS' && (
@@ -888,7 +888,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                     title={isDocBlocked ? __('Validate the mandatory document(s) before completing this step.') : undefined}
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
-                                    {isInflight ? '…' : 'Complete'}
+                                    {isInflight ? '…' : __('Complete')}
                                 </Button>
                             )}
 
@@ -1159,7 +1159,7 @@ function LotPickModal({ step, materials, onClose }) {
     };
 
     return (
-        <ModalShell title="Pick material lots" subtitle={step.name} onClose={onClose}>
+        <ModalShell title={__("Pick material lots")} subtitle={step.name} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="max-h-[60vh] space-y-5 overflow-y-auto px-[18px] py-4">
                     {materials.map((m) => {
@@ -1182,43 +1182,45 @@ function LotPickModal({ step, materials, onClose }) {
                                 {lines.length === 0 && (
                                     <p className={errorCls}>
                                         {m.candidates.length === 0
-                                            ? 'No lots available for this material'
-                                            : 'Add a lot to allocate the required quantity.'}
+                                            ? __('No lots available for this material')
+                                            : __('Add a lot to allocate the required quantity.')}
                                     </p>
                                 )}
 
-                                <div className="space-y-1.5">
+                                <div className="space-y-3">
                                     {lines.map((ln, idx) => {
                                         const cand = candById[m.material_id][ln.material_lot_id];
                                         const over = Number(ln.picked_qty) > (cand?.quantity_available ?? 0) + EPSILON;
                                         return (
-                                            <div key={ln.material_lot_id} className="flex items-center gap-2">
+                                            <div key={ln.material_lot_id} className="flex items-center justify-between gap-3 border-b border-om-line2 pb-2.5 last:border-0 last:pb-0">
                                                 <div className="min-w-0 flex-1">
-                                                    <span className="block truncate font-mono text-[12px] text-om-ink">
+                                                    <div className="font-mono text-[12px] font-semibold text-om-ink break-all leading-normal">
                                                         {cand?.lot_number ?? `#${ln.material_lot_id}`}
-                                                    </span>
-                                                    <span className="font-mono text-[10px] text-om-faint">
-                                                        avail {fmtQty(cand?.quantity_available, 4)}
-                                                        {cand?.expiry_date ? ` · exp ${formatDate(cand.expiry_date)}` : ''}
-                                                    </span>
+                                                    </div>
+                                                    <div className="font-mono text-[11px] text-om-faint mt-0.5">
+                                                        {__('avail')}: <span className="text-om-muted font-medium">{fmtQty(cand?.quantity_available, 4)}</span>
+                                                        {cand?.expiry_date ? ` · ${__('exp')}: ${formatDate(cand.expiry_date)}` : ''}
+                                                    </div>
                                                 </div>
-                                                <input
-                                                    type="number"
-                                                    step="0.0001"
-                                                    min="0"
-                                                    inputMode="decimal"
-                                                    value={ln.picked_qty}
-                                                    onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
-                                                    className={`${inputCls} w-28 text-right ${over ? 'border-om-blocked' : ''}`}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeLine(m.material_id, idx)}
-                                                    className="cursor-pointer px-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
-                                                    title="Remove lot"
-                                                >
-                                                    ×
-                                                </button>
+                                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                    <input
+                                                        type="number"
+                                                        step="0.0001"
+                                                        min="0"
+                                                        inputMode="decimal"
+                                                        value={ln.picked_qty}
+                                                        onChange={(e) => setLineQty(m.material_id, idx, e.target.value)}
+                                                        className="text-[12px] text-om-ink bg-om-bg border border-om-line rounded-om-sm px-2 py-1 outline-none w-20 text-right focus:border-om-accent transition-colors font-mono"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeLine(m.material_id, idx)}
+                                                        className="cursor-pointer p-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
+                                                        title="Remove lot"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -1232,11 +1234,11 @@ function LotPickModal({ step, materials, onClose }) {
                                         }}
                                         className={`${inputCls} mt-2`}
                                     >
-                                        <option value="">+ Add lot…</option>
+                                        <option value="">{__('+ Add lot…')}</option>
                                         {remaining.map((c) => (
                                             <option key={c.id} value={c.id}>
-                                                {c.lot_number} — avail {fmtQty(c.quantity_available, 4)}
-                                                {c.expiry_date ? ` (exp ${formatDate(c.expiry_date)})` : ''}
+                                                {c.lot_number} — {__('avail')} {fmtQty(c.quantity_available, 4)}
+                                                {c.expiry_date ? ` (${__('exp')} ${formatDate(c.expiry_date)})` : ''}
                                             </option>
                                         ))}
                                     </select>
@@ -1244,10 +1246,10 @@ function LotPickModal({ step, materials, onClose }) {
 
                                 <div className="mt-2 flex justify-between font-mono text-[11px]">
                                     <span className="text-om-faint">
-                                        Required {fmtQty(m.required_qty, 4)} {m.unit_of_measure}
+                                        {__('Required')} {fmtQty(m.required_qty, 4)} {m.unit_of_measure}
                                     </span>
                                     <span className={balanced ? 'text-om-done' : 'text-om-blocked'}>
-                                        Allocated {fmtQty(allocated, 4)}
+                                        {__('Allocated')} {fmtQty(allocated, 4)}
                                     </span>
                                 </div>
                             </div>
@@ -1259,7 +1261,7 @@ function LotPickModal({ step, materials, onClose }) {
                         Cancel
                     </Button>
                     <Button variant="accent" type="submit" disabled={!allValid || submitting}>
-                        {submitting ? '…' : 'Confirm picks & start'}
+                        {submitting ? '…' : __('Confirm picks & start')}
                     </Button>
                 </div>
             </form>
@@ -1292,13 +1294,13 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
     };
 
     return (
-        <ModalShell title="Create New Batch" subtitle={workOrder.order_no} onClose={onClose}>
+        <ModalShell title={__("Create New Batch")} subtitle={workOrder.order_no} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="px-[18px] py-4">
                     {/* Quantity */}
                     <div className="mb-4">
                         <label className={fieldLabelCls}>
-                            Quantity
+                            {__('Quantity')}
                         </label>
                         <input
                             type="number"
@@ -1310,7 +1312,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                             className={`${inputCls} font-mono text-[15px]`}
                             required
                         />
-                        <p className="mt-1 font-mono text-[11px] text-om-faint">Remaining: {fmtQty(remaining)}</p>
+                        <p className="mt-1 font-mono text-[11px] text-om-faint">{__('Remaining')}: {fmtQty(remaining)}</p>
                         {form.errors.target_qty && (
                             <p className={errorCls}>{form.errors.target_qty}</p>
                         )}
@@ -1320,7 +1322,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                     {workstations.length > 0 && (
                         <div className="mb-4">
                             <label className={fieldLabelCls}>
-                                Workstation
+                                {__('Workstation')}
                             </label>
                             {workstations.length === 1 ? (
                                 <>
@@ -1334,7 +1336,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                                     options={workstations.map((ws) => ({ value: String(ws.id), label: ws.name }))}
                                     value={form.data.workstation_id == null ? '' : String(form.data.workstation_id)}
                                     onChange={(v) => form.setData('workstation_id', v)}
-                                    placeholder="— Select workstation —"
+                                    placeholder={__('— Select workstation —')}
                                     className="w-full"
                                 />
                             )}
@@ -1349,7 +1351,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                         <Checkbox
                             checked={form.data.auto_lot}
                             onChange={(next) => form.setData('auto_lot', next)}
-                            label="Auto-generate LOT number"
+                            label={__('Auto-generate LOT number')}
                         />
                     </div>
 
@@ -1357,14 +1359,14 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                     {!form.data.auto_lot && (
                         <div className="mb-4">
                             <label className={fieldLabelCls}>
-                                LOT Number (manual)
+                                {__('LOT Number (manual)')}
                             </label>
                             <input
                                 type="text"
                                 value={form.data.lot_number}
                                 onChange={(e) => form.setData('lot_number', e.target.value)}
                                 className={`${inputCls} font-mono`}
-                                placeholder="Leave empty for no LOT"
+                                placeholder={__('Leave empty for no LOT')}
                             />
                             {form.errors.lot_number && (
                                 <p className={errorCls}>{form.errors.lot_number}</p>
@@ -1387,7 +1389,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                         disabled={form.processing}
                         className="px-6 py-4 text-[15px] font-semibold"
                     >
-                        Create Batch
+                        {__('Create Batch')}
                     </Button>
                 </div>
             </form>
@@ -1414,21 +1416,21 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
     };
 
     return (
-        <ModalShell title="Report Issue" subtitle={workOrder.order_no} onClose={onClose}>
+        <ModalShell title={__("Report Issue")} subtitle={workOrder.order_no} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="px-[18px] py-4 space-y-4">
                     <div>
                         <label className={fieldLabelCls}>
-                            Issue Type <span className="text-om-blocked">*</span>
+                            {__('Issue Type')} <span className="text-om-blocked">*</span>
                         </label>
                         <Dropdown
                             options={issueTypes.map((type) => ({
                                 value: String(type.id),
-                                label: `${type.name}${type.is_blocking ? ' ⚠ Blocking' : ''}`,
+                                label: `${type.name}${type.is_blocking ? ` ${__('⚠ Blocking')}` : ''}`,
                             }))}
                             value={form.data.issue_type_id == null ? '' : String(form.data.issue_type_id)}
                             onChange={(v) => form.setData('issue_type_id', v)}
-                            placeholder="— Select type —"
+                            placeholder={__('— Select type —')}
                             className="w-full"
                         />
                         {form.errors.issue_type_id && (
@@ -1438,14 +1440,14 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
 
                     <div>
                         <label className={fieldLabelCls}>
-                            Title <span className="text-om-blocked">*</span>
+                            {__('Title')} <span className="text-om-blocked">*</span>
                         </label>
                         <input
                             type="text"
                             value={form.data.title}
                             onChange={(e) => form.setData('title', e.target.value)}
                             className={inputCls}
-                            placeholder="Brief summary of the issue"
+                            placeholder={__('Brief summary of the issue')}
                             required
                             maxLength={255}
                         />
@@ -1456,14 +1458,14 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
 
                     <div>
                         <label className={fieldLabelCls}>
-                            Description
+                            {__('Description')}
                         </label>
                         <textarea
                             value={form.data.description}
                             onChange={(e) => form.setData('description', e.target.value)}
                             rows={3}
                             className={`${inputCls} resize-none`}
-                            placeholder="Additional details…"
+                            placeholder={__('Additional details…')}
                             maxLength={2000}
                         />
                         {form.errors.description && (
@@ -1484,7 +1486,7 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
                         disabled={form.processing}
                         className="px-6 py-4 text-[15px] font-semibold"
                     >
-                        Report Issue
+                        {__('Report Issue')}
                     </Button>
                 </div>
             </form>
@@ -1510,12 +1512,12 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
     };
 
     return (
-        <ModalShell title="Report Scrap" subtitle={workOrder.order_no} onClose={onClose}>
+        <ModalShell title={__("Report Scrap")} subtitle={workOrder.order_no} onClose={onClose}>
             <form onSubmit={submit}>
                 <div className="px-[18px] py-4 space-y-4">
                     <div>
                         <label className={fieldLabelCls}>
-                            Reason <span className="text-om-blocked">*</span>
+                            {__('Reason')} <span className="text-om-blocked">*</span>
                         </label>
                         <Dropdown
                             options={scrapReasons.map((reason) => ({
@@ -1524,7 +1526,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                             }))}
                             value={form.data.scrap_reason_id == null ? '' : String(form.data.scrap_reason_id)}
                             onChange={(v) => form.setData('scrap_reason_id', v)}
-                            placeholder="— Select reason —"
+                            placeholder={__('— Select reason —')}
                             className="w-full"
                         />
                         {form.errors.scrap_reason_id && (
@@ -1534,7 +1536,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 
                     <div>
                         <label className={fieldLabelCls}>
-                            Quantity <span className="text-om-blocked">*</span>
+                            {__('Quantity')} <span className="text-om-blocked">*</span>
                         </label>
                         <input
                             type="number"
@@ -1553,14 +1555,14 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 
                     <div>
                         <label className={fieldLabelCls}>
-                            Notes
+                            {__('Notes')}
                         </label>
                         <textarea
                             value={form.data.notes}
                             onChange={(e) => form.setData('notes', e.target.value)}
                             rows={3}
                             className={`${inputCls} resize-none`}
-                            placeholder="Additional details…"
+                            placeholder={__('Additional details…')}
                             maxLength={2000}
                         />
                         {form.errors.notes && (
@@ -1579,7 +1581,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
                         disabled={form.processing}
                         className="px-6 py-4 text-[15px] font-semibold"
                     >
-                        Report Scrap
+                        {__('Report Scrap')}
                     </Button>
                 </div>
             </form>
@@ -1640,13 +1642,13 @@ export default function WorkOrderDetail() {
                             kind="work-order"
                             id={workOrder.id}
                             templates={labelTemplates}
-                            label="Print WO Label"
+                            label={__('Print WO Label')}
                         />
                         <Link
                             href="/operator/queue"
                             className="inline-flex items-center justify-center rounded-om-sm border border-om-line bg-om-card px-5 py-3 text-sm font-semibold text-om-ink hover:bg-om-chip transition-colors"
                         >
-                            ← Back to Queue
+                            ← {__('Back to Queue')}
                         </Link>
                     </div>
                 </div>
@@ -1656,39 +1658,39 @@ export default function WorkOrderDetail() {
                     <div className="lg:col-span-2 space-y-6">
                         {/* Work Order Details card */}
                         <div className={cardCls}>
-                            <h2 className={`${sectionLabelCls} mb-4`}>Work Order Details</h2>
+                            <h2 className={`${sectionLabelCls} mb-4`}>{__('WORK ORDER DETAILS')}</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <p className={fieldLabelCls}>Order Number</p>
+                                    <p className={fieldLabelCls}>{__('ORDER NUMBER')}</p>
                                     <p className="font-mono text-[15px] font-medium text-om-ink">{workOrder.order_no}</p>
                                 </div>
 
                                 {workOrder.product_type && (
                                     <div>
-                                        <p className={fieldLabelCls}>Product Type</p>
+                                        <p className={fieldLabelCls}>{__('PRODUCT TYPE')}</p>
                                         <p className="font-medium text-om-ink">{workOrder.product_type.name}</p>
                                     </div>
                                 )}
 
                                 {workOrder.line && (
                                     <div>
-                                        <p className={fieldLabelCls}>Line</p>
+                                        <p className={fieldLabelCls}>{__('LINE')}</p>
                                         <p className="font-medium text-om-ink">{workOrder.line.name}</p>
                                     </div>
                                 )}
 
                                 <div>
-                                    <p className={fieldLabelCls}>Priority</p>
+                                    <p className={fieldLabelCls}>{__('PRIORITY')}</p>
                                     <p className="font-mono text-[15px] font-medium text-om-ink">{workOrder.priority}</p>
                                 </div>
 
                                 <div>
-                                    <p className={fieldLabelCls}>Planned Quantity</p>
+                                    <p className={fieldLabelCls}>{__('PLANNED QUANTITY')}</p>
                                     <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(plannedQty)}</p>
                                 </div>
 
                                 <div>
-                                    <p className={fieldLabelCls}>Produced Quantity</p>
+                                    <p className={fieldLabelCls}>{__('PRODUCED QUANTITY')}</p>
                                     <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">
                                         {fmtQty(producedQty)}
                                         {plannedQty > 0 && (
@@ -1700,8 +1702,8 @@ export default function WorkOrderDetail() {
                                 </div>
 
                                 {dueDateStr && (
-                                    <div>
-                                        <p className={fieldLabelCls}>Due Date</p>
+                                    <div className="col-span-2 pt-2 border-t border-om-line2">
+                                        <p className={fieldLabelCls}>{__('DUE DATE')}</p>
                                         <p className={`font-mono text-[15px] font-medium ${dueDatePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {formatDate(new Date(dueDateStr), { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </p>
@@ -1709,9 +1711,9 @@ export default function WorkOrderDetail() {
                                 )}
 
                                 {workOrder.description && (
-                                    <div className="md:col-span-2">
-                                        <p className={fieldLabelCls}>Description</p>
-                                        <p className="font-medium text-om-ink">{workOrder.description}</p>
+                                    <div className="col-span-2 pt-2 border-t border-om-line2">
+                                        <p className={fieldLabelCls}>{__('DESCRIPTION')}</p>
+                                        <p className="text-[15px] font-medium text-om-ink">{workOrder.description}</p>
                                     </div>
                                 )}
                             </div>
@@ -1726,21 +1728,21 @@ export default function WorkOrderDetail() {
                         {/* Batches */}
                         <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h2 className={sectionLabelCls}>Batches</h2>
+                                <h2 className={sectionLabelCls}>{__('Batches')}</h2>
                                 {canCreateBatch && (
                                     <Button
                                         variant="accent"
                                         onClick={() => setCreateBatchOpen(true)}
                                         className="px-5 py-3 text-[14px]"
                                     >
-                                        + Create Batch
+                                        {__('+ Create Batch')}
                                     </Button>
                                 )}
                             </div>
 
                             {(!workOrder.batches || workOrder.batches.length === 0) ? (
                                 <div className="text-center py-8 bg-om-panel border border-om-line2 rounded-om-sm">
-                                    <p className="text-sm text-om-faint">No batches created yet.</p>
+                                    <p className="text-sm text-om-faint">{__('No batches created yet.')}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -1764,25 +1766,25 @@ export default function WorkOrderDetail() {
                     <div className="space-y-6">
                         {/* Progress */}
                         <div className={cardCls}>
-                            <h3 className={`${sectionLabelCls} mb-4`}>Progress</h3>
-                            <div className="mb-4">
+                            <h3 className={`${sectionLabelCls} mb-4`}>{__('PROGRESS')}</h3>
+                            <div className="mb-6">
                                 <div className="flex justify-between items-baseline mb-2">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Completion</span>
-                                    <span className="font-mono text-[13px] text-om-ink">{fmtQty(pct, 1)}%</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('COMPLETION')}</span>
+                                    <span className="font-mono text-[13px] font-medium text-om-ink">{fmtQty(pct, 1)}%</span>
                                 </div>
                                 <ProgressBar value={pct} color={pct >= 100 ? 'var(--color-om-running)' : undefined} />
                             </div>
-                            <div className="space-y-2 text-sm">
+                            <div className="space-y-3 pt-4 border-t border-om-line2">
                                 <div className="flex justify-between items-baseline">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Planned:</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('PLANNED:')}</span>
                                     <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(plannedQty)}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Produced:</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('PRODUCED:')}</span>
                                     <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(producedQty)}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Remaining:</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('REMAINING:')}</span>
                                     <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-accent">{fmtQty(remaining)}</span>
                                 </div>
                             </div>
@@ -1791,20 +1793,20 @@ export default function WorkOrderDetail() {
                         {/* Issues */}
                         <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className={sectionLabelCls}>Issues</h3>
+                                <h3 className={sectionLabelCls}>{__('ISSUES')}</h3>
                                 {canReportIssue && (
-                                    <Button
-                                        variant="danger"
+                                    <button
+                                        type="button"
                                         onClick={() => setReportIssueOpen(true)}
-                                        className="px-4 py-2.5 text-[13px]"
+                                        className="inline-flex items-center justify-center rounded-om-sm bg-om-blocked-bg px-4 py-2.5 text-[13px] font-semibold text-om-blocked hover:bg-[#ffe1e1] transition-colors cursor-pointer"
                                     >
-                                        + Report
-                                    </Button>
+                                        + {__('Report')}
+                                    </button>
                                 )}
                             </div>
 
                             {(!workOrder.issues || workOrder.issues.length === 0) ? (
-                                <p className="text-sm text-om-faint text-center py-4">No issues reported.</p>
+                                <p className="text-sm text-om-faint text-center py-4">{__('No issues reported.')}</p>
                             ) : (
                                 <div className="space-y-3">
                                     {workOrder.issues.slice(0, 5).map((issue) => (
@@ -1846,56 +1848,56 @@ export default function WorkOrderDetail() {
                         {/* Scrap */}
                         <div className={cardCls}>
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className={sectionLabelCls}>Scrap</h3>
+                                <h3 className={sectionLabelCls}>{__('SCRAP')}</h3>
                                 {canReportScrap && (
                                     <button
                                         type="button"
                                         onClick={() => setReportScrapOpen(true)}
                                         className="inline-flex items-center justify-center rounded-om-sm bg-om-downtime-bg px-4 py-2.5 text-[13px] font-semibold text-om-downtime hover:bg-[#f5e7c8] transition-colors cursor-pointer"
                                     >
-                                        + Report
+                                        + {__('Report')}
                                     </button>
                                 )}
                             </div>
 
                             <div className="flex justify-between items-baseline text-sm mb-2">
-                                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Total scrap:</span>
-                                <span className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{fmtQty(totalScrap)}</span>
+                                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('TOTAL SCRAP:')}</span>
+                                <span className="font-mono text-[15px] font-medium text-om-ink">{fmtQty(totalScrap)}</span>
                             </div>
                             {qualityPct !== null && (
                                 <div className="flex justify-between items-baseline text-sm mb-3">
-                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">Quality:</span>
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-faint">{__('Quality:')}</span>
                                     <span className={`font-mono text-[15px] font-medium ${qualityPct < 100 ? 'text-om-downtime' : 'text-om-running'}`}>
                                         {qualityPct.toFixed(1)}%
                                     </span>
                                 </div>
                             )}
 
-                            {scrapEntries.length === 0 ? (
-                                <p className="text-sm text-om-faint text-center py-4">No scrap reported.</p>
+                            {(!scrapEntries || scrapEntries.length === 0) ? (
+                                <p className="text-sm text-om-faint text-center py-4">{__('No scrap reported.')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {scrapEntries.slice(0, 5).map((entry) => (
                                         <div key={entry.id} className="p-3 rounded-om-sm bg-om-panel border border-om-line2">
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className="text-xs font-semibold text-om-ink">
-                                                    {entry.scrap_reason?.name ?? 'Unknown'}
-                                                </span>
                                                 <span className="font-mono text-[13px] font-medium text-om-ink">{fmtQty(entry.quantity)}</span>
+                                                <span className="font-mono text-[11px] text-om-muted">
+                                                    {entry.reported_at ? new Date(entry.reported_at).toLocaleString() : ''}
+                                                </span>
                                             </div>
+                                            <p className="text-[13px] text-om-muted">
+                                                {entry.scrap_reason?.name || __('Unknown reason')}
+                                                {entry.reported_by ? ` ${__('by')} ${entry.reported_by.name}` : ''}
+                                            </p>
                                             {entry.notes && (
-                                                <p className="text-xs text-om-muted">
+                                                <p className="text-xs text-om-muted mt-1">
                                                     {entry.notes.length > 80 ? `${entry.notes.slice(0, 80)}…` : entry.notes}
                                                 </p>
                                             )}
-                                            <p className="font-mono text-[10px] text-om-faint mt-1">
-                                                {entry.reported_at ? new Date(entry.reported_at).toLocaleString() : ''}
-                                                {entry.reported_by ? ` by ${entry.reported_by.name}` : ''}
-                                            </p>
                                         </div>
                                     ))}
                                     {scrapEntries.length > 5 && (
-                                        <p className="font-mono text-[10px] text-om-faint text-center">+{scrapEntries.length - 5} more</p>
+                                        <p className="font-mono text-[10px] text-om-faint text-center">+{scrapEntries.length - 5} {__('more')}</p>
                                     )}
                                 </div>
                             )}

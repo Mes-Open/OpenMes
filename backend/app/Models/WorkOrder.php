@@ -301,6 +301,15 @@ class WorkOrder extends Model
             ->orderBy('created_at', 'asc');
     }
 
+    /**
+     * Scope to filter by packable state.
+     * Packable work orders must be in DONE or IN_PROGRESS state.
+     */
+    public function scopePackable($query)
+    {
+        return $query->whereIn('status', [self::STATUS_DONE, self::STATUS_IN_PROGRESS]);
+    }
+
     /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
     public function softDeleteCascades(): array
     {
