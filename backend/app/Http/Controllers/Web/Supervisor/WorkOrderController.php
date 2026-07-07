@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Web\Supervisor;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
+use App\Models\BatchStep;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
+use App\Models\WorkstationState;
 use App\Services\CustomFieldService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
@@ -14,6 +16,11 @@ use Inertia\Inertia;
 
 class WorkOrderController extends Controller
 {
+    private const ACTIVE_MACHINE_STEP_STATUSES = [
+        BatchStep::STATUS_READY,
+        BatchStep::STATUS_IN_PROGRESS,
+    ];
+
     public function index(Request $request)
     {
         $counts = WorkOrder::withCount('batches')->get(['id'])
@@ -67,7 +74,7 @@ class WorkOrderController extends Controller
 
     public function show(WorkOrder $workOrder)
     {
-        $workOrder->load(['line', 'productType', 'batches.steps', 'issues.issueType', 'issues.reportedBy']);
+        $workOrder->load(['line', 'productType', 'batches.workstation.line', 'batches.steps.workstation.line', 'issues.issueType', 'issues.reportedBy']);
 
         $batches = $workOrder->batches->map(function ($batch) {
             return [
@@ -83,6 +90,7 @@ class WorkOrderController extends Controller
                     'step_number' => $s->step_number,
                     'name' => $s->name,
                     'status' => $s->status,
+                    'workstation_id' => $s->workstation_id,
                     'duration_minutes' => $s->duration_minutes,
                 ])->values(),
             ];
@@ -113,8 +121,78 @@ class WorkOrderController extends Controller
                 'product_type_name' => $workOrder->productType?->name,
                 'batches' => $batches,
                 'issues' => $issues,
+                'machines' => $this->machinesForWorkOrder($workOrder),
             ],
         ]);
+    }
+
+    private function machinesForWorkOrder(WorkOrder $workOrder)
+    {
+        $machineRows = $workOrder->batches->flatMap(function ($batch) {
+            $rows = collect();
+
+            if ($batch->workstation_id && $batch->workstation) {
+                $rows->push([
+                    'workstation' => $batch->workstation,
+                    'step_status' => null,
+                ]);
+            }
+
+            return $rows->merge(
+                $batch->steps
+                    ->filter(fn ($step) => $step->workstation_id && $step->workstation)
+                    ->map(fn ($step) => [
+                        'workstation' => $step->workstation,
+                        'step_status' => $step->status,
+                    ])
+            );
+        });
+
+        $workstationIds = $machineRows
+            ->map(fn ($row) => $row['workstation']->id)
+            ->unique()
+            ->values();
+
+        if ($workstationIds->isEmpty()) {
+            return collect();
+        }
+
+        $currentStates = WorkstationState::query()
+            ->whereIn('workstation_id', $workstationIds)
+            ->whereNull('ended_at')
+            ->orderByDesc('started_at')
+            ->get()
+            ->unique('workstation_id')
+            ->keyBy('workstation_id');
+
+        return $machineRows
+            ->groupBy(fn ($row) => $row['workstation']->id)
+            ->map(function ($rows) use ($currentStates) {
+                $workstation = $rows->first()['workstation'];
+                $currentState = $currentStates->get($workstation->id);
+                $stepStatuses = $rows->pluck('step_status')->filter();
+
+                return [
+                    'id' => $workstation->id,
+                    'code' => $workstation->code,
+                    'name' => $workstation->name,
+                    'line_name' => $workstation->line?->name,
+                    'is_active' => (bool) $workstation->is_active,
+                    'current_state' => $currentState?->state,
+                    'state_started_at' => $currentState?->started_at?->toISOString(),
+                    'state_source' => $currentState?->source,
+                    'steps_count' => $stepStatuses->count(),
+                    'active_steps_count' => $stepStatuses
+                        ->filter(fn ($status) => in_array($status, self::ACTIVE_MACHINE_STEP_STATUSES, true))
+                        ->count(),
+                    'step_statuses' => $stepStatuses
+                        ->countBy()
+                        ->map(fn ($count, $status) => ['status' => $status, 'count' => $count])
+                        ->values(),
+                ];
+            })
+            ->sortBy('name')
+            ->values();
     }
 
     public function accept(WorkOrder $workOrder)

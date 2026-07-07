@@ -1,5 +1,5 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (status transitions, modal post and batch logic untouched).
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
@@ -39,6 +39,18 @@ const ISSUE_PILL_STATUS = {
 // Ghost-button classes for Inertia <Link>s (mirrors @openmes/ui Button ghost).
 const LINK_GHOST =
     'inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-ink hover:bg-om-chip transition-colors';
+
+const MACHINE_PILL_STATUS = {
+    RUNNING: 'running',
+    IDLE: 'pending',
+    STOPPED: 'downtime',
+    FAULT: 'blocked',
+    SETUP: 'pending',
+    WAITING: 'downtime',
+    CLEANING: 'pending',
+    MAINTENANCE: 'downtime',
+    UNKNOWN: 'pending',
+};
 
 function fmtQty(n) {
     return formatNumber(Number(n ?? 0), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -175,11 +187,65 @@ function DoneModal({ workOrder, onClose }) {
     );
 }
 
+function OrderMachinesPanel({ machines }) {
+    return (
+        <div className="bg-om-card border border-om-line rounded-om p-5">
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-[14px] font-semibold text-om-ink">{__('Machines')}</h3>
+                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Live')}</span>
+            </div>
+            {machines.length === 0 ? (
+                <p className="text-sm text-om-faint text-center py-3">{__('No assigned machines.')}</p>
+            ) : (
+                <div className="space-y-3">
+                    {machines.map((machine) => {
+                        const state = machine.current_state ?? 'UNKNOWN';
+                        const pillStatus = MACHINE_PILL_STATUS[state] ?? MACHINE_PILL_STATUS.UNKNOWN;
+
+                        return (
+                            <div key={machine.id} className="rounded-om-sm bg-om-panel p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="font-medium text-om-ink truncate">{machine.name}</p>
+                                        <p className="font-mono text-xs text-om-faint truncate">{machine.code}</p>
+                                    </div>
+                                    <StatusPill status={pillStatus} label={state} />
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-2 text-xs text-om-muted">
+                                    <span>{__('Steps:')} {machine.steps_count}</span>
+                                    {machine.active_steps_count > 0 && (
+                                        <span className="text-om-accent">{__('Active:')} {machine.active_steps_count}</span>
+                                    )}
+                                    {machine.line_name && <span>{machine.line_name}</span>}
+                                </div>
+                                {machine.state_started_at && (
+                                    <p className="mt-1 text-xs text-om-faint">
+                                        {__('Since')} {fmtDateTime(machine.state_started_at)}
+                                        {machine.state_source ? ` · ${__(machine.state_source)}` : ''}
+                                    </p>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function SupervisorWorkOrderShow() {
     const { workOrder } = usePage().props;
     const [showDoneModal, setShowDoneModal] = useState(false);
 
     const post = (verb) => router.post(`/supervisor/work-orders/${workOrder.id}/${verb}`, {}, { preserveScroll: true });
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            router.reload({ only: ['workOrder'], preserveScroll: true, preserveState: true });
+        }, 5000);
+
+        return () => clearInterval(timer);
+    }, [workOrder.id]);
 
     const status = workOrder.status;
     const isTerminal = TERMINAL.includes(status);
@@ -383,6 +449,8 @@ export default function SupervisorWorkOrderShow() {
                                 </div>
                             </div>
                         </div>
+
+                        <OrderMachinesPanel machines={workOrder.machines ?? []} />
 
                         {/* Issues */}
                         <div className="bg-om-card border border-om-line rounded-om p-5">
