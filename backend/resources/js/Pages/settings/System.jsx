@@ -19,6 +19,7 @@ const CURRENCIES = [
     ['HUF', 'Hungarian Forint'],
     ['RON', 'Romanian Leu'],
     ['UAH', 'Ukrainian Hryvnia'],
+    ['VND', 'Vietnamese Đồng'],
 ];
 
 const CARD_CLASS = 'bg-om-card border border-om-line rounded-om p-6';
@@ -44,10 +45,20 @@ function SelectCard({ value, current, onChange, label, desc, disabled }) {
 }
 
 export default function System() {
-    const { settings, availableLocales, appUrl, modules = [] } = usePage().props;
+    const { settings, availableLocales, appUrl, modules = [], backups } = usePage().props;
 
     const [tab, setTab] = useState('general');
     const [sampleConfirm, setSampleConfirm] = useState(false);
+    const [resetConfirm, setResetConfirm] = useState(false);
+    const [resetText, setResetText] = useState('');
+    
+    // Countdown states
+    const [isResetting, setIsResetting] = useState(false);
+    const [resetCountdown, setResetCountdown] = useState(null);
+    const [isRestoring, setIsRestoring] = useState(false);
+    const [restoreCountdown, setRestoreCountdown] = useState(null);
+    const [statusMessage, setStatusMessage] = useState('');
+
     const { csrf_token } = usePage().props;
 
     const { data, setData, post, processing, errors } = useForm({
@@ -55,6 +66,7 @@ export default function System() {
         allow_overproduction: settings.allow_overproduction ?? false,
         force_sequential_steps: settings.force_sequential_steps ?? true,
         workstation_routing_enabled: settings.workstation_routing_enabled ?? false,
+        backflush_on_pallet_creation: settings.backflush_on_pallet_creation ?? false,
         scanner_mode: settings.scanner_mode ?? 'hid',
         workflow_mode: settings.workflow_mode ?? 'status',
         pin_login_enabled: settings.pin_login_enabled ?? false,
@@ -94,6 +106,158 @@ export default function System() {
             },
         });
     }
+
+    const handleResetSubmit = async (e) => {
+        e.preventDefault();
+        if (resetText !== 'RESET') return;
+
+        setIsResetting(true);
+        setStatusMessage(__('Resetting the system... Please wait...'));
+
+        try {
+            const response = await fetch('/settings/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf_token,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    confirm_text: resetText
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                let count = 5;
+                setResetCountdown(count);
+                setStatusMessage(__('System reset successfully.'));
+                const interval = setInterval(() => {
+                    count -= 1;
+                    setResetCountdown(count);
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        window.location.href = '/';
+                    }
+                }, 1000);
+            } else {
+                setIsResetting(false);
+                alert(result.message || __('An error occurred while resetting the system.'));
+            }
+        } catch (err) {
+            setIsResetting(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
+
+    const handleRestoreSubmit = async (e, filename) => {
+        e.preventDefault();
+        setIsRestoring(true);
+        setStatusMessage(__('Restoring system from backup... Please wait...'));
+
+        try {
+            const response = await fetch(`/settings/backups/restore/${filename}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf_token,
+                    'Accept': 'application/json',
+                }
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                let count = 5;
+                setRestoreCountdown(count);
+                setStatusMessage(__('System restored successfully.'));
+                const interval = setInterval(() => {
+                    count -= 1;
+                    setRestoreCountdown(count);
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        window.location.href = '/';
+                    }
+                }, 1000);
+            } else {
+                setIsRestoring(false);
+                alert(result.message || __('An error occurred while restoring the system.'));
+            }
+        } catch (err) {
+            setIsRestoring(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
+
+    const handleUploadRestoreSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (!confirm(__('Are you sure you want to restore the system from this uploaded backup? Current data will be overwritten.'))) {
+            return;
+        }
+
+        const fileInput = e.target.elements.backup_file;
+        if (!fileInput || !fileInput.files[0]) {
+            alert(__('Please select a backup file.'));
+            return;
+        }
+
+        setIsRestoring(true);
+        setStatusMessage(__('Uploading backup file...'));
+
+        try {
+            const formData = new FormData();
+            formData.append('backup_file', fileInput.files[0]);
+
+            const uploadResponse = await fetch('/settings/backups/upload', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf_token,
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+
+            const uploadResult = await uploadResponse.json();
+            if (!uploadResponse.ok || !uploadResult.success) {
+                setIsRestoring(false);
+                alert(uploadResult.message || __('An error occurred while uploading the backup file.'));
+                return;
+            }
+
+            const filename = uploadResult.filename;
+            setStatusMessage(__('Restoring system from backup... Please wait...'));
+
+            const restoreResponse = await fetch(`/settings/backups/restore/${filename}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf_token,
+                    'Accept': 'application/json',
+                }
+            });
+
+            const restoreResult = await restoreResponse.json();
+            if (restoreResponse.ok && restoreResult.success) {
+                let count = 5;
+                setRestoreCountdown(count);
+                setStatusMessage(__('System restored successfully.'));
+                const interval = setInterval(() => {
+                    count -= 1;
+                    setRestoreCountdown(count);
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        window.location.href = '/';
+                    }
+                }, 1000);
+            } else {
+                setIsRestoring(false);
+                alert(restoreResult.message || __('An error occurred while restoring the system.'));
+            }
+        } catch (err) {
+            setIsRestoring(false);
+            alert(__('Connection error: ') + err.message);
+        }
+    };
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -272,6 +436,17 @@ export default function System() {
                                     <div>
                                         <p className="text-[13px] font-medium text-om-ink">{__('Workstation routing')}</p>
                                         <p className={HELP_CLASS}>{__('When enabled, an operator assigned to a workstation can only start or complete steps assigned to that workstation.')}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <Switch
+                                        checked={data.backflush_on_pallet_creation}
+                                        onChange={(v) => setData('backflush_on_pallet_creation', v)}
+                                    />
+                                    <div>
+                                        <p className="text-[13px] font-medium text-om-ink">{__('Backflush on pallet creation')}</p>
+                                        <p className={HELP_CLASS}>{__('When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -694,6 +869,124 @@ export default function System() {
                                 {__('Import Settings')}
                             </Button>
                         </form>
+                    </div>
+
+                    {/* Backup & Recovery */}
+                    <div>
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Backup & Recovery')}</h2>
+                        <p className={`${HELP_CLASS} mb-4`}>
+                            {__('Create and manage backups of the database and uploaded files. Full backups include all uploaded attachments, while data-only backups only contain database records.')}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-3 mb-5">
+                            <form method="POST" action="/settings/backups/full">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <Button type="submit" variant="secondary">{__('Create Full Backup')}</Button>
+                            </form>
+                            <form method="POST" action="/settings/backups/data">
+                                <input type="hidden" name="_token" value={csrf_token} />
+                                <Button type="submit" variant="secondary">{__('Create Data Backup')}</Button>
+                            </form>
+                        </div>
+
+                        {/* Upload a backup and restore from it */}
+                        <form onSubmit={handleUploadRestoreSubmit} className="flex flex-wrap items-center gap-3 mb-5">
+                            <input
+                                type="file"
+                                name="backup_file"
+                                accept=".zip"
+                                className="text-[13px] text-om-muted file:mr-3 file:py-2 file:px-4 file:rounded-om-sm file:border-0 file:text-[13px] file:font-semibold file:bg-om-chip file:text-om-ink hover:file:bg-om-line2 file:transition-colors file:cursor-pointer"
+                            />
+                            <Button type="submit" variant="primary" disabled={isRestoring}>{__('Restore')}</Button>
+                        </form>
+
+                        {/* Existing backups */}
+                        {(!backups || backups.length === 0) ? (
+                            <p className="text-[13px] text-om-faint">{__('No backups found.')}</p>
+                        ) : (
+                            <div className="border border-om-line rounded-om divide-y divide-om-line">
+                                {backups.map((backup) => (
+                                    <div key={backup.filename} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
+                                        <div className="min-w-0">
+                                            <div className="font-mono text-om-ink truncate">{backup.filename}</div>
+                                            <div className="text-om-faint text-[11.5px]">{(backup.size_bytes / (1024 * 1024)).toFixed(2)} MB · {new Date(backup.created_at).toLocaleString()}</div>
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <a href={`/settings/backups/download/${backup.filename}`} className="text-[12.5px] font-semibold text-om-ink hover:underline">{__('Download')}</a>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => confirm(__('Are you sure you want to restore the system from this backup? Current data will be overwritten.')) && handleRestoreSubmit(e, backup.filename)}
+                                                disabled={isRestoring}
+                                                className="text-[12.5px] font-semibold text-om-accent hover:underline disabled:opacity-50"
+                                            >
+                                                {__('Restore')}
+                                            </button>
+                                            <form method="POST" action={`/settings/backups/${backup.filename}`} onSubmit={(e) => !confirm(__('Are you sure you want to delete this backup?')) && e.preventDefault()}>
+                                                <input type="hidden" name="_token" value={csrf_token} />
+                                                <input type="hidden" name="_method" value="DELETE" />
+                                                <button type="submit" className="text-[12.5px] font-semibold text-om-blocked hover:underline">{__('Delete')}</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Reset System — destructive */}
+                    <div className="bg-om-blocked-bg border border-om-blocked/20 rounded-om p-6">
+                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-blocked mb-1">{__('Reset System')}</h2>
+                        <p className={`${HELP_CLASS} mb-4`}>
+                            {__('Wipe all database records (production data, settings, configurations) and delete all uploaded attachments. The system will be restored to its initial state, and you will be logged out.')}
+                        </p>
+                        <form onSubmit={handleResetSubmit} className="space-y-4">
+                            <Checkbox
+                                checked={resetConfirm}
+                                onChange={setResetConfirm}
+                                label={__('I understand that this action is irreversible and all data will be permanently lost.')}
+                            />
+                            {resetConfirm && (
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <input
+                                        type="text"
+                                        name="confirm_text"
+                                        value={resetText}
+                                        onChange={(e) => setResetText(e.target.value)}
+                                        placeholder={__('Type RESET to confirm')}
+                                        className="bg-om-card border border-om-line rounded-om-sm px-3 py-2 text-[13px] text-om-ink outline-none focus:border-om-blocked"
+                                    />
+                                    <Button type="submit" variant="danger" disabled={resetText !== 'RESET' || isResetting}>{__('Reset System')}</Button>
+                                </div>
+                            )}
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Blocking overlay while a restore/reset runs */}
+            {(isResetting || isRestoring) && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="bg-om-card border border-om-line rounded-om px-8 py-6 max-w-sm w-full text-center">
+                        <div className="flex justify-center mb-4">
+                            {(resetCountdown !== null || restoreCountdown !== null) ? (
+                                <div className="w-16 h-16 rounded-full border-[3px] border-om-accent flex items-center justify-center text-2xl font-bold text-om-accent">
+                                    {resetCountdown !== null ? resetCountdown : restoreCountdown}
+                                </div>
+                            ) : (
+                                <div className="w-12 h-12 border-[3px] border-om-accent border-t-transparent rounded-full animate-spin" />
+                            )}
+                        </div>
+                        <h3 className="text-[15px] font-semibold text-om-ink">
+                            {(resetCountdown !== null || restoreCountdown !== null)
+                                ? __('Redirecting...')
+                                : (isResetting ? __('Resetting the system') : __('Restoring data'))}
+                        </h3>
+                        <p className={`${HELP_CLASS} mt-1`}>{statusMessage}</p>
+                        {(resetCountdown !== null || restoreCountdown !== null) && (
+                            <p className="text-[12px] text-om-accent mt-2">
+                                {__('Redirecting to the login page in')} {resetCountdown !== null ? resetCountdown : restoreCountdown} {__('seconds...')}
+                            </p>
+                        )}
                     </div>
                 </div>
             )}

@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Button, TextField } from '@openmes/ui';
 import OnboardingLayout from '../../layouts/OnboardingLayout';
+import { __ } from '../../lib/i18n';
 
 /**
  * Onboarding Step 4 — Create First Work Order.
@@ -23,17 +24,17 @@ export default function Step4() {
 
     return (
         <>
-            <Head title="Step 4 — Work Order" />
+            <Head title={__('Step 4 — Work Order')} />
             <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 4/4</div>
-            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">Create First Work Order</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Create First Work Order')}</h2>
             <p className="text-sm text-om-muted mb-6">
-                A work order represents a production batch to manufacture. Create your first one.
+                {__('A work order represents a production batch to manufacture. Create your first one.')}
             </p>
 
             <form onSubmit={submit}>
                 <div className="space-y-4">
                     <TextField
-                        label={<>Order Number <span className="text-om-accent">*</span></>}
+                        label={<>{__('Order Number')} <span className="text-om-accent">*</span></>}
                         id="order_no"
                         mono
                         value={data.order_no}
@@ -43,7 +44,7 @@ export default function Step4() {
                     />
 
                     <TextField
-                        label={<>Planned Quantity <span className="text-om-accent">*</span></>}
+                        label={<>{__('Planned Quantity')} <span className="text-om-accent">*</span></>}
                         id="planned_qty"
                         type="number"
                         value={data.planned_qty}
@@ -55,13 +56,13 @@ export default function Step4() {
                     />
 
                     <TextField
-                        label="Description"
+                        label={__('Description')}
                         id="description"
                         multiline
                         rows={2}
                         value={data.description}
                         onChange={(v) => setData('description', v)}
-                        placeholder="Optional notes"
+                        placeholder={__('Optional notes')}
                     />
                 </div>
 
@@ -70,7 +71,7 @@ export default function Step4() {
                         ← Back
                     </Link>
                     <Button type="submit" variant="accent" loading={processing}>
-                        {processing ? 'Saving…' : 'Complete Setup'}
+                        {processing ? __('Saving…') : __('Complete Setup')}
                     </Button>
                 </div>
             </form>

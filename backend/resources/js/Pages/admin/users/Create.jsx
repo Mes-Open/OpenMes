@@ -1,4 +1,5 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
+import { __ } from '../../../lib/i18n';
 import AppLayout from '../../../layouts/AppLayout';
 import UserForm from './UserForm';
 
@@ -21,8 +22,8 @@ export default function UserCreate() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="New Account" />
-            <h1 className="text-3xl font-bold text-om-ink mb-6">New Account</h1>
+            <Head title={__("New Account")} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__("New Account")}</h1>
             <UserForm form={form} roles={roles} workstations={workstations} crews={crews} wageGroups={wageGroups} skills={skills} onSubmit={submit} />
         </div>
     );

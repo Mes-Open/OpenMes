@@ -44,6 +44,8 @@ $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
 App\\Models\\MaterialLot::withTrashed()->where('lot_number', '${LOT}')->forceDelete();
 `;
 
+test.describe('material hold/release flow', () => {
+
 function runInContainer(php: string): boolean {
   const tmp = `/tmp/pw-hold-${Date.now()}-${Math.random().toString(36).slice(2)}.php`;
   try {

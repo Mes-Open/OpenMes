@@ -78,6 +78,7 @@ services:
     volumes:
       # Source the watcher needs to see.
       - ./backend/resources:/var/www/html/resources
+      - ./backend/lang:/var/www/html/lang:ro
       - ./backend/vite.config.js:/var/www/html/vite.config.js:ro
       - ./backend/package.json:/var/www/html/package.json:ro
       - ./backend/package-lock.json:/var/www/html/package-lock.json:ro

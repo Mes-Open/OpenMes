@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { DatePicker } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatNumber } from '../../../lib/i18n';
+import { formatNumber, __ } from '../../../lib/i18n';
 
 const KIND_BG = { blue: 'bg-om-accent', amber: 'bg-om-downtime', red: 'bg-om-blocked' };
 const KIND_TEXT = { blue: 'text-om-accent', amber: 'text-om-downtime', red: 'text-om-blocked' };
@@ -34,10 +34,10 @@ export default function OeeShow() {
         },
         {
             id: 'shift',
-            accessorFn: (r) => r.shift?.name ?? 'All',
+            accessorFn: (r) => r.shift?.name ?? __('All'),
             header: 'Shift',
             meta: { align: 'left' },
-            cell: ({ row }) => <span className="text-om-muted">{row.original.shift?.name ?? 'All'}</span>,
+            cell: ({ row }) => <span className="text-om-muted">{row.original.shift?.name ?? __('All')}</span>,
         },
         {
             id: 'planned_minutes',
@@ -113,7 +113,7 @@ export default function OeeShow() {
 
     return (
         <>
-            <Head title={`OEE — ${line.name}`} />
+            <Head title={__('OEE — :name', { name: line.name })} />
             <div className="max-w-7xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="flex justify-between items-start flex-wrap gap-3">
@@ -131,7 +131,7 @@ export default function OeeShow() {
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                             </svg>
-                            Print
+                            {__('Print')}
                         </a>
                         <a
                             href={`/admin/oee/print/pdf?line_id=${line.id}&date_from=${dateFrom}&date_to=${dateTo}`}
@@ -140,16 +140,16 @@ export default function OeeShow() {
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                             </svg>
-                            Download PDF
+                            {__('Download PDF')}
                         </a>
-                        <Link href="/admin/oee" className="btn-touch btn-secondary text-sm">Back to OEE</Link>
+                        <Link href="/admin/oee" className="btn-touch btn-secondary text-sm">{__('Back to OEE')}</Link>
                     </div>
                 </div>
 
                 {/* Date filters */}
                 <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-4">
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">From</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">{__('From')}</label>
                         <DatePicker
                             value={dateFrom || null}
                             onChange={(iso) => apply({ date_from: iso ?? '' })}
@@ -157,7 +157,7 @@ export default function OeeShow() {
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-om-muted mb-1">To</label>
+                        <label className="block text-xs font-medium text-om-muted mb-1">{__('To')}</label>
                         <DatePicker
                             value={dateTo || null}
                             onChange={(iso) => apply({ date_to: iso ?? '' })}
@@ -169,7 +169,7 @@ export default function OeeShow() {
                 {/* Downtime by Reason */}
                 {downtimeByReason.length > 0 && (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-5">
-                        <h2 className="text-lg font-bold text-om-ink mb-4">Downtime by Reason</h2>
+                        <h2 className="text-lg font-bold text-om-ink mb-4">{__('Downtime by Reason')}</h2>
                         <div className="space-y-2">
                             {downtimeByReason.map((item, i) => {
                                 const bg = KIND_BG[item.kind_color] ?? 'bg-om-blocked';
@@ -198,17 +198,17 @@ export default function OeeShow() {
                 {/* Records Table */}
                 {records.length > 0 ? (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-5 overflow-hidden">
-                        <h2 className="text-lg font-bold text-om-ink mb-4">Daily Records</h2>
+                        <h2 className="text-lg font-bold text-om-ink mb-4">{__('Daily Records')}</h2>
                         <DataTable
                             data={records}
                             columns={columns}
                             searchPlaceholder="Search records…"
-                            emptyLabel="No OEE records for this period."
+                            emptyLabel={__('No OEE records for this period.')}
                         />
                     </div>
                 ) : (
                     <div className="bg-om-card rounded-om-sm shadow-sm p-8 text-center">
-                        <p className="text-om-muted">No OEE records for this period.</p>
+                        <p className="text-om-muted">{__('No OEE records for this period.')}</p>
                     </div>
                 )}
             </div>

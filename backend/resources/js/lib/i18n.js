@@ -48,6 +48,7 @@ const BCP47 = {
     en: 'en-GB',
     pl: 'pl-PL',
     tr: 'tr-TR',
+    vi: 'vi-VN',
 };
 
 function localeTag() {
@@ -96,6 +97,27 @@ export function formatDateTime(value, opts = { day: '2-digit', month: '2-digit',
 export function formatNumber(value, opts = {}) {
     if (value == null || value === '' || isNaN(value)) return '';
     return Number(value).toLocaleString(localeTag(), opts);
+}
+
+export function timeAgo(d) {
+    if (!d) return '';
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return '';
+    const sec = Math.round((Date.now() - dt.getTime()) / 1000);
+    const abs = Math.abs(sec);
+    const past = sec >= 0;
+    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
+    for (const [name, s] of units) {
+        if (abs >= s) {
+            const n = Math.floor(abs / s);
+            if (past) {
+                return __(':count :unit ago', { count: n, unit: __(name + (n > 1 ? 's' : '')) });
+            } else {
+                return __('in :count :unit', { count: n, unit: __(name + (n > 1 ? 's' : '')) });
+            }
+        }
+    }
+    return past ? __('just now') : __('soon');
 }
 
 function capitalize(s) {

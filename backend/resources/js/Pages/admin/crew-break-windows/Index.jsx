@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { formatDays } from './fields';
+import { __ } from '../../../lib/i18n';
 
 export default function CrewBreakWindowsIndex() {
     const { crewNames = {} } = usePage().props;
@@ -32,7 +33,7 @@ export default function CrewBreakWindowsIndex() {
             label: 'Status',
             render: (r) => (
                 <span className={`px-2 py-0.5 rounded text-xs ${r.is_active ? 'bg-om-running-bg text-om-running' : 'bg-om-chip text-om-muted'}`}>
-                    {r.is_active ? 'Active' : 'Inactive'}
+                    {r.is_active ? __('Active') : __('Inactive')}
                 </span>
             ),
         },
@@ -45,10 +46,10 @@ export default function CrewBreakWindowsIndex() {
             icon: 'delete',
             variant: 'danger',
             onClick: () => {
-                if (confirm('Delete this break window?')) {
+                if (confirm(__('Delete this break window?'))) {
                     router.delete(`/admin/crew-break-windows/${r.id}`, {
                         preserveScroll: true,
-                        onError: (e) => alert(e?.message || 'Failed to delete.'),
+                        onError: (e) => alert(e?.message || __('Failed to delete.')),
                     });
                 }
             },
@@ -57,16 +58,16 @@ export default function CrewBreakWindowsIndex() {
 
     return (
         <>
-            <Head title="Crew Break Windows" />
+            <Head title={__('Crew Break Windows')} />
             <ResourceTable
                 shape="crew_break_windows"
-                title="Crew Break Windows"
+                title={__('Crew Break Windows')}
                 createHref="/admin/crew-break-windows/create"
-                createLabel="+ New Break Window"
+                createLabel={__('+ New Break Window')}
                 columns={columns}
                 orderBy="start_time"
                 actions={actions}
-                emptyText="No break windows defined yet."
+                emptyText={__('No break windows defined yet.')}
             />
         </>
     );

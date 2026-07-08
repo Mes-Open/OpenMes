@@ -4,7 +4,7 @@ import { useLiveQuery } from '@tanstack/react-db';
 import AppLayout from '../../../layouts/AppLayout';
 import { useSyncedShape } from '../../../lib/useSyncedShape';
 import { realtimeCollection } from '../../../lib/realtimeCollection';
-import { formatDate } from '../../../lib/i18n';
+import { __, timeAgo, formatDate } from '../../../lib/i18n';
 import { DataTable } from '@openmes/ui/table';
 
 /**
@@ -34,9 +34,9 @@ export default function AlertsIndex() {
     const { data: orders = [] } = useLiveQuery((q) => q.from({ r: ordersC }));
 
     // Lookup tables (names + is_blocking) — all live over the one Reverb socket.
-    const { data: types } = useSyncedShape('issue_types_all');
-    const { data: lines } = useSyncedShape('lines_all');
-    const { data: users } = useSyncedShape('users');
+    const { data: types = [] } = useSyncedShape('issue_types_all');
+    const { data: lines = [] } = useSyncedShape('lines_all');
+    const { data: users = [] } = useSyncedShape('users');
 
     const derived = useMemo(() => {
         const typeById = new Map(types.map((t) => [String(t.id), t]));
@@ -80,7 +80,7 @@ export default function AlertsIndex() {
         {
             id: 'issue',
             accessorFn: (i) => i.title ?? i.description,
-            header: 'Issue',
+            header: __('Issue'),
             cell: ({ row }) => {
                 const issue = row.original;
                 return <span className="font-medium text-om-ink">{issue.title ?? issue.description}</span>;
@@ -89,7 +89,7 @@ export default function AlertsIndex() {
         {
             id: 'work_order',
             accessorFn: (i) => i.order?.order_no ?? '',
-            header: 'Work Order',
+            header: __('Work Order'),
             cell: ({ row }) => {
                 const issue = row.original;
                 return issue.order
@@ -112,7 +112,7 @@ export default function AlertsIndex() {
         {
             id: 'status',
             accessorKey: 'status',
-            header: 'Status',
+            header: __('Status'),
             cell: ({ row }) => {
                 const issue = row.original;
                 return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${issue.status === 'OPEN' ? 'bg-om-downtime-bg text-om-downtime' : 'bg-om-chip text-om-accent'}`}>{issue.status}</span>;
@@ -123,7 +123,7 @@ export default function AlertsIndex() {
     return (
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-3 mb-6">
-                <h1 className="text-3xl font-bold text-om-ink">Alerts</h1>
+                <h1 className="text-3xl font-bold text-om-ink">{__('Alerts')}</h1>
                 {total > 0 && (
                     <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-om-blocked text-white text-sm font-bold">{total}</span>
                 )}
@@ -132,7 +132,7 @@ export default function AlertsIndex() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-om-running opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-om-running" />
                     </span>
-                    Live
+                    {__('Live')}
                 </span>
             </div>
 
@@ -141,8 +141,8 @@ export default function AlertsIndex() {
                     <svg className="w-16 h-16 text-green-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-xl font-semibold text-om-muted">All clear</p>
-                    <p className="text-om-muted mt-1">No active alerts at this time.</p>
+                    <p className="text-xl font-semibold text-om-muted">{__('All clear')}</p>
+                    <p className="text-om-muted mt-1">{__('No active alerts at this time.')}</p>
                 </div>
             ) : (
                 <>
@@ -153,14 +153,14 @@ export default function AlertsIndex() {
                                 <>
                                     <SectionTitle color="text-om-blocked" count={blockingIssues.length} badge="bg-om-blocked-bg text-om-blocked"
                                         icon="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636">
-                                        Blocking Issues
+                                        {__('Blocking Issues')}
                                     </SectionTitle>
                                     <div className="space-y-3">
                                         {blockingIssues.map((issue) => <BlockingCard key={issue.id} issue={issue} />)}
                                     </div>
                                 </>
                             ) : (
-                                <EmptyCard text="No blocking issues" />
+                                <EmptyCard text={__('No blocking issues')} />
                             )}
                         </div>
 
@@ -170,7 +170,7 @@ export default function AlertsIndex() {
                                 <div>
                                     <SectionTitle color="text-orange-700" count={overdueOrders.length} badge="bg-om-downtime-bg text-orange-700"
                                         icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z">
-                                        Overdue Work Orders
+                                        {__('Overdue Work Orders')}
                                     </SectionTitle>
                                     <OrderTable rows={overdueOrders} accent="orange" showStatus showDue />
                                 </div>
@@ -179,12 +179,12 @@ export default function AlertsIndex() {
                                 <div>
                                     <SectionTitle color="text-om-downtime" count={blockedOrders.length} badge="bg-om-downtime-bg text-om-downtime"
                                         icon="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                                        Blocked Work Orders
+                                        {__('Blocked Work Orders')}
                                     </SectionTitle>
                                     <OrderTable rows={blockedOrders} accent="yellow" showBlockedSince />
                                 </div>
                             )}
-                            {overdueOrders.length === 0 && blockedOrders.length === 0 && <EmptyCard text="No work order alerts" />}
+                            {overdueOrders.length === 0 && blockedOrders.length === 0 && <EmptyCard text={__('No work order alerts')} />}
                         </div>
                     </div>
 
@@ -193,7 +193,7 @@ export default function AlertsIndex() {
                         <div className="mt-6">
                             <SectionTitle color="text-om-downtime" plain
                                 icon="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                                Open Issues ({nonBlockingIssues.length})
+                                {__('Open Issues')} ({nonBlockingIssues.length})
                             </SectionTitle>
                             <DataTable
                                 data={nonBlockingIssues}
@@ -219,7 +219,7 @@ function BlockingCard({ issue }) {
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-om-blocked">{issue.type?.name ?? 'Issue'}</span>
+                        <span className="font-semibold text-om-blocked">{issue.type?.name ?? __('Issue')}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${issue.status === 'OPEN' ? 'bg-om-blocked-bg text-om-blocked' : 'bg-om-downtime-bg text-om-downtime'}`}>{issue.status}</span>
                     </div>
                     {issue.description && <p className="text-sm text-om-muted mt-1">{issue.description}</p>}
@@ -227,7 +227,7 @@ function BlockingCard({ issue }) {
                         {issue.order && (
                             <span>Work Order: <Link href={`/admin/work-orders/${issue.order.id}`} className="font-mono font-semibold text-om-accent hover:underline">{issue.order.order_no}</Link></span>
                         )}
-                        <span>Reported by: {issue.reporter?.name ?? '—'}</span>
+                        <span>{__('Reported by')}: {issue.reporter?.name ?? '—'}</span>
                         <span>{timeAgo(issue.created_at)}</span>
                     </div>
                 </div>
@@ -243,7 +243,7 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
             {
                 id: 'order',
                 accessorKey: 'order_no',
-                header: 'Order',
+                header: __('Order'),
                 cell: ({ row }) => {
                     const wo = row.original;
                     return (
@@ -257,7 +257,7 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
             {
                 id: 'line',
                 accessorFn: (wo) => wo.line?.name ?? '',
-                header: 'Line',
+                header: __('Line'),
                 cell: ({ row }) => <span className="text-sm text-om-muted">{row.original.line?.name ?? '—'}</span>,
             },
         ];
@@ -265,7 +265,7 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
             cols.push({
                 id: 'overdue',
                 accessorFn: (wo) => wo.due_date ?? '',
-                header: 'Overdue',
+                header: __('Overdue'),
                 cell: ({ row }) => <span className="text-sm text-om-blocked font-semibold">{timeAgo(row.original.due_date)}</span>,
             });
         }
@@ -273,7 +273,7 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
             cols.push({
                 id: 'status',
                 accessorKey: 'status',
-                header: 'Status',
+                header: __('Status'),
                 cell: ({ row }) => {
                     const wo = row.original;
                     return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${WO_STATUS_STYLES[wo.status] ?? 'bg-om-chip text-om-muted'}`}>{WO_STATUS_LABELS[wo.status] ?? wo.status}</span>;
@@ -284,7 +284,7 @@ function OrderTable({ rows, showStatus, showDue, showBlockedSince }) {
             cols.push({
                 id: 'blocked_since',
                 accessorFn: (wo) => wo.updated_at ?? '',
-                header: 'Blocked since',
+                header: __('Blocked since'),
                 cell: ({ row }) => <span className="text-sm text-om-muted">{timeAgo(row.original.updated_at)}</span>,
             });
         }
@@ -330,21 +330,4 @@ function fmtDate(d) {
     if (!d) return '';
     const dt = new Date(d);
     return Number.isNaN(dt.getTime()) ? '' : formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function timeAgo(d) {
-    if (!d) return '';
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return '';
-    const sec = Math.round((Date.now() - dt.getTime()) / 1000);
-    const abs = Math.abs(sec);
-    const past = sec >= 0;
-    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
-    for (const [name, s] of units) {
-        if (abs >= s) {
-            const n = Math.floor(abs / s);
-            return past ? `${n} ${name}${n > 1 ? 's' : ''} ago` : `in ${n} ${name}${n > 1 ? 's' : ''}`;
-        }
-    }
-    return past ? 'just now' : 'soon';
 }

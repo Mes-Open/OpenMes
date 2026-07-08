@@ -1,9 +1,9 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (status transitions, modal post and batch logic untouched).
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Button, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatDate, formatNumber } from '../../../lib/i18n';
+import { __, formatDate, formatNumber } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
@@ -40,6 +40,18 @@ const ISSUE_PILL_STATUS = {
 const LINK_GHOST =
     'inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-ink hover:bg-om-chip transition-colors';
 
+const MACHINE_PILL_STATUS = {
+    RUNNING: 'running',
+    IDLE: 'pending',
+    STOPPED: 'downtime',
+    FAULT: 'blocked',
+    SETUP: 'pending',
+    WAITING: 'downtime',
+    CLEANING: 'pending',
+    MAINTENANCE: 'downtime',
+    UNKNOWN: 'pending',
+};
+
 function fmtQty(n) {
     return formatNumber(Number(n ?? 0), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -58,22 +70,7 @@ function fmtDateTime(d) {
     return formatDate(dt, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function timeAgo(d) {
-    if (!d) return '';
-    const dt = new Date(d);
-    if (Number.isNaN(dt.getTime())) return '';
-    const sec = Math.round((Date.now() - dt.getTime()) / 1000);
-    const abs = Math.abs(sec);
-    const past = sec >= 0;
-    const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
-    for (const [name, s] of units) {
-        if (abs >= s) {
-            const n = Math.floor(abs / s);
-            return past ? `${n} ${name}${n > 1 ? 's' : ''} ago` : `in ${n} ${name}${n > 1 ? 's' : ''}`;
-        }
-    }
-    return past ? 'just now' : 'soon';
-}
+
 
 function BatchRow({ batch, processSnapshot }) {
     const [open, setOpen] = useState(batch.is_first ?? false);
@@ -157,13 +154,13 @@ function DoneModal({ workOrder, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-om-card border border-om-line rounded-om shadow-xl p-6 w-full max-w-md mx-4">
-                <h3 className="text-[16px] font-semibold text-om-ink mb-4">Complete Work Order</h3>
+                <h3 className="text-[16px] font-semibold text-om-ink mb-4">{__('Complete Work Order')}</h3>
                 <p className="text-sm text-om-muted mb-4">
                     Enter the produced quantity for <strong className="font-mono text-om-ink">{workOrder.order_no}</strong>.
                 </p>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1.5">Produced Quantity</label>
+                        <label className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1.5">{__('Produced Quantity')}</label>
                         <input
                             type="number"
                             step="0.01"
@@ -174,7 +171,7 @@ function DoneModal({ workOrder, onClose }) {
                             className="w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 font-mono text-sm text-om-ink focus:outline-none focus:border-om-accent"
                             required
                         />
-                        <p className="text-xs text-om-faint mt-1.5">Planned: <span className="font-mono">{fmtQty(workOrder.planned_qty)}</span></p>
+                        <p className="text-xs text-om-faint mt-1.5">{__('Planned:')} <span className="font-mono">{fmtQty(workOrder.planned_qty)}</span></p>
                     </div>
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="secondary" onClick={onClose}>
@@ -190,11 +187,65 @@ function DoneModal({ workOrder, onClose }) {
     );
 }
 
+function OrderMachinesPanel({ machines }) {
+    return (
+        <div className="bg-om-card border border-om-line rounded-om p-5">
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-[14px] font-semibold text-om-ink">{__('Machines')}</h3>
+                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Live')}</span>
+            </div>
+            {machines.length === 0 ? (
+                <p className="text-sm text-om-faint text-center py-3">{__('No assigned machines.')}</p>
+            ) : (
+                <div className="space-y-3">
+                    {machines.map((machine) => {
+                        const state = machine.current_state ?? 'UNKNOWN';
+                        const pillStatus = MACHINE_PILL_STATUS[state] ?? MACHINE_PILL_STATUS.UNKNOWN;
+
+                        return (
+                            <div key={machine.id} className="rounded-om-sm bg-om-panel p-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="font-medium text-om-ink truncate">{machine.name}</p>
+                                        <p className="font-mono text-xs text-om-faint truncate">{machine.code}</p>
+                                    </div>
+                                    <StatusPill status={pillStatus} label={state} />
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-2 text-xs text-om-muted">
+                                    <span>{__('Steps:')} {machine.steps_count}</span>
+                                    {machine.active_steps_count > 0 && (
+                                        <span className="text-om-accent">{__('Active:')} {machine.active_steps_count}</span>
+                                    )}
+                                    {machine.line_name && <span>{machine.line_name}</span>}
+                                </div>
+                                {machine.state_started_at && (
+                                    <p className="mt-1 text-xs text-om-faint">
+                                        {__('Since')} {fmtDateTime(machine.state_started_at)}
+                                        {machine.state_source ? ` · ${__(machine.state_source)}` : ''}
+                                    </p>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function SupervisorWorkOrderShow() {
     const { workOrder } = usePage().props;
     const [showDoneModal, setShowDoneModal] = useState(false);
 
     const post = (verb) => router.post(`/supervisor/work-orders/${workOrder.id}/${verb}`, {}, { preserveScroll: true });
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            router.reload({ only: ['workOrder'], preserveScroll: true, preserveState: true });
+        }, 5000);
+
+        return () => clearInterval(timer);
+    }, [workOrder.id]);
 
     const status = workOrder.status;
     const isTerminal = TERMINAL.includes(status);
@@ -207,7 +258,7 @@ export default function SupervisorWorkOrderShow() {
 
     return (
         <>
-            <Head title={`Work Order ${workOrder.order_no}`} />
+            <Head title={__('Work Order :no', { no: workOrder.order_no })} />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
@@ -300,35 +351,35 @@ export default function SupervisorWorkOrderShow() {
 
                         {/* Details */}
                         <div className="bg-om-card border border-om-line rounded-om p-5">
-                            <h2 className="text-[14px] font-semibold text-om-ink mb-4">Details</h2>
+                            <h2 className="text-[14px] font-semibold text-om-ink mb-4">{__('Details')}</h2>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                                 <div>
-                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Order Number</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Order Number')}</p>
                                     <p className="font-mono font-medium text-om-ink">{workOrder.order_no}</p>
                                 </div>
                                 <div>
-                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Line</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Line')}</p>
                                     <p className="font-medium text-om-ink">{workOrder.line_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Product Type</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Product Type')}</p>
                                     <p className="font-medium text-om-ink">{workOrder.product_type_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Planned Qty</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Planned Qty')}</p>
                                     <p className="font-mono font-medium text-om-ink">{fmtQty(workOrder.planned_qty)}</p>
                                 </div>
                                 <div>
-                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Produced Qty</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Produced Qty')}</p>
                                     <p className="font-mono font-medium text-om-ink">{fmtQty(workOrder.produced_qty)}</p>
                                 </div>
                                 <div>
-                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Priority</p>
+                                    <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Priority')}</p>
                                     <p className="font-medium text-om-ink">{workOrder.priority ?? '—'}</p>
                                 </div>
                                 {workOrder.due_date && (
                                     <div>
-                                        <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Due Date</p>
+                                        <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Due Date')}</p>
                                         <p className={`font-medium ${isDuePast ? 'text-om-blocked' : 'text-om-ink'}`}>
                                             {fmtDate(workOrder.due_date)}
                                         </p>
@@ -336,7 +387,7 @@ export default function SupervisorWorkOrderShow() {
                                 )}
                                 {workOrder.description && (
                                     <div className="col-span-2 md:col-span-3">
-                                        <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Description</p>
+                                        <p className="mb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Description')}</p>
                                         <p className="font-medium text-om-ink">{workOrder.description}</p>
                                     </div>
                                 )}
@@ -350,7 +401,7 @@ export default function SupervisorWorkOrderShow() {
                                 <span className="font-mono text-[12px] font-normal text-om-faint">({workOrder.batches.length})</span>
                             </h2>
                             {workOrder.batches.length === 0 ? (
-                                <p className="text-sm text-om-faint py-4 text-center">No batches yet.</p>
+                                <p className="text-sm text-om-faint py-4 text-center">{__('No batches yet.')}</p>
                             ) : (
                                 <div className="space-y-3">
                                     {workOrder.batches.map((batch, i) => (
@@ -370,10 +421,10 @@ export default function SupervisorWorkOrderShow() {
 
                         {/* Progress */}
                         <div className="bg-om-card border border-om-line rounded-om p-5">
-                            <h3 className="text-[14px] font-semibold text-om-ink mb-3">Progress</h3>
+                            <h3 className="text-[14px] font-semibold text-om-ink mb-3">{__('Progress')}</h3>
                             <div className="mb-3">
                                 <div className="flex justify-between items-baseline text-sm mb-1.5">
-                                    <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">Completion</span>
+                                    <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Completion')}</span>
                                     <span className="font-mono text-[12px] text-om-ink">{pct.toFixed(1)}%</span>
                                 </div>
                                 <div className="w-full bg-om-chip rounded-[20px] h-[7px] overflow-hidden">
@@ -385,33 +436,35 @@ export default function SupervisorWorkOrderShow() {
                             </div>
                             <div className="space-y-1 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Planned:</span>
+                                    <span className="text-om-muted">{__('Planned:')}</span>
                                     <span className="font-mono font-medium text-om-ink">{fmtQty(workOrder.planned_qty)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Produced:</span>
+                                    <span className="text-om-muted">{__('Produced:')}</span>
                                     <span className="font-mono font-medium text-om-ink">{fmtQty(workOrder.produced_qty)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Batches:</span>
+                                    <span className="text-om-muted">{__('Batches:')}</span>
                                     <span className="font-mono font-medium text-om-ink">{workOrder.batches.length}</span>
                                 </div>
                             </div>
                         </div>
 
+                        <OrderMachinesPanel machines={workOrder.machines ?? []} />
+
                         {/* Issues */}
                         <div className="bg-om-card border border-om-line rounded-om p-5">
                             <div className="flex justify-between items-center mb-3">
-                                <h3 className="text-[14px] font-semibold text-om-ink">Issues</h3>
+                                <h3 className="text-[14px] font-semibold text-om-ink">{__('Issues')}</h3>
                                 <Link
                                     href="/supervisor/issues"
                                     className="text-xs text-om-accent hover:underline"
                                 >
-                                    Manage →
+                                    {__('Manage →')}
                                 </Link>
                             </div>
                             {workOrder.issues.length === 0 ? (
-                                <p className="text-sm text-om-faint text-center py-3">No issues.</p>
+                                <p className="text-sm text-om-faint text-center py-3">{__('No issues.')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {workOrder.issues.map((issue) => {

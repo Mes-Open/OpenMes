@@ -3,7 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
-import { formatNumber } from '../../../lib/i18n';
+import { formatNumber, __ } from '../../../lib/i18n';
 
 const STATUS_STYLES = {
     pending:   'bg-om-downtime-bg text-om-downtime',
@@ -48,7 +48,7 @@ export default function ProductionAnomaliesIndex() {
     }
 
     function handleDelete(id) {
-        if (confirm('Delete this anomaly record?')) {
+        if (confirm(__('Delete this anomaly record?'))) {
             router.delete(`/admin/production-anomalies/${id}`, { preserveScroll: true });
         }
     }
@@ -57,7 +57,7 @@ export default function ProductionAnomaliesIndex() {
         {
             id: 'work_order',
             accessorFn: (r) => r.work_order?.order_no ?? '',
-            header: 'Work Order',
+            header: __('Work Order'),
             cell: ({ row }) => {
                 const anomaly = row.original;
                 return anomaly.work_order ? (
@@ -75,27 +75,27 @@ export default function ProductionAnomaliesIndex() {
         {
             id: 'product_name',
             accessorKey: 'product_name',
-            header: 'Product',
+            header: __('Product'),
             cell: ({ row }) => <span className="text-om-ink">{row.original.product_name}</span>,
         },
         {
             id: 'planned_qty',
             accessorKey: 'planned_qty',
-            header: 'Planned Qty',
+            header: __('Planned Qty'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="text-om-muted">{fmt(row.original.planned_qty)}</span>,
         },
         {
             id: 'actual_qty',
             accessorKey: 'actual_qty',
-            header: 'Actual Qty',
+            header: __('Actual Qty'),
             meta: { align: 'right' },
             cell: ({ row }) => <span className="text-om-muted">{fmt(row.original.actual_qty)}</span>,
         },
         {
             id: 'deviation',
             accessorFn: (r) => deviation(r.planned_qty, r.actual_qty),
-            header: 'Deviation',
+            header: __('Deviation'),
             meta: { align: 'right' },
             cell: ({ row }) => {
                 const dev = deviation(row.original.planned_qty, row.original.actual_qty);
@@ -110,13 +110,13 @@ export default function ProductionAnomaliesIndex() {
         {
             id: 'reason',
             accessorFn: (r) => r.anomaly_reason?.name ?? '—',
-            header: 'Reason',
+            header: __('Reason'),
             cell: ({ row }) => <span className="text-om-muted">{row.original.anomaly_reason?.name ?? '—'}</span>,
         },
         {
             id: 'status',
             accessorKey: 'status',
-            header: 'Status',
+            header: __('Status'),
             cell: ({ row }) => {
                 const anomaly = row.original;
                 return (
@@ -128,7 +128,7 @@ export default function ProductionAnomaliesIndex() {
         },
         {
             id: 'actions',
-            header: 'Actions',
+            header: __('Actions'),
             enableSorting: false,
             meta: { align: 'right' },
             cell: ({ row }) => {
@@ -138,7 +138,7 @@ export default function ProductionAnomaliesIndex() {
                         {anomaly.status === 'pending' && (
                             <button
                                 onClick={() => handleProcess(anomaly.id)}
-                                title="Process"
+                                title={__('Process')}
                                 className="text-om-running hover:text-om-running p-1"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +148,7 @@ export default function ProductionAnomaliesIndex() {
                         )}
                         <button
                             onClick={() => handleDelete(anomaly.id)}
-                            title="Delete"
+                            title={__('Delete')}
                             className="text-om-blocked hover:text-om-blocked p-1"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,18 +163,18 @@ export default function ProductionAnomaliesIndex() {
 
     return (
         <>
-            <Head title="Production Anomalies" />
+            <Head title={__('Production Anomalies')} />
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-bold text-om-ink">Production Anomalies</h1>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('Production Anomalies')}</h1>
                     <Link
-                        href="/admin/production-anomalies/create"
-                        className="btn-touch btn-primary"
+                         href="/admin/production-anomalies/create"
+                         className="btn-touch btn-primary"
                     >
                         <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
                         </svg>
-                        Record Anomaly
+                        {__('Record Anomaly')}
                     </Link>
                 </div>
 
@@ -182,31 +182,31 @@ export default function ProductionAnomaliesIndex() {
                 <div className="card mb-4">
                     <form onSubmit={applyFilter} className="flex flex-wrap gap-3 items-end">
                         <div>
-                            <label className="form-label">Work Order</label>
+                            <label className="form-label">{__('Work Order')}</label>
                             <Dropdown
                                 className="w-full"
-                                options={[{ value: '', label: 'All work orders' }, ...workOrders.map((wo) => ({ value: String(wo.id), label: wo.order_no }))]}
+                                options={[{ value: '', label: __('All work orders') }, ...workOrders.map((wo) => ({ value: String(wo.id), label: wo.order_no }))]}
                                 value={workOrderId == null ? '' : String(workOrderId)}
                                 onChange={(v) => setWorkOrderId(v)}
                             />
                         </div>
                         <div>
-                            <label className="form-label">Status</label>
+                            <label className="form-label">{__('Status')}</label>
                             <Dropdown
                                 className="w-full"
                                 options={[
-                                    { value: '', label: 'All statuses' },
-                                    { value: 'pending', label: 'Pending' },
-                                    { value: 'processed', label: 'Processed' },
-                                    { value: 'dismissed', label: 'Dismissed' },
+                                    { value: '', label: __('All statuses') },
+                                    { value: 'pending', label: __('Pending') },
+                                    { value: 'processed', label: __('Processed') },
+                                    { value: 'dismissed', label: __('Dismissed') },
                                 ]}
                                 value={status}
                                 onChange={(v) => setStatus(v)}
                             />
                         </div>
                         <div className="flex gap-2">
-                            <button type="submit" className="btn-touch btn-primary">Filter</button>
-                            <button type="button" onClick={resetFilter} className="btn-touch btn-secondary">Reset</button>
+                            <button type="submit" className="btn-touch btn-primary">{__('Filter')}</button>
+                            <button type="button" onClick={resetFilter} className="btn-touch btn-secondary">{__('Reset')}</button>
                         </div>
                     </form>
                 </div>
@@ -219,7 +219,7 @@ export default function ProductionAnomaliesIndex() {
                         columnToggle
                         paginated
                         searchPlaceholder="Search anomalies…"
-                        emptyLabel="No anomalies recorded"
+                        emptyLabel={__('No anomalies recorded')}
                     />
 
                     {/* Pagination */}

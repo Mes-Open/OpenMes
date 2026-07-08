@@ -39,14 +39,14 @@ class ModulesController extends Controller
         $module  = $modules->firstWhere('name', $name);
 
         if (!$module) {
-            return redirect()->back()->with('error', "Module \"{$name}\" not found.");
+            return redirect()->back()->with('error', __('Module ":name" not found.', ['name' => $name]));
         }
 
         $this->manager->enable($name);
         $this->clearCache();
 
         return redirect()->route('admin.modules.index')
-            ->with('success', "Module \"{$module['display_name']}\" enabled. Restart the server if changes don't appear.");
+            ->with('success', __('Module ":name" enabled. Restart the server if changes don\'t appear.', ['name' => $module['display_name']]));
     }
 
     public function disable(Request $request, string $name)
@@ -55,14 +55,14 @@ class ModulesController extends Controller
         $module  = $modules->firstWhere('name', $name);
 
         if (!$module) {
-            return redirect()->back()->with('error', "Module \"{$name}\" not found.");
+            return redirect()->back()->with('error', __('Module ":name" not found.', ['name' => $name]));
         }
 
         $this->manager->disable($name);
         $this->clearCache();
 
         return redirect()->route('admin.modules.index')
-            ->with('success', "Module \"{$module['display_name']}\" disabled.");
+            ->with('success', __('Module ":name" disabled.', ['name' => $module['display_name']]));
     }
 
     public function upload(Request $request)
@@ -78,7 +78,7 @@ class ModulesController extends Controller
         try {
             $moduleName = $this->manager->installFromZip($fullPath);
         } catch (\RuntimeException $e) {
-            return redirect()->back()->with('error', 'Install failed: ' . $e->getMessage());
+            return redirect()->back()->with('error', __('Install failed: :error', ['error' => $e->getMessage()]));
         } finally {
             @unlink($fullPath);
         }
@@ -86,7 +86,7 @@ class ModulesController extends Controller
         $this->clearCache();
 
         return redirect()->route('admin.modules.index')
-            ->with('success', "Module \"{$moduleName}\" installed. Enable it below.");
+            ->with('success', __('Module ":name" installed. Enable it below.', ['name' => $moduleName]));
     }
 
     public function destroy(string $name)
@@ -95,14 +95,14 @@ class ModulesController extends Controller
         $module  = $modules->firstWhere('name', $name);
 
         if (!$module) {
-            return redirect()->back()->with('error', "Module \"{$name}\" not found.");
+            return redirect()->back()->with('error', __('Module ":name" not found.', ['name' => $name]));
         }
 
         $this->manager->uninstall($name);
         $this->clearCache();
 
         return redirect()->route('admin.modules.index')
-            ->with('success', "Module \"{$module['display_name']}\" uninstalled.");
+            ->with('success', __('Module ":name" uninstalled.', ['name' => $module['display_name']]));
     }
 
     protected function clearCache(): void

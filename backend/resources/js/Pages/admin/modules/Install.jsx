@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
+import { __ } from '../../../lib/i18n';
 
 export default function ModulesInstall() {
     const { csrf_token } = usePage().props;
@@ -9,11 +10,11 @@ export default function ModulesInstall() {
 
     return (
         <>
-            <Head title="Install Module" />
+            <Head title={__('Install Module')} />
             <div className="max-w-3xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-om-ink">Install Module</h1>
-                    <p className="text-om-muted mt-1">Upload a module from a ZIP file or place the folder manually</p>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('Install Module')}</h1>
+                    <p className="text-om-muted mt-1">{__('Upload a module from a ZIP file or place the folder manually')}</p>
                 </div>
 
                 {/* Upload ZIP */}
@@ -23,7 +24,7 @@ export default function ModulesInstall() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
-                        Upload ZIP file
+                        {__('Upload ZIP file')}
                     </h2>
 
                     <form method="POST" action="/admin/modules/upload" encType="multipart/form-data">
@@ -38,9 +39,9 @@ export default function ModulesInstall() {
                                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                             </svg>
                             <p className="text-sm text-om-muted">
-                                {filename || 'Click to select a .zip file'}
+                                {filename || __('Click to select a .zip file')}
                             </p>
-                            <p className="text-xs text-om-faint mt-1">Max 20 MB</p>
+                            <p className="text-xs text-om-faint mt-1">{__('Max 20 MB')}</p>
                             <input
                                 type="file"
                                 name="module_zip"
@@ -55,28 +56,28 @@ export default function ModulesInstall() {
                         <button
                             type="submit"
                             disabled={!filename}
-                            className={`btn-touch btn-primary${!filename ? ' opacity-50 cursor-not-allowed' : ''}`}
+                            className={`btn-touch btn-accent${!filename ? ' opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            Install Module
+                            {__('Install Module')}
                         </button>
                     </form>
 
                     <p className="text-xs text-om-faint mt-4">
-                        The ZIP must contain a{' '}
+                        {__('The ZIP must contain a')}{' '}
                         <code className="bg-om-chip px-1 rounded">module.json</code>
-                        {' '}file in the root directory or inside a single subfolder.
+                        {' '}{__('file in the root directory or inside a single subfolder.')}
                     </p>
                 </div>
 
                 {/* Manual install guide */}
                 <div className="card bg-om-panel border border-om-line2">
-                    <h3 className="font-bold text-om-muted mb-2">Manual Installation</h3>
+                    <h3 className="font-bold text-om-muted mb-2">{__('Manual Installation')}</h3>
                     <p className="text-sm text-om-muted mb-3">
-                        Place the module folder directly in{' '}
+                        {__('Place the module folder directly in')}{' '}
                         <code className="bg-om-card border rounded px-1 text-xs">modules/</code>,
-                        {' '}then go to{' '}
-                        <Link href="/admin/modules" className="text-om-accent hover:underline">Installed Modules</Link>
-                        {' '}and enable it.
+                        {' '}{__('then go to')}{' '}
+                        <Link href="/admin/modules" className="text-om-accent hover:underline">{__('Installed Modules')}</Link>
+                        {' '}{__('and enable it.')}
                     </p>
                     <div className="text-xs font-mono bg-om-card border rounded p-3 text-om-muted space-y-0.5 mb-4">
                         <p>modules/YourModule/</p>
@@ -95,7 +96,7 @@ export default function ModulesInstall() {
                         rel="noopener noreferrer"
                         className="text-sm text-om-accent hover:underline"
                     >
-                        Available hooks and events (HOOKS.md) ↗
+                        {__('Available hooks and events (HOOKS.md) ↗')}
                     </a>
                 </div>
             </div>

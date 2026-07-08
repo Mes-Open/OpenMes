@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 const AUTO_DETECT_MAP = {
     order_no:          ['order_no', 'order no', 'orderno', 'order number', 'order_number', 'wo_no', 'work_order', 'wo no'],
@@ -119,20 +120,20 @@ export default function CsvImportMapping() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="Map Columns" />
+            <Head title={__('Map Columns')} />
 
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-om-muted mb-6">
-                <Link href="/admin/dashboard" className="hover:text-om-ink">Dashboard</Link>
+                <Link href="/admin/dashboard" className="hover:text-om-ink">{__('Dashboard')}</Link>
                 <span>/</span>
-                <Link href="/admin/csv-import" className="hover:text-om-ink">CSV Import</Link>
+                <Link href="/admin/csv-import" className="hover:text-om-ink">{__('CSV Import')}</Link>
                 <span>/</span>
-                <span className="text-om-ink font-medium">Map Columns</span>
+                <span className="text-om-ink font-medium">{__('Map Columns')}</span>
             </nav>
 
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-om-ink">Map Columns</h1>
+                    <h1 className="text-3xl font-bold text-om-ink">{__('Map Columns')}</h1>
                     <p className="text-om-muted mt-1">
                         Assign each CSV column to a system field or a custom key.{' '}
                         <span className="font-medium text-om-accent">{totalRows} rows</span> to import &middot;
@@ -140,7 +141,7 @@ export default function CsvImportMapping() {
                     </p>
                 </div>
                 <Link href="/admin/csv-import" className="btn-touch btn-secondary text-sm">
-                    &larr; Back
+                    &larr; {__('Back')}
                 </Link>
             </div>
 
@@ -172,15 +173,15 @@ export default function CsvImportMapping() {
                     <div className="lg:col-span-2 space-y-4">
                         <div className="card">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold text-om-ink">Column Mapping</h2>
+                                <h2 className="text-xl font-bold text-om-ink">{__('Column Mapping')}</h2>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xs text-om-muted">Quick-fill:</span>
+                                    <span className="text-xs text-om-muted">{__('Quick-fill:')}</span>
                                     <button type="button" onClick={autoMap} className="text-xs text-om-accent hover:text-om-accent underline">
-                                        Auto-detect
+                                        {__('Auto-detect')}
                                     </button>
                                     <span className="text-om-faintest">|</span>
                                     <button type="button" onClick={clearAll} className="text-xs text-om-blocked hover:text-om-blocked underline">
-                                        Clear all
+                                        {__('Clear all')}
                                     </button>
                                 </div>
                             </div>
@@ -195,7 +196,7 @@ export default function CsvImportMapping() {
                                             {/* CSV column name */}
                                             <div className="flex-shrink-0 w-40">
                                                 <p className="text-sm font-mono font-medium text-om-ink truncate" title={h}>{h}</p>
-                                                <p className="text-xs text-om-faint">CSV column</p>
+                                                <p className="text-xs text-om-faint">{__('CSV column')}</p>
                                             </div>
 
                                             {/* Arrow */}
@@ -211,7 +212,7 @@ export default function CsvImportMapping() {
                                                     value={m.select == null ? '' : String(m.select)}
                                                     onChange={(v) => setField(h, 'select', v)}
                                                     options={[
-                                                        { value: '_ignore', label: '— Ignore this column —' },
+                                                        { value: '_ignore', label: __('— Ignore this column —') },
                                                         ...Object.entries(systemFields).map(([key, label]) => ({
                                                             value: String(key),
                                                             label: `System Fields: ${label}${(key === 'order_no' || key === 'quantity') ? ' (required)' : ''}`,
@@ -226,26 +227,26 @@ export default function CsvImportMapping() {
                                                         <input
                                                             type="text"
                                                             className="form-input w-full text-sm"
-                                                            placeholder="e.g. batch_code, color, weight_kg"
+                                                            placeholder={__('e.g. batch_code, color, weight_kg')}
                                                             value={m.customKey}
                                                             onChange={(e) => setField(h, 'customKey', e.target.value)}
                                                         />
                                                         <p className="text-xs text-om-faint mt-1">
-                                                            Stored as <code className="text-purple-700">custom:your_key</code>
+                                                            {__('Stored as')} <code className="text-purple-700">custom:your_key</code>
                                                         </p>
                                                     </div>
                                                 )}
 
                                                 {isRequired && (
                                                     <div className="mt-1">
-                                                        <span className="text-xs text-om-blocked font-medium">required field</span>
+                                                        <span className="text-xs text-om-blocked font-medium">{__('required field')}</span>
                                                     </div>
                                                 )}
                                             </div>
 
                                             {/* Sample value */}
                                             <div className="flex-shrink-0 w-32 hidden md:block">
-                                                <p className="text-xs text-om-faint mb-1">Sample</p>
+                                                <p className="text-xs text-om-faint mb-1">{__('Sample')}</p>
                                                 <p className="text-xs text-om-muted font-mono truncate" title={sampleVal}>{sampleVal}</p>
                                             </div>
                                         </div>
@@ -291,7 +292,7 @@ export default function CsvImportMapping() {
                         {/* Load Mapping */}
                         {savedMappings.length > 0 && (
                             <div className="card">
-                                <h3 className="text-base font-bold text-om-ink mb-3">Load Saved Profile</h3>
+                                <h3 className="text-base font-bold text-om-ink mb-3">{__('Load Saved Profile')}</h3>
                                 <div className="space-y-2">
                                     {savedMappings.map((m) => {
                                         const cols = Object.keys(m.mapping_config?.column_mappings ?? {}).length;
@@ -317,19 +318,19 @@ export default function CsvImportMapping() {
 
                         {/* Save Mapping */}
                         <div className="card">
-                            <h3 className="text-base font-bold text-om-ink mb-3">Save Mapping Profile</h3>
+                            <h3 className="text-base font-bold text-om-ink mb-3">{__('Save Mapping Profile')}</h3>
                             <Checkbox
                                 className="mb-3"
                                 checked={saveMappingEnabled}
                                 onChange={(next) => setSaveMappingEnabled(next)}
-                                label="Save this mapping for later"
+                                label={__('Save this mapping for later')}
                             />
                             {saveMappingEnabled && (
                                 <input
                                     type="text"
                                     name="save_mapping_name"
                                     className="form-input w-full text-sm"
-                                    placeholder="Profile name (e.g. ERP Export)"
+                                    placeholder={__('Profile name (e.g. ERP Export)')}
                                     maxLength={100}
                                 />
                             )}
@@ -337,22 +338,22 @@ export default function CsvImportMapping() {
 
                         {/* Import Summary */}
                         <div className="card">
-                            <h3 className="text-base font-bold text-om-ink mb-3">Import Summary</h3>
+                            <h3 className="text-base font-bold text-om-ink mb-3">{__('Import Summary')}</h3>
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Total rows:</span>
+                                    <span className="text-om-muted">{__('Total rows:')}</span>
                                     <span className="font-medium">{totalRows}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Strategy:</span>
+                                    <span className="text-om-muted">{__('Strategy:')}</span>
                                     <span className="font-medium capitalize">{importStrategy.replace(/_/g, ' ')}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-om-muted">Columns:</span>
+                                    <span className="text-om-muted">{__('Columns:')}</span>
                                     <span className="font-medium">{headers.length}</span>
                                 </div>
                                 <div className="border-t pt-2 flex justify-between">
-                                    <span className="text-om-muted">Mapped:</span>
+                                    <span className="text-om-muted">{__('Mapped:')}</span>
                                     <span className="font-medium">{mappedCount}</span>
                                 </div>
                             </div>

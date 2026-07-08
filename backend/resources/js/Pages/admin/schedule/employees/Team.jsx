@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../../layouts/AppLayout';
 import { Tacho, EmployeeTabs } from './Day';
 import { __ } from '../../../../lib/i18n';
+import { __ } from '../../../../lib/i18n';
 
 function fmtMins(m) {
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
@@ -37,6 +38,7 @@ export default function EmployeeTeam() {
                 <div className="bg-om-card border border-om-line2 rounded-om p-3.5">
                     <div className="grid gap-3.5 items-center" style={{ gridTemplateColumns: '160px 1fr 80px' }}>
                         <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('Worker')}</div>
+                        <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('Worker')}</div>
                         <div className="relative h-4">
                             {hourLabels.map((h) => (
                                 <div key={h} className="absolute font-mono text-[9px] font-bold tracking-wider text-om-muted"
@@ -46,6 +48,7 @@ export default function EmployeeTeam() {
                             ))}
                         </div>
                         <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase text-right">{__('On duty')}</div>
+                        <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase text-right">{__('On duty')}</div>
                     </div>
                 </div>
 
@@ -53,6 +56,7 @@ export default function EmployeeTeam() {
                 <div className="flex flex-col gap-2">
                     {workers.length === 0 ? (
                         <div className="p-8 text-center text-sm text-om-faint border border-dashed border-om-line2 rounded-om">
+                            {__('No workers configured.')}
                             {__('No workers configured.')}
                         </div>
                     ) : workers.map((w) => {

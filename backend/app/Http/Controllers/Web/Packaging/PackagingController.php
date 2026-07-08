@@ -10,6 +10,7 @@ use App\Models\PackagingScanLog;
 use App\Models\Pallet;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderEan;
+use App\Services\Production\PalletBackflushService;
 use App\Support\ShiftWindow;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -69,7 +70,7 @@ class PackagingController extends Controller
             return response()->json(['message' => __('Work order not found')], 404);
         }
 
-        if (! in_array($workOrder->status, [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])) {
+        if (! WorkOrder::whereKey($workOrder->id)->packable()->exists()) {
             return response()->json([
                 'message' => __('Work order not in a packable state (current: :status)', ['status' => $workOrder->status]),
             ], 422);
@@ -150,7 +151,7 @@ class PackagingController extends Controller
         ]);
     }
 
-    public function createPallet(CreatePalletStationRequest $request)
+    public function createPallet(CreatePalletStationRequest $request, PalletBackflushService $backflush)
     {
         $workOrder = WorkOrder::findOrFail($request->integer('work_order_id'));
 
@@ -176,6 +177,15 @@ class PackagingController extends Controller
             'location' => $request->input('location'),
             'qty' => 0,
         ]);
+
+        // Milestone backflush: when enabled, declare the BOM consumption implied
+        // by the produced quantity and deduct it from stock, linked to the pallet.
+        // Without an explicit produced_qty the batch is backflushed once (at its
+        // first pallet), so splitting a batch across pallets doesn't double-book.
+        if ($backflush->isEnabled()) {
+            $explicitQty = $request->filled('produced_qty') ? (float) $request->input('produced_qty') : null;
+            $backflush->backflushForPallet($pallet, $explicitQty, $request->user());
+        }
 
         return response()->json([
             'pallet' => $this->palletPayload($pallet->fresh(['workOrder.line', 'batch'])),
@@ -266,7 +276,7 @@ class PackagingController extends Controller
             ->get()
             ->groupBy('work_order_id');
 
-        return WorkOrder::whereIn('status', [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])
+        return WorkOrder::packable()
             ->with('productType', 'line', 'batches:id,work_order_id,batch_number,lot_number')
             ->orderByDesc('priority')
             ->get()
@@ -302,11 +312,11 @@ class PackagingController extends Controller
         $shiftStart = $this->currentShiftStart();
         $todayPacked = PackagingScanLog::where('scanned_at', '>=', $shiftStart)->count();
 
-        $plan = WorkOrder::whereIn('status', [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])
+        $plan = WorkOrder::packable()
             ->whereHas('eans')
             ->sum('planned_qty');
 
-        $totalPacked = WorkOrder::whereIn('status', [WorkOrder::STATUS_DONE, WorkOrder::STATUS_IN_PROGRESS])
+        $totalPacked = WorkOrder::packable()
             ->whereHas('eans')
             ->sum('packed_qty');
 

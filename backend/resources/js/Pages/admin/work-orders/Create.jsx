@@ -1,4 +1,5 @@
 import { Head, usePage } from '@inertiajs/react';
+import { __ } from '../../../lib/i18n';
 import AppLayout from '../../../layouts/AppLayout';
 import WorkOrderForm from './WorkOrderForm';
 

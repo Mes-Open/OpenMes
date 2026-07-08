@@ -3,7 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../layouts/AppLayout';
-import { formatNumber } from '../../lib/i18n';
+import { formatNumber, __ } from '../../lib/i18n';
 
 function ProgressBar({ pct, done }) {
     const color = done ? 'bg-om-running' : pct >= 50 ? 'bg-om-downtime' : 'bg-om-accent';
@@ -19,10 +19,10 @@ function ProgressBar({ pct, done }) {
 
 function StatusBadge({ item }) {
     if (item.done) {
-        return <StatusPill status="done" label="Spakowane" />;
+        return <StatusPill status="done" label={__('Packed')} />;
     }
     if (item.status === 'DONE') {
-        return <StatusPill status="running" label="W trakcie" />;
+        return <StatusPill status="running" label={__('In Progress')} />;
     }
     return <StatusPill status="pending" label={item.status} />;
 }
@@ -31,25 +31,25 @@ const itemColumns = [
     {
         id: 'order_no',
         accessorKey: 'order_no',
-        header: 'Zlecenie',
+        header: __('Order'),
         cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.order_no}</span>,
     },
     {
         id: 'product',
         accessorKey: 'product',
-        header: 'Produkt',
+        header: __('Product'),
         cell: ({ row }) => <span className="text-om-ink">{row.original.product}</span>,
     },
     {
         id: 'line',
         accessorFn: (r) => r.line ?? '—',
-        header: 'Linia',
+        header: __('Line'),
         cell: ({ row }) => <span className="text-om-muted">{row.original.line ?? '—'}</span>,
     },
     {
         id: 'eans',
         accessorFn: (r) => (r.eans ?? []).join(' '),
-        header: 'EAN',
+        header: __('EAN'),
         enableSorting: false,
         cell: ({ row }) => (
             (row.original.eans ?? []).map((ean) => (
@@ -62,27 +62,27 @@ const itemColumns = [
     {
         id: 'packed_qty',
         accessorKey: 'packed_qty',
-        header: 'Spakowano',
+        header: __('Packed'),
         meta: { align: 'right' },
         cell: ({ row }) => <span className="font-mono font-semibold text-om-ink">{row.original.packed_qty}</span>,
     },
     {
         id: 'planned_qty',
         accessorKey: 'planned_qty',
-        header: 'Plan',
+        header: __('Plan'),
         meta: { align: 'right' },
         cell: ({ row }) => <span className="font-mono text-om-muted">{row.original.planned_qty}</span>,
     },
     {
         id: 'progress',
         accessorKey: 'progress',
-        header: 'Postęp',
+        header: __('Progress'),
         cell: ({ row }) => <ProgressBar pct={row.original.progress} done={row.original.done} />,
     },
     {
         id: 'status',
-        accessorFn: (r) => (r.done ? 'Spakowane' : r.status === 'DONE' ? 'W trakcie' : r.status),
-        header: 'Status',
+        accessorFn: (r) => (r.done ? __('Packed') : r.status === 'DONE' ? __('In Progress') : r.status),
+        header: __('Status'),
         cell: ({ row }) => <StatusBadge item={row.original} />,
     },
 ];
@@ -105,33 +105,33 @@ export default function Admin() {
 
     return (
         <>
-            <Head title="Pakowanie — Przegląd" />
+            <Head title={__('Packaging — Overview')} />
             <div className="max-w-7xl mx-auto">
                 {/* Breadcrumbs */}
                 <nav className="flex items-center gap-1 text-[13px] text-om-muted mb-4">
-                    <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">Dashboard</Link>
+                    <Link href="/admin/dashboard" className="hover:text-om-ink hover:underline">{__('Dashboard')}</Link>
                     <span className="mx-1">/</span>
-                    <span className="text-om-ink">Pakowanie</span>
+                    <span className="text-om-ink">{__('Packaging')}</span>
                 </nav>
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-om-ink">Pakowanie &mdash; Przegląd</h1>
-                        <p className="text-[12.5px] text-om-muted mt-1">Bieżąca zmiana: {shiftLabel}</p>
+                        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-om-ink">{__('Packaging — Overview')}</h1>
+                        <p className="text-[12.5px] text-om-muted mt-1">{__('Current shift: :shift', { shift: shiftLabel })}</p>
                     </div>
                     <div className="flex gap-2">
                         <Link
                             href="/packaging/station"
                             className="inline-flex items-center justify-center rounded-om-sm bg-om-ink px-4 py-2.5 text-[13px] font-semibold text-om-on-ink hover:bg-om-ink-hover transition-colors"
                         >
-                            Otwórz stanowisko
+                            {__('Open station')}
                         </Link>
                         <Link
                             href="/packaging/eans"
                             className="inline-flex items-center justify-center rounded-om-sm bg-om-chip px-4 py-2.5 text-[13px] font-semibold text-om-ink hover:bg-om-line2 transition-colors"
                         >
-                            Zarządzaj EAN
+                            {__('Manage EANs')}
                         </Link>
                     </div>
                 </div>
@@ -142,23 +142,23 @@ export default function Admin() {
                         <p className="font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] text-om-ink">
                             {formatNumber((stats.today_packed ?? 0))}
                         </p>
-                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">Spakowano (zmiana)</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Packed (shift)')}</p>
                     </div>
                     <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
                         <p className="font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] text-om-muted">
                             {formatNumber(plan)}
                         </p>
-                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">Plan łącznie</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Total plan')}</p>
                     </div>
                     <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
                         <p className={`font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] ${(stats.backlog ?? 0) > 0 ? 'text-om-blocked' : 'text-om-running'}`}>
                             {formatNumber((stats.backlog ?? 0))}
                         </p>
-                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">Backlog</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Backlog')}</p>
                     </div>
                     <div className="bg-om-card border border-om-line rounded-om p-4 text-center">
                         <p className={`font-mono text-[40px] leading-none font-semibold tracking-[-0.02em] ${realizacjaColor}`}>{realizacja}%</p>
-                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">Realizacja</p>
+                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mt-2">{__('Completion')}</p>
                         <div className="w-full bg-om-line rounded-full h-1.5 mt-2">
                             <div className={`h-1.5 rounded-full ${realizacjaBar}`} style={{ width: `${realizacja}%` }} />
                         </div>
@@ -169,7 +169,7 @@ export default function Admin() {
                 <div className="bg-om-card border border-om-line rounded-om overflow-hidden">
                     <div className="px-4 py-3 border-b border-om-line">
                         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink">
-                            Zlecenia do spakowania ({items.length})
+                            {__('Work orders to pack')} ({items.length})
                         </h2>
                     </div>
                     <DataTable
@@ -178,8 +178,8 @@ export default function Admin() {
                         searchable
                         columnToggle
                         paginated
-                        searchPlaceholder="Szukaj zleceń…"
-                        emptyLabel="Brak zleceń z przypisanymi kodami EAN"
+                        searchPlaceholder={__('Search orders…')}
+                        emptyLabel={__('No work orders with assigned EAN codes')}
                     />
                 </div>
             </div>

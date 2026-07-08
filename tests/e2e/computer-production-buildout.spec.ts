@@ -17,6 +17,7 @@ import { execSync } from 'child_process';
 
 const ADMIN = process.env.ADMIN_USERNAME || 'admin';
 const PASS = process.env.ADMIN_PASSWORD || 'Admin1234!';
+const BACKEND = `${process.env.OPENMES_NAME_PREFIX || 'openmmes'}-backend`;
 const TS = Date.now().toString().slice(-6);
 
 const LINE = `PC Assembly ${TS}`;
@@ -34,7 +35,7 @@ function tinker(php: string): string {
   // Escape for the shell double-quoted --execute="..." wrapper: protect PHP
   // strings (") AND PHP variables ($) from being expanded by /bin/sh.
   const escaped = php.replace(/"/g, '\\"').replace(/\$/g, '\\$');
-  return execSync(`docker exec om106-backend php artisan tinker --execute="${escaped}"`, {
+  return execSync(`docker exec ${BACKEND} php artisan tinker --execute="${escaped}"`, {
     encoding: 'utf8',
   }).trim().split('\n').pop()!.trim();
 }

@@ -171,6 +171,7 @@ class AppServiceProvider extends ServiceProvider
             'pl' => 'Polski',
             'tr' => 'Türkçe',
             'de' => 'Deutsch',
+            'vi' => 'Tiếng Việt',
         ];
     }
 }

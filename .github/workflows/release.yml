@@ -69,10 +69,15 @@ jobs:
 
       - name: Build release notes
         id: notes
+        env:
+          # Pass through env, NOT ${{ }} interpolation into the script body:
+          # commit messages / notes contain quotes and backticks that would
+          # otherwise break out of the shell string (e.g. `"… & serials …"`
+          # ran `serials` as a command and failed the whole release).
+          VERSION: ${{ steps.version.outputs.version }}
+          CUSTOM: ${{ github.event.inputs.notes }}
+          LOG: ${{ steps.changelog.outputs.log }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          CUSTOM="${{ github.event.inputs.notes }}"
-          LOG="${{ steps.changelog.outputs.log }}"
           BODY=""
           if [ -n "$CUSTOM" ]; then
             BODY="${CUSTOM}"$'\n\n'

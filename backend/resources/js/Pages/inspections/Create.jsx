@@ -2,6 +2,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Button, Dropdown, TextField } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
+import { __ } from '../../lib/i18n';
 
 const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
 const INPUT_CLASS =
@@ -25,21 +26,21 @@ export default function InspectionsCreate() {
 
     return (
         <>
-            <Head title="Start Inspection" />
+            <Head title={__('Start Inspection')} />
 
             <div className="max-w-2xl mx-auto">
-                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-4">Start Inspection</h1>
+                <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-4">{__('Start Inspection')}</h1>
 
                 <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-6 space-y-5">
                     {/* Material */}
                     <div>
                         <label className={LABEL_CLASS}>
-                            Material <span className="text-om-accent">*</span>
+                            {__('Material')} <span className="text-om-accent">*</span>
                         </label>
                         <Dropdown
                             value={data.material_id == null ? '' : String(data.material_id)}
                             onChange={(v) => setData('material_id', v)}
-                            placeholder="-- choose --"
+                            placeholder={__('-- choose --')}
                             options={materials.map((m) => ({
                                 value: String(m.id),
                                 label: `${m.code} — ${m.name}`,
@@ -54,7 +55,7 @@ export default function InspectionsCreate() {
                     {/* Lot + Supplier ref */}
                     <div className="grid grid-cols-2 gap-3">
                         <TextField
-                            label={<>Lot number <span className="text-om-accent">*</span></>}
+                            label={<>{__('Lot number')} <span className="text-om-accent">*</span></>}
                             mono
                             required
                             maxLength={100}
@@ -63,7 +64,7 @@ export default function InspectionsCreate() {
                             error={errors.lot_number}
                         />
                         <TextField
-                            label="Supplier lot ref"
+                            label={__('Supplier lot ref')}
                             mono
                             maxLength={100}
                             value={data.supplier_lot_ref}
@@ -74,7 +75,7 @@ export default function InspectionsCreate() {
 
                     {/* Quantity received */}
                     <TextField
-                        label="Quantity received"
+                        label={__('Quantity received')}
                         mono
                         type="number"
                         step="0.001"
@@ -86,11 +87,11 @@ export default function InspectionsCreate() {
 
                     {/* Inspection plan */}
                     <div>
-                        <label className={LABEL_CLASS}>Inspection plan</label>
+                        <label className={LABEL_CLASS}>{__('Inspection plan')}</label>
                         <Dropdown
                             value={data.inspection_plan_id == null ? '' : String(data.inspection_plan_id)}
                             onChange={(v) => setData('inspection_plan_id', v)}
-                            placeholder="— no plan (ad-hoc) —"
+                            placeholder={__('— no plan (ad-hoc) —')}
                             options={plans.map((plan) => ({
                                 value: String(plan.id),
                                 label: `${plan.name}${plan.material ? ` (${plan.material.name})` : ''}${
@@ -100,7 +101,7 @@ export default function InspectionsCreate() {
                             className="w-full"
                         />
                         <p className="text-[12.5px] text-om-muted mt-1">
-                            If no plan is selected, you can still record results but no criteria will be pre-filled.
+                            {__('If no plan is selected, you can still record results but no criteria will be pre-filled.')}
                         </p>
                         {errors.inspection_plan_id && (
                             <p className="text-[11.5px] text-om-blocked mt-1">{errors.inspection_plan_id}</p>
@@ -113,10 +114,10 @@ export default function InspectionsCreate() {
                             href="/inspections"
                             className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
                         >
-                            Cancel
+                            {__('Cancel')}
                         </Link>
                         <Button type="submit" variant="accent" loading={processing}>
-                            Start
+                            {__('Start')}
                         </Button>
                     </div>
                 </form>

@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import LabelTemplateForm from './Form';
+import { __ } from '../../../lib/i18n';
 
 export default function LabelTemplateCreate() {
     const { types = {}, sizes = {}, barcodeFormats = {}, availableFields = {}, defaultFields = {} } = usePage().props;
@@ -17,8 +18,8 @@ export default function LabelTemplateCreate() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <Head title="New Label Template" />
-            <h1 className="text-3xl font-bold text-om-ink mb-6">New Label Template</h1>
+            <Head title={__('New Label Template')} />
+            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('New Label Template')}</h1>
             <LabelTemplateForm form={form} types={types} sizes={sizes} barcodeFormats={barcodeFormats} availableFields={availableFields} submitLabel="Create" onSubmit={submit} />
         </div>
     );
