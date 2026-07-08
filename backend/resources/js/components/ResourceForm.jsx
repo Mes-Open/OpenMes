@@ -43,6 +43,8 @@ export default function ResourceForm({
     initial,
     submitLabel = 'Save',
     cancelHref,
+    onCancel,
+    onSuccess,
     breadcrumbs,
     backHref,
     backLabel = 'Back',
@@ -72,7 +74,7 @@ export default function ResourceForm({
 
     const submit = (e) => {
         e.preventDefault();
-        submitForm(form, method, action);
+        submitForm(form, method, action, onSuccess ? { onSuccess } : {});
     };
 
     return (
@@ -134,6 +136,15 @@ export default function ResourceForm({
                         >
                             Cancel
                         </Link>
+                    )}
+                    {!cancelHref && onCancel && (
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            className="inline-flex items-center justify-center rounded-om-sm border border-om-line px-4 py-[9px] text-[13px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
+                        >
+                            Cancel
+                        </button>
                     )}
                 </div>
             </form>

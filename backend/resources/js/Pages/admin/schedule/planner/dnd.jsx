@@ -6,13 +6,14 @@ export const ORDER_TYPE = 'ORDER';
 
 // A work-order card that can be dragged onto a slot. The native HTML5 drag image
 // (a snapshot of this node) floats with the cursor, so the grid layout never
-// shifts while dragging.
-export function DraggableOrder({ wo, className = '', style, children }) {
+// shifts while dragging. `placement` says which schedule segment this card
+// represents ('primary' or an extra placement id) — the drop rewrites only it.
+export function DraggableOrder({ wo, placement = 'primary', className = '', style, children }) {
     const [{ isDragging }, drag] = useDrag(() => ({
         type: ORDER_TYPE,
-        item: { wo },
+        item: { wo, placement },
         collect: (monitor) => ({ isDragging: monitor.isDragging() }),
-    }), [wo.id]);
+    }), [wo.id, placement]);
 
     return (
         <div ref={drag} className={className} style={{ ...style, opacity: isDragging ? 0.35 : 1, cursor: 'grab' }}>
@@ -26,7 +27,7 @@ export function DraggableOrder({ wo, className = '', style, children }) {
 export function useOrderDrop(target, onDropOrder) {
     const [{ isOver }, drop] = useDrop(() => ({
         accept: ORDER_TYPE,
-        drop: (item) => onDropOrder(item.wo, target),
+        drop: (item) => onDropOrder(item.wo, target, item.placement),
         collect: (monitor) => ({ isOver: monitor.isOver() }),
     }), [target.lineId, target.date, target.shift, onDropOrder]);
     return [isOver, drop];

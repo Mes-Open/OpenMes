@@ -1,8 +1,10 @@
-// Edit panel, assign popup, conflict dialog, live tracking, toast — styled to the
-// OpenMES Schedule design. The edit panel keeps inline rescheduling controls.
+// Edit panel, assign popup, new-order modal, conflict dialog, live tracking,
+// toast — styled to the OpenMES Schedule design.
 import { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Dropdown, DatePicker } from '@openmes/ui';
 import { __ } from '../../../../lib/i18n';
+import WorkOrderForm from '../../work-orders/WorkOrderForm';
 import { statusOf, statusLabel, priorityMeta, fmtQty, MONO } from './helpers';
 import { StatusPill } from './OrderCard';
 
@@ -21,6 +23,7 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
     const { data, config } = ctx;
     const s = statusOf(wo.status);
     const [line, setLine] = useState(wo.line_id || '');
+    const [extras, setExtras] = useState((wo.placements || []).map((p) => ({ ...p })));
     const [due, setDue] = useState(wo.due_date || '');
     const [endDate, setEndDate] = useState(wo.end_date || '');
     const [shift, setShift] = useState(wo.shift_number || '');
@@ -48,10 +51,34 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="col-span-2">
+                        <div>
                             <div style={lblStyle}>{__('Production line')}</div>
-                            <Dropdown value={line == null ? '' : String(line)} onChange={(v) => setLine(v)} placeholder={__('Unassigned')}
+                            <Dropdown value={line == null ? '' : String(line)} placeholder={__('Unassigned')}
+                                onChange={(v) => setLine(v)}
                                 options={[{ value: '', label: __('Unassigned') }, ...data.allLines.map((l) => ({ value: String(l.id), label: `${l.code} · ${l.name}` }))]} />
+                        </div>
+                        <div>
+                            <div style={lblStyle}>{__('Also runs on')}</div>
+                            <Dropdown value="" onChange={(v) => {
+                                if (!v) return;
+                                setExtras((xs) => [...xs, { id: null, line_id: +v, due_date: due || wo.due_date || data.range.startDate, shift_number: shift ? +shift : 1, end_date: null, end_shift_number: null }]);
+                            }} placeholder={__('+ Add line')} disabled={!line}
+                                options={[{ value: '', label: __('+ Add line') }, ...data.allLines.map((l) => ({ value: String(l.id), label: `${l.code} · ${l.name}` }))]} />
+                            {extras.length > 0 && (
+                                <div className="flex flex-col gap-1" style={{ marginTop: 6 }}>
+                                    {extras.map((p, i) => {
+                                        const l = data.allLines.find((x) => x.id === p.line_id);
+                                        return (
+                                            <div key={p.id ?? 'new' + i} className="flex items-center gap-2" style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--om-muted)', background: 'var(--om-chip)', borderRadius: 6, padding: '4px 8px' }}>
+                                                <span style={{ fontWeight: 600, color: 'var(--om-ink)' }}>{l?.code ?? '?'}</span>
+                                                <span>{p.due_date}{p.end_date ? ` → ${p.end_date}` : ''}</span>
+                                                <button type="button" onClick={() => setExtras((xs) => xs.filter((_, j) => j !== i))} className="ml-auto"
+                                                    style={{ color: 'var(--om-blocked)', fontWeight: 700 }}>✕</button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                         <div>
                             <div style={{ ...lblStyle, display: 'flex', justifyContent: 'space-between' }}>
@@ -73,7 +100,15 @@ export function OrderEditSheet({ wo, ctx, onClose, onSave, onUnassign }) {
 
                     <div className="flex gap-2.5">
                         <a href={`/admin/work-orders/${wo.id}`} className="flex-1 text-center" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-on-ink)', background: 'var(--om-ink)', borderRadius: 9, padding: 11 }}>{__('Open work order')} ↗</a>
-                        <button onClick={() => onSave(wo, { line_id: line ? +line : null, due_date: due || null, week_number: wo.week_number ?? null, end_date: endDate || null, shift_number: shift ? +shift : null, end_shift_number: endShift ? +endShift : null })}
+                        <button onClick={() => onSave(wo, {
+                            line_id: line ? +line : null,
+                            due_date: due || null, week_number: wo.week_number ?? null, end_date: endDate || null,
+                            shift_number: shift ? +shift : null, end_shift_number: endShift ? +endShift : null,
+                            extra_placements: extras.map((p) => ({
+                                id: p.id ?? null, line_id: p.line_id, due_date: p.due_date,
+                                shift_number: p.shift_number ?? null, end_date: p.end_date ?? null, end_shift_number: p.end_shift_number ?? null,
+                            })),
+                        })}
                             style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', background: 'var(--om-accent)', borderRadius: 9, padding: '11px 18px' }}>{__('Save')}</button>
                         <button onClick={() => onUnassign(wo)} style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 9, padding: '11px 18px' }}>{__('Unschedule')}</button>
                     </div>
@@ -116,6 +151,31 @@ export function AssignPopup({ target, ctx, onClose, onPick }) {
                     ))}
                     {items.length === 0 && <div className="text-center" style={{ padding: 30, color: 'var(--om-faint)', fontSize: 12.5 }}>{__('No matching orders.')}</div>}
                 </div>
+            </div>
+        </Backdrop>
+    );
+}
+
+// "+ New order" without leaving the planner — renders THE work-order create
+// form (the same component the create page uses), posting with `stay` so the
+// server sends us back here and the fresh order lands in the backlog.
+export function NewOrderModal({ ctx, onClose }) {
+    const { productTypes = [], customFields = [] } = usePage().props;
+    return (
+        <Backdrop onClose={onClose}>
+            <div style={{ width: 720, maxWidth: '94vw', maxHeight: '86vh', overflowY: 'auto', background: 'var(--om-bg)', border: '1px solid var(--om-line)', borderRadius: 14, boxShadow: '0 34px 80px -22px rgba(0,0,0,.5)', padding: '20px 22px' }}>
+                <div className="flex items-center justify-between mb-4">
+                    <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--om-ink)' }}>{__('New work order')}</span>
+                    <span onClick={onClose} style={{ color: 'var(--om-faint)', fontSize: 19, cursor: 'pointer', lineHeight: 1 }}>×</span>
+                </div>
+                <WorkOrderForm
+                    lines={ctx.data.allLines}
+                    productTypes={productTypes}
+                    customFields={customFields}
+                    stay
+                    onCancel={onClose}
+                    onSuccess={onClose}
+                />
             </div>
         </Backdrop>
     );

@@ -98,6 +98,66 @@ export function isoWeek(dateStr) {
 }
 export function fmtQty(n) { return n == null ? '—' : formatNumber(n); }
 
+// ── Multi-segment placements ────────────────────────────────────────────────
+// An order runs one primary placement (the wo's own line/date columns — the
+// minute plan lives there) plus any number of coarse extra segments
+// (wo.placements). Each segment has a stable `key`: 'primary' or the extra
+// placement's id.
+
+export function placementsOf(wo) {
+    return [
+        { key: 'primary', line_id: wo.line_id, due_date: wo.due_date, shift_number: wo.shift_number, end_date: wo.end_date, end_shift_number: wo.end_shift_number },
+        ...(wo.placements || []).map((p) => ({ key: p.id, ...p })),
+    ];
+}
+
+// An order occupies every line any of its segments runs on.
+export function onLine(wo, lineId) {
+    return wo.line_id === lineId || (wo.placements || []).some((p) => p.line_id === lineId);
+}
+
+// The order as if the given segment were its (coarse) schedule. Extra
+// segments never carry the minute plan — that belongs to the primary.
+export function projectSegment(wo, p) {
+    if (p.key === 'primary') return wo;
+    return {
+        ...wo,
+        due_date: p.due_date,
+        shift_number: p.shift_number ?? wo.shift_number,
+        end_date: p.end_date,
+        end_shift_number: p.end_shift_number,
+        planned_start_at: null,
+        planned_end_at: null,
+    };
+}
+
+const segStartKey = (p) => `${p.due_date}|${String(p.shift_number ?? 1).padStart(2, '0')}`;
+const segEndKey = (p) => `${p.end_date || p.due_date}|${String(p.end_shift_number ?? p.shift_number ?? 1).padStart(2, '0')}`;
+
+// The order's dated segments in chronological order — the chain a staircase
+// follows across lines (chips and connectors are drawn between neighbours).
+export function segmentChain(wo) {
+    return placementsOf(wo)
+        .filter((p) => p.line_id && p.due_date)
+        .sort((a, b) => (segStartKey(a) < segStartKey(b) ? -1 : 1));
+}
+
+// Chip meta for one segment: names its chain neighbour and the direction —
+// 'to' (the order continues there next), 'from' (it came from there), or
+// 'both' (the neighbouring segment runs concurrently).
+export function chainChipMeta(wo, key, allLines) {
+    const chain = segmentChain(wo);
+    if (chain.length < 2) return null;
+    const idx = chain.findIndex((p) => p.key === key);
+    if (idx < 0) return null;
+    const codeOf = (p) => allLines.find((l) => l.id === p.line_id)?.code ?? '?';
+    const next = chain[idx + 1];
+    const prev = chain[idx - 1];
+    if (next) return { code: codeOf(next), dir: segStartKey(next) > segEndKey(chain[idx]) ? 'to' : 'both' };
+    if (prev) return { code: codeOf(prev), dir: segEndKey(prev) < segStartKey(chain[idx]) ? 'from' : 'both' };
+    return null;
+}
+
 // ── Weekly placement ────────────────────────────────────────────────────────
 // The coarse (day + shift) slot an order occupies. Placed by due_date; minute-
 // planned orders (which also carry planned_start_at) still appear, falling back
@@ -121,6 +181,8 @@ export function weeklySlot(wo, shiftsPerDay) {
 // due_date, else the planned-start day, else the Monday of its ISO week, else
 // (month-only) the 1st of its month.
 export function onMonthlyDay(wo, iso, dayNum, monthNum) {
+    // Extra segments occupy their own days too.
+    if ((wo.placements || []).some((p) => p.due_date === iso)) return true;
     if (wo.due_date) return wo.due_date === iso;
     if (wo.planned_start_at) return wo.planned_start_at.slice(0, 10) === iso;
     if (wo.week_number) {
@@ -135,20 +197,27 @@ export function onMonthlyDay(wo, iso, dayNum, monthNum) {
 // gets startCol/endCol (covering due_date·shift → end_date·end_shift) and a lane
 // so overlapping spans stack instead of colliding. Columns: day*shiftsPerDay +
 // (shift-1).
-export function weeklyPlacements(orders, days, shiftsPerDay) {
+export function weeklyPlacements(orders, days, shiftsPerDay, lineId = null) {
     const dayIdx = {}; days.forEach((d, i) => { dayIdx[d.date] = i; });
     const N = days.length * shiftsPerDay;
     const colOf = (date, shift) => (date in dayIdx ? dayIdx[date] * shiftsPerDay + (Math.min(shift, shiftsPerDay) - 1) : -1);
     const items = [];
-    orders.forEach((wo) => {
-        const sl = weeklySlot(wo, shiftsPerDay);
-        const startCol = colOf(sl.date, sl.shift);
-        if (startCol < 0) return;
-        let endCol = startCol;
-        if (wo.end_date && (wo.end_date in dayIdx)) endCol = colOf(wo.end_date, wo.end_shift_number || sl.shift);
-        else if (wo.end_shift_number && wo.end_shift_number > sl.shift) endCol = colOf(sl.date, wo.end_shift_number);
-        if (endCol < startCol) endCol = startCol;
-        items.push({ wo, startCol, endCol });
+    orders.forEach((orig) => {
+        // One block per segment the order runs on this line.
+        const segs = lineId != null
+            ? placementsOf(orig).filter((p) => p.line_id === lineId)
+            : [placementsOf(orig)[0]];
+        segs.forEach((p) => {
+            const wo = projectSegment(orig, p);
+            const sl = weeklySlot(wo, shiftsPerDay);
+            const startCol = colOf(sl.date, sl.shift);
+            if (startCol < 0) return;
+            let endCol = startCol;
+            if (wo.end_date && (wo.end_date in dayIdx)) endCol = colOf(wo.end_date, wo.end_shift_number || sl.shift);
+            else if (wo.end_shift_number && wo.end_shift_number > sl.shift) endCol = colOf(sl.date, wo.end_shift_number);
+            if (endCol < startCol) endCol = startCol;
+            items.push({ wo: orig, placementKey: p.key, lineId, startCol, endCol });
+        });
     });
     items.sort((a, b) => a.startCol - b.startCol || b.endCol - a.endCol);
     const laneEnds = [];
@@ -168,10 +237,11 @@ export function lineLoad(orders, lineId, days, shiftsPerDay) {
     const dayIdx = {}; days.forEach((d, i) => { dayIdx[d.date] = i; });
     const covered = new Set();
     orders.forEach((o) => {
-        if (o.line_id !== lineId) return;
-        const { date, shift } = weeklySlot(o, shiftsPerDay);
-        if (date == null || !(date in dayIdx)) return;
-        covered.add(dayIdx[date] * shiftsPerDay + (shift - 1));
+        placementsOf(o).filter((p) => p.line_id === lineId).forEach((p) => {
+            const { date, shift } = weeklySlot(projectSegment(o, p), shiftsPerDay);
+            if (date == null || !(date in dayIdx)) return;
+            covered.add(dayIdx[date] * shiftsPerDay + (shift - 1));
+        });
     });
     return Math.round((covered.size / total) * 100);
 }
@@ -180,24 +250,28 @@ export function lineLoad(orders, lineId, days, shiftsPerDay) {
 // Greedy interval lane packing + conflict detection per line, for one day.
 export function hourlyLanes(orders, lineId, dateStr) {
     const items = orders
-        .filter((wo) => {
-            if (wo.line_id !== lineId) return false;
-            if (wo.planned_start_at && wo.planned_end_at) {
-                return wo.planned_start_at.slice(0, 10) <= dateStr && dateStr <= wo.planned_end_at.slice(0, 10);
+        // One bar per segment on this line. Extra segments are read-only
+        // coarse placeholders here — the minute plan lives on the primary.
+        .flatMap((orig) => placementsOf(orig)
+            .filter((p) => p.line_id === lineId)
+            .map((p) => ({ orig, proj: projectSegment(orig, p), key: p.key })))
+        .filter(({ proj }) => {
+            if (proj.planned_start_at && proj.planned_end_at) {
+                return proj.planned_start_at.slice(0, 10) <= dateStr && dateStr <= proj.planned_end_at.slice(0, 10);
             }
             // Legacy: a due-date-only order on this day shows as a placeholder
             // block so it stays visible and can be dragged to get real times.
-            return wo.due_date === dateStr;
+            return proj.due_date === dateStr;
         })
-        .map((wo) => {
-            if (!wo.planned_start_at || !wo.planned_end_at) {
-                return { wo, start: 0, end: 60, spansOutside: false, placeholder: true };
+        .map(({ orig, proj, key }) => {
+            if (!proj.planned_start_at || !proj.planned_end_at) {
+                return { wo: orig, placementKey: key, start: 0, end: 60, spansOutside: false, placeholder: true };
             }
-            const startsBefore = wo.planned_start_at.slice(0, 10) < dateStr;
-            const endsAfter = wo.planned_end_at.slice(0, 10) > dateStr;
-            const start = startsBefore ? 0 : minuteOfDay(wo.planned_start_at);
-            const end = endsAfter ? 1440 : minuteOfDay(wo.planned_end_at);
-            return { wo, start, end, spansOutside: startsBefore || endsAfter, placeholder: false };
+            const startsBefore = proj.planned_start_at.slice(0, 10) < dateStr;
+            const endsAfter = proj.planned_end_at.slice(0, 10) > dateStr;
+            const start = startsBefore ? 0 : minuteOfDay(proj.planned_start_at);
+            const end = endsAfter ? 1440 : minuteOfDay(proj.planned_end_at);
+            return { wo: orig, placementKey: key, start, end, spansOutside: startsBefore || endsAfter, placeholder: false };
         })
         .sort((a, b) => a.start - b.start || a.end - b.end);
     const laneEnds = [];

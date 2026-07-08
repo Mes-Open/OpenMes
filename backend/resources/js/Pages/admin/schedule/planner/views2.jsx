@@ -1,10 +1,11 @@
 // HourlyView (timeline, lanes, conflicts, move/resize) + MonthlyView (calendar),
 // following the OpenMES Schedule design. Bars are positioned as a % of the day,
 // drag uses px→minute conversion measured from the track width.
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { __, formatDate, formatTime } from '../../../../lib/i18n';
+import { TwinChip } from './OrderCard';
 import {
-    hourlyLanes, onMonthlyDay, statusOf, parseDate, todayKey, loadColor, MONO,
+    hourlyLanes, onMonthlyDay, statusOf, parseDate, todayKey, loadColor, chainChipMeta, MONO,
 } from './helpers';
 
 const HLANE = 46;
@@ -19,8 +20,12 @@ function fmtMin(m) {
 
 function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
     const { wo } = item;
-    const readOnly = item.spansOutside;
+    const twinMeta = chainChipMeta(wo, item.placementKey, ctx.data.allLines);
+    const readOnly = item.spansOutside || item.placementKey !== 'primary';
     const [drag, setDrag] = useState(null);
+    // Suppress the click the browser fires after a real drag — it must not
+    // open the edit sheet.
+    const draggedRef = useRef(false);
     const cur = drag || { start: item.start, end: item.end };
     const s = statusOf(wo.status);
 
@@ -30,8 +35,10 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
         const track = e.currentTarget.closest('[data-track]');
         const ppm = (track ? track.getBoundingClientRect().width : 700) / 1440;
         const startX = e.clientX, oS = item.start, oE = item.end;
+        draggedRef.current = false;
         const snap = (m) => Math.round(m / slotMinutes) * slotMinutes;
         function move(ev) {
+            if (Math.abs(ev.clientX - startX) > 4) draggedRef.current = true;
             const d = (ev.clientX - startX) / ppm;
             let ns = oS, ne = oE;
             if (mode === 'move') { ns = snap(oS + d); ne = ns + (oE - oS); if (ns < 0) { ne -= ns; ns = 0; } if (ne > 1440) { ns -= (ne - 1440); ne = 1440; } }
@@ -54,18 +61,19 @@ function HourlyBar({ item, ctx, slotMinutes, laneTop }) {
 
     return (
         <div style={{ position: 'absolute', top: laneTop, height: HLANE, left: left + '%', width: width + '%', minWidth: 10, zIndex: drag ? 30 : 2 }}>
-            <div className="om-wo relative" title={item.placeholder ? __('No exact time yet — drag to schedule') : undefined} style={{ height: '100%', background: s.soft, border: item.placeholder ? '1px dashed var(--om-accent)' : '1px solid var(--om-line2)', borderRadius: 7, overflow: 'hidden', boxShadow: item.conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none' }}>
+            <div className="om-wo relative" title={item.placeholder && !readOnly ? __('No exact time yet — drag to schedule') : undefined} style={{ height: '100%', background: s.soft, border: item.placeholder ? '1px dashed var(--om-accent)' : '1px solid var(--om-line2)', borderRadius: 7, overflow: 'hidden', boxShadow: item.conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none' }}>
                 {!readOnly && <span onPointerDown={(e) => begin('l', e)} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3 }} />}
-                <div onPointerDown={(e) => begin('move', e)} onClick={(e) => { e.stopPropagation(); ctx.onSelectOrder(wo); }}
+                <div onPointerDown={(e) => begin('move', e)} onClick={(e) => { e.stopPropagation(); if (draggedRef.current) { draggedRef.current = false; return; } ctx.onSelectOrder(wo); }}
                     style={{ height: '100%', padding: '6px 10px', cursor: readOnly ? 'pointer' : 'grab', display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
                     <div className="flex items-center gap-1.5">
                         <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: 'var(--om-ink)', whiteSpace: 'nowrap' }}>{wo.order_no}</span>
+                        {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                         {width > 16 && <span className="truncate" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-muted)' }}>{wo.product_name}</span>}
                     </div>
                     <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, color: 'var(--om-muted)', whiteSpace: 'nowrap' }}>{fmtMin(cur.start)}–{fmtMin(cur.end)} · {dur}</span>
                 </div>
                 {item.conflict && <span style={{ position: 'absolute', top: 3, right: 9, fontFamily: MONO, fontSize: 7.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '1px 4px', zIndex: 4, pointerEvents: 'none' }}>{__('overlap')}</span>}
-                {readOnly && <span title={__('Spans another day — edit it from that day')} style={{ position: 'absolute', bottom: 2, right: 4, fontSize: 9, color: 'var(--om-faint)' }}>⤢</span>}
+                {readOnly && <span title={item.placementKey !== 'primary' ? __('Minute plan is shared — edit it from the primary line') : __('Spans another day — edit it from that day')} style={{ position: 'absolute', bottom: 2, right: 4, fontSize: 9, color: 'var(--om-faint)' }}>⤢</span>}
                 {!readOnly && <span onPointerDown={(e) => begin('r', e)} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ width: 2, height: 14, borderRadius: 2, background: s.solid, opacity: 0.5 }} /></span>}
             </div>
         </div>
@@ -129,7 +137,7 @@ export function HourlyView({ ctx }) {
                                             <span style={{ position: 'absolute', top: -1, left: -3, width: 7, height: 7, borderRadius: 999, background: 'var(--om-accent)' }} />
                                         </div>
                                     )}
-                                    {items.map((it) => <HourlyBar key={it.wo.id} item={it} ctx={ctx} slotMinutes={snap} laneTop={it.lane * (HLANE + HGAP) + 8} />)}
+                                    {items.map((it) => <HourlyBar key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} slotMinutes={snap} laneTop={it.lane * (HLANE + HGAP) + 8} />)}
                                 </div>
                             </div>
                         );

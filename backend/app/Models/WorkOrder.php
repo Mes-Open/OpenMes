@@ -183,6 +183,15 @@ class WorkOrder extends Model
     }
 
     /**
+     * Extra schedule segments beyond the primary placement — the order also
+     * runs on these lines/dates (a multi-line staircase or concurrent runs).
+     */
+    public function extraPlacements(): HasMany
+    {
+        return $this->hasMany(WorkOrderPlacement::class)->orderBy('due_date')->orderBy('shift_number');
+    }
+
+    /**
      * Get the product type for this work order.
      */
     public function productType(): BelongsTo

@@ -61,7 +61,9 @@ class CapacityService
 
         $resources = [];
         foreach ($lines as $line) {
-            $lineOrders = $workOrders->where('line_id', $line->id);
+            // Every segment an order runs on this line consumes time here —
+            // the primary placement plus any extra segments, each on its dates.
+            $lineOrders = $workOrders->flatMap(fn ($wo) => $this->projectionsForLine($wo, $line->id));
             $lineMaint = $maintenance->where('line_id', $line->id);
 
             $cells = [];
@@ -128,11 +130,20 @@ class CapacityService
 
         $shiftIndex = $this->buildShiftIndex(Shift::where('is_active', true)->get());
 
-        // Operator-weighted labor demand per line per bucket.
-        $ordersByLine = $this->activeWorkOrdersInRange($rangeStart, $rangeEnd)->groupBy('line_id');
+        // Operator-weighted labor demand per line per bucket. Every segment an
+        // order runs demands labor on its line, each on its own dates.
+        $ordersByLine = [];
+        foreach ($this->activeWorkOrdersInRange($rangeStart, $rangeEnd) as $wo) {
+            $lineIds = array_unique(array_filter([$wo->line_id, ...$wo->extraPlacements->pluck('line_id')->all()]));
+            foreach ($lineIds as $lineId) {
+                foreach ($this->projectionsForLine($wo, $lineId) as $projection) {
+                    $ordersByLine[$lineId][] = $projection;
+                }
+            }
+        }
         $lineDemand = [];
         foreach ($ordersByLine as $lineId => $orders) {
-            $lineDemand[$lineId] = $this->lineLaborMinutes($orders, $buckets);
+            $lineDemand[$lineId] = $this->lineLaborMinutes(collect($orders), $buckets);
         }
 
         // Lines each crew staffs (resolved once per crew) and how many crews
@@ -218,11 +229,15 @@ class CapacityService
             'end' => $bucketEnd->copy()->endOfDay(),
         ];
 
-        $orders = WorkOrder::with(['batches.steps', 'productType'])
+        $orders = WorkOrder::with(['batches.steps', 'productType', 'extraPlacements'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-            ->where('line_id', $lineId)
+            ->where(function ($q) use ($lineId) {
+                $q->where('line_id', $lineId)
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->where('line_id', $lineId));
+            })
             ->where(function ($q) use ($bucket) {
                 $q->whereBetween('due_date', [$bucket['start'], $bucket['end']])
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$bucket['start'], $bucket['end']]))
                     ->orWhere(function ($q2) use ($bucket) {
                         $q2->whereNotNull('planned_start_at')
                             ->whereNotNull('planned_end_at')
@@ -236,10 +251,17 @@ class CapacityService
             ->get();
 
         $rows = [];
-        foreach ($orders as $wo) {
-            $contribution = $this->orderContributions($wo, [$bucket]);
-            $minutes = $contribution['minutes'][$bucket['key']] ?? 0;
-            $unestimated = $contribution['unestimatedKey'] === $bucket['key'];
+        foreach ($orders as $raw) {
+            // Sum every segment the order runs on this line within the bucket.
+            $minutes = 0;
+            $unestimated = false;
+            $wo = $raw;
+            foreach ($this->projectionsForLine($raw, $lineId) as $projection) {
+                $contribution = $this->orderContributions($projection, [$bucket]);
+                $minutes += $contribution['minutes'][$bucket['key']] ?? 0;
+                $unestimated = $unestimated || $contribution['unestimatedKey'] === $bucket['key'];
+                $wo = $projection;
+            }
             if ($minutes <= 0 && ! $unestimated) {
                 continue;
             }
@@ -339,6 +361,37 @@ class CapacityService
     }
 
     /**
+     * The work order's segments on one line, as schedulable proxies: the
+     * order itself when its primary placement is on the line, plus a detached
+     * copy per extra segment there. Extra segments are coarse-only — the
+     * minute plan belongs to the primary placement and never follows a copy.
+     *
+     * @return array<int, WorkOrder>
+     */
+    private function projectionsForLine(WorkOrder $wo, int $lineId): array
+    {
+        $out = [];
+        if ($wo->line_id === $lineId) {
+            $out[] = $wo;
+        }
+        foreach ($wo->extraPlacements as $p) {
+            if ($p->line_id !== $lineId) {
+                continue;
+            }
+            $proxy = clone $wo;
+            $proxy->due_date = $p->due_date;
+            $proxy->shift_number = $p->shift_number ?? $wo->shift_number;
+            $proxy->end_date = $p->end_date;
+            $proxy->end_shift_number = $p->end_shift_number;
+            $proxy->planned_start_at = null;
+            $proxy->planned_end_at = null;
+            $out[] = $proxy;
+        }
+
+        return $out;
+    }
+
+    /**
      * Attribute a work order's planned machine-hours to the relevant bucket(s).
      */
     private function placeOrder(WorkOrder $wo, array &$cells, array $buckets): void
@@ -358,11 +411,13 @@ class CapacityService
      */
     private function activeWorkOrdersInRange(Carbon $rangeStart, Carbon $rangeEnd): \Illuminate\Database\Eloquent\Collection
     {
-        return WorkOrder::with(['batches.steps'])
+        return WorkOrder::with(['batches.steps', 'extraPlacements'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->whereNotNull('line_id')
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
                 $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                    // Independently-scheduled extra segments count too.
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd]))
                     ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
                         // Minute-planned orders overlapping the visible range.
                         $q2->whereNotNull('planned_start_at')

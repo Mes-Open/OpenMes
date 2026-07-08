@@ -360,6 +360,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/schedule/capacity', [\App\Http\Controllers\Web\Admin\ScheduleCapacityController::class, 'index'])->name('schedule.capacity');
         Route::get('/schedule/capacity/cell', [\App\Http\Controllers\Web\Admin\ScheduleCapacityController::class, 'cellOrders'])->name('schedule.capacity.cell');
         Route::get('/schedule/check-updates', [SchedulePlannerController::class, 'checkUpdates'])->name('schedule.check-updates');
+        Route::get('/schedule/changes', [SchedulePlannerController::class, 'changes'])->name('schedule.changes');
+        Route::post('/schedule/changes/{change}/undo', [SchedulePlannerController::class, 'undoChange'])->name('schedule.changes.undo');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
 

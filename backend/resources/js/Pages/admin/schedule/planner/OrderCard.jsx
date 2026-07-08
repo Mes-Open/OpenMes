@@ -3,6 +3,22 @@
 import { __ } from '../../../../lib/i18n';
 import { statusOf, statusLabel, priorityMeta, fmtQty, shiftColor, MONO } from './helpers';
 
+// Chip marking a block that also runs on another line. Directional: '→ CODE'
+// = the order continues on that line next, 'CODE →' = it came from that line,
+// '⇄ CODE' = both placements run concurrently.
+export function TwinChip({ code, dir = 'both' }) {
+    const label = dir === 'to' ? `→ ${code}` : dir === 'from' ? `${code} →` : `⇄ ${code}`;
+    const title = dir === 'to' ? __('Continues on') + ' ' + code
+        : dir === 'from' ? __('Continued from') + ' ' + code
+            : __('Also runs on') + ' ' + code;
+    return (
+        <span title={title} className="whitespace-nowrap"
+            style={{ fontFamily: MONO, fontSize: 8, fontWeight: 600, color: 'var(--om-accent)', background: 'var(--om-accent-bg)', border: '1px solid color-mix(in srgb, var(--om-accent) 30%, transparent)', borderRadius: 3, padding: '0 3px' }}>
+            {label}
+        </span>
+    );
+}
+
 // Mono status chip (uppercase).
 export function StatusPill({ status }) {
     const s = statusOf(status);
@@ -27,7 +43,7 @@ export function LoadBar({ pct, color, w = 90 }) {
 
 // ── OrderCard ─────────────────────────────────────────────────────────────────
 // variant: 'cell' (weekly) | 'day' (daily) | 'backlog' | 'overlay'
-export function OrderCard({ wo, variant = 'cell', selected = false, conflict = false, onClick, onUnassign, dragProps = {} }) {
+export function OrderCard({ wo, variant = 'cell', selected = false, conflict = false, twinMeta = null, onClick, onUnassign, unassignTitle, dragProps = {} }) {
     const s = statusOf(wo.status);
     const overdue = wo.is_overdue;
     const ring = selected ? `0 0 0 2px var(--om-accent)` : (overdue || conflict ? '0 0 0 1.5px var(--om-blocked)' : 'none');
@@ -55,10 +71,11 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
         return (
             <div {...dragProps} onClick={onClick} className="om-wo relative"
                 style={{ width: 168, background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 8, padding: '9px 10px', cursor: 'grab', boxShadow: ring }}>
-                {onUnassign && <UnassignX onUnassign={onUnassign} wo={wo} />}
+                {onUnassign && <UnassignX onUnassign={onUnassign} wo={wo} title={unassignTitle} />}
                 <div className="flex items-center gap-1.5 mb-0.5">
                     <span style={{ width: 5, height: 5, borderRadius: 999, background: shiftColor() }} />
                     <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.order_no}</span>
+                    {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                 </div>
                 <div className="truncate" style={{ fontSize: 11, color: 'var(--om-muted)' }}>{wo.product_name || '—'}</div>
                 <div className="mt-0.5" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-faint)' }}>{fmtQty(wo.planned_qty)} {__('pcs')} · {statusLabel(wo.status)}</div>
@@ -80,11 +97,12 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
     );
 }
 
-// Hover-reveal ✕ that returns the order to the backlog.
-function UnassignX({ onUnassign, wo }) {
+// Hover-reveal ✕ that returns the order to the backlog (or, for a two-line
+// order's secondary copy, detaches just that line — see `title`).
+function UnassignX({ onUnassign, wo, title }) {
     return (
         <span className="om-x" onClick={(e) => { e.stopPropagation(); onUnassign(wo); }}
-            title={__('Send to backlog')}
+            title={title ?? __('Send to backlog')}
             style={{ position: 'absolute', top: -6, right: -6, width: 15, height: 15, borderRadius: 999, background: 'var(--om-blocked)', color: '#fff', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', zIndex: 3, cursor: 'pointer' }}>✕</span>
     );
 }

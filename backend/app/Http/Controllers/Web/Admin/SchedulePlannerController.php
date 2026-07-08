@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Line;
+use App\Models\ScheduleChangeLog;
 use App\Models\Shift;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
@@ -80,11 +81,19 @@ class SchedulePlannerController extends Controller
         }
 
         // Load work orders in range
-        $workOrders = WorkOrder::with(['productType', 'line'])
+        $workOrders = WorkOrder::with(['productType', 'line', 'extraPlacements'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-            ->whereIn('line_id', $lineIds)
+            ->where(function ($q) use ($lineIds) {
+                // An order shows on every line it runs on — its primary
+                // placement or any extra segment.
+                $q->whereIn('line_id', $lineIds)
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereIn('line_id', $lineIds));
+            })
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
                 $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                    // Extra segments are scheduled independently — an order
+                    // with any segment in the range must ship too.
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd]))
                     ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
                         // Minute-planned orders that overlap the visible range
                         $q2->whereNotNull('planned_start_at')
@@ -247,6 +256,7 @@ class SchedulePlannerController extends Controller
                 'order_no' => $wo->order_no,
                 'product_name' => $wo->productType?->name,
                 'line_id' => $wo->line_id,
+                'secondary_line_id' => $wo->secondary_line_id,
                 'product_type_id' => $wo->product_type_id,
                 'status' => $wo->status,
                 'priority' => $wo->priority,
@@ -258,6 +268,14 @@ class SchedulePlannerController extends Controller
                     && ! in_array($wo->status, WorkOrder::TERMINAL_STATUSES),
                 'due_date' => $wo->due_date?->format('Y-m-d'),
                 'end_date' => $wo->end_date?->format('Y-m-d'),
+                'placements' => $wo->extraPlacements->map(fn ($p) => [
+                    'id' => $p->id,
+                    'line_id' => $p->line_id,
+                    'due_date' => $p->due_date->format('Y-m-d'),
+                    'shift_number' => $p->shift_number,
+                    'end_date' => $p->end_date?->format('Y-m-d'),
+                    'end_shift_number' => $p->end_shift_number,
+                ])->values()->all(),
                 'week_number' => $wo->week_number,
                 'month_number' => $wo->month_number,
                 'shift_number' => $wo->shift_number,
@@ -308,6 +326,9 @@ class SchedulePlannerController extends Controller
             'backlogOrders' => $backlogFlat,
             'maintenanceEvents' => $maintFlat,
             'realtimeMode' => $realtimeMode,
+            // For the "+ New order" modal (shares the create page's form).
+            'productTypes' => \App\Models\ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customFields' => app(\App\Services\CustomFieldService::class)->clientConfig('work_order'),
         ]);
     }
 
@@ -315,6 +336,13 @@ class SchedulePlannerController extends Controller
     {
         $request->validate([
             'line_id' => 'nullable|exists:lines,id',
+            'extra_placements' => 'sometimes|array|max:20',
+            'extra_placements.*.id' => 'nullable|integer',
+            'extra_placements.*.line_id' => 'required|exists:lines,id',
+            'extra_placements.*.due_date' => 'required|date',
+            'extra_placements.*.shift_number' => 'nullable|integer|min:1|max:10',
+            'extra_placements.*.end_date' => 'nullable|date|after_or_equal:extra_placements.*.due_date',
+            'extra_placements.*.end_shift_number' => 'nullable|integer|min:1|max:10',
             'due_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:due_date',
             'week_number' => 'nullable|integer|min:1|max:53',
@@ -324,20 +352,20 @@ class SchedulePlannerController extends Controller
             'planned_end_at' => 'nullable|date|after:planned_start_at',
         ]);
 
-        $data = [
-            'line_id' => $request->input('line_id') ?: null,
-            'due_date' => $request->input('due_date') ?: null,
-            'week_number' => $request->input('week_number') ?: null,
-            'shift_number' => $request->input('shift_number') ?: null,
-        ];
+        // Every placement field is only touched when the request explicitly
+        // carries it, so a partial edit (a single-segment drag, the capacity
+        // drill-down, a stale client) can't silently null or revert the
+        // placements it didn't mean to change.
+        $data = [];
+        foreach (['line_id', 'due_date', 'week_number', 'shift_number', 'end_date', 'end_shift_number'] as $field) {
+            if ($request->has($field)) {
+                $data[$field] = $request->input($field) ?: null;
+            }
+        }
 
-        // Handle span fields — only set if explicitly provided
-        if ($request->has('end_date')) {
-            $data['end_date'] = $request->input('end_date') ?: null;
-        }
-        if ($request->has('end_shift_number')) {
-            $data['end_shift_number'] = $request->input('end_shift_number') ?: null;
-        }
+        $newPrimary = array_key_exists('line_id', $data) ? $data['line_id'] : $workOrder->line_id;
+
+        $snapshotBefore = $this->placementSnapshot($workOrder);
 
         // Minute-level planning timestamps. Only touch the columns if the
         // request explicitly carried them so we don't accidentally wipe them
@@ -352,17 +380,10 @@ class SchedulePlannerController extends Controller
         // Conflict detection: if both timestamps are being set and a line is
         // assigned, refuse the update when another active WO on the same line
         // overlaps the proposed window — unless the caller explicitly forces.
-        $targetLineId = array_key_exists('line_id', $data) ? $data['line_id'] : $workOrder->line_id;
-        if (! empty($data['planned_start_at']) && ! empty($data['planned_end_at']) && $targetLineId) {
-            $conflict = WorkOrder::query()
-                ->where('line_id', $targetLineId)
-                ->where('id', '!=', $workOrder->id)
-                ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-                ->whereNotNull('planned_start_at')
-                ->whereNotNull('planned_end_at')
-                ->where('planned_start_at', '<', $data['planned_end_at'])
-                ->where('planned_end_at', '>', $data['planned_start_at'])
-                ->exists();
+        // The minute plan lives on the primary placement only; extra segments
+        // are coarse (day + shift) and never carry a minute window.
+        if (! empty($data['planned_start_at']) && ! empty($data['planned_end_at']) && $newPrimary !== null) {
+            $conflict = $this->minuteConflictExists($workOrder, [(int) $newPrimary], $data['planned_start_at'], $data['planned_end_at']);
 
             if ($conflict && ! $request->boolean('force_conflict')) {
                 $message = __('This time slot overlaps another work order on the same line.');
@@ -379,6 +400,30 @@ class SchedulePlannerController extends Controller
         }
 
         $workOrder->update($data);
+
+        // Sync the extra segments when the request carries them: update rows
+        // by id, create rows without one, delete rows the client dropped.
+        // Losing the primary line (unassign) always clears every segment.
+        if ($newPrimary === null) {
+            $workOrder->extraPlacements()->delete();
+        } elseif ($request->has('extra_placements')) {
+            $incoming = collect($request->input('extra_placements', []));
+            $keepIds = $incoming->pluck('id')->filter()->map(fn ($id) => (int) $id);
+            $workOrder->extraPlacements()->whereNotIn('id', $keepIds)->delete();
+            foreach ($incoming as $row) {
+                $attrs = [
+                    'line_id' => $row['line_id'],
+                    'due_date' => $row['due_date'],
+                    'shift_number' => $row['shift_number'] ?? null,
+                    'end_date' => $row['end_date'] ?? null,
+                    'end_shift_number' => $row['end_shift_number'] ?? null,
+                ];
+                $existing = ! empty($row['id']) ? $workOrder->extraPlacements()->find($row['id']) : null;
+                $existing ? $existing->update($attrs) : $workOrder->extraPlacements()->create($attrs);
+            }
+        }
+
+        $this->logChange($workOrder, $snapshotBefore);
 
         // The schedule placement is already persisted above. The snapshot /
         // auto-batch side-effects below can throw on incomplete product data
@@ -446,6 +491,8 @@ class SchedulePlannerController extends Controller
 
     public function resizeOrder(Request $request, WorkOrder $workOrder)
     {
+        $snapshotBefore = $this->placementSnapshot($workOrder);
+
         // Minute-level resize: when both `planned_start_at` and
         // `planned_end_at` are present we treat the request as a minute-level
         // move/resize and bypass the legacy shift-level branch.
@@ -455,16 +502,9 @@ class SchedulePlannerController extends Controller
                 'planned_end_at' => 'required|date|after:planned_start_at',
             ]);
 
+            // Minute windows live on the primary placement only.
             if ($workOrder->line_id) {
-                $conflict = WorkOrder::query()
-                    ->where('line_id', $workOrder->line_id)
-                    ->where('id', '!=', $workOrder->id)
-                    ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-                    ->whereNotNull('planned_start_at')
-                    ->whereNotNull('planned_end_at')
-                    ->where('planned_start_at', '<', $validated['planned_end_at'])
-                    ->where('planned_end_at', '>', $validated['planned_start_at'])
-                    ->exists();
+                $conflict = $this->minuteConflictExists($workOrder, [$workOrder->line_id], $validated['planned_start_at'], $validated['planned_end_at']);
 
                 if ($conflict && ! $request->boolean('force_conflict')) {
                     return response()->json([
@@ -479,6 +519,7 @@ class SchedulePlannerController extends Controller
                 'planned_start_at' => $validated['planned_start_at'],
                 'planned_end_at' => $validated['planned_end_at'],
             ]);
+            $this->logChange($workOrder, $snapshotBefore);
 
             return response()->json([
                 'success' => true,
@@ -505,6 +546,7 @@ class SchedulePlannerController extends Controller
                 'end_shift_number' => $request->input('end_shift_number'),
             ]);
         }
+        $this->logChange($workOrder, $snapshotBefore);
 
         return response()->json([
             'success' => true,
@@ -574,6 +616,130 @@ class SchedulePlannerController extends Controller
         }
 
         return response()->json($response);
+    }
+
+    /**
+     * The last planner edits, newest first — the backlog rail's Changes tab.
+     */
+    public function changes()
+    {
+        $changes = ScheduleChangeLog::with(['workOrder:id,order_no', 'user:id,name'])
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'work_order_id' => $c->work_order_id,
+                'order_no' => $c->workOrder?->order_no,
+                'action' => $c->action,
+                'before' => $c->before,
+                'after' => $c->after,
+                'user' => $c->user?->name,
+                'undone_at' => $c->undone_at?->toIso8601String(),
+                'created_at' => $c->created_at->toIso8601String(),
+            ])->values();
+
+        return response()->json(['changes' => $changes]);
+    }
+
+    /**
+     * Revert one edit: restore the order's placement snapshot from before it.
+     * The revert is itself logged (action 'undo'), so it can be undone too.
+     */
+    public function undoChange(ScheduleChangeLog $change)
+    {
+        $workOrder = $change->workOrder;
+        if (! $workOrder) {
+            return response()->json(['success' => false, 'message' => __('Work order no longer exists.')], 410);
+        }
+
+        $current = $this->placementSnapshot($workOrder);
+        $s = $change->before;
+
+        $workOrder->update([
+            'line_id' => $s['line_id'] ?? null,
+            'due_date' => $s['due_date'] ?? null,
+            'week_number' => $s['week_number'] ?? null,
+            'shift_number' => $s['shift_number'] ?? null,
+            'end_date' => $s['end_date'] ?? null,
+            'end_shift_number' => $s['end_shift_number'] ?? null,
+            'planned_start_at' => $s['planned_start_at'] ?? null,
+            'planned_end_at' => $s['planned_end_at'] ?? null,
+        ]);
+        $workOrder->extraPlacements()->delete();
+        foreach ($s['placements'] ?? [] as $p) {
+            $workOrder->extraPlacements()->create($p);
+        }
+
+        $change->update(['undone_at' => now()]);
+        ScheduleChangeLog::create([
+            'work_order_id' => $workOrder->id,
+            'user_id' => auth()->id(),
+            'action' => 'undo',
+            'before' => $current,
+            'after' => $this->placementSnapshot($workOrder->fresh('extraPlacements')),
+        ]);
+
+        return response()->json(['success' => true, 'message' => __('Change undone.')]);
+    }
+
+    /**
+     * Everything the planner can change about an order's schedule, as one
+     * comparable/restorable array.
+     */
+    private function placementSnapshot(WorkOrder $workOrder): array
+    {
+        return [
+            'line_id' => $workOrder->line_id,
+            'due_date' => $workOrder->due_date?->format('Y-m-d'),
+            'week_number' => $workOrder->week_number,
+            'shift_number' => $workOrder->shift_number,
+            'end_date' => $workOrder->end_date?->format('Y-m-d'),
+            'end_shift_number' => $workOrder->end_shift_number,
+            'planned_start_at' => $workOrder->planned_start_at?->toIso8601String(),
+            'planned_end_at' => $workOrder->planned_end_at?->toIso8601String(),
+            'placements' => $workOrder->extraPlacements()->get()->map(fn ($p) => [
+                'line_id' => $p->line_id,
+                'due_date' => $p->due_date->format('Y-m-d'),
+                'shift_number' => $p->shift_number,
+                'end_date' => $p->end_date?->format('Y-m-d'),
+                'end_shift_number' => $p->end_shift_number,
+            ])->values()->all(),
+        ];
+    }
+
+    /** Log the edit when the snapshot actually changed. */
+    private function logChange(WorkOrder $workOrder, array $before): void
+    {
+        $after = $this->placementSnapshot($workOrder->fresh());
+        if ($before == $after) {
+            return;
+        }
+        ScheduleChangeLog::create([
+            'work_order_id' => $workOrder->id,
+            'user_id' => auth()->id(),
+            'action' => 'reschedule',
+            'before' => $before,
+            'after' => $after,
+        ]);
+    }
+
+    /**
+     * Does any other active, minute-planned order overlap the proposed window
+     * on one of the given lines? Minute windows always live on an order's
+     * primary line — extra segments are coarse and never conflict here.
+     */
+    private function minuteConflictExists(WorkOrder $workOrder, array $lineIds, string $startAt, string $endAt): bool
+    {
+        return WorkOrder::query()
+            ->whereIn('line_id', $lineIds)
+            ->where('id', '!=', $workOrder->id)
+            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            ->whereNotNull('planned_start_at')
+            ->whereNotNull('planned_end_at')
+            ->where('planned_start_at', '<', $endAt)
+            ->where('planned_end_at', '>', $startAt)
+            ->exists();
     }
 
     private function loadSettings(): array

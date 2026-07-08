@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import AppLayout from '../../../../layouts/AppLayout';
-import { formatDate } from '../../../../lib/i18n';
+import { formatDate, __ } from '../../../../lib/i18n';
 
 function toMin(t) {
     if (!t) return 0;
@@ -45,17 +45,17 @@ export default function EmployeeCreate() {
 
     return (
         <>
-            <Head title="Add Activity" />
+            <Head title={__('Add activity')} />
             <div className="max-w-2xl mx-auto">
                 <div className="mb-4">
-                    <div className="font-mono text-[11px] tracking-wider font-bold uppercase text-om-downtime">
+                    <div className="font-mono text-[11px] tracking-wider font-bold uppercase text-om-accent">
                         {worker?.name} · {formatDate(dateObj, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
                     </div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-om-ink mt-0.5">Add activity</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold text-om-ink mt-0.5">{__('Add activity')}</h1>
                 </div>
 
                 {Object.keys(errors).length > 0 && (
-                    <div className="p-3 rounded-om-sm bg-rose-50 border border-rose-200 text-rose-700 text-sm mb-4">
+                    <div className="p-3 rounded-om-sm bg-om-blocked-bg border border-om-blocked text-om-blocked text-sm mb-4">
                         <ul className="list-disc list-inside">
                             {Object.values(errors).map((err, i) => <li key={i}>{err}</li>)}
                         </ul>
@@ -68,7 +68,7 @@ export default function EmployeeCreate() {
 
                     {/* Type tile grid */}
                     <div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">Type</div>
+                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Type')}</div>
                         <div className="grid grid-cols-3 gap-2">
                             {types.map((t) => {
                                 const on = selectedType === t.key && !selectedCustom;
@@ -91,10 +91,10 @@ export default function EmployeeCreate() {
 
                     {/* Custom pills */}
                     <div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">Custom</div>
+                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Custom')}</div>
                         <div className="flex flex-wrap gap-1.5">
                             {customs.length === 0 ? (
-                                <div className="font-mono text-[10px] text-om-faint italic px-3 py-1.5">No custom activity types defined.</div>
+                                <div className="font-mono text-[10px] text-om-faint italic px-3 py-1.5">{__('No custom activity types defined.')}</div>
                             ) : customs.map((c) => {
                                 const on = selectedCustom === c.code;
                                 return (
@@ -112,32 +112,32 @@ export default function EmployeeCreate() {
 
                     {/* Time range */}
                     <div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">Time range</div>
+                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Time range')}</div>
                         <div className="grid grid-cols-2 gap-2">
                             <label className="p-3.5 rounded-om bg-om-card border border-om-line2">
-                                <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">From</div>
+                                <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('From')}</div>
                                 <input type="time" name="from_time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} required
                                        className="font-mono text-2xl font-bold mt-1 bg-transparent text-om-ink outline-none w-full -tracking-wide" />
                             </label>
                             <label className="p-3.5 rounded-om bg-om-card border border-om-line2">
-                                <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">To</div>
+                                <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('To')}</div>
                                 <input type="time" name="to_time" value={toTime} onChange={(e) => setToTime(e.target.value)} required
                                        className="font-mono text-2xl font-bold mt-1 bg-transparent text-om-ink outline-none w-full -tracking-wide" />
                             </label>
                         </div>
-                        <div className="mt-2 px-3 py-2 rounded-om-sm bg-om-downtime-bg font-mono text-xs tracking-wider text-om-downtime text-center font-bold uppercase">
-                            Duration {fmtDuration(fromTime, toTime)}
+                        <div className="mt-2 px-3 py-2 rounded-om-sm bg-om-accent-bg font-mono text-xs tracking-wider text-om-accent text-center font-bold uppercase">
+                            {__('Duration')} {fmtDuration(fromTime, toTime)}
                         </div>
                     </div>
 
                     {/* Optional WO link */}
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">
-                            Link to work order · optional
+                            {__('Link to work order · optional')}
                         </div>
                         <Dropdown
                             options={[
-                                { value: '', label: '— None —' },
+                                { value: '', label: __('— None —') },
                                 ...workOrders.map((wo) => ({ value: String(wo.id), label: `${wo.order_no} — ${wo.product_name ?? '—'}` })),
                             ]}
                             value={workOrderId}
@@ -148,26 +148,26 @@ export default function EmployeeCreate() {
 
                     {/* Label override */}
                     <div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">Label override</div>
-                        <input type="text" name="label" placeholder="e.g. Lunch, Shift handover"
+                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Label override')}</div>
+                        <input type="text" name="label" placeholder={__('e.g. Lunch, Shift handover')}
                                className="form-input w-full bg-om-card border-om-line2" />
                     </div>
 
                     {/* Notes */}
                     <div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">Notes</div>
-                        <textarea name="notes" rows="3" placeholder="Optional context…"
+                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Notes')}</div>
+                        <textarea name="notes" rows="3" placeholder={__('Optional context…')}
                                   className="form-input w-full bg-om-card border-om-line2" />
                     </div>
 
                     <div className="flex gap-2">
                         <a href={`/admin/schedule/employees?view=day&date=${date}&worker_id=${worker?.id}`}
                            className="flex-1 h-12 rounded-om border border-om-line2 text-om-muted font-mono text-xs font-bold tracking-wider uppercase flex items-center justify-center">
-                            Cancel
+                            {__('Cancel')}
                         </a>
                         <button type="submit"
-                                className="flex-[2] h-12 rounded-om bg-om-downtime hover:brightness-95 text-white font-mono text-xs font-bold tracking-wider uppercase">
-                            Save activity
+                                className="flex-[2] h-12 rounded-om bg-om-accent hover:brightness-95 text-white font-mono text-xs font-bold tracking-wider uppercase">
+                            {__('Save activity')}
                         </button>
                     </div>
                 </form>

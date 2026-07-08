@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
-use App\Models\LabelTemplate;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
@@ -62,6 +61,12 @@ class WorkOrderManagementController extends Controller
                 ->with('error', __('Failed to create work order. Please check your input and try again.'));
         }
 
+        // The planner's New-order modal posts `stay` so the user keeps their
+        // page (the new order lands there via the refreshed props).
+        if ($request->boolean('stay')) {
+            return back()->with('success', "Work order {$workOrder->order_no} created.");
+        }
+
         return redirect()->route('admin.work-orders.index')
             ->with('success', "Work order {$workOrder->order_no} created.");
     }
@@ -72,52 +77,52 @@ class WorkOrderManagementController extends Controller
 
         $batches = $workOrder->batches->map(function ($batch) {
             return [
-                'id'           => $batch->id,
+                'id' => $batch->id,
                 'batch_number' => $batch->batch_number,
-                'status'       => $batch->status,
+                'status' => $batch->status,
                 'produced_qty' => $batch->produced_qty,
-                'target_qty'   => $batch->target_qty,
-                'started_at'   => $batch->started_at?->toISOString(),
+                'target_qty' => $batch->target_qty,
+                'started_at' => $batch->started_at?->toISOString(),
                 'completed_at' => $batch->completed_at?->toISOString(),
-                'released_at'  => $batch->released_at?->toISOString(),
-                'steps'        => $batch->steps->map(fn ($s) => [
-                    'id'                          => $s->id,
-                    'step_number'                 => $s->step_number,
-                    'name'                        => $s->name,
-                    'status'                      => $s->status,
-                    'duration_minutes'            => $s->duration_minutes,
-                    'estimated_duration_minutes'  => $s->estimated_duration_minutes ?? null,
+                'released_at' => $batch->released_at?->toISOString(),
+                'steps' => $batch->steps->map(fn ($s) => [
+                    'id' => $s->id,
+                    'step_number' => $s->step_number,
+                    'name' => $s->name,
+                    'status' => $s->status,
+                    'duration_minutes' => $s->duration_minutes,
+                    'estimated_duration_minutes' => $s->estimated_duration_minutes ?? null,
                 ])->values(),
             ];
         })->values();
 
         $issues = $workOrder->issues->map(fn ($i) => [
-            'id'              => $i->id,
-            'title'           => $i->title,
-            'status'          => $i->status,
+            'id' => $i->id,
+            'title' => $i->title,
+            'status' => $i->status,
             'issue_type_name' => $i->issueType?->name,
-            'is_blocking'     => (bool) ($i->issueType?->is_blocking ?? false),
+            'is_blocking' => (bool) ($i->issueType?->is_blocking ?? false),
         ])->values();
 
         return Inertia::render('admin/work-orders/Show', [
             'workOrder' => [
-                'id'               => $workOrder->id,
-                'order_no'         => $workOrder->order_no,
+                'id' => $workOrder->id,
+                'order_no' => $workOrder->order_no,
                 'customer_order_no' => $workOrder->customer_order_no,
-                'status'           => $workOrder->status,
-                'planned_qty'      => $workOrder->planned_qty,
-                'produced_qty'     => $workOrder->produced_qty,
-                'priority'         => $workOrder->priority,
-                'due_date'         => $workOrder->due_date?->toDateString(),
-                'description'      => $workOrder->description,
-                'extra_data'       => $workOrder->extra_data,
-                'custom_fields'    => $workOrder->custom_fields,
+                'status' => $workOrder->status,
+                'planned_qty' => $workOrder->planned_qty,
+                'produced_qty' => $workOrder->produced_qty,
+                'priority' => $workOrder->priority,
+                'due_date' => $workOrder->due_date?->toDateString(),
+                'description' => $workOrder->description,
+                'extra_data' => $workOrder->extra_data,
+                'custom_fields' => $workOrder->custom_fields,
                 'process_snapshot' => $workOrder->process_snapshot,
-                'created_at'       => $workOrder->created_at->toISOString(),
-                'line_name'        => $workOrder->line?->name,
+                'created_at' => $workOrder->created_at->toISOString(),
+                'line_name' => $workOrder->line?->name,
                 'product_type_name' => $workOrder->productType?->name,
-                'batches'          => $batches,
-                'issues'           => $issues,
+                'batches' => $batches,
+                'issues' => $issues,
             ],
             'customFields' => $customFields->clientConfig('work_order'),
         ]);

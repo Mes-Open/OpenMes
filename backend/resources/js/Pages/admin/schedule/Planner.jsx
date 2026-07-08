@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { DndProvider, useDragDropManager } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { ConfirmDialog } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import LiveRefresh from '../../../components/LiveRefresh';
 import { apiCall, apiGet } from '../../../lib/http';
@@ -61,6 +62,7 @@ export default function Planner() {
     const [selected, setSelected] = useState(null);     // edit sheet
     const [assignTarget, setAssignTarget] = useState(null);
     const [conflict, setConflict] = useState(null);     // { apply }
+    const [confirmBox, setConfirmBox] = useState(null); // { title, body, confirmLabel, apply }
     const [trackingData, setTrackingData] = useState(null);
     const draggingRef = useRef(false);
 
@@ -95,21 +97,33 @@ export default function Planner() {
         }
     }, [toast]);
 
-    // Drop a card onto a coarse (weekly/daily) cell.
-    const dropToCell = useCallback(async (wo, target) => {
-        // A coarse (day/shift) placement clears any exact minute plan — confirm
-        // first so an accidental drag doesn't silently destroy hourly timing.
-        if (wo.planned_start_at && wo.planned_end_at
-            && !window.confirm(__('This order has an exact time plan — replace it with a day/shift placement?'))) {
-            return;
-        }
-        const body = {
-            line_id: target.lineId,
-            due_date: target.date || '',
-            shift_number: target.shift || '',
-            week_number: '', end_date: '', end_shift_number: '',
-            planned_start_at: '', planned_end_at: '',
-        };
+    // The full extra-segments payload for updateOrder's sync, with one
+    // segment updated, removed or appended.
+    const placementsPayload = (wo, { update, remove, add } = {}) => {
+        let list = (wo.placements || []).map((p) => ({
+            id: p.id, line_id: p.line_id, due_date: p.due_date,
+            shift_number: p.shift_number || '', end_date: p.end_date || '', end_shift_number: p.end_shift_number || '',
+        }));
+        if (remove != null) list = list.filter((p) => p.id !== remove);
+        if (update) list = list.map((p) => (p.id === update.id ? { ...p, ...update } : p));
+        if (add) list = [...list, add];
+        return list;
+    };
+
+    const performDrop = useCallback(async (wo, target, placement) => {
+        const body = placement !== 'primary'
+            ? {
+                extra_placements: placementsPayload(wo, {
+                    update: { id: placement, line_id: target.lineId, due_date: target.date || '', shift_number: target.shift || '', end_date: '', end_shift_number: '' },
+                }),
+            }
+            : {
+                line_id: target.lineId,
+                due_date: target.date || '',
+                shift_number: target.shift || '',
+                week_number: '', end_date: '', end_shift_number: '',
+                planned_start_at: '', planned_end_at: '',
+            };
         const result = await saveOrder(wo.id, body);
         if (result) {
             const code = allLines.find((l) => l.id === target.lineId)?.code ?? '';
@@ -117,6 +131,23 @@ export default function Planner() {
             refreshContent();
         }
     }, [saveOrder, allLines, toast, refreshContent]);
+
+    // Drop a card onto a coarse (weekly/daily) cell. `placement` says which
+    // schedule segment was dragged — only that segment moves. A coarse primary
+    // placement clears any exact minute plan — confirm first so an accidental
+    // drag doesn't silently destroy hourly timing.
+    const dropToCell = useCallback((wo, target, placement = 'primary') => {
+        if (placement === 'primary' && wo.planned_start_at && wo.planned_end_at) {
+            setConfirmBox({
+                title: __('Replace exact time plan?'),
+                body: __('This order has an exact time plan — replace it with a day/shift placement?'),
+                confirmLabel: __('Replace'),
+                apply: () => performDrop(wo, target, placement),
+            });
+            return;
+        }
+        performDrop(wo, target, placement);
+    }, [performDrop]);
 
     // Hourly move/resize commit → resize endpoint (handles minute conflicts).
     const onHourlyChange = useCallback(async (wo, startMin, endMin, force = false) => {
@@ -147,8 +178,8 @@ export default function Planner() {
         if (result) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); }
     }, [saveOrder, toast, refreshContent]);
 
-    const unassign = useCallback(async (wo) => {
-        if (!window.confirm(__('Remove this order from the schedule?'))) return;
+    const performUnassign = useCallback(async (wo) => {
+        // Clearing the primary line also deletes every extra segment server-side.
         const result = await saveOrder(wo.id, {
             line_id: '', due_date: '', week_number: '', shift_number: '',
             end_date: '', end_shift_number: '', planned_start_at: '', planned_end_at: '',
@@ -157,28 +188,88 @@ export default function Planner() {
         if (result) { toast(`${wo.order_no} → ${__('Backlog')}`); refreshContent(); }
     }, [saveOrder, toast, refreshContent]);
 
-    // Commit a weekly span/move: map start/end grid columns back to due/end
-    // date + shift (and optionally a new line) and persist.
-    const onSpanChange = useCallback((wo, startCol, endCol, newLineId) => {
+    const unassign = useCallback((wo) => {
+        setConfirmBox({
+            title: `${__('Unschedule')} ${wo.order_no}?`,
+            body: __('The order will be removed from the schedule and returned to the backlog.'),
+            confirmLabel: __('Unschedule'),
+            apply: () => performUnassign(wo),
+        });
+    }, [performUnassign]);
+
+    // Drop one extra segment — the other placements stay untouched.
+    const detachPlacement = useCallback(async (wo, key) => {
+        const result = await saveOrder(wo.id, { extra_placements: placementsPayload(wo, { remove: key }) });
+        if (result) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); }
+    }, [saveOrder, toast, refreshContent]);
+
+    // Commit a weekly span/move: map start/end grid columns back to a date +
+    // shift span and persist. Segments are independent — `placement` says
+    // which one was dragged, and only that segment is written.
+    const onSpanChange = useCallback((wo, startCol, endCol, newLineId, placement = 'primary') => {
+        const sp = config.shiftsPerDay;
+        const cell = (col) => ({ date: days[Math.floor(col / sp)]?.date, shift: (col % sp) + 1 });
+        const a = cell(startCol); const b = cell(endCol);
+        if (!a.date || !b.date) return;
+        const spanned = endCol > startCol;
+
+        let body;
+        if (placement !== 'primary') {
+            const current = (wo.placements || []).find((p) => p.id === placement);
+            body = {
+                extra_placements: placementsPayload(wo, {
+                    update: {
+                        id: placement, line_id: newLineId ?? current?.line_id,
+                        due_date: a.date, shift_number: a.shift,
+                        end_date: spanned ? b.date : '', end_shift_number: spanned ? b.shift : '',
+                    },
+                }),
+            };
+        } else {
+            body = {
+                line_id: newLineId ?? wo.line_id,
+                due_date: a.date, week_number: '', shift_number: a.shift,
+                end_date: spanned ? b.date : '', end_shift_number: spanned ? b.shift : '',
+                planned_start_at: '', planned_end_at: '',
+            };
+        }
+        saveOrder(wo.id, body).then((r) => { if (r) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); } });
+    }, [config.shiftsPerDay, days, saveOrder, toast, refreshContent]);
+
+    // Diagonal edge-stretch: the order continues on another line — the
+    // extension is APPENDED as a new segment, so the block chain reads as a
+    // staircase across the board (any number of steps).
+    const onDiagonalExtend = useCallback((wo, lineId, startCol, endCol) => {
         const sp = config.shiftsPerDay;
         const cell = (col) => ({ date: days[Math.floor(col / sp)]?.date, shift: (col % sp) + 1 });
         const a = cell(startCol); const b = cell(endCol);
         if (!a.date || !b.date) return;
         const spanned = endCol > startCol;
         saveOrder(wo.id, {
-            line_id: newLineId ?? wo.line_id,
-            due_date: a.date, week_number: '', shift_number: a.shift,
-            end_date: spanned ? b.date : '', end_shift_number: spanned ? b.shift : '',
-            planned_start_at: '', planned_end_at: '',
-        }).then((r) => { if (r) { toast(`${wo.order_no} ${__('updated')}`); refreshContent(); } });
-    }, [config.shiftsPerDay, days, saveOrder, toast, refreshContent]);
+            extra_placements: placementsPayload(wo, {
+                add: {
+                    line_id: lineId, due_date: a.date, shift_number: a.shift,
+                    end_date: spanned ? b.date : '', end_shift_number: spanned ? b.shift : '',
+                },
+            }),
+        }).then((r) => {
+            if (r) {
+                const code = allLines.find((l) => l.id === lineId)?.code ?? '';
+                toast(`${wo.order_no} ⇄ ${code}`);
+                refreshContent();
+            }
+        });
+    }, [config.shiftsPerDay, days, saveOrder, allLines, toast, refreshContent]);
 
     const ctx = {
         data, config, days,
         onSelectOrder: setSelected, selectedId: selected?.id, onHourlyChange,
         onDropOrder: dropToCell,
         onUnassign: unassign,
+        onDetachPlacement: detachPlacement,
         onSpanChange,
+        onDiagonalExtend,
+        onRefreshContent: refreshContent,
         onCellClick: (target) => setAssignTarget(target),
     };
 
@@ -253,6 +344,13 @@ export default function Planner() {
             {selected && <OrderEditSheet wo={selected} ctx={ctx} onClose={() => setSelected(null)} onSave={saveEdit} onUnassign={unassign} />}
             {assignTarget && <AssignPopup target={assignTarget} ctx={ctx} onClose={() => setAssignTarget(null)} onPick={(wo, target) => { setAssignTarget(null); dropToCell(wo, target); }} />}
             {conflict && <ConflictDialog onCancel={() => setConflict(null)} onConfirm={() => { conflict.apply(); setConflict(null); }} />}
+            {confirmBox && (
+                <ConfirmDialog open onClose={() => setConfirmBox(null)}
+                    onConfirm={() => { const apply = confirmBox.apply; setConfirmBox(null); apply(); }}
+                    title={confirmBox.title} confirmLabel={confirmBox.confirmLabel} cancelLabel={__('Cancel')}>
+                    {confirmBox.body}
+                </ConfirmDialog>
+            )}
             {saving && <SavingOverlay />}
             <Toasts toasts={toasts} />
         </>

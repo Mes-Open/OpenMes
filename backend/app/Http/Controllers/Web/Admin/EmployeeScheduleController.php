@@ -5,12 +5,10 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeActivity;
 use App\Models\EmployeeActivityCustomType;
-use App\Models\Line;
 use App\Models\Worker;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
@@ -44,36 +42,37 @@ class EmployeeScheduleController extends Controller
             ->get();
 
         $workersFlat = $workers->map(fn ($w) => [
-            'id'                   => $w->id,
-            'name'                 => $w->name,
-            'code'                 => $w->code,
+            'id' => $w->id,
+            'name' => $w->name,
+            'code' => $w->code,
             'personnel_class_code' => $w->personnelClass?->code ?? $w->personnelClass?->name,
         ])->values()->all();
 
         $customTypesFlat = $customTypes->map(fn ($c) => [
-            'code'  => $c->code,
+            'code' => $c->code,
             'label' => $c->label,
             'color' => $c->color,
         ])->values()->all();
 
         $baseProps = [
-            'view'             => $view,
-            'date'             => $date->format('Y-m-d'),
-            'workers'          => $workersFlat,
-            'selectedWorker'   => $selectedWorker ? [
-                'id'   => $selectedWorker->id,
+            'view' => $view,
+            'date' => $date->format('Y-m-d'),
+            'workers' => $workersFlat,
+            'selectedWorker' => $selectedWorker ? [
+                'id' => $selectedWorker->id,
                 'name' => $selectedWorker->name,
                 'code' => $selectedWorker->code,
             ] : null,
             'selectedWorkerId' => $selectedWorker?->id,
-            'customTypes'      => $customTypesFlat,
-            'typeMeta'         => EmployeeActivity::TYPE_META,
+            'customTypes' => $customTypesFlat,
+            'typeMeta' => EmployeeActivity::TYPE_META,
         ];
 
         if ($view === 'day') {
             $baseProps['activities'] = $selectedWorker
                 ? $this->dayActivities($selectedWorker->id, $date)
                 : [];
+
             return Inertia::render('admin/schedule/employees/Day', $baseProps);
         }
 
@@ -81,6 +80,7 @@ class EmployeeScheduleController extends Controller
             $baseProps['teamActivities'] = $workers->mapWithKeys(
                 fn ($w) => [$w->id => $this->dayActivities($w->id, $date)]
             )->all();
+
             return Inertia::render('admin/schedule/employees/Team', $baseProps);
         }
 
@@ -96,16 +96,16 @@ class EmployeeScheduleController extends Controller
                 ->get()
                 ->groupBy(fn ($a) => $a->starts_at->toDateString())
                 ->map(fn ($acts) => $acts->map(fn ($a) => [
-                    'type'          => $a->type,
-                    'starts_at_time'=> $a->starts_at->format('H:i'),
-                    'ends_at_time'  => $a->ends_at->format('H:i'),
+                    'type' => $a->type,
+                    'starts_at_time' => $a->starts_at->format('H:i'),
+                    'ends_at_time' => $a->ends_at->format('H:i'),
                 ])->values()->all())
                 ->all();
         }
 
-        $baseProps['monthStart']            = $monthStart->format('Y-m-d');
-        $baseProps['monthEnd']              = $monthEnd->format('Y-m-d');
-        $baseProps['monthByWorker']         = $monthByWorkerRaw;
+        $baseProps['monthStart'] = $monthStart->format('Y-m-d');
+        $baseProps['monthEnd'] = $monthEnd->format('Y-m-d');
+        $baseProps['monthByWorker'] = $monthByWorkerRaw;
         $baseProps['selectedDayActivities'] = $this->dayActivities($selectedWorker?->id ?? 0, $date);
 
         return Inertia::render('admin/schedule/employees/Month', $baseProps);
@@ -125,8 +125,8 @@ class EmployeeScheduleController extends Controller
 
         $workOrders = WorkOrder::with('productType')->orderBy('order_no')->limit(50)->get()
             ->map(fn ($wo) => [
-                'id'           => $wo->id,
-                'order_no'     => $wo->order_no,
+                'id' => $wo->id,
+                'order_no' => $wo->order_no,
                 'product_name' => $wo->productType?->name,
             ])->values()->all();
 
@@ -135,32 +135,32 @@ class EmployeeScheduleController extends Controller
             ->values()->all();
 
         return Inertia::render('admin/schedule/employees/Create', [
-            'worker'      => [
-                'id'   => $worker->id,
+            'worker' => [
+                'id' => $worker->id,
                 'name' => $worker->name,
                 'code' => $worker->code,
             ],
-            'date'        => $date->format('Y-m-d'),
-            'workOrders'  => $workOrders,
+            'date' => $date->format('Y-m-d'),
+            'workOrders' => $workOrders,
             'customTypes' => $customTypes,
-            'typeMeta'    => EmployeeActivity::TYPE_META,
+            'typeMeta' => EmployeeActivity::TYPE_META,
             'defaultFrom' => $defaultFrom->format('H:i'),
-            'defaultTo'   => $defaultTo->format('H:i'),
+            'defaultTo' => $defaultTo->format('H:i'),
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'worker_id'     => 'required|exists:workers,id',
-            'type'          => 'required|in:'.implode(',', EmployeeActivity::TYPES),
-            'custom_code'   => 'nullable|string|max:64',
-            'label'         => 'nullable|string|max:255',
-            'date'          => 'required|date',
-            'from_time'     => 'required|date_format:H:i',
-            'to_time'       => 'required|date_format:H:i|after:from_time',
+            'worker_id' => 'required|exists:workers,id',
+            'type' => 'required|in:'.implode(',', EmployeeActivity::TYPES),
+            'custom_code' => 'nullable|string|max:64',
+            'label' => 'nullable|string|max:255',
+            'date' => 'required|date',
+            'from_time' => 'required|date_format:H:i',
+            'to_time' => 'required|date_format:H:i|after:from_time',
             'work_order_id' => 'nullable|exists:work_orders,id',
-            'notes'         => 'nullable|string',
+            'notes' => 'nullable|string',
         ]);
 
         $date = Carbon::parse($validated['date']);
@@ -168,21 +168,21 @@ class EmployeeScheduleController extends Controller
         $endsAt = $date->copy()->setTimeFromTimeString($validated['to_time']);
 
         EmployeeActivity::create([
-            'worker_id'     => $validated['worker_id'],
-            'type'          => $validated['type'],
-            'custom_code'   => $validated['custom_code'] ?? null,
-            'label'         => $validated['label'] ?? null,
-            'starts_at'     => $startsAt,
-            'ends_at'       => $endsAt,
+            'worker_id' => $validated['worker_id'],
+            'type' => $validated['type'],
+            'custom_code' => $validated['custom_code'] ?? null,
+            'label' => $validated['label'] ?? null,
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
             'work_order_id' => $validated['work_order_id'] ?? null,
-            'notes'         => $validated['notes'] ?? null,
+            'notes' => $validated['notes'] ?? null,
             'created_by_id' => auth()->id(),
         ]);
 
         return redirect()
             ->route('admin.schedule.employees', [
-                'view'      => 'day',
-                'date'      => $date->toDateString(),
+                'view' => 'day',
+                'date' => $date->toDateString(),
                 'worker_id' => $validated['worker_id'],
             ])
             ->with('status', __('Activity added.'));
@@ -195,8 +195,8 @@ class EmployeeScheduleController extends Controller
         $activity->delete();
 
         return redirect()->route('admin.schedule.employees', [
-            'view'      => 'day',
-            'date'      => $date,
+            'view' => 'day',
+            'date' => $date,
             'worker_id' => $workerId,
         ])->with('status', __('Activity removed.'));
     }
@@ -225,41 +225,41 @@ class EmployeeScheduleController extends Controller
         foreach ($rows as $row) {
             if ($row->starts_at->gt($cursor)) {
                 $segments[] = [
-                    'id'       => null,
-                    'type'     => 'off',
-                    'from'     => $cursor->format('H:i'),
-                    'to'       => $row->starts_at->format('H:i'),
-                    'duration' => $row->starts_at->diffInMinutes($cursor),
-                    'label'    => null,
-                    'wo'       => null,
-                    'step'     => null,
-                    'notes'    => null,
+                    'id' => null,
+                    'type' => 'off',
+                    'from' => $cursor->format('H:i'),
+                    'to' => $row->starts_at->format('H:i'),
+                    'duration' => (int) $cursor->diffInMinutes($row->starts_at),
+                    'label' => null,
+                    'wo' => null,
+                    'step' => null,
+                    'notes' => null,
                 ];
             }
             $segments[] = [
-                'id'       => $row->id,
-                'type'     => $row->type,
-                'from'     => $row->starts_at->format('H:i'),
-                'to'       => $row->ends_at->format('H:i'),
+                'id' => $row->id,
+                'type' => $row->type,
+                'from' => $row->starts_at->format('H:i'),
+                'to' => $row->ends_at->format('H:i'),
                 'duration' => $row->durationMinutes(),
-                'label'    => $row->label,
-                'wo'       => $row->workOrder?->order_no,
-                'step'     => $row->step_name,
-                'notes'    => $row->notes,
+                'label' => $row->label,
+                'wo' => $row->workOrder?->order_no,
+                'step' => $row->step_name,
+                'notes' => $row->notes,
             ];
             $cursor = $row->ends_at->copy();
         }
         if ($cursor->lt($end)) {
             $segments[] = [
-                'id'       => null,
-                'type'     => 'off',
-                'from'     => $cursor->format('H:i'),
-                'to'       => '24:00',
-                'duration' => $end->diffInMinutes($cursor),
-                'label'    => null,
-                'wo'       => null,
-                'step'     => null,
-                'notes'    => null,
+                'id' => null,
+                'type' => 'off',
+                'from' => $cursor->format('H:i'),
+                'to' => '24:00',
+                'duration' => (int) $cursor->diffInMinutes($date->copy()->addDay()->startOfDay()),
+                'label' => null,
+                'wo' => null,
+                'step' => null,
+                'notes' => null,
             ];
         }
 
