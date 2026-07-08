@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Read-confirmation on critical instructions** *([#95](https://github.com/Mes-Open/OpenMes/issues/95))*: a process step can now be flagged as carrying **critical instructions the operator must explicitly acknowledge having read** before the step can be completed. The flag is set once on the **template step** (Admin → Process Templates editor — "Require operator to confirm they read the instructions"), snapshotted onto the work order and **mirrored onto the runtime batch step**, so it only applies **where configured**. At the operator station a flagged step shows a blocked banner and an **"I have read the instructions"** action under its instructions; **Complete stays disabled until acknowledged**, and the acknowledgement **records who confirmed and when** (idempotent and race-safe — the first acknowledger is kept). The gate lives in `BatchService::completeStep` alongside the existing document/checklist gates, so it applies on every surface. Steps not flagged are unaffected. Reuses the existing `template_steps.requires_confirmation` + `batch_steps.confirmed_at`/`confirmed_by` columns; one additive `batch_steps.requires_confirmation` column, no breaking change. Acknowledge from the operator panel (`POST /operator/batch-step/{step}/confirm-instructions`) or the API (`POST /api/v1/batch-steps/{step}/confirm-instructions`), so API-driven clients can clear the gate the shared service enforces.
+
 ## [0.16.1] - 2026-06-30
 
 ### Fixed

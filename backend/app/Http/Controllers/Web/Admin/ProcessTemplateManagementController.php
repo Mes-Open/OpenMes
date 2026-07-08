@@ -107,6 +107,7 @@ class ProcessTemplateManagementController extends Controller
                     'step_number' => $s->step_number,
                     'name' => $s->name,
                     'instruction' => $s->instruction,
+                    'requires_confirmation' => (bool) $s->requires_confirmation,
                     'estimated_duration_minutes' => $s->estimated_duration_minutes,
                     'workstation_id' => $s->workstation_id,
                     'process_segment_id' => $s->process_segment_id,
@@ -298,6 +299,7 @@ class ProcessTemplateManagementController extends Controller
     private function stepPayload(Request $request): array
     {
         $data = $request->validated();
+        $data['requires_confirmation'] = $request->boolean('requires_confirmation');
         $data['is_optional'] = $request->boolean('is_optional');
         $data['variant_group'] = $request->filled('variant_group') ? $request->input('variant_group') : null;
         $data['is_default_variant'] = $data['variant_group'] !== null && $request->boolean('is_default_variant');

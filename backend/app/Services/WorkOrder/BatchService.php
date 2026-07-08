@@ -115,6 +115,15 @@ class BatchService
                 ));
             }
 
+            // Read-confirmation control: a step flagged as carrying critical
+            // instructions must be acknowledged (read-confirmed) by the operator
+            // before it can be completed.
+            if ($step->needsReadConfirmation()) {
+                throw new \Exception(__(
+                    'This step is blocked: you must confirm you have read the critical instructions before it can be completed.'
+                ));
+            }
+
             // Calculate duration
             $durationMinutes = null;
             if ($step->started_at) {

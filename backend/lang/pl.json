@@ -3696,5 +3696,16 @@
     "Backflush on pallet creation": "Backflush przy tworzeniu palety",
     "When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.": "Gdy włączone, utworzenie palety deklaruje konsumpcję z BOM dla wyprodukowanej ilości i odejmuje ją ze stanu w tym kamieniu milowym, zamiast w sposób ciągły.",
     "Open PDF": "Otwórz PDF",
-    "This step is blocked: the required checklist item(s) \":items\" must be completed before it can be completed.": "Ten krok jest zablokowany: wymagana pozycja checklisty \":items\" musi zostać ukończona przed jego zakończeniem."
+    "This step is blocked: the required checklist item(s) \":items\" must be completed before it can be completed.": "Ten krok jest zablokowany: wymagana pozycja checklisty \":items\" musi zostać ukończona przed jego zakończeniem.",
+    "This step does not belong to the selected line.": "Ten krok nie należy do wybranej linii.",
+    "This step does not require read-confirmation.": "Ten krok nie wymaga potwierdzenia przeczytania.",
+    "Instructions acknowledged.": "Potwierdzono przeczytanie instrukcji.",
+    "This step is blocked: you must confirm you have read the critical instructions before it can be completed.": "Ten krok jest zablokowany: musisz potwierdzić przeczytanie krytycznych instrukcji, zanim będzie można go zakończyć.",
+    "This step is blocked: you must confirm you have read the critical instructions before you can complete it.": "Ten krok jest zablokowany: musisz potwierdzić przeczytanie krytycznych instrukcji, zanim go zakończysz.",
+    "Require operator to confirm they read the instructions": "Wymagaj od operatora potwierdzenia przeczytania instrukcji",
+    "When on, the operator must acknowledge the instructions before this step can be completed.": "Gdy włączone, operator musi potwierdzić przeczytanie instrukcji, zanim krok będzie można zakończyć.",
+    "Read-confirmation": "Potwierdzenie przeczytania",
+    "Confirm you have read the instructions before completing this step.": "Potwierdź przeczytanie instrukcji przed zakończeniem tego kroku.",
+    "Instructions acknowledged by :name on :date": "Instrukcje potwierdzone przez :name dnia :date",
+    "I have read the instructions": "Przeczytałem instrukcje"
 }

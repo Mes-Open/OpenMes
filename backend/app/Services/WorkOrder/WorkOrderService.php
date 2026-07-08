@@ -144,6 +144,7 @@ class WorkOrderService
                 'step_number' => $stepData['step_number'],
                 'name' => $stepData['name'],
                 'instruction' => $stepData['instruction'] ?? null,
+                'requires_confirmation' => $stepData['requires_confirmation'] ?? false,
                 'workstation_id' => $stepData['workstation_id'] ?? null,
                 'status' => $status,
                 'is_optional' => $stepData['is_optional'] ?? false,

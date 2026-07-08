@@ -55,6 +55,17 @@ function OptionalVariantFields({ data, setData, errors }) {
             {errors.is_default_variant && (
                 <p className="md:col-span-3 text-om-blocked text-xs">{errors.is_default_variant}</p>
             )}
+
+            <div className="md:col-span-3 flex items-center border-t border-om-line pt-3">
+                <Checkbox
+                    checked={!!data.requires_confirmation}
+                    onChange={(next) => setData('requires_confirmation', next)}
+                    label={__('Require operator to confirm they read the instructions')}
+                />
+            </div>
+            <p className="md:col-span-3 -mt-2 text-xs text-om-muted">
+                {__('When on, the operator must acknowledge the instructions before this step can be completed.')}
+            </p>
         </div>
     );
 }
@@ -66,6 +77,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
     const form = useForm({
         name: '',
         instruction: '',
+        requires_confirmation: false,
         estimated_duration_minutes: '',
         workstation_id: '',
         process_segment_id: '',
@@ -202,6 +214,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
     const form = useForm({
         name: step.name ?? '',
         instruction: step.instruction ?? '',
+        requires_confirmation: !!step.requires_confirmation,
         estimated_duration_minutes: step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
@@ -549,6 +562,11 @@ function StepCard({
                                         {step.variant_group && (
                                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-chip text-om-accent">
                                                 {__('Variant')}: {step.variant_group}{step.is_default_variant ? ` (${__('default')})` : ''}
+                                            </span>
+                                        )}
+                                        {step.requires_confirmation && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-blocked-bg text-om-blocked">
+                                                {__('Read-confirmation')}
                                             </span>
                                         )}
                                     </h3>
