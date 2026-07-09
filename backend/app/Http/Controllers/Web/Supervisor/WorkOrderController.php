@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Supervisor;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Models\BatchStep;
+use App\Models\Customer;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
@@ -44,6 +45,7 @@ class WorkOrderController extends Controller
         return Inertia::render('supervisor/work-orders/Create', [
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
     }
@@ -278,11 +280,12 @@ class WorkOrderController extends Controller
     {
         return Inertia::render('supervisor/work-orders/Edit', [
             'workOrder' => [
-                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status'),
+                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'planned_qty', 'unit_price', 'priority', 'description', 'status'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
             ],
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
         ]);
     }
 
@@ -291,9 +294,11 @@ class WorkOrderController extends Controller
         $validated = $request->validate([
             'order_no' => 'required|string|max:100|unique:work_orders,order_no,'.$workOrder->id,
             'customer_order_no' => 'nullable|string|max:100',
+            'customer_id' => ['nullable', \Illuminate\Validation\Rule::exists('customers', 'id')->whereNull('deleted_at')],
             'line_id' => 'nullable|exists:lines,id',
             'product_type_id' => 'nullable|exists:product_types,id',
             'planned_qty' => 'required|numeric|min:0.01|max:99999999',
+            'unit_price' => 'nullable|numeric|min:0|max:99999999',
             'priority' => 'nullable|integer|min:0|max:100',
             'due_date' => 'nullable|date',
             'description' => 'nullable|string|max:2000',

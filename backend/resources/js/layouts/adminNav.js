@@ -52,9 +52,11 @@ export const ADMIN_GROUPS = [
         label: 'Orders',
         icon: 'clipboard',
         href: '/admin/work-orders',
-        match: ['/admin/work-orders', '/admin/csv-import'],
+        match: ['/admin/work-orders', '/admin/customers', '/admin/priority-rules', '/admin/csv-import'],
         children: [
             { label: 'All Orders', href: '/admin/work-orders', match: ['/admin/work-orders'] },
+            { label: 'Customers', href: '/admin/customers', match: ['/admin/customers'] },
+            { label: 'Priority Settings', href: '/admin/priority-rules', match: ['/admin/priority-rules'] },
             { label: 'CSV Import', href: '/admin/csv-import', match: ['/admin/csv-import'] },
         ],
     },

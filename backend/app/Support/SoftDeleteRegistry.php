@@ -38,8 +38,10 @@ class SoftDeleteRegistry
         'csv_import_mappings' => Models\CsvImportMapping::class,
         'shifts' => Models\Shift::class,
         'inspection_plans' => Models\InspectionPlan::class,
+        'priority_rules' => Models\PriorityRule::class,
 
         // Structure
+        'customers' => Models\Customer::class,
         'companies' => Models\Company::class,
         'sites' => Models\Site::class,
         'areas' => Models\Area::class,
