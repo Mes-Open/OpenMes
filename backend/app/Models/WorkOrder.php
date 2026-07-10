@@ -16,6 +16,44 @@ class WorkOrder extends Model
     use Auditable, HasCustomFields, HasFactory, HasTenant;
     use SoftDeletesWithAudit;
 
+    /**
+     * Recompute the automatic priority score from the configured rules whenever
+     * a work order is saved (create or update). No-op until at least one active
+     * priority rule exists, so manual priorities are preserved until scoring is
+     * configured. Runs with persist=false because a save is already in flight.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $workOrder): void {
+            // Recompute only when a scoring-relevant field changed (or the row is
+            // new); other saves — status transitions, produced_qty ticks — skip
+            // the rule query. Time-based rules are kept fresh by priority:recalculate.
+            if ($workOrder->exists
+                && ! $workOrder->isDirty(['customer_id', 'planned_qty', 'due_date'])) {
+                return;
+            }
+
+            app(\App\Services\WorkOrder\PriorityScoringService::class)->apply($workOrder, persist: false);
+        });
+
+        // Roll a completed order into its customer's aggregate metrics (order
+        // count, revenue, auto tier promotion), once per order. Covers both a
+        // transition into DONE (updated) and an order inserted already DONE
+        // (created — e.g. a historical import). recordCompletion is idempotent.
+        $accrue = function (self $workOrder): void {
+            if ($workOrder->status === self::STATUS_DONE && ! $workOrder->customer_totals_counted) {
+                app(\App\Services\Customer\CustomerMetricsService::class)->recordCompletion($workOrder);
+            }
+        };
+
+        static::created($accrue);
+        static::updated(function (self $workOrder) use ($accrue): void {
+            if ($workOrder->wasChanged('status')) {
+                $accrue($workOrder);
+            }
+        });
+    }
+
     const STATUS_PENDING = 'PENDING';
 
     const STATUS_ACCEPTED = 'ACCEPTED';
@@ -41,14 +79,18 @@ class WorkOrder extends Model
     protected $fillable = [
         'order_no',
         'customer_order_no',
+        'customer_id',
         'line_id',
         'product_type_id',
         'process_snapshot',
         'planned_qty',
+        'unit_price',
         'produced_qty',
         'status',
         'line_status_id',
         'priority',
+        'priority_score',
+        'customer_totals_counted',
         'due_date',
         'end_date',
         'week_number',
@@ -70,8 +112,11 @@ class WorkOrder extends Model
             'process_snapshot' => 'array',
             'extra_data' => 'array',
             'planned_qty' => 'decimal:2',
+            'unit_price' => 'decimal:2',
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
+            'priority_score' => 'integer',
+            'customer_totals_counted' => 'boolean',
             'due_date' => 'datetime',
             'end_date' => 'datetime',
             'planned_start_at' => 'datetime',
@@ -102,6 +147,14 @@ class WorkOrder extends Model
         }
 
         return (int) $this->planned_start_at->diffInMinutes($this->planned_end_at, false);
+    }
+
+    /**
+     * Get the customer this work order was placed for (nullable).
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /**
@@ -296,7 +349,8 @@ class WorkOrder extends Model
      */
     public function scopeByPriority($query)
     {
-        return $query->orderBy('priority', 'desc')
+        return $query->orderBy('priority_score', 'desc')
+            ->orderBy('priority', 'desc')
             ->orderBy('due_date', 'asc')
             ->orderBy('created_at', 'asc');
     }

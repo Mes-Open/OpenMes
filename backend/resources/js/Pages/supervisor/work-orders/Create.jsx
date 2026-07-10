@@ -5,7 +5,7 @@ import { woFields } from '../../admin/work-orders/fields';
 
 // Supervisor-facing create — same form as admin, posting to the /supervisor route.
 export default function SupervisorWorkOrderCreate() {
-    const { lines = [], productTypes = [], customFields = [] } = usePage().props;
+    const { lines = [], productTypes = [], customers = [], customFields = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title="New Work Order" />
@@ -13,9 +13,9 @@ export default function SupervisorWorkOrderCreate() {
             <ResourceForm
                 action="/supervisor/work-orders"
                 method="post"
-                fields={woFields(lines, productTypes)}
+                fields={woFields(lines, productTypes, { customers })}
                 customFields={customFields}
-                initial={{ order_no: '', line_id: '', product_type_id: '', planned_qty: '', priority: 0, due_date: '', description: '', custom_fields: {} }}
+                initial={{ order_no: '', customer_order_no: '', customer_id: '', line_id: '', product_type_id: '', planned_qty: '', unit_price: '', priority: 0, due_date: '', description: '', custom_fields: {} }}
                 submitLabel="Create"
                 cancelHref="/supervisor/work-orders"
             />
