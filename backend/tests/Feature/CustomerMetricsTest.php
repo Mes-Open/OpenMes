@@ -66,6 +66,27 @@ class CustomerMetricsTest extends TestCase
         $this->assertSame('500.00', (string) $customer->total_revenue);
     }
 
+    public function test_locked_recheck_prevents_double_count_on_stale_flag(): void
+    {
+        $customer = Customer::factory()->create(['total_orders' => 0, 'total_revenue' => 0]);
+        // Created as DONE → accrues once; DB flag is now true.
+        $wo = WorkOrder::factory()->create([
+            'customer_id' => $customer->id,
+            'unit_price' => 10,
+            'status' => WorkOrder::STATUS_DONE,
+            'produced_qty' => 5,
+        ]);
+        $this->assertSame(1, $customer->fresh()->total_orders);
+
+        // Simulate a racing/stale caller whose in-memory flag is still false: the
+        // locked re-check against the DB must skip it rather than count again.
+        $wo->customer_totals_counted = false;
+        app(\App\Services\Customer\CustomerMetricsService::class)->recordCompletion($wo);
+
+        $this->assertSame(1, $customer->fresh()->total_orders);
+        $this->assertSame('50.00', (string) $customer->fresh()->total_revenue);
+    }
+
     public function test_order_without_customer_completes_cleanly(): void
     {
         $wo = WorkOrder::factory()->create([

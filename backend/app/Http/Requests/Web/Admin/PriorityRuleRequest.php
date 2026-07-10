@@ -46,6 +46,14 @@ class PriorityRuleRequest extends FormRequest
             $condition = $this->input('condition_type');
             $value = $this->input('condition_value');
 
+            // Textual sources (tier) are only meaningful with "equals" — any
+            // numeric comparison casts the tier string to 0 and matches nonsense.
+            if ($source === PriorityRuleSource::CustomerTier->value
+                && $condition !== null
+                && $condition !== PriorityCondition::Equals->value) {
+                $validator->errors()->add('condition_type', __('Only "Equals" is supported for tier-based rules.'));
+            }
+
             // A tier comparison must reference a real tier.
             if ($source === PriorityRuleSource::CustomerTier->value
                 && in_array($condition, [PriorityCondition::Equals->value], true)

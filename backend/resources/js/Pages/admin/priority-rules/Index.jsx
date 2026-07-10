@@ -12,8 +12,11 @@ function BandEditor({ bands }) {
         next[i] = v;
         form.setData('bands', next);
     };
+    // A blank field must not silently become 0 — require every threshold.
+    const hasBlank = form.data.bands.some((b) => String(b).trim() === '');
     const submit = (e) => {
         e.preventDefault();
+        if (hasBlank) return;
         form.transform((d) => ({ bands: d.bands.map((b) => Number(b)) }))
             .post('/admin/priority-rules/bands', { preserveScroll: true });
     };
@@ -43,8 +46,9 @@ function BandEditor({ bands }) {
                 </div>
             </div>
             {form.errors.bands && <p className="mt-2 text-[11.5px] text-om-blocked">{form.errors.bands}</p>}
+            {hasBlank && <p className="mt-2 text-[11.5px] text-om-muted">{__('Fill in every threshold to save.')}</p>}
             <div className="mt-4">
-                <Button type="submit" variant="primary" loading={form.processing}>
+                <Button type="submit" variant="primary" loading={form.processing} disabled={hasBlank || form.processing}>
                     {form.processing ? __('Saving…') : __('Save mapping')}
                 </Button>
             </div>

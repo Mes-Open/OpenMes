@@ -3769,5 +3769,7 @@
     "No customer revenue yet.": "Brak przychodu od klientów.",
     "Highest-revenue customers and total revenue": "Klienci o najwyższym przychodzie i łączny przychód",
     "All tiers": "Wszystkie poziomy",
-    ":count high-tier customer order(s) overdue": ":count zamówień klientów Gold/VIP po terminie"
+    ":count high-tier customer order(s) overdue": ":count zamówień klientów Gold/VIP po terminie",
+    "Only \"Equals\" is supported for tier-based rules.": "Dla reguł opartych na poziomie dostępne jest tylko „równe”.",
+    "Fill in every threshold to save.": "Wypełnij wszystkie progi, aby zapisać."
 }

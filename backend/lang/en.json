@@ -3864,5 +3864,7 @@
     "No customer revenue yet.": "No customer revenue yet.",
     "Highest-revenue customers and total revenue": "Highest-revenue customers and total revenue",
     "All tiers": "All tiers",
-    ":count high-tier customer order(s) overdue": ":count high-tier customer order(s) overdue"
+    ":count high-tier customer order(s) overdue": ":count high-tier customer order(s) overdue",
+    "Only \"Equals\" is supported for tier-based rules.": "Only \"Equals\" is supported for tier-based rules.",
+    "Fill in every threshold to save.": "Fill in every threshold to save."
 }

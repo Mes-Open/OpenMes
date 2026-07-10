@@ -93,6 +93,19 @@ class PriorityRuleControllerTest extends TestCase
         $response->assertSessionHasErrors('condition_value');
     }
 
+    public function test_tier_source_rejects_non_equals_conditions(): void
+    {
+        $response = $this->actingAs($this->admin)->post(route('admin.priority-rules.store'), [
+            'name' => 'Tier greater than',
+            'field_source' => 'customer.tier',
+            'condition_type' => 'greater_than',
+            'condition_value' => 'gold',
+            'points' => 10,
+        ]);
+
+        $response->assertSessionHasErrors('condition_type');
+    }
+
     public function test_is_true_condition_needs_no_value(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.priority-rules.store'), [
