@@ -761,6 +761,17 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
         );
     };
 
+    // Acknowledge reading a critical step's instructions so its completion gate clears.
+    const [inflightConfirmId, setInflightConfirmId] = useState(null);
+    const handleConfirmInstructions = (step) => {
+        setInflightConfirmId(step.id);
+        router.post(
+            `/operator/batch-step/${step.id}/confirm-instructions`,
+            {},
+            { preserveScroll: true, onFinish: () => setInflightConfirmId(null) }
+        );
+    };
+
     // Tick / un-tick a work-instruction checklist item on a step.
     const [inflightCheckId, setInflightCheckId] = useState(null);
     const handleToggleChecklist = (step, item) => {
@@ -811,6 +822,8 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     const stepDocs = step.documents || [];
                     const blockingDocs = stepDocs.filter((d) => d.is_mandatory && d.requires_validation && !d.validated_at);
                     const isDocBlocked = blockingDocs.length > 0;
+                    // Read-confirmation gate: a critical step must be acknowledged before completion.
+                    const needsConfirm = !!step.requires_confirmation && !step.confirmed_at;
                     const media = stepMedia[step.step_number] || [];
                     const checklist = stepChecklists[step.step_number] || [];
                     const completions = step.checklist_completions || [];
@@ -883,9 +896,15 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                             {step.status === 'IN_PROGRESS' && (
                                 <Button
                                     variant="primary"
-                                    disabled={isInflight || isDocBlocked}
+                                    disabled={isInflight || isDocBlocked || needsConfirm}
                                     onClick={() => handleStepAction(step, 'complete')}
-                                    title={isDocBlocked ? __('Validate the mandatory document(s) before completing this step.') : undefined}
+                                    title={
+                                        isDocBlocked
+                                            ? __('Validate the mandatory document(s) before completing this step.')
+                                            : needsConfirm
+                                              ? __('Confirm you have read the instructions before completing this step.')
+                                              : undefined
+                                    }
                                     className="px-6 py-3.5 text-[15px] whitespace-nowrap"
                                 >
                                     {isInflight ? '…' : __('Complete')}
@@ -902,6 +921,15 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                         </div>
 
                         {media.length > 0 && <StepInstructions media={media} onZoom={setPhotoZoom} />}
+
+                        {step.requires_confirmation && (
+                            <StepReadConfirmation
+                                step={step}
+                                canConfirm={canCheck}
+                                inflight={inflightConfirmId === step.id}
+                                onConfirm={() => handleConfirmInstructions(step)}
+                            />
+                        )}
 
                         {checklist.length > 0 && (
                             <StepChecklist
@@ -947,6 +975,49 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                     onClose={() => setPickModal(null)}
                 />
             )}
+        </div>
+    );
+}
+
+// Read-confirmation panel shown under a critical step's instructions: the
+// operator must acknowledge they have read them before the step can be
+// completed. Once acknowledged, shows who confirmed and when.
+function StepReadConfirmation({ step, canConfirm, inflight, onConfirm }) {
+    const confirmed = !!step.confirmed_at;
+
+    if (confirmed) {
+        return (
+            <div className="border-t border-om-line2 px-3 py-2">
+                <p className="text-[12px] text-om-done bg-om-done-bg rounded px-2 py-1.5">
+                    {step.confirmed_by
+                        ? __('Instructions acknowledged by :name on :date', {
+                              name: step.confirmed_by.name,
+                              date: formatDateTime(new Date(step.confirmed_at), {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                              }),
+                          })
+                        : __('Instructions acknowledged.')}
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="border-t border-om-line2 px-3 py-2 space-y-2">
+            <p className="text-[12px] text-om-blocked bg-om-blocked-bg rounded px-2 py-1.5">
+                {__('This step is blocked: you must confirm you have read the critical instructions before you can complete it.')}
+            </p>
+            <Button
+                variant="primary"
+                disabled={inflight || !canConfirm}
+                onClick={onConfirm}
+                className="w-full px-4 py-3 text-[15px]"
+            >
+                {inflight ? '…' : __('I have read the instructions')}
+            </Button>
         </div>
     );
 }

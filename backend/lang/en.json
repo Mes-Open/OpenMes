@@ -3866,5 +3866,16 @@
     "All tiers": "All tiers",
     ":count high-tier customer order(s) overdue": ":count high-tier customer order(s) overdue",
     "Only \"Equals\" is supported for tier-based rules.": "Only \"Equals\" is supported for tier-based rules.",
-    "Fill in every threshold to save.": "Fill in every threshold to save."
+    "Fill in every threshold to save.": "Fill in every threshold to save.",
+    "This step does not belong to the selected line.": "This step does not belong to the selected line.",
+    "This step does not require read-confirmation.": "This step does not require read-confirmation.",
+    "Instructions acknowledged.": "Instructions acknowledged.",
+    "This step is blocked: you must confirm you have read the critical instructions before it can be completed.": "This step is blocked: you must confirm you have read the critical instructions before it can be completed.",
+    "This step is blocked: you must confirm you have read the critical instructions before you can complete it.": "This step is blocked: you must confirm you have read the critical instructions before you can complete it.",
+    "Require operator to confirm they read the instructions": "Require operator to confirm they read the instructions",
+    "When on, the operator must acknowledge the instructions before this step can be completed.": "When on, the operator must acknowledge the instructions before this step can be completed.",
+    "Read-confirmation": "Read-confirmation",
+    "Confirm you have read the instructions before completing this step.": "Confirm you have read the instructions before completing this step.",
+    "Instructions acknowledged by :name on :date": "Instructions acknowledged by :name on :date",
+    "I have read the instructions": "I have read the instructions"
 }

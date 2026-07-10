@@ -253,6 +253,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
+        // Read-confirmation: acknowledge reading a critical step's instructions.
+        Route::post('/batch-step/{batchStep}/confirm-instructions', [OperatorBatchController::class, 'confirmInstructions'])->name('batch-step.confirm-instructions');
         // Document control: validate a mandatory document so its step can complete.
         Route::post('/batch-step-document/{batchStepDocument}/validate', [OperatorBatchController::class, 'validateDocument'])->name('batch-step-document.validate');
         // Stream a step document's uploaded file (operators read it before validating).
