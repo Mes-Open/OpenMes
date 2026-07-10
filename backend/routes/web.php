@@ -14,6 +14,7 @@ use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
 use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
+use App\Http\Controllers\Web\Admin\CustomerController;
 use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\DivisionController;
@@ -24,13 +25,14 @@ use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTy
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
 use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceController;
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
-use App\Http\Controllers\Web\Admin\MaterialImportController;
 // Gate 2 — Company structure
+use App\Http\Controllers\Web\Admin\MaterialImportController;
 use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\PalletController as AdminPalletController;
+use App\Http\Controllers\Web\Admin\PriorityRuleController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
 use App\Http\Controllers\Web\Admin\ProductionCostReportController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
@@ -405,6 +407,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/resume', [AdminWorkOrderController::class, 'resume'])->name('work-orders.resume');
         Route::post('/work-orders/{workOrder}/reopen', [AdminWorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::post('/work-orders/{workOrder}/complete', [AdminWorkOrderController::class, 'complete'])->name('work-orders.complete');
+
+        // Customers
+        Route::resource('customers', CustomerController::class)->except(['show']);
+        Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
+
+        // Priority Settings (scoring rules + score→priority band mapping)
+        Route::post('/priority-rules/bands', [PriorityRuleController::class, 'updateBands'])->name('priority-rules.bands');
+        Route::resource('priority-rules', PriorityRuleController::class)->except(['show']);
+        Route::post('/priority-rules/{priority_rule}/toggle-active', [PriorityRuleController::class, 'toggleActive'])->name('priority-rules.toggle-active');
 
         // Issue Types
         Route::resource('issue-types', AdminIssueTypeController::class);

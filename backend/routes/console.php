@@ -17,3 +17,5 @@ Schedule::command('oee:calculate')->dailyAt('01:00');
 Schedule::command('maintenance:generate-events')->hourly();
 Schedule::command('quality:fire-due-triggers')->everyMinute()->withoutOverlapping();
 Schedule::command('quality:notify-overdue-actions')->dailyAt('07:00');
+// Keep time-based priority rules (hours-until-due) fresh as due dates approach.
+Schedule::command('priority:recalculate')->hourly()->withoutOverlapping();

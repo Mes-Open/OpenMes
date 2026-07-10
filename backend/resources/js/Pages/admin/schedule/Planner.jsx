@@ -4,8 +4,17 @@ import { DatePicker, Dropdown } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import LiveRefresh from '../../../components/LiveRefresh';
 import { __, formatDate, formatNumber } from '../../../lib/i18n';
+import { TIER_BADGE_STYLES, TIER_VALUES, tierLabel } from '../customers/fields';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+// Solid dot color per customer tier, for the compact Gantt cards.
+const TIER_DOT = {
+    bronze: 'bg-amber-500',
+    silver: 'bg-gray-400',
+    gold: 'bg-yellow-400',
+    vip: 'bg-purple-500',
+};
 
 const SHIFT_COLORS = {
     1: { bg: 'bg-sky-300',    label: 'S1', hours: '00-06' },
@@ -77,6 +86,7 @@ export default function Planner() {
         horizonWeeks = 4, showWeekends = true,
         startDate, rangeStart, rangeEnd, navPrev, navNext,
         backlogOrders = [], maintenanceEvents = [], realtimeMode = 'polling',
+        overdueImportant = { count: 0, orders: [] },
     } = usePage().props;
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -98,6 +108,7 @@ export default function Planner() {
     const [backlogSearch, setBacklogSearch] = useState('');
     const [backlogPriority, setBacklogPriority] = useState('');
     const [backlogLine, setBacklogLine] = useState('');
+    const [backlogTier, setBacklogTier] = useState('');
     const [backlogSort, setBacklogSort] = useState('due_date');
 
     // Assign popup
@@ -130,6 +141,8 @@ export default function Planner() {
         id: wo.id,
         order_no: wo.order_no,
         product: wo.product_name ?? '-',
+        customer: wo.customer_name ?? null,
+        customer_tier: wo.customer_tier ?? null,
         qty: wo.planned_qty,
         priority: wo.priority,
         status: STATUS_LABELS[wo.status] ?? wo.status,
@@ -326,9 +339,10 @@ export default function Planner() {
 
     // Filtered + sorted backlog
     const filteredBacklog = backlogItems
-        .filter(i => !backlogSearch || (i.order_no + ' ' + i.product).toLowerCase().includes(backlogSearch.toLowerCase()))
+        .filter(i => !backlogSearch || (i.order_no + ' ' + i.product + ' ' + (i.customer ?? '')).toLowerCase().includes(backlogSearch.toLowerCase()))
         .filter(i => !backlogPriority || String(i.priority) === String(backlogPriority))
         .filter(i => !backlogLine || String(i.line_id) === String(backlogLine) || !i.line_id)
+        .filter(i => !backlogTier || i.customer_tier === backlogTier)
         .sort((a, b) => {
             if (backlogSort === 'priority') return (b.priority ?? 0) - (a.priority ?? 0);
             if (backlogSort === 'planned_qty') return (b.qty ?? 0) - (a.qty ?? 0);
@@ -353,6 +367,31 @@ export default function Planner() {
     return (
         <>
             <Head title="Production Planner" />
+            {overdueImportant.count > 0 && (
+                <div className="mb-3 flex items-start gap-2 rounded-om border border-om-blocked/30 bg-om-blocked-bg px-4 py-2.5 text-[13px] text-om-blocked">
+                    <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                    <div>
+                        <span className="font-semibold">
+                            {__(':count high-tier customer order(s) overdue', { count: overdueImportant.count })}
+                        </span>
+                        {overdueImportant.orders.length > 0 && (
+                            <span className="text-om-muted">
+                                {' — '}
+                                {overdueImportant.orders.slice(0, 5).map((o, idx) => (
+                                    <span key={o.id}>
+                                        {idx > 0 && ', '}
+                                        <Link href={`/admin/work-orders/${o.id}`} className="hover:underline font-medium text-om-blocked">
+                                            {o.order_no}
+                                        </Link>
+                                        {o.customer_name ? ` (${o.customer_name})` : ''}
+                                    </span>
+                                ))}
+                                {overdueImportant.count > 5 && ` +${overdueImportant.count - 5}`}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
             <LiveRefresh
                 pollUrl="/admin/schedule/check-updates"
                 shape="work_orders_all"
@@ -493,6 +532,7 @@ export default function Planner() {
                                 search={backlogSearch} onSearch={setBacklogSearch}
                                 filterLine={backlogLine} onFilterLine={setBacklogLine}
                                 filterPriority={backlogPriority} onFilterPriority={setBacklogPriority}
+                                filterTier={backlogTier} onFilterTier={setBacklogTier}
                                 sort={backlogSort} onSort={setBacklogSort}
                                 groupedBacklog={groupedBacklog} priorityKeys={priorityKeys}
                                 dragOverCell={dragOverCell}
@@ -704,6 +744,7 @@ export default function Planner() {
                     <div className="fixed z-40 bg-om-ink text-om-on-ink rounded-om-sm shadow-xl px-3 py-2 text-xs pointer-events-none max-w-xs"
                          style={{ left: tipPos.x, top: tipPos.y }}>
                         <div className="font-bold mb-1">{tooltip.order_no}</div>
+                        {tooltip.customer && <div className="opacity-80">{__('Customer')}: {tooltip.customer}</div>}
                         <div className="opacity-80">{tooltip.product}</div>
                         <div className="opacity-80">Qty: {tooltip.qty}</div>
                         <div className="opacity-80">Status: {tooltip.status}</div>
@@ -910,10 +951,14 @@ function WeekLineRows({ lineData, dayHeaders, shiftsPerDay, weekNumber, maintena
                                                 <Link href={`/admin/work-orders/${slotOrder.id}`}
                                                    className={`block px-2 py-4 rounded text-[11px] font-medium truncate cursor-pointer hover:opacity-80 transition h-full flex items-center border-2 ${colorClass}`}
                                                    onClick={(e) => { e.preventDefault(); onSelectOrder(slotOrder, dh.date, s); }}
-                                                   onMouseEnter={(e) => onShowTip(e, { order_no: slotOrder.order_no, product: slotOrder.product_name ?? '-', qty: slotOrder.planned_qty, status: STATUS_LABELS[slotOrder.status] ?? slotOrder.status })}
+                                                   onMouseEnter={(e) => onShowTip(e, { order_no: slotOrder.order_no, customer: slotOrder.customer_name ?? null, product: slotOrder.product_name ?? '-', qty: slotOrder.planned_qty, status: STATUS_LABELS[slotOrder.status] ?? slotOrder.status })}
                                                    onMouseLeave={onHideTip}
                                                 >
-                                                    {slotOrder.order_no}
+                                                    {slotOrder.customer_tier && (
+                                                        <span className={`inline-block w-2 h-2 rounded-full mr-1 shrink-0 ${TIER_DOT[slotOrder.customer_tier] ?? ''}`}
+                                                              title={`${slotOrder.customer_name ?? ''}${slotOrder.customer_tier ? ` · ${slotOrder.customer_tier}` : ''}`} />
+                                                    )}
+                                                    <span className="truncate">{slotOrder.order_no}</span>
                                                 </Link>
                                             );
                                         })()}
@@ -1408,6 +1453,7 @@ function MonthlyView({ data, onUnassign }) {
 
 function BacklogPanel({ backlogOrders, backlogItems, allLines,
     search, onSearch, filterLine, onFilterLine, filterPriority, onFilterPriority,
+    filterTier, onFilterTier,
     sort, onSort, groupedBacklog, priorityKeys, dragOverCell, onDragStart, onDragEnd, onCollapse }) {
 
     const totalPcs = backlogOrders.reduce((s, o) => s + (Number(o.planned_qty) || 0), 0);
@@ -1452,6 +1498,16 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                         <button key={pv} onClick={() => onFilterPriority(filterPriority === pv ? '' : pv)}
                                 className={`px-2 py-0.5 text-[10px] font-medium rounded border ${pl.bg} ${pl.color} transition ${filterPriority === pv ? 'ring-2 ring-gray-400' : ''}`}>
                             {pl.icon} {pl.label}
+                        </button>
+                    ))}
+                </div>
+                {/* Tier filter */}
+                <div className="flex flex-wrap gap-1">
+                    <button onClick={() => onFilterTier('')} className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${filterTier === '' ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>{__('All tiers')}</button>
+                    {TIER_VALUES.map((t) => (
+                        <button key={t} onClick={() => onFilterTier(filterTier === t ? '' : t)}
+                                className={`px-2 py-0.5 text-[10px] font-medium rounded border transition ${TIER_BADGE_STYLES[t]} ${filterTier === t ? 'ring-2 ring-gray-400' : ''}`}>
+                            {tierLabel(t)}
                         </button>
                     ))}
                 </div>
@@ -1501,6 +1557,14 @@ function BacklogPanel({ backlogOrders, backlogItems, allLines,
                                                     {item.order_no}
                                                 </Link>
                                                 <div className="text-[10px] text-om-muted mt-0.5">{item.product}</div>
+                                                {item.customer && (
+                                                    <div className="mt-0.5 flex items-center gap-1">
+                                                        <span className="text-[10px] text-om-muted truncate max-w-[110px]" title={item.customer}>{item.customer}</span>
+                                                        {item.customer_tier && (
+                                                            <span className={`px-1 py-0.5 rounded text-[8px] font-medium ${TIER_BADGE_STYLES[item.customer_tier] ?? ''}`}>{tierLabel(item.customer_tier)}</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium border ${WO_COLORS[backlogOrders.find(o => o.id === item.id)?.status] ?? 'bg-om-line2 border-om-line text-om-muted'}`}>
                                                 {item.status}

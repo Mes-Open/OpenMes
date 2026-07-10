@@ -63,7 +63,7 @@ class SchedulePlannerController extends Controller
         $shifts = Shift::where('is_active', true)->orderBy('sort_order')->get();
 
         // Load work orders in range
-        $workOrders = WorkOrder::with(['productType', 'line'])
+        $workOrders = WorkOrder::with(['productType', 'line', 'customer'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->whereIn('line_id', $lineIds)
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
@@ -189,7 +189,7 @@ class SchedulePlannerController extends Controller
         $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
         // Backlog: unassigned work orders (no line or no due_date/week)
-        $backlogOrders = WorkOrder::with(['productType', 'line'])
+        $backlogOrders = WorkOrder::with(['productType', 'line', 'customer'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->where(function ($q) {
                 $q->whereNull('line_id')
@@ -197,9 +197,30 @@ class SchedulePlannerController extends Controller
                         $q2->whereNull('due_date')->whereNull('week_number');
                     });
             })
+            ->orderBy('priority_score', 'desc')
             ->orderBy('priority', 'desc')
             ->orderBy('due_date')
             ->get();
+
+        // High-value orders past due — powers the planner's overdue banner.
+        $importantOverdue = WorkOrder::query()
+            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', now())
+            ->whereHas('customer', fn ($q) => $q->whereIn('tier', ['gold', 'vip']));
+        $importantOverdueCount = (clone $importantOverdue)->count();
+        $importantOverdueOrders = $importantOverdue
+            ->with('customer:id,name,tier')
+            ->orderBy('due_date')
+            ->limit(10)
+            ->get()
+            ->map(fn ($wo) => [
+                'id' => $wo->id,
+                'order_no' => $wo->order_no,
+                'customer_name' => $wo->customer?->name,
+                'tier' => $wo->customer?->tier?->value,
+                'due_date' => $wo->due_date?->format('Y-m-d'),
+            ])->all();
 
         $realtimeMode = trim($settings['realtime_mode'] ?? 'polling', '"\'');
 
@@ -276,9 +297,13 @@ class SchedulePlannerController extends Controller
             }
             if (is_object($item) && method_exists($item, 'toArray')) {
                 $arr = $item->toArray();
-                // Append computed fields for work orders
-                if (isset($arr['product_type'])) {
+                // Append computed fields for work orders. Detect a WO array by the
+                // eager-loaded product_type key, which may itself be null (the
+                // relation is optional) — so key presence, not isset().
+                if (array_key_exists('product_type', $arr)) {
                     $arr['product_name'] = $item->productType?->name;
+                    $arr['customer_name'] = $item->customer?->name;
+                    $arr['customer_tier'] = $item->customer?->tier?->value;
                 }
 
                 return array_map($serializeData, $arr);
@@ -295,11 +320,14 @@ class SchedulePlannerController extends Controller
             'id' => $wo->id,
             'order_no' => $wo->order_no,
             'product_name' => $wo->productType?->name,
+            'customer_name' => $wo->customer?->name,
+            'customer_tier' => $wo->customer?->tier?->value,
             'line_id' => $wo->line_id,
             'due_date' => $wo->due_date?->format('Y-m-d'),
             'planned_qty' => $wo->planned_qty,
             'status' => $wo->status,
             'priority' => $wo->priority,
+            'priority_score' => $wo->priority_score,
         ])->values()->all();
 
         // Flatten lines for props
@@ -325,6 +353,10 @@ class SchedulePlannerController extends Controller
             'backlogOrders' => $backlogFlat,
             'maintenanceEvents' => $maintFlat,
             'realtimeMode' => $realtimeMode,
+            'overdueImportant' => [
+                'count' => $importantOverdueCount,
+                'orders' => $importantOverdueOrders,
+            ],
         ]);
     }
 
