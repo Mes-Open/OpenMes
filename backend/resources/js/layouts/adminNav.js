@@ -113,7 +113,7 @@ export const ADMIN_GROUPS = [
         icon: 'office',
         match: [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
-            '/admin/workstation-types', '/admin/subassemblies',
+            '/admin/workstation-types', '/admin/subassemblies', '/admin/workstation-devices',
         ],
         children: [
             { label: 'Sites', href: '/admin/sites', match: ['/admin/sites'] },
@@ -121,6 +121,7 @@ export const ADMIN_GROUPS = [
             { label: 'Factories', href: '/admin/factories', match: ['/admin/factories'] },
             { label: 'Divisions', href: '/admin/divisions', match: ['/admin/divisions'] },
             { label: 'Workstation Types', href: '/admin/workstation-types', match: ['/admin/workstation-types'] },
+            { label: 'Workstation Devices', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'] },
             { label: 'Subassemblies', href: '/admin/subassemblies', match: ['/admin/subassemblies'] },
         ],
     },

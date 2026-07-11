@@ -75,6 +75,7 @@ class SoftDeleteRegistry
         'material_sublots' => Models\MaterialSublot::class,
         'lines' => Models\Line::class,
         'workstations' => Models\Workstation::class,
+        'workstation_devices' => Models\WorkstationDevice::class,
         'line_view_columns' => Models\LineViewColumn::class,
 
         // Production data
