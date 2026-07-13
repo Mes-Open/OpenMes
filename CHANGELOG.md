@@ -7,6 +7,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-07-13
+
+### Fixed
+- **Maintenance schedule install/upgrade could fail on a database with duplicate generated events** *(migrations)*: the migration that adds the unique `(schedule_id, scheduled_at)` guard to `maintenance_events` de-duplicated existing rows with `pluck(DB::raw('MIN(id)'))`. That looks up a row property literally named `MIN(id)`, which only SQLite produces - PostgreSQL names the aggregate column `min`, so the lookup returned `null`, the de-dup deleted nothing, and creating the unique index then aborted with a duplicate-key error on any database that already held duplicate auto-generated maintenance events. The de-dup now selects the aggregate under an explicit `id` alias (`selectRaw('MIN(id) AS id')`), so it works the same on PostgreSQL and SQLite.
+
 ## [0.16.1] - 2026-06-30
 
 ### Fixed
