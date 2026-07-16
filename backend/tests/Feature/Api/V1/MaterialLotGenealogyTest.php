@@ -23,7 +23,7 @@ class MaterialLotGenealogyTest extends TestCase
     {
         parent::setUp();
 
-        Role::create(['name' => 'Admin', 'guard_name' => 'web']);
+        Role::findOrCreate('Admin', 'web');
         $this->user = User::factory()->create();
         $this->user->assignRole('Admin');
     }
@@ -63,6 +63,39 @@ class MaterialLotGenealogyTest extends TestCase
         $this->assertCount(2, $payload['consumptions']);
         $this->assertEqualsWithDelta(40.0, (float) $payload['total_consumed'], 0.0001);
         $this->assertEquals([$step->id], $payload['consumed_in_steps']);
+    }
+
+    public function test_forward_genealogy_includes_recall_impact(): void
+    {
+        $lot = MaterialLot::factory()->create([
+            'tenant_id' => $this->user->tenant_id,
+            'quantity_received' => 100,
+            'quantity_available' => 60,
+        ]);
+
+        $wo = WorkOrder::factory()->create();
+        $batch = Batch::factory()->create(['work_order_id' => $wo->id]);
+        $step = BatchStep::factory()->create(['batch_id' => $batch->id]);
+
+        BatchStepLotConsumption::create([
+            'batch_step_id' => $step->id,
+            'material_lot_id' => $lot->id,
+            'quantity_consumed' => 25,
+            'consumed_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user, 'sanctum')
+            ->getJson("/api/v1/material-lots/{$lot->id}/genealogy/forward");
+
+        $response->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    'recall' => ['work_orders', 'truncated', 'totals' => ['work_orders', 'finished_serials', 'quantity_consumed']],
+                ],
+            ]);
+
+        $this->assertSame(1, $response->json('data.recall.totals.work_orders'));
+        $this->assertSame($wo->id, $response->json('data.recall.work_orders.0.id'));
     }
 
     public function test_backward_genealogy_returns_inspection_and_supplier(): void

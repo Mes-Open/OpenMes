@@ -2,9 +2,9 @@
 
 namespace App\Services\CsvImport;
 
-use App\Models\WorkOrder;
 use App\Models\Line;
 use App\Models\ProductType;
+use App\Models\WorkOrder;
 use App\Services\ProcessTemplate\SnapshotService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,11 +19,11 @@ class WorkOrderImportService
     /**
      * Import work orders from parsed CSV data.
      *
-     * @param array $mappedData Parsed and mapped CSV data
-     * @param string $strategy Import strategy (update_or_create, skip_existing, error_on_duplicate)
+     * @param  array  $mappedData  Parsed and mapped CSV data
+     * @param  string  $strategy  Import strategy (update_or_create, skip_existing, error_on_duplicate)
      * @return array Import results
      */
-    public function import(array $mappedData, string $strategy): array
+    public function import(array $mappedData, string $strategy, ?int $targetLineId = null): array
     {
         $successful = 0;
         $failed = 0;
@@ -32,7 +32,7 @@ class WorkOrderImportService
 
         foreach ($mappedData as $row) {
             try {
-                $result = $this->importRow($row, $strategy);
+                $result = $this->importRow($row, $strategy, $targetLineId);
 
                 if ($result['status'] === 'success') {
                     $successful++;
@@ -70,22 +70,30 @@ class WorkOrderImportService
     /**
      * Import a single row.
      */
-    protected function importRow(array $row, string $strategy): array
+    protected function importRow(array $row, string $strategy, ?int $targetLineId = null): array
     {
         // Validate required fields
         if (empty($row['order_no'])) {
             return ['status' => 'error', 'error' => 'Order number is required'];
         }
 
-        // Find line by code
-        $line = Line::where('code', $row['line_code'])->first();
-        if (!$line) {
-            return ['status' => 'error', 'error' => "Line '{$row['line_code']}' not found"];
+        // Find the line: an explicit "assign all rows to this line" override wins
+        // over the per-row line_code column (mirrors the web importer).
+        if ($targetLineId !== null) {
+            $line = Line::find($targetLineId);
+            if (! $line) {
+                return ['status' => 'error', 'error' => "Target line #{$targetLineId} not found"];
+            }
+        } else {
+            $line = Line::where('code', $row['line_code'])->first();
+            if (! $line) {
+                return ['status' => 'error', 'error' => "Line '{$row['line_code']}' not found"];
+            }
         }
 
         // Find product type by code
         $productType = ProductType::where('code', $row['product_type_code'])->first();
-        if (!$productType) {
+        if (! $productType) {
             return ['status' => 'error', 'error' => "Product type '{$row['product_type_code']}' not found"];
         }
 
@@ -172,7 +180,7 @@ class WorkOrderImportService
                 ->where('is_active', true)
                 ->first();
 
-            if (!$processTemplate) {
+            if (! $processTemplate) {
                 throw new \Exception("No active process template found for product type '{$productType->code}'");
             }
 

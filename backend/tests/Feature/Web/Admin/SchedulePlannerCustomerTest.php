@@ -25,7 +25,7 @@ class SchedulePlannerCustomerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Role::create(['name' => 'Admin', 'guard_name' => 'web']);
+        Role::findOrCreate('Admin', 'web');
         $this->admin = User::factory()->create();
         $this->admin->assignRole('Admin');
     }

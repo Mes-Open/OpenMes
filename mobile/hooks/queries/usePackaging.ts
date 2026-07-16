@@ -2,15 +2,107 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   createEan,
+  createLabelTemplate,
+  createPallet,
   deleteEan,
+  deleteLabelTemplate,
+  deletePallet,
+  getLabelTemplateMeta,
   getPackagingStats,
+  getPalletMeta,
   listEans,
+  listLabelTemplates,
   listPackagingItems,
+  listPallets,
   listScanLogs,
   scanEan,
+  setLabelTemplateDefault,
+  updateLabelTemplate,
+  updatePallet,
   type EanFilters,
+  type LabelTemplateInput,
+  type PalletInput,
+  type PalletStatus,
   type ScanLogFilters,
 } from '@/api/packaging';
+
+export function usePallets(status?: PalletStatus) {
+  return useQuery({
+    queryKey: ['packaging', 'pallets', status ?? 'all'],
+    queryFn: () => listPallets(status),
+  });
+}
+
+export function usePalletMeta() {
+  return useQuery({ queryKey: ['packaging', 'pallet-meta'], queryFn: getPalletMeta, staleTime: 5 * 60 * 1000 });
+}
+
+export function useCreatePallet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: PalletInput) => createPallet(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['packaging', 'pallets'] }),
+  });
+}
+
+export function useUpdatePallet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: number; input: PalletInput }) => updatePallet(vars.id, vars.input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['packaging', 'pallets'] }),
+  });
+}
+
+export function useDeletePallet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deletePallet,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['packaging', 'pallets'] }),
+  });
+}
+
+export function useLabelTemplates() {
+  return useQuery({
+    queryKey: ['packaging', 'label-templates'],
+    queryFn: listLabelTemplates,
+  });
+}
+
+export function useLabelTemplateMeta() {
+  return useQuery({ queryKey: ['packaging', 'label-template-meta'], queryFn: getLabelTemplateMeta, staleTime: 30 * 60 * 1000 });
+}
+
+export function useCreateLabelTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: LabelTemplateInput) => createLabelTemplate(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['packaging', 'label-templates'] }),
+  });
+}
+
+export function useUpdateLabelTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: number; input: LabelTemplateInput }) => updateLabelTemplate(vars.id, vars.input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['packaging', 'label-templates'] }),
+  });
+}
+
+export function useSetLabelTemplateDefault() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: setLabelTemplateDefault,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['packaging', 'label-templates'] }),
+  });
+}
+
+export function useDeleteLabelTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteLabelTemplate,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['packaging', 'label-templates'] }),
+  });
+}
 
 export function usePackagingItems() {
   return useQuery({

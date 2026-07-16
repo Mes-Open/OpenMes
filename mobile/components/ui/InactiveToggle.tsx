@@ -1,5 +1,6 @@
 // Light-only v1: Colors[scheme] switching dropped — Geist White tokens; dark shop-floor theming returns via token theming later.
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors, fonts, monoLabel, radius } from '@openmes/ui';
 
@@ -11,10 +12,11 @@ interface Props {
   label?: string;
 }
 
-export function InactiveToggle({ value, onValueChange, label = 'SHOW INACTIVE' }: Props) {
+export function InactiveToggle({ value, onValueChange, label = 'Show inactive' }: Props) {
+  const { t } = useTranslation();
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{label.toUpperCase()}</Text>
+      <Text style={styles.label}>{t(label).toUpperCase()}</Text>
       <Switch value={value} onValueChange={onValueChange} />
     </View>
   );

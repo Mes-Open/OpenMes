@@ -3,15 +3,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+
+import { colors, fonts, radius } from '@openmes/ui';
 
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { Mono, SectionLabel } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useIssue } from '@/hooks/queries/useIssues';
 import {
   useAcknowledgeIssue,
@@ -37,8 +37,7 @@ export function IssueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const numericId = Number(id);
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+  const { t } = useTranslation();
 
   const issue = useIssue(numericId);
   const ack = useAcknowledgeIssue();
@@ -61,52 +60,51 @@ export function IssueDetailScreen() {
     if (data.created_at) {
       events.push({
         t: fmtTime(data.created_at),
-        what: 'Reported issue',
-        who: data.reported_by ? `${data.reported_by.username} · Operator` : 'Operator',
-        dot: palette.danger,
+        what: t('Reported issue'),
+        who: data.reported_by ? `${data.reported_by.username} · ${t('Operator')}` : t('Operator'),
+        dot: colors.blocked,
       });
     }
     if (data.acknowledged_at) {
       events.push({
         t: fmtTime(data.acknowledged_at),
-        what: 'Acknowledged',
-        who: 'Supervisor',
-        dot: palette.warning,
+        what: t('Acknowledged'),
+        who: t('Supervisor'),
+        dot: colors.downtime,
       });
     } else if (data.status === 'OPEN') {
       events.push({
         t: '—',
-        what: 'Awaiting acknowledgement',
-        who: 'No supervisor on line yet',
-        dot: '#cfccc4',
+        what: t('Awaiting acknowledgement'),
+        who: t('No supervisor on line yet'),
+        dot: colors.faintest,
         faint: true,
       });
     }
     if (data.resolved_at) {
       events.push({
         t: fmtTime(data.resolved_at),
-        what: 'Resolved',
-        who: 'Supervisor',
-        dot: palette.success,
+        what: t('Resolved'),
+        who: t('Supervisor'),
+        dot: colors.done,
       });
     } else if (data.status === 'ACKNOWLEDGED') {
       events.push({
         t: '—',
-        what: 'Pending resolution',
-        who: 'Action required',
-        dot: '#cfccc4',
+        what: t('Pending resolution'),
+        who: t('Action required'),
+        dot: colors.faintest,
         faint: true,
       });
     }
     return events;
-  }, [issue.data, palette.danger, palette.warning, palette.success]);
+  }, [issue.data, t]);
 
   if (issue.isLoading) return <LoadingState />;
   if (issue.isError || !issue.data) return <ErrorState error={issue.error} onRetry={issue.refetch} />;
 
   const data = issue.data;
   const isBlocking = data.issue_type?.is_blocking;
-  const accent = isBlocking ? palette.danger : palette.warning;
   const openedAgo = data.created_at
     ? (() => {
         try {
@@ -117,8 +115,7 @@ export function IssueDetailScreen() {
       })()
     : null;
 
-  const onAck = () =>
-    ack.mutate(numericId, { onError: (e: Error) => Alert.alert('Failed', e.message) });
+  const onAck = () => ack.mutate(numericId, { onError: (e: Error) => Alert.alert('Failed', e.message) });
   const onResolve = () =>
     resolve.mutate(
       { id: numericId, resolutionNotes: resolution || undefined },
@@ -127,88 +124,41 @@ export function IssueDetailScreen() {
         onError: (e: Error) => Alert.alert('Failed', e.message),
       },
     );
-  const onClose = () =>
-    close.mutate(numericId, { onError: (e: Error) => Alert.alert('Failed', e.message) });
+  const onClose = () => close.mutate(numericId, { onError: (e: Error) => Alert.alert('Failed', e.message) });
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader
-        back
-        title={`Issue #${data.id}`}
-        subtitle={(data.issue_type?.name ?? '').toUpperCase()}
-      />
-      <ScrollView
-        style={{ flex: 1, backgroundColor: palette.background }}
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled">
-        {/* Hero */}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      {/* Hero */}
       <View>
         <View style={styles.tagsRow}>
           {isBlocking ? (
-            <View style={[styles.severityTag, { backgroundColor: palette.danger }]}>
-              <Mono size={9.5} color="#fff" weight="700" letterSpacing={0.6}>BLOCKING</Mono>
+            <View style={[styles.severityTag, { backgroundColor: colors.blocked }]}>
+              <Mono size={9.5} color="#fff" weight="700" letterSpacing={0.6}>{t('Blocking').toUpperCase()}</Mono>
             </View>
           ) : null}
-          <Mono size={11} color={palette.textFaint}>
+          <Mono size={11} color={colors.faint}>
             {[data.line?.name, data.work_order?.order_no].filter(Boolean).join(' · ').toUpperCase()}
           </Mono>
         </View>
-        <Text style={[styles.title, { color: palette.text }]}>
-          {data.issue_type?.name ?? `Issue #${data.id}`}
-        </Text>
-        {data.description ? (
-          <Text style={[styles.description, { color: palette.textMuted }]}>
-            {data.description}
-          </Text>
-        ) : null}
+        <Mono size={10} color={colors.faint} letterSpacing={1.2} style={{ marginTop: 8 }}>{`ISSUE #${data.id}`}</Mono>
+        <Text style={styles.title}>{data.issue_type?.name ?? `${t('Issue')} #${data.id}`}</Text>
+        {data.description ? <Text style={styles.description}>{data.description}</Text> : null}
         <View style={styles.statusRow}>
-          <View
-            style={[
-              styles.openPill,
-              {
-                backgroundColor: data.status === 'OPEN' ? palette.dangerSoft : palette.surfaceAlt,
-              },
-            ]}>
-            <View
-              style={[
-                styles.openDot,
-                { backgroundColor: data.status === 'OPEN' ? palette.danger : palette.textFaint },
-              ]}
-            />
-            <Mono
-              size={10.5}
-              color={data.status === 'OPEN' ? palette.danger : palette.textMuted}
-              weight="700"
-              letterSpacing={0.5}>
-              {data.status}{openedAgo ? ` · ${openedAgo.toUpperCase()}` : ''}
-            </Mono>
-          </View>
-          {isBlocking ? (
-            <Mono size={10.5} color={palette.textFaint} letterSpacing={0.6}>
-              HIGH SEVERITY
-            </Mono>
-          ) : null}
+          <StatusPill status={data.status} />
+          {openedAgo ? <Mono size={10.5} color={colors.faint} letterSpacing={0.5}>{openedAgo.toUpperCase()}</Mono> : null}
+          {isBlocking ? <Mono size={10.5} color={colors.faint} letterSpacing={0.6}>{t('High severity').toUpperCase()}</Mono> : null}
         </View>
       </View>
 
       {/* Action bar */}
       {canManage && data.status === 'OPEN' ? (
         <View style={styles.actionBar}>
-          <Button
-            title="Acknowledge"
-            variant="secondary"
-            style={{ flex: 1 }}
-            onPress={onAck}
-            loading={ack.isPending}
-          />
+          <Button title={t('Acknowledge')} variant="secondary" style={{ flex: 1 }} onPress={onAck} loading={ack.isPending} />
           <Pressable
             onPress={onAck}
             disabled={ack.isPending}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              { borderColor: palette.border, opacity: pressed ? 0.6 : 1 },
-            ]}>
-            <FontAwesome name="check" size={18} color={palette.success} />
+            style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}>
+            <FontAwesome name="check" size={18} color={colors.done} />
           </Pressable>
         </View>
       ) : null}
@@ -216,42 +166,29 @@ export function IssueDetailScreen() {
       {/* Timeline */}
       <View>
         <SectionLabel>Timeline</SectionLabel>
-        <Card style={{ padding: 14, gap: 0 }}>
+        <View style={[styles.card, { padding: 14 }]}>
           {timeline.map((e, i) => (
-            <View
-              key={i}
-              style={[
-                styles.tlRow,
-                i < timeline.length - 1 ? { paddingBottom: 14 } : null,
-              ]}>
+            <View key={i} style={[styles.tlRow, i < timeline.length - 1 ? { paddingBottom: 14 } : null]}>
               <View style={styles.tlCol}>
                 <View style={[styles.tlDot, { backgroundColor: e.dot }]} />
-                {i < timeline.length - 1 ? (
-                  <View style={[styles.tlLine, { backgroundColor: palette.border }]} />
-                ) : null}
+                {i < timeline.length - 1 ? <View style={styles.tlLine} /> : null}
               </View>
               <View style={{ flex: 1, paddingBottom: 4 }}>
-                <Mono
-                  size={11}
-                  color={e.faint ? palette.textFaint : palette.textMuted}>
-                  {e.t}
-                </Mono>
+                <Mono size={11} color={e.faint ? colors.faint : colors.muted}>{e.t}</Mono>
                 <Text
                   style={{
                     fontSize: 13,
-                    fontWeight: e.faint ? '400' : '600',
-                    color: e.faint ? palette.textFaint : palette.text,
+                    fontFamily: e.faint ? fonts.sans.native.regular : fonts.sans.native.medium,
+                    color: e.faint ? colors.faint : colors.ink,
                     marginTop: 3,
                   }}>
                   {e.what}
                 </Text>
-                <Mono size={10.5} color={palette.textFaint} style={{ marginTop: 3 }}>
-                  {e.who}
-                </Mono>
+                <Mono size={10.5} color={colors.faint} style={{ marginTop: 3 }}>{e.who}</Mono>
               </View>
             </View>
           ))}
-        </Card>
+        </View>
       </View>
 
       {/* Linked WO */}
@@ -261,46 +198,28 @@ export function IssueDetailScreen() {
           <Pressable
             onPress={() => router.push(`/work-orders/${data.work_order!.id}` as never)}
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-            <Card style={{ padding: 0, overflow: 'hidden' }}>
+            <View style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
               <View style={styles.linkedRow}>
-                <View
-                  style={[
-                    styles.linkedRail,
-                    { backgroundColor: data.status === 'OPEN' ? palette.danger : palette.success },
-                  ]}
-                />
+                <View style={[styles.linkedRail, { backgroundColor: data.status === 'OPEN' ? colors.blocked : colors.done }]} />
                 <View style={{ flex: 1, padding: 14 }}>
-                  <Mono size={10.5} color={palette.textFaint} letterSpacing={0.5}>
-                    {data.work_order.order_no}
-                  </Mono>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: '600',
-                      color: palette.text,
-                      marginTop: 3,
-                    }}>
-                    {data.work_order.product_type?.name ?? 'Work order'}
-                  </Text>
-                  <Mono
-                    size={10.5}
-                    color={data.status === 'OPEN' ? palette.danger : palette.textMuted}
-                    style={{ marginTop: 4 }}>
+                  <Mono size={10.5} color={colors.faint} letterSpacing={0.5}>{data.work_order.order_no}</Mono>
+                  <Text style={styles.linkedTitle}>{data.work_order.product_type?.name ?? t('Work order')}</Text>
+                  <Mono size={10.5} color={data.status === 'OPEN' ? colors.blocked : colors.muted} style={{ marginTop: 4 }}>
                     {`● ${(data.work_order.status ?? '').toUpperCase()}`}
                   </Mono>
                 </View>
                 <View style={{ paddingRight: 14 }}>
-                  <FontAwesome name="chevron-right" size={12} color={palette.textFaint} />
+                  <FontAwesome name="chevron-right" size={12} color={colors.faint} />
                 </View>
               </View>
-            </Card>
+            </View>
           </Pressable>
         </View>
       ) : null}
 
       {/* Resolve form (Supervisor/Admin only, while OPEN/ACKNOWLEDGED) */}
       {canManage && (data.status === 'OPEN' || data.status === 'ACKNOWLEDGED') ? (
-        <Card style={{ gap: 10 }}>
+        <View style={[styles.card, { padding: 14, gap: 10 }]}>
           <SectionLabel>Resolve</SectionLabel>
           <Field
             label="Resolution notes"
@@ -310,31 +229,23 @@ export function IssueDetailScreen() {
             numberOfLines={3}
             style={{ minHeight: 80, textAlignVertical: 'top' }}
           />
-          <Button
-            title="Mark resolved"
-            variant="success"
-            onPress={onResolve}
-            loading={resolve.isPending}
-          />
-        </Card>
+          <Button title={t('Mark resolved')} variant="success" onPress={onResolve} loading={resolve.isPending} />
+        </View>
       ) : null}
 
       {canManage && data.status === 'RESOLVED' ? (
-        <Button title="Close" onPress={onClose} loading={close.isPending} variant="outline" />
+        <Button title={t('Close')} onPress={onClose} loading={close.isPending} variant="outline" />
       ) : null}
 
       {data.resolution_notes ? (
         <View>
           <SectionLabel>Resolution notes</SectionLabel>
-          <Card>
-            <Text style={{ color: palette.text, fontSize: 14, lineHeight: 20 }}>
-              {data.resolution_notes}
-            </Text>
-          </Card>
+          <View style={[styles.card, { padding: 14 }]}>
+            <Text style={styles.notes}>{data.resolution_notes}</Text>
+          </View>
         </View>
       ) : null}
-      </ScrollView>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -347,34 +258,22 @@ function fmtTime(iso: string): string {
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
   container: { padding: 18, gap: 14 },
+  card: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md },
   tagsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  severityTag: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 },
-  title: { fontSize: 22, fontWeight: '700', letterSpacing: -0.3, marginTop: 8 },
-  description: { fontSize: 13, lineHeight: 19, marginTop: 8 },
+  severityTag: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: radius.sm },
+  title: { fontSize: 22, fontFamily: fonts.sans.native.semibold, letterSpacing: -0.4, color: colors.ink, marginTop: 4 },
+  description: { fontSize: 13, lineHeight: 19, marginTop: 8, color: colors.muted, fontFamily: fonts.sans.native.regular },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  openPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-  },
-  openDot: { width: 6, height: 6, borderRadius: 3 },
   actionBar: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  iconBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  iconBtn: { width: 48, height: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   tlRow: { flexDirection: 'row', gap: 10 },
   tlCol: { width: 12, alignItems: 'center' },
   tlDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
-  tlLine: { width: 1, flex: 1, marginTop: 4 },
+  tlLine: { width: 1, flex: 1, marginTop: 4, backgroundColor: colors.line },
   linkedRow: { flexDirection: 'row', alignItems: 'center' },
   linkedRail: { width: 4, alignSelf: 'stretch' },
+  linkedTitle: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink, marginTop: 3 },
+  notes: { color: colors.ink, fontSize: 14, lineHeight: 20, fontFamily: fonts.sans.native.regular },
 });

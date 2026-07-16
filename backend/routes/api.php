@@ -13,18 +13,23 @@ use App\Http\Controllers\Api\V1\BomItemController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\ConnectivityController;
 use App\Http\Controllers\Api\V1\CostSourceController;
+use App\Http\Controllers\Api\V1\CrewBreakWindowController;
 use App\Http\Controllers\Api\V1\CrewController;
 use App\Http\Controllers\Api\V1\CsvImportController;
+use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
 use App\Http\Controllers\Api\V1\DivisionController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\FactoryController;
 use App\Http\Controllers\Api\V1\InspectionController;
 use App\Http\Controllers\Api\V1\InspectionPlanController;
+use App\Http\Controllers\Api\V1\IntegrationConfigController;
 use App\Http\Controllers\Api\V1\IssueController;
 use App\Http\Controllers\Api\V1\IssueTypeController;
+use App\Http\Controllers\Api\V1\LabelTemplateController;
 use App\Http\Controllers\Api\V1\LineController;
 use App\Http\Controllers\Api\V1\LineStatusController;
 use App\Http\Controllers\Api\V1\LotSequenceController;
+use App\Http\Controllers\Api\V1\MachineMonitorController;
 use App\Http\Controllers\Api\V1\MaintenanceEventController;
 use App\Http\Controllers\Api\V1\MaintenanceScheduleController;
 use App\Http\Controllers\Api\V1\MaterialController;
@@ -32,16 +37,21 @@ use App\Http\Controllers\Api\V1\MaterialLotController;
 use App\Http\Controllers\Api\V1\MaterialTypeController;
 use App\Http\Controllers\Api\V1\OeeController as ApiOeeController;
 use App\Http\Controllers\Api\V1\PackagingChecklistController;
+use App\Http\Controllers\Api\V1\PalletController;
 use App\Http\Controllers\Api\V1\ProcessConfirmationController;
 use App\Http\Controllers\Api\V1\ProcessTemplateController;
 use App\Http\Controllers\Api\V1\ProductionAnomalyController;
 use App\Http\Controllers\Api\V1\ProductTypeController;
 use App\Http\Controllers\Api\V1\QualityCheckController;
+use App\Http\Controllers\Api\V1\QualityControlTaskController;
+use App\Http\Controllers\Api\V1\QualityControlTriggerController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ScheduleCapacityController;
 use App\Http\Controllers\Api\V1\ScheduleController;
 use App\Http\Controllers\Api\V1\ScrapEntryController;
 use App\Http\Controllers\Api\V1\ScrapReasonController;
 use App\Http\Controllers\Api\V1\ShiftController;
+use App\Http\Controllers\Api\V1\ShiftHandoverController;
 use App\Http\Controllers\Api\V1\SkillController;
 use App\Http\Controllers\Api\V1\SubassemblyController;
 use App\Http\Controllers\Api\V1\SystemController;
@@ -49,6 +59,7 @@ use App\Http\Controllers\Api\V1\SystemLogController;
 use App\Http\Controllers\Api\V1\ToolController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WageGroupController;
+use App\Http\Controllers\Api\V1\WorkerAbsenceController;
 use App\Http\Controllers\Api\V1\WorkerController;
 use App\Http\Controllers\Api\V1\WorkOrderController;
 use App\Http\Controllers\Api\V1\WorkstationController;
@@ -147,7 +158,9 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/factories', [FactoryController::class, 'index']);
     Route::get('/factories/{factory}', [FactoryController::class, 'show']);
     Route::get('/factories/{factory}/divisions', [DivisionController::class, 'index']);
+    Route::get('/divisions', [DivisionController::class, 'all']);
     Route::get('/divisions/{division}', [DivisionController::class, 'show']);
+    Route::get('/line-statuses', [LineStatusController::class, 'globalIndex']);
     Route::get('/lines/{line}/statuses', [LineStatusController::class, 'index']);
 
     // ISA-95 equipment hierarchy — sites & areas. Read for any authenticated
@@ -311,6 +324,50 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     // Lines + Workstations admin mutations
     Route::middleware('role:Admin')->group(function () {
+        // Integrations + custom fields + QC triggers — full CRUD.
+        Route::get('/integrations', [IntegrationConfigController::class, 'index']);
+        Route::post('/integrations', [IntegrationConfigController::class, 'store']);
+        Route::patch('/integrations/{integration}', [IntegrationConfigController::class, 'update']);
+        Route::post('/integrations/{integration}/toggle-active', [IntegrationConfigController::class, 'toggleActive']);
+        Route::delete('/integrations/{integration}', [IntegrationConfigController::class, 'destroy']);
+        Route::get('/custom-fields', [CustomFieldDefinitionController::class, 'index']);
+        Route::get('/custom-fields/meta', [CustomFieldDefinitionController::class, 'formMeta']);
+        Route::post('/custom-fields', [CustomFieldDefinitionController::class, 'store']);
+        Route::patch('/custom-fields/{customField}', [CustomFieldDefinitionController::class, 'update']);
+        Route::post('/custom-fields/{customField}/toggle-active', [CustomFieldDefinitionController::class, 'toggleActive']);
+        Route::delete('/custom-fields/{customField}', [CustomFieldDefinitionController::class, 'destroy']);
+        Route::get('/quality-control-triggers', [QualityControlTriggerController::class, 'index']);
+        Route::get('/quality-control-triggers/meta', [QualityControlTriggerController::class, 'formMeta']);
+        Route::post('/quality-control-triggers', [QualityControlTriggerController::class, 'store']);
+        Route::patch('/quality-control-triggers/{qualityControlTrigger}', [QualityControlTriggerController::class, 'update']);
+        Route::post('/quality-control-triggers/{qualityControlTrigger}/toggle-active', [QualityControlTriggerController::class, 'toggleActive']);
+        Route::delete('/quality-control-triggers/{qualityControlTrigger}', [QualityControlTriggerController::class, 'destroy']);
+
+        // Worker absences (HR) — REST twin of web Admin\WorkerAbsenceController.
+        Route::get('/worker-absences', [WorkerAbsenceController::class, 'index']);
+        Route::post('/worker-absences', [WorkerAbsenceController::class, 'store']);
+        Route::delete('/worker-absences/{workerAbsence}', [WorkerAbsenceController::class, 'destroy']);
+
+        // Crew break windows (HR) — REST twin of web Admin\CrewBreakWindowController.
+        Route::get('/crew-break-windows', [CrewBreakWindowController::class, 'index']);
+        Route::post('/crew-break-windows', [CrewBreakWindowController::class, 'store']);
+        Route::delete('/crew-break-windows/{crewBreakWindow}', [CrewBreakWindowController::class, 'destroy']);
+
+        Route::get('/webhooks', [\App\Http\Controllers\Api\V1\WebhookController::class, 'index']);
+        Route::get('/webhook-event-types', [\App\Http\Controllers\Api\V1\WebhookController::class, 'eventTypes']);
+        Route::post('/webhooks', [\App\Http\Controllers\Api\V1\WebhookController::class, 'store']);
+        Route::patch('/webhooks/{webhook}', [\App\Http\Controllers\Api\V1\WebhookController::class, 'update']);
+        Route::post('/webhooks/{webhook}/toggle-active', [\App\Http\Controllers\Api\V1\WebhookController::class, 'toggleActive']);
+        Route::delete('/webhooks/{webhook}', [\App\Http\Controllers\Api\V1\WebhookController::class, 'destroy']);
+
+        Route::get('/trash', [\App\Http\Controllers\Api\V1\TrashController::class, 'index']);
+        Route::post('/trash/{type}/{id}/restore', [\App\Http\Controllers\Api\V1\TrashController::class, 'restore']);
+
+        Route::get('/view-templates', [\App\Http\Controllers\Api\V1\ViewTemplateController::class, 'index']);
+        Route::post('/view-templates', [\App\Http\Controllers\Api\V1\ViewTemplateController::class, 'store']);
+        Route::patch('/view-templates/{viewTemplate}', [\App\Http\Controllers\Api\V1\ViewTemplateController::class, 'update']);
+        Route::delete('/view-templates/{viewTemplate}', [\App\Http\Controllers\Api\V1\ViewTemplateController::class, 'destroy']);
+
         Route::post('/lines', [LineController::class, 'store']);
         Route::patch('/lines/{line}', [LineController::class, 'update']);
         Route::delete('/lines/{line}', [LineController::class, 'destroy']);
@@ -485,6 +542,23 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         // Mirrors web Admin\SchedulePlannerController.updateOrder / resizeOrder.
         Route::put('/schedule/{workOrder}', [ScheduleController::class, 'updateOrder']);
         Route::put('/schedule/{workOrder}/resize', [ScheduleController::class, 'resizeOrder']);
+
+        // Capacity view — available vs planned hours per resource per bucket.
+        Route::get('/schedule/capacity', [ScheduleCapacityController::class, 'index']);
+        Route::get('/schedule/capacity/cell', [ScheduleCapacityController::class, 'cellOrders']);
+
+        // Packaging (now core) — full CRUD.
+        Route::get('/pallets', [PalletController::class, 'index']);
+        Route::get('/pallets/meta', [PalletController::class, 'formMeta']);
+        Route::post('/pallets', [PalletController::class, 'store']);
+        Route::patch('/pallets/{pallet}', [PalletController::class, 'update']);
+        Route::delete('/pallets/{pallet}', [PalletController::class, 'destroy']);
+        Route::get('/label-templates', [LabelTemplateController::class, 'index']);
+        Route::get('/label-templates/meta', [LabelTemplateController::class, 'formMeta']);
+        Route::post('/label-templates', [LabelTemplateController::class, 'store']);
+        Route::patch('/label-templates/{labelTemplate}', [LabelTemplateController::class, 'update']);
+        Route::post('/label-templates/{labelTemplate}/set-default', [LabelTemplateController::class, 'setDefault']);
+        Route::delete('/label-templates/{labelTemplate}', [LabelTemplateController::class, 'destroy']);
     });
 
     // Work Orders
@@ -607,8 +681,18 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         });
     });
 
+    // Quality control tasks — outstanding controls queue + skip (operators/supervisors).
+    Route::get('/quality-control-tasks', [QualityControlTaskController::class, 'index']);
+    Route::post('/quality-control-tasks/{task}/skip', [QualityControlTaskController::class, 'skip']);
+
     // Analytics (Supervisor/Admin)
     Route::middleware('role:Supervisor|Admin')->group(function () {
+        // Quality control — record a control / raise an ad-hoc roaming check.
+        Route::post('/quality-control-tasks/{task}/perform', [QualityControlTaskController::class, 'perform']);
+        Route::post('/quality-control-tasks', [QualityControlTaskController::class, 'storeRoaming']);
+
+        Route::get('/admin/dashboard', [\App\Http\Controllers\Api\V1\AdminDashboardController::class, 'index']);
+        Route::get('/alerts', [\App\Http\Controllers\Api\V1\AlertController::class, 'index']);
         Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
         Route::get('/analytics/production-by-line', [AnalyticsController::class, 'productionByLine']);
         Route::get('/analytics/cycle-time', [AnalyticsController::class, 'cycleTime']);
@@ -625,7 +709,16 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::get('/reports/scrap-rate', [ReportController::class, 'scrapRate']);
         Route::get('/reports/non-conformance-pareto', [ReportController::class, 'nonConformancePareto']);
         Route::get('/reports/net-requirements', [ReportController::class, 'netRequirements']);
+        Route::get('/reports/production-cost', [\App\Http\Controllers\Api\V1\ProductionCostReportController::class, 'index']);
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv']);
+
+        // Shift handover — REST twin of web Supervisor\ShiftHandoverController.
+        Route::get('/shift-handover', [ShiftHandoverController::class, 'index']);
+        Route::post('/shift-handover', [ShiftHandoverController::class, 'store']);
+
+        // Machine monitor — live fleet status + manual state override (#87).
+        Route::get('/machine-monitor', [MachineMonitorController::class, 'index']);
+        Route::post('/machine-monitor/{workstation}/state', [MachineMonitorController::class, 'setState']);
     });
 
     // Packaging routes removed — module retired via

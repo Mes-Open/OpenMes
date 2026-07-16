@@ -260,7 +260,7 @@ export function DataTable({
                                                             : 'descending'
                                                         : undefined
                                                 }
-                                                className={`whitespace-nowrap border-b border-om-line2 px-4 py-[10px] font-mono text-[9px] font-medium tracking-[0.1em] uppercase select-none ${
+                                                className={`whitespace-nowrap border-b border-om-line2 px-4 py-[10px] font-mono text-[9px] tracking-[0.1em] uppercase select-none ${
                                                     sorted ? 'text-om-ink' : 'text-om-faint'
                                                 } ${col.getCanSort() ? 'cursor-pointer' : ''} ${
                                                     align === 'right' ? 'text-right' : 'text-left'

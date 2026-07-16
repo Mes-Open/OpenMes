@@ -1,115 +1,47 @@
-import { FontAwesome } from '@expo/vector-icons';
-import {
-  DrawerContentScrollView,
-  type DrawerContentComponentProps,
-} from '@react-navigation/drawer';
+import { type DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { logout } from '@/api/auth';
 import { BrandLogo } from '@/components/ui/Brand';
+import { HeroIcon, type HeroIconKey } from '@/components/ui/HeroIcon';
 import { Mono } from '@/components/ui/Mono';
-import { RoleBadge, roleColor } from '@/components/ui/RoleBadge';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
+import { SearchBar } from '@/components/ui/SearchBar';
+import { roleColor } from '@/components/ui/RoleBadge';
+import {
+  activeMatch,
+  containsActive,
+  filterByTabs,
+  navForRole,
+  searchHits,
+  toMatch,
+  type NavNode,
+} from '@/components/tablet/navItems';
+import { colors as tokens, fonts, currentTheme } from '@openmes/ui';
+
+import Colors, { MONO } from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useAlertCounts } from '@/hooks/queries/useSystem';
+import { useAlertCounts, useUpdateCheck } from '@/hooks/queries/useSystem';
 import { getRole, useAuthStore } from '@/stores/authStore';
+import { useDeviceClass } from '@/hooks/useDeviceClass';
 import { useSettingsStore, type ThemePreference } from '@/stores/settingsStore';
 
-interface NavItem {
-  key: string;
-  icon: React.ComponentProps<typeof FontAwesome>['name'];
-  label: string;
-  route: string;
-  match: string;
-}
-
-// `match` is an absolute pathname prefix. expo-router strips route groups
-// like `(drawer)` and `(tabs)` so the runtime pathnames look like the
-// segments below. Active selection uses longest-prefix-wins (see findActive
-// below) so /admin/oee picks OEE, never both OEE and Catalog.
-//
-// Items are role-scoped per the design (om-tablet-frame.jsx OM_ROLES):
-//   • Operator → Today / Orders / Scan / Alerts / Shift
-//   • Supervisor → Floor / Orders / Lines / Alerts / Schedule / Maint / Reports
-//   • Admin → Wall / Orders / Lines / OEE / Maint / MQTT / Users / Catalog
-// HomeTab dispatches the (tabs)/index route to the right per-role dashboard
-// (TabletPlantWall for admins, SupervisorWarRoom for supers, etc.) so the
-// "home" rail icon resolves to the design-labelled landing without us
-// needing separate routes for Wall/Floor/Today.
-
-// Operator-scoped URLs — each item mounts the shared screen at /operator/<key>
-// so the operator stays inside their role's URL space (same pattern as admin).
-const OPERATOR_ITEMS: NavItem[] = [
-  { key: 'home', icon: 'home', label: 'Today', route: '/(drawer)/operator/today', match: '/operator/today' },
-  { key: 'orders', icon: 'list-alt', label: 'Orders', route: '/(drawer)/operator/orders', match: '/operator/orders' },
-  { key: 'scan', icon: 'qrcode', label: 'Scan', route: '/(drawer)/operator/scan', match: '/operator/scan' },
-  { key: 'alerts', icon: 'bell', label: 'Alerts', route: '/(drawer)/operator/alerts', match: '/operator/alerts' },
-  { key: 'shift', icon: 'calendar', label: 'Shift', route: '/(drawer)/operator/shift', match: '/operator/shift' },
-];
-
-const SUPERVISOR_ITEMS: NavItem[] = [
-  { key: 'home', icon: 'home', label: 'Floor', route: '/(drawer)/(tabs)', match: '/' },
-  { key: 'orders', icon: 'list-alt', label: 'Orders', route: '/(drawer)/orders', match: '/orders' },
-  { key: 'lines', icon: 'sitemap', label: 'Lines', route: '/(drawer)/structure', match: '/structure' },
-  { key: 'alerts', icon: 'bell', label: 'Alerts', route: '/(drawer)/(tabs)/issues', match: '/issues' },
-  { key: 'schedule', icon: 'calendar', label: 'Schedule', route: '/(drawer)/schedule', match: '/schedule' },
-  { key: 'employee-schedule', icon: 'users', label: 'Workers', route: '/(drawer)/admin/employee-schedule', match: '/admin/employee-schedule' },
-  { key: 'maint', icon: 'wrench', label: 'Maint', route: '/(drawer)/maintenance/' as string, match: '/maintenance' },
-  { key: 'reports', icon: 'line-chart', label: 'Reports', route: '/(drawer)/admin/reports', match: '/reports' },
-];
-
-const ADMIN_ITEMS: NavItem[] = [
-  // Admin lands on the dedicated dashboard URL — matches the web admin path
-  // /admin/dashboard so the two surfaces share the same vocabulary. Shared
-  // screens (Orders, Lines, …) get admin-scoped URLs by mounting the same
-  // screen file at /admin/<resource> so the URL stays in admin context.
-  { key: 'home', icon: 'home', label: 'Dashboard', route: '/(drawer)/admin/dashboard', match: '/admin/dashboard' },
-  { key: 'orders', icon: 'list-alt', label: 'Orders', route: '/(drawer)/admin/orders', match: '/admin/orders' },
-  { key: 'lines', icon: 'sitemap', label: 'Lines', route: '/(drawer)/structure', match: '/structure' },
-  { key: 'oee', icon: 'line-chart', label: 'OEE', route: '/(drawer)/admin/oee', match: '/admin/oee' },
-  { key: 'schedule', icon: 'calendar', label: 'Schedule', route: '/(drawer)/admin/schedule', match: '/admin/schedule' },
-  { key: 'employee-schedule', icon: 'users', label: 'Workers', route: '/(drawer)/admin/employee-schedule', match: '/admin/employee-schedule' },
-  { key: 'maint', icon: 'wrench', label: 'Maint', route: '/(drawer)/maintenance/' as string, match: '/maintenance' },
-  { key: 'mqtt', icon: 'plug', label: 'MQTT', route: '/(drawer)/admin/connectivity-admin', match: '/connectivity' },
-  { key: 'users', icon: 'users', label: 'Users', route: '/(drawer)/admin/users', match: '/admin/users' },
-  { key: 'catalog', icon: 'cog', label: 'Catalog', route: '/admin', match: '/admin' },
-];
-
-function itemsForRole(role: 'Admin' | 'Supervisor' | 'Operator' | null): NavItem[] {
-  if (role === 'Admin') return ADMIN_ITEMS;
-  if (role === 'Supervisor') return SUPERVISOR_ITEMS;
-  return OPERATOR_ITEMS;
-}
-
-/** Pick the deepest matching item for `pathname` so /admin/oee picks OEE
- * (whose `match` is /admin/oee) rather than both OEE and Admin. Exact "/"
- * is treated specially since every other match also starts with "/". */
-function findActiveKey(pathname: string, items: NavItem[]): string | null {
-  let best: NavItem | null = null;
-  for (const it of items) {
-    const m = it.match;
-    const isMatch =
-      m === '/'
-        ? pathname === '/'
-        : pathname === m || pathname.startsWith(m + '/');
-    if (isMatch && (best == null || m.length > best.match.length)) {
-      best = it;
-    }
-  }
-  return best?.key ?? null;
-}
-
 /**
- * Slim icon sidebar for tablet landscape layouts. Renders as the drawer content
- * when the drawer is in permanent mode (tablet), with icon + mono uppercase
- * label per route and a role badge at the bottom.
+ * Tablet sidebar — a 1:1 port of the web admin sidebar (backend/.../AppLayout.jsx):
+ * a search box, the mixed-case links (Dashboard/Alerts/Schedule), a separator, then
+ * UPPERCASE-mono collapsible groups whose children indent under a left rule. Same
+ * Heroicon-style glyphs (via @expo/vector-icons), same labels/order, dark-pill
+ * active state, and a Dark Mode / Settings / user / Collapse footer. Collapsible to
+ * a 96px icon rail (persisted in settings).
  */
 export function TabletSidebar(props: DrawerContentComponentProps) {
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
   const qc = useQueryClient();
@@ -117,20 +49,23 @@ export function TabletSidebar(props: DrawerContentComponentProps) {
 
   const user = useAuthStore((s) => s.user);
   const role = getRole(user);
+  const accessibleTabs = useAuthStore((s) => s.accessibleTabs);
   const clear = useAuthStore((s) => s.clear);
 
-  const themePref = useSettingsStore((s) => s.theme);
-  const setTheme = useSettingsStore((s) => s.setTheme);
-  // Cycle order matches profile chip order: SYSTEM → LIGHT → DARK → SYSTEM.
-  const cycleTheme = () => {
-    const next: ThemePreference =
-      themePref === 'system' ? 'light' : themePref === 'light' ? 'dark' : 'system';
-    setTheme(next);
-  };
+  // On phones this same component renders inside the 296px slide-over drawer:
+  // always expanded (no icon rail) and navigation closes the drawer.
+  const { useTabletLayout: isTablet } = useDeviceClass();
+  const collapsed = useSettingsStore((s) => s.sidebarCollapsed) && isTablet;
+  const toggleSidebar = useSettingsStore((s) => s.toggleSidebar);
 
-  // Sidebar badge mirrors the web AlertController total — overdue WOs +
-  // blocked WOs + blocking issues + machine offline + maintenance.
+  const setTheme = useSettingsStore((s) => s.setTheme);
+  // Simple light<->dark flip like the web sidebar toggle (AppLayout).
+  const isDark = currentTheme() === 'dark';
+  const cycleTheme = () => setTheme(isDark ? 'light' : 'dark');
+
   const alertCountsQ = useAlertCounts();
+  const updateQ = useUpdateCheck();
+  const appVersion = updateQ.data?.current_version ? `v${updateQ.data.current_version.replace(/^v/, '')}` : null;
   const alertsTotal = alertCountsQ.data?.total ?? 0;
 
   const logoutMutation = useMutation({
@@ -141,12 +76,25 @@ export function TabletSidebar(props: DrawerContentComponentProps) {
     },
   });
 
-  const items = itemsForRole(role);
-  const activeKey = findActiveKey(pathname, items);
-  const isActive = (item: NavItem) => item.key === activeKey;
+  // Filter the shared admin tree by the tabs the backend grants this role —
+  // identical mechanism to the web sidebar (AppLayout's showTab).
+  const nodes = useMemo(() => filterByTabs(navForRole(role), accessibleTabs), [role, accessibleTabs]);
+  const am = activeMatch(pathname, nodes);
 
-  const onSelect = (item: NavItem) => {
-    router.push(item.route as never);
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const hits = useMemo(() => (q ? searchHits(nodes).filter((h) => t(h.label).toLowerCase().includes(q)) : []), [q, nodes, t]);
+
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const isOpen = (node: NavNode) => open[node.key] ?? containsActive(node, am);
+  const toggleOpen = (key: string, fallback: boolean) =>
+    setOpen((o) => ({ ...o, [key]: !(o[key] ?? fallback) }));
+
+  const activeBg = palette.text;
+  const activeFg = palette.surface;
+  const go = (route: string) => {
+    router.push(route as never);
+    if (!isTablet) props.navigation.closeDrawer();
   };
 
   const initials = (() => {
@@ -156,122 +104,285 @@ export function TabletSidebar(props: DrawerContentComponentProps) {
     return (name.slice(0, 2) || '?').toUpperCase();
   })();
 
-  return (
-    <DrawerContentScrollView
-      {...props}
-      contentContainerStyle={[styles.scroll, { backgroundColor: palette.surface }]}
-      showsVerticalScrollIndicator={false}>
-      {/* Logo block — uses the official wordmark + gear asset rather than a
-          generated mark, so it matches every other surface in the app. */}
-      <View style={styles.logoWrap}>
-        <BrandLogo size={20} />
-      </View>
-
-      {/* Role badge — color-coded per role per the design (operator amber,
-          supervisor blue, admin red). Anchors the user to the active role. */}
-      <View style={styles.roleWrap}>
-        <RoleBadge role={role} />
-      </View>
-
-      {/* Nav rail */}
-      <View style={{ gap: 6 }}>
-        {items.map((item) => {
-          const active = isActive(item);
-          const badge = item.key === 'alerts' && alertsTotal > 0 ? alertsTotal : null;
-          return (
-            <Pressable
-              key={item.key}
-              onPress={() => onSelect(item)}
-              style={({ pressed }) => [
-                styles.item,
-                {
-                  backgroundColor: active
-                    ? scheme === 'dark'
-                      ? '#241a08'
-                      : palette.surfaceAlt
-                    : 'transparent',
-                  borderColor: active ? (scheme === 'dark' ? BRAND.amber : palette.border) : 'transparent',
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}>
-              <View style={{ position: 'relative' }}>
-                <FontAwesome
-                  name={item.icon}
-                  size={22}
-                  color={active ? BRAND.amber : palette.textMuted}
-                />
-                {badge ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Mono
-                size={10}
-                letterSpacing={0.4}
-                color={active ? (scheme === 'dark' ? BRAND.amber : palette.text) : palette.textMuted}>
-                {t(item.label).toUpperCase()}
-              </Mono>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={{ flex: 1 }} />
-
-      {/* Theme toggle — cycles System → Light → Dark → System. Tiny icon
-          matches the design (sun-ish glyph just above the user badge). */}
+  // ── Collapsed rail item ─────────────────────────────────────────────────────
+  const renderRail = (node: NavNode) => {
+    const active = node.children
+      ? containsActive(node, am)
+      : (node.match ?? toMatch(node.route ?? '')) === am;
+    const badge = node.alert && alertsTotal > 0 ? alertsTotal : null;
+    const onPress = () => {
+      if (node.children) {
+        if (!isOpen(node)) toggleOpen(node.key, containsActive(node, am));
+        toggleSidebar();
+      } else if (node.route) {
+        go(node.route);
+      }
+    };
+    return (
       <Pressable
-        onPress={cycleTheme}
-        accessibilityRole="button"
-        accessibilityLabel={`Theme: ${themePref}`}
-        hitSlop={8}
-        style={({ pressed }) => [styles.themeToggle, { opacity: pressed ? 0.5 : 1 }]}>
-        <FontAwesome
-          name={themePref === 'dark' ? 'moon-o' : themePref === 'light' ? 'sun-o' : 'mobile'}
-          size={18}
-          color={palette.textMuted}
-        />
-      </Pressable>
-
-      {/* User badge bottom — color-coded by role; long-press to sign out. */}
-      <Pressable
-        onPress={() => router.push('/(drawer)/(tabs)/profile' as never)}
-        onLongPress={() => {
-          Alert.alert('Sign out', `Sign out ${user?.username ?? ''}?`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign out', style: 'destructive', onPress: () => logoutMutation.mutate() },
-          ]);
-        }}
-        style={[styles.badgeBlock, { backgroundColor: palette.surfaceAlt }]}>
-        <View style={[styles.avatar, { backgroundColor: roleColor(role) }]}>
-          <Text style={styles.avatarText}>{initials}</Text>
+        key={node.key}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.itemRail,
+          { backgroundColor: active ? activeBg : 'transparent', opacity: pressed ? 0.7 : 1 },
+        ]}>
+        <View style={{ position: 'relative' }}>
+          {node.icon ? <HeroIcon name={node.icon} size={22} color={active ? activeFg : palette.textMuted} /> : null}
+          {badge ? (
+            <View style={styles.dot}>
+              <Text style={styles.dotText}>{badge > 9 ? '9+' : badge}</Text>
+            </View>
+          ) : null}
         </View>
-        <Mono size={9.5} color={palette.textMuted} letterSpacing={0.3} style={{ marginTop: 6 }}>
-          {(user?.username ?? role ?? 'OPERATOR').toUpperCase()}
+        <Mono size={10} letterSpacing={0.4} color={active ? activeFg : palette.textMuted}>
+          {t(node.label).toUpperCase()}
         </Mono>
       </Pressable>
-    </DrawerContentScrollView>
+    );
+  };
+
+  // ── Expanded tree node (recursive) ──────────────────────────────────────────
+  const renderNode = (node: NavNode, depth: number): React.ReactNode => {
+    // Group / subgroup
+    if (node.children) {
+      const opened = isOpen(node);
+      const within = containsActive(node, am);
+      const isTop = depth === 0;
+      return (
+        <View key={node.key}>
+          <Pressable
+            onPress={() => toggleOpen(node.key, within)}
+            style={({ pressed }) => [styles.row, { paddingLeft: 12, opacity: pressed ? 0.7 : 1 }]}>
+            {isTop && node.icon ? (
+              <HeroIcon name={node.icon} size={20} color={within ? palette.text : palette.textMuted} />
+            ) : (
+              <View style={[styles.childDot, { backgroundColor: within ? palette.text : palette.textMuted, opacity: 0.6 }]} />
+            )}
+            {isTop ? (
+              <Mono size={10} upper letterSpacing={1.2} color={within ? palette.text : palette.textFaint} style={styles.flex1}>
+                {t(node.label)}
+              </Mono>
+            ) : (
+              <Text numberOfLines={1} style={[styles.childLabel, styles.flex1, { color: within ? palette.text : palette.textMuted }]}>
+                {t(node.label)}
+              </Text>
+            )}
+            <HeroIcon name={opened ? 'chevronUp' : 'chevronRight'} size={isTop ? 15 : 13} color={palette.textFaint} />
+          </Pressable>
+          {opened ? (
+            <View style={[styles.childrenWrap, { borderLeftColor: palette.border }]}>
+              {node.children.map((c) => renderNode(c, depth + 1))}
+            </View>
+          ) : null}
+        </View>
+      );
+    }
+
+    // Leaf
+    const isTop = depth === 0;
+    const active = (node.match ?? toMatch(node.route ?? '')) === am;
+    const badge = node.alert && alertsTotal > 0 ? alertsTotal : null;
+    const fg = node.disabled ? palette.textFaint : active ? activeFg : isTop ? palette.text : palette.textMuted;
+    return (
+      <Pressable
+        key={node.key}
+        disabled={node.disabled || !node.route}
+        onPress={() => node.route && go(node.route)}
+        style={({ pressed }) => [
+          isTop ? styles.row : styles.childRow,
+          {
+            paddingLeft: isTop ? 12 : 8,
+            backgroundColor: active ? activeBg : 'transparent',
+            opacity: node.disabled ? 0.5 : pressed ? 0.7 : 1,
+          },
+        ]}>
+        {isTop && node.icon ? (
+          <View style={{ position: 'relative' }}>
+            <HeroIcon name={node.icon} size={20} color={fg} />
+            {badge ? (
+              <View style={styles.iconDot}>
+                <Text style={styles.iconDotText}>{badge > 9 ? '9+' : badge}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : (
+          <View style={[styles.childDot, { backgroundColor: active ? activeFg : palette.textMuted, opacity: active ? 1 : 0.55 }]} />
+        )}
+        <Text numberOfLines={1} style={[isTop ? styles.linkLabel : styles.childLabel, { color: fg }]}>
+          {t(node.label)}
+        </Text>
+        {badge ? (
+          <View style={[styles.countPill, { backgroundColor: tokens.blockedBg }]}>
+            <Text style={[styles.countText, { color: tokens.blocked }]}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        ) : null}
+        <View style={styles.flex1} />
+      </Pressable>
+    );
+  };
+
+  const renderHit = (hit: { key: string; label: string; route: string; trail: string[] }) => (
+    <Pressable
+      key={`${hit.trail.join('/')}>${hit.key}`}
+      onPress={() => {
+        setQuery('');
+        go(hit.route);
+      }}
+      style={({ pressed }) => [styles.row, { paddingLeft: 12, opacity: pressed ? 0.7 : 1 }]}>
+      <View style={[styles.childDot, { backgroundColor: palette.textMuted, opacity: 0.55 }]} />
+      <View style={styles.flex1}>
+        <Text numberOfLines={1} style={[styles.linkLabel, { color: palette.text }]}>
+          {t(hit.label)}
+        </Text>
+        {hit.trail.length ? (
+          <Mono size={9} upper letterSpacing={0.6} color={palette.textFaint}>
+            {hit.trail.map((s) => t(s)).join(' / ')}
+          </Mono>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+
+  const footRow = (icon: HeroIconKey, label: string, onPress: () => void, key?: string) => (
+    <Pressable
+      key={key}
+      onPress={onPress}
+      style={({ pressed }) => [collapsed ? styles.footRail : styles.footRow, { opacity: pressed ? 0.6 : 1 }]}>
+      <HeroIcon name={icon} size={collapsed ? 18 : 18} color={palette.textMuted} />
+      {collapsed ? null : <Text style={[styles.footLabel, { color: palette.textMuted }]}>{t(label)}</Text>}
+    </Pressable>
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor: palette.surface, paddingTop: insets.top + 16 }]}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollInner} showsVerticalScrollIndicator={false}>
+        {/* Logo */}
+        <View style={[styles.logoWrap, collapsed ? styles.centerX : styles.logoExpanded, !collapsed && styles.logoRow]}>
+          <BrandLogo size={collapsed ? 20 : 24} />
+          {!collapsed && appVersion ? (
+            <View style={[styles.versionChip, { borderColor: palette.border }]}>
+              <Mono size={9} color={palette.textFaint}>{appVersion}</Mono>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Search (expanded only) */}
+        {collapsed ? null : (
+          <View style={styles.searchWrap}>
+            <SearchBar placeholder="Search menu…" value={query} onChangeText={setQuery} />
+          </View>
+        )}
+
+        {/* Nav */}
+        {collapsed ? (
+          <View style={{ gap: 6 }}>{nodes.map(renderRail)}</View>
+        ) : q ? (
+          <View>
+            {hits.length ? (
+              hits.map(renderHit)
+            ) : (
+              <Text style={[styles.noResults, { color: palette.textFaint }]}>{t('No results')}</Text>
+            )}
+          </View>
+        ) : (
+          <View>
+            {nodes.filter((n) => !n.children).map((n) => renderNode(n, 0))}
+            <View style={[styles.separator, { backgroundColor: palette.border }]} />
+            {nodes.filter((n) => n.children).map((n) => renderNode(n, 0))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Footer — Dark Mode · Settings · user · Collapse (parity with web) */}
+      <View style={[styles.footer, { borderTopColor: palette.border, paddingBottom: insets.bottom + 10 }]}>
+        {footRow(isDark ? 'sun' : 'moon', isDark ? 'Light Mode' : 'Dark Mode', cycleTheme, 'theme')}
+        {footRow('settings', 'Settings', () => router.push('/(drawer)/settings' as never), 'settings')}
+
+        {/* User + logout */}
+        <Pressable
+          onPress={() => router.push('/(drawer)/settings' as never)}
+          onLongPress={() => {
+            Alert.alert(t('Sign out'), t('Sign out {{name}}?', { name: user?.username ?? '' }), [
+              { text: t('Cancel'), style: 'cancel' },
+              { text: t('Sign out'), style: 'destructive', onPress: () => logoutMutation.mutate() },
+            ]);
+          }}
+          style={collapsed ? styles.badgeBlock : styles.userRow}>
+          <View style={[styles.avatar, { backgroundColor: roleColor(role) }]}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+          {collapsed ? null : (
+            <>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text numberOfLines={1} style={[styles.userName, { color: palette.text }]}>
+                  {user?.name ?? user?.username ?? t('User')}
+                </Text>
+                <Mono size={9.5} color={palette.textFaint} letterSpacing={0.3}>
+                  {(role ?? 'OPERATOR').toUpperCase()}
+                </Mono>
+              </View>
+              <Pressable
+                hitSlop={8}
+                accessibilityLabel={t('Sign out')}
+                onPress={() => {
+                  Alert.alert(t('Sign out'), t('Sign out {{name}}?', { name: user?.username ?? '' }), [
+                    { text: t('Cancel'), style: 'cancel' },
+                    { text: t('Sign out'), style: 'destructive', onPress: () => logoutMutation.mutate() },
+                  ]);
+                }}>
+                <HeroIcon name="logout" size={16} color={palette.textFaint} />
+              </Pressable>
+            </>
+          )}
+        </Pressable>
+
+        {!isTablet ? null : (
+        <View style={[styles.collapseDivider, { borderTopColor: palette.border }]}>
+          <Pressable
+            onPress={toggleSidebar}
+            accessibilityRole="button"
+            accessibilityLabel={collapsed ? t('Expand sidebar') : t('Collapse sidebar')}
+            style={({ pressed }) => [collapsed ? styles.footRail : styles.footRow, { justifyContent: 'center', opacity: pressed ? 0.6 : 1 }]}>
+            <View style={collapsed ? { transform: [{ rotate: '180deg' }] } : undefined}>
+              <HeroIcon name="chevronDouble" size={18} color={palette.textFaint} />
+            </View>
+            {collapsed ? null : <Text style={[styles.footLabel, { color: palette.textFaint }]}>{t('Collapse')}</Text>}
+          </Pressable>
+        </View>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    paddingTop: 20,
-    paddingBottom: 16,
-    paddingHorizontal: 12,
-  },
-  logoWrap: { alignItems: 'center', marginBottom: 12 },
-  roleWrap: { alignItems: 'center', marginBottom: 18 },
-  item: {
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-  },
-  badge: {
+  container: { flex: 1, paddingHorizontal: 8 },
+  scrollInner: { paddingBottom: 12 },
+  centerX: { alignItems: 'center' },
+  flex1: { flex: 1 },
+  logoWrap: { marginBottom: 12 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  versionChip: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  logoExpanded: { paddingHorizontal: 8 },
+  searchWrap: { marginBottom: 10, paddingHorizontal: 2 },
+
+  // Top-level row (link or group header).
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingRight: 10, borderRadius: 8 },
+  linkLabel: { fontSize: 13, fontFamily: fonts.sans.native.medium, letterSpacing: -0.1 },
+
+  // Children under a group (indented, left rule).
+  childrenWrap: { marginLeft: 20, marginTop: 2, paddingLeft: 12, borderLeftWidth: StyleSheet.hairlineWidth, gap: 1 },
+  childRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 7, paddingRight: 8, borderRadius: 8 },
+  childLabel: { fontSize: 13, fontFamily: fonts.sans.native.regular, letterSpacing: -0.1 },
+  childDot: { width: 5, height: 5, borderRadius: 3 },
+
+  separator: { height: StyleSheet.hairlineWidth, marginHorizontal: 12, marginVertical: 8 },
+  noResults: { fontSize: 13, paddingHorizontal: 14, paddingVertical: 10 },
+
+  // Collapsed rail item.
+  itemRail: { paddingVertical: 11, borderRadius: 12, alignItems: 'center', gap: 6 },
+
+  dot: {
     position: 'absolute',
     top: -4,
     right: -8,
@@ -283,34 +394,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: {
-    color: '#fff',
-    fontFamily: MONO,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  badgeBlock: {
-    padding: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  themeToggle: {
-    alignSelf: 'center',
-    padding: 8,
-    marginTop: 6,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+  dotText: { color: '#fff', fontFamily: MONO, fontSize: 10, fontWeight: '700' },
+  // Solid-red "9+" dot on the bell icon (parity with the web NavLink icon badge).
+  iconDot: {
+    position: 'absolute',
+    top: -6,
+    right: -7,
+    minWidth: 15,
+    height: 15,
+    paddingHorizontal: 3,
+    borderRadius: 7.5,
+    backgroundColor: tokens.blocked,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    color: '#fff',
-    fontFamily: MONO,
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  iconDotText: { color: '#fff', fontFamily: MONO, fontSize: 9, fontWeight: '700' },
+  // Light-red count pill after the label (bg-om-blocked-bg / text-om-blocked).
+  countPill: { minWidth: 20, height: 18, paddingHorizontal: 6, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  countText: { fontFamily: MONO, fontSize: 10, fontWeight: '700' },
+
+  footer: { paddingTop: 6, borderTopWidth: StyleSheet.hairlineWidth },
+  footRail: { alignSelf: 'center', padding: 8, alignItems: 'center' },
+  footRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 8 },
+  footLabel: { fontSize: 13, fontFamily: fonts.sans.native.medium },
+  collapseDivider: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 4, paddingTop: 4 },
+
+  badgeBlock: { padding: 10, borderRadius: 12, alignItems: 'center', marginTop: 6 },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingHorizontal: 12 },
+  userName: { fontSize: 13, fontFamily: fonts.sans.native.semibold, letterSpacing: -0.1 },
+  avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#fff', fontFamily: MONO, fontSize: 12, fontWeight: '700' },
 });

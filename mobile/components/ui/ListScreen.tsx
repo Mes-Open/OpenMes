@@ -3,6 +3,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { LegendList } from '@legendapp/list';
 
 import { colors, fonts, radius } from '@openmes/ui';
@@ -61,7 +62,7 @@ export function ListScreen<T>({
   newRoute,
   onNew,
   rightSlot,
-  emptyTitle = 'Nothing to show',
+  emptyTitle,
   emptySubtitle,
   items,
   keyExtractor,
@@ -75,6 +76,7 @@ export function ListScreen<T>({
 }: Props<T>) {
   const router = useRouter();
   const navigation = useNavigation();
+  const { t } = useTranslation();
 
   // Auto-detect back: if not explicitly menu and the parent Stack can pop,
   // the chrome should show a back arrow. Most list screens are sub-routes.
@@ -166,7 +168,7 @@ export function ListScreen<T>({
             </View>
           ) : null
         }
-        ListEmptyComponent={<EmptyState title={emptyTitle} subtitle={emptySubtitle} />}
+        ListEmptyComponent={<EmptyState title={emptyTitle ?? t('Nothing to show')} subtitle={emptySubtitle} />}
         renderItem={({ item, index }) => <>{renderItem(item, index)}</>}
         refreshControl={
           onRefresh ? (

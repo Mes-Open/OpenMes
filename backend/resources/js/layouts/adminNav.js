@@ -48,6 +48,18 @@ export const ADMIN_LINKS = [
  */
 export const ADMIN_GROUPS = [
     {
+        key: 'schedule',
+        label: 'Schedule',
+        icon: 'calendar',
+        href: '/admin/schedule',
+        match: ['/admin/schedule'],
+        children: [
+            { label: 'Planner', href: '/admin/schedule', match: ['/admin/schedule'], exact: true },
+            { label: 'Capacity', href: '/admin/schedule/capacity', match: ['/admin/schedule/capacity'] },
+            { label: 'Employee', href: '/admin/schedule/employees', match: ['/admin/schedule/employees'] },
+        ],
+    },
+    {
         key: 'orders',
         label: 'Orders',
         icon: 'clipboard',

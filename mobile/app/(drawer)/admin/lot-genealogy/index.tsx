@@ -1,5 +1,5 @@
-import { TabletLotGenealogyExplorer } from '@/screens/tablet/LotGenealogyExplorer';
+import { LotGenealogyExplorer } from '@/screens/(drawer)/admin/lot-genealogy/explorer';
 
 export default function LotGenealogyExplorerPage() {
-  return <TabletLotGenealogyExplorer />;
+  return <LotGenealogyExplorer />;
 }

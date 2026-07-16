@@ -17,6 +17,7 @@ class ProcessCsvImport implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 600; // 10 minutes
+
     public $tries = 1;
 
     /**
@@ -50,10 +51,12 @@ class ProcessCsvImport implements ShouldQueue
                 $this->mapping['columns']
             );
 
-            // Import work orders
+            // Import work orders. An optional "assign all rows to this line"
+            // override (mapping.target_line_id) wins over per-row line_code.
             $result = $importService->import(
                 $mappedData,
-                $this->mapping['import_strategy']
+                $this->mapping['import_strategy'],
+                isset($this->mapping['target_line_id']) ? (int) $this->mapping['target_line_id'] : null
             );
 
             // Update import record

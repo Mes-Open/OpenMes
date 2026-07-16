@@ -27,6 +27,8 @@
         "laravel-echo": "^2.3.7",
         "pusher-js": "^8.5.0",
         "react": "^19.2.6",
+        "react-dnd": "^16.0.1",
+        "react-dnd-html5-backend": "^16.0.1",
         "react-dom": "^19.2.6"
     },
     "overrides": {

@@ -2,6 +2,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
@@ -64,6 +65,7 @@ function splitName(full: string): { first: string; last: string } {
 }
 
 export function WorkerForm({ initial, mode, onSubmit, onCancel, onDelete, submitting }: Props) {
+  const { t } = useTranslation();
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
 
@@ -121,7 +123,7 @@ export function WorkerForm({ initial, mode, onSubmit, onCancel, onDelete, submit
   return (
     <View style={{ gap: 14 }}>
       {/* IDENTITY */}
-      <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>IDENTITY</Mono>
+      <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>{t('IDENTITY')}</Mono>
       <ControlledField
         control={control}
         name="code"
@@ -145,26 +147,26 @@ export function WorkerForm({ initial, mode, onSubmit, onCancel, onDelete, submit
 
       {/* ASSIGNMENT */}
       <Mono size={11} color={palette.textFaint} letterSpacing={0.8} style={{ marginTop: 4 }}>
-        ASSIGNMENT
+        {t('ASSIGNMENT')}
       </Mono>
 
       <PickerField
-        label="CREW_ID"
+        label={t('CREW_ID')}
         required
-        value={selectedCrew?.name ?? '— None —'}
-        hint={selectedCrew ? 'Tap to change' : 'Tap to assign a crew'}
+        value={selectedCrew?.name ?? t('— None —')}
+        hint={selectedCrew ? t('Tap to change') : t('Tap to assign a crew')}
         onPress={() => setCrewPicker(true)}
       />
 
       <PickerField
-        label="WAGE_GROUP"
+        label={t('WAGE_GROUP')}
         value={
           selectedWage
             ? `${selectedWage.name}${selectedWage.base_hourly_rate ? ` · ${selectedWage.base_hourly_rate} ${selectedWage.currency ?? 'PLN'}/h` : ''}`
-            : '— None —'
+            : t('— None —')
         }
         mono
-        hint="Tap to change"
+        hint={t('Tap to change')}
         onPress={() => setWagePicker(true)}
       />
 
@@ -210,7 +212,7 @@ export function WorkerForm({ initial, mode, onSubmit, onCancel, onDelete, submit
           );
         })}
         {(skillsQuery.data ?? []).length === 0 ? (
-          <Mono size={11} color={palette.textFaint}>NO SKILLS DEFINED YET</Mono>
+          <Mono size={11} color={palette.textFaint}>{t('NO SKILLS DEFINED YET')}</Mono>
         ) : null}
       </View>
 
@@ -218,9 +220,9 @@ export function WorkerForm({ initial, mode, onSubmit, onCancel, onDelete, submit
       <Card>
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.toggleTitle, { color: palette.text }]}>Active</Text>
+            <Text style={[styles.toggleTitle, { color: palette.text }]}>{t('Active')}</Text>
             <Text style={[styles.toggleSub, { color: palette.textMuted }]}>
-              Show in operator dropdowns and crew rosters
+              {t('Show in operator dropdowns and crew rosters')}
             </Text>
           </View>
           <Controller
@@ -244,11 +246,11 @@ export function WorkerForm({ initial, mode, onSubmit, onCancel, onDelete, submit
       />
 
       <PickerSheet
-        title="Pick a crew"
+        title={t('Pick a crew')}
         open={crewPicker}
         onClose={() => setCrewPicker(false)}
         items={[
-          { id: null as number | null, label: '— None —' },
+          { id: null as number | null, label: t('— None —') },
           ...(crewsQuery.data ?? []).map((c) => ({
             id: c.id,
             label: c.name,
@@ -263,11 +265,11 @@ export function WorkerForm({ initial, mode, onSubmit, onCancel, onDelete, submit
       />
 
       <PickerSheet
-        title="Pick a wage group"
+        title={t('Pick a wage group')}
         open={wagePicker}
         onClose={() => setWagePicker(false)}
         items={[
-          { id: null as number | null, label: '— None —' },
+          { id: null as number | null, label: t('— None —') },
           ...(wageGroupsQuery.data ?? []).map((w) => ({
             id: w.id,
             label: w.name,

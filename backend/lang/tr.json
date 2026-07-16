@@ -1589,5 +1589,19 @@
     "Remember me": "Beni hatırla",
     "Backward trace — what fed into this lot?": "Geriye dönük izleme — bu partiye ne girdi?",
     "Scrap recorded successfully.": "Fire başarıyla kaydedildi.",
-    "Upload ZIP file": "ZIP dosyası yükle"
+    "Upload ZIP file": "ZIP dosyası yükle",
+    "Quality control skipped.": "Kalite kontrolü atlandı.",
+    "Quality control \":trigger\" failed during production (check #:check).": "\":trigger\" kalite kontrolü üretim sırasında başarısız oldu (kontrol #:check).",
+    "Quality control trigger \":name\" created.": "\":name\" kalite kontrol tetikleyicisi oluşturuldu.",
+    "Quality control trigger \":name\" deleted.": "\":name\" kalite kontrol tetikleyicisi silindi.",
+    "Quality control trigger \":name\" updated.": "\":name\" kalite kontrol tetikleyicisi güncellendi.",
+    "Quality control trigger updated.": "Kalite kontrol tetikleyicisi güncellendi.",
+    "Roaming check": "Gezici kontrol",
+    "Roaming quality control raised.": "Gezici kalite kontrolü oluşturuldu.",
+    "All quality": "Tümü",
+    "Link to pallet (optional)": "Paletle ilişkilendir (isteğe bağlı)",
+    "That pallet belongs to a different work order.": "Bu palet farklı bir iş emrine ait.",
+    "Cannot ship pallet :no: quality status is \":status\" (must be passed).": "Palet :no gönderilemez: kalite durumu \":status\" (geçmiş olmalı).",
+    "Floor": "Saha",
+    "Scan": "Tara"
 }

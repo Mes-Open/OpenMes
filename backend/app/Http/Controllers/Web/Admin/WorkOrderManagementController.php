@@ -64,6 +64,12 @@ class WorkOrderManagementController extends Controller
                 ->with('error', __('Failed to create work order. Please check your input and try again.'));
         }
 
+        // The planner's New-order modal posts `stay` so the user keeps their
+        // page (the new order lands there via the refreshed props).
+        if ($request->boolean('stay')) {
+            return back()->with('success', "Work order {$workOrder->order_no} created.");
+        }
+
         return redirect()->route('admin.work-orders.index')
             ->with('success', "Work order {$workOrder->order_no} created.");
     }

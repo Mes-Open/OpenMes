@@ -35,6 +35,8 @@ export interface Material {
   is_active?: boolean;
   // v0.9.0 enrichment
   stock_quantity?: number | string | null;
+  reserved_quantity?: number | string | null;
+  available_quantity?: number | string | null;
   min_stock_level?: number | string | null;
   supplier_name?: string | null;
   supplier_code?: string | null;
@@ -42,6 +44,45 @@ export interface Material {
   price_currency?: string | null;
   ean?: string | null;
   last_stock_sync_at?: string | null;
+  // Count of BOM lines referencing this material (materials index).
+  bom_items_count?: number;
+  // Detail-only enrichment (materials show).
+  lots?: MaterialLotSummary[];
+  recent_movements?: MaterialStockMovement[];
+  bom_usage?: MaterialBomUsage[];
+}
+
+export interface MaterialLotSummary {
+  id: number;
+  lot_number: string;
+  supplier_lot_no?: string | null;
+  quantity_received: number | string;
+  quantity_available: number | string;
+  expiry_date?: string | null;
+  status: string;
+  is_expired: boolean;
+}
+
+export interface MaterialStockMovement {
+  id: number;
+  performed_at?: string | null;
+  movement_type: string;
+  quantity: number | string;
+  balance_after: number | string;
+  source_type?: string | null;
+  source_id?: number | null;
+  reason?: string | null;
+  performed_by?: { name: string } | null;
+}
+
+export interface MaterialBomUsage {
+  id: number;
+  quantity_per_unit: number | string;
+  scrap_percentage: number | string;
+  process_template?: {
+    name: string;
+    product_type?: { name: string } | null;
+  } | null;
 }
 
 export interface MaterialFilters {

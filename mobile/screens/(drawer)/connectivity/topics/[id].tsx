@@ -1,13 +1,17 @@
+/**
+ * Topic detail — mirrors the web MQTT topic card: the pattern header with an
+ * active/inactive pill, an optional description, and the mapping-rules table
+ * (Field path / Action / Status). Edit / activate / delete are the page actions.
+ */
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+
+import { StatusPill, colors, fonts, radius } from '@openmes/ui';
 
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { StatusPill } from '@/components/ui/StatusPill';
+import { Mono } from '@/components/ui/Mono';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import {
   useDeleteTopic,
   useMappings,
@@ -19,8 +23,7 @@ export function TopicDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const numericId = Number(id);
   const router = useRouter();
-  const scheme = useColorScheme();
-  const palette = Colors[scheme];
+  const { t } = useTranslation();
 
   const query = useTopic(numericId);
   const mappingsQuery = useMappings({ machine_topic_id: numericId, include_inactive: true });
@@ -29,68 +32,100 @@ export function TopicDetail() {
 
   if (query.isLoading) return <LoadingState />;
   if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
-  const t = query.data;
+  const topic = query.data;
+  const mappings = mappingsQuery.data ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader
-        back
-        title="Topic"
-        subtitle={t.topic_pattern}
-        rightSlot={<StatusPill status={t.is_active ? 'ACTIVE' : 'INACTIVE'} label={t.is_active ? 'Active' : 'Inactive'} />}
-      />
-      <ScrollView style={{ backgroundColor: palette.background }} contentContainerStyle={styles.container}>
-      {t.description ? <Card><Text style={{ color: palette.text }}>{t.description}</Text></Card> : null}
-
-      <Card style={{ gap: 4 }}>
-        <Text style={[styles.section, { color: palette.text }]}>
-          Mappings ({mappingsQuery.data?.length ?? 0})
-        </Text>
-        {(mappingsQuery.data ?? []).map((m) => (
-          <View key={m.id} style={styles.mappingRow}>
-            <Text style={{ color: palette.text, fontFamily: 'GeistMono_500Medium' }}>{m.field_path ?? '—'}</Text>
-            <Text style={{ color: palette.textMuted, fontSize: 13 }}>{m.action_type}</Text>
-            <StatusPill status={m.is_active ? 'ACTIVE' : 'INACTIVE'} label={m.is_active ? 'on' : 'off'} />
+    <View style={styles.screen}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+        <View>
+          <View style={{ alignSelf: 'flex-start' }}>
+            <StatusPill status={topic.is_active ? 'running' : 'pending'} label={(topic.is_active ? t('Active') : t('Inactive')).toUpperCase()} />
           </View>
-        ))}
-        {(mappingsQuery.data?.length ?? 0) === 0 ? (
-          <Text style={{ color: palette.textMuted, fontSize: 13 }}>No mappings.</Text>
-        ) : null}
-      </Card>
+          <Text style={styles.h1}>{topic.topic_pattern}</Text>
+        </View>
 
-      <Button
-        title="Edit topic"
-        variant="primary"
-        onPress={() => router.push(`/connectivity/topics/${t.id}/edit` as never)}
-      />
-      <Button
-        title={t.is_active ? 'Deactivate' : 'Activate'}
-        variant="secondary"
-        loading={toggleMutation.isPending}
-        onPress={() => toggleMutation.mutate(t.id, { onError: (e: Error) => Alert.alert('Failed', e.message) })}
-      />
-      <Button
-        title="Delete topic"
-        variant="danger"
-        loading={deleteMutation.isPending}
-        onPress={() => Alert.alert('Delete topic', `Delete "${t.topic_pattern}"?`, [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive',
-            onPress: () => deleteMutation.mutate(t.id, {
-              onSuccess: () => router.back(),
-              onError: (e: Error) => Alert.alert('Failed', e.message),
-            }) },
-        ])}
-      />
+        {topic.description ? (
+          <View style={styles.box}>
+            <Text style={styles.description}>{topic.description}</Text>
+          </View>
+        ) : null}
+
+        <View style={{ gap: 8 }}>
+          <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Mappings').toUpperCase()}</Mono>
+          <View style={styles.box}>
+            <View style={[styles.row, styles.headerRow]}>
+              <HCell flex={1.4}>{t('Field Path')}</HCell>
+              <HCell flex={1}>{t('Action')}</HCell>
+              <HCell w={54}>{t('Status')}</HCell>
+            </View>
+            {mappings.map((m) => (
+              <View key={m.id} style={[styles.row, styles.dataRow]}>
+                <View style={{ flex: 1.4 }}>
+                  <Mono size={11} color={colors.ink} numberOfLines={1}>{m.field_path ?? '—'}</Mono>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={styles.cellText}>{m.action_type}</Text>
+                </View>
+                <View style={{ width: 54 }}>
+                  <Mono size={9.5} color={m.is_active ? colors.running : colors.faint}>
+                    {(m.is_active ? t('On') : t('Off')).toUpperCase()}
+                  </Mono>
+                </View>
+              </View>
+            ))}
+            {mappings.length === 0 ? <Text style={styles.emptyBox}>{t('No mappings.')}</Text> : null}
+          </View>
+        </View>
+
+        <Button title={t('Edit topic')} onPress={() => router.push(`/connectivity/topics/${topic.id}/edit` as never)} />
+        <Button
+          title={topic.is_active ? t('Deactivate') : t('Activate')}
+          variant="secondary"
+          loading={toggleMutation.isPending}
+          onPress={() => toggleMutation.mutate(topic.id, { onError: (e: Error) => Alert.alert(t('Failed'), e.message) })}
+        />
+        <Button
+          title={t('Delete topic')}
+          variant="danger"
+          loading={deleteMutation.isPending}
+          onPress={() =>
+            Alert.alert(t('Delete topic'), t('Delete "{{name}}"?', { name: topic.topic_pattern }), [
+              { text: t('Cancel'), style: 'cancel' },
+              {
+                text: t('Delete'),
+                style: 'destructive',
+                onPress: () =>
+                  deleteMutation.mutate(topic.id, {
+                    onSuccess: () => router.back(),
+                    onError: (e: Error) => Alert.alert(t('Failed'), e.message),
+                  }),
+              },
+            ])
+          }
+        />
       </ScrollView>
     </View>
   );
 }
 
+function HCell({ children, w, flex }: { children: React.ReactNode; w?: number; flex?: number }) {
+  return (
+    <View style={{ width: w, flex }}>
+      <Mono size={9} color={colors.faint} letterSpacing={0.6}>{String(children).toUpperCase()}</Mono>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 14 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  pattern: { fontSize: 18, fontWeight: '800', flex: 1, fontFamily: 'GeistMono_600SemiBold' },
-  section: { fontSize: 14, fontWeight: '700', marginBottom: 6 },
-  mappingRow: { flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 4 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  h1: { fontSize: 20, fontFamily: fonts.mono.native.semibold, color: colors.ink, letterSpacing: -0.2, marginTop: 10 },
+  box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, overflow: 'hidden' },
+  description: { fontSize: 13, color: colors.muted, fontFamily: fonts.sans.native.regular, padding: 14, lineHeight: 20 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12 },
+  headerRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
+  dataRow: { paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
+  cellText: { fontSize: 12.5, color: colors.muted, fontFamily: fonts.sans.native.regular },
+  emptyBox: { fontSize: 13, color: colors.faint, fontFamily: fonts.sans.native.regular, padding: 14 },
 });

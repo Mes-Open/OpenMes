@@ -2,47 +2,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import * as m from '@/api/maintenance';
 import * as schedules from '@/api/maintenanceSchedules';
-import type { ApiPaginated } from '@/types/api';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
-
-type EventsEnvelope = { data: m.MaintenanceEvent[]; meta?: ApiPaginated<m.MaintenanceEvent>['meta'] };
 
 const inv = (qc: ReturnType<typeof useQueryClient>, key: string) => qc.invalidateQueries({ queryKey: [key] });
 
 // ── Tools ──────────────────────────────────────────────────────────────────
 
 /**
- * Live tools via Electric (migrated from REST `listTools`).
- * Filters are applied client-side over the synced row set.
- *
- * Fidelity note: the `tools` shape carries raw table columns only — the
- * relation field `workstation_type` is NOT present; use `useTool(id)` (REST)
- * when you need the nested object.
+ * Tools via REST `listTools`.
+ * The server applies status / workstation_type_id / q filters and returns the
+ * workstation_type relation.
  */
 export function useTools(filters: m.ToolFilters = {}) {
-  const { status, workstation_type_id, q } = filters;
-  const search = q?.trim().toLowerCase() ?? '';
-
-  return useElectricShape<Row, m.Tool[]>('tools', {
-    select: (rows) => {
-      let out = rows as unknown as m.Tool[];
-
-      if (status !== undefined) {
-        out = out.filter((r) => r.status === status);
-      }
-      if (workstation_type_id !== undefined) {
-        out = out.filter((r) => r.workstation_type_id === workstation_type_id);
-      }
-      if (search) {
-        out = out.filter(
-          (r) =>
-            r.name.toLowerCase().includes(search) ||
-            r.code.toLowerCase().includes(search),
-        );
-      }
-
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['tools', filters],
+    queryFn: () => m.listTools(filters),
   });
 }
 
@@ -83,55 +56,16 @@ export function useTransitionToolStatus() {
 // ── Maintenance events ─────────────────────────────────────────────────────
 
 /**
- * Live maintenance events via Electric (migrated from REST `listMaintenanceEvents`).
- * Filters are applied client-side over the synced row set.
- *
- * Fidelity note: the `maintenance_events` shape does NOT include `started_at`,
- * `completed_at`, `description`, or `resolution_notes` columns. Consumers
- * that need those fields must use `useMaintenanceEvent(id)` (REST). The shape
- * adds `scheduled_end_at` which is not in the REST MaintenanceEvent type.
- * `_count` absent (no relation counts in this shape).
+ * Maintenance events via REST `listMaintenanceEvents`.
+ * The server applies status / tool_id / line_id / from / to filters and returns
+ * the `{ data, meta }` envelope (screens read `query.data?.data` /
+ * `query.data?.meta?.total`). Detail-only fields (started_at, completed_at,
+ * description, resolution_notes) and relations come from `useMaintenanceEvent(id)`.
  */
 export function useMaintenanceEvents(filters: m.MaintenanceEventFilters = {}) {
-  const { status, tool_id, line_id, from: dateFrom, to: dateTo } = filters;
-
-  // Preserve the REST `{ data, meta }` envelope so screens that read
-  // `query.data?.data` / `query.data?.meta?.total` are unchanged (meta
-  // undefined — Electric streams the full set rather than server pages).
-  return useElectricShape<Row, EventsEnvelope>('maintenance_events', {
-    select: (rows): EventsEnvelope => {
-      let out = rows as unknown as m.MaintenanceEvent[];
-
-      if (status !== undefined) {
-        out = out.filter((r) => r.status === status);
-      }
-      if (tool_id !== undefined) {
-        out = out.filter((r) => r.tool_id === tool_id);
-      }
-      if (line_id !== undefined) {
-        out = out.filter((r) => r.line_id === line_id);
-      }
-      if (dateFrom !== undefined) {
-        const fromMs = new Date(dateFrom).getTime();
-        out = out.filter(
-          (r) => r.scheduled_at != null && new Date(r.scheduled_at as string).getTime() >= fromMs,
-        );
-      }
-      if (dateTo !== undefined) {
-        const toMs = new Date(dateTo).getTime();
-        out = out.filter(
-          (r) => r.scheduled_at != null && new Date(r.scheduled_at as string).getTime() <= toMs,
-        );
-      }
-
-      // Sort: most recently scheduled first (mirrors default server ordering).
-      const sorted = [...out].sort((a, b) => {
-        const aMs = a.scheduled_at ? new Date(a.scheduled_at as string).getTime() : 0;
-        const bMs = b.scheduled_at ? new Date(b.scheduled_at as string).getTime() : 0;
-        return bMs - aMs;
-      });
-      return { data: sorted, meta: undefined };
-    },
+  return useQuery({
+    queryKey: ['maintenance-events', filters],
+    queryFn: () => m.listMaintenanceEvents(filters),
   });
 }
 
@@ -198,39 +132,19 @@ export function useCancelMaintenanceEvent() {
 // ── Maintenance schedules ──────────────────────────────────────────────────
 
 /**
- * Live maintenance schedules via Electric (migrated from REST
- * `listMaintenanceSchedules`). Filters are applied client-side.
- *
- * Fidelity note: the `maintenance_schedules` shape does NOT include
- * `description` or `last_executed_at` columns. The shape also omits the
- * relation fields (tool, line, workstation, assignedTo, costSource).
- * `_count` absent (no relation counts in this shape).
+ * Maintenance schedules via REST `listMaintenanceSchedules`.
+ * The server applies is_active / frequency / search filters and returns the
+ * description, last_executed_at, and relation fields.
  */
 export function useMaintenanceSchedules(opts: schedules.MaintenanceScheduleFilters = {}) {
-  const { is_active, frequency, search } = opts;
-  const q = search?.trim().toLowerCase() ?? '';
-
-  return useElectricShape<Row, schedules.MaintenanceSchedule[]>('maintenance_schedules', {
-    select: (rows) => {
-      let out = rows as unknown as schedules.MaintenanceSchedule[];
-
-      if (is_active !== undefined) {
-        out = out.filter((r) => r.is_active === is_active);
-      }
-      if (frequency !== undefined) {
-        out = out.filter((r) => r.frequency === frequency);
-      }
-      if (q) {
-        out = out.filter((r) => r.name.toLowerCase().includes(q));
-      }
-
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['maintenance-schedules', opts],
+    queryFn: () => schedules.listMaintenanceSchedules(opts),
   });
 }
 
 /** REST: detail-by-id — includes description, last_executed_at, and all
- *  relation fields not present in the Electric shape. */
+ *  relation fields not in the list response (use the detail endpoint). */
 export function useMaintenanceSchedule(id: number | undefined) {
   return useQuery({
     queryKey: ['maintenance-schedule', id],

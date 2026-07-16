@@ -42,9 +42,14 @@ export default function RootLayout() {
     Geist_500Medium: require('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'),
     Geist_600SemiBold: require('@expo-google-fonts/geist/600SemiBold/Geist_600SemiBold.ttf'),
     Geist_700Bold: require('@expo-google-fonts/geist/700Bold/Geist_700Bold.ttf'),
-    GeistMono_400Regular: require('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf'),
-    GeistMono_500Medium: require('@expo-google-fonts/geist-mono/500Medium/GeistMono_500Medium.ttf'),
-    GeistMono_600SemiBold: require('@expo-google-fonts/geist-mono/600SemiBold/GeistMono_600SemiBold.ttf'),
+    // Locally patched Geist Mono: the upstream font's default zero is slashed
+    // (and there is no per-call way to disable it across iOS+Android), so
+    // assets/fonts/ ships copies whose default '0' glyph is the plain (ss09)
+    // round zero. Family name is kept — Geist's OFL has no Reserved Font Name.
+    // See assets/fonts/README.md for the patch recipe.
+    GeistMono_400Regular: require('../assets/fonts/GeistMono_400Regular.ttf'),
+    GeistMono_500Medium: require('../assets/fonts/GeistMono_500Medium.ttf'),
+    GeistMono_600SemiBold: require('../assets/fonts/GeistMono_600SemiBold.ttf'),
     ...FontAwesome.font,
   });
 
@@ -79,98 +84,37 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  // Remount the whole navigator whenever the signed-in identity changes —
+  // otherwise the previous user's navigation history survives logout/login
+  // and the back button pops into the other role's screens.
+  const userId = useAuthStore((s) => s.user?.id ?? 'anon');
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AuthGate />
       {/* Every screen renders its own chrome — hide the default Stack header
           globally so we never see an unstyled back button on top of the app. */}
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack key={String(userId)} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(drawer)" />
         <Stack.Screen name="login" />
         <Stack.Screen name="select-line" />
+        {/* Operator experience — root-level (no drawer/sidebar), mirroring the
+            web operator chrome. See screens/operator/* + components/operator. */}
+        <Stack.Screen name="operator" />
         {/* WO detail lives inside the drawer so the sidebar stays visible —
             see app/(drawer)/work-orders/[id].tsx. */}
         <Stack.Screen name="work-orders/[id]/run/[batchId]" />
-        <Stack.Screen name="issues/[id]" />
-        <Stack.Screen name="issues/new" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="work-orders/[id]/anomalies/index" />
-        <Stack.Screen name="work-orders/[id]/anomalies/new" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="work-orders/[id]/costs/index" />
-        <Stack.Screen name="work-orders/[id]/costs/new" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="work-orders/[id]/attachments/index" />
-        <Stack.Screen
-          name="work-orders/new/index"
-          options={{ title: 'New work order', presentation: 'modal' }}
-        />
-        {/* Quality / inspections — operator + supervisor */}
-        <Stack.Screen name="quality/inspections/index" options={{ title: 'Inspections' }} />
-        <Stack.Screen name="quality/inspections/[id]" options={{ title: 'Inspection' }} />
+        {/* Quality / inspections — operator + supervisor (list lives under (drawer)) */}
         <Stack.Screen
           name="quality/inspections/[id]/run/index"
           options={{ title: 'Run inspection', presentation: 'modal' }}
         />
         {/* Admin */}
-        <Stack.Screen name="admin/users/[id]" options={{ title: 'Edit user' }} />
-        <Stack.Screen name="admin/users/new" options={{ title: 'New user', presentation: 'modal' }} />
-        <Stack.Screen name="admin/companies/[id]" options={{ title: 'Edit company' }} />
-        <Stack.Screen name="admin/companies/new" options={{ title: 'New company', presentation: 'modal' }} />
-        <Stack.Screen name="admin/cost-sources/[id]" options={{ title: 'Edit cost source' }} />
-        <Stack.Screen name="admin/cost-sources/new" options={{ title: 'New cost source', presentation: 'modal' }} />
-        <Stack.Screen name="admin/anomaly-reasons/[id]" options={{ title: 'Edit reason' }} />
-        <Stack.Screen name="admin/anomaly-reasons/new" options={{ title: 'New reason', presentation: 'modal' }} />
-        <Stack.Screen name="admin/subassemblies/[id]" options={{ title: 'Edit subassembly' }} />
-        <Stack.Screen name="admin/subassemblies/new" options={{ title: 'New subassembly', presentation: 'modal' }} />
-        <Stack.Screen name="admin/lot-sequences/[id]" options={{ title: 'Edit LOT sequence' }} />
-        <Stack.Screen name="admin/lot-sequences/new" options={{ title: 'New LOT sequence', presentation: 'modal' }} />
-        <Stack.Screen name="admin/materials/[id]" />
-        <Stack.Screen name="admin/oee/[lineId]" />
         {/* HR */}
-        <Stack.Screen name="hr/skills/[id]" options={{ title: 'Edit skill' }} />
-        <Stack.Screen name="hr/skills/new" options={{ title: 'New skill', presentation: 'modal' }} />
-        <Stack.Screen name="hr/wage-groups/[id]" options={{ title: 'Edit wage group' }} />
-        <Stack.Screen name="hr/wage-groups/new" options={{ title: 'New wage group', presentation: 'modal' }} />
-        <Stack.Screen name="hr/crews/[id]" options={{ title: 'Edit crew' }} />
-        <Stack.Screen name="hr/crews/new" options={{ title: 'New crew', presentation: 'modal' }} />
-        <Stack.Screen name="hr/workers/[id]" options={{ title: 'Edit worker' }} />
-        <Stack.Screen name="hr/workers/new" options={{ title: 'New worker', presentation: 'modal' }} />
         {/* Maintenance */}
-        <Stack.Screen name="maintenance/tools/[id]" options={{ title: 'Tool' }} />
-        <Stack.Screen name="maintenance/tools/new" options={{ title: 'New tool', presentation: 'modal' }} />
-        <Stack.Screen name="maintenance/events/[id]" options={{ title: 'Event' }} />
-        <Stack.Screen name="maintenance/events/new" options={{ title: 'New event', presentation: 'modal' }} />
         {/* Connectivity */}
         {/* Pakowanie */}
-        <Stack.Screen name="pakowanie/eans/new" options={{ title: 'Add EAN', presentation: 'modal' }} />
         {/* Production */}
-        <Stack.Screen name="production/product-types/[id]" options={{ title: 'Edit product type' }} />
-        <Stack.Screen name="production/product-types/new" options={{ title: 'New product type', presentation: 'modal' }} />
-        <Stack.Screen name="production/shifts/[id]" options={{ title: 'Edit shift' }} />
-        <Stack.Screen name="production/shifts/new" options={{ title: 'New shift', presentation: 'modal' }} />
-        <Stack.Screen name="production/templates/[id]" options={{ title: 'Process template' }} />
-        <Stack.Screen name="production/templates/[id]/qc-templates/[qcId]" options={{ title: 'Edit QC template' }} />
-        <Stack.Screen name="production/templates/[id]/qc-templates/new" options={{ title: 'New QC template', presentation: 'modal' }} />
         {/* Structure */}
-        <Stack.Screen name="structure/divisions/[id]" options={{ title: 'Edit division' }} />
-        <Stack.Screen name="structure/factories/[id]" options={{ title: 'Edit factory' }} />
-        <Stack.Screen name="structure/factories/new" options={{ title: 'New factory', presentation: 'modal' }} />
-        <Stack.Screen name="structure/sites/new" options={{ title: 'New site', presentation: 'modal' }} />
-        <Stack.Screen name="structure/sites/[id]/edit" options={{ title: 'Edit site', presentation: 'modal' }} />
-        <Stack.Screen name="structure/areas/new" options={{ title: 'New area', presentation: 'modal' }} />
-        <Stack.Screen name="structure/areas/[id]/edit" options={{ title: 'Edit area', presentation: 'modal' }} />
-        <Stack.Screen name="production/process-segments/new" options={{ title: 'New process segment', presentation: 'modal' }} />
-        <Stack.Screen name="production/process-segments/[id]/edit" options={{ title: 'Edit process segment', presentation: 'modal' }} />
-        <Stack.Screen name="hr/personnel-classes/new" options={{ title: 'New personnel class', presentation: 'modal' }} />
-        <Stack.Screen name="hr/personnel-classes/[id]/edit" options={{ title: 'Edit personnel class', presentation: 'modal' }} />
-        <Stack.Screen name="admin/inspection-plans/new" options={{ title: 'New inspection plan', presentation: 'modal' }} />
-        <Stack.Screen name="admin/inspection-plans/[id]/edit" options={{ title: 'Edit inspection plan', presentation: 'modal' }} />
-        <Stack.Screen name="structure/factories/[id]/divisions/new" options={{ title: 'New division', presentation: 'modal' }} />
-        <Stack.Screen name="structure/lines/[id]" options={{ title: 'Edit line' }} />
-        <Stack.Screen name="structure/lines/new" options={{ title: 'New line', presentation: 'modal' }} />
-        <Stack.Screen name="structure/lines/[id]/statuses/new" options={{ title: 'New status', presentation: 'modal' }} />
-        <Stack.Screen name="structure/lines/[id]/workstations/[workstationId]" options={{ title: 'Edit workstation' }} />
-        <Stack.Screen name="structure/lines/[id]/workstations/new" options={{ title: 'New workstation', presentation: 'modal' }} />
-        <Stack.Screen name="structure/workstation-types/[id]" options={{ title: 'Edit workstation type' }} />
-        <Stack.Screen name="structure/workstation-types/new" options={{ title: 'New workstation type', presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );
@@ -188,7 +132,10 @@ function AuthGate() {
     const inAuthScreen = segments[0] === 'login';
     const inSelectLine = segments[0] === 'select-line';
     const lines = user?.lines ?? [];
-    const needsLineSelection = !!user && lines.length > 1 && activeLineId == null;
+    // Web parity: only Operators go through line selection (Admins land on the
+    // admin dashboard, Supervisors on the supervisor dashboard — routes/web.php).
+    const needsLineSelection =
+      !!user && getRole(user) === 'Operator' && lines.length > 1 && activeLineId == null;
 
     // Half-cleared auth (token present, user null) — happens when a 401
     // interceptor fires against a refetch after the browser has suspended
@@ -212,16 +159,14 @@ function AuthGate() {
         ? '/admin/dashboard'
         : role === 'Supervisor'
           ? '/supervisor'
-          : '/operator/today';
+          : '/operator/queue';
 
-    // The bare `/` resolves to app/(drawer)/(tabs)/index.tsx — that's a
-    // legacy hub we don't want users to land on. Detect by inspecting
-    // segments: when the deepest segment is `(drawer)` or `(tabs)` (i.e.
-    // there's no concrete path after the route groups), bounce the user
-    // into their role landing so the URL is never just `/`.
-    // expo-router types `segments` as a tuple that always has at least one
-    // entry, so we just check that every segment is a route group.
-    const onBareRoot = segments.every((s) => s === '(drawer)' || s === '(tabs)');
+    // The bare `/` has no concrete screen — detect it by inspecting segments:
+    // when every segment is just the `(drawer)` route group (i.e. there's no
+    // concrete path after it), bounce the user into their role landing so the
+    // URL is never just `/`. expo-router types `segments` as a tuple that
+    // always has at least one entry.
+    const onBareRoot = segments.every((s) => s === '(drawer)');
 
     let target: string | null = null;
     if (!token && !inAuthScreen) target = '/login';

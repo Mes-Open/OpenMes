@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { z } from 'zod';
 
@@ -45,6 +46,7 @@ const DAYS = [
 ];
 
 export function ShiftForm({ initial, mode, onSubmit, submitting }: Props) {
+  const { t } = useTranslation();
   const linesQuery = useLines();
 
   const { control, handleSubmit, formState: { isValid } } = useForm<ShiftFormValues>({
@@ -91,7 +93,7 @@ export function ShiftForm({ initial, mode, onSubmit, submitting }: Props) {
               {DAYS.map((d) => (
                 <SelectionChip
                   key={d.num}
-                  label={d.label}
+                  label={t(d.label)}
                   active={value.includes(d.num)}
                   onPress={() =>
                     onChange(
@@ -115,7 +117,7 @@ export function ShiftForm({ initial, mode, onSubmit, submitting }: Props) {
           render={({ field: { value, onChange } }) => (
             <ChipRow>
               <SelectionChip
-                label="All lines"
+                label={t('All lines')}
                 active={value === null}
                 onPress={() => onChange(null)}
               />

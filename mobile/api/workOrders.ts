@@ -31,10 +31,14 @@ export type WorkOrderTransition =
 export const transitionWorkOrder = (
   id: number,
   transition: WorkOrderTransition,
+  data: Record<string, unknown> = {},
 ): Promise<WorkOrder> =>
   api
-    .post<ApiEnvelope<WorkOrder>>(`/api/v1/work-orders/${id}/${transition}`)
+    .post<ApiEnvelope<WorkOrder>>(`/api/v1/work-orders/${id}/${transition}`, data)
     .then((r) => r.data.data);
+
+export const deleteWorkOrder = (id: number): Promise<void> =>
+  api.delete(`/api/v1/work-orders/${id}`).then(() => undefined);
 
 export interface CreateWorkOrderPayload {
   order_no: string;

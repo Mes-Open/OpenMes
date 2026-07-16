@@ -1,11 +1,10 @@
-import { TabletPlantWall } from '@/screens/tablet/PlantWall';
+import { AdminDashboardScreen } from '@/screens/(drawer)/admin/AdminDashboard';
 
 /**
- * Admin Dashboard — the canonical admin landing. Renders the existing
- * TabletPlantWall (previously at /admin/wall) so the URL matches the web
- * admin's /admin/dashboard path. The legacy /admin/wall route stays for
- * backward compatibility with any deep links.
+ * Admin Dashboard — mirrors the web Inertia admin dashboard (KPIs, OEE Overview,
+ * Inbound QC, Materials, Scrap, Non-conformances, Recent work orders, Open
+ * issues). Data via GET /api/v1/admin/dashboard.
  */
 export default function AdminDashboardPage() {
-  return <TabletPlantWall />;
+  return <AdminDashboardScreen />;
 }

@@ -1,11 +1,10 @@
-import { OrdersHub } from '@/screens/(drawer)/orders/index';
-
 /**
- * Admin Orders — same screen as /orders, mounted under /admin/orders so the
- * URL stays in admin context when the admin navigates from their sidebar.
- * The screen file is shared so any change to OrdersHub shows up in both
- * routes; only the URL differs.
+ * /admin/orders alias — the OrdersHub screen is gone (no web counterpart;
+ * navigation lives in the sidebar / bottom nav). Land on All Orders like the
+ * web's Orders group does.
  */
-export default function AdminOrdersPage() {
-  return <OrdersHub />;
+import { Redirect } from 'expo-router';
+
+export default function AdminOrdersRedirect() {
+  return <Redirect href="/admin/work-orders" />;
 }

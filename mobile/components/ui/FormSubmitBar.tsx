@@ -34,7 +34,7 @@ export function FormSubmitBar({
         <Pressable
           onPress={onDestructive}
           accessibilityRole="button"
-          accessibilityLabel={destructiveLabel ?? 'Delete'}
+          accessibilityLabel={destructiveLabel ? t(destructiveLabel) : t('Delete')}
           style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.7 : 1 }]}>
           <FontAwesome name="trash" size={16} color={colors.blocked} />
         </Pressable>

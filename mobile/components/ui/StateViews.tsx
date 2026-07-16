@@ -16,13 +16,13 @@ export function LoadingState({ label }: { label?: string }) {
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   // Auto-translate the retry label — same English-as-key convention as Button.
   const { t } = useTranslation();
-  const message = error instanceof Error ? error.message : String(error ?? 'Unknown error');
+  const message = error instanceof Error ? error.message : String(error ?? t('Unknown error'));
   return (
     <View style={styles.center}>
       <View style={[styles.iconBadge, { backgroundColor: colors.blockedBg }]}>
         <Text style={{ color: colors.blocked, fontSize: 22, fontFamily: fonts.sans.native.bold }}>!</Text>
       </View>
-      <Text style={styles.title}>Something went wrong</Text>
+      <Text style={styles.title}>{t('Something went wrong')}</Text>
       <Text style={styles.text}>{message}</Text>
       {onRetry ? (
         <Button variant="accent" onPress={onRetry} style={{ marginTop: 14 }}>

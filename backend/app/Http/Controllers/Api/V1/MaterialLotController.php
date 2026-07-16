@@ -7,6 +7,7 @@ use App\Models\BatchStep;
 use App\Models\BatchStepLotConsumption;
 use App\Models\MaterialLot;
 use App\Models\MaterialSublot;
+use App\Services\Traceability\TraceabilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -74,13 +75,13 @@ class MaterialLotController extends Controller
      * Returns each batch step that consumed this lot (with its parent batch /
      * work order / product type), plus the consumed quantity per record.
      */
-    public function forwardGenealogy(MaterialLot $materialLot): JsonResponse
+    public function forwardGenealogy(MaterialLot $materialLot, TraceabilityService $tracer): JsonResponse
     {
         $consumptions = $materialLot->consumptions()
             ->with([
                 'batchStep:id,batch_id,name,step_number,status',
-                'batchStep.batch:id,work_order_id,lot_number,quantity_produced',
-                'batchStep.batch.workOrder:id,product_type_id,lot_number,status',
+                'batchStep.batch:id,work_order_id,lot_number,produced_qty',
+                'batchStep.batch.workOrder:id,order_no,product_type_id,status',
                 'batchStep.batch.workOrder.productType:id,name,code',
                 'sublot:id,parent_lot_id,sublot_number',
                 'recordedBy:id,name',
@@ -94,6 +95,10 @@ class MaterialLotController extends Controller
                 'consumptions' => $consumptions,
                 'total_consumed' => (float) $consumptions->sum('quantity_consumed'),
                 'consumed_in_steps' => $consumptions->pluck('batch_step_id')->unique()->values(),
+                // Reverse "recall readiness" trace: the finished work orders and
+                // units that transitively contain this lot (mirrors the web
+                // traceability console's recall-impact panel).
+                'recall' => $tracer->recallImpact(collect([$materialLot])),
             ],
         ]);
     }

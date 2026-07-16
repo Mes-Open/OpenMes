@@ -1,9 +1,16 @@
 import { __ } from '../../../lib/i18n';
 
-export function crewFields(divisions, users) {
+export function crewFields(divisions, users, lines = []) {
     return [
         { name: 'code', label: __('Code'), required: true },
         { name: 'name', label: __('Name'), required: true },
+        {
+            name: 'line_ids',
+            label: __('Lines'),
+            type: 'checkbox-group',
+            options: lines.map((l) => ({ value: l.id, label: l.name })),
+            help: __('Lines this crew staffs (drives its labor demand on the capacity view).'),
+        },
         {
             name: 'division_id',
             label: __('Division'),

@@ -10,6 +10,9 @@
  * to the native twin (index.native.tsx).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+
+import { useAnchoredPopover } from '../lib/anchorPopover.web.js';
 
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -165,11 +168,14 @@ export function DatePicker({
 }) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef(null);
+    const { anchorRef, popRef, style } = useAnchoredPopover(open, { estHeight: 360 });
 
     useEffect(() => {
         if (!open) return;
         const onDown = (e) => {
-            if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+            // The calendar is portaled — it is NOT inside rootRef's subtree.
+            if (rootRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return;
+            setOpen(false);
         };
         const onKey = (e) => {
             if (e.key === 'Escape') setOpen(false);
@@ -180,7 +186,7 @@ export function DatePicker({
             document.removeEventListener('mousedown', onDown);
             document.removeEventListener('keydown', onKey);
         };
-    }, [open]);
+    }, [open, popRef]);
 
     const display = value ? format(value) : '';
 
@@ -190,6 +196,7 @@ export function DatePicker({
                 <div className="mb-[7px] font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{label}</div>
             )}
             <button
+                ref={anchorRef}
                 type="button"
                 disabled={disabled}
                 aria-haspopup="dialog"
@@ -200,11 +207,13 @@ export function DatePicker({
                 <span className={`font-mono text-[13px] ${display ? 'text-om-ink' : 'text-om-faint'}`}>{display || placeholder}</span>
                 <CalendarGlyph />
             </button>
-            {open && (
+            {open && style && createPortal(
                 <div
+                    ref={popRef}
                     role="dialog"
                     aria-label="Choose date"
-                    className="absolute left-0 top-full z-50 mt-1 rounded-om border border-om-line bg-om-card p-4 shadow-[0_18px_44px_-20px_rgba(0,0,0,.22)]"
+                    style={style}
+                    className="rounded-om border border-om-line bg-om-card p-4 shadow-[0_18px_44px_-20px_rgba(0,0,0,.22)]"
                 >
                     <Calendar
                         value={value}
@@ -212,7 +221,8 @@ export function DatePicker({
                         min={min}
                         max={max}
                     />
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );

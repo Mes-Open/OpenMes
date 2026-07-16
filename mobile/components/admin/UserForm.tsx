@@ -2,6 +2,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
@@ -47,6 +48,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 };
 
 export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitting }: Props) {
+  const { t } = useTranslation();
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
 
@@ -119,12 +121,12 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
           name="account_type"
           render={({ field: { value, onChange } }) => (
             <ChipRow>
-              {(['user', 'workstation'] as const).map((t) => (
+              {(['user', 'workstation'] as const).map((opt) => (
                 <SelectionChip
-                  key={t}
-                  label={t === 'user' ? 'Personal account' : 'Workstation kiosk'}
-                  active={t === value}
-                  onPress={() => onChange(t)}
+                  key={opt}
+                  label={t(opt === 'user' ? 'Personal account' : 'Workstation kiosk')}
+                  active={opt === value}
+                  onPress={() => onChange(opt)}
                 />
               ))}
             </ChipRow>
@@ -167,7 +169,7 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
                             color={active ? '#6F6C66' : palette.textFaint}
                             letterSpacing={0.5}
                             style={{ marginTop: 4 }}>
-                            {sub}
+                            {t(sub)}
                           </Mono>
                         ) : null}
                       </Pressable>
@@ -184,15 +186,15 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
         <SectionLabel
           right={
             <Mono size={11} color={palette.textFaint}>
-              {(lines.data?.length ?? 0)} AVAILABLE
+              {(lines.data?.length ?? 0)} {t('AVAILABLE')}
             </Mono>
           }>
           Line assignments
         </SectionLabel>
         {lines.isLoading ? (
-          <Mono size={11} color={palette.textFaint}>LOADING LINES…</Mono>
+          <Mono size={11} color={palette.textFaint}>{t('LOADING LINES…')}</Mono>
         ) : (lines.data ?? []).length === 0 ? (
-          <Mono size={11} color={palette.textFaint}>NO LINES EXIST YET</Mono>
+          <Mono size={11} color={palette.textFaint}>{t('NO LINES EXIST YET')}</Mono>
         ) : (
           <Controller
             control={control}
@@ -225,7 +227,7 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
             <FontAwesome name="key" size={16} color="#a8650a" style={{ marginTop: 2 }} />
             <View style={{ flex: 1 }}>
               <Text style={styles.tempPwBody}>
-                Server will generate a temp password and force change on first login.
+                {t('Server will generate a temp password and force change on first login.')}
               </Text>
               <ControlledField
                 control={control}
@@ -240,9 +242,9 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
           <Card>
             <View style={styles.toggleRow}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.toggleTitle, { color: palette.text }]}>Send setup email</Text>
+                <Text style={[styles.toggleTitle, { color: palette.text }]}>{t('Send setup email')}</Text>
                 <Mono size={11} color={palette.textFaint} style={{ marginTop: 3 }}>
-                  EMAIL PASSWORD + LOGIN URL ON CREATE
+                  {t('EMAIL PASSWORD + LOGIN URL ON CREATE')}
                 </Mono>
               </View>
               <Controller
@@ -260,10 +262,10 @@ export function UserForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.toggleTitle, { color: palette.text }]}>
-                Force password change
+                {t('Force password change')}
               </Text>
               <Mono size={11} color={palette.textFaint} style={{ marginTop: 3 }}>
-                USER MUST CHANGE PASSWORD ON NEXT LOGIN
+                {t('USER MUST CHANGE PASSWORD ON NEXT LOGIN')}
               </Mono>
             </View>
             <Controller

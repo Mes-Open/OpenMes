@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
@@ -36,6 +37,7 @@ interface Props {
 const TABS = ['Details', 'Members', 'Products', 'Statuses', 'WS'];
 
 export function LineForm({ initial, mode, onSubmit, onCancel, onDelete, submitting, counts }: Props) {
+  const { t } = useTranslation();
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
 
@@ -60,9 +62,9 @@ export function LineForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
           showsHorizontalScrollIndicator={false}
           style={[styles.tabsTrack, { backgroundColor: palette.surfaceAlt }]}
           contentContainerStyle={{ padding: 4, gap: 4 }}>
-          {TABS.map((t, i) => (
+          {TABS.map((tab, i) => (
             <View
-              key={t}
+              key={tab}
               style={[
                 styles.tab,
                 i === 0 && {
@@ -75,7 +77,7 @@ export function LineForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
                 color={i === 0 ? palette.text : palette.textMuted}
                 weight="600"
                 letterSpacing={0.6}>
-                {t.toUpperCase()}
+                {t(tab).toUpperCase()}
               </Mono>
             </View>
           ))}
@@ -131,7 +133,7 @@ export function LineForm({ initial, mode, onSubmit, onCancel, onDelete, submitti
                 { backgroundColor: palette.surface, borderColor: palette.border },
               ]}>
               <Mono size={9.5} color={palette.textFaint} letterSpacing={0.6}>
-                {m.label}
+                {t(m.label)}
               </Mono>
               <Mono
                 size={22}

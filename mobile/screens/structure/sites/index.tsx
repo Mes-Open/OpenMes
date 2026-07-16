@@ -1,266 +1,231 @@
-import { FontAwesome } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+/**
+ * Sites & areas — the ISA-95 structure catalog above Lines. Mirrors the web
+ * admin Sites (Pages/admin/sites/Index.jsx) and Areas (Pages/admin/areas/
+ * Index.jsx) tables via the shared DataTable (search + Columns menu +
+ * pagination); a view switcher toggles between the two column sets and
+ * datasets, matching each web table's columns (Code / Name / Company / City /
+ * Areas / Status for sites, Code / Name / Site / Lines / Status for areas)
+ * and per-row actions (edit / toggle-active / delete). "Toggle active" reuses
+ * the existing update mutation (no separate toggle endpoint on the mobile
+ * REST API). Data via the existing REST hooks; navigation targets unchanged.
+ */
 import { useMemo, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
+import { Dropdown, colors, fonts, radius } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
+import { Button } from '@/components/ui/Button';
 import { Mono } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useAreas, useSites } from '@/hooks/queries/useStructureIsa95';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import {
+  useAreas,
+  useDeleteArea,
+  useDeleteSite,
+  useSites,
+  useUpdateArea,
+  useUpdateSite,
+} from '@/hooks/queries/useStructureIsa95';
 import type { Site, Area } from '@/api/sites';
 
-type Tab = 'sites' | 'areas';
+type View_ = 'sites' | 'areas';
 
-/**
- * ISA-95 structure tabs — Sites and Areas live above Lines. Tapping a site
- * scopes the Areas tab to that site. Lines tab links to the existing Factories
- * screen since lines already have a structure surface there.
- */
 export function SitesAreasScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>('sites');
+  const [view, setView] = useState<View_>('sites');
 
   const sitesQ = useSites();
   const areasQ = useAreas();
   const sites = sitesQ.data ?? [];
   const areas = areasQ.data ?? [];
 
-  const totalAreas = useMemo(
-    () => sites.reduce((sum, s) => sum + (s.areas_count ?? 0), 0),
-    [sites],
+  const toggleSite = useUpdateSite();
+  const deleteSite = useDeleteSite();
+  const toggleArea = useUpdateArea();
+  const deleteArea = useDeleteArea();
+
+  const options = useMemo(
+    () => [
+      { value: 'sites', label: t('Sites') },
+      { value: 'areas', label: t('Areas') },
+    ],
+    [t],
   );
 
-  return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader
-        back
-        title={t('Sites & areas')}
-        subtitle={`ISA-95 · ${sites.length} ${t('sites').toUpperCase()} · ${totalAreas || areas.length} ${t('areas').toUpperCase()}`}
-      />
-      {sitesQ.isLoading ? (
-        <LoadingState />
-      ) : sitesQ.isError ? (
-        <ErrorState error={sitesQ.error} onRetry={sitesQ.refetch} />
-      ) : (
-        <ScrollView contentContainerStyle={styles.container}>
-          {/* Segmented tab control */}
-          <View style={[styles.tabBar, { backgroundColor: palette.surfaceAlt }]}>
-            {(['sites', 'areas'] as Tab[]).map((id) => {
-              const on = id === tab;
-              return (
-                <Pressable
-                  key={id}
-                  onPress={() => setTab(id)}
-                  style={[
-                    styles.tab,
-                    on
-                      ? {
-                          backgroundColor: palette.surface,
-                          boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.06)',
-                        }
-                      : null,
-                  ]}>
-                  <Mono
-                    size={11}
-                    weight="600"
-                    color={on ? palette.text : palette.textMuted}
-                    letterSpacing={0.5}>
-                    {t(id === 'sites' ? 'SITES' : 'AREAS').toUpperCase()}
-                  </Mono>
-                </Pressable>
-              );
-            })}
-          </View>
+  const active = view === 'sites' ? sitesQ : areasQ;
 
-          <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>
-            {tab === 'sites'
-              ? 'SITES · ISA-95 ENTERPRISE › SITE'
-              : 'AREAS · ISA-95 SITE › AREA'}
-          </Mono>
-
-          {tab === 'sites' ? (
-            sites.length === 0 ? (
-              <EmptyState title={t('No sites')} />
-            ) : (
-              <Card style={{ padding: 0 }}>
-                {sites.map((s, i, arr) => (
-                  <SiteRow
-                    key={s.id}
-                    site={s}
-                    last={i === arr.length - 1}
-                    palette={palette}
-                    onPress={() => router.push(`/structure/sites/${s.id}/edit` as never)}
-                  />
-                ))}
-              </Card>
-            )
-          ) : areas.length === 0 ? (
-            <EmptyState title={t('No areas')} />
-          ) : (
-            <Card style={{ padding: 0 }}>
-              {areas.map((a, i, arr) => (
-                <AreaRow
-                  key={a.id}
-                  area={a}
-                  last={i === arr.length - 1}
-                  palette={palette}
-                  onPress={() => router.push(`/structure/areas/${a.id}/edit` as never)}
-                />
-              ))}
-            </Card>
-          )}
-
-          {/* + NEW SITE / AREA */}
-          <Pressable
-            onPress={() =>
-              router.push(
-                tab === 'sites' ? '/structure/sites/new' : '/structure/areas/new' as never,
-              )
-            }
-            style={({ pressed }) => [
-              styles.addBtn,
-              { borderColor: palette.border, opacity: pressed ? 0.7 : 1 },
-            ]}>
-            <FontAwesome name="plus" size={12} color={palette.text} />
-            <Mono size={11} color={palette.text} weight="700" letterSpacing={0.5}>
-              {tab === 'sites' ? t('NEW SITE') : t('NEW AREA')}
-            </Mono>
-          </Pressable>
-
-          <View style={[styles.helpBlock, { backgroundColor: palette.surfaceAlt }]}>
-            <Mono size={11} color={palette.textMuted} letterSpacing={0.3}>
-              ⓘ {t('Areas now live between Sites and Lines (ISA-95 compliance). Existing lines migrated to a default area per site.')}
-            </Mono>
-          </View>
-        </ScrollView>
-      )}
-    </View>
-  );
-}
-
-function SiteRow({
-  site,
-  last,
-  palette,
-  onPress,
-}: {
-  site: Site;
-  last: boolean;
-  palette: typeof Colors.light;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        last
-          ? null
-          : { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
-        site.is_active ? null : { opacity: 0.55 },
-        pressed ? { opacity: 0.7 } : null,
-      ]}>
-      <View style={[styles.iconBadge, { backgroundColor: palette.surfaceAlt }]}>
-        <FontAwesome name="building" size={20} color={palette.textMuted} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={[styles.rowTitle, { color: palette.text }]} numberOfLines={1}>
-            {site.name}
-          </Text>
-          {site.country ? (
-            <View style={[styles.countryPill, { backgroundColor: palette.surfaceAlt }]}>
-              <Mono size={9} color={palette.textMuted} weight="700" letterSpacing={0.5}>
-                {site.country.toUpperCase()}
-              </Mono>
-            </View>
-          ) : null}
-        </View>
-        <Mono size={10.5} color={palette.textFaint} letterSpacing={0.4} style={{ marginTop: 4 }}>
-          {site.code} · {site.areas_count ?? 0} {('AREAS')} · {site.lines_count ?? 0} {('LINES')}
-        </Mono>
-      </View>
-      <FontAwesome name="chevron-right" size={12} color={palette.textFaint} />
-    </Pressable>
-  );
-}
-
-function AreaRow({
-  area,
-  last,
-  palette,
-  onPress,
-}: {
-  area: Area;
-  last: boolean;
-  palette: typeof Colors.light;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        {
-          opacity: pressed ? 0.85 : 1,
+  const onToggleSite = (site: Site) =>
+    toggleSite.mutate(
+      {
+        id: site.id,
+        input: {
+          name: site.name,
+          code: site.code,
+          company_id: site.company_id ?? null,
+          description: site.description ?? null,
+          address: site.address ?? null,
+          city: site.city ?? null,
+          country: site.country ?? null,
+          timezone: site.timezone ?? null,
+          is_active: !site.is_active,
         },
-        last
-          ? null
-          : { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
-      ]}>
-      <View style={[styles.iconBadge, { backgroundColor: palette.surfaceAlt }]}>
-        <FontAwesome name="sitemap" size={20} color={palette.textMuted} />
+      },
+      { onError: (e: Error) => Alert.alert(t('Could not update'), e.message) },
+    );
+
+  const onDeleteSite = (site: Site) =>
+    Alert.alert(t('Delete site'), t('Delete "{{name}}"?', { name: site.name }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () => deleteSite.mutate(site.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
+
+  const onToggleArea = (area: Area) =>
+    toggleArea.mutate(
+      {
+        id: area.id,
+        input: {
+          name: area.name,
+          code: area.code,
+          site_id: area.site_id,
+          description: area.description ?? null,
+          is_active: !area.is_active,
+        },
+      },
+      { onError: (e: Error) => Alert.alert(t('Could not update'), e.message) },
+    );
+
+  const onDeleteArea = (area: Area) =>
+    Alert.alert(t('Delete area'), t('Delete "{{name}}"?', { name: area.name }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () => deleteArea.mutate(area.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
+
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={active.isFetching} onRefresh={active.refetch} tintColor={colors.accent} />}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Sites & areas')}</Text>
+        <View style={{ flex: 1 }} />
+        <View style={{ width: 130 }}>
+          <Dropdown value={view} onChange={(v) => setView(v as View_)} options={options} />
+        </View>
+        <Button
+          title={view === 'sites' ? t('New site') : t('New area')}
+          size="sm"
+          onPress={() =>
+            router.push((view === 'sites' ? '/structure/sites/new' : '/structure/areas/new') as never)
+          }
+        />
       </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[styles.rowTitle, { color: palette.text }]} numberOfLines={1}>
-          {area.name}
-        </Text>
-        <Mono size={10.5} color={palette.textFaint} letterSpacing={0.4} style={{ marginTop: 4 }}>
-          {area.code} · {area.site?.name?.toUpperCase() ?? '—'} · {area.lines_count ?? 0} LINES
+
+      {active.isLoading && !active.data ? (
+        <LoadingState />
+      ) : active.isError && !active.data ? (
+        <ErrorState error={active.error} onRetry={active.refetch} />
+      ) : view === 'sites' ? (
+        <DataTable<Site>
+          data={sites}
+          searchPlaceholder={t('Search…')}
+          columnsLabel={t('Columns')}
+          columnsMenuLabel={t('Toggle columns')}
+          searchKeys={['code', 'name', 'city']}
+          emptyText={t('No sites yet.')}
+          onRowPress={(s) => router.push(`/structure/sites/${s.id}/edit` as never)}
+          columns={[
+            { key: 'code', label: t('Code'), width: 80, render: (s) => <Mono size={11} color={colors.muted}>{s.code}</Mono> },
+            { key: 'name', label: t('Name'), flex: 1.2, render: (s) => <Text numberOfLines={1} style={styles.name}>{s.name}</Text> },
+            { key: 'company', label: t('Company'), flex: 1, render: (s) => s.company?.name ?? '—' },
+            { key: 'city', label: t('City'), flex: 0.8, render: (s) => s.city ?? '—' },
+            { key: 'areas_count', label: t('Areas'), width: 70, render: (s) => String(s.areas_count ?? 0) },
+            {
+              key: 'is_active',
+              label: t('Status'),
+              width: 90,
+              render: (s) => (
+                <StatusPill status={s.is_active ? 'IN_PROGRESS' : 'CANCELLED'} label={s.is_active ? t('Active') : t('Inactive')} />
+              ),
+            },
+          ]}
+          actions={(s) => [
+            { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/structure/sites/${s.id}/edit` as never) },
+            {
+              label: s.is_active ? t('Deactivate') : t('Activate'),
+              icon: s.is_active ? 'deactivate' : 'activate',
+              onPress: () => onToggleSite(s),
+            },
+            { label: t('Delete'), icon: 'delete', onPress: () => onDeleteSite(s) },
+          ]}
+        />
+      ) : (
+        <DataTable<Area>
+          data={areas}
+          searchPlaceholder={t('Search…')}
+          columnsLabel={t('Columns')}
+          columnsMenuLabel={t('Toggle columns')}
+          searchKeys={['code', 'name']}
+          emptyText={t('No areas yet.')}
+          onRowPress={(a) => router.push(`/structure/areas/${a.id}/edit` as never)}
+          columns={[
+            { key: 'code', label: t('Code'), width: 80, render: (a) => <Mono size={11} color={colors.muted}>{a.code}</Mono> },
+            { key: 'name', label: t('Name'), flex: 1.2, render: (a) => <Text numberOfLines={1} style={styles.name}>{a.name}</Text> },
+            { key: 'site', label: t('Site'), flex: 1, render: (a) => a.site?.name ?? '—' },
+            { key: 'lines_count', label: t('Lines'), width: 70, render: (a) => String(a.lines_count ?? 0) },
+            {
+              key: 'is_active',
+              label: t('Status'),
+              width: 90,
+              render: (a) => (
+                <StatusPill status={a.is_active ? 'IN_PROGRESS' : 'CANCELLED'} label={a.is_active ? t('Active') : t('Inactive')} />
+              ),
+            },
+          ]}
+          actions={(a) => [
+            { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/structure/areas/${a.id}/edit` as never) },
+            {
+              label: a.is_active ? t('Deactivate') : t('Activate'),
+              icon: a.is_active ? 'deactivate' : 'activate',
+              onPress: () => onToggleArea(a),
+            },
+            { label: t('Delete'), icon: 'delete', onPress: () => onDeleteArea(a) },
+          ]}
+        />
+      )}
+
+      <View style={styles.helpBlock}>
+        <Mono size={10.5} color={colors.muted} letterSpacing={0.3}>
+          ⓘ {t('Areas now live between Sites and Lines (ISA-95 compliance). Existing lines migrated to a default area per site.')}
         </Mono>
       </View>
-      <FontAwesome name="chevron-right" size={12} color={palette.textFaint} />
-    </Pressable>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 12 },
-  tabBar: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 10 },
-  tab: { flex: 1, paddingVertical: 8, borderRadius: 7, alignItems: 'center' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  iconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowTitle: { fontSize: 14, fontWeight: '700' },
-  countryPill: { paddingVertical: 1, paddingHorizontal: 5, borderRadius: 3 },
-  helpBlock: { padding: 12, borderRadius: 10 },
-  addBtn: {
-    marginTop: 6,
-    height: 44,
-    borderRadius: 10,
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, paddingBottom: 32 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  helpBlock: {
+    marginTop: 16,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderStyle: 'dashed',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: 12,
   },
 });

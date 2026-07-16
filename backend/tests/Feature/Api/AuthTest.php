@@ -84,6 +84,35 @@ class AuthTest extends TestCase
             ]);
     }
 
+    public function test_me_returns_accessible_tabs_for_admin(): void
+    {
+        $user = User::factory()->admin()->create();
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->getJson('/api/auth/me');
+
+        $response->assertStatus(200);
+        $tabs = $response->json('data.accessible_tabs');
+        $this->assertIsArray($tabs);
+        $this->assertContains('orders', $tabs);
+        $this->assertContains('admin', $tabs);
+    }
+
+    public function test_me_omits_admin_tab_for_operator(): void
+    {
+        $user = User::factory()->operator()->create();
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+            ->getJson('/api/auth/me');
+
+        $response->assertStatus(200);
+        $tabs = $response->json('data.accessible_tabs');
+        $this->assertIsArray($tabs);
+        $this->assertNotContains('admin', $tabs);
+    }
+
     public function test_unauthenticated_user_cannot_access_me_endpoint(): void
     {
         $response = $this->getJson('/api/auth/me');

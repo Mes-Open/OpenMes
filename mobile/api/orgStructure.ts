@@ -19,6 +19,7 @@ export interface Division {
   description?: string | null;
   is_active: boolean;
   lines_count?: number;
+  crews_count?: number;
   factory?: Factory;
 }
 
@@ -66,6 +67,14 @@ export const toggleFactoryActive = (id: number): Promise<Factory> =>
     .then((r) => r.data.data);
 
 // Divisions
+/** Global divisions list (all factories) — the admin Divisions page. */
+export const listAllDivisions = (includeInactive = false): Promise<Division[]> =>
+  api
+    .get<ApiEnvelope<Division[]>>('/api/v1/divisions', {
+      params: { include_inactive: includeInactive },
+    })
+    .then((r) => r.data.data);
+
 export const listFactoryDivisions = (
   factoryId: number,
   includeInactive = false,
@@ -104,6 +113,10 @@ export const toggleDivisionActive = (id: number): Promise<Division> =>
 // Line Statuses
 export const listLineStatuses = (lineId: number): Promise<LineStatus[]> =>
   api.get<ApiEnvelope<LineStatus[]>>(`/api/v1/lines/${lineId}/statuses`).then((r) => r.data.data);
+
+/** Global status catalog (line_id = null) — the admin Line Statuses page. */
+export const listGlobalLineStatuses = (): Promise<LineStatus[]> =>
+  api.get<ApiEnvelope<LineStatus[]>>('/api/v1/line-statuses').then((r) => r.data.data);
 
 export const createLineStatus = (
   lineId: number,

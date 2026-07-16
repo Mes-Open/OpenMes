@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
@@ -41,6 +42,7 @@ export function CategorizedCodeNameForm({
   onDelete,
   submitting,
 }: Props) {
+  const { t } = useTranslation();
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
 
@@ -60,7 +62,7 @@ export function CategorizedCodeNameForm({
     <View style={{ gap: 14 }}>
       <View style={[styles.note, { backgroundColor: palette.surfaceAlt }]}>
         <Mono size={11} color={palette.textMuted} letterSpacing={0.3}>
-          Same shape used for Anomaly reason · Cost source · Company · Subassembly · LOT sequence — code, name, optional fields, active toggle.
+          {t('Same shape used for Anomaly reason · Cost source · Company · Subassembly · LOT sequence — code, name, optional fields, active toggle.')}
         </Mono>
       </View>
 

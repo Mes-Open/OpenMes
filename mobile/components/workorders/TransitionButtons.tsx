@@ -1,4 +1,5 @@
 import { Alert, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/Button';
 import { useTransitionWorkOrder } from '@/hooks/mutations/workOrders';
@@ -59,6 +60,7 @@ function actionsFor(status: WorkOrderStatus): ActionDef[] {
 }
 
 export function TransitionButtons({ workOrderId, status }: Props) {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const canTransition = isSupervisorOrAdmin(user);
   const mutation = useTransitionWorkOrder();
@@ -72,13 +74,13 @@ export function TransitionButtons({ workOrderId, status }: Props) {
     const dispatch = () =>
       mutation.mutate(
         { id: workOrderId, transition: action.transition },
-        { onError: (e: Error) => Alert.alert('Failed', e.message) },
+        { onError: (e: Error) => Alert.alert(t('Failed'), e.message) },
       );
 
     if (action.confirm) {
-      Alert.alert(action.confirm.title, action.confirm.message, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: action.label, style: action.variant === 'danger' ? 'destructive' : 'default', onPress: dispatch },
+      Alert.alert(t(action.confirm.title), t(action.confirm.message), [
+        { text: t('Cancel'), style: 'cancel' },
+        { text: t(action.label), style: action.variant === 'danger' ? 'destructive' : 'default', onPress: dispatch },
       ]);
     } else {
       dispatch();

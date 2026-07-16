@@ -1,182 +1,94 @@
-import { format, parseISO } from 'date-fns';
-import { useRouter } from 'expo-router';
+/**
+ * Material lots — 1:1 with the web admin material-lots table
+ * (Pages/admin/material-lots/Index.jsx): the shared DataTable with the web's
+ * column set (Lot Number / Material / Avail-Recv / Unit / Expiry / Status).
+ * The web Edit / Hold / Release / Delete actions and "+ New Lot" have no mobile
+ * REST counterparts, so they're omitted; rows open the lot genealogy detail.
+ * Search is over the nested material, so the DataTable's own search box stays
+ * off. Data via REST useMaterialLots.
+ */
 import { useMemo, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ListScreen } from '@/components/ui/ListScreen';
+import { colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+import { SearchField } from '@openmes/ui/native';
+
 import { Mono } from '@/components/ui/Mono';
-import { SearchBar } from '@/components/ui/SearchBar';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { useMaterialLots } from '@/hooks/queries/useMaterialLots';
-import type { MaterialLot, MaterialLotStatus } from '@/api/materialLots';
+import type { MaterialLot } from '@/api/materialLots';
 
-type FilterId = 'all' | 'available' | 'low' | 'quarantined' | 'expired';
-
-const STATE_COLOR: Record<string, string> = {
-  available: '#1C9A55',
-  pending_inspection: BRAND.amber,
-  quarantined: '#7c3aed',
-  consumed: '#9B9892',
-  scrapped: '#D6442F',
-  expired: '#D6442F',
-  low: BRAND.amber,
-};
-
-function classifyLot(lot: MaterialLot): FilterId {
-  const status = (lot.status as MaterialLotStatus) ?? 'available';
-  if (status === 'expired' || status === 'scrapped') return 'expired';
-  if (status === 'quarantined' || status === 'pending_inspection') return 'quarantined';
-  // Heuristic for "low" — qty_available < 10 (or 10% of received). The backend
-  // doesn't have a low flag so we infer it here for the badge.
-  const avail = Number(lot.quantity_available ?? 0);
-  const received = Number(lot.quantity_received ?? 0);
-  if (avail > 0 && (avail < 10 || (received > 0 && avail / received < 0.15))) {
-    return 'low';
-  }
-  return 'available';
-}
+const humanize = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const trimQty = (v: unknown) => (v == null ? '—' : String(v));
 
 export function MaterialLotsList() {
-  const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<FilterId>('all');
+  const router = useRouter();
   const [search, setSearch] = useState('');
 
   const query = useMaterialLots({ per_page: 100 });
   const all = query.data?.data ?? [];
 
-  const counts = useMemo(() => {
-    const c = { all: all.length, available: 0, low: 0, quarantined: 0, expired: 0 };
-    for (const l of all) {
-      const cls = classifyLot(l);
-      c[cls] += 1;
-    }
-    return c;
-  }, [all]);
-
-  const filtered = useMemo(() => {
+  const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return all.filter((l) => {
-      if (filter !== 'all' && classifyLot(l) !== filter) return false;
-      if (q) {
-        const blob = `${l.lot_number} ${l.material?.name ?? ''} ${l.material?.code ?? ''} ${l.supplier_lot_no ?? ''}`.toLowerCase();
-        if (!blob.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [all, filter, search]);
+    if (!q) return all;
+    return all.filter((l) =>
+      `${l.lot_number} ${l.material?.name ?? ''} ${l.material?.code ?? ''} ${l.supplier_lot_no ?? ''}`
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [all, search]);
 
   return (
-    <ListScreen
-      title={t('Material lots')}
-      eyebrow={`${all.length} ${t('LOTS').toUpperCase()} · ${counts.low} ${t('LOW').toUpperCase()} · ${counts.expired} ${t('EXPIRED').toUpperCase()}`}
-      filters={[
-        { id: 'all', label: t('All'), count: counts.all },
-        { id: 'available', label: t('Available'), count: counts.available },
-        { id: 'low', label: t('Low'), count: counts.low },
-        { id: 'quarantined', label: t('Quarantine'), count: counts.quarantined },
-        { id: 'expired', label: t('Expired'), count: counts.expired },
-      ]}
-      activeFilter={filter}
-      onFilterChange={(id) => setFilter(id as FilterId)}
-      extraHeader={
-        <SearchBar
-          placeholder="Search by lot or material"
-          value={search}
-          onChangeText={setSearch}
-        />
-      }
-      items={filtered}
-      keyExtractor={(l) => String(l.id)}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      error={query.error}
-      isFetching={query.isFetching}
-      onRefresh={query.refetch}
-      emptyTitle={t('No material lots')}
-      renderItem={(lot) => {
-        const cls = classifyLot(lot);
-        const railColor = STATE_COLOR[cls] ?? palette.textMuted;
-        const dim = cls === 'expired';
-        const expFmt = (() => {
-          if (!lot.expiry_date) return null;
-          try {
-            return format(parseISO(lot.expiry_date), 'yyyy-MM-dd');
-          } catch {
-            return null;
-          }
-        })();
-        return (
-          <Pressable
-            onPress={() =>
-              router.push(`/admin/material-lots/${lot.id}` as never)
-            }
-            style={({ pressed }) => [
-              styles.row,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-                opacity: dim ? 0.6 : pressed ? 0.9 : 1,
-              },
-            ]}>
-            <View style={[styles.rail, { backgroundColor: railColor }]} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Mono size={11.5} color={palette.text} weight="700" letterSpacing={0.3}>
-                {lot.lot_number}
-              </Mono>
-              <Text
-                style={[styles.matName, { color: palette.textMuted }]}
-                numberOfLines={1}>
-                {lot.material?.name ?? `Material #${lot.material_id}`}
-              </Text>
-              {expFmt || (lot.sublots?.length ?? 0) > 0 ? (
-                <Mono
-                  size={10}
-                  color={palette.textFaint}
-                  letterSpacing={0.3}
-                  style={{ marginTop: 4 }}>
-                  {expFmt ? `EXP ${expFmt}` : ''}
-                  {expFmt && lot.sublots?.length ? ' · ' : ''}
-                  {lot.sublots?.length ? `${lot.sublots.length} SUBLOTS` : ''}
-                </Mono>
-              ) : null}
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text
-                style={[
-                  styles.qty,
-                  {
-                    color: dim ? palette.danger : palette.text,
-                    fontFamily: MONO,
-                  },
-                ]}>
-                {lot.quantity_available}
-              </Text>
-              <Mono size={9} color={palette.textFaint} letterSpacing={0.4} style={{ marginTop: 2 }}>
-                {lot.unit_of_measure.toUpperCase()}
-              </Mono>
-            </View>
-          </Pressable>
-        );
-      }}
-    />
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Material Lots')}</Text>
+      </View>
+
+      <View style={styles.filters}>
+        <SearchField value={search} onChange={setSearch} placeholder={t('Search by lot or material')} />
+      </View>
+
+      {query.isLoading && !query.data ? (
+        <LoadingState />
+      ) : query.isError && !query.data ? (
+        <ErrorState error={query.error} onRetry={query.refetch} />
+      ) : (
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={styles.content}
+          refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} tintColor={colors.accent} />}>
+          <DataTable<MaterialLot>
+            data={rows as MaterialLot[]}
+            searchable={false}
+            columnsLabel={t('Columns')}
+            columnsMenuLabel={t('Toggle columns')}
+            emptyText={t('No material lots yet.')}
+            onRowPress={(lot) => router.push(`/admin/material-lots/${lot.id}` as never)}
+            columns={[
+              { key: 'lot_number', label: t('Lot Number'), width: 130, render: (lot) => <Mono size={11} color={colors.ink}>{lot.lot_number}</Mono> },
+              { key: 'material', label: t('Material'), flex: 1.4, render: (lot) => <Text numberOfLines={1} style={styles.name}>{lot.material?.name ?? `Material #${lot.material_id}`}</Text> },
+              { key: 'qty', label: t('Avail / Recv'), width: 96, render: (lot) => <Mono size={11} color={colors.muted}>{`${trimQty(lot.quantity_available)} / ${trimQty(lot.quantity_received)}`}</Mono> },
+              { key: 'unit_of_measure', label: t('Unit'), width: 56, render: (lot) => lot.unit_of_measure },
+              { key: 'expiry_date', label: t('Expiry'), width: 96, render: (lot) => <Mono size={10} color={colors.muted}>{lot.expiry_date ? String(lot.expiry_date).slice(0, 10) : '—'}</Mono> },
+              { key: 'status', label: t('Status'), width: 104, render: (lot) => <StatusPill status={lot.status} label={humanize(String(lot.status ?? 'available'))} /> },
+            ]}
+          />
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  rail: { width: 6, alignSelf: 'stretch', borderRadius: 3 },
-  matName: { fontSize: 12.5, marginTop: 4 },
-  qty: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: 18, paddingBottom: 32 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingTop: 16 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  filters: { paddingHorizontal: 18, paddingVertical: 12 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
 });

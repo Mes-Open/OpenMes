@@ -72,11 +72,29 @@ export interface BatchStepLotConsumption {
   recordedBy?: { id: number; name?: string; username?: string } | null;
 }
 
+export interface RecallImpactWorkOrder {
+  id: number;
+  order_no: string;
+  product?: string | null;
+  status: string;
+  quantity_consumed: number;
+  batches: number[];
+  finished_serials: Array<{ serial_no: string; status: string; produced_at?: string | null }>;
+}
+
+export interface RecallImpactPayload {
+  source_lots: Array<{ lot_number: string; material?: string | null; supplier_lot_no?: string | null }>;
+  work_orders: RecallImpactWorkOrder[];
+  truncated: boolean;
+  totals: { work_orders: number; finished_serials: number; quantity_consumed: number };
+}
+
 export interface ForwardGenealogyPayload {
   lot: { id: number; lot_number: string; material_id: number; status: string };
   consumptions: BatchStepLotConsumption[];
   total_consumed: number;
   consumed_in_steps: number[];
+  recall?: RecallImpactPayload | null;
 }
 
 export interface BackwardGenealogyPayload {

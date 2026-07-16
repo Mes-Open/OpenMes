@@ -1,107 +1,98 @@
+/**
+ * Companies — 1:1 with the web admin/companies table (Pages/admin/companies/Index.jsx):
+ * the shared DataTable (search + Columns menu + pagination) with the web's column
+ * set (Code / Name / Type / Email / Status) and per-row actions (Edit /
+ * toggle-active / Delete). Data via REST useCompanies (inactive included).
+ */
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import { ListItem } from '@/components/ui/ListItem';
-import { ListScreen } from '@/components/ui/ListScreen';
+import { colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
+import { Button } from '@/components/ui/Button';
 import { Mono } from '@/components/ui/Mono';
-import { SearchBar } from '@/components/ui/SearchBar';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useCompanies } from '@/hooks/queries/useOps';
-import type { CompanyType } from '@/api/ops';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { useCompanies, useDeleteCompany, useToggleCompanyActive } from '@/hooks/queries/useOps';
+import type { Company } from '@/api/ops';
 
-type FilterId = 'all' | CompanyType | 'inactive';
-
-const TYPE_COLORS: Record<CompanyType, string> = {
-  supplier: '#EA5A2B',
-  customer: '#1C9A55',
-  both: BRAND.amber,
-};
+const humanize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function CompaniesList() {
-  const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<FilterId>('all');
-  const [search, setSearch] = useState('');
+  const router = useRouter();
 
   const query = useCompanies({ include_inactive: true });
-  const all = query.data ?? [];
+  const toggle = useToggleCompanyActive();
+  const del = useDeleteCompany();
+  const rows = query.data ?? [];
 
-  const counts = useMemo(() => {
-    const c = { all: all.length, supplier: 0, customer: 0, both: 0, inactive: 0 };
-    for (const x of all) {
-      if (!x.is_active) c.inactive++;
-      if (x.type === 'supplier') c.supplier++;
-      else if (x.type === 'customer') c.customer++;
-      else if (x.type === 'both') c.both++;
-    }
-    return c;
-  }, [all]);
+  const onDelete = (c: Company) =>
+    Alert.alert(t('Delete company'), t('Delete "{{name}}"?', { name: c.name }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () => del.mutate(c.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return all.filter((c) => {
-      if (filter === 'inactive' && c.is_active) return false;
-      if (filter !== 'all' && filter !== 'inactive' && c.type !== filter) return false;
-      if (q && !`${c.code} ${c.name}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [all, filter, search]);
+  if (query.isLoading && !query.data) return <LoadingState />;
+  if (query.isError && !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
 
   return (
-    <ListScreen
-      title={t('Companies')}
-      eyebrow={`${t('ADMIN').toUpperCase()} · ${all.length} ${t('COMPANIES').toUpperCase()}`}
-      newRoute="/admin/companies/new"
-      filters={[
-        { id: 'all', label: t('All'), count: counts.all },
-        { id: 'supplier', label: t('Suppliers'), count: counts.supplier },
-        { id: 'customer', label: t('Customers'), count: counts.customer },
-        { id: 'both', label: t('Both'), count: counts.both },
-        { id: 'inactive', label: t('Inactive'), count: counts.inactive },
-      ]}
-      activeFilter={filter}
-      onFilterChange={(id) => setFilter(id as FilterId)}
-      extraHeader={
-        <SearchBar
-          placeholder="Search by code or name"
-          value={search}
-          onChangeText={setSearch}
-        />
-      }
-      items={filtered}
-      keyExtractor={(c) => String(c.id)}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      error={query.error}
-      isFetching={query.isFetching}
-      onRefresh={query.refetch}
-      emptyTitle={t('No companies')}
-      renderItem={(item) => {
-        const typeColor = TYPE_COLORS[item.type as CompanyType] ?? BRAND.amber;
-        return (
-          <ListItem
-            icon="building"
-            iconColor={typeColor}
-            title={item.name}
-            inlineBadge={{ label: t(item.type), color: typeColor }}
-            subtitle={item.email ? `${item.code} · ${item.email}` : item.code}
-            disabled={!item.is_active}
-            trailing={
-              !item.is_active ? (
-                <Mono size={9} color={palette.textFaint} weight="700" letterSpacing={0.5}>
-                  {t('OFF').toUpperCase()}
-                </Mono>
-              ) : undefined
-            }
-            onPress={() => router.push(`/admin/companies/${item.id}` as never)}
-            chevron={false}
-          />
-        );
-      }}
-    />
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} tintColor={colors.accent} />}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Companies')}</Text>
+        <View style={{ flex: 1 }} />
+        <Button title={t('+ New Company')} size="sm" onPress={() => router.push('/admin/companies/new' as never)} />
+      </View>
+
+      <DataTable<Company>
+        data={rows as Company[]}
+        searchPlaceholder={t('Search…')}
+        columnsLabel={t('Columns')}
+        columnsMenuLabel={t('Toggle columns')}
+        searchKeys={['code', 'name', 'email']}
+        emptyText={t('No companies yet.')}
+        onRowPress={(c) => router.push(`/admin/companies/${c.id}` as never)}
+        columns={[
+          { key: 'code', label: t('Code'), width: 96, render: (c) => <Mono size={11} color={colors.muted}>{c.code}</Mono> },
+          { key: 'name', label: t('Name'), flex: 1.4, render: (c) => <Text numberOfLines={1} style={styles.name}>{c.name}</Text> },
+          { key: 'type', label: t('Type'), width: 84, render: (c) => t(humanize(c.type)) },
+          { key: 'email', label: t('Email'), flex: 1.2, render: (c) => c.email ?? '—' },
+          {
+            key: 'is_active',
+            label: t('Status'),
+            width: 90,
+            render: (c) => (
+              <StatusPill status={c.is_active === false ? 'CANCELLED' : 'IN_PROGRESS'} label={c.is_active === false ? t('Inactive') : t('Active')} />
+            ),
+          },
+        ]}
+        actions={(c) => [
+          { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/admin/companies/${c.id}` as never) },
+          {
+            label: c.is_active === false ? t('Activate') : t('Deactivate'),
+            icon: c.is_active === false ? 'activate' : 'deactivate',
+            onPress: () => toggle.mutate(c.id, { onError: (e: Error) => Alert.alert(t('Could not update'), e.message) }),
+          },
+          { label: t('Delete'), icon: 'delete', onPress: () => onDelete(c) },
+        ]}
+      />
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, paddingBottom: 32 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
+});

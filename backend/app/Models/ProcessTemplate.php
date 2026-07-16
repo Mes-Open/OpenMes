@@ -98,6 +98,7 @@ class ProcessTemplate extends Model
                     'instruction' => $step->instruction,
                     'requires_confirmation' => (bool) $step->requires_confirmation,
                     'estimated_duration_minutes' => $step->estimated_duration_minutes,
+                    'required_operators' => $step->effectiveRequiredOperators(),
                     'workstation_id' => $step->workstation_id,
                     'workstation_name' => $step->workstation?->name,
                     'is_optional' => (bool) $step->is_optional,

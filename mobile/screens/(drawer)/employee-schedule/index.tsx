@@ -6,16 +6,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { View } from 'react-native';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors } from '@openmes/ui';
+
 import { DayPlanScreen } from './DayPlanScreen';
 import { WeekScreen } from './WeekScreen';
 import { MonthScreen } from './MonthScreen';
 import type { ViewMode } from '@/components/employee-schedule/PlannerHeader';
 
 export function EmployeeScheduleScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const router = useRouter();
   const params = useLocalSearchParams<{ view?: ViewMode; worker_id?: string }>();
 
@@ -25,7 +23,7 @@ export function EmployeeScheduleScreen() {
   }, [params.view]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {mode === 'day' ? (
         <DayPlanScreen
           onAdd={(workerId, date) =>

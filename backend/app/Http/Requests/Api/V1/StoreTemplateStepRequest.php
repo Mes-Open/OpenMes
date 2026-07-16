@@ -6,7 +6,10 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreTemplateStepRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool
+    {
+        return true;
+    }
 
     public function rules(): array
     {
@@ -15,6 +18,7 @@ class StoreTemplateStepRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'instruction' => ['nullable', 'string'],
             'estimated_duration_minutes' => ['nullable', 'integer', 'min:0'],
+            'required_operators' => ['nullable', 'integer', 'min:1'],
             'workstation_id' => ['nullable', 'integer', 'exists:workstations,id'],
         ];
     }

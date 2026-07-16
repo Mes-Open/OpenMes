@@ -3,15 +3,15 @@ import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+
+import { colors, fonts, radius } from '@openmes/ui';
 
 import { Button } from '@/components/ui/Button';
 import { ControlledField } from '@/components/ui/ControlledField';
 import { Mono, SectionLabel } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useIssueTypes } from '@/hooks/queries/useIssues';
 import { useCreateIssue } from '@/hooks/mutations/issues';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,6 +23,8 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+// Visual-only severity chips — the create-issue payload has no severity field;
+// these communicate urgency but don't submit (kept as-is from the old design).
 const SEVERITY_OPTIONS = [
   { id: 'minor', label: 'Minor', color: '#EA5A2B' },
   { id: 'major', label: 'Major', color: '#f97316' },
@@ -30,9 +32,8 @@ const SEVERITY_OPTIONS = [
 ] as const;
 
 export function NewIssueScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
 
   const issueTypes = useIssueTypes();
   const createMutation = useCreateIssue();
@@ -60,16 +61,13 @@ export function NewIssueScreen() {
     );
   };
 
-  const blockingType = (issueTypes.data ?? []).find((t) => t.is_blocking);
+  const blockingType = (issueTypes.data ?? []).find((it) => it.is_blocking);
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader back title="Report issue" />
-      <ScrollView
-        style={{ flex: 1, backgroundColor: palette.background }}
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled">
-        {/* Severity (visual only — drives icon prominence) */}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <Text style={styles.h1}>{t('Report issue')}</Text>
+
+      {/* Severity (visual only — drives icon prominence) */}
       <View>
         <SectionLabel>Severity</SectionLabel>
         <View style={styles.severityRow}>
@@ -81,27 +79,21 @@ export function NewIssueScreen() {
                 style={[
                   styles.severity,
                   {
-                    borderColor: active ? s.color : palette.border,
-                    backgroundColor: active ? s.color + '22' : palette.surface,
+                    borderColor: active ? s.color : colors.line,
+                    backgroundColor: active ? s.color + '22' : colors.card,
                   },
                 ]}>
                 <View style={[styles.dot, { backgroundColor: s.color }]} />
-                <Text
-                  style={[
-                    styles.severityLabel,
-                    { color: active ? s.color : palette.text },
-                  ]}>
-                  {s.label}
-                </Text>
+                <Text style={[styles.severityLabel, { color: active ? s.color : colors.ink }]}>{t(s.label)}</Text>
               </View>
             );
           })}
         </View>
         {blockingType ? (
           <View style={styles.blockingHint}>
-            <FontAwesome name="exclamation-triangle" size={11} color="#f97316" />
-            <Mono size={11} color="#f97316" letterSpacing={0.4}>
-              BLOCKING TYPES NOTIFY SUPERVISOR IMMEDIATELY
+            <FontAwesome name="exclamation-triangle" size={11} color={colors.downtime} />
+            <Mono size={11} color={colors.downtime} letterSpacing={0.4}>
+              {t('Blocking types notify supervisor immediately').toUpperCase()}
             </Mono>
           </View>
         ) : null}
@@ -115,34 +107,25 @@ export function NewIssueScreen() {
           name="issue_type_id"
           render={({ field: { value, onChange } }) => (
             <View style={styles.catGrid}>
-              {(issueTypes.data ?? []).map((t) => {
-                const active = t.id === value;
+              {(issueTypes.data ?? []).map((it) => {
+                const active = it.id === value;
                 return (
                   <Pressable
-                    key={t.id}
-                    onPress={() => onChange(t.id)}
+                    key={it.id}
+                    onPress={() => onChange(it.id)}
                     style={({ pressed }) => [
                       styles.catCard,
                       {
-                        backgroundColor: active ? '#FAF0DD' : palette.surface,
-                        borderColor: active ? BRAND.amber : palette.border,
+                        backgroundColor: active ? `${colors.accent}1A` : colors.card,
+                        borderColor: active ? colors.accent : colors.line,
                         opacity: pressed ? 0.85 : 1,
                       },
                     ]}>
-                    <FontAwesome
-                      name={iconFor(t.name)}
-                      size={20}
-                      color={active ? BRAND.amber : palette.text}
-                    />
+                    <FontAwesome name={iconFor(it.name)} size={20} color={active ? colors.accent : colors.ink} />
                     <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: '600',
-                        color: active ? BRAND.amber : palette.text,
-                        textAlign: 'center',
-                      }}
+                      style={[styles.catLabel, { color: active ? colors.accent : colors.ink }]}
                       numberOfLines={1}>
-                      {t.name}
+                      {it.name}
                     </Text>
                   </Pressable>
                 );
@@ -166,16 +149,15 @@ export function NewIssueScreen() {
       </View>
 
       <Button
-        title="Submit & escalate"
+        title={t('Submit & escalate')}
         size="lg"
         variant="danger"
-        leftIcon={<FontAwesome name="exclamation-triangle" size={16} color="#fff" />}
+        leftIcon={<FontAwesome name="exclamation-triangle" size={16} color={colors.blocked} />}
         onPress={handleSubmit(onSubmit)}
         loading={createMutation.isPending}
         disabled={!isValid}
       />
-      </ScrollView>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -190,30 +172,15 @@ function iconFor(name: string): React.ComponentProps<typeof FontAwesome>['name']
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 18, gap: 18 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  container: { padding: 18, gap: 18, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
   severityRow: { flexDirection: 'row', gap: 8 },
-  severity: {
-    flex: 1,
-    height: 64,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
+  severity: { flex: 1, height: 64, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  severityLabel: { fontSize: 13, fontWeight: '600' },
+  severityLabel: { fontSize: 13, fontFamily: fonts.sans.native.medium },
   blockingHint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catCard: {
-    flexBasis: '31%',
-    flexGrow: 1,
-    minHeight: 88,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 10,
-  },
+  catCard: { flexBasis: '31%', flexGrow: 1, minHeight: 88, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10 },
+  catLabel: { fontSize: 12, fontFamily: fonts.sans.native.medium, textAlign: 'center' },
 });

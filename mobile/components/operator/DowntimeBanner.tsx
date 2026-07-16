@@ -1,5 +1,6 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Modal,
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function DowntimeBanner({ lineId, workstationId, dark = true }: Props) {
+  const { t } = useTranslation();
   const palette = dark ? Colors.dark : Colors.light;
   const activeQ = useActiveDowntime(lineId);
   const reasonsQ = useDowntimeReasons();
@@ -65,20 +67,20 @@ export function DowntimeBanner({ lineId, workstationId, dark = true }: Props) {
           setReasonId(null);
           setNotes('');
         },
-        onError: (e: Error) => Alert.alert('Could not start', e.message),
+        onError: (e: Error) => Alert.alert(t('Could not start'), e.message),
       },
     );
   };
 
   const onStop = () => {
     if (!active) return;
-    Alert.alert('Stop downtime?', `Reason: ${active.reason?.name ?? 'unknown'}`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('Stop downtime?'), `${t('Reason')}: ${active.reason?.name ?? t('unknown')}`, [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Stop',
+        text: t('Stop'),
         onPress: () =>
           stopMutation.mutate(active.id, {
-            onError: (e: Error) => Alert.alert('Failed', e.message),
+            onError: (e: Error) => Alert.alert(t('Failed'), e.message),
           }),
       },
     ]);
@@ -91,15 +93,15 @@ export function DowntimeBanner({ lineId, workstationId, dark = true }: Props) {
         <View style={styles.activeBanner}>
           <View style={styles.liveCol}>
             <View style={styles.liveDot} />
-            <Mono size={9} color="#fff" weight="700" letterSpacing={0.5}>LIVE</Mono>
+            <Mono size={9} color="#fff" weight="700" letterSpacing={0.5}>{t('Live').toUpperCase()}</Mono>
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Mono size={9.5} color="rgba(255,255,255,0.85)" letterSpacing={0.7}>
-              DOWNTIME · {(active.reason?.name ?? '—').toUpperCase()}
+              {t('Downtime').toUpperCase()} · {(active.reason?.name ?? '—').toUpperCase()}
             </Mono>
             <Text style={styles.elapsedText}>{elapsed}</Text>
             <Mono size={10.5} color="rgba(255,255,255,0.85)" style={{ marginTop: 4 }}>
-              STARTED {formatTime(active.started_at).toUpperCase()}
+              {t('Started').toUpperCase()} {formatTime(active.started_at).toUpperCase()}
               {active.reported_by_user?.username
                 ? ` · ${active.reported_by_user.username.toUpperCase()}`
                 : ''}
@@ -111,7 +113,7 @@ export function DowntimeBanner({ lineId, workstationId, dark = true }: Props) {
             ) : null}
           </View>
           <View style={styles.stopBtn}>
-            <Mono size={11} color={palette.danger} weight="700" letterSpacing={0.5}>STOP</Mono>
+            <Mono size={11} color={palette.danger} weight="700" letterSpacing={0.5}>{t('Stop').toUpperCase()}</Mono>
           </View>
         </View>
       </Pressable>
@@ -127,14 +129,14 @@ export function DowntimeBanner({ lineId, workstationId, dark = true }: Props) {
           <FontAwesome name="exclamation-triangle" size={18} color={palette.danger} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.idleTitle, { color: palette.danger }]}>Line stopped?</Text>
+          <Text style={[styles.idleTitle, { color: palette.danger }]}>{t('Line stopped?')}</Text>
           <Mono size={11} color={dark ? '#6F6C66' : '#6F6C66'} style={{ marginTop: 3 }}>
-            Report downtime to track availability
+            {t('Report downtime to track availability')}
           </Mono>
         </View>
         <View style={[styles.idleCta, { borderColor: palette.danger }]}>
           <Mono size={11} color={palette.danger} weight="700" letterSpacing={0.5}>
-            REPORT
+            {t('Report').toUpperCase()}
           </Mono>
         </View>
       </Pressable>
@@ -179,6 +181,7 @@ function ReasonPickerModal({
   onNotes: (v: string) => void;
   onStart: () => void;
 }) {
+  const { t } = useTranslation();
   const [kindFilter, setKindFilter] = useState<'all' | DowntimeReason['kind']>(
     'all',
   );
@@ -190,9 +193,9 @@ function ReasonPickerModal({
       <View style={styles.modalBackdrop}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Why is the line stopped?</Text>
+          <Text style={styles.modalTitle}>{t('Why is the line stopped?')}</Text>
           <Mono size={11} color="#6F6C66" style={{ marginTop: 4 }}>
-            Pick a kind, then a specific reason
+            {t('Pick a kind, then a specific reason')}
           </Mono>
 
           {/* Kind picker — three category cards. Tap to filter the reason list
@@ -224,10 +227,10 @@ function ReasonPickerModal({
                         backgroundColor: k.color,
                       }}
                     />
-                    <Text style={styles.kindLabel}>{k.label}</Text>
+                    <Text style={styles.kindLabel}>{t(k.label)}</Text>
                   </View>
                   <Mono size={9.5} color="#9B9892" letterSpacing={0.4} style={{ marginTop: 4 }}>
-                    {k.sub.toUpperCase()}
+                    {t(k.sub).toUpperCase()}
                   </Mono>
                 </Pressable>
               );
@@ -268,13 +271,13 @@ function ReasonPickerModal({
                   {r.kind === 'planned' ? (
                     <View style={styles.plannedTag}>
                       <Mono size={9} color="#EA5A2B" weight="700" letterSpacing={0.5}>
-                        PLANNED
+                        {t('Planned').toUpperCase()}
                       </Mono>
                     </View>
                   ) : r.kind === 'changeover' ? (
                     <View style={[styles.plannedTag, { backgroundColor: '#FAF0DD' }]}>
                       <Mono size={9} color="#8a5a0e" weight="700" letterSpacing={0.5}>
-                        CHANGEOVER
+                        {t('Changeover').toUpperCase()}
                       </Mono>
                     </View>
                   ) : null}
@@ -286,7 +289,7 @@ function ReasonPickerModal({
           <TextInput
             value={notes}
             onChangeText={onNotes}
-            placeholder="Optional notes — what's blocking?"
+            placeholder={t("Optional notes — what's blocking?")}
             placeholderTextColor="#9B9892"
             multiline
             style={styles.notesInput}
@@ -299,7 +302,7 @@ function ReasonPickerModal({
                 styles.cancelBtn,
                 { opacity: pressed ? 0.85 : 1 },
               ]}>
-              <Mono size={12} color="#1A1917" weight="700" letterSpacing={0.5}>CANCEL</Mono>
+              <Mono size={12} color="#1A1917" weight="700" letterSpacing={0.5}>{t('Cancel').toUpperCase()}</Mono>
             </Pressable>
             <Pressable
               onPress={onStart}
@@ -309,7 +312,7 @@ function ReasonPickerModal({
                 { opacity: !reasonId || loading ? 0.5 : pressed ? 0.9 : 1 },
               ]}>
               <Mono size={12} color="#1a1208" weight="700" letterSpacing={0.6}>
-                {loading ? 'STARTING…' : 'START DOWNTIME TIMER'}
+                {loading ? t('Starting…').toUpperCase() : t('Start downtime timer').toUpperCase()}
               </Mono>
             </Pressable>
           </View>

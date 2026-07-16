@@ -6,33 +6,20 @@ import {
   getSkill,
   getWageGroup,
   getWorker,
-  type Crew,
-  type Skill,
-  type WageGroup,
-  type Worker,
+  listCrews,
+  listSkills,
+  listWageGroups,
+  listWorkers,
   type WorkerFilters,
 } from '@/api/hr';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
 
-// ── Skills (Electric) ────────────────────────────────────────────────────────
-// Shape `skills` columns: id, code, name, description.
-// No is_active column on skills — filter by q only.
+// ── Skills (REST) ─────────────────────────────────────────────────────────────
+// REST — the server applies the q filter and returns the skill rows.
 
 export function useSkills(q?: string) {
-  const search = q?.trim().toLowerCase() ?? '';
-
-  return useElectricShape<Row, Skill[]>('skills', {
-    select: (rows) => {
-      let out = rows as unknown as Skill[];
-      if (search) {
-        out = out.filter(
-          (r) =>
-            r.name.toLowerCase().includes(search) ||
-            r.code.toLowerCase().includes(search),
-        );
-      }
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['skills', q],
+    queryFn: () => listSkills(q),
   });
 }
 
@@ -45,18 +32,14 @@ export function useSkill(id: number | undefined) {
   });
 }
 
-// ── Wage Groups (Electric) ───────────────────────────────────────────────────
-// Shape `wage_groups` columns: id, code, name, description, base_hourly_rate,
-// currency, is_active.
-// Note: REST-computed `workers_count` is absent from the shape.
+// ── Wage Groups (REST) ────────────────────────────────────────────────────────
+// REST — the server applies the include_inactive filter and returns the
+// wage-group rows (with computed workers_count).
 
 export function useWageGroups(includeInactive = false) {
-  return useElectricShape<Row, WageGroup[]>('wage_groups', {
-    select: (rows) => {
-      let out = rows as unknown as WageGroup[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['wage-groups', { includeInactive }],
+    queryFn: () => listWageGroups(includeInactive),
   });
 }
 
@@ -69,19 +52,24 @@ export function useWageGroup(id: number | undefined) {
   });
 }
 
-// ── Crews (Electric) ─────────────────────────────────────────────────────────
+// ── Crews ─────────────────────────────────────────────────────────────────
 // Shape `crews` columns: id, code, name, leader_id, division_id, description,
 // is_active.
 // Note: REST-computed `workers_count`, and the hydrated `leader`/`division`
 // relation objects are absent from the shape.
 
 export function useCrews(includeInactive = false) {
-  return useElectricShape<Row, Crew[]>('crews', {
-    select: (rows) => {
-      let out = rows as unknown as Crew[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['crews', { includeInactive }],
+    queryFn: () => listCrews(includeInactive),
+  });
+}
+
+// REST — crews list (for pickers that just need id/name).
+export function useCrewsList(includeInactive = false) {
+  return useQuery({
+    queryKey: ['crews', { includeInactive }],
+    queryFn: () => listCrews(includeInactive),
   });
 }
 
@@ -103,45 +91,15 @@ export function useCrewWorkers(id: number | undefined) {
   });
 }
 
-// ── Workers (Electric) ───────────────────────────────────────────────────────
-// Shape `workers` columns: id, code, name, email, phone, crew_id,
-// wage_group_id, personnel_class_id, workstation_id, is_active.
-// Hydrated relations (crew, wage_group, workstation, personnel_class, skills)
-// are absent — FK ids are present.
-// REST-returned pagination meta is not available from Electric; `meta` is
-// always undefined here.
-
+// ── Workers ─────────────────────────────────────────────────────────────
+// REST — server applies q / crew_id / wage_group_id / include_inactive filters
+// and returns the paginated { data, meta } shape callers already read (with the
+// hydrated crew / wage_group / personnel_class relations).
 export function useWorkers(filters: WorkerFilters = {}) {
-  const includeInactive = filters.include_inactive ?? false;
-  const crewId = filters.crew_id;
-  const wageGroupId = filters.wage_group_id;
-  const search = filters.q?.trim().toLowerCase() ?? '';
-
-  const result = useElectricShape<Row, Worker[]>('workers', {
-    select: (rows) => {
-      let out = rows as unknown as Worker[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      if (crewId !== undefined) out = out.filter((r) => r.crew_id === crewId);
-      if (wageGroupId !== undefined) out = out.filter((r) => r.wage_group_id === wageGroupId);
-      if (search) {
-        out = out.filter(
-          (r) =>
-            r.name.toLowerCase().includes(search) ||
-            r.code.toLowerCase().includes(search),
-        );
-      }
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['workers', filters],
+    queryFn: () => listWorkers(filters),
   });
-
-  // Preserve the {data, meta} return shape that listWorkers returns.
-  return {
-    ...result,
-    data: { data: result.data, meta: undefined } as {
-      data: Worker[];
-      meta: undefined;
-    },
-  };
 }
 
 // REST — detail-by-id (includes hydrated relations and skills pivot).

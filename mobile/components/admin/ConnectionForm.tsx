@@ -169,7 +169,7 @@ export function ConnectionForm({ initial, mode, submitting, onSubmit }: Props) {
               {QOS_CHOICES.map((q) => (
                 <SelectionChip
                   key={q.id}
-                  label={q.label}
+                  label={t(q.label)}
                   active={String(value) === q.id}
                   onPress={() => onChange(q.id)}
                 />

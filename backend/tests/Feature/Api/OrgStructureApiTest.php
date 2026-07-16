@@ -15,8 +15,11 @@ class OrgStructureApiTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $operator;
+
     protected string $adminToken;
+
     protected string $operatorToken;
 
     protected function setUp(): void
@@ -31,8 +34,15 @@ class OrgStructureApiTest extends TestCase
         $this->operatorToken = $this->operator->createToken('test')->plainTextToken;
     }
 
-    private function authAdmin() { return $this->withHeader('Authorization', "Bearer {$this->adminToken}"); }
-    private function authOperator() { return $this->withHeader('Authorization', "Bearer {$this->operatorToken}"); }
+    private function authAdmin()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->adminToken}");
+    }
+
+    private function authOperator()
+    {
+        return $this->withHeader('Authorization', "Bearer {$this->operatorToken}");
+    }
 
     // ── Factories ─────────────────────────────────────────────────────────
 
@@ -84,6 +94,24 @@ class OrgStructureApiTest extends TestCase
         ]);
         $r->assertStatus(201);
         $this->assertDatabaseHas('divisions', ['code' => 'D1', 'factory_id' => $f->id]);
+    }
+
+    public function test_global_divisions_list_includes_factory_and_crew_count(): void
+    {
+        $f = Factory::create(['code' => 'NP', 'name' => 'North Plant', 'is_active' => true]);
+        $active = Division::create(['factory_id' => $f->id, 'code' => 'D-A', 'name' => 'Active Hall', 'is_active' => true]);
+        Division::create(['factory_id' => $f->id, 'code' => 'D-I', 'name' => 'Idle Hall', 'is_active' => false]);
+
+        $r = $this->authAdmin()->getJson('/api/v1/divisions');
+        $r->assertStatus(200);
+        $data = $r->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals($active->id, $data[0]['id']);
+        $this->assertEquals('North Plant', $data[0]['factory']['name']);
+        $this->assertArrayHasKey('crews_count', $data[0]);
+
+        $all = $this->authAdmin()->getJson('/api/v1/divisions?include_inactive=1')->json('data');
+        $this->assertCount(2, $all);
     }
 
     public function test_division_unique_code(): void
@@ -158,5 +186,27 @@ class OrgStructureApiTest extends TestCase
         $line = Line::factory()->create();
         $s = LineStatus::create(['line_id' => $line->id, 'name' => 'X', 'sort_order' => 1]);
         $this->authAdmin()->deleteJson("/api/v1/line-statuses/{$s->id}")->assertStatus(200);
+    }
+
+    public function test_global_line_status_catalog_lists_only_global_statuses(): void
+    {
+        $line = Line::factory()->create();
+        LineStatus::create(['line_id' => null, 'name' => 'Global Running', 'sort_order' => 90]);
+        LineStatus::create(['line_id' => $line->id, 'name' => 'Line-scoped Only', 'sort_order' => 1]);
+
+        $r = $this->authOperator()->getJson('/api/v1/line-statuses');
+        $r->assertStatus(200);
+        $names = array_column($r->json('data'), 'name');
+        $lineIds = array_column($r->json('data'), 'line_id');
+
+        $this->assertContains('Global Running', $names);
+        $this->assertNotContains('Line-scoped Only', $names);
+        // Every returned row is a global (line_id = null) status.
+        $this->assertSame([], array_values(array_filter($lineIds, fn ($id) => $id !== null)));
+    }
+
+    public function test_global_line_status_catalog_requires_auth(): void
+    {
+        $this->getJson('/api/v1/line-statuses')->assertStatus(401);
     }
 }

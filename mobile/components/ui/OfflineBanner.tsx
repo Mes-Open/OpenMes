@@ -1,5 +1,6 @@
 // Light-only v1: no scheme handling — downtime tokens, fixed.
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors, fonts } from '@openmes/ui';
 
@@ -22,16 +23,17 @@ interface Props {
  * mutation store. Until then the screens decide when to mount this.
  */
 export function OfflineBanner({ queued, visible = true }: Props) {
+  const { t } = useTranslation();
   if (!visible) return null;
   return (
     <View style={styles.bar}>
       <View style={styles.dot} />
       <Mono size={11} color={colors.downtime} weight="600" letterSpacing={0.6} style={{ flex: 1 }}>
         {queued && queued > 0
-          ? `OFFLINE · ${queued} ACTION${queued === 1 ? '' : 'S'} QUEUED`
-          : 'OFFLINE'}
+          ? `${t('Offline').toUpperCase()} · ${queued} ${(queued === 1 ? t('action queued') : t('actions queued')).toUpperCase()}`
+          : t('Offline').toUpperCase()}
       </Mono>
-      <Text style={styles.cta}>WILL SYNC</Text>
+      <Text style={styles.cta}>{t('Will sync').toUpperCase()}</Text>
     </View>
   );
 }

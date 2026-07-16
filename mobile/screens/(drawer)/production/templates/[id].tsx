@@ -1,16 +1,22 @@
-import { FontAwesome } from '@expo/vector-icons';
+/**
+ * Process template detail — mirrors the web process-templates Show page: header
+ * (name + active/version), a details box, the ordered Production Steps table
+ * (Step / Name / Workstation / Est.), and links into the step + QC editors.
+ * Full step editing (add/reorder/photos) lives on the web; "Open on web" jumps
+ * there. Activate/deactivate and delete stay here.
+ */
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+
+import { colors, fonts, radius } from '@openmes/ui';
 
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { DangerZone, DetailHero, DetailScreen, LinkRowCard } from '@/components/ui/Detail';
-import { Mono, SectionLabel } from '@/components/ui/Mono';
+import { Mono } from '@/components/ui/Mono';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useProcessTemplate } from '@/hooks/queries/useProductTypes';
 import { useDeleteTemplate, useToggleTemplateActive } from '@/hooks/mutations/productTypes';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -19,161 +25,186 @@ export function TemplateDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const numericId = Number(id);
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+  const { t } = useTranslation();
 
   const query = useProcessTemplate(numericId);
   const deleteMutation = useDeleteTemplate();
   const toggleMutation = useToggleTemplateActive();
   const serverUrl = useSettingsStore((s) => s.serverUrl);
 
-  if (query.isLoading) return <LoadingState />;
+  if (query.isLoading && !query.data) return <LoadingState />;
   if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
 
   const template = query.data;
-  const steps = template.steps ?? [];
+  const steps = (template.steps ?? []).slice().sort((a, b) => a.step_number - b.step_number);
 
-  const onOpenOnWeb = () => {
-    const productTypeId = template.product_type_id;
+  const onOpenOnWeb = () =>
     WebBrowser.openBrowserAsync(
-      `${serverUrl}/admin/product-types/${productTypeId}/process-templates/${template.id}/edit`,
+      `${serverUrl}/admin/product-types/${template.product_type_id}/process-templates/${template.id}/edit`,
     );
-  };
+
+  const onDelete = () =>
+    Alert.alert(
+      t('Delete template'),
+      t('Active work orders snapshot the template, so deletion is safe but cannot be undone.'),
+      [
+        { text: t('Cancel'), style: 'cancel' },
+        {
+          text: t('Delete'),
+          style: 'destructive',
+          onPress: () =>
+            deleteMutation.mutate(template.id, {
+              onSuccess: () => router.back(),
+              onError: (e: Error) => Alert.alert(t('Could not delete'), e.message),
+            }),
+        },
+      ],
+    );
 
   return (
-    <DetailScreen>
-      <DetailHero
-        eyebrow={template.product_type ? `FOR ${template.product_type.name}` : undefined}
-        title={template.name}
-        trailing={
-          <View style={[styles.versionPill, { borderColor: palette.border, backgroundColor: palette.surfaceAlt }]}>
-            <Mono size={11} color={palette.text} weight="700" letterSpacing={0.4}>
-              v{template.version}
-            </Mono>
-          </View>
-        }
-      />
-
-      <View style={[styles.notice, { backgroundColor: '#FAF0DD', borderColor: BRAND.amber }]}>
-        <FontAwesome name="info-circle" size={14} color="#8a5a0e" />
-        <Text style={{ color: '#8a5a0e', fontSize: 12, flex: 1, lineHeight: 17 }}>
-          Editing template steps (add, edit, reorder) is best done on the web app. Mobile supports
-          quick edits.
-        </Text>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.head}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.h1}>{template.name}</Text>
+        </View>
+        <StatusPill
+          status={template.is_active ? 'in_progress' : 'pending'}
+          label={template.is_active ? t('Active') : t('Inactive')}
+        />
       </View>
 
-      <Card style={{ gap: 10 }}>
-        <SectionLabel
-          right={
-            <StatusPill
-              status={template.is_active ? 'IN_PROGRESS' : 'CANCELLED'}
-              label={template.is_active ? 'Active' : 'Inactive'}
-            />
-          }>
-          {`Steps · ${steps.length}`}
-        </SectionLabel>
+      <View style={styles.box}>
+        <KeyValue label={t('Product type')} value={template.product_type?.name ?? '—'} />
+        <KeyValue label={t('Version')} value={`v${template.version}`} mono />
+        <KeyValue label={t('Steps')} value={String(steps.length)} mono last />
+      </View>
+
+      <View>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6} style={styles.sectionLabel}>
+          {t('Production steps').toUpperCase()}
+        </Mono>
         {steps.length === 0 ? (
-          <Mono size={11} color={palette.textFaint}>NO STEPS DEFINED YET</Mono>
+          <Text style={styles.empty}>{t('No steps defined yet.')}</Text>
         ) : (
-          <View style={{ gap: 8 }}>
-            {steps.map((step, idx) => (
-              <View
-                key={step.id}
-                style={[
-                  styles.stepRow,
-                  idx > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border } : null,
-                ]}>
-                <Text style={[styles.stepNumber, { color: BRAND.amber, fontFamily: MONO }]}>
-                  {step.step_number}
-                </Text>
+          <>
+            <View style={[styles.row, styles.headerRow]}>
+              <HCell w={44}>{t('Step')}</HCell>
+              <HCell flex={1.4}>{t('Name')}</HCell>
+              <HCell flex={1}>{t('Workstation')}</HCell>
+              <HCell w={60}>{t('Est.')}</HCell>
+            </View>
+            {steps.map((step) => (
+              <View key={step.id} style={[styles.row, styles.dataRow]}>
+                <View style={{ width: 44 }}>
+                  <Mono size={11} color={colors.accent}>{String(step.step_number)}</Mono>
+                </View>
+                <View style={{ flex: 1.4 }}>
+                  <Text numberOfLines={1} style={styles.title}>{step.name}</Text>
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.stepName, { color: palette.text }]}>{step.name}</Text>
-                  {step.workstation?.name ? (
-                    <Mono size={11} color={palette.textFaint} style={{ marginTop: 3 }}>
-                      WS · {step.workstation.name.toUpperCase()}
-                    </Mono>
-                  ) : null}
-                  {step.estimated_duration_minutes != null ? (
-                    <Mono size={11} color={palette.textFaint} style={{ marginTop: 3 }}>
-                      EST {step.estimated_duration_minutes}M
-                    </Mono>
-                  ) : null}
-                  {step.instruction ? (
-                    <Text
-                      style={{ color: palette.textMuted, fontSize: 13, marginTop: 6, lineHeight: 19 }}
-                      numberOfLines={3}>
-                      {step.instruction}
-                    </Text>
-                  ) : null}
+                  <Text numberOfLines={1} style={styles.cellText}>{step.workstation?.name ?? '—'}</Text>
+                </View>
+                <View style={{ width: 60 }}>
+                  <Mono size={11} color={colors.muted}>
+                    {step.estimated_duration_minutes != null ? `${step.estimated_duration_minutes}m` : '—'}
+                  </Mono>
                 </View>
               </View>
             ))}
-          </View>
+          </>
         )}
-      </Card>
+      </View>
 
-      <LinkRowCard
-        icon="list-ol"
-        title="Edit steps"
-        subtitle="Add, edit, reorder, delete"
-        onPress={() => router.push(`/(drawer)/production/templates/${template.id}/steps` as never)}
-      />
-
-      <LinkRowCard
-        icon="check-square-o"
-        title="QC templates"
-        subtitle="Quality check requirements per batch"
-        onPress={() =>
-          router.push(`/(drawer)/production/templates/${template.id}/qc-templates` as never)
-        }
-      />
+      <View style={styles.box}>
+        <LinkRow
+          label={t('Edit steps')}
+          hint={t('Add, edit, reorder, delete')}
+          onPress={() => router.push(`/(drawer)/production/templates/${template.id}/steps` as never)}
+        />
+        <LinkRow
+          label={t('QC templates')}
+          hint={t('Quality check requirements per batch')}
+          onPress={() => router.push(`/(drawer)/production/templates/${template.id}/qc-templates` as never)}
+          last
+        />
+      </View>
 
       <Button
-        title="Open on web to edit"
+        title={t('Open on web to edit')}
         variant="outline"
-        leftIcon={<FontAwesome name="external-link" size={13} color={palette.text} />}
+        leftIcon={<FontAwesome name="external-link" size={13} color={colors.ink} />}
         onPress={onOpenOnWeb}
       />
 
-      <DangerZone
-        toggleLabel={template.is_active ? 'Deactivate' : 'Activate'}
-        toggleLoading={toggleMutation.isPending}
-        onToggle={() =>
-          toggleMutation.mutate(template.id, {
-            onError: (e: Error) => Alert.alert('Failed', e.message),
-          })
-        }
-        deleteLabel="Delete template"
-        deleteConfirmTitle="Delete template"
-        deleteConfirmMessage="Active work orders snapshot the template, so deletion is safe but cannot be undone."
-        deleteLoading={deleteMutation.isPending}
-        onDelete={() =>
-          deleteMutation.mutate(template.id, {
-            onSuccess: () => router.back(),
-            onError: (e: Error) => Alert.alert('Could not delete', e.message),
-          })
-        }
-      />
-    </DetailScreen>
+      <View style={styles.actions}>
+        <Button
+          title={template.is_active ? t('Deactivate') : t('Activate')}
+          variant="ghost"
+          loading={toggleMutation.isPending}
+          onPress={() =>
+            toggleMutation.mutate(template.id, {
+              onError: (e: Error) => Alert.alert(t('Could not save'), e.message),
+            })
+          }
+        />
+        <View style={{ flex: 1 }} />
+        <Button title={t('Delete template')} variant="danger" loading={deleteMutation.isPending} onPress={onDelete} />
+      </View>
+    </ScrollView>
+  );
+}
+
+function KeyValue({ label, value, mono, last }: { label: string; value: string; mono?: boolean; last?: boolean }) {
+  return (
+    <View style={[styles.kvRow, last ? null : styles.kvBorder]}>
+      <Mono size={9} color={colors.faint} letterSpacing={0.6}>{label.toUpperCase()}</Mono>
+      {mono ? (
+        <Mono size={12} color={colors.ink}>{value}</Mono>
+      ) : (
+        <Text numberOfLines={1} style={styles.kvValue}>{value}</Text>
+      )}
+    </View>
+  );
+}
+
+function LinkRow({ label, hint, onPress, last }: { label: string; hint: string; onPress: () => void; last?: boolean }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.linkRow, last ? null : styles.kvBorder, { opacity: pressed ? 0.6 : 1 }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.title}>{label}</Text>
+        <Mono size={9} color={colors.faint} letterSpacing={0.4} style={{ marginTop: 3 }}>{hint.toUpperCase()}</Mono>
+      </View>
+      <FontAwesome name="chevron-right" size={12} color={colors.faint} />
+    </Pressable>
+  );
+}
+
+function HCell({ children, w, flex }: { children: React.ReactNode; w?: number; flex?: number }) {
+  return (
+    <View style={{ width: w, flex }}>
+      <Mono size={9} color={colors.faint} letterSpacing={0.6}>{String(children).toUpperCase()}</Mono>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  versionPill: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  notice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  stepRow: { flexDirection: 'row', gap: 12, paddingTop: 8 },
-  stepNumber: { fontSize: 16, fontWeight: '700', width: 22, letterSpacing: 0.4 },
-  stepName: { fontSize: 14, fontWeight: '600', letterSpacing: -0.2 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 18, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  sectionLabel: { marginBottom: 8 },
+  box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md },
+  kvRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  kvBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
+  kvValue: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink, flexShrink: 1, textAlign: 'right' },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
+  headerRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
+  dataRow: { paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
+  title: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
+  cellText: { fontSize: 12.5, color: colors.muted, fontFamily: fonts.sans.native.regular },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  empty: { fontSize: 13, color: colors.faint, fontFamily: fonts.sans.native.regular, paddingVertical: 8 },
 });
