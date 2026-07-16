@@ -9,6 +9,7 @@ import OeeGauge, { oeeColor } from '../../components/OeeGauge';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
 import { formatDateTime } from '../../lib/i18n';
+import { TIER_BADGE_STYLES, tierLabel } from './customers/fields';
 
 const WO_TERMINAL = ['DONE', 'CANCELLED', 'REJECTED'];
 
@@ -39,6 +40,7 @@ function DashboardBody({
     materialsStats,
     scrapStats,
     nonConformanceStats,
+    topCustomers,
 }) {
     const { workOrders, lines, issues, issueTypes, oeeRecords, isLoading, error } =
         useDashboardShapes(hot);
@@ -136,6 +138,12 @@ function DashboardBody({
                     {showWidget('non_conformance_overview') && nonConformanceStats && (
                         <Section order={order.non_conformance_overview}>
                             <NonConformanceOverview stats={nonConformanceStats} />
+                        </Section>
+                    )}
+
+                    {showWidget('top_customers') && topCustomers && (
+                        <Section order={order.top_customers}>
+                            <TopCustomers stats={topCustomers} />
                         </Section>
                     )}
 
@@ -444,6 +452,46 @@ function NonConformanceOverview({ stats }) {
     );
 }
 
+function TopCustomers({ stats }) {
+    const customers = stats.customers ?? [];
+    const maxRevenue = Math.max(...customers.map((c) => Number(c.total_revenue ?? 0)), 1);
+    const fmt = (n) => Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    return (
+        <div className="bg-om-card border border-om-line rounded-om p-5">
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[14px] font-semibold text-om-ink">{__('Top Customers')}</h2>
+                <a href="/admin/customers" className="text-[12.5px] text-om-accent hover:underline">{__('All customers')} →</a>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                <Stat label={__('Total revenue')} value={fmt(stats.total_revenue)} color="green" />
+                <Stat label={__('Customers')} value={customers.length} color="blue" />
+            </div>
+
+            {customers.length > 0 ? (
+                <div className="space-y-1.5">
+                    <p className="text-[11.5px] uppercase tracking-[0.06em] text-om-faint mb-1">{__('By revenue')}</p>
+                    {customers.map((c) => (
+                        <div key={c.id} className="flex items-center gap-3 text-[12.5px]">
+                            <span className="w-40 shrink-0 truncate text-om-ink flex items-center gap-1.5" title={c.name}>
+                                {c.name}
+                                <span className={`text-[10px] px-1 py-0.5 rounded ${TIER_BADGE_STYLES[c.tier] ?? 'bg-om-chip text-om-muted'}`}>{tierLabel(c.tier)}</span>
+                            </span>
+                            <div className="flex-1 h-3.5 bg-om-chip rounded">
+                                <div className="h-3.5 bg-om-running rounded" style={{ width: `${(Number(c.total_revenue) / maxRevenue) * 100}%` }} />
+                            </div>
+                            <span className="w-24 shrink-0 text-right tabular-nums text-om-muted">{fmt(c.total_revenue)}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-[12.5px] text-om-faint">{__('No customer revenue yet.')}</p>
+            )}
+        </div>
+    );
+}
+
 function Stat({ label, value, color }) {
     // State-tinted tiles on om tokens (parity with the Blade dashboard widgets).
     const tile = {
@@ -662,6 +710,7 @@ function buildOrder(widgetOrder) {
         'materials_overview',
         'scrap_overview',
         'non_conformance_overview',
+        'top_customers',
         'recent_work_orders',
         'open_issues',
     ];

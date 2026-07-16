@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\DashboardWidget;
 use App\Models\Inspection;
 use App\Models\Material;
@@ -65,6 +66,7 @@ class DashboardController extends Controller
             'materialsStats' => fn () => $this->materialsStats($enabledWidgets),
             'scrapStats' => fn () => $this->scrapStats($enabledWidgets),
             'nonConformanceStats' => fn () => $this->nonConformanceStats($enabledWidgets),
+            'topCustomers' => fn () => $this->topCustomers($enabledWidgets),
         ]);
     }
 
@@ -152,6 +154,35 @@ class DashboardController extends Controller
             'entries_30d' => $pareto['total_entries'],
             'top_reason' => $top['name'] ?? null,
             'top_reason_qty' => $top['qty'] ?? null,
+        ];
+    }
+
+    /**
+     * Top customers by accrued revenue, with a small total-revenue summary for
+     * the dashboard widget. Null when the widget is disabled.
+     */
+    private function topCustomers(array $enabledWidgets): ?array
+    {
+        if (! in_array('top_customers', $enabledWidgets, true)) {
+            return null;
+        }
+
+        $customers = Customer::query()
+            ->where('total_orders', '>', 0)
+            ->orderByDesc('total_revenue')
+            ->orderByDesc('total_orders')
+            ->limit(5)
+            ->get(['id', 'name', 'tier', 'total_orders', 'total_revenue']);
+
+        return [
+            'customers' => $customers->map(fn (Customer $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'tier' => $c->tier->value,
+                'total_orders' => $c->total_orders,
+                'total_revenue' => (float) $c->total_revenue,
+            ])->all(),
+            'total_revenue' => (float) Customer::sum('total_revenue'),
         ];
     }
 }

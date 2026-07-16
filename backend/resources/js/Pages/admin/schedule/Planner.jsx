@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { DndProvider, useDragDropManager } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ConfirmDialog } from '@openmes/ui';
@@ -41,6 +41,7 @@ export default function Planner() {
         viewMode = 'weekly', shiftsPerDay = 1, slotMinutes = 15, showWeekends = true,
         startDate, rangeStart, rangeEnd, navPrev, navNext,
         backlogOrders = [], maintenanceEvents = [], realtimeMode = 'polling',
+        overdueImportant = { count: 0, orders: [] },
     } = usePage().props;
 
     const lineId = new URLSearchParams(window.location.search).get('line_id') ?? '';
@@ -323,6 +324,33 @@ export default function Planner() {
                 </div>
                 <LiveTrackingBar wo={firstInProgress} live={trackingData} />
             </div>
+
+            {/* High-value customers with overdue orders — ported from develop's banner */}
+            {overdueImportant.count > 0 && (
+                <div className="mb-3 flex items-start gap-2 rounded-om border border-om-blocked/30 bg-om-blocked-bg px-4 py-2.5 text-[13px] text-om-blocked">
+                    <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                    <div>
+                        <span className="font-semibold">
+                            {__(':count high-tier customer order(s) overdue', { count: overdueImportant.count })}
+                        </span>
+                        {overdueImportant.orders.length > 0 && (
+                            <span className="text-om-muted">
+                                {' — '}
+                                {overdueImportant.orders.slice(0, 5).map((o, idx) => (
+                                    <span key={o.id}>
+                                        {idx > 0 && ', '}
+                                        <Link href={`/admin/work-orders/${o.id}`} className="hover:underline font-medium text-om-blocked">
+                                            {o.order_no}
+                                        </Link>
+                                        {o.customer_name ? ` (${o.customer_name})` : ''}
+                                    </span>
+                                ))}
+                                {overdueImportant.count > 5 && ` +${overdueImportant.count - 5}`}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <DndProvider backend={HTML5Backend}>
             <DragWatcher draggingRef={draggingRef} />

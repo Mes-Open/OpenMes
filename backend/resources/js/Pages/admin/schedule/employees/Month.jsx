@@ -68,7 +68,6 @@ export default function EmployeeMonth() {
     return (
         <>
             <Head title={__('Employee Month Overview')} />
-            <Head title={__('Employee Month Overview')} />
             <EmployeeTabs view={view} date={date} selectedWorkerId={selectedWorkerId} selectedWorker={selectedWorker} workers={workers} />
 
             {/* Worker switcher + month nav */}
@@ -184,7 +183,6 @@ export default function EmployeeMonth() {
                     {/* 24h strip */}
                     <div className="rounded-om bg-om-panel p-3">
                         <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase mb-2">{__('24h activity')}</div>
-                        <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase mb-2">{__('24h activity')}</div>
                         <Tacho activities={selectedDayActivities} typeMeta={typeMeta} height={40} isToday={isToday} nowMinutes={nowMin} />
                     </div>
 
@@ -195,7 +193,6 @@ export default function EmployeeMonth() {
                             <div className="font-mono text-lg font-bold mt-1 text-om-running">{fmtMins(selOnDuty)}</div>
                         </div>
                         <div className="p-2.5 rounded-om-sm bg-om-panel">
-                            <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Productive')}</div>
                             <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Productive')}</div>
                             <div className="font-mono text-lg font-bold mt-1 text-om-ink">{fmtMins(selTotalWork)}</div>
                         </div>

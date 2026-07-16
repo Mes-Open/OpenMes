@@ -33,10 +33,12 @@ class WorkOrderService
             $workOrder = WorkOrder::create([
                 'order_no' => $data['order_no'],
                 'customer_order_no' => $data['customer_order_no'] ?? null,
+                'customer_id' => $data['customer_id'] ?? null,
                 'line_id' => $data['line_id'] ?? null,
                 'product_type_id' => $data['product_type_id'] ?? null,
                 'process_snapshot' => $processSnapshot,
                 'planned_qty' => $data['planned_qty'],
+                'unit_price' => $data['unit_price'] ?? null,
                 'produced_qty' => 0,
                 'status' => WorkOrder::STATUS_PENDING,
                 'priority' => $data['priority'] ?? 0,
@@ -64,7 +66,13 @@ class WorkOrderService
             'customer_order_no' => array_key_exists('customer_order_no', $data)
                 ? $data['customer_order_no']
                 : $workOrder->customer_order_no,
+            'customer_id' => array_key_exists('customer_id', $data)
+                ? $data['customer_id']
+                : $workOrder->customer_id,
             'planned_qty' => $data['planned_qty'] ?? $workOrder->planned_qty,
+            'unit_price' => array_key_exists('unit_price', $data)
+                ? $data['unit_price']
+                : $workOrder->unit_price,
             'priority' => $data['priority'] ?? $workOrder->priority,
             'due_date' => $data['due_date'] ?? $workOrder->due_date,
             'description' => $data['description'] ?? $workOrder->description,
@@ -144,6 +152,7 @@ class WorkOrderService
                 'step_number' => $stepData['step_number'],
                 'name' => $stepData['name'],
                 'instruction' => $stepData['instruction'] ?? null,
+                'requires_confirmation' => $stepData['requires_confirmation'] ?? false,
                 'workstation_id' => $stepData['workstation_id'] ?? null,
                 'status' => $status,
                 'is_optional' => $stepData['is_optional'] ?? false,

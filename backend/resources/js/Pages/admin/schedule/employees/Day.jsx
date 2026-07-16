@@ -72,9 +72,6 @@ export function EmployeeTabs({ view, date, selectedWorkerId, selectedWorker, wor
         { key: 'day', label: __('Day plan') },
         { key: 'team', label: __('Team day') },
         { key: 'month', label: __('Month') },
-        { key: 'day', label: __('Day plan') },
-        { key: 'team', label: __('Team day') },
-        { key: 'month', label: __('Month') },
     ];
 
     const navTo = (params) => router.get('/admin/schedule/employees', params, { preserveState: false });
@@ -88,10 +85,7 @@ export function EmployeeTabs({ view, date, selectedWorkerId, selectedWorker, wor
                 <h1 className="text-2xl md:text-3xl font-bold text-om-ink mt-0.5">
                     {view === 'team'
                         ? `${__('Team day')} · ${formatDate(new Date(date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
-                        ? `${__('Team day')} · ${formatDate(new Date(date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
                         : view === 'month'
-                            ? `${__('Month overview')} · ${formatDate(new Date(date), { month: 'long', year: 'numeric' })}`
-                            : <>{selectedWorker?.name ?? __('Day plan')} <span className="text-om-faint font-normal text-lg">· {formatDate(new Date(date), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></>
                             ? `${__('Month overview')} · ${formatDate(new Date(date), { month: 'long', year: 'numeric' })}`
                             : <>{selectedWorker?.name ?? __('Day plan')} <span className="text-om-faint font-normal text-lg">· {formatDate(new Date(date), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span></>
                     }
@@ -110,7 +104,6 @@ export function EmployeeTabs({ view, date, selectedWorkerId, selectedWorker, wor
                 </div>
 
                 <Link href="/admin/schedule" className="px-3 py-2 text-xs font-medium text-om-muted hover:text-om-ink">
-                    &larr; {__('Production schedule')}
                     &larr; {__('Production schedule')}
                 </Link>
 
@@ -176,7 +169,6 @@ export default function EmployeeDay() {
     return (
         <>
             <Head title={__('Employee Day Plan')} />
-            <Head title={__('Employee Day Plan')} />
 
             <EmployeeTabs view={view} date={date} selectedWorkerId={selectedWorkerId} selectedWorker={selectedWorker} workers={workers} />
 
@@ -188,13 +180,11 @@ export default function EmployeeDay() {
                         <div className="flex items-center gap-2 px-3 py-2 rounded-om-sm bg-om-chip">
                             <svg className="w-4 h-4 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-5-5m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                             <input type="text" placeholder={__('Search worker')}
-                            <input type="text" placeholder={__('Search worker')}
                                    className="bg-transparent w-full text-sm text-om-muted placeholder-om-faint outline-none font-mono"
                                    onChange={(e) => {/* could filter locally */}} />
                         </div>
                     </div>
                     <div className="font-mono text-[10px] tracking-wider text-om-muted uppercase mt-1 mb-2">
-                        {__('Workers')} · {workers.length}
                         {__('Workers')} · {workers.length}
                     </div>
                     <div className="flex flex-col gap-1.5 overflow-y-auto flex-1">
@@ -292,12 +282,10 @@ export default function EmployeeDay() {
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">
                             {__('Activities')} · {activities.length}
-                            {__('Activities')} · {activities.length}
                         </div>
                         <div className="flex flex-col gap-1">
                             {activities.length === 0 ? (
                                 <div className="p-6 text-center text-sm text-om-faint border border-dashed border-om-line2 rounded-om">
-                                    {__('No activities planned for this day.')}
                                     {__('No activities planned for this day.')}
                                 </div>
                             ) : activities.map((a, i) => {
@@ -365,11 +353,9 @@ export default function EmployeeDay() {
                                     <div className="flex justify-between items-baseline">
                                         <div>
                                             <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('Duration')}</div>
-                                            <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('Duration')}</div>
                                             <div className="font-mono text-3xl font-bold mt-1 -tracking-wide" style={{ color: def.color }}>{fmtMins(spotlight.duration)}</div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('Window')}</div>
                                             <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('Window')}</div>
                                             <div className="font-mono text-sm font-bold mt-1 text-om-ink">{spotlight.from} &rarr; {spotlight.to}</div>
                                         </div>
@@ -379,11 +365,9 @@ export default function EmployeeDay() {
                                     <div className="grid grid-cols-2 gap-2">
                                         <div className="p-2.5 rounded-om-sm bg-om-panel">
                                             <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Work Order')}</div>
-                                            <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Work Order')}</div>
                                             <div className="font-mono text-xs font-bold mt-1 text-om-ink">{spotlight.wo}</div>
                                         </div>
                                         <div className="p-2.5 rounded-om-sm bg-om-panel">
-                                            <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Step')}</div>
                                             <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Step')}</div>
                                             <div className="font-mono text-xs font-bold mt-1 text-om-ink">{spotlight.step ?? '—'}</div>
                                         </div>
@@ -391,7 +375,6 @@ export default function EmployeeDay() {
                                 )}
                                 {spotlight.notes && (
                                     <div>
-                                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase">{__('Notes')}</div>
                                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase">{__('Notes')}</div>
                                         <div className="mt-1.5 p-3 rounded-om-sm bg-om-panel text-xs italic text-om-muted leading-relaxed">
                                             &ldquo;{spotlight.notes}&rdquo;
@@ -405,7 +388,6 @@ export default function EmployeeDay() {
                     {/* Day KPI strip */}
                     <div className="grid grid-cols-2 gap-2">
                         <div className="p-2.5 rounded-om-sm bg-om-panel">
-                            <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Activities')}</div>
                             <div className="font-mono text-[9px] tracking-wider text-om-muted uppercase">{__('Activities')}</div>
                             <div className="font-mono text-lg font-bold mt-1 text-om-ink">{activities.length}</div>
                         </div>

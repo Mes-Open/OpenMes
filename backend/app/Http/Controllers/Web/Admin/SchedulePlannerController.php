@@ -81,7 +81,7 @@ class SchedulePlannerController extends Controller
         }
 
         // Load work orders in range
-        $workOrders = WorkOrder::with(['productType', 'line', 'extraPlacements'])
+        $workOrders = WorkOrder::with(['productType', 'line', 'customer', 'extraPlacements'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->where(function ($q) use ($lineIds) {
                 // An order shows on every line it runs on — its primary
@@ -211,7 +211,7 @@ class SchedulePlannerController extends Controller
         $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
         // Backlog: unassigned work orders (no line or no due_date/week)
-        $backlogOrders = WorkOrder::with(['productType', 'line'])
+        $backlogOrders = WorkOrder::with(['productType', 'line', 'customer'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->where(function ($q) {
                 $q->whereNull('line_id')
@@ -219,9 +219,30 @@ class SchedulePlannerController extends Controller
                         $q2->whereNull('due_date')->whereNull('week_number');
                     });
             })
+            ->orderBy('priority_score', 'desc')
             ->orderBy('priority', 'desc')
             ->orderBy('due_date')
             ->get();
+
+        // High-value orders past due — powers the planner's overdue banner.
+        $importantOverdue = WorkOrder::query()
+            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', now())
+            ->whereHas('customer', fn ($q) => $q->whereIn('tier', ['gold', 'vip']));
+        $importantOverdueCount = (clone $importantOverdue)->count();
+        $importantOverdueOrders = $importantOverdue
+            ->with('customer:id,name,tier')
+            ->orderBy('due_date')
+            ->limit(10)
+            ->get()
+            ->map(fn ($wo) => [
+                'id' => $wo->id,
+                'order_no' => $wo->order_no,
+                'customer_name' => $wo->customer?->name,
+                'tier' => $wo->customer?->tier?->value,
+                'due_date' => $wo->due_date?->format('Y-m-d'),
+            ])->all();
 
         $realtimeMode = trim($settings['realtime_mode'] ?? 'polling', '"\'');
 
@@ -254,6 +275,9 @@ class SchedulePlannerController extends Controller
             return [
                 'id' => $wo->id,
                 'order_no' => $wo->order_no,
+                'customer_name' => $wo->customer?->name,
+                'customer_tier' => $wo->customer?->tier?->value,
+                'priority_score' => $wo->priority_score,
                 'product_name' => $wo->productType?->name,
                 'line_id' => $wo->line_id,
                 'secondary_line_id' => $wo->secondary_line_id,
@@ -290,11 +314,14 @@ class SchedulePlannerController extends Controller
             'id' => $wo->id,
             'order_no' => $wo->order_no,
             'product_name' => $wo->productType?->name,
+            'customer_name' => $wo->customer?->name,
+            'customer_tier' => $wo->customer?->tier?->value,
             'line_id' => $wo->line_id,
             'due_date' => $wo->due_date?->format('Y-m-d'),
             'planned_qty' => $wo->planned_qty,
             'status' => $wo->status,
             'priority' => $wo->priority,
+            'priority_score' => $wo->priority_score,
         ])->values()->all();
 
         // Flatten lines for props
@@ -328,7 +355,12 @@ class SchedulePlannerController extends Controller
             'realtimeMode' => $realtimeMode,
             // For the "+ New order" modal (shares the create page's form).
             'productTypes' => \App\Models\ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customers' => \App\Models\Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => app(\App\Services\CustomFieldService::class)->clientConfig('work_order'),
+            'overdueImportant' => [
+                'count' => $importantOverdueCount,
+                'orders' => $importantOverdueOrders,
+            ],
         ]);
     }
 

@@ -4,7 +4,7 @@
 // any cell via react-dnd; scheduled blocks move via pointer (hit-testing cells).
 import { useState, useRef, useEffect, memo } from 'react';
 import { __, formatDate } from '../../../../lib/i18n';
-import { OrderCard, TwinChip } from './OrderCard';
+import { OrderCard, TwinChip, TierDot } from './OrderCard';
 import { DraggableOrder, useOrderDrop } from './dnd';
 import {
     weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, dayList, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
@@ -142,6 +142,7 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                 <div onPointerDown={(e) => begin('move', e)} onClick={(e) => { e.stopPropagation(); if (draggedRef.current) { draggedRef.current = false; return; } ctx.onSelectOrder(wo); }}
                     style={{ height: '100%', padding: '5px 9px', cursor: 'grab', display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
                     <div className="flex items-center gap-1.5">
+                        <TierDot wo={wo} />
                         <span className="whitespace-nowrap" style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.order_no}</span>
                         {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                         {wo.is_overdue && <span className="ml-auto" style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}

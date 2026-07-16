@@ -8,6 +8,7 @@ import { apiGet, apiCall } from '../../../../lib/http';
 import { OrderCard } from './OrderCard';
 import { DraggableOrder } from './dnd';
 import { NewOrderModal } from './modals';
+import { TIER_BADGE_STYLES, TIER_VALUES, tierLabel } from '../../customers/fields';
 import { priorityMeta, MONO } from './helpers';
 
 const LEGEND = [
@@ -151,10 +152,12 @@ export function BacklogRail({ ctx }) {
     const [pf, setPf] = useState('all');
     const [tab, setTab] = useState('backlog');
     const [showNew, setShowNew] = useState(false);
+    const [tierFilter, setTierFilter] = useState('');
 
     let items = data.backlog.filter((o) =>
-        (q === '' || o.order_no.toLowerCase().includes(q.toLowerCase()) || (o.product_name || '').toLowerCase().includes(q.toLowerCase()))
-        && (pf === 'all' || priorityMeta(o.priority).label === pf));
+        (q === '' || `${o.order_no} ${o.product_name || ''} ${o.customer_name || ''}`.toLowerCase().includes(q.toLowerCase()))
+        && (pf === 'all' || priorityMeta(o.priority).label === pf)
+        && (!tierFilter || o.customer_tier === tierFilter));
     items = items.slice().sort((a, b) => b.priority - a.priority);
 
     const groups = {};
@@ -182,6 +185,17 @@ export function BacklogRail({ ctx }) {
                             {filters.map(([k, label]) => (
                                 <span key={k} onClick={() => setPf(k)} className="flex-1 text-center"
                                     style={{ fontSize: 11, fontWeight: 500, padding: 6, borderRadius: 7, cursor: 'pointer', ...(pf === k ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { background: 'var(--om-card)', color: 'var(--om-muted)', border: '1px solid var(--om-line)' }) }}>{__(label)}</span>
+                            ))}
+                        </div>
+                        {/* customer tier filter (ported from develop) */}
+                        <div className="flex flex-wrap gap-1" style={{ marginTop: 6 }}>
+                            <button type="button" onClick={() => setTierFilter('')}
+                                className={`px-2 py-0.5 text-[10px] font-medium rounded transition ${tierFilter === '' ? 'bg-om-ink text-om-on-ink' : 'bg-om-chip text-om-muted hover:bg-om-line2'}`}>{__('All tiers')}</button>
+                            {TIER_VALUES.map((t) => (
+                                <button key={t} type="button" onClick={() => setTierFilter(tierFilter === t ? '' : t)}
+                                    className={`px-2 py-0.5 text-[10px] font-medium rounded border transition ${TIER_BADGE_STYLES[t]} ${tierFilter === t ? 'ring-2 ring-gray-400' : ''}`}>
+                                    {tierLabel(t)}
+                                </button>
                             ))}
                         </div>
                     </>

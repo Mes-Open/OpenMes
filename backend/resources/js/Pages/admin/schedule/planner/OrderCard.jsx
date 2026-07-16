@@ -1,7 +1,25 @@
 // Work-order blocks + small atoms, following the OpenMES Schedule design:
 // status-tinted surface, Geist-Mono order numbers, hover-✕ to unschedule.
 import { __ } from '../../../../lib/i18n';
+import { TIER_BADGE_STYLES, tierLabel } from '../../customers/fields';
 import { statusOf, statusLabel, priorityMeta, fmtQty, shiftColor, MONO } from './helpers';
+
+// Solid dot color per customer tier, for the compact Gantt cards.
+const TIER_DOT = {
+    bronze: 'bg-amber-500',
+    silver: 'bg-gray-400',
+    gold: 'bg-yellow-400',
+    vip: 'bg-purple-500',
+};
+
+// Compact customer-tier marker: colored dot, tooltip carries name + tier.
+export function TierDot({ wo }) {
+    if (!wo.customer_tier) return null;
+    return (
+        <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${TIER_DOT[wo.customer_tier] ?? ''}`}
+            title={`${wo.customer_name ?? ''}${wo.customer_tier ? ` · ${tierLabel(wo.customer_tier)}` : ''}`} />
+    );
+}
 
 // Chip marking a block that also runs on another line. Directional: '→ CODE'
 // = the order continues on that line next, 'CODE →' = it came from that line,
@@ -55,10 +73,18 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
                 className="om-wo"
                 style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 9, padding: '11px 12px', cursor: 'grab', boxShadow: selected ? '0 0 0 2px var(--om-accent)' : 'none' }}>
                 <div className="flex items-center justify-between mb-1.5">
-                    <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.order_no}</span>
+                    <span className="flex items-center gap-1.5" style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 600, color: 'var(--om-ink)' }}><TierDot wo={wo} />{wo.order_no}</span>
                     <StatusPill status={wo.status} />
                 </div>
                 <div className="mb-1.5" style={{ fontSize: 12.5, color: 'var(--om-ink)' }}>{wo.product_name || '—'}</div>
+                {wo.customer_name && (
+                    <div className="mb-1.5 flex items-center gap-1">
+                        <span className="truncate" style={{ fontSize: 10.5, color: 'var(--om-muted)', maxWidth: 130 }} title={wo.customer_name}>{wo.customer_name}</span>
+                        {wo.customer_tier && (
+                            <span className={`px-1 py-0.5 rounded text-[8px] font-medium ${TIER_BADGE_STYLES[wo.customer_tier] ?? ''}`}>{tierLabel(wo.customer_tier)}</span>
+                        )}
+                    </div>
+                )}
                 <div className="flex items-center gap-2" style={{ fontFamily: MONO, fontSize: 9.5, color: 'var(--om-faint)' }}>
                     <span>{fmtQty(wo.planned_qty)} {__('pcs')}</span><span>·</span>
                     <span style={{ color: pm.color }}>{__(pm.label)}</span>
@@ -74,6 +100,7 @@ export function OrderCard({ wo, variant = 'cell', selected = false, conflict = f
                 {onUnassign && <UnassignX onUnassign={onUnassign} wo={wo} title={unassignTitle} />}
                 <div className="flex items-center gap-1.5 mb-0.5">
                     <span style={{ width: 5, height: 5, borderRadius: 999, background: shiftColor() }} />
+                    <TierDot wo={wo} />
                     <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.order_no}</span>
                     {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                 </div>

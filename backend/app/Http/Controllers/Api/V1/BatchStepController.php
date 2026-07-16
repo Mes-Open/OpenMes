@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\BatchStep;
-use App\Services\WorkOrder\BatchService;
 use App\Services\IssueService;
-use Illuminate\Http\Request;
+use App\Services\WorkOrder\BatchService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class BatchStepController extends Controller
 {
@@ -18,10 +18,6 @@ class BatchStepController extends Controller
 
     /**
      * Start a batch step.
-     *
-     * @param Request $request
-     * @param BatchStep $batchStep
-     * @return JsonResponse
      */
     public function start(Request $request, BatchStep $batchStep): JsonResponse
     {
@@ -46,10 +42,6 @@ class BatchStepController extends Controller
 
     /**
      * Complete a batch step.
-     *
-     * @param Request $request
-     * @param BatchStep $batchStep
-     * @return JsonResponse
      */
     public function complete(Request $request, BatchStep $batchStep): JsonResponse
     {
@@ -81,11 +73,34 @@ class BatchStepController extends Controller
     }
 
     /**
+     * Acknowledge that the operator has read this step's critical instructions,
+     * clearing the read-confirmation completion gate enforced in
+     * BatchService::completeStep. Only meaningful for steps flagged
+     * requires_confirmation. Records who confirmed and when. Idempotent.
+     */
+    public function confirmInstructions(Request $request, BatchStep $batchStep): JsonResponse
+    {
+        $this->authorize('view', $batchStep->batch->workOrder);
+
+        if (! $batchStep->requires_confirmation) {
+            return response()->json([
+                'message' => 'This step does not require read-confirmation.',
+                'errors' => [
+                    'step' => ['This step does not require read-confirmation.'],
+                ],
+            ], 422);
+        }
+
+        $batchStep->markReadConfirmed($request->user());
+
+        return response()->json([
+            'message' => 'Instructions acknowledged',
+            'data' => $batchStep->load(['confirmedBy', 'batch.workOrder']),
+        ]);
+    }
+
+    /**
      * Report a problem on a step (creates an issue).
-     *
-     * @param Request $request
-     * @param BatchStep $batchStep
-     * @return JsonResponse
      */
     public function problem(Request $request, BatchStep $batchStep): JsonResponse
     {

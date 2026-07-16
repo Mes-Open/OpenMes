@@ -21,6 +21,7 @@ abstract class TemplateStepRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'instruction' => 'nullable|string',
+            'requires_confirmation' => 'boolean',
             'estimated_duration_minutes' => 'nullable|integer|min:0',
             'required_operators' => 'nullable|integer|min:1',
             'workstation_id' => 'nullable|exists:workstations,id',

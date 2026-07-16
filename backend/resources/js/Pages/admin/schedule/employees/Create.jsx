@@ -52,7 +52,6 @@ export default function EmployeeCreate() {
                         {worker?.name} · {formatDate(dateObj, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
                     </div>
                     <h1 className="text-2xl md:text-3xl font-bold text-om-ink mt-0.5">{__('Add activity')}</h1>
-                    <h1 className="text-2xl md:text-3xl font-bold text-om-ink mt-0.5">{__('Add activity')}</h1>
                 </div>
 
                 {Object.keys(errors).length > 0 && (
@@ -69,7 +68,6 @@ export default function EmployeeCreate() {
 
                     {/* Type tile grid */}
                     <div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Type')}</div>
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Type')}</div>
                         <div className="grid grid-cols-3 gap-2">
                             {types.map((t) => {
@@ -94,10 +92,8 @@ export default function EmployeeCreate() {
                     {/* Custom pills */}
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Custom')}</div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Custom')}</div>
                         <div className="flex flex-wrap gap-1.5">
                             {customs.length === 0 ? (
-                                <div className="font-mono text-[10px] text-om-faint italic px-3 py-1.5">{__('No custom activity types defined.')}</div>
                                 <div className="font-mono text-[10px] text-om-faint italic px-3 py-1.5">{__('No custom activity types defined.')}</div>
                             ) : customs.map((c) => {
                                 const on = selectedCustom === c.code;
@@ -117,16 +113,13 @@ export default function EmployeeCreate() {
                     {/* Time range */}
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Time range')}</div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Time range')}</div>
                         <div className="grid grid-cols-2 gap-2">
                             <label className="p-3.5 rounded-om bg-om-card border border-om-line2">
-                                <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('From')}</div>
                                 <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('From')}</div>
                                 <input type="time" name="from_time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} required
                                        className="font-mono text-2xl font-bold mt-1 bg-transparent text-om-ink outline-none w-full -tracking-wide" />
                             </label>
                             <label className="p-3.5 rounded-om bg-om-card border border-om-line2">
-                                <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('To')}</div>
                                 <div className="font-mono text-[9.5px] tracking-wider text-om-muted uppercase">{__('To')}</div>
                                 <input type="time" name="to_time" value={toTime} onChange={(e) => setToTime(e.target.value)} required
                                        className="font-mono text-2xl font-bold mt-1 bg-transparent text-om-ink outline-none w-full -tracking-wide" />
@@ -140,7 +133,6 @@ export default function EmployeeCreate() {
                     {/* Optional WO link */}
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">
-                            {__('Link to work order · optional')}
                             {__('Link to work order · optional')}
                         </div>
                         <Dropdown
@@ -158,15 +150,11 @@ export default function EmployeeCreate() {
                     <div>
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Label override')}</div>
                         <input type="text" name="label" placeholder={__('e.g. Lunch, Shift handover')}
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Label override')}</div>
-                        <input type="text" name="label" placeholder={__('e.g. Lunch, Shift handover')}
                                className="form-input w-full bg-om-card border-om-line2" />
                     </div>
 
                     {/* Notes */}
                     <div>
-                        <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Notes')}</div>
-                        <textarea name="notes" rows="3" placeholder={__('Optional context…')}
                         <div className="font-mono text-[10.5px] tracking-wider text-om-muted uppercase mb-2">{__('Notes')}</div>
                         <textarea name="notes" rows="3" placeholder={__('Optional context…')}
                                   className="form-input w-full bg-om-card border-om-line2" />

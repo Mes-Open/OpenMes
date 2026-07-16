@@ -586,6 +586,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // Batch Steps (step execution)
     Route::post('/batch-steps/{batchStep}/start', [BatchStepController::class, 'start']);
     Route::post('/batch-steps/{batchStep}/complete', [BatchStepController::class, 'complete']);
+    // Read-confirmation: acknowledge a critical step's instructions so it can complete.
+    Route::post('/batch-steps/{batchStep}/confirm-instructions', [BatchStepController::class, 'confirmInstructions']);
     Route::post('/batch-steps/{batchStep}/problem', [BatchStepController::class, 'problem']);
 
     // Step document control: validate a mandatory document so its step can

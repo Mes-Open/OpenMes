@@ -96,6 +96,7 @@ class ProcessTemplate extends Model
                     'step_number' => $step->step_number,
                     'name' => $step->name,
                     'instruction' => $step->instruction,
+                    'requires_confirmation' => (bool) $step->requires_confirmation,
                     'estimated_duration_minutes' => $step->estimated_duration_minutes,
                     'required_operators' => $step->effectiveRequiredOperators(),
                     'workstation_id' => $step->workstation_id,

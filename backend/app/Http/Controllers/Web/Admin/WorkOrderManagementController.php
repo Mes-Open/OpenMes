@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
+use App\Models\Customer;
 use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
@@ -31,6 +32,7 @@ class WorkOrderManagementController extends Controller
             'counts' => $counts,
             'lineNames' => Line::pluck('name', 'id'),
             'productTypeNames' => ProductType::pluck('name', 'id'),
+            'customerNames' => Customer::pluck('name', 'id'),
         ]);
     }
 
@@ -39,6 +41,7 @@ class WorkOrderManagementController extends Controller
         return Inertia::render('admin/work-orders/Create', [
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
     }
@@ -73,7 +76,7 @@ class WorkOrderManagementController extends Controller
 
     public function show(WorkOrder $workOrder, CustomFieldService $customFields)
     {
-        $workOrder->load(['line', 'productType', 'batches.steps', 'issues.issueType', 'issues.reportedBy']);
+        $workOrder->load(['customer', 'line', 'productType', 'batches.steps', 'issues.issueType', 'issues.reportedBy']);
 
         $batches = $workOrder->batches->map(function ($batch) {
             return [
@@ -109,10 +112,14 @@ class WorkOrderManagementController extends Controller
                 'id' => $workOrder->id,
                 'order_no' => $workOrder->order_no,
                 'customer_order_no' => $workOrder->customer_order_no,
+                'customer_name' => $workOrder->customer?->name,
+                'customer_tier' => $workOrder->customer?->tier?->value,
                 'status' => $workOrder->status,
                 'planned_qty' => $workOrder->planned_qty,
+                'unit_price' => $workOrder->unit_price,
                 'produced_qty' => $workOrder->produced_qty,
                 'priority' => $workOrder->priority,
+                'priority_score' => $workOrder->priority_score,
                 'due_date' => $workOrder->due_date?->toDateString(),
                 'description' => $workOrder->description,
                 'extra_data' => $workOrder->extra_data,
@@ -132,11 +139,12 @@ class WorkOrderManagementController extends Controller
     {
         return Inertia::render('admin/work-orders/Edit', [
             'workOrder' => [
-                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'line_id', 'product_type_id', 'planned_qty', 'priority', 'description', 'status', 'custom_fields'),
+                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'planned_qty', 'unit_price', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
             ],
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
     }

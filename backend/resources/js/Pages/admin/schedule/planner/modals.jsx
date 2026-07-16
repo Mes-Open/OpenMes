@@ -160,7 +160,7 @@ export function AssignPopup({ target, ctx, onClose, onPick }) {
 // form (the same component the create page uses), posting with `stay` so the
 // server sends us back here and the fresh order lands in the backlog.
 export function NewOrderModal({ ctx, onClose }) {
-    const { productTypes = [], customFields = [] } = usePage().props;
+    const { productTypes = [], customers = [], customFields = [] } = usePage().props;
     return (
         <Backdrop onClose={onClose}>
             <div style={{ width: 720, maxWidth: '94vw', maxHeight: '86vh', overflowY: 'auto', background: 'var(--om-bg)', border: '1px solid var(--om-line)', borderRadius: 14, boxShadow: '0 34px 80px -22px rgba(0,0,0,.5)', padding: '20px 22px' }}>
@@ -171,6 +171,7 @@ export function NewOrderModal({ ctx, onClose }) {
                 <WorkOrderForm
                     lines={ctx.data.allLines}
                     productTypes={productTypes}
+                    customers={customers}
                     customFields={customFields}
                     stay
                     onCancel={onClose}
