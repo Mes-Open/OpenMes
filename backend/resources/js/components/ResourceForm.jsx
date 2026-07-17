@@ -118,7 +118,7 @@ export default function ResourceForm({
                 )}
 
                 {fields.map((f) => (
-                    <Field key={f.name} field={f} value={data[f.name]} error={errors[f.name]} setData={setData} />
+                    <Field key={f.name} field={f} value={data[f.name]} error={errors[f.name]} setData={setData} data={data} />
                 ))}
 
                 {customFieldDefs.length > 0 && (
@@ -152,7 +152,7 @@ export default function ResourceForm({
     );
 }
 
-function Field({ field, value, error, setData }) {
+function Field({ field, value, error, setData, data }) {
     const { name, label, type = 'text', required, placeholder, help, options } = field;
     const set = (v) => setData(name, v);
 
@@ -165,41 +165,8 @@ function Field({ field, value, error, setData }) {
         );
     }
 
-    // A row of toggleable options whose value is an array of the selected option
-    // values (e.g. weekdays). Keeps value types as given in options.
     if (type === 'checkbox-group') {
-        const selected = Array.isArray(value) ? value : [];
-        const toggle = (v) =>
-            set(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
-
-        return (
-            <div>
-                <label className={LABEL_CLASS}>
-                    {__(label)} {required && <span className="text-om-accent">*</span>}
-                </label>
-                <div name={name} className="flex flex-wrap gap-2">
-                    {(options ?? []).map((o) => {
-                        const active = selected.includes(o.value);
-                        return (
-                            <button
-                                type="button"
-                                key={String(o.value)}
-                                onClick={() => toggle(o.value)}
-                                className={`px-3 py-1.5 rounded-om-sm text-[13px] border transition-colors ${
-                                    active
-                                        ? 'bg-om-ink text-om-on-ink border-om-ink'
-                                        : 'bg-om-card text-om-ink border-om-line hover:bg-om-chip'
-                                }`}
-                            >
-                                {__(o.label)}
-                            </button>
-                        );
-                    })}
-                </div>
-                {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
-                {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
-            </div>
-        );
+        return <CheckboxGroupField field={field} value={value} error={error} setData={setData} data={data} />;
     }
 
     return (
@@ -251,6 +218,69 @@ function Field({ field, value, error, setData }) {
                 />
             )}
 
+            {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
+            {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
+        </div>
+    );
+}
+
+/**
+ * A row of toggleable options whose value is an array of the selected option
+ * values (e.g. weekdays, BOMs). Keeps value types as given in options.
+ *
+ * When `field.filterByField` is set, options are scoped to the current value of
+ * that other field: each option carries a `group`, and only options whose
+ * `group` matches `data[filterByField]` are shown. A selection that stops being
+ * visible (because the driving field changed) is pruned so it isn't submitted.
+ */
+function CheckboxGroupField({ field, value, error, setData, data }) {
+    const { name, label, required, help, options, filterByField } = field;
+    const selected = Array.isArray(value) ? value : [];
+
+    const filterVal = filterByField ? data?.[filterByField] : undefined;
+    const visibleOptions = filterByField
+        ? (options ?? []).filter((o) => String(o.group) === String(filterVal))
+        : (options ?? []);
+
+    useEffect(() => {
+        if (!filterByField) return;
+        const allowed = new Set(visibleOptions.map((o) => o.value));
+        const pruned = selected.filter((v) => allowed.has(v));
+        if (pruned.length !== selected.length) setData(name, pruned);
+        // Prune only when the driving field changes; selected/options are derived from it.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filterVal]);
+
+    const toggle = (v) =>
+        setData(name, selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
+
+    return (
+        <div>
+            <label className={LABEL_CLASS}>
+                {__(label)} {required && <span className="text-om-accent">*</span>}
+            </label>
+            <div name={name} className="flex flex-wrap gap-2">
+                {visibleOptions.map((o) => {
+                    const active = selected.includes(o.value);
+                    return (
+                        <button
+                            type="button"
+                            key={String(o.value)}
+                            onClick={() => toggle(o.value)}
+                            className={`px-3 py-1.5 rounded-om-sm text-[13px] border transition-colors ${
+                                active
+                                    ? 'bg-om-ink text-om-on-ink border-om-ink'
+                                    : 'bg-om-card text-om-ink border-om-line hover:bg-om-chip'
+                            }`}
+                        >
+                            {__(o.label)}
+                        </button>
+                    );
+                })}
+                {filterByField && visibleOptions.length === 0 && (
+                    <p className="text-[12px] text-om-muted">{__('Select a product type first.')}</p>
+                )}
+            </div>
             {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
             {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
         </div>

@@ -4808,5 +4808,8 @@
     "Edit Subassembly: :name": "Edytuj podzespół: :name",
     "Edit Workstation Type: :name": "Edytuj typ stanowiska: :name",
     "Edit Workstation: :name": "Edytuj stanowisko: :name",
-    "(currently at: :station)": "(obecnie na: :station)"
+    "(currently at: :station)": "(obecnie na: :station)",
+    "Bills of Materials": "Zestawienia materiałowe (BOM)",
+    "Select one or more BOMs. Requirements sum across the selected BOMs. Leave empty to auto-use the active BOM for the product type.": "Wybierz jeden lub więcej BOM-ów. Zapotrzebowanie sumuje się po wybranych BOM-ach. Zostaw puste, aby użyć aktywnego BOM-u dla typu produktu.",
+    "Select a product type first.": "Najpierw wybierz typ produktu."
 }

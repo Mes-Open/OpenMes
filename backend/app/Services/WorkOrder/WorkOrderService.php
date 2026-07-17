@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\ProcessTemplate;
 use App\Models\WorkOrder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
 class WorkOrderService
@@ -18,16 +19,13 @@ class WorkOrderService
     public function createWorkOrder(array $data): WorkOrder
     {
         return DB::transaction(function () use ($data) {
-            // Get the active process template for this product type (optional)
-            $processTemplate = isset($data['product_type_id'])
-                ? ProcessTemplate::where('product_type_id', $data['product_type_id'])
-                    ->where('is_active', true)
-                    ->orderBy('version', 'desc')
-                    ->first()
-                : null;
-
-            // Generate process snapshot (immutable copy) — null if no template
-            $processSnapshot = $processTemplate?->toSnapshot();
+            // Build the immutable process snapshot from the selected BOM(s).
+            // With no explicit selection this resolves the single active template
+            // for the product type - the legacy single-BOM behaviour.
+            $processSnapshot = $this->buildProcessSnapshot(
+                $data['product_type_id'] ?? null,
+                $data['bom_template_ids'] ?? [],
+            );
 
             // Create work order
             $workOrder = WorkOrder::create([
@@ -48,8 +46,258 @@ class WorkOrderService
                 'custom_fields' => $data['custom_fields'] ?? null,
             ]);
 
+            // Record which BOMs back the snapshot so the selection can be shown
+            // and switched later. Nothing to record when the order has no template.
+            if (! empty($processSnapshot['bom_template_ids'])) {
+                $this->syncBomSelection($workOrder, $processSnapshot['bom_template_ids']);
+            }
+
             return $workOrder;
         });
+    }
+
+    /**
+     * Re-select the BOM(s) backing an existing work order and rebuild its
+     * snapshot. An empty selection falls back to the single active template for
+     * the product type. Blocked once production has started - the snapshot is
+     * the frozen recipe batches were built against, so changing it mid-flight
+     * would desync requirements from what was already allocated/consumed.
+     *
+     * @param  array<int, int|string>  $templateIds
+     *
+     * @throws \Exception
+     */
+    public function updateBomSelection(WorkOrder $workOrder, array $templateIds): WorkOrder
+    {
+        if ($workOrder->batches()->exists()) {
+            throw new \Exception('Cannot change BOMs after production has started.');
+        }
+
+        return DB::transaction(function () use ($workOrder, $templateIds) {
+            $snapshot = $this->buildProcessSnapshot($workOrder->product_type_id, $templateIds);
+
+            $workOrder->update(['process_snapshot' => $snapshot]);
+            $this->syncBomSelection($workOrder, $snapshot['bom_template_ids'] ?? []);
+
+            return $workOrder->fresh();
+        });
+    }
+
+    /**
+     * Build the immutable process snapshot for a work order from its BOM
+     * selection. The snapshot keeps the flat `bom` list every downstream
+     * consumer (requirements, allocation, costing) already reads - but that list
+     * is now the material-deduplicated UNION of all selected BOMs, so a material
+     * appearing in several BOMs contributes its summed requirement exactly once.
+     *
+     * Process structure (steps, timing) comes from the FIRST selected BOM (the
+     * "primary" template); the others contribute their materials only.
+     *
+     * @param  array<int, int|string>  $templateIds  Explicit BOM (process template) selection; empty = legacy auto-pick.
+     * @return array<string, mixed>|null Null when no template applies (order without a BOM).
+     */
+    public function buildProcessSnapshot(?int $productTypeId, array $templateIds = []): ?array
+    {
+        $templates = $this->resolveBomTemplates($productTypeId, $templateIds);
+
+        if ($templates->isEmpty()) {
+            return null;
+        }
+
+        // Snapshot each selected template once, then stitch: structure from the
+        // primary, merged materials from all of them.
+        $snapshots = $templates->map(fn (ProcessTemplate $t) => $t->toSnapshot());
+
+        $snapshot = $snapshots->first();
+        $merged = $this->mergeBoms($snapshots->pluck('bom')->all());
+        // Steps come from the primary BOM only, so a `during` item pulled in from a
+        // secondary BOM may reference a step that isn't in this order's flow - it
+        // would then never be allocated. Degrade such items to `start` so the
+        // material is still consumed (single-BOM orders are unaffected: their
+        // `during` items always reference an existing step).
+        $stepNumbers = array_column($snapshot['steps'] ?? [], 'step_number');
+        $snapshot['bom'] = $this->degradeOrphanDuringItems($merged, $stepNumbers);
+        $snapshot['bom_template_ids'] = $templates->pluck('id')->values()->all();
+        $snapshot['bom_templates'] = $templates->map(fn (ProcessTemplate $t) => [
+            'id' => $t->id,
+            'name' => $t->name,
+            'version' => $t->version,
+        ])->values()->all();
+
+        return $snapshot;
+    }
+
+    /**
+     * Resolve the process templates backing an order, in selection order.
+     * Explicit ids win (deduplicated, order preserved); otherwise fall back to
+     * the single highest-version active template for the product type.
+     *
+     * @param  array<int, int|string>  $templateIds
+     * @return EloquentCollection<int, ProcessTemplate>
+     */
+    protected function resolveBomTemplates(?int $productTypeId, array $templateIds): EloquentCollection
+    {
+        $ids = $this->normalizeIds($templateIds);
+
+        if (! empty($ids)) {
+            $found = ProcessTemplate::whereIn('id', $ids)->get()->keyBy('id');
+
+            // Preserve the caller's order and silently drop ids that don't exist.
+            return new EloquentCollection(
+                collect($ids)->map(fn ($id) => $found->get($id))->filter()->values()->all(),
+            );
+        }
+
+        if ($productTypeId === null) {
+            return new EloquentCollection;
+        }
+
+        $active = ProcessTemplate::where('product_type_id', $productTypeId)
+            ->where('is_active', true)
+            ->orderBy('version', 'desc')
+            ->first();
+
+        return new EloquentCollection($active ? [$active] : []);
+    }
+
+    /**
+     * Merge several snapshot `bom` lists into one, keyed by material so a
+     * material shared across BOMs is summed rather than duplicated (the
+     * allocation engine keys on material per batch, so duplicates would silently
+     * drop the second line). Non-material rows (defensive) pass through verbatim.
+     *
+     * @param  array<int, array<int, array<string, mixed>>>  $bomLists
+     * @return array<int, array<string, mixed>>
+     */
+    protected function mergeBoms(array $bomLists): array
+    {
+        $merged = [];
+        $passthrough = [];
+
+        foreach ($bomLists as $bom) {
+            foreach ($bom as $row) {
+                $materialId = $row['material_id'] ?? null;
+                if ($materialId === null) {
+                    $passthrough[] = $row;
+
+                    continue;
+                }
+
+                $merged[$materialId] = isset($merged[$materialId])
+                    ? $this->mergeBomRows($merged[$materialId], $row)
+                    : $row;
+            }
+        }
+
+        return array_merge(array_values($merged), $passthrough);
+    }
+
+    /**
+     * Combine two BOM rows for the same material. When the scrap rate matches we
+     * sum the per-unit quantities and keep the rate; when it differs we fold each
+     * line's scrap into an effective per-unit quantity (rate → 0) so the total
+     * required quantity stays exact. Timing collapses to the earliest either BOM
+     * asks for the material.
+     *
+     * @param  array<string, mixed>  $a
+     * @param  array<string, mixed>  $b
+     * @return array<string, mixed>
+     */
+    protected function mergeBomRows(array $a, array $b): array
+    {
+        $qtyA = (float) ($a['quantity_per_unit'] ?? 0);
+        $qtyB = (float) ($b['quantity_per_unit'] ?? 0);
+        $scrapA = (float) ($a['scrap_percentage'] ?? 0);
+        $scrapB = (float) ($b['scrap_percentage'] ?? 0);
+
+        if (abs($scrapA - $scrapB) < 1e-9) {
+            $a['quantity_per_unit'] = $qtyA + $qtyB;
+            $a['scrap_percentage'] = $scrapA;
+        } else {
+            $a['quantity_per_unit'] = $qtyA * (1 + $scrapA / 100) + $qtyB * (1 + $scrapB / 100);
+            $a['scrap_percentage'] = 0.0;
+        }
+
+        $a['consumed_at'] = $this->earliestConsumedAt(
+            $a['consumed_at'] ?? 'start',
+            $b['consumed_at'] ?? 'start',
+        );
+
+        if (($a['step_number'] ?? null) === null && ($b['step_number'] ?? null) !== null) {
+            $a['step_number'] = $b['step_number'];
+        }
+
+        return $a;
+    }
+
+    /**
+     * Re-time any `during` BOM row whose step isn't part of this order's flow to
+     * `start`, so a material carried in from a secondary BOM is still consumed
+     * rather than silently stranded on a step that never runs.
+     *
+     * @param  array<int, array<string, mixed>>  $bom
+     * @param  array<int, int>  $stepNumbers  Step numbers present in the primary snapshot.
+     * @return array<int, array<string, mixed>>
+     */
+    protected function degradeOrphanDuringItems(array $bom, array $stepNumbers): array
+    {
+        return array_map(function (array $row) use ($stepNumbers) {
+            if (($row['consumed_at'] ?? null) === 'during'
+                && ! in_array($row['step_number'] ?? null, $stepNumbers, true)) {
+                $row['consumed_at'] = 'start';
+            }
+
+            return $row;
+        }, $bom);
+    }
+
+    /** Earliest of two consumption timings (start < during < end). */
+    protected function earliestConsumedAt(string $a, string $b): string
+    {
+        $rank = ['start' => 0, 'during' => 1, 'end' => 2];
+
+        return ($rank[$a] ?? 0) <= ($rank[$b] ?? 0) ? $a : $b;
+    }
+
+    /**
+     * Sync the work order → BOM pivot to exactly the given selection, all active,
+     * preserving order via sort_order.
+     *
+     * @param  array<int, int|string>  $templateIds
+     */
+    protected function syncBomSelection(WorkOrder $workOrder, array $templateIds): void
+    {
+        $payload = [];
+        foreach ($this->normalizeIds($templateIds) as $i => $id) {
+            $payload[$id] = ['is_active' => true, 'sort_order' => $i];
+        }
+
+        $workOrder->bomTemplates()->sync($payload);
+    }
+
+    /**
+     * Normalize a raw id list: cast to int, drop empties, dedupe, keep order.
+     *
+     * @param  array<int, int|string|null>  $ids
+     * @return array<int, int>
+     */
+    protected function normalizeIds(array $ids): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($ids as $id) {
+            if ($id === null || $id === '') {
+                continue;
+            }
+            $id = (int) $id;
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $out[] = $id;
+        }
+
+        return $out;
     }
 
     /**

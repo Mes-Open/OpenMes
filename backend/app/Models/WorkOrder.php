@@ -9,6 +9,7 @@ use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkOrder extends Model
@@ -250,6 +251,22 @@ class WorkOrder extends Model
     public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductType::class);
+    }
+
+    /**
+     * BOMs (process templates) linked to this work order. An order may reference
+     * more than one BOM (variant / alternative bills of materials); all linked
+     * BOMs drive its requirements and consumption via the merged snapshot. Orders
+     * with no rows here fall back to the legacy single auto-picked active template
+     * - see {@see WorkOrderService::buildProcessSnapshot()}. The pivot's
+     * `is_active` flag (always true today) is reserved for per-link deactivation.
+     */
+    public function bomTemplates(): BelongsToMany
+    {
+        return $this->belongsToMany(ProcessTemplate::class, 'work_order_boms')
+            ->withPivot(['is_active', 'sort_order'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
     }
 
     /**
