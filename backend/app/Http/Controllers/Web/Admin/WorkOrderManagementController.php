@@ -205,13 +205,21 @@ class WorkOrderManagementController extends Controller
 
         // Apply the BOM re-selection only when it actually changed, so unchanged
         // submits don't rebuild the snapshot or trip the "production started" guard.
+        // A product-type change is itself a BOM change: the old snapshot/pivot no
+        // longer belongs to the order, so rebuild (from the submitted selection, or
+        // the new type's auto-picked BOM when none was submitted).
+        $productTypeChanged = array_key_exists('product_type_id', $validated)
+            && (int) $validated['product_type_id'] !== (int) $workOrder->product_type_id;
+
         $requested = null;
         if ($bomTemplateIds !== null) {
             $current = $workOrder->bomTemplates()->pluck('process_templates.id')->all();
             $normalized = array_values(array_unique(array_map('intval', $bomTemplateIds)));
-            if ($current !== $normalized) {
+            if ($current !== $normalized || $productTypeChanged) {
                 $requested = $normalized;
             }
+        } elseif ($productTypeChanged) {
+            $requested = [];
         }
 
         // Reject a BOM change on a started order before touching anything, so the

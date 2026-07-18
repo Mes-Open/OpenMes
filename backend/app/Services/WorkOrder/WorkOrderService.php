@@ -69,11 +69,17 @@ class WorkOrderService
      */
     public function updateBomSelection(WorkOrder $workOrder, array $templateIds): WorkOrder
     {
-        if ($workOrder->batches()->exists()) {
-            throw new \Exception('Cannot change BOMs after production has started.');
-        }
-
         return DB::transaction(function () use ($workOrder, $templateIds) {
+            // Serialize against createBatch() on this work order: hold the row lock
+            // while checking for batches so a concurrent batch can't slip in between
+            // the check and the snapshot rewrite (the snapshot is the frozen recipe
+            // batches are built from).
+            WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->first();
+
+            if ($workOrder->batches()->exists()) {
+                throw new \Exception('Cannot change BOMs after production has started.');
+            }
+
             $snapshot = $this->buildProcessSnapshot($workOrder->product_type_id, $templateIds);
 
             $workOrder->update(['process_snapshot' => $snapshot]);
@@ -134,17 +140,31 @@ class WorkOrderService
      *
      * @param  array<int, int|string>  $templateIds
      * @return EloquentCollection<int, ProcessTemplate>
+     *
+     * @throws \InvalidArgumentException When a selected id is unknown or belongs to another product type.
      */
     protected function resolveBomTemplates(?int $productTypeId, array $templateIds): EloquentCollection
     {
         $ids = $this->normalizeIds($templateIds);
 
         if (! empty($ids)) {
-            $found = ProcessTemplate::whereIn('id', $ids)->get()->keyBy('id');
+            $found = ProcessTemplate::whereIn('id', $ids)
+                ->where('product_type_id', $productTypeId)
+                ->get()
+                ->keyBy('id');
 
-            // Preserve the caller's order and silently drop ids that don't exist.
+            // Fail loud rather than silently dropping an id that doesn't exist or
+            // belongs to another product type. HTTP requests are already validated,
+            // but this is a public service boundary (non-HTTP callers, deletion races).
+            if ($found->count() !== count($ids)) {
+                throw new \InvalidArgumentException(
+                    'Every selected BOM must exist and belong to the work order product type.'
+                );
+            }
+
+            // Preserve the caller's selection order.
             return new EloquentCollection(
-                collect($ids)->map(fn ($id) => $found->get($id))->filter()->values()->all(),
+                collect($ids)->map(fn ($id) => $found->get($id))->values()->all(),
             );
         }
 
@@ -218,13 +238,24 @@ class WorkOrderService
             $a['scrap_percentage'] = 0.0;
         }
 
-        $a['consumed_at'] = $this->earliestConsumedAt(
-            $a['consumed_at'] ?? 'start',
-            $b['consumed_at'] ?? 'start',
-        );
+        $aAt = $a['consumed_at'] ?? 'start';
+        $bAt = $b['consumed_at'] ?? 'start';
+        $a['consumed_at'] = $this->earliestConsumedAt($aAt, $bAt);
 
-        if (($a['step_number'] ?? null) === null && ($b['step_number'] ?? null) !== null) {
-            $a['step_number'] = $b['step_number'];
+        $aStep = $a['step_number'] ?? null;
+        $bStep = $b['step_number'] ?? null;
+
+        if ($a['consumed_at'] === 'during') {
+            // Consume at the earliest step that needs the material, considering only
+            // the rows that are themselves `during` (a start/end row's step is
+            // irrelevant to timing), so selection order can't push it to a later step.
+            $duringSteps = array_filter(
+                [$aAt === 'during' ? $aStep : null, $bAt === 'during' ? $bStep : null],
+                fn ($s) => $s !== null,
+            );
+            $a['step_number'] = $duringSteps ? min($duringSteps) : ($aStep ?? $bStep);
+        } elseif ($aStep === null && $bStep !== null) {
+            $a['step_number'] = $bStep;
         }
 
         return $a;
@@ -335,6 +366,12 @@ class WorkOrderService
     public function createBatch(WorkOrder $workOrder, float $targetQty, ?int $workstationId = null, ?string $lotNumber = null): Batch
     {
         return DB::transaction(function () use ($workOrder, $targetQty, $workstationId, $lotNumber) {
+            // Serialize against updateBomSelection() (see there): holding the
+            // work-order row lock guarantees this batch is built from the committed
+            // snapshot, never one that a concurrent BOM change is mid-rewrite.
+            WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->first();
+            $workOrder->refresh();
+
             // Calculate next batch number
             $lastBatch = $workOrder->batches()->reorder('batch_number', 'desc')->first();
             $batchNumber = $lastBatch ? $lastBatch->batch_number + 1 : 1;

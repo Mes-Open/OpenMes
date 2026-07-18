@@ -238,4 +238,150 @@ class MultiBomOrderTest extends TestCase
 
         $response->assertSessionHasErrors('bom_template_ids.0');
     }
+
+    // ── Authorization ────────────────────────────────────────────────────────
+
+    public function test_guest_cannot_create_order_with_boms(): void
+    {
+        [$productType, $bomA] = $this->productWithTwoBoms();
+
+        $response = $this->post('/admin/work-orders', [
+            'order_no' => 'WO-GUEST',
+            'product_type_id' => $productType->id,
+            'bom_template_ids' => [$bomA->id],
+            'planned_qty' => 10,
+        ]);
+
+        $response->assertRedirect('/login');
+        $this->assertDatabaseMissing('work_orders', ['order_no' => 'WO-GUEST']);
+    }
+
+    public function test_operator_cannot_create_order_with_boms(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+        [$productType, $bomA] = $this->productWithTwoBoms();
+
+        $response = $this->actingAs($operator)->post('/admin/work-orders', [
+            'order_no' => 'WO-OP',
+            'product_type_id' => $productType->id,
+            'bom_template_ids' => [$bomA->id],
+            'planned_qty' => 10,
+        ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseMissing('work_orders', ['order_no' => 'WO-OP']);
+    }
+
+    // ── Update-side validation ───────────────────────────────────────────────
+
+    public function test_update_rejects_nonexistent_bom(): void
+    {
+        [$productType, $bomA] = $this->productWithTwoBoms();
+        $workOrder = app(WorkOrderService::class)->createWorkOrder([
+            'order_no' => 'WO-UPD-BAD',
+            'product_type_id' => $productType->id,
+            'bom_template_ids' => [$bomA->id],
+            'planned_qty' => 10,
+        ]);
+
+        $response = $this->actingAs($this->admin)->put("/admin/work-orders/{$workOrder->id}", [
+            'order_no' => 'WO-UPD-BAD',
+            'product_type_id' => $productType->id,
+            'bom_template_ids' => [999999],
+            'planned_qty' => 10,
+            'status' => 'PENDING',
+        ]);
+
+        $response->assertSessionHasErrors('bom_template_ids.0');
+    }
+
+    public function test_update_rejects_bom_from_a_different_product_type(): void
+    {
+        [$productType, $bomA] = $this->productWithTwoBoms();
+        $other = ProductType::factory()->create();
+        $foreignBom = ProcessTemplate::factory()->create(['product_type_id' => $other->id]);
+
+        $workOrder = app(WorkOrderService::class)->createWorkOrder([
+            'order_no' => 'WO-UPD-XPT',
+            'product_type_id' => $productType->id,
+            'bom_template_ids' => [$bomA->id],
+            'planned_qty' => 10,
+        ]);
+
+        $response = $this->actingAs($this->admin)->put("/admin/work-orders/{$workOrder->id}", [
+            'order_no' => 'WO-UPD-XPT',
+            'product_type_id' => $productType->id,
+            'bom_template_ids' => [$foreignBom->id],
+            'planned_qty' => 10,
+            'status' => 'PENDING',
+        ]);
+
+        $response->assertSessionHasErrors('bom_template_ids.0');
+    }
+
+    // ── Product-type change is a BOM reselection ─────────────────────────────
+
+    public function test_changing_product_type_rebuilds_the_bom_selection(): void
+    {
+        $p1 = ProductType::factory()->create();
+        $t1 = ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $p1->id]);
+        $m1 = Material::factory()->create();
+        BomItem::factory()->create(['process_template_id' => $t1->id, 'material_id' => $m1->id, 'quantity_per_unit' => 1]);
+
+        $p2 = ProductType::factory()->create();
+        $t2 = ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $p2->id]);
+        $m2 = Material::factory()->create();
+        BomItem::factory()->create(['process_template_id' => $t2->id, 'material_id' => $m2->id, 'quantity_per_unit' => 1]);
+
+        $workOrder = app(WorkOrderService::class)->createWorkOrder([
+            'order_no' => 'WO-PTC',
+            'product_type_id' => $p1->id,
+            'planned_qty' => 10,
+        ]);
+        $this->assertSame([$m1->id], array_column($workOrder->process_snapshot['bom'], 'material_id'));
+
+        // Switch product type, no bom_template_ids submitted: the old BOM must not linger.
+        $response = $this->actingAs($this->admin)->put("/admin/work-orders/{$workOrder->id}", [
+            'order_no' => 'WO-PTC',
+            'product_type_id' => $p2->id,
+            'planned_qty' => 10,
+            'status' => 'PENDING',
+        ]);
+
+        $response->assertRedirect();
+        $workOrder->refresh();
+        $this->assertSame([$m2->id], array_column($workOrder->process_snapshot['bom'], 'material_id'));
+        $this->assertDatabaseHas('work_order_boms', ['work_order_id' => $workOrder->id, 'process_template_id' => $t2->id]);
+        $this->assertDatabaseMissing('work_order_boms', ['work_order_id' => $workOrder->id, 'process_template_id' => $t1->id]);
+    }
+
+    public function test_changing_product_type_is_blocked_after_production_started(): void
+    {
+        $p1 = ProductType::factory()->create();
+        $t1 = ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $p1->id]);
+        $p2 = ProductType::factory()->create();
+        ProcessTemplate::factory()->withSteps(1)->create(['product_type_id' => $p2->id]);
+
+        $workOrder = app(WorkOrderService::class)->createWorkOrder([
+            'order_no' => 'WO-PTC-LOCK',
+            'product_type_id' => $p1->id,
+            'planned_qty' => 10,
+        ]);
+        Batch::factory()->create(['work_order_id' => $workOrder->id]);
+        $before = $workOrder->process_snapshot;
+
+        $response = $this->actingAs($this->admin)->put("/admin/work-orders/{$workOrder->id}", [
+            'order_no' => 'WO-PTC-LOCK',
+            'product_type_id' => $p2->id,
+            'planned_qty' => 10,
+            'status' => 'PENDING',
+        ]);
+
+        $response->assertSessionHas('error');
+        $fresh = $workOrder->fresh();
+        $this->assertEquals($before, $fresh->process_snapshot);
+        // The rejected change must not persist the product-type edit either.
+        $this->assertEquals($p1->id, $fresh->product_type_id);
+    }
 }

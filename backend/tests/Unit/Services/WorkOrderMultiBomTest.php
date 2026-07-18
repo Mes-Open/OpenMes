@@ -40,6 +40,24 @@ class WorkOrderMultiBomTest extends TestCase
         return null;
     }
 
+    public function test_build_snapshot_throws_on_unknown_template_id(): void
+    {
+        $productType = ProductType::factory()->create();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->buildProcessSnapshot($productType->id, [999999]);
+    }
+
+    public function test_build_snapshot_throws_on_cross_product_template(): void
+    {
+        $productType = ProductType::factory()->create();
+        $other = ProductType::factory()->create();
+        $foreign = ProcessTemplate::factory()->create(['product_type_id' => $other->id]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->service->buildProcessSnapshot($productType->id, [$foreign->id]);
+    }
+
     public function test_no_template_yields_null_snapshot(): void
     {
         $productType = ProductType::factory()->create();
@@ -180,6 +198,35 @@ class WorkOrderMultiBomTest extends TestCase
         // Step 2 exists in the flow — timing is preserved.
         $row = $this->row($snapshot, $material->id);
         $this->assertSame('during', $row['consumed_at']);
+        $this->assertSame(2, $row['step_number']);
+    }
+
+    public function test_shared_during_material_uses_the_earliest_valid_step(): void
+    {
+        $productType = ProductType::factory()->create();
+        // Primary flow has steps 1, 2, 3.
+        $primary = ProcessTemplate::factory()->withSteps(3)->create(['product_type_id' => $productType->id, 'version' => 1]);
+        $secondary = ProcessTemplate::factory()->create(['product_type_id' => $productType->id, 'version' => 2]);
+
+        $glue = Material::factory()->create();
+        // Same material consumed `during` two different valid steps: step 3 (primary)
+        // and step 2 (secondary). The merged row must pick the earlier step.
+        $primStep3 = $primary->steps()->where('step_number', 3)->firstOrFail();
+        BomItem::factory()->create([
+            'process_template_id' => $primary->id, 'material_id' => $glue->id,
+            'quantity_per_unit' => 1, 'consumed_at' => 'during', 'template_step_id' => $primStep3->id,
+        ]);
+        $secStep2 = TemplateStep::factory()->create(['process_template_id' => $secondary->id, 'step_number' => 2]);
+        BomItem::factory()->create([
+            'process_template_id' => $secondary->id, 'material_id' => $glue->id,
+            'quantity_per_unit' => 1, 'consumed_at' => 'during', 'template_step_id' => $secStep2->id,
+        ]);
+
+        $snapshot = $this->service->buildProcessSnapshot($productType->id, [$primary->id, $secondary->id]);
+
+        $row = $this->row($snapshot, $glue->id);
+        $this->assertSame('during', $row['consumed_at']);
+        // Step 2 (earliest) - and it exists in the primary flow, so it isn't degraded.
         $this->assertSame(2, $row['step_number']);
     }
 

@@ -254,12 +254,14 @@ function CheckboxGroupField({ field, value, error, setData, data }) {
     const toggle = (v) =>
         setData(name, selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
 
+    const noDrivingValue = filterVal == null || filterVal === '';
+
     return (
         <div>
-            <label className={LABEL_CLASS}>
+            <label id={`${name}-label`} className={LABEL_CLASS}>
                 {__(label)} {required && <span className="text-om-accent">*</span>}
             </label>
-            <div name={name} className="flex flex-wrap gap-2">
+            <div name={name} role="group" aria-labelledby={`${name}-label`} className="flex flex-wrap gap-2">
                 {visibleOptions.map((o) => {
                     const active = selected.includes(o.value);
                     return (
@@ -267,6 +269,7 @@ function CheckboxGroupField({ field, value, error, setData, data }) {
                             type="button"
                             key={String(o.value)}
                             onClick={() => toggle(o.value)}
+                            aria-pressed={active}
                             className={`px-3 py-1.5 rounded-om-sm text-[13px] border transition-colors ${
                                 active
                                     ? 'bg-om-ink text-om-on-ink border-om-ink'
@@ -278,7 +281,11 @@ function CheckboxGroupField({ field, value, error, setData, data }) {
                     );
                 })}
                 {filterByField && visibleOptions.length === 0 && (
-                    <p className="text-[12px] text-om-muted">{__('Select a product type first.')}</p>
+                    <p className="text-[12px] text-om-muted">
+                        {noDrivingValue
+                            ? __('Select a product type first.')
+                            : __('No BOMs are available for the selected product type.')}
+                    </p>
                 )}
             </div>
             {help && <p className="text-[12px] text-om-muted mt-1">{__(help)}</p>}
