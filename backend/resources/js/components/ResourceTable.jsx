@@ -21,6 +21,25 @@ function LiveCell({ col, row }) {
 }
 
 /**
+ * Owns the shared clock so a tick re-renders only this thin wrapper and the
+ * NowContext consumers (the live cells) - NOT the parent ResourceTable body,
+ * which would otherwise re-run its live query/filter and hand DataTable freshly
+ * allocated props every 30s, defeating its memoization. The interval runs only
+ * while `active`, so tables without a live column never schedule a timer.
+ */
+function LiveClockProvider({ active, children }) {
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        if (!active) return undefined;
+        const id = setInterval(() => setNow(Date.now()), LIVE_TICK_MS);
+        return () => clearInterval(id);
+    }, [active]);
+
+    return <NowContext.Provider value={now}>{children}</NowContext.Provider>;
+}
+
+/**
  * Generic admin list backed by a Reverb-synced collection + TanStack DB live
  * query, rendered through the shared `DataTable` (design §12): global search,
  * click-to-sort headers (SHIFT for multi-sort), column-visibility menu and
@@ -147,15 +166,10 @@ export default function ResourceTable({
         q.from({ r: collection }).orderBy(({ r }) => r[orderBy], orderDir),
     );
 
-    // Drive a shared clock only when a column opts into live updates, so tables
-    // without a time-based column never schedule a needless interval.
+    // A live column (e.g. elapsed time) opts the table into a shared clock. The
+    // clock state lives in LiveClockProvider (below the memoized DataTable), so a
+    // tick never re-renders this component or its DataTable props.
     const hasLiveColumn = useMemo(() => columns.some((c) => c.live), [columns]);
-    const [now, setNow] = useState(() => Date.now());
-    useEffect(() => {
-        if (!hasLiveColumn) return undefined;
-        const id = setInterval(() => setNow(Date.now()), LIVE_TICK_MS);
-        return () => clearInterval(id);
-    }, [hasLiveColumn]);
 
     // Optional client-side filter (e.g. a dashboard KPI deep-link like
     // ?status=IN_PROGRESS) — applied over the live rows so it stays reactive.
@@ -222,7 +236,7 @@ export default function ResourceTable({
     }, [columns, actions]);
 
     return (
-        <NowContext.Provider value={now}>
+        <LiveClockProvider active={hasLiveColumn}>
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div>
@@ -253,7 +267,7 @@ export default function ResourceTable({
                 selectionLabel={selectionLabel}
             />
         </div>
-        </NowContext.Provider>
+        </LiveClockProvider>
     );
 }
 
