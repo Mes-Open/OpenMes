@@ -4808,5 +4808,7 @@
     "Edit Subassembly: :name": "Edytuj podzespół: :name",
     "Edit Workstation Type: :name": "Edytuj typ stanowiska: :name",
     "Edit Workstation: :name": "Edytuj stanowisko: :name",
-    "(currently at: :station)": "(obecnie na: :station)"
+    "(currently at: :station)": "(obecnie na: :station)",
+    "Age": "Wiek",
+    "just now": "przed chwilą"
 }

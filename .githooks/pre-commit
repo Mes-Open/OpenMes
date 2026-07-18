@@ -32,6 +32,15 @@ if [ ! -f public/build/manifest.json ]; then
     npm run build || exit 1
 fi
 
+# Frontend unit tests (Vitest) - same step CI runs. Fast (~sub-second); skipped
+# by the SKIP_TESTS escape hatch above along with the PHP suite.
+echo "pre-commit: running frontend tests (npm test)..."
+npm test || {
+    echo ""
+    echo "pre-commit: FRONTEND TESTS FAILED - commit aborted."
+    exit 1
+}
+
 # Same gate as CI's `php artisan test --stop-on-failure`. Invoked through
 # phpunit directly so the raised memory limit applies to the test process
 # itself (artisan test spawns children that ignore -d on the parent).
