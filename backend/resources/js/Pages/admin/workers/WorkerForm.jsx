@@ -93,6 +93,11 @@ export default function WorkerForm({ form, crews, wageGroups, personnelClasses, 
             </div>
 
             <Checkbox checked={!!data.is_active} onChange={(next) => setData('is_active', next)} label={__('Active')} />
+            <Checkbox
+                checked={!!data.is_logistics}
+                onChange={(next) => setData('is_logistics', next)}
+                label={__('Logistics operator (can move pallets)')}
+            />
 
             <div>
                 <label className="block text-sm font-medium text-om-muted mb-2">{__('Skills & level (1-5)')}</label>

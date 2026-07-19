@@ -38,6 +38,7 @@ class UpdateWorkerRequest extends FormRequest
             'pay_rate' => ['nullable', 'numeric', 'min:0'],
             'pay_currency' => ['nullable', 'string', 'size:3'],
             'is_active' => ['boolean'],
+            'is_logistics' => ['boolean'],
             'skills' => ['nullable', 'array'],
             'skills.*.id' => ['required', 'exists:skills,id'],
             'skills.*.level' => ['nullable', 'integer', 'min:1', 'max:5'],

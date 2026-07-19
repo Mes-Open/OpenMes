@@ -105,6 +105,7 @@ class WorkerController extends Controller
         $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        $validated['is_logistics'] = $request->boolean('is_logistics');
         unset($validated['custom_field_files']);
         if ($cf->touched($request)) {
             $validated['custom_fields'] = $cf->fromRequest($request, 'worker') ?: null;
@@ -141,6 +142,7 @@ class WorkerController extends Controller
                 'pay_rate'           => $worker->pay_rate,
                 'pay_currency'       => $worker->pay_currency,
                 'is_active'          => $worker->is_active,
+                'is_logistics'       => $worker->is_logistics,
                 'custom_fields'      => $worker->custom_fields,
                 'skills'             => $worker->skills->map(fn ($s) => [
                     'id'    => $s->id,
@@ -163,6 +165,7 @@ class WorkerController extends Controller
         $validated = $request->validated();
 
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['is_logistics'] = $request->boolean('is_logistics');
         unset($validated['custom_field_files']);
         if ($cf->touched($request)) {
             $validated['custom_fields'] = $cf->fromRequest($request, 'worker', $worker->custom_fields) ?: null;

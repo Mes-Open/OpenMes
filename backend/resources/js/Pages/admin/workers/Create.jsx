@@ -17,6 +17,7 @@ export default function WorkerCreate() {
         pay_type: '',
         pay_rate: '',
         is_active: true,
+        is_logistics: false,
         skills: [],
         ...customFieldInitial(),
     });

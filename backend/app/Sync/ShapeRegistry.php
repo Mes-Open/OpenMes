@@ -166,6 +166,11 @@ class ShapeRegistry
             'table' => 'pallets',
             'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
         ],
+        // Physical pallet movement history (#103) — who moved which pallet where.
+        'pallet_movements' => [
+            'table' => 'pallet_movements',
+            'columns' => ['id', 'pallet_id', 'worker_id', 'from_location', 'to_location', 'moved_at', 'notes', 'performed_by', 'created_at', 'updated_at'],
+        ],
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
             'table' => 'integration_configs',
@@ -173,7 +178,7 @@ class ShapeRegistry
         ],
         'workers' => [
             'table' => 'workers',
-            'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'is_logistics', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'process_segments' => [
             'table' => 'process_segments',
