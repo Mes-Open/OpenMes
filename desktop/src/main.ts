@@ -366,24 +366,34 @@ function ensureDbMode(cfg: ServerConfig): Promise<void> {
   show("db-choice", true);
 
   return new Promise((resolve) => {
+    // A fresh AbortController per invocation: aborting on resolve removes every
+    // listener at once, so repeated boot retries never stack duplicate handlers
+    // on the same buttons.
+    const ac = new AbortController();
+    const opts = { signal: ac.signal };
+    const done = () => {
+      ac.abort();
+      resolve();
+    };
+
     $("btn-db-local").addEventListener("click", async () => {
       cfg.db_mode = "local";
       await invoke("save_config", { config: cfg });
       show("db-choice", false);
       show("splash", true);
-      resolve();
-    });
+      done();
+    }, opts);
 
     $("btn-db-remote").addEventListener("click", () => {
       show("db-choice", false);
       show("db-remote", true);
       scanAndFillDbForm();
-    });
+    }, opts);
 
     $("btn-db-back").addEventListener("click", () => {
       show("db-remote", false);
       show("db-choice", true);
-    });
+    }, opts);
 
     $<HTMLFormElement>("db-remote-form").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -412,8 +422,8 @@ function ensureDbMode(cfg: ServerConfig): Promise<void> {
       await invoke("save_config", { config: cfg });
       show("db-remote", false);
       show("splash", true);
-      resolve();
-    });
+      done();
+    }, opts);
   });
 }
 

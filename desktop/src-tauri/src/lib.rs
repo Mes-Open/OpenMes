@@ -1425,11 +1425,38 @@ fn run_update_apply(app: AppHandle, state: &ServerState) -> Result<String, Strin
     emit_update(&app, "stopping", "Zatrzymywanie serwera…", 65);
     do_stop(&app, &state);
 
+    // Snapshot the SQLite DB before migrating: the migration runs on the live
+    // (external) database before the code swap, so if a later step fails and we
+    // roll the code back, restoring this snapshot keeps the old code from
+    // running against a newer schema. Remote / bundled-Postgres installs are not
+    // snapshot here and keep the forward-only behaviour.
+    let db_file = data.join("openmes.sqlite");
+    let is_sqlite = load_config(&app).db_mode != "remote" && pg_bin_dir(&app).is_none();
+    let db_snapshot = if is_sqlite && db_file.exists() {
+        let bak = data.join("openmes.sqlite.pre-update");
+        fs::copy(&db_file, &bak).ok().map(|_| bak)
+    } else {
+        None
+    };
+    let restore_db = |snap: &Option<PathBuf>| {
+        if let Some(s) = snap {
+            let _ = fs::copy(s, &db_file);
+        }
+    };
+    let drop_snapshot = |snap: &Option<PathBuf>| {
+        if let Some(s) = snap {
+            let _ = fs::remove_file(s);
+        }
+    };
+
     // Migrate the (external) DB with the NEW code before swapping. If it fails,
-    // nothing has been swapped yet — just bring the old server back up.
+    // nothing has been swapped yet — restore the DB snapshot and bring the old
+    // server back up.
     emit_update(&app, "migrating", "Migracja bazy danych…", 75);
     if let Err(e) = migrate_on(&app, &state, &staged) {
+        restore_db(&db_snapshot);
         let _ = do_start(&app, &state);
+        drop_snapshot(&db_snapshot);
         let _ = fs::remove_dir_all(&tmp);
         emit_update(&app, "failed", "Migracja nie powiodła się — cofnięto.", 100);
         return Err(format!("Migracja nie powiodła się, aktualizację cofnięto:\n{e}"));
@@ -1441,17 +1468,22 @@ fn run_update_apply(app: AppHandle, state: &ServerState) -> Result<String, Strin
     let _ = fs::create_dir_all(&backups);
     let backup = backups.join(format!("backend-{current}-{}", std::process::id()));
     if let Err(e) = swap_in_place(&target, &staged, &backup) {
+        restore_db(&db_snapshot);
         let _ = do_start(&app, &state);
+        drop_snapshot(&db_snapshot);
         let _ = fs::remove_dir_all(&tmp);
         emit_update(&app, "failed", "Instalacja nie powiodła się — cofnięto.", 100);
         return Err(format!("Podmiana katalogu nie powiodła się, cofnięto:\n{e}"));
     }
 
-    // Start the new version; roll back on a failed boot.
+    // Start the new version; roll back code AND the DB snapshot on a failed boot
+    // so the restored old code never runs against the migrated schema.
     emit_update(&app, "starting", "Uruchamianie nowej wersji…", 95);
     if let Err(e) = do_start(&app, &state) {
         let _ = rollback_swap(&target, &backup);
+        restore_db(&db_snapshot);
         let _ = do_start(&app, &state);
+        drop_snapshot(&db_snapshot);
         let _ = fs::remove_dir_all(&tmp);
         emit_update(
             &app,
@@ -1464,6 +1496,7 @@ fn run_update_apply(app: AppHandle, state: &ServerState) -> Result<String, Strin
         ));
     }
 
+    drop_snapshot(&db_snapshot);
     let _ = fs::remove_dir_all(&tmp);
     prune_backups(&backups, 3);
     emit_update(&app, "completed", &format!("Zaktualizowano do {latest}."), 100);

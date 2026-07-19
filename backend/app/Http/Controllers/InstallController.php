@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Web\Install\CreateAdminRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -105,8 +106,12 @@ class InstallController extends Controller
             config(['database.default' => $driver]);
             DB::connection($driver)->getPdo();
         } catch (\Exception $e) {
+            // Install routes are reachable pre-auth (before an admin exists), so
+            // never surface raw PDO/connection internals to the visitor — log it.
+            \Log::warning('Preconfigured database is not reachable: '.$e->getMessage());
+
             return redirect()->route('install.database')
-                ->with('error', 'Preconfigured database is not reachable: '.$e->getMessage());
+                ->with('error', 'Preconfigured database is not reachable. Check the server logs for details.');
         }
 
         // Idempotent: `migrate` skips applied migrations, both seeders upsert.
@@ -242,8 +247,13 @@ class InstallController extends Controller
         // Build runtime connection config
         if ($driver === 'sqlite') {
             $dbPath = $validated['db_database'];
-            // Resolve relative paths to storage/
+            // Resolve relative paths to storage/, rejecting traversal. Install
+            // routes are reachable pre-auth, so a relative sqlite name must not
+            // escape storage/ (CWE-22).
             if (! str_starts_with($dbPath, '/')) {
+                if (str_contains($dbPath, '..')) {
+                    return back()->withErrors(['db_connection' => 'Invalid database path.'])->withInput();
+                }
                 $dbPath = storage_path($dbPath);
             }
             config([
@@ -401,22 +411,14 @@ class InstallController extends Controller
     /**
      * Step 3: Create admin account and finish installation
      */
-    public function createAdmin(Request $request)
+    public function createAdmin(CreateAdminRequest $request)
     {
         if (! session('install_step_1_completed')) {
             return redirect()->route('install.database')
                 ->with('error', 'Please complete database configuration first.');
         }
 
-        $isPreset = (bool) (session('install_database_config')['preset'] ?? false);
-
-        $validated = $request->validate([
-            'admin_username' => 'required|string|max:255|unique:users,username',
-            'admin_email' => 'required|email|max:255|unique:users,email',
-            'admin_password' => 'required|string|min:8|confirmed',
-            'site_name' => [$isPreset ? 'nullable' : 'required', 'string', 'max:255'],
-            'site_url' => [$isPreset ? 'nullable' : 'required', 'url'],
-        ]);
+        $validated = $request->validated();
 
         $validated['site_name'] = $validated['site_name'] ?? 'OpenMES';
         $validated['site_url'] = $validated['site_url'] ?? 'http://localhost';
@@ -447,6 +449,10 @@ class InstallController extends Controller
             if ($driver === 'sqlite') {
                 $dbPath = $dbConfig['db_database'];
                 if (! str_starts_with($dbPath, '/')) {
+                    if (str_contains($dbPath, '..')) {
+                        return redirect()->route('install.database')
+                            ->with('error', 'Invalid database path.');
+                    }
                     $dbPath = storage_path($dbPath);
                 }
                 config(["database.connections.{$driver}.database" => $dbPath]);
