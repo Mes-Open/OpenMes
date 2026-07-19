@@ -7,11 +7,13 @@ use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
 use App\Http\Requests\Web\Admin\UpdateWorkOrderRequest;
 use App\Models\Customer;
 use App\Models\Line;
+use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Services\CustomFieldService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WorkOrderManagementController extends Controller
@@ -41,9 +43,32 @@ class WorkOrderManagementController extends Controller
         return Inertia::render('admin/work-orders/Create', [
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'bomTemplates' => $this->bomTemplateOptions(),
             'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
+    }
+
+    /**
+     * Selectable BOMs (process templates) for the work-order forms - every
+     * template a user could pick as a variant/alternative bill of materials,
+     * newest version first. The forms scope the picker to the order's product
+     * type client-side (each option carries its product_type_id).
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    protected function bomTemplateOptions()
+    {
+        return ProcessTemplate::orderBy('product_type_id')
+            ->orderByDesc('version')
+            ->get(['id', 'name', 'version', 'is_active', 'product_type_id'])
+            ->map(fn ($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'version' => $t->version,
+                'is_active' => (bool) $t->is_active,
+                'product_type_id' => $t->product_type_id,
+            ]);
     }
 
     public function store(StoreWorkOrderRequest $request, CustomFieldService $cf)
@@ -141,9 +166,14 @@ class WorkOrderManagementController extends Controller
             'workOrder' => [
                 ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'planned_qty', 'unit_price', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
+                // Current BOM selection (empty for legacy single-BOM orders).
+                'bom_template_ids' => $workOrder->bomTemplates()->pluck('process_templates.id')->all(),
+                // BOMs are frozen once production starts - the form hides the picker.
+                'bom_locked' => $workOrder->batches()->exists(),
             ],
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'bomTemplates' => $this->bomTemplateOptions(),
             'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
@@ -153,6 +183,10 @@ class WorkOrderManagementController extends Controller
     {
         $validated = $request->validated();
         unset($validated['custom_field_files']);
+
+        // BOM selection is not a column - pull it out and apply via the service.
+        $bomTemplateIds = $validated['bom_template_ids'] ?? null;
+        unset($validated['bom_template_ids']);
 
         // Warn when marking as DONE with zero produced quantity
         if (($validated['status'] ?? '') === 'DONE' && (float) $workOrder->produced_qty <= 0) {
@@ -169,7 +203,46 @@ class WorkOrderManagementController extends Controller
         // here rather than passing an explicit null.
         $validated['priority'] ??= $workOrder->priority;
 
-        $workOrder->update($validated);
+        // Apply the BOM re-selection only when it actually changed, so unchanged
+        // submits don't rebuild the snapshot or trip the "production started" guard.
+        // A product-type change is itself a BOM change: the old snapshot/pivot no
+        // longer belongs to the order, so rebuild (from the submitted selection, or
+        // the new type's auto-picked BOM when none was submitted).
+        $productTypeChanged = array_key_exists('product_type_id', $validated)
+            && (int) $validated['product_type_id'] !== (int) $workOrder->product_type_id;
+
+        $requested = null;
+        if ($bomTemplateIds !== null) {
+            $current = $workOrder->bomTemplates()->pluck('process_templates.id')->all();
+            $normalized = array_values(array_unique(array_map('intval', $bomTemplateIds)));
+            if ($current !== $normalized || $productTypeChanged) {
+                $requested = $normalized;
+            }
+        } elseif ($productTypeChanged) {
+            $requested = [];
+        }
+
+        // Reject a BOM change on a started order before touching anything, so the
+        // field edits aren't half-saved alongside a rejected BOM change.
+        if ($requested !== null && $workOrder->batches()->exists()) {
+            return redirect()->back()->withInput()
+                ->with('error', 'Cannot change BOMs after production has started.');
+        }
+
+        // Field edits and the BOM re-selection commit together (or not at all).
+        try {
+            DB::transaction(function () use ($workOrder, $validated, $requested) {
+                $workOrder->update($validated);
+                if ($requested !== null) {
+                    $this->workOrderService->updateBomSelection($workOrder, $requested);
+                }
+            });
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->back()->withInput()
+                ->with('error', 'Failed to update work order. Please check your input and try again.');
+        }
 
         return redirect()->route('admin.work-orders.index')
             ->with('success', "Work order {$workOrder->order_no} updated.");

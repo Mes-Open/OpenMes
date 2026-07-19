@@ -28,6 +28,16 @@ class StoreWorkOrderRequest extends FormRequest
             'customer_id' => ['nullable', Rule::exists('customers', 'id')->whereNull('deleted_at')],
             'line_id' => ['nullable', 'exists:lines,id'],
             'product_type_id' => ['nullable', 'exists:product_types,id'],
+            // Optional multi-BOM selection: which process templates (BOMs) apply
+            // to this order. Empty = auto-pick the single active template. Each
+            // selected BOM must be a live template of the order's product type.
+            'bom_template_ids' => ['nullable', 'array'],
+            'bom_template_ids.*' => [
+                'integer',
+                Rule::exists('process_templates', 'id')
+                    ->where('product_type_id', $this->input('product_type_id'))
+                    ->whereNull('deleted_at'),
+            ],
             'planned_qty' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
             'unit_price' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'priority' => ['nullable', 'integer', 'min:0', 'max:100'],

@@ -4817,6 +4817,10 @@
     "Confirm you have read the instructions before completing this step.": "Confirm you have read the instructions before completing this step.",
     "Instructions acknowledged by :name on :date": "Instructions acknowledged by :name on :date",
     "I have read the instructions": "I have read the instructions",
+    "Bills of Materials": "Bills of Materials",
+    "Select one or more BOMs. Requirements sum across the selected BOMs. Leave empty to auto-use the active BOM for the product type.": "Select one or more BOMs. Requirements sum across the selected BOMs. Leave empty to auto-use the active BOM for the product type.",
+    "Select a product type first.": "Select a product type first.",
+    "No BOMs are available for the selected product type.": "No BOMs are available for the selected product type.",
     "Age": "Age",
     "just now": "just now"
 }
