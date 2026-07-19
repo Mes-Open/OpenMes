@@ -116,3 +116,4 @@ test('material lot can be put on quality hold and released (#107)', async ({ pag
 
   await page.screenshot({ path: 'test-results/107-lot-released.png', fullPage: true });
 });
+});
