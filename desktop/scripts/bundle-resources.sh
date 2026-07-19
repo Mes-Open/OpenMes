@@ -19,16 +19,18 @@ echo "Kopiuję backend z $BACKEND_SRC → $DEST (bez node_modules/storage/.git)�
 rm -rf "$DEST"
 mkdir -p "$DEST"
 # vendor JEST kopiowany (wymagany w runtime); node_modules NIE (assety są w public/build).
-rsync -a --delete \
-  --exclude 'node_modules' \
-  --exclude '.git' \
-  --exclude 'storage/logs/*' \
-  --exclude 'storage/framework/cache/*' \
-  --exclude 'storage/framework/sessions/*' \
-  --exclude 'storage/framework/views/*' \
-  --exclude 'storage/installed' \
-  --exclude '.env' \
-  "$BACKEND_SRC/" "$DEST/"
+# Przenośna kopia przez tar: rsync nie istnieje na Windowsowym git-bash (runner
+# CI), a tar (GNU/BSD) jest wszędzie. Te same wykluczenia co wcześniej.
+tar -cf - -C "$BACKEND_SRC" \
+  --exclude='node_modules' \
+  --exclude='.git' \
+  --exclude='storage/logs/*' \
+  --exclude='storage/framework/cache/*' \
+  --exclude='storage/framework/sessions/*' \
+  --exclude='storage/framework/views/*' \
+  --exclude='storage/installed' \
+  --exclude='.env' \
+  . | tar -xf - -C "$DEST"
 
 echo "Backend: $(du -sh "$DEST" | cut -f1)"
 if [ -f "$HERE/src-tauri/resources/php/php" ] || [ -f "$HERE/src-tauri/resources/php/php.exe" ]; then

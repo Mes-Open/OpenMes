@@ -320,7 +320,9 @@ jobs:
 
       - name: Install mobile dependencies
         working-directory: mobile
-        run: npm ci
+        # npm install (not ci): mobile/package-lock.json can lag package.json
+        # (optional platform deps like @emnapi/*), which makes `npm ci` abort.
+        run: npm install --no-audit --no-fund
 
       - name: Prebuild native Android project
         working-directory: mobile
