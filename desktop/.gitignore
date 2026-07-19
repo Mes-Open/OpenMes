@@ -1,0 +1,17 @@
+# Zależności i buildy
+node_modules
+dist
+src-tauri/target
+src-tauri/gen
+
+# Wbudowywane runtime'y i staging binarek (pobierane skryptem fetch-runtimes.sh,
+# NIE commitowane — to setki MB)
+src-tauri/resources/
+winphp-staging/
+
+# Gotowe instalatory
+release/
+
+# Tymczasowe pliki build-windows.sh
+.linux-php-backup/
+.tauri.conf.json.bak

@@ -1382,6 +1382,14 @@
     "INSTALLED": "INSTALLED",
     "IN_PROGRESS": "IN_PROGRESS",
     "IP address": "IP address",
+    "Online": "Online",
+    "Offline": "Offline",
+    "Last seen": "Last seen",
+    "Forget": "Forget",
+    "Workstation Devices": "Workstation Devices",
+    "Workstation device removed.": "Workstation device removed.",
+    "Forget workstation \":name\"? It can re-register later.": "Forget workstation \":name\"? It can re-register later.",
+    "No workstations have connected yet. Install the OpenMES Workstation client and point it at this server's IP.": "No workstations have connected yet. Install the OpenMES Workstation client and point it at this server's IP.",
     "ISA-95 Area — physical/logical sub-section of a Site.": "ISA-95 Area — physical/logical sub-section of a Site.",
     "ISA-95 Personnel Capability — issued skill certifications with validity windows.": "ISA-95 Personnel Capability — issued skill certifications with validity windows.",
     "ISA-95 Process Segment": "ISA-95 Process Segment",
@@ -4812,5 +4820,7 @@
     "Bills of Materials": "Bills of Materials",
     "Select one or more BOMs. Requirements sum across the selected BOMs. Leave empty to auto-use the active BOM for the product type.": "Select one or more BOMs. Requirements sum across the selected BOMs. Leave empty to auto-use the active BOM for the product type.",
     "Select a product type first.": "Select a product type first.",
-    "No BOMs are available for the selected product type.": "No BOMs are available for the selected product type."
+    "No BOMs are available for the selected product type.": "No BOMs are available for the selected product type.",
+    "Age": "Age",
+    "just now": "just now"
 }
