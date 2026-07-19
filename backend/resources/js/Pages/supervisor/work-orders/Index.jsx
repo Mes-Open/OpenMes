@@ -2,7 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
 import { WO_STATUS_STYLES } from '../../admin/work-orders/fields';
-import { __ } from '../../../lib/i18n';
+import { __, elapsed, formatDateTime } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
 
@@ -22,6 +22,12 @@ export default function SupervisorWorkOrdersIndex() {
         },
         { key: 'priority', label: __('Prio'), className: 'text-om-muted' },
         { key: 'due_date', label: __('Due'), className: 'text-om-muted', render: (r) => (r.due_date ? r.due_date.slice(0, 10) : '—') },
+        {
+            key: 'created_at', label: __('Age'), live: true, className: 'text-om-muted tabular-nums',
+            render: (r, now) => <span title={formatDateTime(r.created_at)}>{elapsed(r.created_at, now)}</span>,
+            // Sort by age: ascending = youngest first (largest created_at). Nulls last.
+            sortAccessor: (r) => (r.created_at ? -new Date(r.created_at).getTime() : Number.POSITIVE_INFINITY),
+        },
         { key: 'batches', label: __('Batches'), render: (r) => counts[r.id] ?? 0 },
     ];
 

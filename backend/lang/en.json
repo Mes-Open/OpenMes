@@ -4816,5 +4816,7 @@
     "Read-confirmation": "Read-confirmation",
     "Confirm you have read the instructions before completing this step.": "Confirm you have read the instructions before completing this step.",
     "Instructions acknowledged by :name on :date": "Instructions acknowledged by :name on :date",
-    "I have read the instructions": "I have read the instructions"
+    "I have read the instructions": "I have read the instructions",
+    "Age": "Age",
+    "just now": "just now"
 }
