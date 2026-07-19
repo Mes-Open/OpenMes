@@ -84,6 +84,16 @@ Route::get('/health', function () {
     ]);
 });
 
+// Workstation client self-registration + heartbeat (no auth: a freshly
+// installed station only knows the MAIN IP; trusted-LAN, rate limited). The
+// MAIN app lists the roster live and derives online status from last_seen_at.
+Route::post('/workstations/register', [\App\Http\Controllers\Api\V1\WorkstationRegistrationController::class, 'register'])
+    ->middleware('throttle:30,1')
+    ->name('api.workstations.register');
+Route::post('/workstations/heartbeat', [\App\Http\Controllers\Api\V1\WorkstationRegistrationController::class, 'heartbeat'])
+    ->middleware('throttle:120,1')
+    ->name('api.workstations.heartbeat');
+
 // Reverb sync: initial snapshot for a collection (live deltas arrive via the
 // CollectionChanged broadcast on the channel).
 Route::get('/collections/{name}', [\App\Http\Controllers\Api\CollectionController::class, 'index'])
