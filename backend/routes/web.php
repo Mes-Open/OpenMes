@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\InstallController;
-use App\Http\Controllers\TestControl\TenantController as E2eTenantController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
 use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
@@ -360,12 +359,12 @@ Route::middleware('auth')->group(function () {
         // Reports — Work Order History (read-only historical analysis)
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
         Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
-        Route::get('/reports/{workOrder}', [AdminReportController::class, 'show'])->name('reports.show');
+        Route::get('/reports/{workOrder}', [AdminReportController::class, 'show'])->name('reports.show')->whereNumber('workOrder');
 
         // Reports — Production Cost (materials + labor + additional, per work order)
         Route::get('/cost-reports', [ProductionCostReportController::class, 'index'])->name('cost-reports.index');
         Route::get('/cost-reports/export', [ProductionCostReportController::class, 'export'])->name('cost-reports.export');
-        Route::get('/cost-reports/{workOrder}', [ProductionCostReportController::class, 'show'])->name('cost-reports.show');
+        Route::get('/cost-reports/{workOrder}', [ProductionCostReportController::class, 'show'])->name('cost-reports.show')->whereNumber('workOrder');
 
         // Alerts
         Route::get('/alerts', [\App\Http\Controllers\Web\Admin\AlertController::class, 'index'])->name('alerts');
@@ -814,18 +813,3 @@ Route::middleware('auth')->group(function () {
         });
     });
 });
-
-/*
- * E2E test-control surface — isolated-tenant lifecycle for the Playwright suite
- * (../../e2e). Hard-gated by EnsureE2eEnabled: 404 unless config('e2e.enabled')
- * AND non-production. Called by the test runner without a session, so these are
- * CSRF-exempt (see bootstrap/app.php validateCsrfTokens except).
- */
-Route::prefix('__e2e__')
-    ->middleware(\App\Http\Middleware\EnsureE2eEnabled::class)
-    ->group(function () {
-        Route::post('/tenant', [E2eTenantController::class, 'store']);
-        Route::post('/tenant/{tenant}/reset', [E2eTenantController::class, 'reset']);
-        Route::post('/tenant/{tenant}/bump-work-order', [E2eTenantController::class, 'bumpWorkOrder']);
-        Route::delete('/tenant/{tenant}', [E2eTenantController::class, 'destroy']);
-    });
