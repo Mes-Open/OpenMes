@@ -16,7 +16,7 @@
             </div>
             <img src="/logo_open_mes.png" alt="OpenMES" class="h-20 md:h-24 mx-auto mb-4">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Installation Complete!</h1>
-            <p class="text-xl text-gray-600">System is ready to use 🎉</p>
+            <p class="text-xl text-gray-600">System is ready to use</p>
         </div>
 
         <div class="bg-white rounded-lg shadow-xl p-8">
@@ -57,7 +57,7 @@
             </div>
 
             <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
-                <h3 class="font-semibold text-green-900 mb-2">🎯 Quick Tips:</h3>
+                <h3 class="font-semibold text-green-900 mb-2">Quick Tips:</h3>
                 <ul class="list-disc list-inside text-green-800 text-sm space-y-1">
                     <li>The application is now secured with your unique credentials</li>
                     <li>All data is stored in your PostgreSQL database</li>
@@ -68,7 +68,7 @@
 
             <div class="text-center">
                 <a href="{{ route('login') }}" class="inline-block btn-touch btn-primary text-lg px-8">
-                    Go to Login Page →
+                    Go to Login Page
                 </a>
             </div>
         </div>

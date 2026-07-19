@@ -172,14 +172,14 @@
 
                 <div class="flex justify-between">
                     <a href="{{ route('install.environment') }}" class="btn-touch btn-secondary">
-                        ← Back
+                        Back
                     </a>
                     <button
                         type="submit"
                         class="btn-touch btn-primary"
                         :disabled="testing"
                     >
-                        <span x-show="!testing">Continue →</span>
+                        <span x-show="!testing">Continue</span>
                         <span x-show="testing">Testing connection...</span>
                     </button>
                 </div>

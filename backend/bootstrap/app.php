@@ -3,8 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Env;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
@@ -95,3 +96,14 @@ return Application::configure(basePath: dirname(__DIR__))
             return $response;
         });
     })->create();
+
+// Honor LARAVEL_STORAGE_PATH also under `php -S` (artisan serve): its request
+// workers expose process env only via getenv() — $_ENV/$_SERVER stay empty —
+// so the framework's built-in override never fires there. Env::get() reads
+// getenv-backed adapters. Used by desktop/unattended installs to keep all
+// runtime state (logs, sessions, the `installed` marker) out of the codebase.
+if (($storagePath = Env::get('LARAVEL_STORAGE_PATH')) && is_string($storagePath)) {
+    $app->useStoragePath($storagePath);
+}
+
+return $app;
