@@ -59,7 +59,7 @@
 
             <div class="flex justify-end">
                 <a href="{{ route('install.database') }}" class="btn-touch btn-primary">
-                    Let's Begin →
+                    Let's Begin
                 </a>
             </div>
         </div>

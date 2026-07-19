@@ -44,12 +44,32 @@ class InstallController extends Controller
     }
 
     /**
+     * Unattended-install preset (desktop app, containers): the environment
+     * provides a ready-to-use database via the standard DB_* variables, so the
+     * wizard can skip the environment and database steps entirely and never
+     * rewrites .env. Returns the preset driver or null when not requested.
+     *
+     * Note: requires an uncached config (env() returns null after
+     * `config:cache`), which is the case for desktop/dev runs.
+     */
+    protected function installerPreset(): ?string
+    {
+        $preset = env('INSTALLER_PRESET');
+
+        return is_string($preset) && array_key_exists($preset, self::DB_DRIVERS) ? $preset : null;
+    }
+
+    /**
      * Show installation wizard
      */
     public function index()
     {
         if ($this->isInstalled()) {
             return redirect('/')->with('info', 'Application is already installed.');
+        }
+
+        if (! session('install_step_1_completed') && ($preset = $this->installerPreset()) !== null) {
+            return $this->runPresetInstall($preset);
         }
 
         if ($this->needsEnvironmentSetup()) {
@@ -65,6 +85,59 @@ class InstallController extends Controller
         }
 
         return view('install.welcome');
+    }
+
+    /**
+     * Preset flow: prepare the preconfigured database and jump straight to the
+     * admin-account step — the only one that needs user input.
+     */
+    protected function runPresetInstall(string $driver)
+    {
+        // Without an APP_KEY sessions/encryption won't work — fall back to the
+        // manual environment step rather than failing later.
+        if (! config('app.key')) {
+            return redirect()->route('install.environment');
+        }
+
+        try {
+            // No purge here: the connection is already configured by real env
+            // vars (and purging would destroy in-memory test databases).
+            config(['database.default' => $driver]);
+            DB::connection($driver)->getPdo();
+        } catch (\Exception $e) {
+            return redirect()->route('install.database')
+                ->with('error', 'Preconfigured database is not reachable: '.$e->getMessage());
+        }
+
+        // Idempotent: `migrate` skips applied migrations, both seeders upsert.
+        Artisan::call('migrate', ['--force' => true]);
+        Artisan::call('db:seed', ['--class' => 'RolesAndPermissionsSeeder', '--force' => true]);
+        Artisan::call('db:seed', ['--class' => 'IssueTypesSeeder', '--force' => true]);
+
+        // Joining an existing main database (e.g. desktop client pointed at a
+        // central server's DB): accounts already exist, so there is nothing to
+        // install — mark complete and send the user to the login screen.
+        if (User::query()->exists()) {
+            file_put_contents(storage_path('installed'), date('Y-m-d H:i:s'));
+
+            return redirect('/');
+        }
+
+        session([
+            'install_step_1_completed' => true,
+            'install_database_configured' => true,
+            'install_database_config' => [
+                'db_driver' => $driver,
+                'db_database' => config("database.connections.{$driver}.database"),
+                'db_host' => config("database.connections.{$driver}.host"),
+                'db_port' => config("database.connections.{$driver}.port"),
+                'db_username' => config("database.connections.{$driver}.username"),
+                'db_password' => config("database.connections.{$driver}.password"),
+                'preset' => true,
+            ],
+        ]);
+
+        return redirect()->route('install.admin');
     }
 
     /**
@@ -317,7 +390,12 @@ class InstallController extends Controller
             'admin_email' => '',
         ]);
 
-        return view('install.admin', ['adminConfig' => $adminConfig]);
+        return view('install.admin', [
+            'adminConfig' => $adminConfig,
+            // Preset installs (desktop app): site name/URL make no sense for a
+            // local install — hide them and use defaults server-side.
+            'preset' => (bool) (session('install_database_config')['preset'] ?? false),
+        ]);
     }
 
     /**
@@ -330,13 +408,18 @@ class InstallController extends Controller
                 ->with('error', 'Please complete database configuration first.');
         }
 
+        $isPreset = (bool) (session('install_database_config')['preset'] ?? false);
+
         $validated = $request->validate([
             'admin_username' => 'required|string|max:255|unique:users,username',
             'admin_email' => 'required|email|max:255|unique:users,email',
             'admin_password' => 'required|string|min:8|confirmed',
-            'site_name' => 'required|string|max:255',
-            'site_url' => 'required|url',
+            'site_name' => [$isPreset ? 'nullable' : 'required', 'string', 'max:255'],
+            'site_url' => [$isPreset ? 'nullable' : 'required', 'url'],
         ]);
+
+        $validated['site_name'] = $validated['site_name'] ?? 'OpenMES';
+        $validated['site_url'] = $validated['site_url'] ?? 'http://localhost';
 
         session([
             'install_admin_config' => [
@@ -356,31 +439,37 @@ class InstallController extends Controller
 
         $driver = $dbConfig['db_driver'];
 
-        // Re-apply runtime DB config so Eloquent uses the correct connection
-        if ($driver === 'sqlite') {
-            $dbPath = $dbConfig['db_database'];
-            if (! str_starts_with($dbPath, '/')) {
-                $dbPath = storage_path($dbPath);
+        // Re-apply runtime DB config so Eloquent uses the correct connection.
+        // Preset installs skip this: their connection comes straight from real
+        // environment variables and is already active — re-applying it from
+        // session would mangle non-path values like ":memory:".
+        if (empty($dbConfig['preset'])) {
+            if ($driver === 'sqlite') {
+                $dbPath = $dbConfig['db_database'];
+                if (! str_starts_with($dbPath, '/')) {
+                    $dbPath = storage_path($dbPath);
+                }
+                config(["database.connections.{$driver}.database" => $dbPath]);
+            } else {
+                config([
+                    "database.connections.{$driver}.host" => $dbConfig['db_host'],
+                    "database.connections.{$driver}.port" => $dbConfig['db_port'],
+                    "database.connections.{$driver}.database" => $dbConfig['db_database'],
+                    "database.connections.{$driver}.username" => $dbConfig['db_username'],
+                    "database.connections.{$driver}.password" => $dbConfig['db_password'],
+                ]);
             }
-            config(["database.connections.{$driver}.database" => $dbPath]);
-        } else {
-            config([
-                "database.connections.{$driver}.host" => $dbConfig['db_host'],
-                "database.connections.{$driver}.port" => $dbConfig['db_port'],
-                "database.connections.{$driver}.database" => $dbConfig['db_database'],
-                "database.connections.{$driver}.username" => $dbConfig['db_username'],
-                "database.connections.{$driver}.password" => $dbConfig['db_password'],
-            ]);
+
+            config(['database.default' => $driver]);
+
+            DB::purge($driver);
+            DB::reconnect($driver);
         }
 
         config([
-            'database.default' => $driver,
             'app.name' => $validated['site_name'],
             'app.url' => $validated['site_url'],
         ]);
-
-        DB::purge($driver);
-        DB::reconnect($driver);
 
         $admin = User::create([
             'name' => 'Administrator',
@@ -412,6 +501,13 @@ class InstallController extends Controller
             'install_admin_config',
             'install_selected_modules',
         ]);
+
+        // Preset installs are configured entirely through real environment
+        // variables (desktop app / container) — rewriting .env would clobber
+        // the host configuration, so skip it.
+        if (! empty($dbConfig['preset'])) {
+            return redirect()->route('install.complete');
+        }
 
         // Write final .env after response is sent
         defer(function () use ($dbConfig, $validated, $driver) {

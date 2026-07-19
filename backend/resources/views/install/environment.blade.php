@@ -70,7 +70,7 @@
                         :disabled="loading"
                         :class="{ 'opacity-50 cursor-not-allowed': loading }"
                     >
-                        <span x-show="!loading">Continue →</span>
+                        <span x-show="!loading">Continue</span>
                         <span x-show="loading">Setting up...</span>
                     </button>
                 </div>
