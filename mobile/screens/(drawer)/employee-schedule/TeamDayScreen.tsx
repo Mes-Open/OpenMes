@@ -16,6 +16,8 @@ import { useTranslation } from 'react-i18next';
 
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
+import { colors } from '@openmes/ui';
+
 import { PlannerHeader } from '@/components/employee-schedule/PlannerHeader';
 import { ActivityTimeline } from '@/components/employee-schedule/ActivityTimeline';
 import { iconForActivity } from '@/components/employee-schedule/activityIcons';
@@ -24,8 +26,6 @@ import {
   ErrorState,
   LoadingState,
 } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useDeviceClass } from '@/hooks/useDeviceClass';
 import { useTeamDay } from '@/hooks/queries/useEmployeeActivities';
 import { useEmployeeScheduleUrlState } from '@/hooks/useEmployeeScheduleUrlState';
@@ -41,8 +41,6 @@ export function TeamDayScreen({
 }: {
   onSelectWorker?: (workerId: number, date: Date) => void;
 } = {}) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
   const { useTabletLayout } = useDeviceClass();
   const router = useRouter();
@@ -61,7 +59,7 @@ export function TeamDayScreen({
   const nowMinutes = isToday ? new Date().getHours() * 60 + new Date().getMinutes() : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <PlannerHeader
         eyebrow={t('Team day view')}
         title={`A-${t('shift')} · ${format(date, 'EEE dd MMM')}`}
@@ -80,7 +78,7 @@ export function TeamDayScreen({
             <RefreshControl
               refreshing={q.isRefetching}
               onRefresh={() => q.refetch()}
-              tintColor={palette.tint}
+              tintColor={colors.accent}
             />
           }>
           {/* Date strip */}
@@ -98,14 +96,14 @@ export function TeamDayScreen({
                   style={[
                     styles.dayChip,
                     {
-                      backgroundColor: on ? BRAND.amber : palette.surface,
-                      borderColor: on ? BRAND.amber : palette.border,
+                      backgroundColor: on ? colors.accent : colors.card,
+                      borderColor: on ? colors.accent : colors.line,
                     },
                   ]}>
                   <Mono
                     size={10.5}
                     weight="700"
-                    color={on ? '#1a1208' : palette.textMuted}
+                    color={on ? colors.bg : colors.muted}
                     letterSpacing={0.4}
                     upper>
                     {format(d, 'EEE dd')}
@@ -120,12 +118,12 @@ export function TeamDayScreen({
             <View
               style={[
                 styles.hourRulerCard,
-                { backgroundColor: palette.surface, borderColor: palette.border },
+                { backgroundColor: colors.card, borderColor: colors.line },
               ]}>
               <View style={styles.hourRulerRow}>
                 <Mono
                   size={9.5}
-                  color={palette.textMuted}
+                  color={colors.muted}
                   letterSpacing={0.6}
                   upper
                   style={{ width: 180 }}>
@@ -137,7 +135,7 @@ export function TeamDayScreen({
                       key={h}
                       size={9}
                       weight="700"
-                      color={palette.textMuted}
+                      color={colors.muted}
                       letterSpacing={0.3}
                       style={{
                         position: 'absolute',
@@ -149,7 +147,7 @@ export function TeamDayScreen({
                 </View>
                 <Mono
                   size={9.5}
-                  color={palette.textMuted}
+                  color={colors.muted}
                   letterSpacing={0.6}
                   upper
                   style={{ width: 80, textAlign: 'right' }}>
@@ -186,8 +184,8 @@ export function TeamDayScreen({
                   style={[
                     styles.workerCard,
                     {
-                      backgroundColor: palette.surface,
-                      borderColor: palette.border,
+                      backgroundColor: colors.card,
+                      borderColor: colors.line,
                     },
                   ]}>
                   {useTabletLayout ? (
@@ -196,9 +194,9 @@ export function TeamDayScreen({
                         <View
                           style={[
                             styles.workerAvatar,
-                            { backgroundColor: palette.surfaceAlt },
+                            { backgroundColor: colors.chip },
                           ]}>
-                          <Mono size={11} weight="700" color={palette.text}>
+                          <Mono size={11} weight="700" color={colors.ink}>
                             {initials(row.worker.name)}
                           </Mono>
                         </View>
@@ -206,11 +204,11 @@ export function TeamDayScreen({
                           <Mono
                             size={12.5}
                             weight="700"
-                            color={palette.text}
+                            color={colors.ink}
                             style={{ fontFamily: undefined }}>
                             {row.worker.name}
                           </Mono>
-                          <Mono size={9} color={palette.textMuted} letterSpacing={0.3} style={{ marginTop: 2 }}>
+                          <Mono size={9} color={colors.muted} letterSpacing={0.3} style={{ marginTop: 2 }}>
                             {row.worker.code}
                           </Mono>
                         </View>
@@ -228,13 +226,13 @@ export function TeamDayScreen({
                         <Mono
                           size={16}
                           weight="700"
-                          color={palette.success}
+                          color={colors.running}
                           letterSpacing={-0.3}>
                           {formatMinutes(row.on_duty)}
                         </Mono>
                         <Mono
                           size={8.5}
-                          color={palette.textMuted}
+                          color={colors.muted}
                           letterSpacing={0.4}
                           upper
                           style={{ marginTop: 2 }}>
@@ -249,9 +247,9 @@ export function TeamDayScreen({
                           <View
                             style={[
                               styles.workerAvatar,
-                              { backgroundColor: palette.surfaceAlt },
+                              { backgroundColor: colors.chip },
                             ]}>
-                            <Mono size={11} weight="700" color={palette.text}>
+                            <Mono size={11} weight="700" color={colors.ink}>
                               {initials(row.worker.name)}
                             </Mono>
                           </View>
@@ -259,11 +257,11 @@ export function TeamDayScreen({
                             <Mono
                               size={12.5}
                               weight="700"
-                              color={palette.text}
+                              color={colors.ink}
                               style={{ fontFamily: undefined }}>
                               {row.worker.name}
                             </Mono>
-                            <Mono size={9} color={palette.textMuted} letterSpacing={0.3} style={{ marginTop: 2 }}>
+                            <Mono size={9} color={colors.muted} letterSpacing={0.3} style={{ marginTop: 2 }}>
                               {row.worker.code}
                             </Mono>
                           </View>
@@ -272,13 +270,13 @@ export function TeamDayScreen({
                           <Mono
                             size={14}
                             weight="700"
-                            color={palette.success}
+                            color={colors.running}
                             letterSpacing={-0.3}>
                             {formatMinutes(row.on_duty)}
                           </Mono>
                           <Mono
                             size={8}
-                            color={palette.textMuted}
+                            color={colors.muted}
                             letterSpacing={0.4}
                             upper>
                             {t('On duty')}
@@ -304,7 +302,7 @@ export function TeamDayScreen({
             <View
               style={[
                 styles.legendCard,
-                { backgroundColor: palette.surface, borderColor: palette.border },
+                { backgroundColor: colors.card, borderColor: colors.line },
               ]}>
               {Object.entries(q.data.type_meta)
                 .filter(([k]) => k !== 'off' && k !== 'custom')
@@ -315,7 +313,7 @@ export function TeamDayScreen({
                       size={11}
                       color={def.color}
                     />
-                    <Mono size={9.5} color={palette.textMuted} letterSpacing={0.4} upper>
+                    <Mono size={9.5} color={colors.muted} letterSpacing={0.4} upper>
                       {t(def.label)}
                     </Mono>
                   </View>

@@ -1,38 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { getLine, getLineProductTypes, getLineUsers, type LineFilters } from '@/api/lines';
+import { deleteLine, getLine, getLineProductTypes, getLineUsers, listLines, toggleLineActive, type LineFilters } from '@/api/lines';
 import { getWorkstation, listWorkstations } from '@/api/workstations';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
-import type { Line } from '@/types/api';
 
 /**
- * Live lines list via Electric (migrated from REST `listLines`).
- * Uses `lines_all` shape (all lines including inactive).
- * Filters (include_inactive, division_id, q) are applied client-side.
- *
- * Shape fidelity note: `lines_all` carries raw table columns only — the REST
- * computed counts (workstations_count, work_orders_count, users_count) are not
- * present in the shape rows.
+ * Admin lines list via REST `listLines`.
+ * The server applies include_inactive / division_id / q filters and returns the
+ * computed counts (workstations_count, work_orders_count, users_count).
  */
 export function useAdminLines(filters: LineFilters = {}) {
-  const includeInactive = filters.include_inactive ?? false;
-  const divisionId = filters.division_id;
-  const q = filters.q?.trim().toLowerCase() ?? '';
-
-  return useElectricShape<Row, Line[]>('lines_all', {
-    select: (rows) => {
-      let out = rows as unknown as Line[];
-      if (!includeInactive) out = out.filter((r) => r.is_active !== false);
-      if (divisionId !== undefined) out = out.filter((r) => r.division_id === divisionId);
-      if (q) {
-        out = out.filter(
-          (r) =>
-            r.name.toLowerCase().includes(q) ||
-            (r.code ?? '').toLowerCase().includes(q),
-        );
-      }
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['admin', 'lines', filters],
+    queryFn: () => listLines(filters),
   });
 }
 
@@ -62,7 +41,7 @@ export function useLineProductTypes(id: number | undefined) {
   });
 }
 
-// No `workstations` Electric shape — stays on REST.
+// Workstations stay on REST.
 export function useWorkstations(lineId: number | undefined, includeInactive = false) {
   return useQuery({
     queryKey: ['line', lineId, 'workstations', includeInactive],
@@ -76,5 +55,21 @@ export function useWorkstation(id: number | undefined) {
     queryKey: ['workstation', id],
     queryFn: () => getWorkstation(id as number),
     enabled: typeof id === 'number' && Number.isFinite(id),
+  });
+}
+
+export function useToggleLineActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => toggleLineActive(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lines'] }),
+  });
+}
+
+export function useDeleteLine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteLine(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lines'] }),
   });
 }

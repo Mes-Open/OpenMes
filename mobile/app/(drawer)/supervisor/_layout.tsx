@@ -14,7 +14,7 @@ export default function SupervisorLayout() {
   // still hydrating or just after a 401 cleared the session.
   if (!user) return null;
   if (!isSupervisorOrAdmin(user)) {
-    return <Redirect href="/operator" />;
+    return <Redirect href="/orders/work-orders" />;
   }
   return <Stack screenOptions={{ headerShown: false }} />;
 }

@@ -4,33 +4,21 @@ import {
   createLotSequence,
   deleteLotSequence,
   getLotSequence,
+  listLotSequences,
   previewNextLot,
   updateLotSequence,
   type LotSequence,
   type LotSequenceInput,
 } from '@/api/lot';
-import { useElectricShape, type Row } from '@/hooks/useElectricShape';
 
 /**
- * Live lot sequences via Electric (migrated from REST `listLotSequences`).
- *
- * Fidelity note: the `lot_sequences` shape carries raw table columns only —
- * the `product_type` relation object is NOT present. Use `useLotSequence(id)`
- * (REST) when the nested product type is required.
- *
- * Column name difference: the DB / shape exposes `next_number`; the REST
- * endpoint surfaces it as `next_value` on the `LotSequence` type. The
- * Electric rows use `next_number`, so consumers reading `r.next_value` will
- * see `undefined` — they should switch to `r.next_number`. The cast keeps the
- * return type as `LotSequence[]` for interface compatibility; screens that
- * only render name / prefix are unaffected.
+ * Lot sequences via REST `listLotSequences`.
+ * Returns the product_type relation and the REST-shaped next_value field.
  */
 export function useLotSequences() {
-  return useElectricShape<Row, LotSequence[]>('lot_sequences', {
-    select: (rows) => {
-      const out = rows as unknown as LotSequence[];
-      return [...out].sort((a, b) => a.name.localeCompare(b.name));
-    },
+  return useQuery({
+    queryKey: ['lot-sequences'],
+    queryFn: () => listLotSequences(),
   });
 }
 

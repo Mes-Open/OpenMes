@@ -1,142 +1,115 @@
-import { FontAwesome } from '@expo/vector-icons';
+/**
+ * Process Segments — 1:1 with the web admin process-segments table
+ * (Pages/admin/process-segments/Index.jsx): the shared DataTable (search +
+ * Columns menu) with the web's column set (Code / Name / Type / Workstation
+ * Type / Operators / Status) and per-row actions (Edit / Delete). Data via REST.
+ */
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
+import { colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
+import { Button } from '@/components/ui/Button';
 import { Mono } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useProcessSegments } from '@/hooks/queries/useProcessSegments';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { useDeleteProcessSegment, useProcessSegments } from '@/hooks/queries/useProcessSegments';
+import type { ProcessSegment } from '@/api/processSegments';
+
+const humanize = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 export function ProcessSegmentsList() {
-  const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
+  const router = useRouter();
+  const q = useProcessSegments({ per_page: 100 });
+  const del = useDeleteProcessSegment();
+  const rows = q.data?.data ?? [];
 
-  const query = useProcessSegments({ per_page: 100 });
-  const segments = query.data?.data ?? [];
+  const onDelete = (s: ProcessSegment) =>
+    Alert.alert(t('Delete process segment?'), s.name, [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () => del.mutate(s.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
+
+  if (q.isLoading && !q.data) return <LoadingState />;
+  if (q.isError && !q.data) return <ErrorState error={q.error} onRetry={q.refetch} />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader
-        back
-        title={t('Process segments')}
-        subtitle={`ISA-95 · ${segments.length} ${t('segments').toUpperCase()}`}
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={q.isFetching} onRefresh={q.refetch} tintColor={colors.accent} />}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Process Segments')}</Text>
+        <View style={{ flex: 1 }} />
+        <Button title={t('+ New Segment')} size="sm" onPress={() => router.push('/production/process-segments/new' as never)} />
+      </View>
+
+      <DataTable<ProcessSegment>
+        data={rows as unknown as ProcessSegment[]}
+        searchPlaceholder={t('Search…')}
+        columnsLabel={t('Columns')}
+        columnsMenuLabel={t('Toggle columns')}
+        searchKeys={['code', 'name']}
+        emptyText={t('No process segments yet.')}
+        onRowPress={(s) => router.push(`/production/process-segments/${s.id}/edit` as never)}
+        columns={[
+          {
+            key: 'code',
+            label: t('Code'),
+            width: 96,
+            render: (s) => <Mono size={11} color={colors.muted}>{s.code}</Mono>,
+          },
+          {
+            key: 'name',
+            label: t('Name'),
+            flex: 1.4,
+            render: (s) => <Text numberOfLines={1} style={styles.name}>{s.name}</Text>,
+          },
+          {
+            key: 'segment_type',
+            label: t('Type'),
+            width: 96,
+            render: (s) => (s.segment_type ? humanize(String(s.segment_type)) : '—'),
+          },
+          {
+            key: 'workstation_type',
+            label: t('Workstation Type'),
+            flex: 1,
+            render: (s) => s.workstationType?.name ?? '—',
+          },
+          {
+            key: 'required_operators',
+            label: t('Operators'),
+            width: 72,
+            render: (s) => <Mono size={11} color={colors.muted}>{s.required_operators != null ? String(s.required_operators) : '—'}</Mono>,
+          },
+          {
+            key: 'status',
+            label: t('Status'),
+            width: 90,
+            render: (s) => <StatusPill status={s.is_active ? 'IN_PROGRESS' : 'CANCELLED'} label={s.is_active ? t('Active') : t('Inactive')} />,
+          },
+        ]}
+        actions={(s) => [
+          { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/production/process-segments/${s.id}/edit` as never) },
+          { label: t('Delete'), icon: 'delete', variant: 'danger', onPress: () => onDelete(s) },
+        ]}
       />
-      {query.isLoading ? (
-        <LoadingState />
-      ) : query.isError ? (
-        <ErrorState error={query.error} onRetry={query.refetch} />
-      ) : (
-        <View style={styles.container}>
-          <View style={[styles.helpBlock, { backgroundColor: palette.surfaceAlt }]}>
-            <Mono size={11} color={palette.textMuted} letterSpacing={0.3}>
-              ⓘ {t('Segments are reusable building blocks for process templates. One segment = one capability.')}
-            </Mono>
-          </View>
-
-          {segments.length === 0 ? (
-            <EmptyState title={t('No process segments')} />
-          ) : (
-            <Card style={{ padding: 0 }}>
-              {segments.map((s, i, arr) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => router.push(`/production/process-segments/${s.id}/edit` as never)}
-                  style={({ pressed }) => [
-                    styles.row,
-                    i === arr.length - 1
-                      ? null
-                      : {
-                          borderBottomWidth: StyleSheet.hairlineWidth,
-                          borderBottomColor: palette.border,
-                        },
-                    pressed ? { opacity: 0.7 } : null,
-                  ]}>
-                  <View
-                    style={[styles.iconBadge, { backgroundColor: palette.surfaceAlt }]}>
-                    <FontAwesome name="cog" size={20} color={palette.textMuted} />
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text
-                      style={[styles.rowTitle, { color: palette.text }]}
-                      numberOfLines={1}>
-                      {s.name}
-                    </Text>
-                    <Mono
-                      size={10.5}
-                      color={palette.textFaint}
-                      letterSpacing={0.4}
-                      style={{ marginTop: 4 }}>
-                      {s.code}
-                      {s.workstationType?.name ? ` · ${s.workstationType.name}` : ''}
-                      {s.estimated_duration_minutes != null
-                        ? ` · ${s.estimated_duration_minutes}m`
-                        : ''}
-                    </Mono>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Mono size={9} color={palette.textFaint} letterSpacing={0.5}>
-                      {t('USED BY').toUpperCase()}
-                    </Mono>
-                    <Mono size={14} color={palette.text} weight="700" style={{ marginTop: 2 }}>
-                      {s.template_steps_count ?? s.templateSteps_count ?? 0}
-                      <Mono size={9} color={palette.textFaint}> tmpl</Mono>
-                    </Mono>
-                  </View>
-                </Pressable>
-              ))}
-            </Card>
-          )}
-
-          <Pressable
-            onPress={() => router.push('/production/process-segments/new' as never)}
-            style={({ pressed }) => [
-              styles.addBtn,
-              { borderColor: palette.border, opacity: pressed ? 0.7 : 1 },
-            ]}>
-            <FontAwesome name="plus" size={12} color={palette.text} />
-            <Mono size={11} color={palette.text} weight="700" letterSpacing={0.5}>
-              {t('NEW SEGMENT')}
-            </Mono>
-          </Pressable>
-        </View>
-      )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 12 },
-  helpBlock: { padding: 12, borderRadius: 10 },
-  addBtn: {
-    marginTop: 4,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  iconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowTitle: { fontSize: 13, fontWeight: '700' },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, paddingBottom: 32 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
 });

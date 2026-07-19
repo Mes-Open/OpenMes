@@ -111,6 +111,105 @@ export const getDowntimeReport = (filters: ReportFilters): Promise<DowntimeRepor
     .get<ApiEnvelope<DowntimeReport>>('/api/v1/reports/downtime', { params: filters })
     .then((r) => r.data.data);
 
+// ── Non-conformance Pareto ────────────────────────────────────────────────
+
+export interface NonConformanceReport {
+  period: { start: string; end: string };
+  pareto: Array<{ issue_type_id: number | null; name: string; count: number; nc_qty: number }>;
+  disposition_summary: Record<string, number>;
+  overdue_actions: number;
+  generated_at: string;
+}
+
+export const getNonConformance = (
+  filters: Pick<ReportFilters, 'start_date' | 'end_date'>,
+): Promise<NonConformanceReport> =>
+  api
+    .get<ApiEnvelope<NonConformanceReport>>('/api/v1/reports/non-conformance-pareto', {
+      params: filters,
+    })
+    .then((r) => r.data.data);
+
+// ── Net requirements (MRP shortage) ───────────────────────────────────────
+
+export interface NetRequirementsReport {
+  period?: { start: string; end: string };
+  requirements: Array<{
+    material_id: number;
+    code?: string | null;
+    name: string;
+    unit_of_measure?: string | null;
+    required_qty: number;
+    available_qty: number;
+    net_qty: number;
+    is_short: boolean;
+    related_work_orders: string[];
+  }>;
+  generated_at?: string;
+}
+
+export const getNetRequirements = (filters: ReportFilters): Promise<NetRequirementsReport> =>
+  api
+    .get<ApiEnvelope<NetRequirementsReport>>('/api/v1/reports/net-requirements', { params: filters })
+    .then((r) => r.data.data);
+
+// ── Scrap (Pareto over the period) ─────────────────────────────────────────
+
+export interface ScrapReport {
+  period?: { start: string; end: string };
+  pareto: {
+    total_qty: number;
+    total_entries: number;
+    reasons: Array<{ name: string; qty: number; entries?: number }>;
+  };
+  generated_at?: string;
+}
+
+export const getScrap = (
+  filters: ReportFilters,
+): Promise<ScrapReport> =>
+  api
+    .get<ApiEnvelope<ScrapReport>>('/api/v1/reports/scrap-pareto', { params: filters })
+    .then((r) => r.data.data);
+
+// ── Production cost ─────────────────────────────────────────────────────────
+
+export interface CostOrder {
+  id: number;
+  order_no: string;
+  product_name: string | null;
+  line_name: string | null;
+  produced_qty: number;
+  material_cost: number;
+  labor_cost: number;
+  additional_cost: number;
+  total_cost: number;
+  cost_per_unit: number | null;
+  currency: string;
+}
+
+export interface ProductionCostReport {
+  period?: { start: string; end: string };
+  summary: {
+    orders: number;
+    material_cost: number;
+    labor_cost: number;
+    additional_cost: number;
+    total_cost: number;
+    avg_cost_per_unit: number | null;
+    currency: string;
+    mixed_currency?: boolean;
+    limited?: boolean;
+  };
+  orders: CostOrder[];
+  currency: string;
+}
+
+export const getProductionCost = (filters: ReportFilters): Promise<ProductionCostReport> =>
+  api
+    .get<ApiEnvelope<ProductionCostReport>>('/api/v1/reports/production-cost', { params: filters })
+    .then((r) => r.data.data);
+
 // ── Export CSV (URL builder) ──────────────────────────────────────────────
 
 export function reportExportCsvUrl(report_type: ReportType, filters: ReportFilters): string {

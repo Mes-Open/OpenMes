@@ -11,6 +11,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { useTranslation } from 'react-i18next';
+
 import { colors, fonts, radius } from '@openmes/ui';
 
 import { Button } from '@/components/ui/Button';
@@ -181,11 +183,12 @@ export function DangerZone({
   onDelete,
   deleteLoading,
 }: DangerZoneProps) {
+  const { t } = useTranslation();
   const handleDelete = () => {
     if (deleteConfirmTitle) {
-      Alert.alert(deleteConfirmTitle, deleteConfirmMessage ?? '', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: deleteLabel, style: 'destructive', onPress: onDelete },
+      Alert.alert(t(deleteConfirmTitle), deleteConfirmMessage ? t(deleteConfirmMessage) : '', [
+        { text: t('Cancel'), style: 'cancel' },
+        { text: t(deleteLabel), style: 'destructive', onPress: onDelete },
       ]);
     } else {
       onDelete();

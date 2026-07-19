@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { addMinutes, format, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 import { Mono } from '@/components/ui/Mono';
 import { ScheduleConflictError } from '@/api/schedule';
@@ -49,6 +50,7 @@ export function DraggableBlockBar({
   canEdit,
   borderRadius = 6,
 }: Props) {
+  const { t } = useTranslation();
   const resize = useResizeScheduleOrder();
 
   // Animated x-offset applied while dragging — reset to 0 on release after
@@ -99,17 +101,17 @@ export function DraggableBlockBar({
           {
             onError: (e: Error) => {
               if (e instanceof ScheduleConflictError) {
-                Alert.alert('Conflict', e.message, [
-                  { text: 'Cancel', style: 'cancel' },
+                Alert.alert(t('Conflict'), e.message, [
+                  { text: t('Cancel'), style: 'cancel' },
                   {
-                    text: 'Reschedule anyway',
+                    text: t('Reschedule anyway'),
                     style: 'destructive',
                     onPress: () => submit(true),
                   },
                 ]);
                 return;
               }
-              Alert.alert('Could not move', e.message);
+              Alert.alert(t('Could not move'), e.message);
             },
           },
         );
@@ -117,7 +119,7 @@ export function DraggableBlockBar({
     } catch (e) {
       dragX.value = withSpring(0);
       lifted.value = withTiming(0);
-      Alert.alert('Drag failed', (e as Error).message);
+      Alert.alert(t('Drag failed'), (e as Error).message);
     }
   };
 

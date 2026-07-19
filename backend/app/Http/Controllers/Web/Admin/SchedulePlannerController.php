@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Line;
+use App\Models\ScheduleChangeLog;
 use App\Models\Shift;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
@@ -19,6 +20,8 @@ class SchedulePlannerController extends Controller
         $settings = $this->loadSettings();
 
         $viewMode = trim($settings['schedule_view_mode'] ?? 'weekly', '"\'');
+        // Fallback only — the board's shift columns follow the actual active
+        // shifts (see below); this setting applies when none are defined.
         $shiftsPerDay = (int) trim($settings['schedule_shifts_per_day'] ?? '1', '"\'');
         $horizonWeeks = (int) trim($settings['schedule_horizon_weeks'] ?? '4', '"\'');
         $showWeekends = filter_var(trim($settings['schedule_show_weekends'] ?? 'true', '"\''), FILTER_VALIDATE_BOOLEAN);
@@ -59,15 +62,38 @@ class SchedulePlannerController extends Controller
         $lines = $linesQuery->get();
         $lineIds = $lines->pluck('id');
 
-        // Load active shifts
-        $shifts = Shift::where('is_active', true)->orderBy('sort_order')->get();
+        // Load the distinct active shifts (e.g. Morning / Afternoon / Night).
+        // Shifts are stored per line but share name/time, so collapse the
+        // per-line duplicates by their actual time window — deduping by
+        // sort_order would silently drop a column when two genuinely distinct
+        // slots happen to share a sort_order.
+        $shifts = Shift::where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('start_time')
+            ->get()
+            ->unique(fn ($s) => $s->start_time.'|'.$s->end_time)
+            ->values();
+
+        // Draw a column per actual shift (clamped to the 4 the grid supports);
+        // fall back to the schedule_shifts_per_day setting only when none exist.
+        if ($shifts->isNotEmpty()) {
+            $shiftsPerDay = min(4, max(1, $shifts->count()));
+        }
 
         // Load work orders in range
-        $workOrders = WorkOrder::with(['productType', 'line'])
+        $workOrders = WorkOrder::with(['productType', 'line', 'customer', 'extraPlacements'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-            ->whereIn('line_id', $lineIds)
+            ->where(function ($q) use ($lineIds) {
+                // An order shows on every line it runs on — its primary
+                // placement or any extra segment.
+                $q->whereIn('line_id', $lineIds)
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereIn('line_id', $lineIds));
+            })
             ->where(function ($q) use ($rangeStart, $rangeEnd) {
                 $q->whereBetween('due_date', [$rangeStart, $rangeEnd])
+                    // Extra segments are scheduled independently — an order
+                    // with any segment in the range must ship too.
+                    ->orWhereHas('extraPlacements', fn ($q2) => $q2->whereBetween('due_date', [$rangeStart, $rangeEnd]))
                     ->orWhere(function ($q2) use ($rangeStart, $rangeEnd) {
                         // Minute-planned orders that overlap the visible range
                         $q2->whereNotNull('planned_start_at')
@@ -93,13 +119,9 @@ class SchedulePlannerController extends Controller
             ->orderBy('due_date')
             ->get();
 
-        // Build data structure based on view mode
-        $data = match ($viewMode) {
-            'daily' => $this->buildDailyData($startDate, $rangeEnd, $lines, $workOrders, $shiftsPerDay, $showWeekends),
-            'hourly' => $this->buildHourlyData($startDate, $lines, $workOrders, $slotMinutes, $showWeekends),
-            'monthly' => $this->buildMonthlyData($startDate, $rangeEnd, $lines, $workOrders, $shiftsPerDay, $showWeekends),
-            default => $this->buildWeeklyData($startDate, $rangeEnd, $lines, $workOrders, $shiftsPerDay, $showWeekends),
-        };
+        // The grid layout is computed client-side (see the React Planner) from a
+        // flat work-order list — the controller only ships the raw data the views
+        // need (orders, lines, shifts, backlog, maintenance) plus the visible range.
 
         // Navigation dates
         $navPrev = match ($viewMode) {
@@ -189,7 +211,7 @@ class SchedulePlannerController extends Controller
         $allLines = Line::where('is_active', true)->orderBy('name')->get();
 
         // Backlog: unassigned work orders (no line or no due_date/week)
-        $backlogOrders = WorkOrder::with(['productType', 'line'])
+        $backlogOrders = WorkOrder::with(['productType', 'line', 'customer'])
             ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
             ->where(function ($q) {
                 $q->whereNull('line_id')
@@ -197,48 +219,32 @@ class SchedulePlannerController extends Controller
                         $q2->whereNull('due_date')->whereNull('week_number');
                     });
             })
+            ->orderBy('priority_score', 'desc')
             ->orderBy('priority', 'desc')
             ->orderBy('due_date')
             ->get();
 
+        // High-value orders past due — powers the planner's overdue banner.
+        $importantOverdue = WorkOrder::query()
+            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', now())
+            ->whereHas('customer', fn ($q) => $q->whereIn('tier', ['gold', 'vip']));
+        $importantOverdueCount = (clone $importantOverdue)->count();
+        $importantOverdueOrders = $importantOverdue
+            ->with('customer:id,name,tier')
+            ->orderBy('due_date')
+            ->limit(10)
+            ->get()
+            ->map(fn ($wo) => [
+                'id' => $wo->id,
+                'order_no' => $wo->order_no,
+                'customer_name' => $wo->customer?->name,
+                'tier' => $wo->customer?->tier?->value,
+                'due_date' => $wo->due_date?->format('Y-m-d'),
+            ])->all();
+
         $realtimeMode = trim($settings['realtime_mode'] ?? 'polling', '"\'');
-
-        $viewData = compact(
-            'data',
-            'lines',
-            'allLines',
-            'shifts',
-            'viewMode',
-            'shiftsPerDay',
-            'slotMinutes',
-            'horizonWeeks',
-            'showWeekends',
-            'startDate',
-            'rangeStart',
-            'rangeEnd',
-            'navPrev',
-            'navNext',
-            'backlogOrders',
-            'maintenanceEvents',
-            'realtimeMode',
-        );
-
-        // Partial response for infinite scroll — still JSON for the React client
-        // (React Planner fetches the full page and extracts data; the _partial flag
-        //  is no longer used in the Inertia version, but kept for backwards compat
-        //  with any existing JS that may still call it).
-        if ($request->filled('_partial')) {
-            return response()->json(['data' => $viewData['data'] ?? []]);
-        }
-
-        // Serialize Carbon instances to strings so Inertia can JSON-encode them
-        $serialize = function ($value) {
-            if ($value instanceof Carbon) {
-                return $value->toIso8601String();
-            }
-
-            return $value;
-        };
 
         // Flatten maintenance events for the React component
         $maintFlat = $maintenanceEvents->map(fn ($m) => [
@@ -260,55 +266,77 @@ class SchedulePlannerController extends Controller
             'description' => $m->description,
         ])->values()->all();
 
-        // Serialize data array — recursively convert Carbon objects
-        $serializeData = function ($item) use (&$serializeData) {
-            if (is_array($item)) {
-                return array_map($serializeData, $item);
-            }
-            if ($item instanceof \Illuminate\Database\Eloquent\Collection) {
-                return $item->map($serializeData)->values()->all();
-            }
-            if ($item instanceof \Illuminate\Support\Collection) {
-                return $item->map($serializeData)->values()->all();
-            }
-            if ($item instanceof Carbon) {
-                return $item->toIso8601String();
-            }
-            if (is_object($item) && method_exists($item, 'toArray')) {
-                $arr = $item->toArray();
-                // Append computed fields for work orders
-                if (isset($arr['product_type'])) {
-                    $arr['product_name'] = $item->productType?->name;
-                }
+        // Flatten work orders for the React component. The client computes all
+        // grid/lane placement from this flat list (camelCase-free, ISO dates).
+        $workOrdersFlat = $workOrders->map(function ($wo) {
+            $planned = (float) $wo->planned_qty;
+            $produced = (float) $wo->produced_qty;
 
-                return array_map($serializeData, $arr);
-            }
-
-            return $item;
-        };
-
-        // Flatten the data structure (weeks/days/months/hourly) for serialization
-        $flatData = $serializeData($data);
+            return [
+                'id' => $wo->id,
+                'order_no' => $wo->order_no,
+                'customer_name' => $wo->customer?->name,
+                'customer_tier' => $wo->customer?->tier?->value,
+                'priority_score' => $wo->priority_score,
+                'product_name' => $wo->productType?->name,
+                'line_id' => $wo->line_id,
+                'secondary_line_id' => $wo->secondary_line_id,
+                'product_type_id' => $wo->product_type_id,
+                'status' => $wo->status,
+                'priority' => $wo->priority,
+                'planned_qty' => $wo->planned_qty,
+                'produced_qty' => $wo->produced_qty,
+                'progress_percent' => $planned > 0 ? (int) round($produced / $planned * 100) : 0,
+                'is_overdue' => $wo->due_date
+                    && $wo->due_date->lt(today())
+                    && ! in_array($wo->status, WorkOrder::TERMINAL_STATUSES),
+                'due_date' => $wo->due_date?->format('Y-m-d'),
+                'end_date' => $wo->end_date?->format('Y-m-d'),
+                'placements' => $wo->extraPlacements->map(fn ($p) => [
+                    'id' => $p->id,
+                    'line_id' => $p->line_id,
+                    'due_date' => $p->due_date->format('Y-m-d'),
+                    'shift_number' => $p->shift_number,
+                    'end_date' => $p->end_date?->format('Y-m-d'),
+                    'end_shift_number' => $p->end_shift_number,
+                ])->values()->all(),
+                'week_number' => $wo->week_number,
+                'month_number' => $wo->month_number,
+                'shift_number' => $wo->shift_number,
+                'end_shift_number' => $wo->end_shift_number,
+                'planned_start_at' => $wo->planned_start_at?->toIso8601String(),
+                'planned_end_at' => $wo->planned_end_at?->toIso8601String(),
+            ];
+        })->values()->all();
 
         // Flatten backlog orders
         $backlogFlat = $backlogOrders->map(fn ($wo) => [
             'id' => $wo->id,
             'order_no' => $wo->order_no,
             'product_name' => $wo->productType?->name,
+            'customer_name' => $wo->customer?->name,
+            'customer_tier' => $wo->customer?->tier?->value,
             'line_id' => $wo->line_id,
             'due_date' => $wo->due_date?->format('Y-m-d'),
             'planned_qty' => $wo->planned_qty,
             'status' => $wo->status,
             'priority' => $wo->priority,
+            'priority_score' => $wo->priority_score,
         ])->values()->all();
 
         // Flatten lines for props
         $linesFlat = $lines->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'code' => $l->code])->values()->all();
         $allLinesFlat = $allLines->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'code' => $l->code])->values()->all();
-        $shiftsFlat = $shifts->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'sort_order' => $s->sort_order])->values()->all();
+        $shiftsFlat = $shifts->map(fn ($s) => [
+            'id' => $s->id,
+            'name' => $s->name,
+            'sort_order' => $s->sort_order,
+            'start_time' => $s->start_time,
+            'end_time' => $s->end_time,
+        ])->values()->all();
 
         return Inertia::render('admin/schedule/Planner', [
-            'data' => $flatData,
+            'workOrders' => $workOrdersFlat,
             'lines' => $linesFlat,
             'allLines' => $allLinesFlat,
             'shifts' => $shiftsFlat,
@@ -325,6 +353,14 @@ class SchedulePlannerController extends Controller
             'backlogOrders' => $backlogFlat,
             'maintenanceEvents' => $maintFlat,
             'realtimeMode' => $realtimeMode,
+            // For the "+ New order" modal (shares the create page's form).
+            'productTypes' => \App\Models\ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'customers' => \App\Models\Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
+            'customFields' => app(\App\Services\CustomFieldService::class)->clientConfig('work_order'),
+            'overdueImportant' => [
+                'count' => $importantOverdueCount,
+                'orders' => $importantOverdueOrders,
+            ],
         ]);
     }
 
@@ -332,6 +368,13 @@ class SchedulePlannerController extends Controller
     {
         $request->validate([
             'line_id' => 'nullable|exists:lines,id',
+            'extra_placements' => 'sometimes|array|max:20',
+            'extra_placements.*.id' => 'nullable|integer',
+            'extra_placements.*.line_id' => 'required|exists:lines,id',
+            'extra_placements.*.due_date' => 'required|date',
+            'extra_placements.*.shift_number' => 'nullable|integer|min:1|max:10',
+            'extra_placements.*.end_date' => 'nullable|date|after_or_equal:extra_placements.*.due_date',
+            'extra_placements.*.end_shift_number' => 'nullable|integer|min:1|max:10',
             'due_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:due_date',
             'week_number' => 'nullable|integer|min:1|max:53',
@@ -341,20 +384,20 @@ class SchedulePlannerController extends Controller
             'planned_end_at' => 'nullable|date|after:planned_start_at',
         ]);
 
-        $data = [
-            'line_id' => $request->input('line_id') ?: null,
-            'due_date' => $request->input('due_date') ?: null,
-            'week_number' => $request->input('week_number') ?: null,
-            'shift_number' => $request->input('shift_number') ?: null,
-        ];
+        // Every placement field is only touched when the request explicitly
+        // carries it, so a partial edit (a single-segment drag, the capacity
+        // drill-down, a stale client) can't silently null or revert the
+        // placements it didn't mean to change.
+        $data = [];
+        foreach (['line_id', 'due_date', 'week_number', 'shift_number', 'end_date', 'end_shift_number'] as $field) {
+            if ($request->has($field)) {
+                $data[$field] = $request->input($field) ?: null;
+            }
+        }
 
-        // Handle span fields — only set if explicitly provided
-        if ($request->has('end_date')) {
-            $data['end_date'] = $request->input('end_date') ?: null;
-        }
-        if ($request->has('end_shift_number')) {
-            $data['end_shift_number'] = $request->input('end_shift_number') ?: null;
-        }
+        $newPrimary = array_key_exists('line_id', $data) ? $data['line_id'] : $workOrder->line_id;
+
+        $snapshotBefore = $this->placementSnapshot($workOrder);
 
         // Minute-level planning timestamps. Only touch the columns if the
         // request explicitly carried them so we don't accidentally wipe them
@@ -369,17 +412,10 @@ class SchedulePlannerController extends Controller
         // Conflict detection: if both timestamps are being set and a line is
         // assigned, refuse the update when another active WO on the same line
         // overlaps the proposed window — unless the caller explicitly forces.
-        $targetLineId = array_key_exists('line_id', $data) ? $data['line_id'] : $workOrder->line_id;
-        if (! empty($data['planned_start_at']) && ! empty($data['planned_end_at']) && $targetLineId) {
-            $conflict = WorkOrder::query()
-                ->where('line_id', $targetLineId)
-                ->where('id', '!=', $workOrder->id)
-                ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-                ->whereNotNull('planned_start_at')
-                ->whereNotNull('planned_end_at')
-                ->where('planned_start_at', '<', $data['planned_end_at'])
-                ->where('planned_end_at', '>', $data['planned_start_at'])
-                ->exists();
+        // The minute plan lives on the primary placement only; extra segments
+        // are coarse (day + shift) and never carry a minute window.
+        if (! empty($data['planned_start_at']) && ! empty($data['planned_end_at']) && $newPrimary !== null) {
+            $conflict = $this->minuteConflictExists($workOrder, [(int) $newPrimary], $data['planned_start_at'], $data['planned_end_at']);
 
             if ($conflict && ! $request->boolean('force_conflict')) {
                 $message = __('This time slot overlaps another work order on the same line.');
@@ -396,6 +432,30 @@ class SchedulePlannerController extends Controller
         }
 
         $workOrder->update($data);
+
+        // Sync the extra segments when the request carries them: update rows
+        // by id, create rows without one, delete rows the client dropped.
+        // Losing the primary line (unassign) always clears every segment.
+        if ($newPrimary === null) {
+            $workOrder->extraPlacements()->delete();
+        } elseif ($request->has('extra_placements')) {
+            $incoming = collect($request->input('extra_placements', []));
+            $keepIds = $incoming->pluck('id')->filter()->map(fn ($id) => (int) $id);
+            $workOrder->extraPlacements()->whereNotIn('id', $keepIds)->delete();
+            foreach ($incoming as $row) {
+                $attrs = [
+                    'line_id' => $row['line_id'],
+                    'due_date' => $row['due_date'],
+                    'shift_number' => $row['shift_number'] ?? null,
+                    'end_date' => $row['end_date'] ?? null,
+                    'end_shift_number' => $row['end_shift_number'] ?? null,
+                ];
+                $existing = ! empty($row['id']) ? $workOrder->extraPlacements()->find($row['id']) : null;
+                $existing ? $existing->update($attrs) : $workOrder->extraPlacements()->create($attrs);
+            }
+        }
+
+        $this->logChange($workOrder, $snapshotBefore);
 
         // The schedule placement is already persisted above. The snapshot /
         // auto-batch side-effects below can throw on incomplete product data
@@ -463,6 +523,8 @@ class SchedulePlannerController extends Controller
 
     public function resizeOrder(Request $request, WorkOrder $workOrder)
     {
+        $snapshotBefore = $this->placementSnapshot($workOrder);
+
         // Minute-level resize: when both `planned_start_at` and
         // `planned_end_at` are present we treat the request as a minute-level
         // move/resize and bypass the legacy shift-level branch.
@@ -472,16 +534,9 @@ class SchedulePlannerController extends Controller
                 'planned_end_at' => 'required|date|after:planned_start_at',
             ]);
 
+            // Minute windows live on the primary placement only.
             if ($workOrder->line_id) {
-                $conflict = WorkOrder::query()
-                    ->where('line_id', $workOrder->line_id)
-                    ->where('id', '!=', $workOrder->id)
-                    ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
-                    ->whereNotNull('planned_start_at')
-                    ->whereNotNull('planned_end_at')
-                    ->where('planned_start_at', '<', $validated['planned_end_at'])
-                    ->where('planned_end_at', '>', $validated['planned_start_at'])
-                    ->exists();
+                $conflict = $this->minuteConflictExists($workOrder, [$workOrder->line_id], $validated['planned_start_at'], $validated['planned_end_at']);
 
                 if ($conflict && ! $request->boolean('force_conflict')) {
                     return response()->json([
@@ -496,6 +551,7 @@ class SchedulePlannerController extends Controller
                 'planned_start_at' => $validated['planned_start_at'],
                 'planned_end_at' => $validated['planned_end_at'],
             ]);
+            $this->logChange($workOrder, $snapshotBefore);
 
             return response()->json([
                 'success' => true,
@@ -522,6 +578,7 @@ class SchedulePlannerController extends Controller
                 'end_shift_number' => $request->input('end_shift_number'),
             ]);
         }
+        $this->logChange($workOrder, $snapshotBefore);
 
         return response()->json([
             'success' => true,
@@ -593,6 +650,130 @@ class SchedulePlannerController extends Controller
         return response()->json($response);
     }
 
+    /**
+     * The last planner edits, newest first — the backlog rail's Changes tab.
+     */
+    public function changes()
+    {
+        $changes = ScheduleChangeLog::with(['workOrder:id,order_no', 'user:id,name'])
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'work_order_id' => $c->work_order_id,
+                'order_no' => $c->workOrder?->order_no,
+                'action' => $c->action,
+                'before' => $c->before,
+                'after' => $c->after,
+                'user' => $c->user?->name,
+                'undone_at' => $c->undone_at?->toIso8601String(),
+                'created_at' => $c->created_at->toIso8601String(),
+            ])->values();
+
+        return response()->json(['changes' => $changes]);
+    }
+
+    /**
+     * Revert one edit: restore the order's placement snapshot from before it.
+     * The revert is itself logged (action 'undo'), so it can be undone too.
+     */
+    public function undoChange(ScheduleChangeLog $change)
+    {
+        $workOrder = $change->workOrder;
+        if (! $workOrder) {
+            return response()->json(['success' => false, 'message' => __('Work order no longer exists.')], 410);
+        }
+
+        $current = $this->placementSnapshot($workOrder);
+        $s = $change->before;
+
+        $workOrder->update([
+            'line_id' => $s['line_id'] ?? null,
+            'due_date' => $s['due_date'] ?? null,
+            'week_number' => $s['week_number'] ?? null,
+            'shift_number' => $s['shift_number'] ?? null,
+            'end_date' => $s['end_date'] ?? null,
+            'end_shift_number' => $s['end_shift_number'] ?? null,
+            'planned_start_at' => $s['planned_start_at'] ?? null,
+            'planned_end_at' => $s['planned_end_at'] ?? null,
+        ]);
+        $workOrder->extraPlacements()->delete();
+        foreach ($s['placements'] ?? [] as $p) {
+            $workOrder->extraPlacements()->create($p);
+        }
+
+        $change->update(['undone_at' => now()]);
+        ScheduleChangeLog::create([
+            'work_order_id' => $workOrder->id,
+            'user_id' => auth()->id(),
+            'action' => 'undo',
+            'before' => $current,
+            'after' => $this->placementSnapshot($workOrder->fresh('extraPlacements')),
+        ]);
+
+        return response()->json(['success' => true, 'message' => __('Change undone.')]);
+    }
+
+    /**
+     * Everything the planner can change about an order's schedule, as one
+     * comparable/restorable array.
+     */
+    private function placementSnapshot(WorkOrder $workOrder): array
+    {
+        return [
+            'line_id' => $workOrder->line_id,
+            'due_date' => $workOrder->due_date?->format('Y-m-d'),
+            'week_number' => $workOrder->week_number,
+            'shift_number' => $workOrder->shift_number,
+            'end_date' => $workOrder->end_date?->format('Y-m-d'),
+            'end_shift_number' => $workOrder->end_shift_number,
+            'planned_start_at' => $workOrder->planned_start_at?->toIso8601String(),
+            'planned_end_at' => $workOrder->planned_end_at?->toIso8601String(),
+            'placements' => $workOrder->extraPlacements()->get()->map(fn ($p) => [
+                'line_id' => $p->line_id,
+                'due_date' => $p->due_date->format('Y-m-d'),
+                'shift_number' => $p->shift_number,
+                'end_date' => $p->end_date?->format('Y-m-d'),
+                'end_shift_number' => $p->end_shift_number,
+            ])->values()->all(),
+        ];
+    }
+
+    /** Log the edit when the snapshot actually changed. */
+    private function logChange(WorkOrder $workOrder, array $before): void
+    {
+        $after = $this->placementSnapshot($workOrder->fresh());
+        if ($before == $after) {
+            return;
+        }
+        ScheduleChangeLog::create([
+            'work_order_id' => $workOrder->id,
+            'user_id' => auth()->id(),
+            'action' => 'reschedule',
+            'before' => $before,
+            'after' => $after,
+        ]);
+    }
+
+    /**
+     * Does any other active, minute-planned order overlap the proposed window
+     * on one of the given lines? Minute windows always live on an order's
+     * primary line — extra segments are coarse and never conflict here.
+     */
+    private function minuteConflictExists(WorkOrder $workOrder, array $lineIds, string $startAt, string $endAt): bool
+    {
+        return WorkOrder::query()
+            ->whereIn('line_id', $lineIds)
+            ->where('id', '!=', $workOrder->id)
+            ->whereIn('status', WorkOrder::ACTIVE_STATUSES)
+            ->whereNotNull('planned_start_at')
+            ->whereNotNull('planned_end_at')
+            ->where('planned_start_at', '<', $endAt)
+            ->where('planned_end_at', '>', $startAt)
+            ->exists();
+    }
+
     private function loadSettings(): array
     {
         $keys = [
@@ -625,469 +806,13 @@ class SchedulePlannerController extends Controller
                 $startDate->copy()->startOfMonth(),
                 $startDate->copy()->addMonths(2)->endOfMonth(),
             ],
+            // Weekly: the board renders exactly the one week starting at
+            // $startDate, so ship only that week's orders (nav moves week-by-week).
+            // Shipping the full horizon left later-week orders with no column.
             default => [
                 $startDate->copy(),
-                $startDate->copy()->addWeeks($horizonWeeks)->subDay()->endOfDay(),
+                $startDate->copy()->endOfWeek()->endOfDay(),
             ],
         };
-    }
-
-    private function buildWeeklyData(Carbon $start, Carbon $end, $lines, $workOrders, int $shiftsPerDay, bool $showWeekends): array
-    {
-        $weeks = [];
-        $cursor = $start->copy();
-        $daysInWeek = $showWeekends ? 7 : 5;
-
-        while ($cursor->lte($end)) {
-            $weekStart = $cursor->copy()->startOfWeek();
-            $weekEnd = $cursor->copy()->endOfWeek();
-            $weekNumber = $cursor->isoWeek();
-
-            $weekLines = [];
-            foreach ($lines as $line) {
-                $lineOrders = $workOrders->filter(function ($wo) use ($line, $weekStart, $weekEnd, $weekNumber) {
-                    if ($wo->line_id !== $line->id) {
-                        return false;
-                    }
-                    if ($wo->due_date) {
-                        return $wo->due_date->between($weekStart, $weekEnd);
-                    }
-
-                    return $wo->week_number === $weekNumber;
-                })->values();
-
-                $capacity = $shiftsPerDay * $daysInWeek;
-                $usedSlots = $lineOrders->count();
-                $loadPercent = $capacity > 0 ? min(100, round(($usedSlots / $capacity) * 100)) : 0;
-
-                // Build grid: map orders to specific day+shift slots
-                $grid = [];
-                $dayCursor = $weekStart->copy();
-                for ($d = 0; $d < $daysInWeek; $d++) {
-                    $dateKey = $dayCursor->format('Y-m-d');
-                    for ($s = 1; $s <= $shiftsPerDay; $s++) {
-                        $grid[$dateKey.'-'.$s] = null;
-                    }
-                    $dayCursor->addDay();
-                }
-
-                // Place orders with due_date into their specific day+shift
-                $dated = $lineOrders->filter(fn ($wo) => $wo->due_date !== null)->sortBy('priority', SORT_REGULAR, true);
-                // First pass: orders with explicit shift_number go to exact slot
-                foreach ($dated as $wo) {
-                    if ($wo->shift_number) {
-                        $key = $wo->due_date->format('Y-m-d').'-'.$wo->shift_number;
-                        if (array_key_exists($key, $grid) && $grid[$key] === null) {
-                            $grid[$key] = $wo;
-                        }
-                    }
-                }
-                // Second pass: orders without shift_number go to first free shift of their day
-                foreach ($dated as $wo) {
-                    if ($wo->shift_number) {
-                        continue;
-                    }
-                    $dk = $wo->due_date->format('Y-m-d');
-                    for ($s = 1; $s <= $shiftsPerDay; $s++) {
-                        $key = $dk.'-'.$s;
-                        if (array_key_exists($key, $grid) && $grid[$key] === null) {
-                            $grid[$key] = $wo;
-                            break;
-                        }
-                    }
-                }
-
-                // Place orders with only week_number into first available slots
-                $undated = $lineOrders->filter(fn ($wo) => $wo->due_date === null);
-                $emptySlots = array_keys(array_filter($grid, fn ($v) => $v === null));
-                $si = 0;
-                foreach ($undated as $wo) {
-                    if (isset($emptySlots[$si])) {
-                        $grid[$emptySlots[$si]] = $wo;
-                        $si++;
-                    }
-                }
-
-                // Build span map: vertical spanning through shifts, then next days.
-                // For each spanned cell, record type and rowspan (per-day vertical span).
-                $spans = [];     // gridKey => ['order' => $wo, 'type' => 'start'|'day-start'|'cont'|'single', 'rowspan' => int]
-                foreach ($grid as $key => $wo) {
-                    if ($wo === null) {
-                        continue;
-                    }
-                    if (! $wo->end_date || ! $wo->end_shift_number) {
-                        $spans[$key] = ['order' => $wo, 'type' => 'single', 'rowspan' => 1];
-
-                        continue;
-                    }
-
-                    // Parse start date+shift from grid key
-                    [$startDate, $startShift] = [substr($key, 0, 10), (int) substr($key, 11)];
-                    $endDate = $wo->end_date->format('Y-m-d');
-                    $endShift = (int) $wo->end_shift_number;
-
-                    // Enumerate all cells this order occupies (shift-by-shift, day-by-day)
-                    $spannedKeys = [];
-                    $curDate = $startDate;
-                    $curShift = $startShift;
-                    $maxIter = $shiftsPerDay * $daysInWeek * 2; // safety limit
-                    $iter = 0;
-                    while ($iter++ < $maxIter) {
-                        $curKey = $curDate.'-'.$curShift;
-                        if (! array_key_exists($curKey, $grid)) {
-                            break;
-                        }
-                        $spannedKeys[] = $curKey;
-                        if ($curDate === $endDate && $curShift === $endShift) {
-                            break;
-                        }
-                        // Advance: next shift, or wrap to next day
-                        $curShift++;
-                        if ($curShift > $shiftsPerDay) {
-                            $curShift = 1;
-                            $curDate = \Carbon\Carbon::parse($curDate)->addDay()->format('Y-m-d');
-                        }
-                    }
-
-                    if (count($spannedKeys) <= 1) {
-                        $spans[$key] = ['order' => $wo, 'type' => 'single', 'rowspan' => 1];
-
-                        continue;
-                    }
-
-                    // Group spanned keys by date for per-day rowspan
-                    $byDate = [];
-                    foreach ($spannedKeys as $sk) {
-                        $d = substr($sk, 0, 10);
-                        $byDate[$d][] = $sk;
-                    }
-
-                    $isFirst = true;
-                    foreach ($byDate as $date => $dateKeys) {
-                        // First key of each day = start of vertical span in that column
-                        $firstKey = $dateKeys[0];
-                        $spans[$firstKey] = [
-                            'order' => $wo,
-                            'type' => $isFirst ? 'start' : 'day-start',
-                            'rowspan' => count($dateKeys),
-                        ];
-                        // For day-start cells, set grid to the order so Blade renders it
-                        if (! $isFirst) {
-                            $grid[$firstKey] = $wo;
-                        }
-                        $isFirst = false;
-
-                        // Remaining keys in this day = continuation (skip rendering <td>)
-                        for ($ci = 1; $ci < count($dateKeys); $ci++) {
-                            $spans[$dateKeys[$ci]] = ['order' => $wo, 'type' => 'cont', 'rowspan' => 0];
-                            $grid[$dateKeys[$ci]] = '__span__';
-                        }
-                    }
-                }
-
-                $weekLines[] = [
-                    'line' => $line,
-                    'orders' => $lineOrders,
-                    'grid' => $grid,
-                    'spans' => $spans,
-                    'total_planned_qty' => $lineOrders->sum('planned_qty'),
-                    'total_shifts' => $capacity,
-                    'capacity' => $capacity,
-                    'used_slots' => $usedSlots,
-                    'load_percent' => $loadPercent,
-                    'free_slots_percent' => 100 - $loadPercent,
-                ];
-            }
-
-            $totalOrders = collect($weekLines)->sum('used_slots');
-            $totalCapacity = collect($weekLines)->sum('capacity');
-            $totalLoad = $totalCapacity > 0 ? min(100, round(($totalOrders / $totalCapacity) * 100)) : 0;
-
-            $weeks[] = [
-                'number' => $weekNumber,
-                'start' => $weekStart,
-                'end' => $weekEnd,
-                'label' => __('Week').' '.$weekNumber,
-                'date_range' => $weekStart->format('d.m').' - '.$weekEnd->format('d.m'),
-                'lines' => $weekLines,
-                'total_orders' => $totalOrders,
-                'total_load_percent' => $totalLoad,
-                'free_slots_percent' => 100 - $totalLoad,
-            ];
-
-            $cursor->addWeek();
-        }
-
-        return $weeks;
-    }
-
-    private function buildDailyData(Carbon $start, Carbon $end, $lines, $workOrders, int $shiftsPerDay, bool $showWeekends): array
-    {
-        $days = [];
-        $cursor = $start->copy();
-
-        while ($cursor->lte($end)) {
-            if (! $showWeekends && $cursor->isWeekend()) {
-                $cursor->addDay();
-
-                continue;
-            }
-
-            $dayStart = $cursor->copy()->startOfDay();
-            $dayEnd = $cursor->copy()->endOfDay();
-
-            $dayLines = [];
-            foreach ($lines as $line) {
-                $lineOrders = $workOrders->filter(function ($wo) use ($line, $dayStart, $dayEnd) {
-                    if ($wo->line_id !== $line->id) {
-                        return false;
-                    }
-                    if ($wo->due_date) {
-                        return $wo->due_date->between($dayStart, $dayEnd);
-                    }
-
-                    return false;
-                })->values();
-
-                $capacity = $shiftsPerDay;
-                $usedSlots = $lineOrders->count();
-                $loadPercent = $capacity > 0 ? min(100, round(($usedSlots / $capacity) * 100)) : 0;
-
-                $dayLines[] = [
-                    'line' => $line,
-                    'orders' => $lineOrders,
-                    'total_planned_qty' => $lineOrders->sum('planned_qty'),
-                    'capacity' => $capacity,
-                    'used_slots' => $usedSlots,
-                    'load_percent' => $loadPercent,
-                    'free_slots_percent' => 100 - $loadPercent,
-                ];
-            }
-
-            $totalOrders = collect($dayLines)->sum('used_slots');
-            $totalCapacity = collect($dayLines)->sum('capacity');
-            $totalLoad = $totalCapacity > 0 ? min(100, round(($totalOrders / $totalCapacity) * 100)) : 0;
-
-            $days[] = [
-                'date' => $dayStart,
-                'label' => $dayStart->translatedFormat('D d.m'),
-                'lines' => $dayLines,
-                'total_orders' => $totalOrders,
-                'total_load_percent' => $totalLoad,
-                'free_slots_percent' => 100 - $totalLoad,
-            ];
-
-            $cursor->addDay();
-        }
-
-        return $days;
-    }
-
-    /**
-     * Build the per-line layout for the hourly (minute-level) view of a single
-     * day. Work orders that have minute planning (`planned_start_at` +
-     * `planned_end_at`) are positioned absolutely on a 24h * 60min timeline;
-     * orders that only have a legacy `due_date` are rendered as a fixed
-     * 1-hour block at the top of the day so they remain visible until they
-     * get minute timestamps assigned.
-     *
-     * Cross-midnight orders are clamped to the visible day (0..1440 min); the
-     * actual end timestamp is left untouched in the model. Conflict detection
-     * is per-line pairwise overlap on the clamped minute range.
-     */
-    private function buildHourlyData(Carbon $start, $lines, $workOrders, int $slotMinutes, bool $showWeekends): array
-    {
-        $dayStart = $start->copy()->startOfDay();
-        $dayEnd = $start->copy()->endOfDay();
-        $minutesPerDay = 24 * 60;
-        $slotsPerDay = (int) ($minutesPerDay / $slotMinutes);
-
-        // Filter WOs that are relevant to this day: either minute-planned and
-        // overlapping the day, or legacy with due_date inside the day.
-        $relevant = $workOrders->filter(function ($wo) use ($dayStart, $dayEnd) {
-            if ($wo->planned_start_at && $wo->planned_end_at) {
-                return $wo->planned_start_at->lt($dayEnd) && $wo->planned_end_at->gt($dayStart);
-            }
-
-            return $wo->due_date && $wo->due_date->between($dayStart, $dayEnd);
-        });
-
-        $lineRows = [];
-        foreach ($lines as $line) {
-            $lineOrders = $relevant->where('line_id', $line->id)->values();
-
-            // Compute minute layout for each order on this line. Cross-midnight
-            // spans are clamped to [0, minutesPerDay] for rendering only.
-            $layouts = $lineOrders->map(function ($wo) use ($dayStart, $minutesPerDay) {
-                $hasMinute = $wo->planned_start_at && $wo->planned_end_at;
-                if ($hasMinute) {
-                    $startMin = max(0, (int) $dayStart->diffInMinutes($wo->planned_start_at, false));
-                    $endMin = min($minutesPerDay, (int) $dayStart->diffInMinutes($wo->planned_end_at, false));
-                } else {
-                    // Legacy WO with only due_date: render as a 1h block at the
-                    // top of the day so it stays visible until rescheduled.
-                    $startMin = 0;
-                    $endMin = 60;
-                }
-
-                return [
-                    'wo' => $wo,
-                    'start_minute' => $startMin,
-                    'end_minute' => $endMin,
-                    'duration_minutes' => max(0, $endMin - $startMin),
-                    'is_legacy' => ! $hasMinute,
-                ];
-            })->values();
-
-            // Pairwise overlap detection on the clamped minute range. A pair
-            // (i, j) with i < j is in conflict when their minute intervals
-            // intersect with strictly positive duration.
-            $conflicts = [];
-            $count = $layouts->count();
-            for ($i = 0; $i < $count; $i++) {
-                for ($j = $i + 1; $j < $count; $j++) {
-                    $a = $layouts[$i];
-                    $b = $layouts[$j];
-                    if ($a['start_minute'] < $b['end_minute'] && $b['start_minute'] < $a['end_minute']) {
-                        $conflicts[$a['wo']->id] = true;
-                        $conflicts[$b['wo']->id] = true;
-                    }
-                }
-            }
-
-            // Assign lanes to overlapping orders so they stack vertically
-            $sortedLayouts = $layouts->sortBy('start_minute')->values();
-            $laneEnds = []; // laneEnds[lane] = end_minute of last WO in that lane
-            $laneMap = [];
-            foreach ($sortedLayouts as $l) {
-                $woId = $l['wo']->id;
-                $placed = false;
-                foreach ($laneEnds as $lane => $end) {
-                    if ($l['start_minute'] >= $end) {
-                        $laneMap[$woId] = $lane;
-                        $laneEnds[$lane] = $l['end_minute'];
-                        $placed = true;
-                        break;
-                    }
-                }
-                if (! $placed) {
-                    $lane = count($laneEnds);
-                    $laneMap[$woId] = $lane;
-                    $laneEnds[$lane] = $l['end_minute'];
-                }
-            }
-            $totalLanes = max(1, count($laneEnds));
-
-            // Stacked-lane geometry (px) computed here so the view stays
-            // logic-free: lanes share a 90px band, the row grows to fit them.
-            $laneHeight = $totalLanes > 1 ? max(30, (int) (90 / $totalLanes)) : 90;
-
-            $layouts = $layouts->map(function ($l) use ($conflicts, $laneMap, $totalLanes, $laneHeight) {
-                $lane = $laneMap[$l['wo']->id] ?? 0;
-                $l['has_conflict'] = isset($conflicts[$l['wo']->id]);
-                $l['lane'] = $lane;
-                $l['total_lanes'] = $totalLanes;
-                $l['lane_height'] = $laneHeight;
-                $l['lane_top'] = 6 + ($lane * ($laneHeight + 2));
-
-                return $l;
-            });
-
-            $usedMinutes = (int) $layouts->sum('duration_minutes');
-            $loadPercent = $minutesPerDay > 0
-                ? min(100, (int) round(($usedMinutes / $minutesPerDay) * 100))
-                : 0;
-
-            $lineRows[] = [
-                'line' => $line,
-                'orders' => $layouts,
-                'row_height' => max(114, 6 + $totalLanes * 34),
-                'used_minutes' => $usedMinutes,
-                'capacity_minutes' => $minutesPerDay,
-                'load_percent' => $loadPercent,
-                'free_minutes_percent' => 100 - $loadPercent,
-            ];
-        }
-
-        return [
-            'date' => $dayStart,
-            'label' => $dayStart->translatedFormat('l, d F Y'),
-            'is_weekend' => $dayStart->isWeekend(),
-            'show_weekends' => $showWeekends,
-            'slot_minutes' => $slotMinutes,
-            'slots_per_day' => $slotsPerDay,
-            'minutes_per_day' => $minutesPerDay,
-            'lines' => $lineRows,
-        ];
-    }
-
-    private function buildMonthlyData(Carbon $start, Carbon $end, $lines, $workOrders, int $shiftsPerDay, bool $showWeekends): array
-    {
-        $months = [];
-        $cursor = $start->copy()->startOfMonth();
-        $daysInWeek = $showWeekends ? 7 : 5;
-
-        while ($cursor->lte($end)) {
-            $monthStart = $cursor->copy()->startOfMonth();
-            $monthEnd = $cursor->copy()->endOfMonth();
-
-            // Count working days in month
-            $workingDays = 0;
-            $dayCursor = $monthStart->copy();
-            while ($dayCursor->lte($monthEnd)) {
-                if ($showWeekends || ! $dayCursor->isWeekend()) {
-                    $workingDays++;
-                }
-                $dayCursor->addDay();
-            }
-
-            $monthLines = [];
-            foreach ($lines as $line) {
-                $lineOrders = $workOrders->filter(function ($wo) use ($line, $monthStart, $monthEnd) {
-                    if ($wo->line_id !== $line->id) {
-                        return false;
-                    }
-                    if ($wo->due_date) {
-                        return $wo->due_date->between($monthStart, $monthEnd);
-                    }
-
-                    return $wo->month_number === $monthStart->month;
-                })->values();
-
-                $capacity = $shiftsPerDay * $workingDays;
-                $usedSlots = $lineOrders->count();
-                $loadPercent = $capacity > 0 ? min(100, round(($usedSlots / $capacity) * 100)) : 0;
-
-                $monthLines[] = [
-                    'line' => $line,
-                    'orders' => $lineOrders,
-                    'total_planned_qty' => $lineOrders->sum('planned_qty'),
-                    'capacity' => $capacity,
-                    'used_slots' => $usedSlots,
-                    'load_percent' => $loadPercent,
-                    'free_slots_percent' => 100 - $loadPercent,
-                ];
-            }
-
-            $totalOrders = collect($monthLines)->sum('used_slots');
-            $totalCapacity = collect($monthLines)->sum('capacity');
-            $totalLoad = $totalCapacity > 0 ? min(100, round(($totalOrders / $totalCapacity) * 100)) : 0;
-
-            $months[] = [
-                'month' => $monthStart->month,
-                'year' => $monthStart->year,
-                'start' => $monthStart,
-                'end' => $monthEnd,
-                'label' => $monthStart->translatedFormat('F Y'),
-                'lines' => $monthLines,
-                'total_orders' => $totalOrders,
-                'total_load_percent' => $totalLoad,
-                'free_slots_percent' => 100 - $totalLoad,
-            ];
-
-            $cursor->addMonth();
-        }
-
-        return $months;
     }
 }

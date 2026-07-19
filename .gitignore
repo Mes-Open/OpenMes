@@ -29,6 +29,7 @@ backend/yarn-error.log
 
 # Frontend directory (removed — Blade templates used instead)
 /frontend/
+/design
 
 # AI assistant context files (CLAUDE.md is tracked — shared project
 # conventions for AI assistants; everything else stays local)
@@ -81,3 +82,16 @@ cloudflared.deb
 # (Packaging was promoted to core; remaining modules ship via private repos)
 modules/*
 !modules/README.md
+
+# Desktop app (Tauri) — kompilacje i wbudowywane runtime'y (nigdy nie commitować)
+desktop/node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/src-tauri/resources/
+desktop/winphp-staging/
+desktop/release/
+desktop/.linux-php-backup/
+desktop/.tauri.conf.json.bak
+
+.playwright-mcp

@@ -1,32 +1,24 @@
+/**
+ * New work order — mirrors the Laravel admin create flow: order_no (required,
+ * unique), line?, product type?, planned_qty (>0), priority?, due_date?,
+ * description?. Re-skin to the shared form pattern; hooks + mutation unchanged.
+ */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ChipRow, SelectionChip } from '@/components/ui/SelectionChip';
-import { DetailScreen } from '@/components/ui/Detail';
+import { Dropdown, colors, fonts } from '@openmes/ui';
+
+import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
-import { FormSubmitBar } from '@/components/ui/FormSubmitBar';
 import { Mono } from '@/components/ui/Mono';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useLines } from '@/hooks/queries/useUsers';
 import { useProductTypes } from '@/hooks/queries/useProductTypes';
 import { useCreateWorkOrder } from '@/hooks/queries/useWorkOrders';
 
-/**
- * New work order form — mirrors the Laravel admin create flow:
- *  order_no (required, unique), line_id?, product_type_id?, planned_qty (>0),
- *  priority?, due_date?, description?
- *
- * Sits at the root level so the tablet sidebar hides during creation (matches
- * the lift-to-root convention for every other add/edit modal). After submit
- * we route back to the orders list, which invalidates the cache.
- */
 export function NewWorkOrderScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
 
   const linesQ = useLines();
@@ -66,11 +58,11 @@ export function NewWorkOrderScreen() {
   };
 
   return (
-    <DetailScreen
-      title={t('New work order')}
-      subtitle={t('Orders · create')}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.h1}>{t('New work order')}</Text>
+
       <Field
-        label={t('Order number')}
+        label="Order number"
         required
         value={orderNo}
         onChangeText={setOrderNo}
@@ -81,7 +73,7 @@ export function NewWorkOrderScreen() {
       />
 
       <Field
-        label={t('Planned quantity')}
+        label="Planned quantity"
         required
         value={plannedQty}
         onChangeText={setPlannedQty}
@@ -90,63 +82,41 @@ export function NewWorkOrderScreen() {
         mono
       />
 
-      <View style={{ gap: 8 }}>
-        <Mono size={10.5} color={palette.textFaint} letterSpacing={0.7} weight="700">
-          {t('LINE').toUpperCase()}
-        </Mono>
-        <ChipRow>
-          <SelectionChip
-            label={t('None')}
-            active={lineId === null}
-            onPress={() => setLineId(null)}
-          />
-          {(linesQ.data ?? []).map((l) => (
-            <SelectionChip
-              key={l.id}
-              label={l.name}
-              active={l.id === lineId}
-              onPress={() => setLineId(l.id)}
-            />
-          ))}
-        </ChipRow>
+      <View style={{ gap: 6 }}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Line').toUpperCase()}</Mono>
+        <Dropdown
+          value={lineId == null ? '' : String(lineId)}
+          onChange={(v) => setLineId(v ? Number(v) : null)}
+          placeholder={t('None')}
+          options={[{ value: '', label: t('None') }, ...(linesQ.data ?? []).map((l) => ({ value: String(l.id), label: l.name }))]}
+        />
       </View>
 
-      <View style={{ gap: 8 }}>
-        <Mono size={10.5} color={palette.textFaint} letterSpacing={0.7} weight="700">
-          {t('PRODUCT TYPE').toUpperCase()}
-        </Mono>
-        <ChipRow>
-          <SelectionChip
-            label={t('None')}
-            active={productTypeId === null}
-            onPress={() => setProductTypeId(null)}
-          />
-          {(productTypesQ.data ?? []).map((p) => (
-            <SelectionChip
-              key={p.id}
-              label={p.name}
-              active={p.id === productTypeId}
-              onPress={() => setProductTypeId(p.id)}
-            />
-          ))}
-        </ChipRow>
+      <View style={{ gap: 6 }}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Product Type').toUpperCase()}</Mono>
+        <Dropdown
+          value={productTypeId == null ? '' : String(productTypeId)}
+          onChange={(v) => setProductTypeId(v ? Number(v) : null)}
+          placeholder={t('None')}
+          options={[{ value: '', label: t('None') }, ...(productTypesQ.data ?? []).map((p) => ({ value: String(p.id), label: p.name }))]}
+        />
       </View>
 
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={{ flex: 1 }}>
           <Field
-            label={t('Priority')}
+            label="Priority"
             value={priority}
             onChangeText={setPriority}
             placeholder="0–100"
             keyboardType="numeric"
             mono
-            hint={t('Higher = sooner')}
+            hint="Higher = sooner"
           />
         </View>
         <View style={{ flex: 1.4 }}>
           <Field
-            label={t('Due date')}
+            label="Due date"
             value={dueDate}
             onChangeText={setDueDate}
             placeholder="YYYY-MM-DD"
@@ -157,22 +127,27 @@ export function NewWorkOrderScreen() {
       </View>
 
       <Field
-        label={t('Description')}
+        label="Description"
         value={description}
         onChangeText={setDescription}
-        placeholder={t('Optional notes')}
+        placeholder="Optional notes"
         multiline
         numberOfLines={3}
         style={{ minHeight: 80, textAlignVertical: 'top' }}
       />
 
-      <FormSubmitBar
-        primary="Create work order"
-        onPrimary={submit}
-        onSecondary={() => router.back()}
-        loading={create.isPending}
-        disabled={!valid}
-      />
-    </DetailScreen>
+      <View style={styles.actions}>
+        <Button title={t('Cancel')} variant="ghost" onPress={() => router.back()} />
+        <View style={{ flex: 1 }} />
+        <Button title={t('Create work order')} onPress={submit} loading={create.isPending} disabled={!valid} />
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+});

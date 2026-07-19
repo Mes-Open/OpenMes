@@ -9,12 +9,51 @@ use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkOrder extends Model
 {
     use Auditable, HasCustomFields, HasFactory, HasTenant;
     use SoftDeletesWithAudit;
+
+    /**
+     * Recompute the automatic priority score from the configured rules whenever
+     * a work order is saved (create or update). No-op until at least one active
+     * priority rule exists, so manual priorities are preserved until scoring is
+     * configured. Runs with persist=false because a save is already in flight.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $workOrder): void {
+            // Recompute only when a scoring-relevant field changed (or the row is
+            // new); other saves — status transitions, produced_qty ticks — skip
+            // the rule query. Time-based rules are kept fresh by priority:recalculate.
+            if ($workOrder->exists
+                && ! $workOrder->isDirty(['customer_id', 'planned_qty', 'due_date'])) {
+                return;
+            }
+
+            app(\App\Services\WorkOrder\PriorityScoringService::class)->apply($workOrder, persist: false);
+        });
+
+        // Roll a completed order into its customer's aggregate metrics (order
+        // count, revenue, auto tier promotion), once per order. Covers both a
+        // transition into DONE (updated) and an order inserted already DONE
+        // (created — e.g. a historical import). recordCompletion is idempotent.
+        $accrue = function (self $workOrder): void {
+            if ($workOrder->status === self::STATUS_DONE && ! $workOrder->customer_totals_counted) {
+                app(\App\Services\Customer\CustomerMetricsService::class)->recordCompletion($workOrder);
+            }
+        };
+
+        static::created($accrue);
+        static::updated(function (self $workOrder) use ($accrue): void {
+            if ($workOrder->wasChanged('status')) {
+                $accrue($workOrder);
+            }
+        });
+    }
 
     const STATUS_PENDING = 'PENDING';
 
@@ -41,14 +80,18 @@ class WorkOrder extends Model
     protected $fillable = [
         'order_no',
         'customer_order_no',
+        'customer_id',
         'line_id',
         'product_type_id',
         'process_snapshot',
         'planned_qty',
+        'unit_price',
         'produced_qty',
         'status',
         'line_status_id',
         'priority',
+        'priority_score',
+        'customer_totals_counted',
         'due_date',
         'end_date',
         'week_number',
@@ -70,8 +113,11 @@ class WorkOrder extends Model
             'process_snapshot' => 'array',
             'extra_data' => 'array',
             'planned_qty' => 'decimal:2',
+            'unit_price' => 'decimal:2',
             'produced_qty' => 'decimal:2',
             'priority' => 'integer',
+            'priority_score' => 'integer',
+            'customer_totals_counted' => 'boolean',
             'due_date' => 'datetime',
             'end_date' => 'datetime',
             'planned_start_at' => 'datetime',
@@ -105,6 +151,84 @@ class WorkOrder extends Model
     }
 
     /**
+     * Best-effort estimate of total planned work in minutes for orders that do
+     * NOT have minute-level planning timestamps (those use
+     * {@see plannedDurationMinutes()} instead). Falls back through concrete
+     * batch-step durations, then the product's process-snapshot step estimates.
+     *
+     * Returns null when neither source yields a positive duration
+     * ("unestimated") so callers can surface the order rather than silently
+     * treating it as zero load.
+     */
+    public function estimatedDurationMinutes(): ?int
+    {
+        // 1. Concrete batch-step durations (actual planned runtimes per step).
+        if ($this->relationLoaded('batches')) {
+            $sum = 0;
+            foreach ($this->batches as $batch) {
+                if (! $batch->relationLoaded('steps')) {
+                    continue;
+                }
+                foreach ($batch->steps as $step) {
+                    $sum += (int) ($step->duration_minutes ?? 0);
+                }
+            }
+            if ($sum > 0) {
+                return $sum;
+            }
+        }
+
+        // 2. Process-snapshot step estimates captured from the product template.
+        $sum = 0;
+        foreach ($this->process_snapshot['steps'] ?? [] as $step) {
+            $sum += (int) ($step['estimated_duration_minutes'] ?? 0);
+        }
+
+        return $sum > 0 ? $sum : null;
+    }
+
+    /**
+     * Labor multiplier turning this order's machine-hours into person-hours for
+     * the schedule-capacity crew axis: the duration-weighted average operators
+     * across its process-snapshot steps — i.e. Σ(step minutes × operators) ÷
+     * Σ(step minutes), so true person-hours = machine-hours × this factor.
+     *
+     * Falls back to the heaviest step's operator count when no step has a
+     * duration, and to 1 when the snapshot has no steps/operators. A step with
+     * a missing or zero operator count is treated as needing one operator.
+     */
+    public function operatorFactor(): float
+    {
+        $totalMinutes = 0;
+        $weighted = 0;
+        $maxOperators = 0;
+
+        foreach ($this->process_snapshot['steps'] ?? [] as $step) {
+            $operators = max(1, (int) ($step['required_operators'] ?? 1));
+            $minutes = (int) ($step['estimated_duration_minutes'] ?? 0);
+            $maxOperators = max($maxOperators, $operators);
+            if ($minutes > 0) {
+                $totalMinutes += $minutes;
+                $weighted += $minutes * $operators;
+            }
+        }
+
+        if ($totalMinutes > 0) {
+            return $weighted / $totalMinutes;
+        }
+
+        return max(1, $maxOperators);
+    }
+
+    /**
+     * Get the customer this work order was placed for (nullable).
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    /**
      * Get the line that owns this work order.
      */
     public function line(): BelongsTo
@@ -113,11 +237,36 @@ class WorkOrder extends Model
     }
 
     /**
+     * Extra schedule segments beyond the primary placement — the order also
+     * runs on these lines/dates (a multi-line staircase or concurrent runs).
+     */
+    public function extraPlacements(): HasMany
+    {
+        return $this->hasMany(WorkOrderPlacement::class)->orderBy('due_date')->orderBy('shift_number');
+    }
+
+    /**
      * Get the product type for this work order.
      */
     public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductType::class);
+    }
+
+    /**
+     * BOMs (process templates) linked to this work order. An order may reference
+     * more than one BOM (variant / alternative bills of materials); all linked
+     * BOMs drive its requirements and consumption via the merged snapshot. Orders
+     * with no rows here fall back to the legacy single auto-picked active template
+     * - see {@see WorkOrderService::buildProcessSnapshot()}. The pivot's
+     * `is_active` flag (always true today) is reserved for per-link deactivation.
+     */
+    public function bomTemplates(): BelongsToMany
+    {
+        return $this->belongsToMany(ProcessTemplate::class, 'work_order_boms')
+            ->withPivot(['is_active', 'sort_order'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
     }
 
     /**
@@ -296,9 +445,19 @@ class WorkOrder extends Model
      */
     public function scopeByPriority($query)
     {
-        return $query->orderBy('priority', 'desc')
+        return $query->orderBy('priority_score', 'desc')
+            ->orderBy('priority', 'desc')
             ->orderBy('due_date', 'asc')
             ->orderBy('created_at', 'asc');
+    }
+
+    /**
+     * Scope to filter by packable state.
+     * Packable work orders must be in DONE or IN_PROGRESS state.
+     */
+    public function scopePackable($query)
+    {
+        return $query->whereIn('status', [self::STATUS_DONE, self::STATUS_IN_PROGRESS]);
     }
 
     /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */

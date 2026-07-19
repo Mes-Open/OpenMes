@@ -55,6 +55,17 @@ function OptionalVariantFields({ data, setData, errors }) {
             {errors.is_default_variant && (
                 <p className="md:col-span-3 text-om-blocked text-xs">{errors.is_default_variant}</p>
             )}
+
+            <div className="md:col-span-3 flex items-center border-t border-om-line pt-3">
+                <Checkbox
+                    checked={!!data.requires_confirmation}
+                    onChange={(next) => setData('requires_confirmation', next)}
+                    label={__('Require operator to confirm they read the instructions')}
+                />
+            </div>
+            <p className="md:col-span-3 -mt-2 text-xs text-om-muted">
+                {__('When on, the operator must acknowledge the instructions before this step can be completed.')}
+            </p>
         </div>
     );
 }
@@ -66,7 +77,9 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
     const form = useForm({
         name: '',
         instruction: '',
+        requires_confirmation: false,
         estimated_duration_minutes: '',
+        required_operators: '',
         workstation_id: '',
         process_segment_id: '',
         is_optional: false,
@@ -98,7 +111,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
     return (
         <div className="card mb-6" style={{ borderLeft: '4px solid #3b82f6' }}>
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-om-ink">Add New Step</h2>
+                <h2 className="text-xl font-bold text-om-ink">{__("Add New Step")}</h2>
                 <button type="button" onClick={onCancel} className="text-om-muted hover:text-om-ink">
                     <Icon d="M6 18L18 6M6 6l12 12" />
                 </button>
@@ -112,7 +125,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                             value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                             onChange={(v) => applySegment(v)}
                             options={[
-                                { value: '', label: '— Define ad-hoc step —' },
+                                { value: '', label: __('— Define ad-hoc step —') },
                                 ...processSegments.map((seg) => ({
                                     value: String(seg.id),
                                     label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
@@ -146,7 +159,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                             value={data.workstation_id == null ? '' : String(data.workstation_id)}
                             onChange={(v) => setData('workstation_id', v)}
                             options={[
-                                { value: '', label: 'No specific workstation' },
+                                { value: '', label: __('No specific workstation') },
                                 ...workstations.map((ws) => ({
                                     value: String(ws.id),
                                     label: `${ws.name} (${ws.line_name ?? '-'})`,
@@ -179,6 +192,19 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                         />
                     </div>
 
+                    <div>
+                        <label className="form-label">Operators Required</label>
+                        <input
+                            type="number"
+                            value={data.required_operators}
+                            onChange={(e) => setData('required_operators', e.target.value)}
+                            min="1"
+                            className="form-input w-full"
+                            placeholder="Inherit from segment"
+                        />
+                        <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
+                    </div>
+
                     <OptionalVariantFields data={data} setData={setData} errors={errors} />
                 </div>
 
@@ -202,7 +228,9 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
     const form = useForm({
         name: step.name ?? '',
         instruction: step.instruction ?? '',
+        requires_confirmation: !!step.requires_confirmation,
         estimated_duration_minutes: step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
+        required_operators: step.required_operators != null ? String(step.required_operators) : '',
         workstation_id: step.workstation_id != null ? String(step.workstation_id) : '',
         process_segment_id: step.process_segment_id != null ? String(step.process_segment_id) : '',
         is_optional: !!step.is_optional,
@@ -229,7 +257,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                         value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                         onChange={(v) => setData('process_segment_id', v)}
                         options={[
-                            { value: '', label: '— None (ad-hoc step) —' },
+                            { value: '', label: __('— None (ad-hoc step) —') },
                             ...processSegments.map((seg) => ({
                                 value: String(seg.id),
                                 label: `[${capitalize(seg.segment_type)}] ${seg.code} — ${seg.name}`,
@@ -262,7 +290,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                         value={data.workstation_id == null ? '' : String(data.workstation_id)}
                         onChange={(v) => setData('workstation_id', v)}
                         options={[
-                            { value: '', label: 'No specific workstation' },
+                            { value: '', label: __('No specific workstation') },
                             ...workstations.map((ws) => ({
                                 value: String(ws.id),
                                 label: `${ws.name} (${ws.line_name ?? '-'})`,
@@ -291,6 +319,19 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                         min="0"
                         className="form-input w-full"
                     />
+                </div>
+
+                <div>
+                    <label className="form-label">Operators Required</label>
+                    <input
+                        type="number"
+                        value={data.required_operators}
+                        onChange={(e) => setData('required_operators', e.target.value)}
+                        min="1"
+                        className="form-input w-full"
+                        placeholder="Inherit from segment"
+                    />
+                    <p className="text-xs text-om-muted mt-1">People needed to run this step (drives crew labor demand). Blank inherits the linked segment, else 1.</p>
                 </div>
 
                 <OptionalVariantFields data={data} setData={setData} errors={errors} />
@@ -337,7 +378,7 @@ function StepPhoto({ step, photo, baseUrl }) {
     };
 
     const remove = () => {
-        if (confirm('Delete this step photo?')) {
+        if (confirm(__('Delete this step photo?'))) {
             router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
         }
     };
@@ -355,10 +396,10 @@ function StepPhoto({ step, photo, baseUrl }) {
                     </button>
                     <div className="flex flex-col gap-1">
                         <button type="button" onClick={pick} disabled={form.processing} className="text-xs text-om-accent hover:underline text-left">
-                            {form.processing ? 'Uploading…' : 'Replace photo'}
+                            {form.processing ? __('Uploading…') : __('Replace photo')}
                         </button>
                         <button type="button" onClick={remove} className="text-xs text-om-blocked hover:underline text-left">
-                            Remove
+                            {__('Remove')}
                         </button>
                     </div>
                 </>
@@ -370,7 +411,7 @@ function StepPhoto({ step, photo, baseUrl }) {
                     className="flex items-center gap-2 px-3 py-2 rounded-om-sm border border-dashed border-om-line text-sm text-om-muted hover:border-blue-400 hover:text-om-accent disabled:opacity-50"
                 >
                     <Icon d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z" className="w-4 h-4" />
-                    {form.processing ? 'Uploading…' : 'Add step photo'}
+                    {form.processing ? __('Uploading…') : __('Add step photo')}
                 </button>
             )}
             {form.errors.photo && <span className="text-xs text-om-blocked">{form.errors.photo}</span>}
@@ -429,14 +470,19 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
         <div className="mt-3 border-t border-om-line2 pt-3 space-y-3">
             {/* Media */}
             <div>
-                <p className="text-xs font-semibold text-om-muted mb-1.5">Work-instruction media</p>
+                <p className="text-xs font-semibold text-om-muted mb-1.5">{__('Work-instruction media')}</p>
                 {media.length > 0 && (
                     <ul className="mb-2 space-y-1">
                         {media.map((m) => (
                             <li key={m.id} className="flex items-center gap-2 text-sm">
-                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">{m.media_type}</span>
+                                <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-om-chip text-om-muted">
+                                    {m.media_type === 'image' && __('Image')}
+                                    {m.media_type === 'pdf' && __('PDF')}
+                                    {m.media_type === 'video' && __('Video')}
+                                    {!['image', 'pdf', 'video'].includes(m.media_type) && __(m.media_type ? m.media_type.charAt(0).toUpperCase() + m.media_type.slice(1) : '')}
+                                </span>
                                 <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-om-accent hover:underline truncate max-w-[260px]">{m.title || m.original_name}</a>
-                                <button type="button" onClick={() => router.delete(`${mediaBase}/${m.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">Remove</button>
+                                <button type="button" onClick={() => router.delete(`${mediaBase}/${m.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">{__('Remove')}</button>
                             </li>
                         ))}
                     </ul>
@@ -447,19 +493,19 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                         onChange={(e) => mediaForm.setData('media_type', e.target.value)}
                         className="form-select text-sm py-1"
                     >
-                        <option value="image">Image</option>
-                        <option value="pdf">PDF</option>
-                        <option value="video">Video</option>
+                        <option value="image">{__('Image')}</option>
+                        <option value="pdf">{__('PDF')}</option>
+                        <option value="video">{__('Video')}</option>
                     </select>
                     <input
                         type="text"
                         value={mediaForm.data.title}
                         onChange={(e) => mediaForm.setData('title', e.target.value)}
-                        placeholder="Title (optional)"
+                        placeholder={__('Title (optional)')}
                         className="form-input text-sm py-1 flex-1 min-w-[120px]"
                     />
                     <button type="button" onClick={() => fileRef.current?.click()} disabled={mediaForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">
-                        {mediaForm.processing ? 'Uploading…' : 'Upload file'}
+                        {mediaForm.processing ? __('Uploading…') : __('Upload file')}
                     </button>
                     <input ref={fileRef} type="file" accept={MEDIA_ACCEPT[mediaForm.data.media_type]} className="hidden" onChange={onFile} />
                 </div>
@@ -468,14 +514,14 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
 
             {/* Checklist */}
             <div>
-                <p className="text-xs font-semibold text-om-muted mb-1.5">Checklist</p>
+                <p className="text-xs font-semibold text-om-muted mb-1.5">{__('Checklist')}</p>
                 {items.length > 0 && (
                     <ul className="mb-2 space-y-1">
                         {items.map((c) => (
                             <li key={c.id} className="flex items-center gap-2 text-sm">
                                 <span className="text-om-ink">{c.label}</span>
-                                {c.is_required && <span className="text-[10px] uppercase text-om-downtime">required</span>}
-                                <button type="button" onClick={() => router.delete(`${checklistBase}/${c.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">Remove</button>
+                                {c.is_required && <span className="text-[10px] uppercase text-om-downtime">{__('required')}</span>}
+                                <button type="button" onClick={() => router.delete(`${checklistBase}/${c.id}`, { preserveScroll: true })} className="text-xs text-om-blocked hover:underline ml-auto">{__('Remove')}</button>
                             </li>
                         ))}
                     </ul>
@@ -485,14 +531,14 @@ function StepInstructionsEditor({ step, productType, processTemplate }) {
                         type="text"
                         value={itemForm.data.label}
                         onChange={(e) => itemForm.setData('label', e.target.value)}
-                        placeholder="Add checklist item…"
+                        placeholder={__('Add checklist item…')}
                         className="form-input text-sm py-1 flex-1 min-w-[160px]"
                     />
                     <label className="flex items-center gap-1.5 text-xs text-om-muted">
                         <input type="checkbox" checked={itemForm.data.is_required} onChange={(e) => itemForm.setData('is_required', e.target.checked)} />
-                        Required
+                        {__('Required')}
                     </label>
-                    <button type="submit" disabled={itemForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">Add</button>
+                    <button type="submit" disabled={itemForm.processing} className="text-sm text-om-accent hover:underline disabled:opacity-50">{__('Add')}</button>
                 </form>
             </div>
         </div>
@@ -544,6 +590,11 @@ function StepCard({
                                         {step.variant_group && (
                                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-chip text-om-accent">
                                                 {__('Variant')}: {step.variant_group}{step.is_default_variant ? ` (${__('default')})` : ''}
+                                            </span>
+                                        )}
+                                        {step.requires_confirmation && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-blocked-bg text-om-blocked">
+                                                {__('Read-confirmation')}
                                             </span>
                                         )}
                                     </h3>
@@ -762,7 +813,7 @@ export default function ProcessTemplatesShow() {
                         className="text-om-accent hover:text-om-accent flex items-center gap-2 mb-4"
                     >
                         <Icon d="M15 19l-7-7 7-7" />
-                        Back to Templates
+                        {__("Back to Templates")}
                     </a>
 
                     <div className="flex items-center justify-between">
@@ -835,8 +886,8 @@ export default function ProcessTemplatesShow() {
 
                 {/* Steps List header */}
                 <div className="flex items-center gap-2 mb-4">
-                    <h2 className="text-xl font-bold text-om-ink">Production Steps</h2>
-                    <span className="text-sm text-om-muted">(first to last)</span>
+                    <h2 className="text-xl font-bold text-om-ink">{__("Production Steps")}</h2>
+                    <span className="text-sm text-om-muted">({__("first to last")})</span>
                 </div>
 
                 {steps.length > 0 ? (
@@ -868,9 +919,9 @@ export default function ProcessTemplatesShow() {
                         <svg className="mx-auto h-16 w-16 text-om-faint mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
-                        <p className="text-lg font-medium text-om-muted">No production steps yet</p>
+                        <p className="text-lg font-medium text-om-muted">{__("No production steps yet")}</p>
                         <p className="text-sm text-om-muted mt-1 mb-4">
-                            Add steps to define the manufacturing process for this product.
+                            {__("Add steps to define the manufacturing process for this product.")}
                         </p>
                         <button
                             type="button"
@@ -878,7 +929,7 @@ export default function ProcessTemplatesShow() {
                             className="inline-block btn-touch btn-primary"
                         >
                             <Icon d="M12 4v16m8-8H4" className="w-5 h-5 inline-block mr-2" />
-                            Add First Step
+                            {__("Add First Step")}
                         </button>
                     </div>
                 )}
@@ -935,14 +986,14 @@ function PhotosSection({ productType, processTemplate }) {
     };
 
     const handleDelete = (photo) => {
-        if (!confirm('Delete this photo?')) return;
+        if (!confirm(__('Delete this photo?'))) return;
         router.delete(`${baseUrl}/${photo.id}`, { preserveScroll: true });
     };
 
     return (
         <div className="mt-10">
             <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-xl font-bold text-om-ink">General Reference Photos</h2>
+                <h2 className="text-xl font-bold text-om-ink">{__("General Reference Photos")}</h2>
                 <span className="text-sm text-om-muted">({photos.length}/20)</span>
             </div>
 
@@ -950,7 +1001,7 @@ function PhotosSection({ productType, processTemplate }) {
             <form onSubmit={submit} className="card mb-4 flex flex-wrap items-end gap-3">
                 <div>
                     <label className="block text-sm font-medium text-om-muted mb-1">
-                        Photo <span className="text-xs text-om-faint">(JPEG/PNG/WebP, max 10 MB)</span>
+                        {__("Photo")} <span className="text-xs text-om-faint">{__("(JPEG/PNG/WebP, max 10 MB)")}</span>
                     </label>
                     <input
                         ref={fileInputRef}
@@ -961,13 +1012,12 @@ function PhotosSection({ productType, processTemplate }) {
                     />
                 </div>
                 <div className="flex-1 min-w-[200px]">
-                    <label className="block text-sm font-medium text-om-muted mb-1">Caption</label>
+                    <label className="block text-sm font-medium text-om-muted mb-1">{__("Caption")}</label>
                     <input
                         type="text"
                         value={form.data.caption}
                         onChange={(e) => form.setData('caption', e.target.value)}
-                        maxLength={255}
-                        placeholder="Optional description"
+                            placeholder={__("Optional description")}
                         className="form-input w-full"
                     />
                 </div>
@@ -976,12 +1026,12 @@ function PhotosSection({ productType, processTemplate }) {
                     disabled={form.processing || !form.data.photo}
                     className="btn-touch btn-primary disabled:opacity-50"
                 >
-                    {form.processing ? 'Uploading…' : 'Upload'}
+                    {form.processing ? __('Uploading…') : __('Upload')}
                 </button>
                 {form.errors.photo && <p className="w-full text-sm text-om-blocked">{form.errors.photo}</p>}
                 {form.errors.caption && <p className="w-full text-sm text-om-blocked">{form.errors.caption}</p>}
             </form>
-
+ 
             {/* Photo grid */}
             {photos.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -1001,7 +1051,7 @@ function PhotosSection({ productType, processTemplate }) {
                                 />
                             </button>
                             <div className="mt-2 text-xs text-om-muted truncate" title={photo.caption || ''}>
-                                {photo.caption || <span className="text-om-faint">No caption</span>}
+                                {photo.caption || <span className="text-om-faint">{__("No caption")}</span>}
                             </div>
                             <div className="text-[10px] text-om-faint">
                                 {photo.width}×{photo.height} • {photo.file_size}
@@ -1010,7 +1060,7 @@ function PhotosSection({ productType, processTemplate }) {
                                 type="button"
                                 onClick={() => handleDelete(photo)}
                                 className="absolute top-3 right-3 bg-om-card/90 text-om-blocked rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                                title="Delete photo"
+                                title={__("Delete photo")}
                             >
                                 <Icon d="M6 18L18 6M6 6l12 12" className="w-4 h-4" />
                             </button>
@@ -1019,7 +1069,7 @@ function PhotosSection({ productType, processTemplate }) {
                 </div>
             ) : (
                 <div className="card text-center py-8 text-sm text-om-muted">
-                    No reference photos yet. Upload assembly/work-instruction images for operators.
+                    {__("No reference photos yet. Upload assembly/work-instruction images for operators.")}
                 </div>
             )}
 

@@ -16,7 +16,7 @@ createInertiaApp({
         // Load the active locale's translation chunk before the first render so
         // __() is ready and there's no flash of untranslated/wrong-language text.
         await loadLocale(props.initialPage.props.locale ?? 'en');
-        // Plant timezone for the date/time format helpers (lib/i18n).
+        // Set the active timezone from the Inertia prop.
         setTimezone(props.initialPage.props.timezone);
         // Tenant key for Reverb channel names (null-safe → 'g'), mirrors TenantScope.
         window.__TENANT__ = props.initialPage.props.auth?.user?.tenant_id ?? 'g';

@@ -1,17 +1,22 @@
-import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
+/**
+ * Maintenance event detail — the web has no Show page for events, so this
+ * mirrors the detail pattern: title header + status pill, a bordered key/value
+ * info box, notes, and the tool history as a table. Start / complete / cancel /
+ * delete wiring is preserved from the old design.
+ */
+import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+
+import { colors, fonts, radius } from '@openmes/ui';
 
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { DangerZone, DetailScreen } from '@/components/ui/Detail';
 import { Field } from '@/components/ui/Field';
-import { Mono, SectionLabel } from '@/components/ui/Mono';
+import { Mono } from '@/components/ui/Mono';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import {
   useCancelMaintenanceEvent,
   useCompleteMaintenanceEvent,
@@ -21,20 +26,14 @@ import {
   useStartMaintenanceEvent,
 } from '@/hooks/queries/useMaintenance';
 import { isSupervisorOrAdmin, useAuthStore } from '@/stores/authStore';
-import type { MaintenanceEventType } from '@/api/maintenance';
 
-const TYPE_TONE: Record<MaintenanceEventType, { bg: string; fg: string; label: string }> = {
-  planned:    { bg: '#1d4ed8', fg: '#fff', label: 'PLANNED' },
-  corrective: { bg: '#D6442F', fg: '#fff', label: 'CORRECTIVE' },
-  inspection: { bg: '#7c3aed', fg: '#fff', label: 'INSPECTION' },
-};
+const humanize = (s: string) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 export function MaintenanceEventDetailScreen() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const numericId = Number(id);
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
 
   const query = useMaintenanceEvent(numericId);
   const startMutation = useStartMaintenanceEvent();
@@ -61,19 +60,13 @@ export function MaintenanceEventDetailScreen() {
   const canTransition = isAdminOrSup || e.assigned_to_id === user?.id;
   const canDelete = user?.roles?.some((r) => r.name === 'Admin') ?? false;
 
-  const tone = TYPE_TONE[e.event_type as MaintenanceEventType] ?? TYPE_TONE.planned;
-  const startedAgo = e.started_at
-    ? (() => {
-        try {
-          return formatDistanceToNowStrict(parseISO(e.started_at));
-        } catch {
-          return null;
-        }
-      })()
-    : null;
+  const target = e.tool?.name ?? e.line?.name ?? e.workstation?.name ?? '—';
+  const scheduled = e.scheduled_at ? String(e.scheduled_at).slice(0, 16).replace('T', ' ') : '—';
+  const startedTime = e.started_at ? fmtTime(e.started_at) : '—';
+  const history = (historyQ.data?.data ?? []).filter((h) => h.id !== e.id).slice(0, 5);
 
   const onStart = () =>
-    startMutation.mutate(e.id, { onError: (err: Error) => Alert.alert('Failed', err.message) });
+    startMutation.mutate(e.id, { onError: (err: Error) => Alert.alert(t('Failed'), err.message) });
   const onComplete = () =>
     completeMutation.mutate(
       {
@@ -82,87 +75,68 @@ export function MaintenanceEventDetailScreen() {
         actual_cost: actualCost ? Number(actualCost) : undefined,
         currency: currency || undefined,
       },
-      { onError: (err: Error) => Alert.alert('Failed', err.message) },
+      { onError: (err: Error) => Alert.alert(t('Failed'), err.message) },
     );
   const onCancel = () =>
-    cancelMutation.mutate(e.id, { onError: (err: Error) => Alert.alert('Failed', err.message) });
-
-  const startedTime = e.started_at ? fmtTime(e.started_at) : '—';
-  const history = (historyQ.data?.data ?? []).filter((h) => h.id !== e.id).slice(0, 5);
+    cancelMutation.mutate(e.id, { onError: (err: Error) => Alert.alert(t('Failed'), err.message) });
+  const onDelete = () =>
+    Alert.alert(t('Delete event'), t('Delete "{{title}}"?').replace('{{title}}', e.title), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () =>
+          deleteMutation.mutate(e.id, {
+            onSuccess: () => router.back(),
+            onError: (err: Error) => Alert.alert(t('Failed'), err.message),
+          }),
+      },
+    ]);
 
   return (
-    <DetailScreen>
-      {/* Hero */}
-      <View>
-        <View style={styles.tagsRow}>
-          <View style={[styles.typeTag, { backgroundColor: tone.bg }]}>
-            <Mono size={9.5} color={tone.fg} weight="700" letterSpacing={0.6}>
-              {tone.label}
-            </Mono>
-          </View>
-          <Mono size={11} color={palette.textFaint}>
-            {[e.line?.name, e.workstation?.name, e.tool?.code]
-              .filter(Boolean)
-              .join(' · ')
-              .toUpperCase()}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.h1}>{e.title}</Text>
+          <Mono size={10} color={colors.faint} letterSpacing={0.4} style={{ marginTop: 6 }}>
+            {[humanize(e.event_type), target].filter(Boolean).join(' · ').toUpperCase()}
           </Mono>
         </View>
-        <Text style={[styles.title, { color: palette.text }]}>{e.title}</Text>
-        {e.status === 'in_progress' && startedAgo ? (
-          <View style={[styles.statusPill, { backgroundColor: '#FAF0DD' }]}>
-            <View style={[styles.statusDot, { backgroundColor: '#EA5A2B' }]} />
-            <Mono size={11} color={'#8a5a0e'} weight="700" letterSpacing={0.5}>
-              IN PROGRESS · {startedAgo.toUpperCase()}
-            </Mono>
-          </View>
-        ) : null}
-      </View>
-
-      {/* 3-up meta grid */}
-      <View style={styles.metaGrid}>
-        <MetaCell label="TOOL" value={e.tool?.code ?? '—'} />
-        <MetaCell label="ASSIGNED" value={e.assigned_to_id != null ? `#${e.assigned_to_id}` : '—'} />
-        <MetaCell label="STARTED" value={startedTime} />
+        <StatusPill status={e.status} />
       </View>
 
       {/* Action bar */}
       {canTransition && e.status === 'pending' ? (
-        <Button
-          title="Start"
-          variant="success"
-          loading={startMutation.isPending}
-          onPress={onStart}
-          leftIcon={<FontAwesome name="play" size={13} color="#fff" />}
-        />
+        <Button title={t('Start')} variant="success" loading={startMutation.isPending} onPress={onStart} />
       ) : null}
       {canTransition && e.status === 'in_progress' ? (
         <View style={styles.actionBar}>
           <Button
-            title="COMPLETE EVENT"
+            title={t('Complete event')}
             variant="success"
             style={{ flex: 2 }}
             loading={completeMutation.isPending}
             onPress={onComplete}
-            leftIcon={<FontAwesome name="check" size={13} color="#fff" />}
           />
           <Button
-            title="CANCEL"
+            title={t('Cancel')}
             variant="outline"
             style={{ flex: 1 }}
             loading={cancelMutation.isPending}
             onPress={() =>
-              Alert.alert('Cancel event', 'Mark this event as cancelled?', [
-                { text: 'Back', style: 'cancel' },
-                { text: 'Cancel event', style: 'destructive', onPress: onCancel },
+              Alert.alert(t('Cancel event'), t('Mark this event as cancelled?'), [
+                { text: t('Back'), style: 'cancel' },
+                { text: t('Cancel event'), style: 'destructive', onPress: onCancel },
               ])
             }
           />
         </View>
       ) : null}
 
+      {/* Completion form */}
       {canTransition && e.status === 'in_progress' ? (
-        <Card style={{ gap: 12 }}>
-          <SectionLabel>Completion details</SectionLabel>
+        <View style={{ gap: 12 }}>
+          <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Completion details').toUpperCase()}</Mono>
           <Field
             label="Resolution notes"
             value={resolutionNotes}
@@ -171,113 +145,94 @@ export function MaintenanceEventDetailScreen() {
             numberOfLines={3}
             style={{ minHeight: 80, textAlignVertical: 'top' }}
           />
-          <Field
-            label="Actual cost (optional)"
-            value={actualCost}
-            onChangeText={setActualCost}
-            keyboardType="decimal-pad"
-          />
-          <Field
-            label="Currency"
-            value={currency}
-            onChangeText={setCurrency}
-            autoCapitalize="characters"
-          />
-        </Card>
+          <Field label="Actual cost (optional)" value={actualCost} onChangeText={setActualCost} keyboardType="decimal-pad" mono />
+          <Field label="Currency" value={currency} onChangeText={setCurrency} autoCapitalize="characters" mono />
+        </View>
       ) : null}
+
+      {/* Info box */}
+      <View style={{ gap: 8 }}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Details').toUpperCase()}</Mono>
+        <View style={styles.box}>
+          <KVRow label={t('Type')} value={humanize(e.event_type)} />
+          <KVRow label={t('Target')} value={target} />
+          <KVRow label={t('Tool')} value={e.tool?.code ?? '—'} mono />
+          <KVRow label={t('Assigned')} value={e.assigned_to_id != null ? `#${e.assigned_to_id}` : '—'} mono />
+          <KVRow label={t('Scheduled')} value={scheduled} mono />
+          <KVRow label={t('Started')} value={startedTime} mono last />
+        </View>
+      </View>
 
       {/* Notes */}
       {e.description ? (
-        <View>
-          <SectionLabel>Notes</SectionLabel>
-          <Card>
-            <Text style={{ color: palette.textMuted, fontSize: 13, lineHeight: 20 }}>
-              {e.description}
-            </Text>
-          </Card>
+        <View style={{ gap: 8 }}>
+          <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Notes').toUpperCase()}</Mono>
+          <View style={styles.box}>
+            <Text style={styles.notes}>{e.description}</Text>
+          </View>
         </View>
       ) : null}
 
       {/* Tool history */}
       {e.tool ? (
-        <View>
-          <SectionLabel
-            right={
-              <Mono size={11} color={palette.textFaint}>
-                {history.length === 0 ? '—' : `LAST ${history.length}`}
-              </Mono>
-            }>
-            {`History · ${e.tool.code}`}
-          </SectionLabel>
+        <View style={{ gap: 8 }}>
+          <Mono size={9} color={colors.faint} letterSpacing={0.6}>
+            {`${t('History')} · ${e.tool.code}`.toUpperCase()}
+          </Mono>
           {history.length === 0 ? (
-            <Card>
-              <Mono size={11} color={palette.textFaint}>NO PREVIOUS EVENTS</Mono>
-            </Card>
+            <Text style={styles.empty}>{t('No previous events.')}</Text>
           ) : (
-            <Card style={{ padding: 0, overflow: 'hidden' }}>
-              {history.map((h, i) => (
-                <View
-                  key={h.id}
-                  style={[
-                    styles.historyRow,
-                    i < history.length - 1
-                      ? {
-                          borderBottomColor: palette.border,
-                          borderBottomWidth: StyleSheet.hairlineWidth,
-                        }
-                      : null,
-                  ]}>
-                  <Mono size={10.5} color={palette.textFaint} style={{ width: 84 }}>
-                    {(h.completed_at ?? h.scheduled_at ?? '').slice(0, 10)}
-                  </Mono>
-                  <Text
-                    style={{ flex: 1, color: palette.text, fontSize: 12 }}
-                    numberOfLines={1}>
-                    {h.event_type.charAt(0).toUpperCase() + h.event_type.slice(1)} · {h.title}
-                  </Text>
-                  <Mono size={10.5} color={palette.textMuted}>
-                    {(h.assigned_to_id != null ? `#${h.assigned_to_id}` : '—')}
-                  </Mono>
+            <View>
+              <View style={[styles.row, styles.tableHead]}>
+                <HCell w={90}>{t('Date')}</HCell>
+                <HCell flex={1}>{t('Event')}</HCell>
+                <HCell w={64}>{t('By')}</HCell>
+              </View>
+              {history.map((h) => (
+                <View key={h.id} style={[styles.row, styles.tableRow]}>
+                  <View style={{ width: 90 }}>
+                    <Mono size={10} color={colors.faint}>{(h.completed_at ?? h.scheduled_at ?? '').slice(0, 10)}</Mono>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={styles.cellText}>{`${humanize(h.event_type)} · ${h.title}`}</Text>
+                  </View>
+                  <View style={{ width: 64 }}>
+                    <Mono size={10} color={colors.muted}>{h.assigned_to_id != null ? `#${h.assigned_to_id}` : '—'}</Mono>
+                  </View>
                 </View>
               ))}
-            </Card>
+            </View>
           )}
         </View>
       ) : null}
 
       {canDelete && e.status === 'pending' ? (
-        <DangerZone
-          deleteLabel="Delete event"
-          deleteConfirmTitle="Delete event"
-          deleteConfirmMessage={`Delete "${e.title}"?`}
-          deleteLoading={deleteMutation.isPending}
-          onDelete={() =>
-            deleteMutation.mutate(e.id, {
-              onSuccess: () => router.back(),
-              onError: (err: Error) => Alert.alert('Failed', err.message),
-            })
-          }
-        />
+        <View style={styles.actions}>
+          <View style={{ flex: 1 }} />
+          <Button title={t('Delete event')} variant="danger" loading={deleteMutation.isPending} onPress={onDelete} />
+        </View>
       ) : null}
-    </DetailScreen>
+    </ScrollView>
   );
 }
 
-function MetaCell({ label, value }: { label: string; value: string }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+function KVRow({ label, value, mono, last }: { label: string; value: string; mono?: boolean; last?: boolean }) {
   return (
-    <View
-      style={[
-        styles.metaCell,
-        { backgroundColor: palette.surface, borderColor: palette.border },
-      ]}>
-      <Mono size={9.5} color={palette.textFaint} letterSpacing={0.6}>
-        {label}
-      </Mono>
-      <Mono size={12} color={palette.text} weight="700" style={{ marginTop: 4 }}>
-        {value}
-      </Mono>
+    <View style={[styles.kvRow, last ? null : styles.kvBorder]}>
+      <Mono size={9} color={colors.faint} letterSpacing={0.6}>{label.toUpperCase()}</Mono>
+      {mono ? (
+        <Mono size={11} color={colors.ink}>{value}</Mono>
+      ) : (
+        <Text style={styles.kvValue} numberOfLines={1}>{value}</Text>
+      )}
+    </View>
+  );
+}
+
+function HCell({ children, w, flex }: { children: React.ReactNode; w?: number; flex?: number }) {
+  return (
+    <View style={{ width: w, flex }}>
+      <Mono size={9} color={colors.faint} letterSpacing={0.6}>{String(children).toUpperCase()}</Mono>
     </View>
   );
 }
@@ -291,33 +246,20 @@ function fmtTime(iso: string): string {
 }
 
 const styles = StyleSheet.create({
-  tagsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  typeTag: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 },
-  title: { fontSize: 22, fontWeight: '700', letterSpacing: -0.3, marginTop: 8 },
-  statusPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    marginTop: 12,
-  },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  metaGrid: { flexDirection: 'row', gap: 8 },
-  metaCell: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
   actionBar: { flexDirection: 'row', gap: 8 },
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
+  box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 14 },
+  kvRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 11 },
+  kvBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
+  kvValue: { fontSize: 12.5, color: colors.ink, fontFamily: fonts.sans.native.medium },
+  notes: { fontSize: 13, lineHeight: 20, color: colors.muted, fontFamily: fonts.sans.native.regular, paddingVertical: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
+  tableHead: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
+  tableRow: { paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
+  cellText: { fontSize: 12.5, color: colors.muted, fontFamily: fonts.sans.native.regular },
+  empty: { fontSize: 13, color: colors.faint, fontFamily: fonts.sans.native.regular, padding: 16 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
 });

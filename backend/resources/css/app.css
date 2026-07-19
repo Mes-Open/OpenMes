@@ -13,9 +13,12 @@
 @source '../../../packages/ui/src';
 
 @theme inline {
-    --font-sans: 'Geist', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
     --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Geist Mono's default zero is slashed; stylistic set ss09 swaps in the plain
+       round zero. Keep tabular figures ('tnum') so number columns stay aligned. */
+    --font-mono--font-feature-settings: 'ss09' 1, 'tnum' 1;
 
     /* OpenMES design tokens — "Geist White". Colours indirect through the --om-*
        value vars (defined in :root / html.dark below) so the `om-*` utilities can
@@ -46,6 +49,11 @@
     --color-om-downtime-bg: var(--om-downtime-bg);
     --color-om-done: var(--om-done);
     --color-om-done-bg: var(--om-done-bg);
+    --color-om-accent-bg: var(--om-accent-bg);
+    --color-om-accepted: var(--om-accepted);
+    --color-om-accepted-bg: var(--om-accepted-bg);
+    --color-om-maint: var(--om-maint);
+    --color-om-maint-bg: var(--om-maint-bg);
 
     --radius-om: 12px;
     --radius-om-sm: 8px;
@@ -92,6 +100,12 @@
     --om-downtime-bg: #faf0dd;
     --om-done: #54514b;
     --om-done-bg: #ecebe7;
+    /* Schedule board additions: accent tint, accepted (blue), maintenance (purple). */
+    --om-accent-bg: #fbede7;
+    --om-accepted: #3e73c4;
+    --om-accepted-bg: #e7effa;
+    --om-maint: #7a5fb0;
+    --om-maint-bg: #f0ebf8;
 }
 
 /* Dark token values (design ref: OpenMES Components.dc.html — themes.dark). */
@@ -122,6 +136,11 @@ html.dark {
     --om-downtime-bg: rgba(224, 165, 60, 0.16);
     --om-done: #a6a29b;
     --om-done-bg: #242220;
+    --om-accent-bg: rgba(242, 99, 47, 0.16);
+    --om-accepted: #5e92e0;
+    --om-accepted-bg: rgba(94, 146, 224, 0.16);
+    --om-maint: #a98ee0;
+    --om-maint-bg: rgba(169, 142, 224, 0.15);
 }
 
 /* Custom styles for touch-optimized UI */

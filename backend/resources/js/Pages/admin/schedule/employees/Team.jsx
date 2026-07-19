@@ -29,7 +29,7 @@ export default function EmployeeTeam() {
 
     return (
         <>
-            <Head title={__('Team Day')} />
+            <Head title={__('Team day')} />
             <EmployeeTabs view={view} date={date} selectedWorkerId={selectedWorkerId} selectedWorker={selectedWorker} workers={workers} />
 
             <div className="flex flex-col gap-3">
@@ -54,6 +54,7 @@ export default function EmployeeTeam() {
                     {workers.length === 0 ? (
                         <div className="p-8 text-center text-sm text-om-faint border border-dashed border-om-line2 rounded-om">
                             {__('No workers configured.')}
+                            {__('No workers configured.')}
                         </div>
                     ) : workers.map((w) => {
                         const acts = teamActivities[w.id] ?? [];
@@ -64,15 +65,15 @@ export default function EmployeeTeam() {
                         return (
                             <button key={w.id}
                                     onClick={() => navTo({ view: 'day', date, worker_id: w.id })}
-                                    className={`grid gap-3.5 items-center p-3 rounded-om border transition-colors text-left ${primary ? 'bg-om-downtime-bg border-amber-400' : 'bg-om-card border-om-line2 hover:bg-om-bg'}`}
+                                    className={`grid gap-3.5 items-center p-3 rounded-om border transition-colors text-left ${primary ? 'bg-om-accent-bg border-om-accent' : 'bg-om-card border-om-line2 hover:bg-om-bg'}`}
                                     style={{ gridTemplateColumns: '160px 1fr 80px' }}>
                                 <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className={`w-9 h-9 rounded-om-sm font-mono text-[11px] font-bold flex items-center justify-center flex-shrink-0 ${primary ? 'bg-om-downtime text-white' : 'bg-om-line2 text-om-muted'}`}>
+                                    <div className={`w-9 h-9 rounded-om-sm font-mono text-[11px] font-bold flex items-center justify-center flex-shrink-0 ${primary ? 'bg-om-accent text-white' : 'bg-om-line2 text-om-muted'}`}>
                                         {initials}
                                     </div>
                                     <div className="min-w-0">
                                         <div className="text-sm font-bold text-om-ink truncate">{w.name}</div>
-                                        <div className={`font-mono text-[9px] mt-0.5 truncate ${primary ? 'text-om-downtime' : 'text-om-muted'}`}>
+                                        <div className={`font-mono text-[9px] mt-0.5 truncate ${primary ? 'text-om-accent' : 'text-om-muted'}`}>
                                             {w.code}{w.personnel_class_code ? ` · ${w.personnel_class_code}` : ''}
                                         </div>
                                     </div>
@@ -81,7 +82,7 @@ export default function EmployeeTeam() {
                                     <Tacho activities={acts} typeMeta={typeMeta} height={42} showHours={false} isToday={isToday} nowMinutes={nowMin} />
                                 </div>
                                 <div className="text-right">
-                                    <div className="font-mono text-base font-bold text-emerald-600 -tracking-wide">{fmtMins(onDuty)}</div>
+                                    <div className="font-mono text-base font-bold text-om-running -tracking-wide">{fmtMins(onDuty)}</div>
                                     <div className="font-mono text-[8.5px] tracking-wider text-om-muted uppercase mt-0.5">{__('On duty')}</div>
                                 </div>
                             </button>

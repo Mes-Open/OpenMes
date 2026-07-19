@@ -1,12 +1,18 @@
+/**
+ * Edit LOT Sequence — mirrors the web admin/lot-sequences edit page: a live
+ * "next lot" preview block above the LotSequenceForm, plus a delete action.
+ * Keeps the REST update/delete mutations and the lot-preview query unchanged.
+ */
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+
+import { colors, fonts, radius } from '@openmes/ui';
 
 import { LotSequenceForm } from '@/components/admin/LotSequenceForm';
-import { DangerZone, DetailScreen } from '@/components/ui/Detail';
+import { Button } from '@/components/ui/Button';
 import { Mono } from '@/components/ui/Mono';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import {
   useDeleteLotSequence,
   useLotSequence,
@@ -18,8 +24,7 @@ export function EditLotSequenceScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const numericId = Number(id);
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
+  const { t } = useTranslation();
 
   const query = useLotSequence(numericId);
   const updateMutation = useUpdateLotSequence(numericId);
@@ -30,13 +35,29 @@ export function EditLotSequenceScreen() {
   if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
   const s = query.data;
 
+  const onDelete = () =>
+    Alert.alert(t('Delete LOT sequence'), t('Delete ":name"?', { name: s.name }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () =>
+          deleteMutation.mutate(s.id, {
+            onSuccess: () => router.back(),
+            onError: (e: Error) => Alert.alert(t('Could not delete'), e.message),
+          }),
+      },
+    ]);
+
   return (
-    <DetailScreen>
-      <View style={[styles.previewBlock, { backgroundColor: palette.surfaceInverse }]}>
-        <Mono size={10} color="#6F6C66" letterSpacing={0.8}>NEXT LOT</Mono>
-        <Text style={[styles.previewValue, { fontFamily: MONO }]}>{preview.data ?? '—'}</Text>
-        <Mono size={11} color="#6F6C66" style={{ marginTop: 6 }}>
-          {s.product_type?.name?.toUpperCase() ?? 'DEFAULT FALLBACK'}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.h1}>{t('Edit LOT Sequence')}</Text>
+
+      <View style={styles.previewBlock}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Next lot').toUpperCase()}</Mono>
+        <Text style={styles.previewValue}>{preview.data ?? '—'}</Text>
+        <Mono size={10} color={colors.muted}>
+          {(s.product_type?.name ?? t('Default fallback')).toUpperCase()}
         </Mono>
       </View>
 
@@ -54,34 +75,36 @@ export function EditLotSequenceScreen() {
               year_prefix: v.year_prefix,
               product_type_id: v.product_type_id ?? null,
             },
-            { onSuccess: () => router.back(), onError: (e: Error) => Alert.alert('Could not update', e.message) },
+            { onSuccess: () => router.back(), onError: (e: Error) => Alert.alert(t('Could not update'), e.message) },
           )
         }
       />
 
-      <DangerZone
-        deleteLabel="Delete LOT sequence"
-        deleteConfirmTitle="Delete LOT sequence"
-        deleteConfirmMessage={`Delete "${s.name}"?`}
-        deleteLoading={deleteMutation.isPending}
-        onDelete={() =>
-          deleteMutation.mutate(s.id, {
-            onSuccess: () => router.back(),
-            onError: (e: Error) => Alert.alert('Could not delete', e.message),
-          })
-        }
-      />
-    </DetailScreen>
+      <View style={styles.actions}>
+        <Button title={t('Delete LOT sequence')} variant="danger" onPress={onDelete} loading={deleteMutation.isPending} />
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  previewBlock: { borderRadius: 18, padding: 18, alignItems: 'flex-start' },
-  previewValue: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: '500',
-    letterSpacing: -0.6,
-    marginTop: 6,
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  previewBlock: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: 16,
+    gap: 6,
+    alignItems: 'flex-start',
   },
+  previewValue: {
+    fontSize: 30,
+    fontFamily: fonts.mono.native.medium,
+    color: colors.ink,
+    letterSpacing: -0.6,
+  },
+  actions: { marginTop: 4 },
 });

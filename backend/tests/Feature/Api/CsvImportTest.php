@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
 use App\Models\Line;
-use App\Models\ProductType;
 use App\Models\ProcessTemplate;
+use App\Models\ProductType;
 use App\Models\TemplateStep;
+use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -18,8 +18,11 @@ class CsvImportTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Line $line;
+
     protected ProductType $productType;
+
     protected ProcessTemplate $template;
 
     protected function setUp(): void
@@ -323,5 +326,49 @@ class CsvImportTest extends TestCase
         // Check that work order was NOT updated
         $workOrder = WorkOrder::where('order_no', 'WO-001')->first();
         $this->assertEquals(100, $workOrder->planned_qty);
+    }
+
+    public function test_target_line_id_overrides_per_row_line_code()
+    {
+        // The CSV references a line code that does not exist; the import would
+        // normally fail. With target_line_id set, every row is assigned to that
+        // line instead (mirrors the web "Assign all rows to line" override).
+        $targetLine = \App\Models\Line::factory()->create(['code' => 'OVERRIDE-LINE']);
+
+        // No "Line" column at all — line_code can't be mapped, but the target
+        // override supplies the line, so validation must still pass.
+        $csv = "Order Number,Product,Quantity\nWO-OVR,PROD-001,50";
+        $file = UploadedFile::fake()->createWithContent('orders.csv', $csv);
+
+        $uploadResponse = $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v1/csv-imports/upload', ['file' => $file]);
+        $uploadId = $uploadResponse->json('data.upload_id');
+        $uploadData = cache()->get("csv_upload_{$uploadId}");
+
+        $mapping = [
+            'import_strategy' => 'update_or_create',
+            'target_line_id' => $targetLine->id,
+            'columns' => [
+                'order_no' => ['csv_column' => 'Order Number'],
+                'product_type_code' => ['csv_column' => 'Product'],
+                'planned_qty' => ['csv_column' => 'Quantity'],
+            ],
+        ];
+
+        // The execute endpoint must accept target_line_id (422 otherwise).
+        Queue::fake();
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v1/csv-imports/execute', ['upload_id' => $uploadId, 'mapping' => $mapping])
+            ->assertStatus(202);
+
+        $import = \App\Models\CsvImport::latest()->first();
+        (new \App\Jobs\ProcessCsvImport($import->id, $uploadData['file_path'], $mapping))->handle(
+            app(\App\Services\CsvImport\CsvParserService::class),
+            app(\App\Services\CsvImport\WorkOrderImportService::class)
+        );
+
+        $wo = WorkOrder::where('order_no', 'WO-OVR')->first();
+        $this->assertNotNull($wo, 'Work order should import onto the override line despite an unknown line_code');
+        $this->assertEquals($targetLine->id, $wo->line_id);
     }
 }

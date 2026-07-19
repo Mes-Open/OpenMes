@@ -1,16 +1,20 @@
+/**
+ * Record additional cost on a work order — cost source, amount + currency and a
+ * description. Re-skin to the shared form pattern; the react-hook-form schema
+ * and create mutation are unchanged.
+ */
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Alert, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
-import { Card } from '@/components/ui/Card';
-import { ChipRow, SelectionChip } from '@/components/ui/SelectionChip';
-import { ControlledField } from '@/components/ui/ControlledField';
-import { DetailScreen } from '@/components/ui/Detail';
-import { FormSubmitBar } from '@/components/ui/FormSubmitBar';
-import { SectionLabel } from '@/components/ui/Mono';
+import { Dropdown, colors, fonts } from '@openmes/ui';
+
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { Mono } from '@/components/ui/Mono';
 import { useCostSources } from '@/hooks/queries/useOps';
 import { useCreateAdditionalCost } from '@/hooks/queries/useWoExtras';
 import { nonEmpty } from '@/lib/forms/zod';
@@ -28,11 +32,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-/**
- * Record additional cost on a work order — supervisor light form. Matches
- * design ScreenWoCostNew (cost source picker on top, amount+currency
- * side-by-side, description body, submit bar).
- */
 export function NewCostScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const woId = Number(id);
@@ -67,80 +66,83 @@ export function NewCostScreen() {
   };
 
   return (
-    <DetailScreen>
-      <Card style={{ gap: 12 }}>
-        <SectionLabel>Cost source</SectionLabel>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.h1}>{t('Record cost')}</Text>
+
+      <View style={{ gap: 6 }}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Cost source').toUpperCase()}</Mono>
         <Controller
           control={control}
           name="cost_source_id"
           render={({ field: { value, onChange } }) => (
-            <ChipRow>
-              <SelectionChip
-                label={t('None')}
-                active={value === null}
-                onPress={() => onChange(null)}
-              />
-              {(sourcesQuery.data ?? []).map((s) => (
-                <SelectionChip
-                  key={s.id}
-                  label={s.name}
-                  active={s.id === value}
-                  onPress={() => onChange(s.id)}
-                />
-              ))}
-            </ChipRow>
+            <Dropdown
+              value={value == null ? '' : String(value)}
+              onChange={(v) => onChange(v ? Number(v) : null)}
+              placeholder={t('None')}
+              options={[
+                { value: '', label: t('None') },
+                ...(sourcesQuery.data ?? []).map((s) => ({ value: String(s.id), label: s.name })),
+              ]}
+            />
           )}
         />
-      </Card>
+      </View>
 
-      <Card style={{ gap: 12 }}>
-        <SectionLabel>Amount</SectionLabel>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1.4 }}>
-            <ControlledField
-              control={control}
-              name="amount"
-              label="AMOUNT"
-              keyboardType="decimal-pad"
-              required
-              mono
-              placeholder="0.00"
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <ControlledField
-              control={control}
-              name="currency"
-              label="CURRENCY"
-              autoCapitalize="characters"
-              mono
-            />
-          </View>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flex: 1.4 }}>
+          <Controller
+            control={control}
+            name="amount"
+            render={({ field: { value, onChange } }) => (
+              <Field label="Amount" value={value} onChangeText={onChange} keyboardType="decimal-pad" required mono placeholder="0.00" />
+            )}
+          />
         </View>
-      </Card>
+        <View style={{ flex: 1 }}>
+          <Controller
+            control={control}
+            name="currency"
+            render={({ field: { value, onChange } }) => (
+              <Field label="Currency" value={value} onChangeText={onChange} autoCapitalize="characters" mono />
+            )}
+          />
+        </View>
+      </View>
 
-      <Card style={{ gap: 12 }}>
-        <SectionLabel>Description</SectionLabel>
-        <ControlledField
-          control={control}
-          name="description"
-          label="DESCRIPTION"
-          placeholder="e.g. Energy overage, emergency materials, etc."
-          multiline
-          numberOfLines={3}
-          style={{ minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }}
-          required
-        />
-      </Card>
-
-      <FormSubmitBar
-        primary="Record cost"
-        secondary="Cancel"
-        onPrimary={handleSubmit(onSubmit)}
-        onSecondary={() => router.back()}
-        loading={createMutation.isPending}
-        disabled={!isValid}
+      <Controller
+        control={control}
+        name="description"
+        render={({ field: { value, onChange } }) => (
+          <Field
+            label="Description"
+            value={value}
+            onChangeText={onChange}
+            placeholder="e.g. Energy overage, emergency materials, etc."
+            multiline
+            numberOfLines={3}
+            style={{ minHeight: 80, textAlignVertical: 'top' }}
+            required
+          />
+        )}
       />
-    </DetailScreen>
+
+      <View style={styles.actions}>
+        <Button title={t('Cancel')} variant="ghost" onPress={() => router.back()} />
+        <View style={{ flex: 1 }} />
+        <Button
+          title={t('Record cost')}
+          onPress={handleSubmit(onSubmit)}
+          loading={createMutation.isPending}
+          disabled={!isValid}
+        />
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+});

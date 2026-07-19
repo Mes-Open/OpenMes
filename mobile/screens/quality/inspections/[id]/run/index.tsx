@@ -14,10 +14,10 @@ import {
   View,
 } from 'react-native';
 
+import { colors, fonts, radius } from '@openmes/ui';
+
 import { Mono } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
 import {
   useCompleteInspection,
   useInspection,
@@ -34,17 +34,13 @@ import type {
  * final "Complete" call decides pass/fail/conditional from the boolean flags
  * the controller computes. While pending, the operator can navigate back to
  * any step to edit a value; once `complete` is called, the modal pops back
- * to the detail screen.
+ * to the detail screen. Re-skinned to the Geist White tokens; the step-through
+ * interaction logic is unchanged.
  */
 export function InspectionRunner() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const numericId = Number(id);
   const router = useRouter();
-  // Operator wizard is always rendered against the dark palette regardless of
-  // user color preference — matches the design's high-contrast factory-floor
-  // aesthetic where every other operator surface (batch run, downtime banner,
-  // anomaly form) is dark.
-  const palette = Colors.dark;
   const { t } = useTranslation();
 
   const query = useInspection(numericId);
@@ -74,10 +70,14 @@ export function InspectionRunner() {
 
   if (results.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: palette.background }}>
-        <ScreenHeader back title={t('Run inspection')} />
+      <View style={styles.screen}>
+        <RunnerHeader
+          onBack={() => router.back()}
+          title={t('Run inspection')}
+          subtitle=""
+        />
         <View style={{ padding: 24 }}>
-          <Mono size={11} color={palette.textFaint}>
+          <Mono size={11} color={colors.faint}>
             {t('No criteria attached to this inspection').toUpperCase()}
           </Mono>
         </View>
@@ -129,24 +129,22 @@ export function InspectionRunner() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: palette.background }}
+      style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScreenHeader
-        back
-        variant="dark"
+      <RunnerHeader
+        onBack={() => router.back()}
         title={t('Inspection')}
         subtitle={`${query.data.plan?.name ?? t('Inspection')} · LOT ${query.data.lot_number}`}
-        subtitleColor={BRAND.amber}
       />
 
-      {/* Progress bar — 5-segment style. Each segment fills with amber when
-          the step has a recorded value (matching the design). */}
+      {/* Progress bar — one segment per criterion, filled when the step has a
+          recorded value. */}
       <View style={styles.progressBlock}>
         <View style={styles.progressHead}>
-          <Mono size={10.5} color={palette.textFaint} letterSpacing={0.7}>
+          <Mono size={10.5} color={colors.faint} letterSpacing={0.7}>
             {t('STEP').toUpperCase()} {stepIdx + 1} {t('OF').toUpperCase()} {results.length}
           </Mono>
-          <Mono size={10.5} color={BRAND.amber} weight="700">
+          <Mono size={10.5} color={colors.accent} weight="600">
             {Math.round(((stepIdx + 1) / Math.max(1, results.length)) * 100)}%
           </Mono>
         </View>
@@ -161,9 +159,7 @@ export function InspectionRunner() {
                 onPress={() => setStepIdx(i)}
                 style={[
                   styles.progressSegment,
-                  {
-                    backgroundColor: isComplete ? BRAND.amber : palette.border,
-                  },
+                  { backgroundColor: isComplete ? colors.accent : colors.line },
                 ]}
               />
             );
@@ -175,67 +171,45 @@ export function InspectionRunner() {
         contentContainerStyle={{ padding: 20, gap: 18 }}
         keyboardShouldPersistTaps="handled">
         <View>
-          <Mono size={10.5} color={palette.textFaint} letterSpacing={0.8}>
-            {current.criterion_type.toUpperCase()}
+          <Mono size={10.5} color={colors.faint} letterSpacing={0.8}>
+            {String(current.criterion_type).toUpperCase()}
             {current.required ? ' · REQUIRED' : ''}
           </Mono>
-          <Text style={[styles.title, { color: palette.text }]}>
-            {current.criterion_name}
-          </Text>
+          <Text style={styles.title}>{current.criterion_name}</Text>
           {specHint(current) ? (
-            <Mono size={11} color={palette.textMuted} style={{ marginTop: 4 }}>
+            <Mono size={11} color={colors.muted} style={{ marginTop: 4 }}>
               {specHint(current).toUpperCase()}
             </Mono>
           ) : null}
         </View>
 
-        <ResultInput
-          criterion={current}
-          draft={draft}
-          onChange={setDraft}
-          palette={palette}
-        />
+        <ResultInput criterion={current} draft={draft} onChange={setDraft} />
 
         <View>
-          <Mono size={10.5} color={palette.textFaint} letterSpacing={0.7}>
+          <Mono size={10.5} color={colors.faint} letterSpacing={0.7}>
             {t('Notes').toUpperCase()}
           </Mono>
           <TextInput
             value={draft.notes ?? ''}
             onChangeText={(v) => setDraft({ notes: v })}
             placeholder={t('Optional observations')}
-            placeholderTextColor={palette.textFaint}
+            placeholderTextColor={colors.faint}
             multiline
-            style={[
-              styles.notesInput,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-                color: palette.text,
-              },
-            ]}
+            style={styles.notesInput}
           />
         </View>
       </ScrollView>
 
       {/* Bottom action bar */}
-      <View
-        style={[
-          styles.actionBar,
-          { backgroundColor: palette.background, borderTopColor: palette.border },
-        ]}>
+      <View style={styles.actionBar}>
         <Pressable
           onPress={() => setStepIdx(Math.max(0, stepIdx - 1))}
           disabled={stepIdx === 0}
           style={({ pressed }) => [
             styles.secondary,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-              opacity: stepIdx === 0 ? 0.4 : pressed ? 0.85 : 1,
-            },
+            { opacity: stepIdx === 0 ? 0.4 : pressed ? 0.85 : 1 },
           ]}>
-          <Mono size={12} color={palette.text} weight="700" letterSpacing={0.5}>
+          <Mono size={12} color={colors.ink} weight="600" letterSpacing={0.5}>
             {t('Back').toUpperCase()}
           </Mono>
         </Pressable>
@@ -243,11 +217,8 @@ export function InspectionRunner() {
           <Pressable
             onPress={saveAndAdvance}
             disabled={recordMutation.isPending}
-            style={({ pressed }) => [
-              styles.primary,
-              { backgroundColor: BRAND.amber, opacity: pressed ? 0.9 : 1 },
-            ]}>
-            <Mono size={12} color="#1a1208" weight="700" letterSpacing={0.6}>
+            style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.9 : 1 }]}>
+            <Mono size={12} color="#fff" weight="600" letterSpacing={0.6}>
               {t('Save & next').toUpperCase()}
             </Mono>
           </Pressable>
@@ -260,45 +231,61 @@ export function InspectionRunner() {
               }
             }}
             disabled={recordMutation.isPending || completeMutation.isPending}
-            style={({ pressed }) => [
-              styles.primary,
-              { backgroundColor: BRAND.amber, opacity: pressed ? 0.9 : 1 },
-            ]}>
-            <FontAwesome name="check" size={14} color="#1a1208" />
-            <Mono size={12} color="#1a1208" weight="700" letterSpacing={0.6}>
+            style={({ pressed }) => [styles.primary, { opacity: pressed ? 0.9 : 1 }]}>
+            <FontAwesome name="check" size={14} color="#fff" />
+            <Mono size={12} color="#fff" weight="600" letterSpacing={0.6}>
               {t('Complete').toUpperCase()}
             </Mono>
           </Pressable>
         )}
       </View>
 
-      {/* Inspection-wide notes (collected once at the end). The first time the
-          operator opens the final step, we render this above the step input
-          via an extra section so they aren't surprised on submit. */}
+      {/* Inspection-wide notes (collected once at the end). Rendered on the
+          final step so the operator isn't surprised on submit. */}
       {stepIdx === results.length - 1 ? (
         <View style={styles.summaryNotes}>
-          <Mono size={10.5} color={palette.textFaint} letterSpacing={0.7}>
+          <Mono size={10.5} color={colors.faint} letterSpacing={0.7}>
             {t('SUMMARY NOTES').toUpperCase()}
           </Mono>
           <TextInput
             value={notes}
             onChangeText={setNotes}
             placeholder={t('Inspection-wide observations')}
-            placeholderTextColor={palette.textFaint}
+            placeholderTextColor={colors.faint}
             multiline
-            style={[
-              styles.notesInput,
-              {
-                backgroundColor: palette.surface,
-                borderColor: palette.border,
-                color: palette.text,
-                marginTop: 6,
-              },
-            ]}
+            style={[styles.notesInput, { marginTop: 6 }]}
           />
         </View>
       ) : null}
     </KeyboardAvoidingView>
+  );
+}
+
+// ── Header ───────────────────────────────────────────────────────────────────
+
+function RunnerHeader({
+  onBack,
+  title,
+  subtitle,
+}: {
+  onBack: () => void;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <View style={styles.header}>
+      <Pressable onPress={onBack} hitSlop={10} style={styles.backBtn}>
+        <FontAwesome name="chevron-left" size={15} color={colors.ink} />
+      </Pressable>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+        {subtitle ? (
+          <Mono size={10} color={colors.accent} letterSpacing={0.4} numberOfLines={1} style={{ marginTop: 3 }}>
+            {subtitle.toUpperCase()}
+          </Mono>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -354,12 +341,10 @@ function ResultInput({
   criterion,
   draft,
   onChange,
-  palette,
 }: {
   criterion: InspectionResult;
   draft: ResultDraft;
   onChange: (next: Partial<ResultDraft>) => void;
-  palette: typeof Colors.light;
 }) {
   const { t } = useTranslation();
   const type = criterion.criterion_type as InspectionCriterionType;
@@ -375,16 +360,8 @@ function ResultInput({
           }}
           keyboardType="numeric"
           placeholder={t('Enter value')}
-          placeholderTextColor={palette.textFaint}
-          style={[
-            styles.numericInput,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-              color: palette.text,
-              fontFamily: MONO,
-            },
-          ]}
+          placeholderTextColor={colors.faint}
+          style={styles.numericInput}
         />
       </View>
     );
@@ -394,8 +371,8 @@ function ResultInput({
     return (
       <View style={styles.boolRow}>
         {[
-          { v: true, label: 'PASS', color: '#1C9A55' },
-          { v: false, label: 'FAIL', color: '#D6442F' },
+          { v: true, label: 'PASS', color: colors.running, bg: colors.runningBg },
+          { v: false, label: 'FAIL', color: colors.blocked, bg: colors.blockedBg },
         ].map((opt) => {
           const on = draft.value_boolean === opt.v;
           return (
@@ -405,12 +382,12 @@ function ResultInput({
               style={({ pressed }) => [
                 styles.boolTile,
                 {
-                  backgroundColor: on ? `${opt.color}11` : palette.surface,
-                  borderColor: on ? opt.color : palette.border,
+                  backgroundColor: on ? opt.bg : colors.card,
+                  borderColor: on ? opt.color : colors.line,
                   opacity: pressed ? 0.85 : 1,
                 },
               ]}>
-              <Mono size={16} color={opt.color} weight="700" letterSpacing={0.5}>
+              <Mono size={16} color={opt.color} weight="600" letterSpacing={0.5}>
                 {t(opt.label).toUpperCase()}
               </Mono>
             </Pressable>
@@ -426,47 +403,68 @@ function ResultInput({
       value={draft.value_text ?? ''}
       onChangeText={(v) => onChange({ value_text: v })}
       placeholder={t('Describe finding')}
-      placeholderTextColor={palette.textFaint}
+      placeholderTextColor={colors.faint}
       multiline
-      style={[
-        styles.notesInput,
-        {
-          backgroundColor: palette.surface,
-          borderColor: palette.border,
-          color: palette.text,
-        },
-      ]}
+      style={styles.notesInput}
     />
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 17, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.3 },
   progressBlock: { paddingHorizontal: 20, paddingTop: 16, gap: 8 },
   progressHead: { flexDirection: 'row', justifyContent: 'space-between' },
   progressSegments: { flexDirection: 'row', gap: 4 },
   progressSegment: { flex: 1, height: 6, borderRadius: 3 },
-  title: { fontSize: 22, fontWeight: '700', letterSpacing: -0.3, marginTop: 4 },
+  title: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4, marginTop: 4 },
   numericInput: {
     height: 64,
     paddingHorizontal: 16,
     fontSize: 28,
-    fontWeight: '700',
-    borderRadius: 12,
+    fontFamily: fonts.mono.native.semibold,
+    color: colors.ink,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.line,
   },
   notesInput: {
     minHeight: 90,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+    color: colors.ink,
     padding: 12,
     fontSize: 14,
+    fontFamily: fonts.sans.native.regular,
     textAlignVertical: 'top',
   },
   boolRow: { flexDirection: 'row', gap: 10 },
   boolTile: {
     flex: 1,
     height: 96,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -476,19 +474,24 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+    backgroundColor: colors.bg,
   },
   secondary: {
     flex: 1,
     height: 48,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primary: {
     flex: 2,
     height: 48,
-    borderRadius: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.accent,
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',

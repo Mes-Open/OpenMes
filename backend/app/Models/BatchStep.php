@@ -32,6 +32,7 @@ class BatchStep extends Model
         'step_number',
         'name',
         'instruction',
+        'requires_confirmation',
         'workstation_id',
         'status',
         'is_optional',
@@ -51,6 +52,7 @@ class BatchStep extends Model
         return [
             'step_number' => 'integer',
             'is_optional' => 'boolean',
+            'requires_confirmation' => 'boolean',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'confirmed_at' => 'datetime',
@@ -88,6 +90,14 @@ class BatchStep extends Model
     public function completedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'completed_by_id');
+    }
+
+    /**
+     * The operator who acknowledged reading this step's critical instructions.
+     */
+    public function confirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
     }
 
     /**
@@ -170,6 +180,38 @@ class BatchStep extends Model
     public function isBlockedByDocuments(): bool
     {
         return $this->blockingDocuments()->exists();
+    }
+
+    /** Whether the operator has already acknowledged reading the instructions. */
+    public function isReadConfirmed(): bool
+    {
+        return $this->confirmed_at !== null;
+    }
+
+    /**
+     * Whether this step is holding on an outstanding read-confirmation: it is
+     * flagged critical (`requires_confirmation`) and has not been acknowledged
+     * yet. This is the completion gate for critical instructions.
+     */
+    public function needsReadConfirmation(): bool
+    {
+        return $this->requires_confirmation && ! $this->isReadConfirmed();
+    }
+
+    /**
+     * Record that the given user has read and acknowledged this step's critical
+     * instructions. Idempotent and race-safe: the conditional update only fires
+     * when nothing has been recorded yet, so two concurrent acknowledgements
+     * can't overwrite each other's audit stamp. Mirrors
+     * BatchStepDocument::markValidated().
+     */
+    public function markReadConfirmed(User $user): void
+    {
+        static::whereKey($this->getKey())
+            ->whereNull('confirmed_at')
+            ->update(['confirmed_at' => now(), 'confirmed_by' => $user->id]);
+
+        $this->refresh();
     }
 
     /**

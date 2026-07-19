@@ -1,27 +1,40 @@
 /**
  * Button — Geist White system (design ref: OpenMES Components.dc.html §02).
  *
- * Variants: primary (ink), accent (orange), secondary (chip), ghost (hairline
- * outline), danger (soft red). `loading` swaps in a spinner and mutes the label.
- * API is identical to the native twin (index.native.tsx).
+ * Variants: primary (ink), accent (orange), secondary (chip), ghost/outline
+ * (hairline outline), danger (soft red), success (soft green). `size` sm/md/lg
+ * sets padding + text size (md is the default, unchanged from before).
+ * `leftIcon`/`rightIcon` flank the label; `loading` swaps in a spinner and mutes
+ * the label. API is identical to the native twin (index.native.tsx).
  */
 export function Button({
     variant = 'primary',
+    size = 'md',
     disabled = false,
     loading = false,
+    leftIcon = null,
+    rightIcon = null,
     type = 'button',
     className = '',
     children,
     ...props
 }) {
     const base =
-        'inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm transition-colors cursor-pointer disabled:cursor-not-allowed';
+        'inline-flex items-center justify-center gap-2 font-semibold rounded-om-sm transition-colors cursor-pointer disabled:cursor-not-allowed';
+    // Colour only — padding/text come from `sizes` so variants compose with size.
     const variants = {
-        primary: 'text-om-on-ink bg-om-ink hover:bg-om-ink-hover px-4 py-2.5',
-        accent: 'text-white bg-om-accent hover:brightness-95 px-4 py-2.5',
-        secondary: 'text-om-ink bg-om-chip hover:bg-om-line2 px-4 py-2.5',
-        ghost: 'text-om-ink bg-transparent border border-om-line hover:bg-om-chip px-4 py-[9px]',
-        danger: 'text-om-blocked bg-om-blocked-bg hover:bg-[#f8ddd6] px-4 py-2.5',
+        primary: 'text-om-on-ink bg-om-ink hover:bg-om-ink-hover',
+        accent: 'text-white bg-om-accent hover:brightness-95',
+        secondary: 'text-om-ink bg-om-chip hover:bg-om-line2',
+        ghost: 'text-om-ink bg-transparent border border-om-line hover:bg-om-chip',
+        outline: 'text-om-ink bg-transparent border border-om-line hover:bg-om-chip',
+        danger: 'text-om-blocked bg-om-blocked-bg hover:bg-[#f8ddd6]',
+        success: 'text-om-running bg-om-running-bg hover:brightness-95',
+    };
+    const sizes = {
+        sm: 'px-3 py-2 text-[12px]',
+        md: 'px-4 py-2.5 text-[13px]',
+        lg: 'px-5 py-3 text-[15px]',
     };
     // Disabled/loading keeps the variant's own colour, just dimmed — so an
     // accent button stays orange instead of fading to a near-white chip (which
@@ -32,7 +45,7 @@ export function Button({
         <button
             type={type}
             disabled={disabled || loading}
-            className={`${base} ${variants[variant]} ${stateCls} ${className}`}
+            className={`${base} ${variants[variant]} ${sizes[size]} ${stateCls} ${className}`}
             {...props}
         >
             {loading && (
@@ -41,7 +54,9 @@ export function Button({
                     className="inline-block size-[11px] rounded-full border-2 border-om-faintest border-t-om-accent animate-spin"
                 />
             )}
+            {leftIcon}
             {children}
+            {rightIcon}
         </button>
     );
 }

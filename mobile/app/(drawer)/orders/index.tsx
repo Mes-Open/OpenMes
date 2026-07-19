@@ -1,5 +1,10 @@
-import { OrdersHub } from '@/screens/(drawer)/orders/index';
+/**
+ * Section root — no hub screen here: navigation lives in the sidebar / bottom
+ * nav + Menu drawer, exactly like the web (web Orders group's first destination is All Orders).
+ * Redirecting keeps URL-parent back navigation predictable.
+ */
+import { Redirect } from 'expo-router';
 
-export default function OrdersHubPage() {
-  return <OrdersHub />;
+export default function OrdersRootRedirect() {
+  return <Redirect href="/admin/work-orders" />;
 }

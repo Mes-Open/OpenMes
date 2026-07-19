@@ -1,18 +1,22 @@
-import { FontAwesome } from '@expo/vector-icons';
+/**
+ * New EAN — binds a barcode to a work order. Restyled to the shared form
+ * pattern (Field inputs, Mono-labelled Dropdown, toggle-style summary box) while
+ * keeping the react-hook-form + zod validation and the useCreateEan mutation.
+ * Only ean + work_order_id are persisted; the qty fields drive the summary.
+ */
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
-import { Card } from '@/components/ui/Card';
-import { ChipRow, SelectionChip } from '@/components/ui/SelectionChip';
-import { ControlledField } from '@/components/ui/ControlledField';
-import { DetailScreen } from '@/components/ui/Detail';
-import { FormSubmitBar } from '@/components/ui/FormSubmitBar';
-import { Mono, SectionLabel } from '@/components/ui/Mono';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { Dropdown, colors, fonts, radius } from '@openmes/ui';
+
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { Mono } from '@/components/ui/Mono';
 import { useWorkOrders } from '@/hooks/queries/useWorkOrders';
 import { useCreateEan } from '@/hooks/queries/usePackaging';
 import { nonEmpty } from '@/lib/forms/zod';
@@ -20,8 +24,6 @@ import { nonEmpty } from '@/lib/forms/zod';
 const schema = z.object({
   ean: nonEmpty().refine((v) => /^\d{13,14}$/.test(v), 'EAN must be 13 or 14 digits'),
   work_order_id: z.number(),
-  // We hold qty fields as text in the form so the keypad is forgiving;
-  // they get parsed when computing the binding summary.
   qty_per_unit: z.string().regex(/^\d+$/, 'Whole number'),
   target_qty: z.string().regex(/^\d+$/, 'Whole number'),
 });
@@ -29,9 +31,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function NewEanScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
 
   const wosQuery = useWorkOrders({});
   const createMutation = useCreateEan();
@@ -52,133 +53,121 @@ export function NewEanScreen() {
   const totalPieces = (Number(watched.qty_per_unit) || 0) * (Number(watched.target_qty) || 0);
 
   const onSubmit = (values: FormValues) => {
-    // qty_per_unit / target_qty are not part of the EAN endpoint payload yet —
-    // backend infers from the work order. We collect them client-side for the
-    // binding summary card, but only ean + work_order_id are sent.
-    // TODO(api/packaging-eans): persist qty_per_unit + target_qty per binding.
     createMutation.mutate(
       { work_order_id: values.work_order_id, ean: values.ean.trim() },
       {
         onSuccess: () => router.back(),
-        onError: (e: Error) => Alert.alert('Could not add EAN', e.message),
+        onError: (e: Error) => Alert.alert(t('Could not add EAN'), e.message),
       },
     );
   };
 
   return (
-    <DetailScreen>
-      <Card style={{ gap: 12 }}>
-        <SectionLabel>EAN</SectionLabel>
-        <ControlledField
-          control={control}
-          name="ean"
-          label="EAN"
-          required
-          mono
-          labelHint="13 OR 14 DIGITS"
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="number-pad"
-          placeholder="5901234567890"
-          hint="Or tap scan to capture from barcode"
-        />
-        <Pressable
-          onPress={() => router.push('/(drawer)/pakowanie/scan' as never)}
-          style={({ pressed }) => [
-            styles.scanBtn,
-            { borderColor: palette.border, backgroundColor: palette.surface, opacity: pressed ? 0.85 : 1 },
-          ]}>
-          <FontAwesome name="qrcode" size={16} color={palette.text} />
-          <Mono size={12} color={palette.text} weight="700" letterSpacing={0.6}>
-            SCAN BARCODE
-          </Mono>
-        </Pressable>
-      </Card>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.h1}>{t('New EAN')}</Text>
 
-      <Card style={{ gap: 12 }}>
-        <SectionLabel>Work order</SectionLabel>
-        <Controller
-          control={control}
-          name="work_order_id"
-          render={({ field: { value, onChange } }) => (
-            <ChipRow>
-              {(wosQuery.data ?? []).map((wo) => (
-                <SelectionChip
-                  key={wo.id}
-                  label={wo.order_no}
-                  active={wo.id === value}
-                  onPress={() => onChange(wo.id)}
-                />
-              ))}
-            </ChipRow>
-          )}
-        />
-      </Card>
+      <Controller
+        control={control}
+        name="ean"
+        render={({ field: { value, onChange }, fieldState }) => (
+          <Field
+            label="EAN"
+            value={value}
+            onChangeText={onChange}
+            error={fieldState.error?.message}
+            required
+            mono
+            labelHint="13 or 14 digits"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="number-pad"
+            placeholder="5901234567890"
+          />
+        )}
+      />
 
-      <Card style={{ gap: 12 }}>
-        <SectionLabel>Quantities</SectionLabel>
-        <View style={styles.qtyRow}>
-          <View style={{ flex: 1 }}>
-            <ControlledField
-              control={control}
-              name="qty_per_unit"
-              label="QTY_PER_UNIT"
-              required
-              mono
-              keyboardType="number-pad"
-              placeholder="6"
+      <Pressable
+        onPress={() => router.push('/(drawer)/pakowanie/scan' as never)}
+        style={({ pressed }) => [styles.scanBtn, { opacity: pressed ? 0.7 : 1 }]}>
+        <FontAwesome name="qrcode" size={16} color={colors.ink} />
+        <Mono size={12} color={colors.ink} weight="600" letterSpacing={0.5}>{t('Scan barcode').toUpperCase()}</Mono>
+      </Pressable>
+
+      <Controller
+        control={control}
+        name="work_order_id"
+        render={({ field: { value, onChange } }) => (
+          <View style={{ gap: 6 }}>
+            <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Work Order').toUpperCase()} *</Mono>
+            <Dropdown
+              value={value == null ? '' : String(value)}
+              onChange={(v) => onChange(Number(v))}
+              placeholder={t('Select work order')}
+              options={(wosQuery.data ?? []).map((wo) => ({ value: String(wo.id), label: wo.order_no }))}
             />
           </View>
-          <View style={{ flex: 1 }}>
-            <ControlledField
-              control={control}
-              name="target_qty"
-              label="TARGET_QTY"
-              required
-              mono
-              keyboardType="number-pad"
-              placeholder="80"
-              suffix={
-                <Text style={{ fontFamily: MONO, fontSize: 11, color: palette.textFaint }}>UNITS</Text>
-              }
-            />
-          </View>
+        )}
+      />
+
+      <View style={styles.qtyRow}>
+        <View style={{ flex: 1 }}>
+          <Controller
+            control={control}
+            name="qty_per_unit"
+            render={({ field: { value, onChange }, fieldState }) => (
+              <Field label="Qty per unit" value={value} onChangeText={onChange} error={fieldState.error?.message} required mono keyboardType="number-pad" placeholder="6" />
+            )}
+          />
         </View>
-      </Card>
+        <View style={{ flex: 1 }}>
+          <Controller
+            control={control}
+            name="target_qty"
+            render={({ field: { value, onChange }, fieldState }) => (
+              <Field label="Target qty" value={value} onChangeText={onChange} error={fieldState.error?.message} required mono keyboardType="number-pad" placeholder="80" />
+            )}
+          />
+        </View>
+      </View>
 
-      <View style={[styles.summary, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-        <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>BINDING SUMMARY</Mono>
-        <Text style={{ marginTop: 8, fontFamily: MONO, fontSize: 13, color: palette.textFaint, lineHeight: 21 }}>
-          Pack{' '}
-          <Text style={{ color: palette.text, fontWeight: '700' }}>{watched.target_qty || 0} units</Text>
-          {' of '}
-          <Text style={{ color: palette.text, fontWeight: '700' }}>{watched.qty_per_unit || 0} each</Text>
-          {' = '}
-          <Text style={{ color: BRAND.amber, fontWeight: '700' }}>{totalPieces} pieces</Text>
-          {selectedWo ? ` of ${selectedWo.order_no}` : ''}
+      <View style={styles.summary}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Binding summary').toUpperCase()}</Mono>
+        <Text style={styles.summaryText}>
+          {t('Pack {{units}} units of {{each}} each = {{pieces}} pieces', {
+            units: watched.target_qty || 0,
+            each: watched.qty_per_unit || 0,
+            pieces: totalPieces,
+          })}
+          {selectedWo ? ` · ${selectedWo.order_no}` : ''}
         </Text>
       </View>
 
-      <FormSubmitBar
-        primary="Create EAN"
-        onPrimary={handleSubmit(onSubmit)}
-        loading={createMutation.isPending}
-        disabled={!isValid}
-      />
-    </DetailScreen>
+      <View style={styles.actions}>
+        <Button title={t('Cancel')} variant="ghost" onPress={() => router.back()} />
+        <View style={{ flex: 1 }} />
+        <Button title={t('Create EAN')} onPress={handleSubmit(onSubmit)} loading={createMutation.isPending} disabled={!isValid} />
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
   scanBtn: {
-    height: 48,
-    borderRadius: 12,
+    height: 46,
+    borderRadius: radius.md,
     borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   qtyRow: { flexDirection: 'row', gap: 10 },
-  summary: { padding: 14, borderRadius: 12, borderWidth: 1 },
+  summary: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 14, gap: 8 },
+  summaryText: { fontFamily: fonts.mono.native.regular, fontSize: 12.5, color: colors.muted, lineHeight: 20 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
 });

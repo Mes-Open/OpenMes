@@ -1,10 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert } from 'react-native';
 
-import { MappingForm } from '@/components/admin/MappingForm';
-import { DetailScreen } from '@/components/ui/Detail';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { useMapping, useUpdateMapping } from '@/hooks/queries/useConnectivity';
+import { MappingFormFields } from './new';
 
 export function EditMappingScreen() {
   const router = useRouter();
@@ -18,23 +17,21 @@ export function EditMappingScreen() {
     return <ErrorState error={q.error ?? new Error('Mapping not found')} onRetry={q.refetch} />;
 
   return (
-    <DetailScreen>
-      <MappingForm
-        mode="edit"
-        topics={[]}
-        initial={q.data}
-        submitting={m.isPending}
-        onSubmit={(input) =>
-          m.mutate(
-            { id, input },
-            {
-              onSuccess: () => router.back(),
-              onError: (e: Error) => Alert.alert('Could not save changes', e.message),
-            },
-          )
-        }
-        onValidationError={(msg) => Alert.alert('Form error', msg)}
-      />
-    </DetailScreen>
+    <MappingFormFields
+      mode="edit"
+      topics={[]}
+      initial={q.data}
+      submitting={m.isPending}
+      onSubmit={(input) =>
+        m.mutate(
+          { id, input },
+          {
+            onSuccess: () => router.back(),
+            onError: (e: Error) => Alert.alert('Could not save changes', e.message),
+          },
+        )
+      }
+      onValidationError={(msg) => Alert.alert('Form error', msg)}
+    />
   );
 }

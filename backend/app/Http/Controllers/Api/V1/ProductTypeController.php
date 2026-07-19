@@ -13,13 +13,13 @@ class ProductTypeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = ProductType::query()->withCount('processTemplates');
+        $query = ProductType::query()->withCount(['processTemplates', 'workOrders']);
 
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
         if ($q = $request->query('q')) {
-            $needle = '%' . strtolower($q) . '%';
+            $needle = '%'.strtolower($q).'%';
             $query->where(function ($qb) use ($needle) {
                 $qb->whereRaw('LOWER(name) LIKE ?', [$needle])
                     ->orWhereRaw('LOWER(code) LIKE ?', [$needle]);
@@ -36,6 +36,7 @@ class ProductTypeController extends Controller
         $this->authorize('view', $productType);
         $productType->loadCount('processTemplates');
         $productType->load('processTemplates');
+
         return response()->json(['data' => $productType]);
     }
 
@@ -45,6 +46,7 @@ class ProductTypeController extends Controller
         $data = $request->validated();
         $data['is_active'] = $data['is_active'] ?? true;
         $pt = ProductType::create($data);
+
         return response()->json([
             'message' => 'Product type created',
             'data' => $pt,
@@ -55,6 +57,7 @@ class ProductTypeController extends Controller
     {
         $this->authorize('update', $productType);
         $productType->update($request->validated());
+
         return response()->json([
             'message' => 'Product type updated',
             'data' => $productType->fresh(),
@@ -72,13 +75,15 @@ class ProductTypeController extends Controller
         }
 
         $productType->delete();
+
         return response()->json(['message' => 'Product type deleted']);
     }
 
     public function toggleActive(ProductType $productType): JsonResponse
     {
         $this->authorize('update', $productType);
-        $productType->update(['is_active' => !$productType->is_active]);
+        $productType->update(['is_active' => ! $productType->is_active]);
+
         return response()->json([
             'message' => $productType->is_active ? 'Activated' : 'Deactivated',
             'data' => $productType,

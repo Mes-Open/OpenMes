@@ -48,13 +48,27 @@ export const ADMIN_LINKS = [
  */
 export const ADMIN_GROUPS = [
     {
+        key: 'schedule',
+        label: 'Schedule',
+        icon: 'calendar',
+        href: '/admin/schedule',
+        match: ['/admin/schedule'],
+        children: [
+            { label: 'Planner', href: '/admin/schedule', match: ['/admin/schedule'], exact: true },
+            { label: 'Capacity', href: '/admin/schedule/capacity', match: ['/admin/schedule/capacity'] },
+            { label: 'Employee', href: '/admin/schedule/employees', match: ['/admin/schedule/employees'] },
+        ],
+    },
+    {
         key: 'orders',
         label: 'Orders',
         icon: 'clipboard',
         href: '/admin/work-orders',
-        match: ['/admin/work-orders', '/admin/csv-import'],
+        match: ['/admin/work-orders', '/admin/customers', '/admin/priority-rules', '/admin/csv-import'],
         children: [
             { label: 'All Orders', href: '/admin/work-orders', match: ['/admin/work-orders'] },
+            { label: 'Customers', href: '/admin/customers', match: ['/admin/customers'] },
+            { label: 'Priority Settings', href: '/admin/priority-rules', match: ['/admin/priority-rules'] },
             { label: 'CSV Import', href: '/admin/csv-import', match: ['/admin/csv-import'] },
         ],
     },
@@ -111,7 +125,7 @@ export const ADMIN_GROUPS = [
         icon: 'office',
         match: [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
-            '/admin/workstation-types', '/admin/subassemblies',
+            '/admin/workstation-types', '/admin/subassemblies', '/admin/workstation-devices',
         ],
         children: [
             { label: 'Sites', href: '/admin/sites', match: ['/admin/sites'] },
@@ -119,6 +133,7 @@ export const ADMIN_GROUPS = [
             { label: 'Factories', href: '/admin/factories', match: ['/admin/factories'] },
             { label: 'Divisions', href: '/admin/divisions', match: ['/admin/divisions'] },
             { label: 'Workstation Types', href: '/admin/workstation-types', match: ['/admin/workstation-types'] },
+            { label: 'Workstation Devices', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'] },
             { label: 'Subassemblies', href: '/admin/subassemblies', match: ['/admin/subassemblies'] },
         ],
     },

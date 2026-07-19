@@ -57,18 +57,34 @@ class BatchController extends Controller
      */
     public function startStep(StartStepRequest $request, BatchStep $batchStep)
     {
+        \Log::debug('startStep called', [
+            'step_id' => $batchStep->id,
+            'user_id' => $request->user()->id,
+            'selected_line_id' => $request->session()->get('selected_line_id'),
+        ]);
+
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            \Log::warning('stepBelongsToSelectedLine failed', [
+                'step_id' => $batchStep->id,
+                'user_id' => $request->user()->id,
+            ]);
+
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         try {
             $picksByMaterial = $this->reshapePicks($request->validated()['picks'] ?? []);
             $this->batchService->startStep($batchStep, $request->user(), $picksByMaterial);
+            \Log::debug('startStep succeeded', ['step_id' => $batchStep->id]);
 
-            return back()->with('success', 'Step started. Materials have been allocated.');
+            return back()->with('success', __('Step started. Materials have been allocated.'));
         } catch (InsufficientStockException|\DomainException $e) {
+            \Log::warning('startStep domain error', ['step_id' => $batchStep->id, 'message' => $e->getMessage()]);
+
             return back()->withErrors(['picks' => $e->getMessage()])->with('error', $e->getMessage());
         } catch (\Exception $e) {
+            \Log::error('startStep exception', ['step_id' => $batchStep->id, 'message' => $e->getMessage(), 'exception' => $e]);
+
             return back()->with('error', $e->getMessage());
         }
     }
@@ -134,6 +150,27 @@ class BatchController extends Controller
         $batchStepDocument->markValidated($request->user());
 
         return back()->with('success', 'Document validated.');
+    }
+
+    /**
+     * Record the operator's acknowledgement that they have read this step's
+     * critical instructions. Only steps flagged `requires_confirmation` need it;
+     * once acknowledged (who/when recorded) the step's completion gate clears.
+     * Idempotent.
+     */
+    public function confirmInstructions(Request $request, BatchStep $batchStep)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', __('This step does not belong to the selected line.'));
+        }
+
+        if (! $batchStep->requires_confirmation) {
+            return back()->with('error', __('This step does not require read-confirmation.'));
+        }
+
+        $batchStep->markReadConfirmed($request->user());
+
+        return back()->with('success', __('Instructions acknowledged.'));
     }
 
     /**

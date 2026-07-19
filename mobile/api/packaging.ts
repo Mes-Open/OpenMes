@@ -116,3 +116,103 @@ export const listScanLogs = (
   api
     .get<ApiPaginated<PackagingScanLog>>('/api/v1/packaging/scan-logs', { params: filters })
     .then((r) => ({ data: r.data.data, meta: r.data.meta }));
+
+// ── Pallets (full CRUD) ────────────────────────────────────────────────────
+
+export type PalletStatus = 'open' | 'closed' | 'shipped';
+export type PalletQuality = 'pending' | 'pass' | 'fail';
+
+export interface Pallet {
+  id: number;
+  pallet_no: string;
+  work_order_id: number | null;
+  order_no: string | null;
+  batch_id?: number | null;
+  qty: number;
+  status: PalletStatus;
+  quality_status: PalletQuality;
+  location: string | null;
+  erp_reference: string | null;
+  shipped_at: string | null;
+}
+
+export interface PalletInput {
+  work_order_id: number;
+  batch_id?: number | null;
+  qty?: number | null;
+  status: PalletStatus;
+  location?: string | null;
+  erp_reference?: string | null;
+}
+
+export interface PalletMeta {
+  statuses: { value: string; label: string }[];
+  work_orders: { id: number; order_no: string }[];
+}
+
+export const listPallets = (status?: PalletStatus): Promise<Pallet[]> =>
+  api
+    .get<ApiEnvelope<Pallet[]>>('/api/v1/pallets', { params: status ? { status } : {} })
+    .then((r) => r.data.data);
+
+export const getPalletMeta = (): Promise<PalletMeta> =>
+  api.get<ApiEnvelope<PalletMeta>>('/api/v1/pallets/meta').then((r) => r.data.data);
+
+export const createPallet = (input: PalletInput): Promise<Pallet> =>
+  api.post<ApiEnvelope<Pallet>>('/api/v1/pallets', input).then((r) => r.data.data);
+
+export const updatePallet = (id: number, input: PalletInput): Promise<Pallet> =>
+  api.patch<ApiEnvelope<Pallet>>(`/api/v1/pallets/${id}`, input).then((r) => r.data.data);
+
+export const deletePallet = (id: number): Promise<void> =>
+  api.delete(`/api/v1/pallets/${id}`).then(() => undefined);
+
+// ── Label templates (read-only; the layout builder stays on web admin) ─────
+
+export interface LabelTemplate {
+  id: number;
+  name: string;
+  type: string;
+  type_label: string;
+  size: string;
+  barcode_format: string;
+  fields_config?: Record<string, boolean>;
+  fields_count: number;
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface LabelTemplateInput {
+  name: string;
+  type: string;
+  size: string;
+  barcode_format: string;
+  fields_config?: Record<string, boolean>;
+  is_default?: boolean;
+  is_active?: boolean;
+}
+
+export interface LabelTemplateMeta {
+  types: { value: string; label: string }[];
+  sizes: { value: string; label: string }[];
+  barcode_formats: { value: string; label: string }[];
+  fields: { value: string; label: string }[];
+}
+
+export const listLabelTemplates = (): Promise<LabelTemplate[]> =>
+  api.get<ApiEnvelope<LabelTemplate[]>>('/api/v1/label-templates').then((r) => r.data.data);
+
+export const getLabelTemplateMeta = (): Promise<LabelTemplateMeta> =>
+  api.get<ApiEnvelope<LabelTemplateMeta>>('/api/v1/label-templates/meta').then((r) => r.data.data);
+
+export const createLabelTemplate = (input: LabelTemplateInput): Promise<LabelTemplate> =>
+  api.post<ApiEnvelope<LabelTemplate>>('/api/v1/label-templates', input).then((r) => r.data.data);
+
+export const updateLabelTemplate = (id: number, input: LabelTemplateInput): Promise<LabelTemplate> =>
+  api.patch<ApiEnvelope<LabelTemplate>>(`/api/v1/label-templates/${id}`, input).then((r) => r.data.data);
+
+export const setLabelTemplateDefault = (id: number): Promise<LabelTemplate> =>
+  api.post<ApiEnvelope<LabelTemplate>>(`/api/v1/label-templates/${id}/set-default`).then((r) => r.data.data);
+
+export const deleteLabelTemplate = (id: number): Promise<void> =>
+  api.delete(`/api/v1/label-templates/${id}`).then(() => undefined);

@@ -1,8 +1,11 @@
 /**
- * Work-orders list — restyled onto the Geist White design system (@openmes/ui).
- * Light-only v1: the previous Colors[scheme] light/dark switch is dropped here;
- * dark shop-floor theming returns with token theming later.
- * Behavior (queries, filters, navigation, i18n) is unchanged.
+ * Work-orders list — the operator "Queue" (design: OpenMES Mobile.dc.html — Queue
+ * tab; content mirrors the web operator Queue page Pages/operator/Queue.jsx).
+ * Search + Active/Queued/Done segments + optional line chips; each row shows
+ * product, status, order no, produced/planned and due, and swipes left to reveal
+ * a Report action (operators don't transition status — reporting is their row
+ * action on the web, so the swipe routes to the order where reporting lives).
+ * Geist White, light-only v1.
  */
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -11,7 +14,8 @@ import { LegendList } from '@legendapp/list';
 import { format, isValid, parseISO } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 
-import { SegmentedControl, StatusPill, colors, fonts, type StatusKey } from '@openmes/ui';
+import { SegmentedControl, StatusPill, colors, fonts, radius, type StatusKey } from '@openmes/ui';
+import { SearchField, SwipeRow } from '@openmes/ui/native';
 
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { TabletStatusStripLive } from '@/components/tablet/TabletStatusStripLive';
@@ -22,12 +26,9 @@ import { isWorkOrderOverdue, statusLabel } from '@/lib/statusLabels';
 import type { WorkOrder, WorkOrderStatus } from '@/types/api';
 
 // Labels are i18n keys (English phrase = key, per Laravel __() convention).
-const STATUS_GROUPS: { key: string; label: string; statuses?: WorkOrderStatus[] }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'active', label: 'Active', statuses: ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'BLOCKED', 'PAUSED'] },
-  { key: 'pending', label: 'Not Started', statuses: ['PENDING'] },
-  { key: 'in_progress', label: 'Running', statuses: ['IN_PROGRESS'] },
-  { key: 'blocked', label: 'Blocked', statuses: ['BLOCKED'] },
+const STATUS_GROUPS: { key: string; label: string; statuses: WorkOrderStatus[] }[] = [
+  { key: 'active', label: 'Active', statuses: ['IN_PROGRESS', 'BLOCKED', 'PAUSED'] },
+  { key: 'queued', label: 'Queued', statuses: ['PENDING', 'ACCEPTED'] },
   { key: 'done', label: 'Done', statuses: ['DONE'] },
 ];
 
@@ -50,6 +51,7 @@ export function WorkOrdersListScreen() {
 
   const [statusKey, setStatusKey] = useState<string>('active');
   const [lineId, setLineId] = useState<number | null>(null);
+  const [query, setQuery] = useState('');
 
   const linesQuery = useLines();
   const lines = linesQuery.data ?? [];
@@ -62,13 +64,23 @@ export function WorkOrdersListScreen() {
     return f;
   }, [statusKey, lineId]);
 
-  const query = useWorkOrders(filters);
-  const orders = query.data ?? [];
+  const woQuery = useWorkOrders(filters);
+  const orders = woQuery.data ?? [];
+
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? orders.filter(
+        (o) =>
+          o.order_no.toLowerCase().includes(q) ||
+          (o.product_type?.name ?? '').toLowerCase().includes(q),
+      )
+    : orders;
 
   return (
     <View style={styles.screen}>
       {isTablet ? <TabletStatusStripLive /> : null}
       <View style={styles.filters}>
+        <SearchField value={query} onChange={setQuery} placeholder={t('Search work orders')} />
         <SegmentedControl
           options={STATUS_GROUPS.map((g) => ({ value: g.key, label: t(g.label) }))}
           value={statusKey}
@@ -85,7 +97,7 @@ export function WorkOrdersListScreen() {
               accessibilityState={{ selected: lineId == null }}
               style={[styles.chip, lineId == null && styles.chipActive]}>
               <Text style={[styles.chipText, lineId == null && styles.chipTextActive]}>
-                All lines
+                {t('All lines')}
               </Text>
             </Pressable>
             {lines.map((l) => {
@@ -105,70 +117,91 @@ export function WorkOrdersListScreen() {
         ) : null}
       </View>
 
-      {query.isLoading ? (
+      {woQuery.isLoading ? (
         <LoadingState />
-      ) : query.isError ? (
-        <ErrorState error={query.error} onRetry={query.refetch} />
+      ) : woQuery.isError ? (
+        <ErrorState error={woQuery.error} onRetry={woQuery.refetch} />
       ) : (
         <LegendList
           style={styles.screen}
-          data={orders}
+          data={visible}
           keyExtractor={(wo) => String(wo.id)}
           contentContainerStyle={styles.list}
           ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <Text style={styles.sectionLabel}>{t('Work orders').toUpperCase()}</Text>
-              <Text style={styles.sectionCount}>
-                {orders.length} {orders.length === 1 ? 'ORDER' : 'ORDERS'}
-              </Text>
-            </View>
+            <Text style={styles.swipeHint}>‹ {t('Swipe a row for actions')}</Text>
           }
           ListEmptyComponent={
-            <EmptyState title="No work orders" subtitle="Try a different filter or pull to refresh." />
+            <EmptyState title={t('No work orders')} subtitle={t('Try a different filter or pull to refresh.')} />
           }
           renderItem={({ item }) => (
-            <WorkOrderRow workOrder={item} onPress={() => router.push(`/work-orders/${item.id}`)} />
+            <QueueRow
+              workOrder={item}
+              onPress={() => router.push(`/work-orders/${item.id}`)}
+              onReport={() => router.push(`/work-orders/${item.id}`)}
+              reportLabel={t('Report')}
+            />
           )}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-          refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} />}
+          ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
+          refreshControl={<RefreshControl refreshing={woQuery.isFetching} onRefresh={woQuery.refetch} />}
         />
       )}
     </View>
   );
 }
 
-function WorkOrderRow({ workOrder, onPress }: { workOrder: WorkOrder; onPress: () => void }) {
-  const { t } = useTranslation();
-
+function QueueRow({
+  workOrder,
+  onPress,
+  onReport,
+  reportLabel,
+}: {
+  workOrder: WorkOrder;
+  onPress: () => void;
+  onReport: () => void;
+  reportLabel: string;
+}) {
   const due = workOrder.due_date ? parseISO(workOrder.due_date) : null;
-  const dueLabel = due && isValid(due) ? format(due, 'MMM d') : null;
+  // Day-first short date, matching the web queue's fmtDate (e.g. '02 Jul').
+  const dueLabel = due && isValid(due) ? format(due, 'dd MMM') : null;
   const overdue = isWorkOrderOverdue(workOrder);
-  const planned = workOrder.planned_qty ?? 0;
-  const produced = workOrder.produced_qty ?? 0;
-
-  const meta = [
-    `${workOrder.order_no} · ${produced}/${planned} ${t('pcs').toUpperCase()}`,
-    dueLabel ? `${t('DUE').toUpperCase()} ${dueLabel.toUpperCase()}` : null,
-    overdue ? t('Overdue').toUpperCase() : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const planned = Number(workOrder.planned_qty ?? 0);
+  const produced = Number(workOrder.produced_qty ?? 0);
+  const pct = planned > 0 ? Math.min(100, Math.round((produced / planned) * 100)) : 0;
+  const complete = workOrder.status === 'DONE' || pct >= 100;
 
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.row}>
-      <View style={styles.rowBody}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {workOrder.product_type?.name ?? '—'}
-        </Text>
-        <Text style={[styles.rowMeta, overdue && styles.rowMetaOverdue]} numberOfLines={1}>
-          {meta}
-        </Text>
-      </View>
-      <StatusPill
-        status={PILL_STATUS[workOrder.status] ?? 'pending'}
-        label={statusLabel(workOrder.status).toUpperCase()}
-      />
-    </Pressable>
+    <SwipeRow actions={[{ key: 'report', label: reportLabel, color: colors.blocked, onPress: onReport }]}>
+      <Pressable accessibilityRole="button" onPress={onPress} style={styles.row}>
+        <View style={styles.rowBody}>
+          <View style={styles.rowTitleLine}>
+            <Text style={styles.rowTitle} numberOfLines={1}>
+              {workOrder.product_type?.name ?? workOrder.order_no}
+            </Text>
+            <StatusPill
+              status={PILL_STATUS[workOrder.status] ?? 'pending'}
+              label={statusLabel(workOrder.status).toUpperCase()}
+            />
+          </View>
+          <Text style={styles.rowMeta} numberOfLines={1}>
+            {`${workOrder.order_no} · ${produced}/${planned} PCS${planned > 0 ? ` · ${pct}%` : ''}`}
+          </Text>
+          {planned > 0 ? (
+            <View style={styles.barTrack}>
+              <View
+                style={[
+                  styles.barFill,
+                  { width: `${pct}%`, backgroundColor: complete ? colors.running : colors.accent },
+                ]}
+              />
+            </View>
+          ) : null}
+        </View>
+        {dueLabel ? (
+          <Text style={[styles.rowDue, overdue && styles.rowDueOverdue]}>{dueLabel}</Text>
+        ) : null}
+        <Text style={styles.chevron}>›</Text>
+      </Pressable>
+    </SwipeRow>
   );
 }
 
@@ -177,7 +210,7 @@ const styles = StyleSheet.create({
   filters: {
     paddingHorizontal: 18,
     paddingVertical: 12,
-    gap: 8,
+    gap: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.line,
   },
@@ -190,58 +223,35 @@ const styles = StyleSheet.create({
     borderColor: colors.line2,
     backgroundColor: colors.card,
   },
-  chipActive: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
-  },
-  chipText: {
-    fontSize: 12,
-    fontFamily: fonts.sans.native.semibold,
-    color: colors.muted,
-  },
+  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  chipText: { fontSize: 12, fontFamily: fonts.sans.native.semibold, color: colors.muted },
   chipTextActive: { color: '#FFFFFF' },
-  list: { padding: 18 },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionLabel: {
+  list: { padding: 18, maxWidth: 680, width: '100%', alignSelf: 'center' },
+  swipeHint: {
     fontFamily: fonts.mono.native.regular,
-    fontSize: 10,
-    letterSpacing: 1.2,
+    fontSize: 9,
+    letterSpacing: 0.7,
     textTransform: 'uppercase',
-    color: colors.faint,
-  },
-  sectionCount: {
-    fontFamily: fonts.mono.native.regular,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    color: colors.faint,
+    color: colors.faintest,
+    marginBottom: 9,
+    marginLeft: 2,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line2,
-    borderRadius: 12,
     paddingVertical: 13,
     paddingHorizontal: 14,
+    borderRadius: radius.md,
   },
   rowBody: { flex: 1, minWidth: 0 },
-  rowTitle: {
-    fontSize: 14,
-    fontFamily: fonts.sans.native.semibold,
-    color: colors.ink,
-  },
-  rowMeta: {
-    fontFamily: fonts.mono.native.regular,
-    fontSize: 10,
-    color: colors.faint,
-    marginTop: 3,
-  },
-  rowMetaOverdue: { color: colors.blocked },
+  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  rowTitle: { flexShrink: 1, fontSize: 15, fontFamily: fonts.sans.native.semibold, color: colors.ink },
+  rowMeta: { fontFamily: fonts.mono.native.regular, fontSize: 10, color: colors.faint, marginTop: 3 },
+  barTrack: { height: 4, borderRadius: 2, overflow: 'hidden', backgroundColor: colors.chip, marginTop: 6 },
+  barFill: { height: '100%', borderRadius: 2 },
+  rowDue: { fontFamily: fonts.mono.native.semibold, fontSize: 12, color: colors.muted },
+  rowDueOverdue: { color: colors.blocked },
+  chevron: { fontFamily: fonts.mono.native.regular, fontSize: 16, color: colors.faintest },
 });

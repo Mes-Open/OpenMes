@@ -35,4 +35,10 @@ body {
   body {
     background-color: #000;
   }
+}
+/* react-native-web renders TextInput as a real <input>; the browser adds its
+   default focus ring on top of the design's own accent focus border, producing
+   a double outline. The design system provides its own focus affordance. */
+input:focus, input:focus-visible, textarea:focus, textarea:focus-visible {
+  outline: none;
 }`;

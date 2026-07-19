@@ -106,7 +106,7 @@ function GalleryBody() {
                 </Section>
 
                 <Section label="04 — INPUTS">
-                    <TextField label="Lot number" mono value={lot} onChange={setLot} />
+                    <TextField label="Lot number" mono value={lot} onChangeText={setLot} />
                     <QuantityStepper value={qty} onChange={setQty} min={0} />
                     <SearchField value={search} onChange={setSearch} placeholder="Search work orders" />
                     <BigStepper value={big} onChange={setBig} min={0} />

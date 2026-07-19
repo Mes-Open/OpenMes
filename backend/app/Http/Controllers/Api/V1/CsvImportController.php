@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Services\CsvImport\CsvParserService;
-use App\Services\CsvImport\WorkOrderImportService;
 use App\Models\CsvImport;
 use App\Models\CsvImportMapping;
-use Illuminate\Http\Request;
+use App\Services\CsvImport\CsvParserService;
+use App\Services\CsvImport\WorkOrderImportService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class CsvImportController extends Controller
@@ -77,6 +77,7 @@ class CsvImportController extends Controller
             'mapping' => 'required|array',
             'mapping.import_strategy' => 'required|in:update_or_create,skip_existing,error_on_duplicate',
             'mapping.columns' => 'required|array',
+            'mapping.target_line_id' => 'nullable|integer|exists:lines,id',
             'save_mapping_template' => 'boolean',
             'mapping_template_name' => 'nullable|string|max:255',
         ]);
@@ -84,20 +85,21 @@ class CsvImportController extends Controller
         // Retrieve upload metadata
         $uploadData = cache()->get("csv_upload_{$validated['upload_id']}");
 
-        if (!$uploadData) {
+        if (! $uploadData) {
             return response()->json([
                 'message' => 'Upload session expired. Please re-upload the CSV file.',
             ], 404);
         }
 
         try {
-            // Validate mapping
+            // Validate mapping (line_code becomes optional when a target line is set)
             $errors = $this->csvParser->validateMapping(
                 $uploadData['headers'],
-                $validated['mapping']['columns']
+                $validated['mapping']['columns'],
+                ! empty($validated['mapping']['target_line_id'])
             );
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 return response()->json([
                     'message' => 'Invalid column mapping',
                     'errors' => $errors,

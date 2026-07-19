@@ -21,6 +21,8 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { FontAwesome } from '@expo/vector-icons';
 
+import { colors, fonts } from '@openmes/ui';
+
 import { ActivityLegendPills } from '@/components/employee-schedule/ActivityLegendPills';
 import { iconForActivity } from '@/components/employee-schedule/activityIcons';
 import {
@@ -37,8 +39,6 @@ import {
   ErrorState,
   LoadingState,
 } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useDeviceClass } from '@/hooks/useDeviceClass';
 import { useWorkers } from '@/hooks/queries/useHr';
 import { useEmployeeDayPlan } from '@/hooks/queries/useEmployeeActivities';
@@ -62,8 +62,6 @@ interface Props {
 }
 
 export function DayPlanScreen({ onAdd }: Props = {}) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
   const router = useRouter();
   const { useTabletLayout } = useDeviceClass();
@@ -143,7 +141,7 @@ export function DayPlanScreen({ onAdd }: Props = {}) {
     : t('Day plan');
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <PlannerHeader
         eyebrow={t('Employee day plan')}
         title={headerTitle}
@@ -176,7 +174,6 @@ export function DayPlanScreen({ onAdd }: Props = {}) {
           dateStrip={dateStrip}
           date={date}
           onPickDate={setDate}
-          palette={palette}
           t={t}
         />
       ) : (
@@ -198,8 +195,6 @@ export function DayPlanScreen({ onAdd }: Props = {}) {
           refetching={planQ.isRefetching}
           onRefresh={() => planQ.refetch()}
           onAdd={effectiveWorkerId != null ? handleAdd : undefined}
-          palette={palette}
-          scheme={scheme}
           t={t}
         />
       )}
@@ -228,7 +223,6 @@ function TabletDayPlanner({
   dateStrip,
   date,
   onPickDate,
-  palette,
   t,
 }: {
   workers: any[];
@@ -247,7 +241,6 @@ function TabletDayPlanner({
   dateStrip: Date[];
   date: Date;
   onPickDate: (d: Date) => void;
-  palette: typeof Colors.light;
   t: (k: string) => string;
 }) {
   const totalProductive = productiveMinutes(summary);
@@ -272,26 +265,26 @@ function TabletDayPlanner({
         <WorkerListSkeleton />
       ) : (
       /* LEFT — Worker list */
-      <View style={[tablet.pane, { width: 260, backgroundColor: palette.surface, borderColor: palette.border }]}>
+      <View style={[tablet.pane, { width: 260, backgroundColor: colors.card, borderColor: colors.line }]}>
         <View
           style={[
             tablet.searchBox,
-            { backgroundColor: palette.surfaceAlt, borderColor: palette.border },
+            { backgroundColor: colors.chip, borderColor: colors.line },
           ]}>
-          <FontAwesome name="search" size={12} color={palette.textMuted} />
+          <FontAwesome name="search" size={12} color={colors.muted} />
           <TextInput
             placeholder={t('Search worker')}
-            placeholderTextColor={palette.textFaint}
+            placeholderTextColor={colors.faint}
             style={{
               flex: 1,
-              fontFamily: MONO,
+              fontFamily: fonts.mono.native.regular,
               fontSize: 11,
-              color: palette.text,
+              color: colors.ink,
               padding: 0,
             }}
           />
         </View>
-        <Mono size={10} color={palette.textMuted} letterSpacing={0.7} upper style={{ marginTop: 14 }}>
+        <Mono size={10} color={colors.muted} letterSpacing={0.7} upper style={{ marginTop: 14 }}>
           A-{t('shift')} · {workers.length} {t('on')}
         </Mono>
         <ScrollView style={{ marginTop: 8 }} contentContainerStyle={{ gap: 6 }}>
@@ -304,20 +297,18 @@ function TabletDayPlanner({
                 style={[
                   tablet.workerCard,
                   {
-                    backgroundColor: on
-                      ? palette.warningSoft
-                      : palette.surfaceAlt,
-                    borderColor: on ? BRAND.amber : palette.border,
+                    backgroundColor: on ? colors.chip : colors.card,
+                    borderColor: on ? colors.accent : colors.line,
                   },
                 ]}>
                 <View
                   style={[
                     tablet.workerAvatar,
                     {
-                      backgroundColor: on ? BRAND.amber : palette.surface,
+                      backgroundColor: on ? colors.accent : colors.card,
                     },
                   ]}>
-                  <Mono size={10} weight="700" color={on ? '#1a1208' : palette.text}>
+                  <Mono size={10} weight="700" color={on ? colors.bg : colors.ink}>
                     {initials(w.name)}
                   </Mono>
                 </View>
@@ -325,12 +316,12 @@ function TabletDayPlanner({
                   <Sans
                     size={12}
                     weight="700"
-                    color={palette.text}
+                    color={colors.ink}
                     numberOfLines={1}
                     style={{ }}>
                     {w.name}
                   </Sans>
-                  <Mono size={9} color={palette.textMuted} letterSpacing={0.3} style={{ marginTop: 2 }}>
+                  <Mono size={9} color={colors.muted} letterSpacing={0.3} style={{ marginTop: 2 }}>
                     {w.code}
                   </Mono>
                 </View>
@@ -341,19 +332,19 @@ function TabletDayPlanner({
         <View
           style={[
             tablet.coverageCard,
-            { backgroundColor: palette.surfaceAlt },
+            { backgroundColor: colors.chip },
           ]}>
-          <Mono size={9} color={palette.textMuted} letterSpacing={0.5} upper>
+          <Mono size={9} color={colors.muted} letterSpacing={0.5} upper>
             {t('Shift coverage')}
           </Mono>
           <Mono
             size={22}
             weight="700"
-            color={palette.success}
+            color={colors.running}
             letterSpacing={-0.4}
             style={{ marginTop: 3 }}>
             {workers.length}
-            <Mono size={12} color={palette.textMuted}>
+            <Mono size={12} color={colors.muted}>
               /{workers.length}
             </Mono>
           </Mono>
@@ -365,7 +356,7 @@ function TabletDayPlanner({
         <CenterPaneSkeleton />
       ) : (
       /* CENTER — Summary band + tacho + legend + activity table */
-      <View style={[tablet.pane, { flex: 1, backgroundColor: palette.surface, borderColor: palette.border, padding: 18, gap: 14 }]}>
+      <View style={[tablet.pane, { flex: 1, backgroundColor: colors.card, borderColor: colors.line, padding: 18, gap: 14 }]}>
         {/* Date strip — flexShrink:0 + alignItems prevents the chips
             stretching to fill the column on RN-Web. */}
         <ScrollView
@@ -382,14 +373,14 @@ function TabletDayPlanner({
                 style={[
                   tablet.dayChip,
                   {
-                    backgroundColor: on ? BRAND.amber : palette.surfaceAlt,
-                    borderColor: on ? BRAND.amber : palette.border,
+                    backgroundColor: on ? colors.accent : colors.chip,
+                    borderColor: on ? colors.accent : colors.line,
                   },
                 ]}>
                 <Mono
                   size={10.5}
                   weight="700"
-                  color={on ? '#1a1208' : palette.textMuted}
+                  color={on ? colors.bg : colors.muted}
                   letterSpacing={0.4}
                   upper>
                   {format(d, 'EEE dd')}
@@ -402,22 +393,22 @@ function TabletDayPlanner({
         {/* Summary header */}
         <View style={tablet.summaryHeader}>
           <View>
-            <Mono size={10} weight="700" color={BRAND.amber} letterSpacing={0.7} upper>
+            <Mono size={10} weight="700" color={colors.accent} letterSpacing={0.7} upper>
               {format(date, 'EEE dd MMM')} · A-{t('shift')}
             </Mono>
             <Sans
               size={18}
               weight="700"
-              color={palette.text}
+              color={colors.ink}
               style={{ marginTop: 4 }}>
               {formatMinutes(totalPlanned)} {t('on duty')} · {segments.filter((s) => s.id != null).length}{' '}
               {t('activities')}
             </Sans>
           </View>
           <View style={{ flexDirection: 'row', gap: 14 }}>
-            <KPI label={t('Productive')} value={formatMinutes(totalProductive)} color={palette.success} palette={palette} />
-            <KPI label={t('Breaks')} value={formatMinutes(breaks)} color="#e9c46a" palette={palette} />
-            <KPI label={t('Maint')} value={formatMinutes(summary.maint ?? 0)} color={palette.danger} palette={palette} />
+            <KPI label={t('Productive')} value={formatMinutes(totalProductive)} color={colors.running} />
+            <KPI label={t('Breaks')} value={formatMinutes(breaks)} color={colors.downtime} />
+            <KPI label={t('Maint')} value={formatMinutes(summary.maint ?? 0)} color={colors.blocked} />
           </View>
         </View>
 
@@ -437,20 +428,20 @@ function TabletDayPlanner({
 
         {/* Activity table */}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12 }}>
-          <View style={[tablet.tableHeader, { borderBottomColor: palette.border }]}>
-            <Mono size={9} color={palette.textMuted} letterSpacing={0.5} weight="700" style={{ width: 92 }} upper>
+          <View style={[tablet.tableHeader, { borderBottomColor: colors.line }]}>
+            <Mono size={9} color={colors.muted} letterSpacing={0.5} weight="700" style={{ width: 92 }} upper>
               {t('Activity')}
             </Mono>
-            <Mono size={9} color={palette.textMuted} letterSpacing={0.5} weight="700" style={{ flex: 1 }} upper>
+            <Mono size={9} color={colors.muted} letterSpacing={0.5} weight="700" style={{ flex: 1 }} upper>
               {t('Detail')}
             </Mono>
-            <Mono size={9} color={palette.textMuted} letterSpacing={0.5} weight="700" style={{ width: 70 }} upper>
+            <Mono size={9} color={colors.muted} letterSpacing={0.5} weight="700" style={{ width: 70 }} upper>
               {t('From')}
             </Mono>
-            <Mono size={9} color={palette.textMuted} letterSpacing={0.5} weight="700" style={{ width: 70 }} upper>
+            <Mono size={9} color={colors.muted} letterSpacing={0.5} weight="700" style={{ width: 70 }} upper>
               {t('To')}
             </Mono>
-            <Mono size={9} color={palette.textMuted} letterSpacing={0.5} weight="700" style={{ width: 60, textAlign: 'right' }} upper>
+            <Mono size={9} color={colors.muted} letterSpacing={0.5} weight="700" style={{ width: 60, textAlign: 'right' }} upper>
               {t('Duration')}
             </Mono>
           </View>
@@ -479,7 +470,7 @@ function TabletDayPlanner({
                   <View style={{ width: 92, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ width: 4, height: 16, borderRadius: 2, backgroundColor: def.color }} />
                     <FontAwesome name={iconForActivity(s.type)} size={12} color={def.color} />
-                    <Mono size={10.5} weight="700" color={palette.text} letterSpacing={0.3} upper>
+                    <Mono size={10.5} weight="700" color={colors.ink} letterSpacing={0.3} upper>
                       {def.short}
                     </Mono>
                   </View>
@@ -487,22 +478,22 @@ function TabletDayPlanner({
                     <Sans
                       size={12}
                       weight="600"
-                      color={palette.text}
+                      color={colors.ink}
                       style={{ }}
                       numberOfLines={1}>
                       {s.label ?? t(def.label)}
                     </Sans>
                     {s.work_order ? (
-                      <Mono size={9.5} color={palette.textMuted} style={{ marginTop: 2 }}>
+                      <Mono size={9.5} color={colors.muted} style={{ marginTop: 2 }}>
                         {s.work_order.order_no}
                         {s.step_name ? ` · ${s.step_name}` : ''}
                       </Mono>
                     ) : null}
                   </View>
-                  <Mono size={11} weight="600" color={palette.text} style={{ width: 70 }}>
+                  <Mono size={11} weight="600" color={colors.ink} style={{ width: 70 }}>
                     {s.from}
                   </Mono>
-                  <Mono size={11} weight="600" color={palette.text} style={{ width: 70 }}>
+                  <Mono size={11} weight="600" color={colors.ink} style={{ width: 70 }}>
                     {s.to}
                   </Mono>
                   <Mono
@@ -523,9 +514,9 @@ function TabletDayPlanner({
         <DetailPaneSkeleton />
       ) : (
       /* RIGHT — Selected activity detail */
-      <View style={[tablet.pane, { width: 360, backgroundColor: palette.surface, borderColor: palette.border, padding: 16, gap: 14 }]}>
+      <View style={[tablet.pane, { width: 360, backgroundColor: colors.card, borderColor: colors.line, padding: 16, gap: 14 }]}>
         {detailSegment && typeMeta ? (
-          <DetailPanel segment={detailSegment} typeMeta={typeMeta} palette={palette} t={t} />
+          <DetailPanel segment={detailSegment} typeMeta={typeMeta} t={t} />
         ) : (
           <EmptyState title={t('Select an activity')} />
         )}
@@ -538,12 +529,10 @@ function TabletDayPlanner({
 function DetailPanel({
   segment,
   typeMeta,
-  palette,
   t,
 }: {
   segment: DaySegment;
   typeMeta: TypeMetaMap;
-  palette: typeof Colors.light;
   t: (k: string) => string;
 }) {
   const def = typeMeta[segment.type];
@@ -553,18 +542,18 @@ function DetailPanel({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: def.color }} />
           <FontAwesome name={iconForActivity(segment.type)} size={13} color={def.color} />
-          <Mono size={10} weight="700" color={BRAND.amber} letterSpacing={0.7} upper>
+          <Mono size={10} weight="700" color={colors.accent} letterSpacing={0.7} upper>
             {t('Selected')} · {def.short}
           </Mono>
         </View>
         <Sans
           size={20}
           weight="700"
-          color={palette.text}
+          color={colors.ink}
           style={{ marginTop: 6 }}>
           {segment.label ?? t(def.label)}
         </Sans>
-        <Mono size={10.5} color={palette.textMuted} letterSpacing={0.3} style={{ marginTop: 4 }} upper>
+        <Mono size={10.5} color={colors.muted} letterSpacing={0.3} style={{ marginTop: 4 }} upper>
           {t(def.label)}
         </Mono>
       </View>
@@ -572,12 +561,12 @@ function DetailPanel({
       <View
         style={{
           padding: 14,
-          backgroundColor: palette.surfaceAlt,
+          backgroundColor: colors.chip,
           borderRadius: 12,
         }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <View>
-            <Mono size={9.5} color={palette.textMuted} letterSpacing={0.6} upper>
+            <Mono size={9.5} color={colors.muted} letterSpacing={0.6} upper>
               {t('Duration')}
             </Mono>
             <Mono
@@ -590,10 +579,10 @@ function DetailPanel({
             </Mono>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Mono size={9.5} color={palette.textMuted} letterSpacing={0.6} upper>
+            <Mono size={9.5} color={colors.muted} letterSpacing={0.6} upper>
               {t('Window')}
             </Mono>
-            <Mono size={15} weight="700" color={palette.text} style={{ marginTop: 3 }}>
+            <Mono size={15} weight="700" color={colors.ink} style={{ marginTop: 3 }}>
               {segment.from} → {segment.to}
             </Mono>
           </View>
@@ -603,32 +592,32 @@ function DetailPanel({
       {(segment.work_order || segment.line) ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {segment.work_order ? (
-            <DetailCell label={t('Work Order')} value={segment.work_order.order_no} palette={palette} />
+            <DetailCell label={t('Work Order')} value={segment.work_order.order_no} />
           ) : null}
           {segment.step_name ? (
-            <DetailCell label={t('Step')} value={segment.step_name} palette={palette} />
+            <DetailCell label={t('Step')} value={segment.step_name} />
           ) : null}
           {segment.line ? (
-            <DetailCell label={t('Line')} value={segment.line.name} palette={palette} />
+            <DetailCell label={t('Line')} value={segment.line.name} />
           ) : null}
         </View>
       ) : null}
 
       {segment.notes ? (
         <View>
-          <Mono size={10.5} color={palette.textMuted} letterSpacing={0.8} upper>
+          <Mono size={10.5} color={colors.muted} letterSpacing={0.8} upper>
             {t('Notes')}
           </Mono>
           <View
             style={{
               marginTop: 8,
               padding: 12,
-              backgroundColor: palette.surfaceAlt,
+              backgroundColor: colors.chip,
               borderRadius: 10,
             }}>
             <Sans
               size={12}
-              color={palette.text}
+              color={colors.ink}
               style={{ fontStyle: 'italic' }}>
               “{segment.notes}”
             </Sans>
@@ -639,20 +628,20 @@ function DetailPanel({
   );
 }
 
-function DetailCell({ label, value, palette }: { label: string; value: string; palette: typeof Colors.light }) {
+function DetailCell({ label, value }: { label: string; value: string }) {
   return (
     <View
       style={{
         flexBasis: '47%',
         flexGrow: 1,
         padding: 10,
-        backgroundColor: palette.surfaceAlt,
+        backgroundColor: colors.chip,
         borderRadius: 8,
       }}>
-      <Mono size={9} color={palette.textMuted} letterSpacing={0.5} upper>
+      <Mono size={9} color={colors.muted} letterSpacing={0.5} upper>
         {label}
       </Mono>
-      <Mono size={12} weight="700" color={palette.text} style={{ marginTop: 3 }}>
+      <Mono size={12} weight="700" color={colors.ink} style={{ marginTop: 3 }}>
         {value}
       </Mono>
     </View>
@@ -663,16 +652,14 @@ function KPI({
   label,
   value,
   color,
-  palette,
 }: {
   label: string;
   value: string;
   color: string;
-  palette: typeof Colors.light;
 }) {
   return (
     <View style={{ alignItems: 'flex-end' }}>
-      <Mono size={8.5} color={palette.textMuted} letterSpacing={0.4} upper>
+      <Mono size={8.5} color={colors.muted} letterSpacing={0.4} upper>
         {label}
       </Mono>
       <Mono size={16} weight="700" color={color} style={{ marginTop: 2 }}>
@@ -704,8 +691,6 @@ function PhoneDayPlanner({
   refetching,
   onRefresh,
   onAdd,
-  palette,
-  scheme,
   t,
 }: {
   workers: any[];
@@ -725,8 +710,6 @@ function PhoneDayPlanner({
   refetching: boolean;
   onRefresh: () => void;
   onAdd?: () => void;
-  palette: typeof Colors.light;
-  scheme: 'light' | 'dark';
   t: (k: string) => string;
 }) {
   const totalProductive = productiveMinutes(summary);
@@ -740,7 +723,7 @@ function PhoneDayPlanner({
     <ScrollView
       contentContainerStyle={phone.content}
       refreshControl={
-        <RefreshControl refreshing={refetching} onRefresh={onRefresh} tintColor={palette.tint} />
+        <RefreshControl refreshing={refetching} onRefresh={onRefresh} tintColor={colors.accent} />
       }>
       {/* Worker chip strip */}
       {workers.length > 1 ? (
@@ -758,23 +741,23 @@ function PhoneDayPlanner({
                 style={[
                   phone.workerChip,
                   {
-                    backgroundColor: on ? BRAND.amber : palette.surface,
-                    borderColor: on ? BRAND.amber : palette.border,
+                    backgroundColor: on ? colors.accent : colors.card,
+                    borderColor: on ? colors.accent : colors.line,
                   },
                 ]}>
                 <View
                   style={[
                     phone.workerBadge,
-                    { backgroundColor: on ? '#1a1208' : palette.surfaceAlt },
+                    { backgroundColor: on ? colors.ink : colors.chip },
                   ]}>
-                  <Mono size={9} weight="700" color={on ? BRAND.amber : palette.text}>
+                  <Mono size={9} weight="700" color={on ? colors.accent : colors.ink}>
                     {initials(w.name)}
                   </Mono>
                 </View>
                 <Sans
                   size={11}
                   weight="600"
-                  color={on ? '#1a1208' : palette.text}
+                  color={on ? colors.bg : colors.ink}
                   style={{ }}>
                   {w.name}
                 </Sans>
@@ -799,14 +782,14 @@ function PhoneDayPlanner({
               style={[
                 phone.dayChip,
                 {
-                  backgroundColor: on ? BRAND.amber : palette.surface,
-                  borderColor: on ? BRAND.amber : palette.border,
+                  backgroundColor: on ? colors.accent : colors.card,
+                  borderColor: on ? colors.accent : colors.line,
                 },
               ]}>
               <Mono
                 size={10.5}
                 weight="700"
-                color={on ? '#1a1208' : palette.textMuted}
+                color={on ? colors.bg : colors.muted}
                 letterSpacing={0.4}
                 upper>
                 {format(d, 'EEE dd')}
@@ -820,29 +803,29 @@ function PhoneDayPlanner({
       <View
         style={[
           phone.summaryCard,
-          { backgroundColor: palette.surface, borderColor: palette.border },
+          { backgroundColor: colors.card, borderColor: colors.line },
         ]}>
         <View style={phone.summaryHeader}>
           <View style={{ flex: 1 }}>
-            <Mono size={10} weight="700" color={BRAND.amber} letterSpacing={0.7} upper>
+            <Mono size={10} weight="700" color={colors.accent} letterSpacing={0.7} upper>
               {format(date, 'EEE dd MMM')} · A-{t('shift')}
             </Mono>
             <Sans
               size={18}
               weight="700"
-              color={palette.text}
+              color={colors.ink}
               style={{ marginTop: 6 }}>
               {formatMinutes(totalPlanned)} {t('planned')}
             </Sans>
-            <Mono size={10.5} color={palette.textMuted} letterSpacing={0.3} style={{ marginTop: 4 }} upper>
+            <Mono size={10.5} color={colors.muted} letterSpacing={0.3} style={{ marginTop: 4 }} upper>
               {segments.filter((s) => s.id != null).length} {t('activities')}
             </Mono>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Mono size={22} weight="700" color={palette.success} letterSpacing={-0.4}>
+            <Mono size={22} weight="700" color={colors.running} letterSpacing={-0.4}>
               {formatMinutes(totalProductive)}
             </Mono>
-            <Mono size={9} color={palette.textMuted} letterSpacing={0.4} upper style={{ marginTop: 2 }}>
+            <Mono size={9} color={colors.muted} letterSpacing={0.4} upper style={{ marginTop: 2 }}>
               {t('Productive')}
             </Mono>
           </View>
@@ -858,10 +841,10 @@ function PhoneDayPlanner({
         </View>
 
         <View style={phone.sumRow}>
-          <SumChip palette={palette} label={t('work')} value={formatMinutes(summary.work ?? 0)} color={palette.text} />
-          <SumChip palette={palette} label={t('breaks')} value={formatMinutes((summary.break ?? 0) + (summary.rest ?? 0))} color={palette.text} />
-          <SumChip palette={palette} label={t('maint')} value={formatMinutes(summary.maint ?? 0)} color={palette.danger} />
-          <SumChip palette={palette} label={t('off')} value={formatMinutes(summary.off ?? 0)} color={palette.text} />
+          <SumChip label={t('work')} value={formatMinutes(summary.work ?? 0)} color={colors.ink} />
+          <SumChip label={t('breaks')} value={formatMinutes((summary.break ?? 0) + (summary.rest ?? 0))} color={colors.ink} />
+          <SumChip label={t('maint')} value={formatMinutes(summary.maint ?? 0)} color={colors.blocked} />
+          <SumChip label={t('off')} value={formatMinutes(summary.off ?? 0)} color={colors.ink} />
         </View>
       </View>
 
@@ -870,7 +853,7 @@ function PhoneDayPlanner({
 
       {/* Activity list */}
       <View>
-        <Mono size={10.5} color={palette.textMuted} letterSpacing={0.8} upper style={phone.listLabel}>
+        <Mono size={10.5} color={colors.muted} letterSpacing={0.8} upper style={phone.listLabel}>
           {t('Activities')} · {segments.filter((s) => s.id != null).length}
         </Mono>
         <View style={{ gap: 4 }}>
@@ -888,12 +871,8 @@ function PhoneDayPlanner({
                 style={[
                   phone.activityRow,
                   {
-                    backgroundColor: hl
-                      ? scheme === 'dark'
-                        ? '#241a08'
-                        : palette.warningSoft
-                      : palette.surface,
-                    borderColor: hl ? BRAND.amber : palette.border,
+                    backgroundColor: hl ? colors.chip : colors.card,
+                    borderColor: hl ? colors.accent : colors.line,
                   },
                 ]}>
                 <View style={[phone.activityStripe, { backgroundColor: def.color }]} />
@@ -905,27 +884,27 @@ function PhoneDayPlanner({
                     <Sans
                       size={12.5}
                       weight="600"
-                      color={palette.text}
+                      color={colors.ink}
                       style={{ flexShrink: 1 }}>
                       {s.label ?? t(def.label)}
                     </Sans>
                     {hl ? (
-                      <View style={[phone.nowChip, { backgroundColor: BRAND.amber }]}>
-                        <Mono size={8} weight="700" color="#1a1208" letterSpacing={0.4} upper>
+                      <View style={[phone.nowChip, { backgroundColor: colors.accent }]}>
+                        <Mono size={8} weight="700" color={colors.bg} letterSpacing={0.4} upper>
                           {t('now')}
                         </Mono>
                       </View>
                     ) : null}
                   </View>
                   {s.work_order ? (
-                    <Mono size={9.5} color={palette.textMuted} letterSpacing={0.3} style={{ marginTop: 3 }}>
+                    <Mono size={9.5} color={colors.muted} letterSpacing={0.3} style={{ marginTop: 3 }}>
                       {s.work_order.order_no}
                       {s.step_name ? ` · ${s.step_name}` : ''}
                     </Mono>
                   ) : null}
                 </View>
                 <View style={{ alignItems: 'flex-end', minWidth: 76 }}>
-                  <Mono size={10.5} weight="600" color={palette.textMuted}>
+                  <Mono size={10.5} weight="600" color={colors.muted}>
                     {s.from} → {s.to}
                   </Mono>
                   <Mono size={9.5} weight="700" color={def.color} letterSpacing={0.3} style={{ marginTop: 2 }}>
@@ -944,10 +923,10 @@ function PhoneDayPlanner({
           onPress={onAdd}
           style={[
             phone.addBtn,
-            { borderColor: palette.border, backgroundColor: 'transparent' },
+            { borderColor: colors.line, backgroundColor: 'transparent' },
           ]}>
-          <FontAwesome name="plus" size={12} color={BRAND.amber} />
-          <Mono size={11.5} weight="700" color={BRAND.amber} letterSpacing={0.5} upper>
+          <FontAwesome name="plus" size={12} color={colors.accent} />
+          <Mono size={11.5} weight="700" color={colors.accent} letterSpacing={0.5} upper>
             {t('Add activity')}
           </Mono>
         </Pressable>
@@ -960,19 +939,17 @@ function SumChip({
   label,
   value,
   color,
-  palette,
 }: {
   label: string;
   value: string;
   color: string;
-  palette: typeof Colors.light;
 }) {
   return (
     <View style={phone.sumChip}>
       <Mono size={10.5} weight="700" color={color}>
         {value}
       </Mono>
-      <Mono size={10.5} color={palette.textMuted} letterSpacing={0.3}>
+      <Mono size={10.5} color={colors.muted} letterSpacing={0.3}>
         {label}
       </Mono>
     </View>

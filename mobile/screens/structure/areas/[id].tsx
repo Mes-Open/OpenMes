@@ -1,27 +1,25 @@
+/**
+ * Area detail — mirrors the web admin areas Show page: breadcrumb, header with
+ * name/code/site, Status + Description cards, and the Lines table. Tapping a
+ * line opens its detail; the Edit button opens the area editor. Data via the
+ * existing useArea hook; navigation targets preserved.
+ */
 import { FontAwesome } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
-import { DetailScreen } from '@/components/ui/Detail';
+import { colors, fonts, radius } from '@openmes/ui';
+
+import { Button } from '@/components/ui/Button';
 import { Mono } from '@/components/ui/Mono';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useArea } from '@/hooks/queries/useStructureIsa95';
 
-/**
- * Area detail — ISA-95 breadcrumb + summary KPIs + lines in this area.
- * Matches ScreenAreaDetail from gaps.jsx.
- */
 export function AreaDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const numericId = Number(id);
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
 
   const query = useArea(numericId);
@@ -34,114 +32,102 @@ export function AreaDetail() {
   const lines = area.lines ?? [];
 
   return (
-    <DetailScreen title={area.name} subtitle={`${area.site?.name ?? '—'} › ${area.code} · ${t('ISA-95 area').toUpperCase()}`}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {/* Breadcrumb */}
       <View style={styles.breadcrumb}>
-        <Mono size={11} color={palette.textMuted} letterSpacing={0.4}>
+        <Mono size={10} color={colors.muted} letterSpacing={0.4} numberOfLines={1}>
           {(area.site?.name ?? '—').toUpperCase()}
         </Mono>
-        <FontAwesome name="chevron-right" size={11} color={palette.textFaint} />
-        <Mono size={11} color={BRAND.amber} weight="700" letterSpacing={0.4}>
+        <FontAwesome name="chevron-right" size={9} color={colors.faint} />
+        <Mono size={10} color={colors.accent} weight="600" letterSpacing={0.4} numberOfLines={1}>
           {area.name.toUpperCase()}
         </Mono>
       </View>
 
-      {/* Summary */}
-      <Card>
-        <Mono size={10.5} color={palette.textFaint} letterSpacing={0.8}>
-          {t('SUMMARY').toUpperCase()}
-        </Mono>
-        <View style={styles.summaryRow}>
-          {[
-            { l: 'LINES', v: String(area.lines_count ?? lines.length) },
-            { l: 'WORKSTATIONS', v: '—' },
-            { l: 'WORKERS ON', v: '—' },
-          ].map((s) => (
-            <View
-              key={s.l}
-              style={[styles.summaryTile, { backgroundColor: palette.surfaceAlt }]}>
-              <Mono size={9.5} color={palette.textFaint} letterSpacing={0.5}>
-                {s.l}
-              </Mono>
-              <Text style={[styles.summaryValue, { color: palette.text, fontFamily: MONO }]}>
-                {s.v}
-              </Text>
-            </View>
-          ))}
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.h1}>{area.name}</Text>
+          <Mono size={11} color={colors.muted} style={{ marginTop: 6 }}>{area.code}</Mono>
         </View>
-      </Card>
+        <Button title={t('Edit')} size="sm" variant="outline" onPress={() => router.push(`/structure/areas/${area.id}/edit` as never)} />
+      </View>
+
+      {/* Status */}
+      <View style={{ gap: 8 }}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Status').toUpperCase()}</Mono>
+        <View style={styles.box}>
+          <Text style={[styles.statusText, { color: area.is_active ? colors.running : colors.faint }]}>
+            {area.is_active ? t('Active') : t('Inactive')}
+          </Text>
+        </View>
+      </View>
+
+      {/* Description */}
+      <View style={{ gap: 8 }}>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>{t('Description').toUpperCase()}</Mono>
+        <View style={styles.box}>
+          <Text style={styles.notes}>{area.description || '—'}</Text>
+        </View>
+      </View>
 
       {/* Lines */}
       <View style={{ gap: 8 }}>
-        <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>
-          {t('LINES IN AREA').toUpperCase()}
+        <Mono size={9} color={colors.faint} letterSpacing={0.6}>
+          {`${t('Lines')} · ${lines.length}`.toUpperCase()}
         </Mono>
-        <Card style={{ padding: 0 }}>
-          {lines.length === 0 ? (
-            <View style={{ padding: 16 }}>
-              <Mono size={11} color={palette.textFaint}>
-                {t('No lines in this area').toUpperCase()}
-              </Mono>
+        {lines.length === 0 ? (
+          <Text style={styles.empty}>{t('No lines assigned to this area yet.')}</Text>
+        ) : (
+          <View style={styles.box}>
+            <View style={[styles.row, styles.tableHead]}>
+              <HCell w={72}>{t('Code')}</HCell>
+              <HCell flex={1}>{t('Name')}</HCell>
             </View>
-          ) : (
-            lines.map((line, i, arr) => (
+            {lines.map((line, i, arr) => (
               <Pressable
                 key={line.id}
-                onPress={() =>
-                  router.push(`/structure/lines/${line.id}` as never)
-                }
+                onPress={() => router.push(`/structure/lines/${line.id}` as never)}
                 style={({ pressed }) => [
-                  styles.lineRow,
-                  i === arr.length - 1
-                    ? null
-                    : {
-                        borderBottomWidth: StyleSheet.hairlineWidth,
-                        borderBottomColor: palette.border,
-                      },
-                  { opacity: pressed ? 0.85 : 1 },
+                  styles.row,
+                  i === arr.length - 1 ? null : styles.tableRow,
+                  { paddingVertical: 12, opacity: pressed ? 0.6 : 1 },
                 ]}>
-                <View
-                  style={[
-                    styles.codeBadge,
-                    { backgroundColor: palette.text },
-                  ]}>
-                  <Mono size={11} color={palette.background} weight="700">
-                    {(line.code ?? line.name.slice(0, 4)).toUpperCase()}
-                  </Mono>
+                <View style={{ width: 72 }}>
+                  <Mono size={11} color={colors.muted} numberOfLines={1}>{line.code ?? '—'}</Mono>
                 </View>
-                <Text
-                  style={[styles.lineName, { color: palette.text }]}
-                  numberOfLines={1}>
-                  {line.name}
-                </Text>
-                <StatusPill status="—" label={t('Queued')} />
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={styles.lineName}>{line.name}</Text>
+                </View>
               </Pressable>
-            ))
-          )}
-        </Card>
+            ))}
+          </View>
+        )}
       </View>
-    </DetailScreen>
+    </ScrollView>
+  );
+}
+
+function HCell({ children, w, flex }: { children: React.ReactNode; w?: number; flex?: number }) {
+  return (
+    <View style={{ width: w, flex }}>
+      <Mono size={9} color={colors.faint} letterSpacing={0.6}>{String(children).toUpperCase()}</Mono>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
   breadcrumb: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  summaryRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  summaryTile: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8 },
-  summaryValue: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3, marginTop: 4 },
-  lineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-  },
-  codeBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lineName: { flex: 1, fontSize: 13, fontWeight: '600' },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 4 },
+  statusText: { fontSize: 13, fontFamily: fonts.sans.native.semibold, paddingVertical: 8 },
+  notes: { fontSize: 13, lineHeight: 20, color: colors.muted, fontFamily: fonts.sans.native.regular, paddingVertical: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
+  tableHead: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
+  tableRow: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line2 },
+  lineName: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.accent },
+  empty: { fontSize: 13, color: colors.faint, fontFamily: fonts.sans.native.regular, padding: 16 },
 });

@@ -6,6 +6,7 @@ export interface ProductTypeWithCount extends ProductType {
   unit_of_measure?: string | null;
   is_active?: boolean;
   process_templates_count?: number;
+  work_orders_count?: number;
 }
 
 export interface ProductTypeFilters {

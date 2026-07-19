@@ -4,7 +4,7 @@ import ResourceForm from '../../../components/ResourceForm';
 import { woFields } from '../../admin/work-orders/fields';
 
 export default function SupervisorWorkOrderEdit() {
-    const { workOrder, lines = [], productTypes = [] } = usePage().props;
+    const { workOrder, lines = [], productTypes = [], customers = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${workOrder.order_no}`} />
@@ -12,13 +12,15 @@ export default function SupervisorWorkOrderEdit() {
             <ResourceForm
                 action={`/supervisor/work-orders/${workOrder.id}`}
                 method="put"
-                fields={woFields(lines, productTypes, { withStatus: true })}
+                fields={woFields(lines, productTypes, { withStatus: true, customers })}
                 initial={{
                     order_no: workOrder.order_no ?? '',
                     customer_order_no: workOrder.customer_order_no ?? '',
+                    customer_id: workOrder.customer_id != null ? String(workOrder.customer_id) : '',
                     line_id: workOrder.line_id != null ? String(workOrder.line_id) : '',
                     product_type_id: workOrder.product_type_id != null ? String(workOrder.product_type_id) : '',
                     planned_qty: workOrder.planned_qty ?? '',
+                    unit_price: workOrder.unit_price ?? '',
                     priority: workOrder.priority ?? 0,
                     due_date: workOrder.due_date ?? '',
                     description: workOrder.description ?? '',

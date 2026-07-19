@@ -1,162 +1,105 @@
-import { FontAwesome } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-
-import { ListScreen } from '@/components/ui/ListScreen';
-import { Mono } from '@/components/ui/Mono';
-import { SearchBar } from '@/components/ui/SearchBar';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useFactories } from '@/hooks/queries/useOrgStructure';
-
 /**
- * Factories list — design specifies a rich card per factory with stat tiles
- * (DIVISIONS / LINES / STATUS) rather than a compact ListItem row.
+ * Factories — 1:1 with the web admin factories page (Pages/admin/factories/
+ * Index.jsx): the shared DataTable (search + Columns menu + pagination) with
+ * the web's column set (Code / Name / Divisions / Status) and per-row actions
+ * (Edit / toggle-active / Delete). Data via REST useFactories.
  */
+import { useRouter } from 'expo-router';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+
+import { colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
+import { Button } from '@/components/ui/Button';
+import { Mono } from '@/components/ui/Mono';
+import { StatusPill } from '@/components/ui/StatusPill';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
+import { useDeleteFactory, useFactories, useToggleFactoryActive } from '@/hooks/queries/useOrgStructure';
+import type { Factory } from '@/api/orgStructure';
+
 export function FactoriesList() {
-  const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
-  const [search, setSearch] = useState('');
+  const router = useRouter();
 
-  const query = useFactories(true);
-  const all = query.data ?? [];
+  const q = useFactories(true);
+  const toggle = useToggleFactoryActive();
+  const del = useDeleteFactory();
+  const rows = q.data ?? [];
 
-  const totalDivisions = useMemo(
-    () => all.reduce((sum, f) => sum + (f.divisions_count ?? 0), 0),
-    [all],
-  );
+  const onDelete = (factory: Factory) =>
+    Alert.alert(t('Delete factory'), t('Delete "{{name}}"?', { name: factory.name }), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Delete'),
+        style: 'destructive',
+        onPress: () => del.mutate(factory.id, { onError: (e: Error) => Alert.alert(t('Could not delete'), e.message) }),
+      },
+    ]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter((f) =>
-      `${f.code} ${f.name} ${f.description ?? ''}`.toLowerCase().includes(q),
-    );
-  }, [all, search]);
+  if (q.isLoading && !q.data) return <LoadingState />;
+  if (q.isError && !q.data) return <ErrorState error={q.error} onRetry={q.refetch} />;
 
   return (
-    <ListScreen
-      title={t('Factories')}
-      eyebrow={`${t('STRUCTURE').toUpperCase()} · ${all.length} ${t('SITES').toUpperCase()} · ${totalDivisions} ${t('DIVISIONS').toUpperCase()}`}
-      newRoute="/structure/factories/new"
-      extraHeader={
-        <SearchBar
-          placeholder="Search by name or address"
-          value={search}
-          onChangeText={setSearch}
-        />
-      }
-      items={filtered}
-      keyExtractor={(f) => String(f.id)}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      error={query.error}
-      isFetching={query.isFetching}
-      onRefresh={query.refetch}
-      emptyTitle={t('No factories')}
-      renderItem={(item) => {
-        const active = item.is_active !== false;
-        return (
-          <Pressable
-            onPress={() => router.push(`/structure/factories/${item.id}` as never)}
-            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-            <View
-              style={[
-                styles.card,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.border,
-                  opacity: active ? 1 : 0.55,
-                },
-              ]}>
-              <View style={styles.head}>
-                <View style={[styles.iconWrap, { backgroundColor: palette.surfaceAlt }]}>
-                  <FontAwesome name="building" size={22} color={palette.textMuted} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Mono size={10.5} color={palette.textFaint} letterSpacing={0.4} style={{ marginTop: 3 }}>
-                    {item.code.toUpperCase()}
-                  </Mono>
-                  {item.description ? (
-                    <Text style={[styles.addr, { color: palette.textMuted }]} numberOfLines={2}>
-                      {item.description}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={q.isFetching} onRefresh={q.refetch} tintColor={colors.accent} />}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Factories')}</Text>
+        <View style={{ flex: 1 }} />
+        <Button title={t('+ New Factory')} size="sm" onPress={() => router.push('/structure/factories/new' as never)} />
+      </View>
 
-              <View style={styles.statsRow}>
-                <Tile
-                  label={t('DIVISIONS').toUpperCase()}
-                  value={String(item.divisions_count ?? 0)}
-                  bg={palette.surfaceAlt}
-                  color={palette.text}
-                />
-                <Tile
-                  label={t('STATUS').toUpperCase()}
-                  value={active ? t('ACTIVE').toUpperCase() : t('PAUSED').toUpperCase()}
-                  bg={active ? `${palette.success}22` : `${palette.danger}22`}
-                  color={active ? palette.success : palette.danger}
-                  bold
-                />
-              </View>
-            </View>
-          </Pressable>
-        );
-      }}
-    />
-  );
-}
-
-function Tile({
-  label,
-  value,
-  bg,
-  color,
-  bold,
-}: {
-  label: string;
-  value: string;
-  bg: string;
-  color: string;
-  bold?: boolean;
-}) {
-  return (
-    <View style={[styles.tile, { backgroundColor: bg }]}>
-      <Mono size={9.5} color={color} letterSpacing={0.5} weight={bold ? '700' : '500'}>
-        {label}
-      </Mono>
-      <Mono size={bold ? 13 : 16} color={color} weight="700" style={{ marginTop: 2 }}>
-        {value}
-      </Mono>
-    </View>
+      <DataTable<Factory>
+        data={rows as unknown as Factory[]}
+        searchPlaceholder={t('Search…')}
+        columnsLabel={t('Columns')}
+        columnsMenuLabel={t('Toggle columns')}
+        searchKeys={['code', 'name']}
+        emptyText={t('No factories yet.')}
+        onRowPress={(f) => router.push(`/structure/factories/${f.id}` as never)}
+        columns={[
+          {
+            key: 'code',
+            label: t('Code'),
+            width: 110,
+            render: (f) => <Mono size={11} color={colors.muted}>{f.code ?? '—'}</Mono>,
+          },
+          {
+            key: 'name',
+            label: t('Name'),
+            flex: 1.4,
+            render: (f) => <Text numberOfLines={1} style={styles.name}>{f.name}</Text>,
+          },
+          { key: 'divisions_count', label: t('Divisions'), width: 100, render: (f) => String(f.divisions_count ?? 0) },
+          {
+            key: 'status',
+            label: t('Status'),
+            width: 90,
+            render: (f) => (
+              <StatusPill status={f.is_active === false ? 'CANCELLED' : 'IN_PROGRESS'} label={f.is_active === false ? t('Inactive') : t('Active')} />
+            ),
+          },
+        ]}
+        actions={(f) => [
+          { label: t('Edit'), icon: 'edit', onPress: () => router.push(`/structure/factories/${f.id}` as never) },
+          {
+            label: f.is_active === false ? t('Activate') : t('Deactivate'),
+            icon: f.is_active === false ? 'activate' : 'deactivate',
+            onPress: () => toggle.mutate(f.id, { onError: (e: Error) => Alert.alert(t('Could not update'), e.message) }),
+          },
+          { label: t('Delete'), icon: 'delete', onPress: () => onDelete(f) },
+        ]}
+      />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 12,
-  },
-  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  name: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
-  addr: { fontSize: 11.5, marginTop: 6, lineHeight: 16 },
-  statsRow: { flexDirection: 'row', gap: 8 },
-  tile: { flex: 1, padding: 10, borderRadius: 8 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: 18, paddingBottom: 32 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  name: { fontSize: 13, fontFamily: fonts.sans.native.medium, color: colors.ink },
 });

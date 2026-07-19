@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) {
+  const { t } = useTranslation();
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
   const productTypes = useProductTypes();
@@ -96,7 +98,7 @@ export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) 
         />
 
         <View style={[styles.preview, { backgroundColor: palette.surfaceAlt }]}>
-          <Mono size={10} color={palette.textFaint} letterSpacing={0.6}>PATTERN</Mono>
+          <Mono size={10} color={palette.textFaint} letterSpacing={0.6}>{t('PATTERN')}</Mono>
           <Text style={[styles.previewText, { color: palette.text }]}>{previewPattern}</Text>
         </View>
       </Card>
@@ -104,9 +106,9 @@ export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) 
       <Card>
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.toggleTitle, { color: palette.text }]}>Year prefix</Text>
+            <Text style={[styles.toggleTitle, { color: palette.text }]}>{t('Year prefix')}</Text>
             <Mono size={11} color={palette.textFaint} style={{ marginTop: 3 }}>
-              PREPEND CURRENT YEAR (E.G. 2026LOT0001)
+              {t('PREPEND CURRENT YEAR (E.G. 2026LOT0001)')}
             </Mono>
           </View>
           <Controller
@@ -123,7 +125,7 @@ export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) 
         <SectionLabel>Product type (optional)</SectionLabel>
         <ChipRow>
           <SelectionChip
-            label="Default fallback"
+            label={t('Default fallback')}
             active={productTypeId == null}
             onPress={() => setValue('product_type_id', null, { shouldValidate: true })}
           />
@@ -137,7 +139,7 @@ export function LotSequenceForm({ initial, mode, onSubmit, submitting }: Props) 
           ))}
         </ChipRow>
         <Mono size={11} color={palette.textFaint}>
-          ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK
+          {t('ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK')}
         </Mono>
       </Card>
 

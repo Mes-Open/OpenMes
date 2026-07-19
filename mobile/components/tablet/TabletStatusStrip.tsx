@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Mono } from '@/components/ui/Mono';
 import Colors from '@/constants/Colors';
@@ -25,6 +26,7 @@ function shiftFor(hour: number): 'A' | 'B' | 'C' {
  * MQTT pill opens the connectivity admin screen.
  */
 export function TabletStatusStrip({ dark, mqttLive }: Props) {
+  const { t } = useTranslation();
   const palette = dark ? Colors.dark : Colors.light;
   const router = useRouter();
   const [now, setNow] = useState(() => new Date());
@@ -87,13 +89,13 @@ export function TabletStatusStrip({ dark, mqttLive }: Props) {
           {time}
         </Mono>
         <Mono size={11} color={palette.textFaint} letterSpacing={0.4}>· {day}</Mono>
-        <Mono size={11} color={palette.textFaint} letterSpacing={0.4}>· {shift}-SHIFT</Mono>
+        <Mono size={11} color={palette.textFaint} letterSpacing={0.4}>· {shift}-{t('Shift').toUpperCase()}</Mono>
       </View>
       <View style={styles.right}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="MQTT connectivity"
-          onPress={() => router.push('/admin/connectivity-admin' as never)}
+          accessibilityLabel={t('MQTT connectivity')}
+          onPress={() => router.push('/(drawer)/connectivity' as never)}
           hitSlop={8}
           style={({ pressed }) => [styles.mqttBlock, { opacity: pressed ? 0.6 : 1 }]}>
           <Mono size={10.5} color={palette.textMuted} letterSpacing={0.6}>MQTT</Mono>

@@ -18,6 +18,15 @@ class LineStatusController extends Controller
         ]);
     }
 
+    /** Global status catalog (line_id = null) — backs the admin Line Statuses page. */
+    public function globalIndex(): JsonResponse
+    {
+        return response()->json([
+            'data' => LineStatus::whereNull('line_id')
+                ->orderBy('sort_order')->orderBy('id')->get(),
+        ]);
+    }
+
     public function store(Request $request, Line $line): JsonResponse
     {
         $this->authorize('create', LineStatus::class);
@@ -29,15 +38,16 @@ class LineStatusController extends Controller
             'is_done_status' => ['nullable', 'boolean'],
         ]);
         $data['line_id'] = $line->id;
-        if (!isset($data['sort_order'])) {
+        if (! isset($data['sort_order'])) {
             $data['sort_order'] = ($line->lineStatuses()->max('sort_order') ?? 0) + 1;
         }
 
         $status = DB::transaction(function () use ($line, $data) {
             // Only one default per line
-            if (!empty($data['is_default'])) {
+            if (! empty($data['is_default'])) {
                 $line->lineStatuses()->update(['is_default' => false]);
             }
+
             return LineStatus::create($data);
         });
 
@@ -71,6 +81,7 @@ class LineStatusController extends Controller
     {
         $this->authorize('delete', $lineStatus);
         $lineStatus->delete();
+
         return response()->json(['message' => 'Line status deleted']);
     }
 

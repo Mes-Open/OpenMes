@@ -1,6 +1,7 @@
 // Light-only v1: Colors[scheme] switching dropped — Geist White tokens.
 import * as WebBrowser from 'expo-web-browser';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button, colors, fonts, radius } from '@openmes/ui';
 
@@ -26,6 +27,7 @@ interface Props {
  * opens the Laravel API docs at that path when one is set in settings.
  */
 export function MissingScreen({ title, endpoint, subtitle, note }: Props) {
+  const { t } = useTranslation();
   const serverUrl = useSettingsStore((s) => s.serverUrl);
 
   const openApiDocs = () => {
@@ -38,7 +40,7 @@ export function MissingScreen({ title, endpoint, subtitle, note }: Props) {
       <ScreenHeader title={title} subtitle={subtitle ?? 'NOT IMPLEMENTED'} />
       <View style={styles.body}>
         <View style={styles.card}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{t(title)}</Text>
           {endpoint ? (
             <Mono size={11} color={colors.muted} style={{ marginTop: 4 }}>
               {endpoint}
@@ -48,17 +50,17 @@ export function MissingScreen({ title, endpoint, subtitle, note }: Props) {
           <View style={styles.pillRow}>
             <View style={styles.pillSquare} />
             <Mono size={10} color={colors.faint} letterSpacing={1.2} weight="600">
-              MISSING
+              {t('Missing').toUpperCase()}
             </Mono>
           </View>
 
           <Text style={styles.note}>
-            {note ?? 'This screen has not been built yet. The underlying endpoint is available — wire up the UI when ready.'}
+            {note ?? t('This screen has not been built yet. The underlying endpoint is available — wire up the UI when ready.')}
           </Text>
 
           {endpoint && serverUrl ? (
             <Button variant="accent" onPress={openApiDocs} style={styles.linkBtn}>
-              OPEN API IN BROWSER →
+              {t('Open API in browser')} →
             </Button>
           ) : null}
         </View>

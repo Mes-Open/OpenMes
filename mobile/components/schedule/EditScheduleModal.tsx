@@ -121,7 +121,7 @@ export function EditScheduleModal({
           </View>
 
           <ScrollView contentContainerStyle={styles.body}>
-            <SectionLabel>Line</SectionLabel>
+            <SectionLabel>{t('Line')}</SectionLabel>
             <ChipRow>
               <SelectionChip
                 label={t('Unassigned')}
@@ -139,7 +139,7 @@ export function EditScheduleModal({
             </ChipRow>
 
             <View style={{ height: 12 }} />
-            <SectionLabel>When</SectionLabel>
+            <SectionLabel>{t('When')}</SectionLabel>
             <Field
               label="Planned start (ISO)"
               value={startIso}

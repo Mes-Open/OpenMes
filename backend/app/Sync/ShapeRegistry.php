@@ -46,6 +46,14 @@ class ShapeRegistry
             'table' => 'companies',
             'columns' => ['id', 'code', 'name', 'tax_id', 'type', 'email', 'phone', 'address', 'is_active', 'created_at', 'updated_at'],
         ],
+        'customers' => [
+            'table' => 'customers',
+            'columns' => ['id', 'name', 'code', 'tier', 'payment_score', 'total_orders', 'total_revenue', 'notes', 'is_active', 'created_at', 'updated_at'],
+        ],
+        'priority_rules' => [
+            'table' => 'priority_rules',
+            'columns' => ['id', 'name', 'field_source', 'condition_type', 'condition_value', 'condition_value_max', 'points', 'is_active', 'sort_order', 'created_at', 'updated_at'],
+        ],
         'cost_sources' => [
             'table' => 'cost_sources',
             'columns' => ['id', 'code', 'name', 'description', 'unit_cost', 'unit', 'currency', 'is_active', 'created_at', 'updated_at'],
@@ -112,6 +120,12 @@ class ShapeRegistry
             'table' => 'issue_types',
             'columns' => ['id', 'code', 'name', 'severity', 'is_blocking', 'is_active', 'created_at', 'updated_at'],
         ],
+        // Shop-floor workstation clients — the MAIN roster derives online/offline
+        // from last_seen_at. Admin list page (Admin -> Workstation devices).
+        'workstation_devices' => [
+            'table' => 'workstation_devices',
+            'columns' => ['id', 'device_uuid', 'name', 'ip_address', 'hostname', 'app_version', 'line_id', 'last_seen_at', 'registered_at', 'created_at', 'updated_at'],
+        ],
         // Quality-control trigger config (#105) — admin list.
         'quality_control_triggers' => [
             'table' => 'quality_control_triggers',
@@ -175,7 +189,7 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'customer_order_no', 'line_id', 'product_type_id', 'planned_qty', 'produced_qty', 'status', 'priority', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'planned_qty', 'unit_price', 'produced_qty', 'status', 'priority', 'priority_score', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [

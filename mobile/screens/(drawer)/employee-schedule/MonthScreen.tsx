@@ -14,6 +14,8 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
+import { colors } from '@openmes/ui';
+
 import { Mono } from '@/components/ui/Mono';
 import { MonthGridSkeleton, MonthSkeleton } from '@/components/employee-schedule/MonthSkeleton';
 import { PlannerHeader } from '@/components/employee-schedule/PlannerHeader';
@@ -23,8 +25,6 @@ import {
   ErrorState,
   LoadingState,
 } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useDeviceClass } from '@/hooks/useDeviceClass';
 import { useEmployeeMonthPlan } from '@/hooks/queries/useEmployeeActivities';
 import { useWorkers } from '@/hooks/queries/useHr';
@@ -45,8 +45,6 @@ export function MonthScreen({
 }: {
   onSelectDay?: (workerId: number, date: Date) => void;
 } = {}) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
   const { useTabletLayout } = useDeviceClass();
 
@@ -92,7 +90,7 @@ export function MonthScreen({
   const selectedWorker = workers.find((w) => w.id === effectiveWorkerId);
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <PlannerHeader
         eyebrow={selectedWorker ? `${selectedWorker.code} · ${selectedWorker.name}` : t('Month overview')}
         title={format(anchor, 'LLLL yyyy')}
@@ -110,20 +108,20 @@ export function MonthScreen({
             <RefreshControl
               refreshing={q.isRefetching}
               onRefresh={() => q.refetch()}
-              tintColor={palette.tint}
+              tintColor={colors.accent}
             />
           }>
           {/* Month nav */}
           <View style={styles.monthNav}>
             <Pressable
               onPress={() => setAnchor(subMonths(anchor, 1))}
-              style={[styles.navBtn, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <FontAwesome name="chevron-left" size={12} color={palette.text} />
+              style={[styles.navBtn, { backgroundColor: colors.card, borderColor: colors.line }]}>
+              <FontAwesome name="chevron-left" size={12} color={colors.ink} />
             </Pressable>
             <Mono
               size={18}
               weight="700"
-              color={palette.text}
+              color={colors.ink}
               upper
               letterSpacing={-0.2}
               style={{ fontFamily: undefined }}>
@@ -131,8 +129,8 @@ export function MonthScreen({
             </Mono>
             <Pressable
               onPress={() => setAnchor(addMonths(anchor, 1))}
-              style={[styles.navBtn, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <FontAwesome name="chevron-right" size={12} color={palette.text} />
+              style={[styles.navBtn, { backgroundColor: colors.card, borderColor: colors.line }]}>
+              <FontAwesome name="chevron-right" size={12} color={colors.ink} />
             </Pressable>
           </View>
 
@@ -152,14 +150,14 @@ export function MonthScreen({
                     style={[
                       styles.workerChip,
                       {
-                        backgroundColor: on ? BRAND.amber : palette.surface,
-                        borderColor: on ? BRAND.amber : palette.border,
+                        backgroundColor: on ? colors.accent : colors.card,
+                        borderColor: on ? colors.accent : colors.line,
                       },
                     ]}>
                     <Mono
                       size={11}
                       weight="700"
-                      color={on ? '#1a1208' : palette.text}
+                      color={on ? colors.bg : colors.ink}
                       style={{ fontFamily: undefined }}>
                       {w.name}
                     </Mono>
@@ -175,7 +173,7 @@ export function MonthScreen({
               <Mono
                 key={wd}
                 size={10}
-                color={palette.textMuted}
+                color={colors.muted}
                 letterSpacing={0.6}
                 upper
                 style={styles.weekdayCell}>
@@ -196,7 +194,6 @@ export function MonthScreen({
                       typeMeta={q.data!.type_meta}
                       isSelected={isSameDay(parseISO(day.date), selectedDate)}
                       onPress={() => setSelectedDate(parseISO(day.date))}
-                      palette={palette}
                     />
                   ))}
                 </View>
@@ -213,7 +210,7 @@ export function MonthScreen({
                 return (
                   <View key={k} style={styles.legendItem}>
                     <FontAwesome name={iconForActivity(k)} size={11} color={def.color} />
-                    <Mono size={9.5} color={palette.textMuted} letterSpacing={0.4} upper>
+                    <Mono size={9.5} color={colors.muted} letterSpacing={0.4} upper>
                       {t(def.label)}
                     </Mono>
                   </View>
@@ -227,17 +224,17 @@ export function MonthScreen({
             <View
               style={[
                 styles.detailCard,
-                { backgroundColor: palette.surface, borderColor: palette.border },
+                { backgroundColor: colors.card, borderColor: colors.line },
               ]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <View>
-                  <Mono size={10.5} weight="700" color={BRAND.amber} letterSpacing={0.7} upper>
+                  <Mono size={10.5} weight="700" color={colors.accent} letterSpacing={0.7} upper>
                     {t('Selected')} · {format(parseISO(selectedDay.date), 'EEE dd MMM')}
                   </Mono>
                   <Mono
                     size={20}
                     weight="700"
-                    color={palette.text}
+                    color={colors.ink}
                     letterSpacing={-0.3}
                     style={{ fontFamily: undefined, marginTop: 4 }}>
                     {formatMinutes(selectedDay.on_duty)} {t('on duty')}
@@ -245,15 +242,15 @@ export function MonthScreen({
                 </View>
                 <Pressable
                   onPress={() => effectiveWorkerId && onSelectDay?.(effectiveWorkerId, parseISO(selectedDay.date))}
-                  style={[styles.openDayBtn, { backgroundColor: BRAND.amber }]}>
-                  <Mono size={10.5} weight="700" color="#1a1208" letterSpacing={0.4} upper>
+                  style={[styles.openDayBtn, { backgroundColor: colors.accent }]}>
+                  <Mono size={10.5} weight="700" color={colors.bg} letterSpacing={0.4} upper>
                     {t('Open day plan')}
                   </Mono>
                 </Pressable>
               </View>
 
               <View style={{ marginTop: 12 }}>
-                <Mono size={9.5} color={palette.textMuted} letterSpacing={0.5} upper style={{ marginBottom: 8 }}>
+                <Mono size={9.5} color={colors.muted} letterSpacing={0.5} upper style={{ marginBottom: 8 }}>
                   {t('24h activity')}
                 </Mono>
                 <ActivityTimeline
@@ -269,8 +266,8 @@ export function MonthScreen({
               </View>
 
               <View style={styles.detailStats}>
-                <Stat label={t('Productive')} value={formatMinutes(selectedDay.productive)} color={palette.text} />
-                <Stat label={t('On duty')} value={formatMinutes(selectedDay.on_duty)} color={palette.success} />
+                <Stat label={t('Productive')} value={formatMinutes(selectedDay.productive)} color={colors.ink} />
+                <Stat label={t('On duty')} value={formatMinutes(selectedDay.on_duty)} color={colors.running} />
               </View>
             </View>
           ) : null}
@@ -281,17 +278,15 @@ export function MonthScreen({
 }
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   return (
     <View
       style={{
         flex: 1,
         padding: 10,
-        backgroundColor: palette.surfaceAlt,
+        backgroundColor: colors.chip,
         borderRadius: 8,
       }}>
-      <Mono size={9} color={palette.textMuted} letterSpacing={0.5} upper>
+      <Mono size={9} color={colors.muted} letterSpacing={0.5} upper>
         {label}
       </Mono>
       <Mono size={16} weight="700" color={color} style={{ marginTop: 4 }}>
@@ -306,13 +301,11 @@ function DayCell({
   typeMeta,
   isSelected,
   onPress,
-  palette,
 }: {
   day: MonthPlanDay;
   typeMeta: TypeMetaMap;
   isSelected: boolean;
   onPress: () => void;
-  palette: typeof Colors.light;
 }) {
   const inMonth = day.in_month;
   return (
@@ -321,8 +314,8 @@ function DayCell({
       style={[
         styles.dayCell,
         {
-          backgroundColor: day.is_today && !isSelected ? palette.warningSoft : palette.surface,
-          borderColor: isSelected ? BRAND.amber : palette.border,
+          backgroundColor: day.is_today && !isSelected ? colors.chip : colors.card,
+          borderColor: isSelected ? colors.accent : colors.line,
           borderWidth: isSelected ? 1.5 : 1,
           opacity: inMonth ? 1 : 0.4,
         },
@@ -331,20 +324,20 @@ function DayCell({
         <Mono
           size={11}
           weight="700"
-          color={isSelected ? BRAND.amber : palette.text}>
+          color={isSelected ? colors.accent : colors.ink}>
           {format(parseISO(day.date), 'd')}
         </Mono>
         {day.on_duty > 0 ? (
-          <View style={[styles.dayDot, { backgroundColor: '#1C9A55' }]} />
+          <View style={[styles.dayDot, { backgroundColor: colors.running }]} />
         ) : null}
       </View>
 
       {/* Mini tacho strip */}
       <View style={{ flex: 1 }} />
       {day.segments.length > 0 ? (
-        <View style={[styles.miniStrip, { backgroundColor: palette.surfaceAlt }]}>
+        <View style={[styles.miniStrip, { backgroundColor: colors.chip }]}>
           {day.segments.map((s, i) => {
-            const color = typeMeta[s.type]?.color ?? '#94a3b8';
+            const color = typeMeta[s.type]?.color ?? colors.faintest;
             const from = toMinutes(s.from);
             const toStr = s.to === '24:00' ? '23:59' : s.to;
             const to = toMinutes(toStr);

@@ -1,20 +1,15 @@
-import { FontAwesome } from '@expo/vector-icons';
 import { format, parseISO, subDays } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { Card } from '@/components/ui/Card';
-import { Mono, SectionLabel } from '@/components/ui/Mono';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { colors, fonts, radius } from '@openmes/ui';
+
+import { Mono } from '@/components/ui/Mono';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
-import Colors, { BRAND, MONO } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import { useOee } from '@/hooks/queries/useOee';
 import { useLines } from '@/hooks/queries/useUsers';
-import { useDeviceClass } from '@/hooks/useDeviceClass';
-import { TabletOeeCommand } from '@/screens/tablet/OeeCommand';
-import type { OeeRecord } from '@/api/oee';
 import type { Line } from '@/types/api';
 
 type RangeId = '7d' | '30d' | '90d';
@@ -26,16 +21,11 @@ interface OeeBand {
   label: string;
 }
 
-function oeeBand(v: number | null | undefined, palette: typeof Colors.light): OeeBand {
-  if (v == null) return { c: palette.textFaint, bg: palette.surfaceAlt, label: 'NO DATA' };
-  if (v >= 85) return { c: palette.success, bg: palette.successSoft, label: 'GOOD' };
-  if (v >= 60) return { c: BRAND.amber, bg: palette.warningSoft, label: 'WATCH' };
-  return { c: palette.danger, bg: palette.dangerSoft, label: 'CRITICAL' };
-}
-
-function useColors() {
-  const scheme = useColorScheme() ?? 'light';
-  return Colors[scheme];
+function oeeBand(v: number | null | undefined): OeeBand {
+  if (v == null) return { c: colors.faint, bg: colors.chip, label: 'No data' };
+  if (v >= 85) return { c: colors.running, bg: colors.runningBg, label: 'Good' };
+  if (v >= 65) return { c: colors.downtime, bg: colors.downtimeBg, label: 'Watch' };
+  return { c: colors.blocked, bg: colors.blockedBg, label: 'Critical' };
 }
 
 function num(v: number | string | null | undefined): number {
@@ -65,12 +55,8 @@ function avg(vals: (number | null)[]): number | null {
 
 export function OeeDashboard() {
   const router = useRouter();
-  const palette = useColors();
-  const { useTabletLayout } = useDeviceClass();
+  const { t } = useTranslation();
   const [range, setRange] = useState<RangeId>('7d');
-
-  // Tablet (landscape) variant: wide multi-pane OEE command center.
-  if (useTabletLayout) return <TabletOeeCommand />;
 
   const dateFrom = format(subDays(new Date(), RANGE_DAYS[range]), 'yyyy-MM-dd');
   const dateTo = format(new Date(), 'yyyy-MM-dd');
@@ -82,15 +68,16 @@ export function OeeDashboard() {
     const records = oeeQ.data ?? [];
     const lines = linesQ.data ?? [];
 
-    // Per-line aggregate
     const byLine: LineSummary[] = lines.map((line: Line) => {
       const lineRecs = records.filter((r) => r.line_id === line.id);
-      const oeeVals = lineRecs.map((r) => num(r.oee_pct));
+      // Exclude records without an OEE value — don't coerce null→0, which would
+      // drag the line's average down as if it had recorded a 0% day.
+      const oeeVals = lineRecs.map((r) => (r.oee_pct == null ? null : num(r.oee_pct)));
       return {
         lineId: line.id,
         code: line.code ?? `L-${String(line.id).padStart(2, '0')}`,
         name: line.name,
-        oee: avg(oeeVals.length ? oeeVals : [null]),
+        oee: avg(oeeVals),
         avail: avg(lineRecs.map((r) => num(r.availability_pct))),
         perf: avg(lineRecs.map((r) => num(r.performance_pct))),
         qual: avg(lineRecs.map((r) => num(r.quality_pct))),
@@ -101,7 +88,6 @@ export function OeeDashboard() {
       };
     });
 
-    // Plant aggregate
     const allOee = records.map((r) => num(r.oee_pct)).filter((v) => v > 0);
     const plant = {
       oee: avg(allOee),
@@ -110,32 +96,24 @@ export function OeeDashboard() {
       qual: avg(records.map((r) => num(r.quality_pct))),
     };
 
-    // Last 7 days OEE trend (regardless of range — kept short)
     const trend: { date: string; oee: number | null }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = format(subDays(new Date(), i), 'yyyy-MM-dd');
       const dayRecs = records.filter((r) => r.record_date.startsWith(d));
-      trend.push({
-        date: d,
-        oee: avg(dayRecs.map((r) => num(r.oee_pct))),
-      });
+      trend.push({ date: d, oee: avg(dayRecs.map((r) => num(r.oee_pct))) });
     }
 
     return { plant, byLine, trend };
   }, [oeeQ.data, linesQ.data]);
 
-  if (oeeQ.isLoading || linesQ.isLoading) return <LoadingState />;
-  if (oeeQ.isError) return <ErrorState error={oeeQ.error} onRetry={oeeQ.refetch} />;
+  if ((oeeQ.isLoading || linesQ.isLoading) && !oeeQ.data) return <LoadingState />;
+  if (oeeQ.isError && !oeeQ.data) return <ErrorState error={oeeQ.error} onRetry={oeeQ.refetch} />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <ScreenHeader
-        back
-        title="OEE"
-        subtitle={`${byLine.length} LINES · LAST ${range.toUpperCase()}`}
-      />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Range chips */}
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('OEE')}</Text>
+        <View style={{ flex: 1 }} />
         <View style={styles.rangeRow}>
           {(['7d', '30d', '90d'] as RangeId[]).map((id) => {
             const active = id === range;
@@ -143,28 +121,20 @@ export function OeeDashboard() {
               <Pressable
                 key={id}
                 onPress={() => setRange(id)}
-                style={[
-                  styles.rangeChip,
-                  {
-                    backgroundColor: active ? palette.surfaceInverse : palette.surface,
-                    borderColor: active ? palette.surfaceInverse : palette.border,
-                  },
-                ]}>
-                <Mono
-                  size={11}
-                  color={active ? (palette === Colors.dark ? '#1A1917' : '#fff') : palette.textMuted}
-                  weight="600"
-                  letterSpacing={0.5}>
+                style={[styles.rangeChip, active ? styles.rangeChipActive : null]}>
+                <Mono size={11} color={active ? '#FFFFFF' : colors.muted} weight="600" letterSpacing={0.5}>
                   {id.toUpperCase()}
                 </Mono>
               </Pressable>
             );
           })}
         </View>
+      </View>
 
+      <ScrollView style={styles.screen} contentContainerStyle={styles.scroll}>
         {/* Plant aggregate */}
-        <View style={styles.heroCard}>
-          <Mono size={11} color="#6F6C66" letterSpacing={0.8}>PLANT AGGREGATE</Mono>
+        <View style={styles.box}>
+          <Mono size={11} color={colors.faint} letterSpacing={0.8}>{t('Plant aggregate').toUpperCase()}</Mono>
           <View style={styles.heroRow}>
             <Text style={styles.heroValue}>
               {plant.oee != null ? plant.oee.toFixed(1) : '—'}
@@ -173,41 +143,41 @@ export function OeeDashboard() {
           </View>
           <View style={styles.heroStats}>
             {[
-              { l: 'AVAIL', v: plant.avail, c: palette.success },
-              { l: 'PERF', v: plant.perf, c: BRAND.amber },
-              { l: 'QUAL', v: plant.qual, c: palette.success },
+              { l: t('Avail'), v: plant.avail, c: colors.running },
+              { l: t('Perf'), v: plant.perf, c: colors.downtime },
+              { l: t('Qual'), v: plant.qual, c: colors.running },
             ].map((s) => (
               <View key={s.l} style={styles.heroStatTile}>
-                <Mono size={9.5} color="#6F6C66" letterSpacing={0.6}>{s.l}</Mono>
-                <Text style={[styles.heroStatValue, { color: s.c, fontFamily: MONO }]}>
-                  {s.v != null ? s.v.toFixed(1) : '—'}%
-                </Text>
+                <Mono size={9.5} color={colors.faint} letterSpacing={0.6}>{s.l.toUpperCase()}</Mono>
+                <Mono size={18} color={s.c} weight="600" style={{ marginTop: 4 }}>
+                  {s.v != null ? `${s.v.toFixed(1)}%` : '—'}
+                </Mono>
               </View>
             ))}
           </View>
         </View>
 
         {/* Trend */}
-        <Card style={{ gap: 12 }}>
+        <View style={[styles.box, { gap: 12 }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Mono size={11} color={palette.textFaint} letterSpacing={0.8}>OEE TREND · 7 DAYS</Mono>
+            <Mono size={11} color={colors.faint} letterSpacing={0.8}>{t('OEE trend · 7 days').toUpperCase()}</Mono>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[
-                { c: palette.success, l: '≥85' },
-                { c: BRAND.amber, l: '60–84' },
-                { c: palette.danger, l: '<60' },
+                { c: colors.running, l: '≥85' },
+                { c: colors.downtime, l: '65–84' },
+                { c: colors.blocked, l: '<65' },
               ].map((b) => (
                 <View key={b.l} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <View style={{ width: 8, height: 8, backgroundColor: b.c, borderRadius: 2 }} />
-                  <Mono size={9.5} color={palette.textFaint}>{b.l}</Mono>
+                  <Mono size={9.5} color={colors.faint}>{b.l}</Mono>
                 </View>
               ))}
             </View>
           </View>
           <View style={styles.trendRow}>
-            {trend.map((d, i) => {
+            {trend.map((d) => {
               const v = d.oee ?? 0;
-              const band = oeeBand(d.oee, palette);
+              const band = oeeBand(d.oee);
               const dayLabel = ['M', 'T', 'W', 'T', 'F', 'S', 'S'][parseISO(d.date).getDay() === 0 ? 6 : parseISO(d.date).getDay() - 1];
               return (
                 <View key={d.date} style={styles.trendCol}>
@@ -220,22 +190,18 @@ export function OeeDashboard() {
                       opacity: d.oee == null ? 0.25 : 1,
                     }}
                   />
-                  <Mono size={9} color={palette.textFaint}>{dayLabel}</Mono>
+                  <Mono size={9} color={colors.faint}>{dayLabel}</Mono>
                 </View>
               );
             })}
           </View>
-        </Card>
+        </View>
 
-        <SectionLabel>By line</SectionLabel>
+        <Mono size={9} color={colors.faint} letterSpacing={0.6} style={{ paddingHorizontal: 2 }}>{t('By line').toUpperCase()}</Mono>
         {byLine.length === 0 ? (
-          <Mono size={11} color={palette.textFaint} style={{ textAlign: 'center', padding: 20 }}>
-            NO LINES CONFIGURED
-          </Mono>
+          <Mono size={11} color={colors.faint} style={{ textAlign: 'center', padding: 20 }}>{t('No lines configured').toUpperCase()}</Mono>
         ) : (
-          byLine.map((l) => <LineCard key={l.lineId} l={l} onPress={() =>
-            router.push(`/admin/oee/${l.lineId}` as never)
-          } />)
+          byLine.map((l) => <LineCard key={l.lineId} l={l} onPress={() => router.push(`/admin/oee/${l.lineId}` as never)} />)
         )}
       </ScrollView>
     </View>
@@ -243,31 +209,23 @@ export function OeeDashboard() {
 }
 
 function LineCard({ l, onPress }: { l: LineSummary; onPress: () => void }) {
-  const palette = useColors();
-  const band = oeeBand(l.oee, palette);
+  const { t } = useTranslation();
+  const band = oeeBand(l.oee);
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-      <View
-        style={[
-          styles.lineCard,
-          {
-            backgroundColor: palette.surface,
-            borderColor: palette.border,
-            borderLeftColor: band.c,
-          },
-        ]}>
+      <View style={[styles.lineCard, { borderLeftColor: band.c }]}>
         <View style={styles.lineHeader}>
           <View style={{ flex: 1 }}>
-            <Mono size={10.5} color={palette.textFaint} letterSpacing={0.5}>{l.code}</Mono>
-            <Text style={[styles.lineName, { color: palette.text }]}>{l.name}</Text>
+            <Mono size={10.5} color={colors.faint} letterSpacing={0.5}>{l.code}</Mono>
+            <Text style={styles.lineName}>{l.name}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={[styles.lineOee, { color: band.c, fontFamily: MONO }]}>
+            <Mono size={24} color={band.c} weight="600">
               {l.oee != null ? l.oee.toFixed(1) : '—'}
-              <Text style={{ fontSize: 14 }}>%</Text>
-            </Text>
-            <Mono size={9.5} color={band.c} weight="700" letterSpacing={0.6}>{band.label}</Mono>
+              <Mono size={14} color={band.c} weight="600">%</Mono>
+            </Mono>
+            <Mono size={9.5} color={band.c} weight="700" letterSpacing={0.6}>{t(band.label).toUpperCase()}</Mono>
           </View>
         </View>
         <View style={styles.apqGrid}>
@@ -276,104 +234,60 @@ function LineCard({ l, onPress }: { l: LineSummary; onPress: () => void }) {
             { l: 'P%', v: l.perf },
             { l: 'Q%', v: l.qual },
           ].map((s) => (
-            <View key={s.l} style={[styles.apqTile, { backgroundColor: palette.surfaceAlt }]}>
-              <Mono size={9.5} color={palette.textFaint}>{s.l}</Mono>
-              <Mono size={13} color={palette.text} weight="600" style={{ marginTop: 2 }}>
+            <View key={s.l} style={styles.apqTile}>
+              <Mono size={9.5} color={colors.faint}>{s.l}</Mono>
+              <Mono size={13} color={colors.ink} weight="600" style={{ marginTop: 2 }}>
                 {s.v != null ? s.v.toFixed(1) : '—'}
               </Mono>
             </View>
           ))}
         </View>
         <View style={styles.lineFooter}>
-          <Footer label="PROD" value={String(Math.round(l.produced))} palette={palette} />
-          <Footer
-            label="SCRAP"
-            value={String(Math.round(l.scrap))}
-            palette={palette}
-            danger={l.scrap > 30}
-          />
-          <Footer
-            label="DT"
-            value={`${l.downtime}m`}
-            palette={palette}
-            danger={l.downtime > 60}
-          />
+          <Footer label={t('Prod').toUpperCase()} value={String(Math.round(l.produced))} />
+          <Footer label={t('Scrap').toUpperCase()} value={String(Math.round(l.scrap))} danger={l.scrap > 30} />
+          <Footer label={t('DT').toUpperCase()} value={`${l.downtime}m`} danger={l.downtime > 60} />
         </View>
       </View>
     </Pressable>
   );
 }
 
-function Footer({
-  label,
-  value,
-  palette,
-  danger,
-}: {
-  label: string;
-  value: string;
-  palette: typeof Colors.light;
-  danger?: boolean;
-}) {
+function Footer({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-      <Mono size={10.5} color={palette.textFaint}>{label}</Mono>
-      <Mono
-        size={10.5}
-        color={danger ? palette.danger : palette.text}
-        weight={danger ? '700' : '600'}>
-        {value}
-      </Mono>
+      <Mono size={10.5} color={colors.faint}>{label}</Mono>
+      <Mono size={10.5} color={danger ? colors.blocked : colors.ink} weight={danger ? '700' : '600'}>{value}</Mono>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
   scroll: { padding: 16, gap: 14, paddingBottom: 32 },
+  box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, padding: 16 },
   rangeRow: { flexDirection: 'row', gap: 6 },
-  rangeChip: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  heroCard: {
-    backgroundColor: '#F6F5F1',
-    borderRadius: 14,
-    padding: 16,
-  },
+  rangeChip: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  rangeChipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   heroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 },
-  heroValue: {
-    color: '#fff',
-    fontFamily: MONO,
-    fontSize: 44,
-    fontWeight: '600',
-    letterSpacing: -1,
-    lineHeight: 46,
-  },
-  heroValueUnit: { fontSize: 22, color: '#6F6C66' },
+  heroValue: { color: colors.ink, fontFamily: fonts.mono.native.semibold, fontSize: 44, letterSpacing: -1, lineHeight: 46 },
+  heroValueUnit: { fontSize: 22, color: colors.faint },
   heroStats: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  heroStatTile: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 8,
-    padding: 10,
-  },
-  heroStatValue: { fontSize: 18, fontWeight: '600', marginTop: 4 },
+  heroStatTile: { flex: 1, backgroundColor: colors.panel, borderRadius: radius.sm, padding: 10 },
   trendRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 80 },
   trendCol: { flex: 1, alignItems: 'center', gap: 4 },
   lineCard: {
     borderWidth: 1,
+    borderColor: colors.line,
     borderLeftWidth: 4,
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 14,
-    marginBottom: 10,
+    backgroundColor: colors.card,
   },
   lineHeader: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  lineName: { fontSize: 15, fontWeight: '600', marginTop: 3 },
-  lineOee: { fontSize: 24, fontWeight: '600', letterSpacing: -0.4, lineHeight: 26 },
+  lineName: { fontSize: 15, fontFamily: fonts.sans.native.semibold, color: colors.ink, marginTop: 3 },
   apqGrid: { flexDirection: 'row', gap: 6, marginTop: 12 },
-  apqTile: { flex: 1, padding: 10, borderRadius: 8 },
+  apqTile: { flex: 1, padding: 10, borderRadius: radius.sm, backgroundColor: colors.panel },
   lineFooter: { flexDirection: 'row', gap: 14, marginTop: 10 },
 });

@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import CustomFieldsDisplay from '../../../components/CustomFieldsDisplay';
 import { WO_STATUS_STYLES } from './fields';
+import { TIER_BADGE_STYLES, tierLabel } from '../customers/fields';
 import { formatDate, formatNumber, timeAgo, __ } from '../../../lib/i18n';
 
 const TERMINAL = ['DONE', 'REJECTED', 'CANCELLED'];
@@ -301,6 +302,21 @@ export default function AdminWorkOrderShow() {
                                     <p className="font-mono font-semibold text-om-ink">{workOrder.order_no}</p>
                                 </div>
                                 <div>
+                                    <p className="text-om-muted">{__('Customer')}</p>
+                                    {workOrder.customer_name ? (
+                                        <p className="font-medium text-om-ink flex items-center gap-2">
+                                            {workOrder.customer_name}
+                                            {workOrder.customer_tier && (
+                                                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${TIER_BADGE_STYLES[workOrder.customer_tier] ?? 'bg-om-chip text-om-muted'}`}>
+                                                    {tierLabel(workOrder.customer_tier)}
+                                                </span>
+                                            )}
+                                        </p>
+                                    ) : (
+                                        <p className="font-medium text-om-ink">—</p>
+                                    )}
+                                </div>
+                                <div>
                                     <p className="text-om-muted">{__('Line')}</p>
                                     <p className="font-medium text-om-ink">{workOrder.line_name ?? '—'}</p>
                                 </div>
@@ -318,7 +334,12 @@ export default function AdminWorkOrderShow() {
                                 </div>
                                 <div>
                                     <p className="text-om-muted">{__('Priority')}</p>
-                                    <p className="font-medium text-om-ink">{workOrder.priority ?? '—'}</p>
+                                    <p className="font-medium text-om-ink">
+                                        {workOrder.priority ?? '—'}
+                                        {workOrder.priority_score != null && (
+                                            <span className="text-om-faint font-normal"> · {__('score')} {workOrder.priority_score}</span>
+                                        )}
+                                    </p>
                                 </div>
                                 {workOrder.due_date && (
                                     <div>

@@ -44,6 +44,8 @@ $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
 App\\Models\\MaterialLot::withTrashed()->where('lot_number', '${LOT}')->forceDelete();
 `;
 
+test.describe('material hold/release flow', () => {
+
 function runInContainer(php: string): boolean {
   const tmp = `/tmp/pw-hold-${Date.now()}-${Math.random().toString(36).slice(2)}.php`;
   try {
@@ -113,4 +115,5 @@ test('material lot can be put on quality hold and released (#107)', async ({ pag
   await expect(releasedRow.locator('[data-action="Hold"]')).toBeVisible();
 
   await page.screenshot({ path: 'test-results/107-lot-released.png', fullPage: true });
+});
 });

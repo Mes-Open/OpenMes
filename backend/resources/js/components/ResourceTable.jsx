@@ -1,10 +1,43 @@
-import { useMemo } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { useLiveQuery } from '@tanstack/react-db';
 import { StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { realtimeCollection } from '../lib/realtimeCollection';
 import { __ } from '../lib/i18n';
+
+// Shared "now" clock for columns flagged `live: true` (e.g. an elapsed-time
+// column). A single interval per table bumps this context; each live cell is a
+// context consumer, so it re-renders on every tick even though the underlying
+// row data (and the memoized DataTable) didn't change. 30s cadence is plenty for
+// minute/hour/day-granularity durations and stays cheap.
+const NowContext = createContext(Date.now());
+const LIVE_TICK_MS = 30_000;
+
+/** A cell whose value depends on the current time; recomputes on each clock tick. */
+function LiveCell({ col, row }) {
+    const now = useContext(NowContext);
+    return col.render ? col.render(row, now) : row[col.key];
+}
+
+/**
+ * Owns the shared clock so a tick re-renders only this thin wrapper and the
+ * NowContext consumers (the live cells) - NOT the parent ResourceTable body,
+ * which would otherwise re-run its live query/filter and hand DataTable freshly
+ * allocated props every 30s, defeating its memoization. The interval runs only
+ * while `active`, so tables without a live column never schedule a timer.
+ */
+function LiveClockProvider({ active, children }) {
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        if (!active) return undefined;
+        const id = setInterval(() => setNow(Date.now()), LIVE_TICK_MS);
+        return () => clearInterval(id);
+    }, [active]);
+
+    return <NowContext.Provider value={now}>{children}</NowContext.Provider>;
+}
 
 /**
  * Generic admin list backed by a Reverb-synced collection + TanStack DB live
@@ -21,7 +54,12 @@ import { __ } from '../lib/i18n';
  *   title       — heading
  *   createHref / createLabel — optional "new" button
  *   columns     — [{ key, label, render?(row), className?, align?, sortable?,
- *                    filter?: 'text'|'select', options?, allLabel?, filterPlaceholder?, flex? }]
+ *                    filter?: 'text'|'select', options?, allLabel?, filterPlaceholder?, flex?,
+ *                    live?, sortAccessor?(row) }]
+ *                 live: recompute the cell against a shared 30s clock (render gets (row, now))
+ *                 sortAccessor: value to sort by when the displayed value isn't the raw
+ *                   field (e.g. an "age" column that shows created_at but should sort by
+ *                   elapsed time); search still uses the raw field
  *   orderBy     — row field to sort by (default 'name') — initial live-query order
  *   orderDir    — 'asc' | 'desc' (default 'asc')
  *   getKey      — row → key (default row.id)
@@ -117,7 +155,7 @@ export default function ResourceTable({
     emptyText = 'Nothing here yet.',
     filterFn,
     subtitle,
-    pageSize = 12,
+    pageSize = 50,
     enableSelection = false,
     bulkActions,
     selectionLabel,
@@ -127,6 +165,11 @@ export default function ResourceTable({
     const { data: rows } = useLiveQuery((q) =>
         q.from({ r: collection }).orderBy(({ r }) => r[orderBy], orderDir),
     );
+
+    // A live column (e.g. elapsed time) opts the table into a shared clock. The
+    // clock state lives in LiveClockProvider (below the memoized DataTable), so a
+    // tick never re-renders this component or its DataTable props.
+    const hasLiveColumn = useMemo(() => columns.some((c) => c.live), [columns]);
 
     // Optional client-side filter (e.g. a dashboard KPI deep-link like
     // ?status=IN_PROGRESS) — applied over the live rows so it stays reactive.
@@ -142,25 +185,42 @@ export default function ResourceTable({
             ['description', 'name', 'title', 'label'].find((k) => columns.some((c) => c.key === k)) ??
             columns.find((c) => c.align !== 'right')?.key;
 
-        const defs = columns.map((c) => ({
-            id: c.key,
-            accessorFn: (row) => row[c.key],
-            header: __(c.label),
-            enableSorting: c.sortable !== false,
-            cell: ({ row }) => {
-                const content = c.render ? c.render(row.original) : row.original[c.key];
-                return c.className ? <span className={c.className}>{content}</span> : content;
-            },
-            meta: {
-                align: c.align === 'right' ? 'right' : 'left',
-                flex: c.flex || c.key === flexKey,
-                filter: c.filter,
-                options: c.options,
-                allLabel: c.allLabel,
-                filterPlaceholder: c.filterPlaceholder,
-                menuLabel: __(c.label),
-            },
-        }));
+        const defs = columns.map((c) => {
+            const def = {
+                id: c.key,
+                accessorFn: (row) => row[c.key],
+                header: __(c.label),
+                enableSorting: c.sortable !== false,
+                cell: ({ row }) => {
+                    const content = c.live
+                        ? <LiveCell col={c} row={row.original} />
+                        : (c.render ? c.render(row.original) : row.original[c.key]);
+                    return c.className ? <span className={c.className}>{content}</span> : content;
+                },
+                meta: {
+                    align: c.align === 'right' ? 'right' : 'left',
+                    flex: c.flex || c.key === flexKey,
+                    filter: c.filter,
+                    options: c.options,
+                    allLabel: c.allLabel,
+                    filterPlaceholder: c.filterPlaceholder,
+                    menuLabel: __(c.label),
+                },
+            };
+
+            // Sort by a derived value (e.g. elapsed time) instead of the raw field,
+            // so the arrow direction matches what the cell shows. accessorFn stays
+            // the raw field so global search keeps working on it.
+            if (c.sortAccessor) {
+                def.sortingFn = (a, b) => {
+                    const va = c.sortAccessor(a.original);
+                    const vb = c.sortAccessor(b.original);
+                    return va === vb ? 0 : va < vb ? -1 : 1;
+                };
+            }
+
+            return def;
+        });
         if (actions) {
             defs.push({
                 id: '_actions',
@@ -176,6 +236,7 @@ export default function ResourceTable({
     }, [columns, actions]);
 
     return (
+        <LiveClockProvider active={hasLiveColumn}>
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div>
@@ -206,6 +267,7 @@ export default function ResourceTable({
                 selectionLabel={selectionLabel}
             />
         </div>
+        </LiveClockProvider>
     );
 }
 

@@ -3,17 +3,17 @@
 namespace App\Services\CsvImport;
 
 use Illuminate\Support\Facades\Storage;
-use League\Csv\Reader;
 use League\Csv\Exception as CsvException;
+use League\Csv\Reader;
 
 class CsvParserService
 {
     /**
      * Parse a CSV file and return headers + preview rows.
      *
-     * @param string $filePath Path to the uploaded CSV file
-     * @param int $previewRows Number of rows to preview (default: 5)
-     * @return array
+     * @param  string  $filePath  Path to the uploaded CSV file
+     * @param  int  $previewRows  Number of rows to preview (default: 5)
+     *
      * @throws \Exception
      */
     public function parse(string $filePath, int $previewRows = 5): array
@@ -39,19 +39,19 @@ class CsvParserService
                 'total_rows' => count($records),
             ];
         } catch (CsvException $e) {
-            throw new \Exception('Invalid CSV file: ' . $e->getMessage());
+            throw new \Exception('Invalid CSV file: '.$e->getMessage());
         }
     }
 
     /**
      * Store uploaded CSV file temporarily.
      *
-     * @param \Illuminate\Http\UploadedFile $file
+     * @param  \Illuminate\Http\UploadedFile  $file
      * @return string Temporary file path
      */
     public function storeTemporary($file): string
     {
-        $filename = uniqid('csv_') . '_' . $file->getClientOriginalName();
+        $filename = uniqid('csv_').'_'.$file->getClientOriginalName();
         $path = $file->storeAs('csv-imports', $filename, 'local');
 
         return \Illuminate\Support\Facades\Storage::disk('local')->path($path);
@@ -68,21 +68,24 @@ class CsvParserService
     /**
      * Validate CSV structure against required fields.
      *
-     * @param array $headers CSV headers
-     * @param array $mapping Column mapping configuration
+     * @param  array  $headers  CSV headers
+     * @param  array  $mapping  Column mapping configuration
      * @return array Validation errors (empty if valid)
      */
-    public function validateMapping(array $headers, array $mapping): array
+    public function validateMapping(array $headers, array $mapping, bool $hasTargetLine = false): array
     {
         $errors = [];
 
-        // Check if all required fields are mapped
-        $requiredFields = ['order_no', 'line_code', 'product_type_code', 'planned_qty'];
+        // Check if all required fields are mapped. When an "assign all rows to
+        // this line" override is set, the per-row line_code column is optional.
+        $requiredFields = $hasTargetLine
+            ? ['order_no', 'product_type_code', 'planned_qty']
+            : ['order_no', 'line_code', 'product_type_code', 'planned_qty'];
 
         foreach ($requiredFields as $field) {
-            if (!isset($mapping[$field]) || empty($mapping[$field]['csv_column'])) {
+            if (! isset($mapping[$field]) || empty($mapping[$field]['csv_column'])) {
                 $errors[] = "Required field '{$field}' is not mapped";
-            } elseif (!in_array($mapping[$field]['csv_column'], $headers)) {
+            } elseif (! in_array($mapping[$field]['csv_column'], $headers)) {
                 $errors[] = "Mapped column '{$mapping[$field]['csv_column']}' for field '{$field}' does not exist in CSV";
             }
         }
@@ -93,8 +96,7 @@ class CsvParserService
     /**
      * Read and parse CSV with mapping.
      *
-     * @param string $filePath
-     * @param array $mapping Column mapping
+     * @param  array  $mapping  Column mapping
      * @return array Parsed records
      */
     public function parseWithMapping(string $filePath, array $mapping): array

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenMES Desktop</title>
+    <script type="module" src="/src/main.ts" defer></script>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="splash">
+      <div class="spinner"></div>
+      <h1>OpenMES</h1>
+      <p id="splash-status">Uruchamianie…</p>
+    </div>
+
+    <div id="db-choice" class="boot-screen hidden">
+      <h1>OpenMES</h1>
+      <p>Gdzie mają być przechowywane dane?</p>
+      <div class="choice-buttons">
+        <button id="btn-db-local" type="button" class="choice">
+          <strong>Na tym komputerze</strong>
+          <span>Baza lokalna (SQLite) - zero konfiguracji</span>
+        </button>
+        <button id="btn-db-remote" type="button" class="choice">
+          <strong>Zdalna baza danych</strong>
+          <span>Połącz z główną bazą w sieci (Postgres/MySQL)</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="db-remote" class="boot-screen hidden">
+      <h1>Zdalna baza danych</h1>
+      <div id="db-scan-spinner" class="spinner"></div>
+      <p id="db-scan-status">Szukam bazy danych w sieci lokalnej…</p>
+      <form id="db-remote-form" class="hidden">
+        <label>
+          Znalezione serwery
+          <select id="db-found"></select>
+        </label>
+        <div class="row">
+          <label>
+            Host
+            <input id="db-host" type="text" placeholder="192.168.1.10" />
+          </label>
+          <label class="narrow">
+            Port
+            <input id="db-port" type="number" min="1" max="65535" value="5432" />
+          </label>
+        </div>
+        <div class="row">
+          <label>
+            Baza
+            <input id="db-database" type="text" value="openmmes" />
+          </label>
+          <label>
+            Użytkownik
+            <input id="db-username" type="text" />
+          </label>
+        </div>
+        <label>
+          Hasło
+          <input id="db-password" type="password" />
+        </label>
+        <p id="db-message" class="message"></p>
+        <div class="row buttons">
+          <button type="submit" id="btn-db-connect">Połącz</button>
+          <button type="button" id="btn-db-back">Wróć</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="boot-error" class="boot-screen hidden">
+      <div class="error-icon">!</div>
+      <h1 id="boot-error-title">Nie udało się uruchomić</h1>
+      <p id="boot-error-msg"></p>
+      <div class="choice-buttons">
+        <button id="be-retry" type="button" class="choice"><strong>Spróbuj ponownie</strong></button>
+        <button id="be-db" type="button" class="choice"><strong>Zmień ustawienia bazy danych</strong><span>Wybierz bazę lokalną albo wskaż inny serwer</span></button>
+        <button id="be-local" type="button" class="choice"><strong>Użyj bazy lokalnej</strong><span>Przełącz na SQLite na tym komputerze</span></button>
+      </div>
+      <button id="be-details" type="button" class="link-btn">Pokaż szczegóły techniczne</button>
+      <pre id="boot-error-details" class="hidden"></pre>
+    </div>
+
+    <main id="panel">
+      <header>
+        <h1>OpenMES Desktop</h1>
+        <span id="status-badge" class="badge stopped">Zatrzymany</span>
+      </header>
+
+      <p class="tray-note">
+        Zamknięcie okna <strong>nie wyłącza serwera</strong> - aplikacja chowa się do
+        zasobnika systemowego (tray). Pełne wyłączenie: ikona w trayu ->
+        „Zakończ (zatrzymuje serwer)”.
+      </p>
+
+      <section class="card">
+        <h2>Serwer</h2>
+        <div class="row buttons">
+          <button id="btn-start" type="button">Uruchom serwer</button>
+          <button id="btn-stop" type="button" class="danger" disabled>Zatrzymaj</button>
+          <button id="btn-open" type="button" disabled>Otwórz OpenMES</button>
+          <button id="btn-detect" type="button">Wykryj automatycznie</button>
+          <button id="btn-migrate" type="button">Przygotuj bazę (migracje)</button>
+        </div>
+        <div id="urls" class="urls"></div>
+        <p id="message" class="message"></p>
+      </section>
+
+      <section class="card">
+        <h2>Aktualizacje</h2>
+        <p id="update-current" class="message">Wersja: —</p>
+        <div class="row buttons">
+          <button id="btn-update-check" type="button">Sprawdź aktualizacje</button>
+          <button id="btn-update-apply" type="button" class="hidden">Zainstaluj aktualizację</button>
+        </div>
+        <div id="update-progress-wrap" class="hidden">
+          <div class="progress-track"><div id="update-progress-bar" class="progress-fill"></div></div>
+          <p id="update-progress-label" class="message"></p>
+        </div>
+        <p id="update-message" class="message"></p>
+      </section>
+
+      <section class="card">
+        <h2>Ustawienia</h2>
+        <form id="config-form">
+          <label>
+            Katalog backendu (Laravel)
+            <input id="cfg-backend" type="text" placeholder="/home/uzytkownik/Documents/OpenMes/backend" />
+          </label>
+          <label>
+            Binarka PHP
+            <input id="cfg-php" type="text" placeholder="php" />
+          </label>
+          <div class="row">
+            <label>
+              Dostępność
+              <select id="cfg-host">
+                <option value="127.0.0.1">Tylko ten komputer (127.0.0.1)</option>
+                <option value="0.0.0.0">Cała sieć lokalna (0.0.0.0)</option>
+              </select>
+            </label>
+            <label class="narrow">
+              Port
+              <input id="cfg-port" type="number" min="1" max="65535" />
+            </label>
+          </div>
+          <label class="checkbox">
+            <input id="cfg-autostart" type="checkbox" />
+            Uruchamiaj serwer automatycznie przy starcie aplikacji
+          </label>
+          <label>
+            Dodatkowe zmienne środowiskowe (KEY=VALUE, po jednej w linii)
+            <textarea id="cfg-env" rows="3" spellcheck="false"></textarea>
+          </label>
+          <div class="row buttons">
+            <button type="submit">Zapisz ustawienia</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Log serwera</h2>
+        <div class="row buttons">
+          <button id="btn-log" type="button">Odśwież log</button>
+        </div>
+        <pre id="log"></pre>
+      </section>
+    </main>
+  </body>
+</html>

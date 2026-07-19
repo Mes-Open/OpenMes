@@ -28,10 +28,20 @@ export function woStatusLabel(status) {
     return labels[status] ?? status;
 }
 
-export function woFields(lines, productTypes, { withStatus = false } = {}) {
+/** Label for a BOM (process template) option in the multi-BOM picker. */
+function bomLabel(t) {
+    const inactive = t.is_active ? '' : ` (${__('inactive')})`;
+    return `${t.name} v${t.version}${inactive}`;
+}
+
+export function woFields(lines, productTypes, { withStatus = false, customers = [], bomTemplates = [], bomLocked = false } = {}) {
     const fields = [
         { name: 'order_no', label: __('Order No'), required: true },
         { name: 'customer_order_no', label: __('Customer Order No') },
+        {
+            name: 'customer_id', label: __('Customer'), type: 'select',
+            options: [{ value: '', label: __('— None —') }, ...customers.map((c) => ({ value: String(c.id), label: c.name }))],
+        },
         {
             name: 'line_id', label: __('Line'), type: 'select',
             options: [{ value: '', label: __('— None —') }, ...lines.map((l) => ({ value: String(l.id), label: l.name }))],
@@ -40,11 +50,29 @@ export function woFields(lines, productTypes, { withStatus = false } = {}) {
             name: 'product_type_id', label: __('Product Type'), type: 'select',
             options: [{ value: '', label: __('— None —') }, ...productTypes.map((p) => ({ value: String(p.id), label: p.name }))],
         },
+    ];
+
+    // Optional multi-BOM picker: select one or more bills of materials (process
+    // templates) for the chosen product type. Left empty, the order auto-uses the
+    // single active BOM for its product type (unchanged single-BOM behaviour).
+    // Scoped to the selected product type via filterByField; hidden once the
+    // order's BOMs are locked by started production.
+    if (bomTemplates.length && !bomLocked) {
+        fields.push({
+            name: 'bom_template_ids', label: __('Bills of Materials'), type: 'checkbox-group',
+            filterByField: 'product_type_id',
+            options: bomTemplates.map((t) => ({ value: t.id, label: bomLabel(t), group: t.product_type_id })),
+            help: __('Select one or more BOMs. Requirements sum across the selected BOMs. Leave empty to auto-use the active BOM for the product type.'),
+        });
+    }
+
+    fields.push(
         { name: 'planned_qty', label: __('Planned Qty'), type: 'number', required: true },
-        { name: 'priority', label: __('Priority (0–100)'), type: 'number' },
+        { name: 'unit_price', label: __('Unit Price'), type: 'number', help: __('Price per produced unit. Adds to the customer\'s revenue when the order completes.') },
+        { name: 'priority', label: __('Priority'), type: 'number', help: __('Auto-calculated from priority rules when any are active; otherwise set manually.') },
         { name: 'due_date', label: __('Due Date'), type: 'date' },
         { name: 'description', label: __('Description'), type: 'textarea' },
-    ];
+    );
     if (withStatus) {
         fields.push({ name: 'status', label: __('Status'), type: 'select', options: WO_STATUSES.map((s) => ({ value: s, label: woStatusLabel(s) })) });
     }

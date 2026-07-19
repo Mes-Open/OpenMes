@@ -1,15 +1,21 @@
+/**
+ * Event logs — the system event feed as a table (When / Event / Description /
+ * User) via the shared DataTable, with a category filter beside the built-in
+ * search. There is no dedicated web page; this follows the admin log-table
+ * style. Read via useEventLogs.
+ */
 import { format, parseISO } from 'date-fns';
 import { useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/Card';
-import { ListScreen } from '@/components/ui/ListScreen';
+import { Dropdown, colors, fonts } from '@openmes/ui';
+import { DataTable } from '@openmes/ui/table';
+
 import { Mono } from '@/components/ui/Mono';
-import { SearchBar } from '@/components/ui/SearchBar';
-import Colors, { BRAND } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { useEventLogs } from '@/hooks/queries/useEventLogs';
+import type { EventLog } from '@/api/eventLogs';
 
 type FilterId = 'all' | 'work_orders' | 'mqtt' | 'auth' | 'system';
 
@@ -22,120 +28,107 @@ function categorize(eventType: string): FilterId | 'unknown' {
   return 'unknown';
 }
 
-function categoryColor(cat: ReturnType<typeof categorize>): string {
-  if (cat === 'work_orders') return BRAND.amber;
-  if (cat === 'mqtt') return '#EA5A2B';
-  if (cat === 'auth') return '#1C9A55';
-  if (cat === 'system') return '#7c3aed';
-  return '#9B9892';
-}
+const CATEGORY_COLOR: Record<string, string> = {
+  work_orders: colors.accent,
+  mqtt: colors.running,
+  auth: colors.done,
+  system: colors.downtime,
+  unknown: colors.muted,
+};
 
 export function EventLogsScreen() {
-  const scheme = useColorScheme() ?? 'light';
-  const palette = Colors[scheme];
   const { t } = useTranslation();
-  const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterId>('all');
 
-  // Fetch a single bucket of events; client-side categorize + filter. The
-  // backend doesn't expose a "category" filter, only event_type which is too
-  // fine-grained for the design's chips.
   const query = useEventLogs({ per_page: 50 });
   const all = query.data?.data ?? [];
 
-  const counts = useMemo(() => {
-    const c = { all: all.length, work_orders: 0, mqtt: 0, auth: 0, system: 0 };
-    for (const e of all) {
-      const cat = categorize(e.event_type);
-      if (cat !== 'unknown') c[cat]++;
-    }
-    return c;
-  }, [all]);
+  const rows = useMemo(
+    () => (filter === 'all' ? all : all.filter((e) => categorize(e.event_type) === filter)),
+    [all, filter],
+  );
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return all.filter((e) => {
-      if (filter !== 'all' && categorize(e.event_type) !== filter) return false;
-      if (q) {
-        const blob = `${e.event_type} ${e.entity_type} ${e.description ?? ''} ${e.user?.username ?? ''}`.toLowerCase();
-        if (!blob.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [all, filter, search]);
+  const options = useMemo(
+    () => [
+      { value: 'all', label: t('All') },
+      { value: 'work_orders', label: t('Work orders') },
+      { value: 'mqtt', label: 'MQTT' },
+      { value: 'auth', label: t('Auth') },
+      { value: 'system', label: t('System') },
+    ],
+    [t],
+  );
 
   return (
-    <ListScreen
-      title={t('Event logs')}
-      eyebrow={`${t('ADMIN').toUpperCase()} · ${t('SYSTEM EVENTS').toUpperCase()} · ${t('LIVE').toUpperCase()}`}
-      filters={[
-        { id: 'all', label: t('All'), count: counts.all },
-        { id: 'work_orders', label: t('Work orders'), count: counts.work_orders },
-        { id: 'mqtt', label: 'MQTT', count: counts.mqtt },
-        { id: 'auth', label: t('Auth'), count: counts.auth },
-        { id: 'system', label: t('System'), count: counts.system },
-      ]}
-      activeFilter={filter}
-      onFilterChange={(id) => setFilter(id as FilterId)}
-      extraHeader={
-        <View style={{ gap: 10 }}>
-          <View style={[styles.liveRow]}>
-            <View style={[styles.liveDot, { backgroundColor: palette.success }]} />
-            <Mono size={10.5} color={palette.success} letterSpacing={0.5} weight="700">
-              {t('LIVE').toUpperCase()}
-            </Mono>
-            <Mono size={10.5} color={palette.textFaint} letterSpacing={0.4}>
-              · {all.length} {t('EVENTS').toUpperCase()}
-            </Mono>
-          </View>
-          <SearchBar
-            placeholder="Filter by event type or entity"
-            value={search}
-            onChangeText={setSearch}
-          />
+    <View style={styles.screen}>
+      <View style={styles.head}>
+        <Text style={styles.h1}>{t('Event Logs')}</Text>
+        <View style={{ flex: 1 }} />
+        <View style={{ width: 160 }}>
+          <Dropdown value={filter} onChange={(v) => setFilter(v as FilterId)} placeholder={t('All')} options={options} />
         </View>
-      }
-      items={filtered}
-      keyExtractor={(l) => String(l.id)}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      error={query.error}
-      isFetching={query.isFetching}
-      onRefresh={query.refetch}
-      emptyTitle={t('No events match these filters')}
-      renderItem={(item) => {
-        const cat = categorize(item.event_type);
-        const color = categoryColor(cat);
-        return (
-          <Card>
-            <View style={styles.eventRow}>
-              <View style={[styles.eventDot, { backgroundColor: color }]} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Mono size={10.5} color={color} weight="700" letterSpacing={0.5}>
-                  {item.event_type.toUpperCase()}
-                </Mono>
-                <Text style={[styles.eventDesc, { color: palette.text }]} numberOfLines={2}>
-                  {item.description || `${item.entity_type} #${item.entity_id}`}
-                </Text>
-                <Mono size={10} color={palette.textFaint} letterSpacing={0.3} style={{ marginTop: 4 }}>
-                  {(item.user?.username ?? 'system').toUpperCase()}
-                </Mono>
-              </View>
-              <Mono size={10.5} color={palette.textFaint} letterSpacing={0.4}>
-                {format(parseISO(item.created_at), 'HH:mm:ss')}
-              </Mono>
-            </View>
-          </Card>
-        );
-      }}
-    />
+      </View>
+
+      {query.isLoading && !query.data ? (
+        <LoadingState />
+      ) : query.isError && !query.data ? (
+        <ErrorState error={query.error} onRetry={query.refetch} />
+      ) : (
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={styles.tableWrap}
+          refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={query.refetch} tintColor={colors.accent} />}>
+          <DataTable<EventLog>
+            data={rows as EventLog[]}
+            searchPlaceholder={t('Filter by event type or entity')}
+            columnsLabel={t('Columns')}
+            columnsMenuLabel={t('Toggle columns')}
+            searchKeys={['event_type', 'entity_type', 'description']}
+            emptyText={t('No events match these filters')}
+            columns={[
+              {
+                key: 'when',
+                label: t('When'),
+                width: 84,
+                render: (item) => {
+                  try {
+                    return <Mono size={10} color={colors.faint}>{format(parseISO(item.created_at), 'HH:mm:ss')}</Mono>;
+                  } catch {
+                    return '—';
+                  }
+                },
+              },
+              {
+                key: 'event',
+                label: t('Event'),
+                flex: 1.2,
+                render: (item) => (
+                  <Mono size={10} color={CATEGORY_COLOR[categorize(item.event_type)] ?? colors.muted} letterSpacing={0.4} numberOfLines={1}>
+                    {item.event_type.toUpperCase()}
+                  </Mono>
+                ),
+              },
+              {
+                key: 'description',
+                label: t('Description'),
+                flex: 1.4,
+                render: (item) => (
+                  <Text numberOfLines={2} style={styles.cellText}>{item.description || `${item.entity_type} #${item.entity_id}`}</Text>
+                ),
+              },
+              { key: 'user', label: t('User'), width: 92, render: (item) => item.user?.username ?? 'system' },
+            ]}
+          />
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  liveDot: { width: 8, height: 8, borderRadius: 4 },
-  eventRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  eventDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6, flexShrink: 0 },
-  eventDesc: { fontSize: 12, marginTop: 4 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
+  h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },
+  tableWrap: { paddingHorizontal: 14, paddingBottom: 24 },
+  cellText: { fontSize: 12.5, color: colors.muted, fontFamily: fonts.sans.native.regular },
 });

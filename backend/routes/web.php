@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\InstallController;
-use App\Http\Controllers\TestControl\TenantController as E2eTenantController;
 use App\Http\Controllers\Web\Admin\AnomalyReasonController;
 use App\Http\Controllers\Web\Admin\AreaController;
 use App\Http\Controllers\Web\Admin\AuditLogController as AdminAuditLogController;
@@ -14,6 +13,7 @@ use App\Http\Controllers\Web\Admin\Connectivity\TopicMappingController;
 use App\Http\Controllers\Web\Admin\CostSourceController;
 use App\Http\Controllers\Web\Admin\CrewController;
 use App\Http\Controllers\Web\Admin\CsvImportController as AdminCsvImportController;
+use App\Http\Controllers\Web\Admin\CustomerController;
 use App\Http\Controllers\Web\Admin\CustomFieldDefinitionController;
 use App\Http\Controllers\Web\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Web\Admin\DivisionController;
@@ -24,13 +24,14 @@ use App\Http\Controllers\Web\Admin\IssueTypeManagementController as AdminIssueTy
 use App\Http\Controllers\Web\Admin\LineStatusController as AdminLineStatusController;
 use App\Http\Controllers\Web\Admin\LotSequenceController as AdminLotSequenceController;
 use App\Http\Controllers\Web\Admin\MaintenanceEventController;
-use App\Http\Controllers\Web\Admin\MaterialImportController;
 // Gate 2 — Company structure
+use App\Http\Controllers\Web\Admin\MaterialImportController;
 use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\PalletController as AdminPalletController;
+use App\Http\Controllers\Web\Admin\PriorityRuleController;
 use App\Http\Controllers\Web\Admin\ProductionAnomalyController;
 use App\Http\Controllers\Web\Admin\ProductionCostReportController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
@@ -251,6 +252,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/complete', [OperatorBatchController::class, 'completeStep'])->name('batch-step.complete');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
+        // Read-confirmation: acknowledge reading a critical step's instructions.
+        Route::post('/batch-step/{batchStep}/confirm-instructions', [OperatorBatchController::class, 'confirmInstructions'])->name('batch-step.confirm-instructions');
         // Document control: validate a mandatory document so its step can complete.
         Route::post('/batch-step-document/{batchStepDocument}/validate', [OperatorBatchController::class, 'validateDocument'])->name('batch-step-document.validate');
         // Stream a step document's uploaded file (operators read it before validating).
@@ -356,12 +359,12 @@ Route::middleware('auth')->group(function () {
         // Reports — Work Order History (read-only historical analysis)
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports');
         Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
-        Route::get('/reports/{workOrder}', [AdminReportController::class, 'show'])->name('reports.show');
+        Route::get('/reports/{workOrder}', [AdminReportController::class, 'show'])->name('reports.show')->whereNumber('workOrder');
 
         // Reports — Production Cost (materials + labor + additional, per work order)
         Route::get('/cost-reports', [ProductionCostReportController::class, 'index'])->name('cost-reports.index');
         Route::get('/cost-reports/export', [ProductionCostReportController::class, 'export'])->name('cost-reports.export');
-        Route::get('/cost-reports/{workOrder}', [ProductionCostReportController::class, 'show'])->name('cost-reports.show');
+        Route::get('/cost-reports/{workOrder}', [ProductionCostReportController::class, 'show'])->name('cost-reports.show')->whereNumber('workOrder');
 
         // Alerts
         Route::get('/alerts', [\App\Http\Controllers\Web\Admin\AlertController::class, 'index'])->name('alerts');
@@ -376,7 +379,11 @@ Route::middleware('auth')->group(function () {
         // Schedule (planner is the main view; list is a secondary overview)
         Route::get('/schedule/list', [ScheduleController::class, 'index'])->name('schedule.list');
         Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
+        Route::get('/schedule/capacity', [\App\Http\Controllers\Web\Admin\ScheduleCapacityController::class, 'index'])->name('schedule.capacity');
+        Route::get('/schedule/capacity/cell', [\App\Http\Controllers\Web\Admin\ScheduleCapacityController::class, 'cellOrders'])->name('schedule.capacity.cell');
         Route::get('/schedule/check-updates', [SchedulePlannerController::class, 'checkUpdates'])->name('schedule.check-updates');
+        Route::get('/schedule/changes', [SchedulePlannerController::class, 'changes'])->name('schedule.changes');
+        Route::post('/schedule/changes/{change}/undo', [SchedulePlannerController::class, 'undoChange'])->name('schedule.changes.undo');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
 
@@ -403,6 +410,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/resume', [AdminWorkOrderController::class, 'resume'])->name('work-orders.resume');
         Route::post('/work-orders/{workOrder}/reopen', [AdminWorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::post('/work-orders/{workOrder}/complete', [AdminWorkOrderController::class, 'complete'])->name('work-orders.complete');
+
+        // Customers
+        Route::resource('customers', CustomerController::class)->except(['show']);
+        Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
+
+        // Priority Settings (scoring rules + score→priority band mapping)
+        Route::post('/priority-rules/bands', [PriorityRuleController::class, 'updateBands'])->name('priority-rules.bands');
+        Route::resource('priority-rules', PriorityRuleController::class)->except(['show']);
+        Route::post('/priority-rules/{priority_rule}/toggle-active', [PriorityRuleController::class, 'toggleActive'])->name('priority-rules.toggle-active');
 
         // Issue Types
         Route::resource('issue-types', AdminIssueTypeController::class);
@@ -609,6 +625,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('workstation-types', WorkstationTypeController::class)->except(['show']);
         Route::post('/workstation-types/{workstationType}/toggle-active', [WorkstationTypeController::class, 'toggleActive'])->name('workstation-types.toggle-active');
 
+        // Workstation Devices (shop-floor PCs running the OpenMES Workstation client)
+        Route::get('/workstation-devices', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'index'])->name('workstation-devices.index')->middleware('role:Admin');
+        Route::delete('/workstation-devices/{workstationDevice}', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'destroy'])->name('workstation-devices.destroy')->middleware('role:Admin');
+
         // Subassemblies
         Route::resource('subassemblies', SubassemblyController::class)->except(['show']);
         Route::post('/subassemblies/{subassembly}/toggle-active', [SubassemblyController::class, 'toggleActive'])->name('subassemblies.toggle-active');
@@ -793,18 +813,3 @@ Route::middleware('auth')->group(function () {
         });
     });
 });
-
-/*
- * E2E test-control surface — isolated-tenant lifecycle for the Playwright suite
- * (../../e2e). Hard-gated by EnsureE2eEnabled: 404 unless config('e2e.enabled')
- * AND non-production. Called by the test runner without a session, so these are
- * CSRF-exempt (see bootstrap/app.php validateCsrfTokens except).
- */
-Route::prefix('__e2e__')
-    ->middleware(\App\Http\Middleware\EnsureE2eEnabled::class)
-    ->group(function () {
-        Route::post('/tenant', [E2eTenantController::class, 'store']);
-        Route::post('/tenant/{tenant}/reset', [E2eTenantController::class, 'reset']);
-        Route::post('/tenant/{tenant}/bump-work-order', [E2eTenantController::class, 'bumpWorkOrder']);
-        Route::delete('/tenant/{tenant}', [E2eTenantController::class, 'destroy']);
-    });

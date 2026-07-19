@@ -8,6 +8,9 @@
  * Closes on outside click/Escape. API is identical to the native twin.
  */
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+
+import { useAnchoredPopover } from '../lib/anchorPopover.web.js';
 
 export function Dropdown({
     options,
@@ -23,11 +26,14 @@ export function Dropdown({
 }) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef(null);
+    const { anchorRef, popRef, style } = useAnchoredPopover(open, { estHeight: 320 });
 
     useEffect(() => {
         if (!open) return;
         const onDown = (e) => {
-            if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+            // The menu is portaled — it is NOT inside rootRef's subtree.
+            if (rootRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return;
+            setOpen(false);
         };
         const onKey = (e) => {
             if (e.key === 'Escape') setOpen(false);
@@ -38,7 +44,7 @@ export function Dropdown({
             document.removeEventListener('mousedown', onDown);
             document.removeEventListener('keydown', onKey);
         };
-    }, [open]);
+    }, [open, popRef]);
 
     const selectedValues = multiple ? (values ?? []) : [];
     const single = !multiple ? options.find((o) => o.value === value) : undefined;
@@ -60,6 +66,7 @@ export function Dropdown({
     return (
         <div ref={rootRef} className={`relative ${className}`} {...props}>
             <button
+                ref={anchorRef}
                 type="button"
                 disabled={disabled}
                 aria-haspopup="listbox"
@@ -72,11 +79,13 @@ export function Dropdown({
                     ▾
                 </span>
             </button>
-            {open && (
+            {open && style && createPortal(
                 <div
+                    ref={popRef}
                     role="listbox"
                     aria-multiselectable={multiple || undefined}
-                    className="absolute left-0 top-full z-50 mt-1 max-h-[320px] w-max min-w-full max-w-[min(22rem,calc(100vw-2rem))] overflow-auto rounded-om border border-om-line bg-om-card p-[6px] shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)]"
+                    style={style}
+                    className="max-h-[320px] w-max max-w-[min(22rem,calc(100vw-2rem))] overflow-auto rounded-om border border-om-line bg-om-card p-[6px] shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)]"
                 >
                     {options.map((o) => {
                         if (multiple) {
@@ -116,7 +125,8 @@ export function Dropdown({
                             </div>
                         );
                     })}
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );
