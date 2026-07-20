@@ -4646,7 +4646,6 @@
     "No shift configured": "No shift configured",
     "Not found": "Not found",
     "ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK": "ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK",
-    "Offline": "Offline",
     "Open API in browser": "Open API in browser",
     "PARAM": "PARAM",
     "PICK A SUPERVISOR": "PICK A SUPERVISOR",
@@ -4822,5 +4821,11 @@
     "Select a product type first.": "Select a product type first.",
     "No BOMs are available for the selected product type.": "No BOMs are available for the selected product type.",
     "Age": "Age",
-    "just now": "just now"
+    "just now": "just now",
+    "Counting Source": "Counting Source",
+    "Operator (manual)": "Operator (manual)",
+    "Machine (automatic)": "Machine (automatic)",
+    "Both (machine + operator)": "Both (machine + operator)",
+    "Where produced quantity comes from. Machine-counted orders are driven by machine counter signals and block manual operator entry.": "Where produced quantity comes from. Machine-counted orders are driven by machine counter signals and block manual operator entry.",
+    "Produced quantity is recorded automatically from the machine.": "Produced quantity is recorded automatically from the machine."
 }

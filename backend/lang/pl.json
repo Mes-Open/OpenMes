@@ -4292,7 +4292,6 @@
     "No shift configured": "Brak skonfigurowanej zmiany",
     "Not found": "Nie znaleziono",
     "ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK": "JEDNA SEKWENCJA NA TYP PRODUKTU · DOMYŚLNA JEST GLOBALNA",
-    "Offline": "Offline",
     "Open API in browser": "Otwórz API w przeglądarce",
     "PARAM": "PARAMETR",
     "PICK A SUPERVISOR": "WYBIERZ NADZORCĘ",
@@ -4822,5 +4821,11 @@
     "Select a product type first.": "Najpierw wybierz typ produktu.",
     "No BOMs are available for the selected product type.": "Brak dostępnych BOM-ów dla wybranego typu produktu.",
     "Age": "Wiek",
-    "just now": "przed chwilą"
+    "just now": "przed chwilą",
+    "Counting Source": "Źródło liczenia",
+    "Operator (manual)": "Operator (ręcznie)",
+    "Machine (automatic)": "Maszyna (automatycznie)",
+    "Both (machine + operator)": "Oba (maszyna + operator)",
+    "Where produced quantity comes from. Machine-counted orders are driven by machine counter signals and block manual operator entry.": "Skąd pochodzi wyprodukowana ilość. Zlecenia liczone maszynowo są sterowane sygnałami licznika maszyny i blokują ręczny wpis operatora.",
+    "Produced quantity is recorded automatically from the machine.": "Wyprodukowana ilość jest zapisywana automatycznie z maszyny."
 }
