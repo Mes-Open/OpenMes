@@ -28,7 +28,6 @@
 
 ![OpenMES on desktop, mobile and web](docs/screenshots/openmes-desktop-mobile-web.png)
 
-![Admin Dashboard](docs/screenshots/dashboard.png)
 
 ### Why OpenMES?
 
