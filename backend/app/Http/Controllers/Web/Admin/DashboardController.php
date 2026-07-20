@@ -17,20 +17,17 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Admin dashboard, served as an Inertia/React page backed by Electric SQL.
+ * Admin dashboard, served as an Inertia/React page backed by live sync.
  *
  * Row-level data (work orders, issues, lines, OEE records, issue types) is
- * synced live to the browser via shape subscriptions — see
- * `App\Sync\Shapes\*` and `app/Http/Controllers/Api/ShapeProxyController.php`.
+ * synced live to the browser via collection subscriptions — see
+ * `App\Sync\Shapes\*` and `app/Http/Controllers/Api/CollectionController.php`.
  *
  * This controller stays responsible for:
  *   - Kicking the OEE calculation (15-min cache window) so synced records
  *     reflect today's production.
  *   - Computing heavy aggregates (inbound QC pass rates, materials KPIs)
- *     that don't map cleanly to Electric's per-row sync.
- *   - Minting a short-lived Sanctum token so the React client can hit the
- *     proxy without the full SPA cookie setup. TODO: switch to Sanctum's
- *     stateful (cookie) mode once we're ready to drop bearer tokens.
+ *     that don't map cleanly to per-row sync.
  */
 class DashboardController extends Controller
 {
@@ -39,7 +36,7 @@ class DashboardController extends Controller
         // Side-effect: keep OEE numbers fresh. Cached for 15 minutes — the
         // calculation itself is expensive and rerunning it on every dashboard
         // load would be wasteful. Synced OeeRecord rows below pick up the
-        // updates automatically via Electric.
+        // updates automatically via live sync.
         Cache::remember('oee_calculated_'.today()->toDateString(), 900, function () {
             $svc = app(OeeCalculationService::class);
             $svc->calculateAll(today());
@@ -55,8 +52,8 @@ class DashboardController extends Controller
             ->toArray();
 
         return Inertia::render('admin/Dashboard', [
-            // No token: the gatekeeper authenticates via the session cookie
-            // (Sanctum SPA stateful mode).
+            // No token: the snapshot endpoint authenticates via the session
+            // cookie (Sanctum SPA stateful mode).
             'enabledWidgets' => $enabledWidgets,
             'widgetOrder' => $widgetOrder,
             // Aggregations that don't map cleanly to row-level sync. Inertia

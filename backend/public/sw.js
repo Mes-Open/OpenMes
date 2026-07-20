@@ -1,5 +1,6 @@
 // OpenMES no longer uses a service worker — the app is online-only (no offline
-// mode) and live data comes from Electric SQL, so the old offline-precache SW
+// mode) and live data streams in over the Reverb WebSocket, so the old
+// offline-precache SW
 // was removed. This file is intentionally a self-destruct kill-switch: any
 // browser still running the previous service worker will, on its next update
 // check, install this version, delete all caches, unregister itself, and reload

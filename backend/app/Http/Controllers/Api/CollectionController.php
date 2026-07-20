@@ -15,8 +15,7 @@ use Illuminate\Support\Facades\Schema;
  * sync; live deltas then arrive via CollectionChanged on the channel).
  *
  * Reuses the existing collection definitions (table / columns / where) from
- * ShapeRegistry and applies the same tenant scope as the read path. Replaces the
- * Electric shape stream's initial sync.
+ * ShapeRegistry and applies the same tenant scope as the read path.
  *
  *   GET /api/collections/{name}  →  { rows: [...], at: <unix ts> }
  */

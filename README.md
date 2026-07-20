@@ -437,52 +437,43 @@ Production deployments do not use `docker-compose.dev.yml`. The image's `Dockerf
 
 ---
 
-## Live data sync (Electric SQL)
+## Live data sync (Reverb + TanStack DB)
 
-OpenMES uses [**Electric SQL**](https://electric-sql.com) for read-path live sync between Postgres and React/mobile clients. Instead of broadcasting events from Laravel and reconciling state on the client, clients **subscribe to a named shape** (a server-defined query) and Electric pushes changes from Postgres's WAL automatically. Writes still go through Laravel controllers as before.
+OpenMES live-syncs read data from Laravel to React/mobile clients over a single
+WebSocket. Clients **subscribe to a named collection** (a server-defined query)
+rather than querying tables directly: they load one snapshot over HTTP, then
+receive deltas as they happen. Writes still go through Laravel controllers as
+before.
 
-### Architecture — gatekeeper, not proxy
-
-Laravel **authorizes** a shape once and hands back a signed capability; the browser then streams from Electric **through Caddy**. PHP never holds the long-poll.
+### Architecture — snapshot, then deltas
 
 ```
-1. authorize:   client ─► GET /api/shapes/{name} (Laravel gatekeeper, authed)
-                          ◄─ { url, params: { table, columns, where, exp, sig } }   (HMAC-signed)
+1. snapshot:  client ─► GET /api/collections/{name}  (CollectionController, authed + tenant-scoped)
+                        ◄─ { rows: [...], at: <unix ts> }
 
-2. stream:      client ─► /electric/* (Caddy) ──forward_auth──► /api/electric/authorize  (fast HMAC check)
-                                       └──reverse_proxy──► Electric ─► Postgres WAL
-                          ◄─ live shape updates via useShape()
+2. deltas:    Laravel ─► CollectionChanged ─► Reverb ─► private channel col.{tenant}.{collection}
+                        ◄─ insert / update / delete, applied by the client's collection adapter
 
-   writes:      client ─► Laravel controllers (validation, auth, Eloquent events) ─► Postgres
+   writes:    client ─► Laravel controllers (validation, auth, Eloquent events) ─► Postgres
 ```
 
-- **Electric** runs as a sidecar container, talks to Postgres over logical replication.
-- **Laravel** owns the shape registry (`app/Sync/Shapes/`) and the gatekeeper (`app/Http/Controllers/Api/ShapeGatekeeperController.php`): `config()` issues the signed shape, `verify()` is Caddy's `forward_auth` target. Clients request shapes by name, never by table.
-- **Caddy** (`/electric/*` route) holds the ~20s long-polls and proxies them to Electric. Crucially, **the long-poll never occupies a PHP worker** — PHP only does the fast signature check per poll. This is what lets the stack scale to many concurrent live clients.
-- **Clients** (React via `@electric-sql/react`, future mobile via `@electric-sql/client`) fetch the signed config, then stream from `/electric/*`.
+- **Laravel** owns the collection registry (`app/Sync/ShapeRegistry.php` +
+  `app/Sync/Shapes/`): each entry pins a table, a column allowlist and an
+  optional server-built `where`. Clients request collections by name, never by
+  table. `CollectionController` serves the snapshot; `App\Events\CollectionChanged`
+  broadcasts each row change.
+- **Reverb** runs as a sidecar container speaking the Pusher protocol. Channels
+  are private and namespaced per tenant (`col.{tenantKey}.{collection}`), authorized
+  in `routes/channels.php` via the session cookie at `/broadcasting/auth`.
+- **Caddy** proxies `/app/*` to Reverb. One multiplexed WebSocket carries every
+  collection channel, so the browser's ~6-connection HTTP/1.1 cap doesn't apply
+  and no PHP worker is ever held open.
+- **Clients** use `lib/echo.js` (one app-wide `laravel-echo` connection) and
+  `lib/realtimeCollection.js`, which feeds a TanStack DB collection.
 
-> **Why a gatekeeper and not a straight proxy?** An earlier design proxied Electric's `live=true` long-poll *through* PHP. Because the dev server is single-threaded, one held long-poll froze the whole app (login 20s→90s+). Long-polls must be held by Caddy/Electric, never PHP.
+### Adding a new collection
 
-### Prerequisites
-
-Postgres must run with **logical replication** enabled. The base `docker-compose.yml` already passes the required flags:
-
-```yaml
-command:
-  - postgres
-  - -c
-  - wal_level=logical
-  - -c
-  - max_replication_slots=10
-  - -c
-  - max_wal_senders=10
-```
-
-If you're connecting to a managed Postgres (RDS, Supabase, Neon, etc.), enable logical replication in the provider's console.
-
-### Adding a new shape
-
-Three files:
+Two files:
 
 1. **Define the shape.** `backend/app/Sync/Shapes/MyShape.php`:
 
@@ -496,48 +487,58 @@ Three files:
    }
    ```
 
+   Simple lookup tables can skip the class and use an inline
+   `['table', 'columns', 'where'?]` config instead.
+
 2. **Register it.** Add to the `$shapes` map in `backend/app/Sync/ShapeRegistry.php`:
 
    ```php
-   'my_shape_name' => MyShape::class,
+   'my_collection_name' => MyShape::class,
    ```
 
-3. **Subscribe from React.** Fetch the signed config, then stream it (see `lib/useShapeConfigs.js` + `lib/useDashboardShapes.js` for the shared pattern):
+Then subscribe from React — the hooks in `lib/useSyncedShape.js` handle the
+snapshot and the channel for you:
 
-   ```jsx
-   // 1. authorize (quick, authenticated)
-   const cfg = await fetch('/api/shapes/my_shape_name', {
-       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-   }).then((r) => r.json());
+```jsx
+const { data, isLoading } = useSyncedShape('my_collection_name');
+```
 
-   // 2. stream from Electric via Caddy (absolute url required by the client)
-   const { data } = useShape({ ...cfg, url: window.location.origin + cfg.url });
-   ```
-
-See `Pages/ElectricTest.jsx` and the `/electric-test` route for a working example.
+`useLiveShape` is the same function under a different name (call-site intent
+only). Hot app-wide collections are shared via `LiveShapesProvider` — don't
+subscribe to them again per page.
 
 ### Security model
 
-- Clients **cannot pick the table** — they pick a shape name. Adding a new shape is a deliberate code change.
-- Clients **cannot pick which columns** to read — the shape's `columns()` method is the whitelist. Sensitive columns (password hashes, tokens, PII) simply aren't listed.
-- Clients **cannot escape the server WHERE** — the HMAC signature covers `table`, `columns`, and the server-built `where`, so any tampering (widening scope, swapping the table, reading other columns) fails `verify()` with a 403 at the Caddy edge.
-- The gatekeeper `config()` requires authentication (`auth:web,sanctum`). The signed capability expires (`exp`), bounding the leak window.
+- Clients **cannot pick the table** — they pick a collection name. Adding a new
+  collection is a deliberate code change.
+- Clients **cannot pick which columns** to read — the shape's `columns()` method
+  is the whitelist. Sensitive columns (password hashes, tokens, PII) simply
+  aren't listed.
+- Clients **cannot escape the server WHERE** — both the snapshot and the delta
+  projection are built server-side from the registry entry.
+- Both halves are authorized: the snapshot endpoint requires auth and applies the
+  tenant scope, and the delta channel is private, so a user only receives their
+  own tenant's rows (plus global `"g"` collections).
 
 ### Operational notes
 
-- **Replication slot lag.** Electric maintains a Postgres replication slot called `electric_slot_default`. If Electric is down for an extended period, WAL accumulates on the Postgres volume. Monitor with:
-  ```sql
-  SELECT slot_name, pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS lag
-  FROM pg_replication_slots;
-  ```
-- **Removing Electric.** Drop the slot first or Postgres will keep retaining WAL forever:
-  ```sql
-  SELECT pg_drop_replication_slot('electric_slot_default');
-  ```
-- **App-server runtime.** The backend serves via **Laravel Octane on RoadRunner** (`octane:start` is the Dockerfile `CMD`) — a concurrent, in-memory runtime. The old `php artisan serve` was single-threaded and serialized every request; it remains only as a documented dev fallback. Octane keeps the framework booted between requests, so watch for state that assumes a fresh boot per request (singletons, static props) — validate the full app under Octane before a production rollout.
-- **Signature expiry.** Issued shape capabilities carry a 1-hour `exp`. A dashboard left open past that will start getting 403s on poll; the client needs to re-fetch config from the gatekeeper on expiry (a refresh-on-403 hook — not yet wired in this PoC).
-- **Production auth.** The `/electric-test` and `/admin/dashboard` routes use a short-lived Sanctum token passed as an Inertia prop to authorize the gatekeeper `config()` calls. Real pages should use Sanctum's [SPA stateful (cookie) mode](https://laravel.com/docs/sanctum#spa-authentication) — no tokens, just the session cookie.
-- **Widget registry regression.** The Blade dashboard supported a `WidgetRegistry` extension API where modules registered Blade views into named zones (`admin_dashboard.kpi`, `admin_dashboard.main`, `admin_dashboard.sidebar`). The React/Electric dashboard does **not** render these. No bundled module currently uses the registry, so nothing actively breaks — but a future React-based widget extension API needs to be designed before third-party modules can extend the new dashboard.
+- **App-server runtime.** The backend serves via **Laravel Octane on RoadRunner**
+  (`octane:start` is the Dockerfile `CMD`) — a concurrent, in-memory runtime. The
+  old `php artisan serve` was single-threaded and serialized every request; it
+  remains only as a documented dev fallback. Octane keeps the framework booted
+  between requests, so watch for state that assumes a fresh boot per request
+  (singletons, static props) — validate the full app under Octane before a
+  production rollout.
+- **Broadcasting is synchronous.** `CollectionChanged` implements
+  `ShouldBroadcastNow` because `QUEUE_CONNECTION=sync`; a write's broadcast
+  happens inline with the request. Moving to a real queue driver would make
+  delivery async — check the latency assumptions in the UI before doing so.
+- **Widget registry regression.** The Blade dashboard supported a `WidgetRegistry`
+  extension API where modules registered Blade views into named zones
+  (`admin_dashboard.kpi`, `admin_dashboard.main`, `admin_dashboard.sidebar`). The
+  React dashboard does **not** render these. No bundled module currently uses the
+  registry, so nothing actively breaks — but a future React-based widget extension
+  API needs to be designed before third-party modules can extend the new dashboard.
 
 ---
 

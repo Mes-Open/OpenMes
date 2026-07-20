@@ -29,7 +29,7 @@ class CustomerControllerTest extends TestCase
     {
         Customer::factory()->create(['name' => 'ABC Textiles']);
 
-        // Rows live-sync via the `customers` Electric shape rather than being
+        // Rows live-sync via the `customers` collection rather than being
         // server-rendered, so we only assert the page loads for an admin.
         $this->actingAs($this->admin)
             ->get(route('admin.customers.index'))

@@ -96,7 +96,7 @@ services:
     networks:
       - openmmes-network
 
-  # ── Reverb WebSocket server (live sync; replaces Electric) ────────────────
+  # ── Reverb WebSocket server (live sync) ───────────────────────────────────
   # Single multiplexed WebSocket (Pusher protocol). Laravel publishes deltas to
   # it; clients connect through Caddy (/app/*). NOT exposed publicly.
   reverb:

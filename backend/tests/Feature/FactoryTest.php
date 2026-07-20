@@ -33,7 +33,7 @@ class FactoryTest extends TestCase
         Factory::create(['code' => 'FAC01', 'name' => 'Alpha Factory', 'is_active' => true]);
         Factory::create(['code' => 'FAC02', 'name' => 'Beta Factory', 'is_active' => false]);
 
-        // Rows live-sync to the browser via the Electric `factories` shape, so
+        // Rows live-sync to the browser via the `factories` collection, so
         // the names are not in the server HTML — assert the Inertia page renders.
         $this->actingAs($this->admin)->get(route('admin.factories.index'))
             ->assertStatus(200)

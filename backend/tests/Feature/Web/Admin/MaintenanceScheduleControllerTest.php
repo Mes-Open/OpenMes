@@ -49,7 +49,7 @@ class MaintenanceScheduleControllerTest extends TestCase
 
         $response->assertStatus(200);
 
-        // The Index page is Electric-fed: schedule rows stream client-side, not via
+        // The Index page is fed by live sync: schedule rows stream client-side, not via
         // props/HTML. The controller only renders the page + lookup maps, so we
         // assert the component loads for an authorized admin.
         $response->assertInertia(

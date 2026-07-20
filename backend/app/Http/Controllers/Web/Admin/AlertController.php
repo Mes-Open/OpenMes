@@ -11,7 +11,7 @@ class AlertController extends Controller
 {
     public function index()
     {
-        // The page live-syncs entirely from Electric shapes (issues_all,
+        // The page live-syncs entirely from synced collections (issues_all,
         // issue_types, work_orders_all, lines_all, users) and derives the
         // blocking / non-blocking / overdue / blocked lists client-side, so
         // state changes appear without a refresh. No server props needed.

@@ -36,7 +36,7 @@ class SiteControllerTest extends TestCase
     {
         Site::factory()->create(['name' => 'Krakow Plant', 'code' => 'SITE-KRK']);
 
-        // Rows live-sync to the browser via the Electric `sites` shape, so the
+        // Rows live-sync to the browser via the `sites` collection, so the
         // names are not in the server HTML — assert the Inertia page renders.
         $this->actingAs($this->admin)->get(route('admin.sites.index'))
             ->assertOk()

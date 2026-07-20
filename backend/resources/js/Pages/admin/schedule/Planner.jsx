@@ -294,7 +294,7 @@ export default function Planner() {
         return () => { alive = false; clearInterval(t); };
     }, [trackId]);
 
-    // ── Live sync (Electric) — defer refresh while dragging/saving ─────────────
+    // ── Live sync — defer refresh while dragging/saving ────────────────────────
     const pendingRefresh = useRef(false);
     const onWorkOrdersChanged = useCallback(() => {
         if (saving || draggingRef.current) { pendingRefresh.current = true; return; }

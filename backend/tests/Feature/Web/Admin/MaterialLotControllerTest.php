@@ -54,7 +54,7 @@ class MaterialLotControllerTest extends TestCase
     {
         MaterialLot::factory()->count(3)->create();
 
-        // Row data is delivered client-side via Electric SQL, not in server HTML.
+        // Row data is delivered client-side via live sync, not in server HTML.
         $this->actingAs($this->admin)
             ->get(route('admin.material-lots.index'))
             ->assertOk()
@@ -198,7 +198,7 @@ class MaterialLotControllerTest extends TestCase
         MaterialLot::factory()->create(['material_id' => $materialA->id, 'status' => MaterialLot::STATUS_QUARANTINE, 'tenant_id' => $this->admin->tenant_id]);
         MaterialLot::factory()->create(['material_id' => $materialB->id, 'status' => MaterialLot::STATUS_RELEASED, 'tenant_id' => $this->admin->tenant_id]);
 
-        // Filtering narrows an Electric shape client-side; the server still must
+        // Filtering narrows a synced collection client-side; the server still must
         // render the Inertia page (200) when given the filter query string.
         $this->actingAs($this->admin)
             ->get(route('admin.material-lots.index', [

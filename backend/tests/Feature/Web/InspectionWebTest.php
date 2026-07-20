@@ -86,7 +86,7 @@ class InspectionWebTest extends TestCase
         ]);
 
         // The plan list is a React/Inertia page; plan rows arrive in the browser
-        // via Electric SQL, not server-rendered HTML. XSS is prevented by React's
+        // via live sync, not server-rendered HTML. XSS is prevented by React's
         // default escaping at render time. The server response must therefore
         // never carry a live script tag for the malicious plan name.
         $response = $this->actingAs($this->admin)->get(route('admin.inspection-plans.index'));

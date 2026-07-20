@@ -16,7 +16,7 @@ class ProductTypeManagementController extends Controller
     /**
      * Display a listing of product types.
      *
-     * The rows themselves live-sync via the `product_types` Electric shape
+     * The rows themselves live-sync via the `product_types` collection
      * (see Pages/admin/product-types/Index.jsx). Only the cross-table counts —
      * which don't map to per-row sync — are passed as a prop, keyed by id.
      */

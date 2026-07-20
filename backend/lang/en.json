@@ -4822,5 +4822,18 @@
     "Select a product type first.": "Select a product type first.",
     "No BOMs are available for the selected product type.": "No BOMs are available for the selected product type.",
     "Age": "Age",
-    "just now": "just now"
+    "just now": "just now",
+    "Already undone": "Already undone",
+    "Could not reschedule": "Could not reschedule",
+    "Could not undo": "Could not undo",
+    "Detach this segment": "Detach this segment",
+    "Med": "Med",
+    "No changes yet.": "No changes yet.",
+    "No orders match.": "No orders match.",
+    "Rescheduled": "Rescheduled",
+    "Return to backlog": "Return to backlog",
+    "This order has an exact start and end time. Moving it to a shift cell will clear them.": "This order has an exact start and end time. Moving it to a shift cell will clear them.",
+    "{{n}} unscheduled in backlog": "{{n}} unscheduled in backlog",
+    "Long-press a bar to move it · drag its edges to resize · snaps to {{n}} min": "Long-press a bar to move it · drag its edges to resize · snaps to {{n}} min",
+    "Long-press a block to move it across shifts, days or lines · drag its edges to stretch · drag an edge onto another line to continue the order there · tap it for actions": "Long-press a block to move it across shifts, days or lines · drag its edges to stretch · drag an edge onto another line to continue the order there · tap it for actions"
 }

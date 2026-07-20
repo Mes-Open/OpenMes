@@ -49,7 +49,7 @@ class ProcessSegmentControllerTest extends TestCase
     {
         ProcessSegment::factory()->create(['code' => 'PSG-LIST-1', 'name' => 'Listed Segment']);
 
-        // Row data is delivered client-side via Electric SQL, not in server HTML.
+        // Row data is delivered client-side via live sync, not in server HTML.
         $this->actingAs($this->admin)->get(route('admin.process-segments.index'))
             ->assertStatus(200)
             ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/process-segments/Index'));
@@ -161,7 +161,7 @@ class ProcessSegmentControllerTest extends TestCase
             'segment_type' => ProcessSegment::TYPE_PRODUCTION,
         ]);
 
-        // Filtering narrows an Electric shape client-side; the server still must
+        // Filtering narrows a synced collection client-side; the server still must
         // render the Inertia page (200) when given the query string.
         $this->actingAs($this->admin)
             ->get(route('admin.process-segments.index', ['segment_type' => 'inspection']))

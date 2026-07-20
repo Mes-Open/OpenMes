@@ -2,9 +2,9 @@ import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
 /**
- * Single app-wide WebSocket to Laravel Reverb (Pusher protocol), replacing
- * Electric's per-shape HTTP long-polls. One connection carries every collection
- * channel (multiplexed), so the HTTP/1.1 ~6-connection limit no longer applies.
+ * Single app-wide WebSocket to Laravel Reverb (Pusher protocol). One connection
+ * carries every collection channel (multiplexed), so the browser's ~6-connection
+ * per-origin limit on HTTP/1.1 doesn't apply.
  *
  * Connects to the SAME host/port the app is served from (works on a factory-LAN
  * IP over plain http → ws:// with no cert), proxied by Caddy to Reverb. Private

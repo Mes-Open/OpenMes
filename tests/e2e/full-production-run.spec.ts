@@ -85,7 +85,7 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
     await page.fill('input[name="code"]', `RL-${TS}`);
     await page.fill('input[name="name"]', LINE);
     await createBtn(page).click();
-    await page.waitForURL(/\/admin\/lines$/); // redirect == created (Electric list lags)
+    await page.waitForURL(/\/admin\/lines$/); // redirect == created (the live-synced list lags)
   });
   const lineId = dbValue(`select id as v from lines where code='RL-${TS}'`);
 
@@ -121,7 +121,7 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
     await page.fill('input[name="planned_qty"]', '10');
     await createBtn(page).click();
     // The redirect to the index only happens on success (a 422 keeps us on
-    // /create); the list itself is Electric-synced and can lag, so the redirect
+    // /create); the list itself is live-synced and can lag, so the redirect
     // is the reliable success signal — the operator queue confirms the WO later.
     await page.waitForURL(/\/admin\/work-orders$/);
   });
@@ -211,8 +211,8 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
   await test.step('perform quality control linked to the pallet', async () => {
     await page.goto('/admin/quality-tasks');
     const row = page.locator('tr', { hasText: WO }).first();
-    await expect(row).toBeVisible({ timeout: 45_000 }); // due-tasks Electric shape can lag under load
-    await page.waitForTimeout(1500); // let the Electric-synced table stop re-rendering
+    await expect(row).toBeVisible({ timeout: 45_000 }); // the due-tasks collection can lag under load
+    await page.waitForTimeout(1500); // let the live-synced table stop re-rendering
     const dialog = page.getByRole('dialog');
     // The synced table re-renders as rows stream in, which can detach the button
     // mid-click — retry until the modal actually opens.

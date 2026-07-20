@@ -11,7 +11,7 @@ import { __ } from '../lib/i18n';
  * This is a PERSISTENT Inertia layout (pages opt in via
  * `Page.layout = (page) => <AppLayout>{page}</AppLayout>`), so it stays mounted
  * across client-side navigations — the sidebar, its collapse/dark-mode state,
- * and the live alert badge's Electric subscription survive page changes.
+ * and the live alert badge's collection subscription survive page changes.
  *
  * Nav uses Inertia <Link> (XHR, swaps only the page component — no full reload).
  * Active state is derived from the REACTIVE `usePage().url` (not

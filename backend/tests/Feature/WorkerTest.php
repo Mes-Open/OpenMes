@@ -68,7 +68,7 @@ class WorkerTest extends TestCase
             'is_active' => false,
         ]);
 
-        // Row data is delivered client-side via Electric SQL, not in server HTML.
+        // Row data is delivered client-side via live sync, not in server HTML.
         $this->actingAs($this->admin)->get(route('admin.workers.index'))
             ->assertStatus(200)
             ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/workers/Index'));

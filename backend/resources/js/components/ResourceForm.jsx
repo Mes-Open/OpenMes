@@ -9,8 +9,8 @@ import { __ } from '../lib/i18n';
  * Config-driven create/edit form — the non-optimistic write-through pattern.
  *
  * Submits via Inertia useForm to a Laravel endpoint that validates and
- * redirects to the list; the committed row then shows up there via the Electric
- * shape. Validation errors render from form.errors; the button reflects
+ * redirects to the list; the committed row then shows up there via the synced
+ * collection. Validation errors render from form.errors; the button reflects
  * form.processing. No optimistic state.
  *
  * Props:

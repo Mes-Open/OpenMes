@@ -29,7 +29,7 @@ class ScrapReasonControllerTest extends TestCase
         ScrapReason::factory()->create(['name' => 'Burr on edge']);
 
         // The Inertia index renders the React page; rows live-sync via the
-        // `scrap_reasons` Electric shape rather than being server-rendered, so
+        // `scrap_reasons` collection rather than being server-rendered, so
         // we only assert the page loads for an admin.
         $response = $this->actingAs($this->admin)->get(route('admin.scrap-reasons.index'));
 

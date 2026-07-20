@@ -548,6 +548,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::delete('/maintenance-schedules/{maintenanceSchedule}', [MaintenanceScheduleController::class, 'destroy']);
         Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [MaintenanceScheduleController::class, 'generateNow']);
 
+        // Schedule planner board — the mobile planner's read path (lines,
+        // shifts, orders in range, backlog, maintenance). Mirrors the props the
+        // web Admin\SchedulePlannerController.index ships to Inertia.
+        // Declared before /schedule/{workOrder} so the literal segments win.
+        Route::get('/schedule/board', [ScheduleController::class, 'board']);
+        Route::get('/schedule/changes', [ScheduleController::class, 'changes']);
+        Route::post('/schedule/changes/{change}/undo', [ScheduleController::class, 'undoChange']);
+
         // Schedule planner write — minute-level move / resize for work orders.
         // Mirrors web Admin\SchedulePlannerController.updateOrder / resizeOrder.
         Route::put('/schedule/{workOrder}', [ScheduleController::class, 'updateOrder']);

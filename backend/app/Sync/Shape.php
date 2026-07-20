@@ -5,14 +5,14 @@ namespace App\Sync;
 use App\Models\User;
 
 /**
- * A named, server-defined Electric shape.
+ * A named, server-defined synced collection.
  *
- * The proxy controller never lets clients pick the table, columns, or main
- * WHERE clause directly — they pick a *shape name* and the server resolves
- * it to an Electric shape definition with auth/tenancy already baked in.
- *
- * Clients can append a narrower `where=` (Electric only allows narrowing
- * within the server's main WHERE), but cannot escape the scope set here.
+ * Clients never pick the table, columns, or WHERE clause — they pick a
+ * *collection name* and the server resolves it to this definition with
+ * auth/tenancy already baked in. The scope set here is the whole scope: the
+ * snapshot endpoint (CollectionController) and the delta broadcast
+ * (CollectionChanged) both build their query from it, and neither accepts a
+ * client-supplied filter.
  */
 abstract class Shape
 {

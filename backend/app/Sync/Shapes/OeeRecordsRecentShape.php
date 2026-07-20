@@ -9,10 +9,11 @@ use App\Sync\Shape;
  * OEE records for the dashboard "OEE Overview" panel. Recent window only —
  * older records are historical and don't need to live-sync.
  *
- * Electric WHERE clauses can't contain SQL value functions like `current_date`,
- * so we embed a literal date computed in PHP at request time. Crossing midnight
- * means the next page load gets a different shape handle (handled by the client
- * automatically); already-open dashboards keep their shape until they refresh.
+ * The window is a literal date computed in PHP at request time rather than a
+ * SQL value function like `current_date`, so the snapshot and the broadcast
+ * filter agree on one boundary for the request. Crossing midnight means the next
+ * page load gets a different window; already-open dashboards keep theirs until
+ * they refresh.
  */
 class OeeRecordsRecentShape extends Shape
 {

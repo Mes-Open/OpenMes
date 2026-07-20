@@ -3,7 +3,7 @@ import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
 import { __ } from '../../../lib/i18n';
 
-// json columns may arrive from Electric as a parsed array or a JSON string.
+// json columns may arrive from live sync as a parsed array or a JSON string.
 function asArray(v) {
     if (Array.isArray(v)) return v;
     if (typeof v === 'string' && v) {

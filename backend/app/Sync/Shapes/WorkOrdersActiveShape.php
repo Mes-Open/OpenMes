@@ -9,9 +9,8 @@ use App\Sync\Shape;
 /**
  * Work orders on active lines that are not in a terminal state.
  *
- * Used as the vertical-slice proof of Electric live sync. Once we trust the
- * loop, this is the shape the admin/supervisor dashboards will subscribe to
- * for the "active production" view.
+ * The collection the admin/supervisor dashboards subscribe to for the "active
+ * production" view.
  */
 class WorkOrdersActiveShape extends Shape
 {

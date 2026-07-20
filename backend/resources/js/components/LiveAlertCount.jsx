@@ -3,8 +3,8 @@ import { useLiveQuery } from '@tanstack/react-db';
 import { useHotShapes } from './LiveShapesProvider';
 
 /**
- * Live alert count for the sidebar badge — the Electric-backed replacement for
- * the server-computed `nav.alertCount` shared prop (which only refreshed on
+ * Live alert count for the sidebar badge — the live-synced replacement for the
+ * server-computed `nav.alertCount` shared prop (which only refreshed on
  * navigation). Mirrors AlertController::totalCount:
  *   open issues (OPEN/ACKNOWLEDGED) + overdue work orders + blocked work orders.
  *

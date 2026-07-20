@@ -42,7 +42,7 @@ class CompanyTest extends TestCase
             'is_active' => false,
         ]);
 
-        // Rows live-sync to the browser via the Electric `companies` shape, so
+        // Rows live-sync to the browser via the `companies` collection, so
         // the names are not in the server HTML — assert the Inertia page renders.
         $this->actingAs($this->admin)->get(route('admin.companies.index'))
             ->assertStatus(200)

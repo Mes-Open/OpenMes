@@ -14,6 +14,7 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { colors, fonts, radius } from '@openmes/ui';
 
+import { PlannerView } from '@/components/planner/PlannerView';
 import { DraggableBlockBar } from '@/components/schedule/DraggableBlockBar';
 import { EditScheduleModal } from '@/components/schedule/EditScheduleModal';
 import { LiveDot } from '@/components/ui/LiveDot';
@@ -44,6 +45,40 @@ const HOUR_LABELS = Array.from({ length: DAY_HOURS + 1 }).map((_, i) =>
 const ROW_HEIGHT = 36;
 const LINE_LABEL_WIDTH = 56;
 const ROW_GAP = 8;
+
+/** Day / Week mode toggle — shared by the phone layout and the tablet planner. */
+function ModeToggle({
+  mode,
+  setMode,
+}: {
+  mode: 'day' | 'week';
+  setMode: (m: 'day' | 'week') => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.modeRow}>
+      {(['day', 'week'] as const).map((m) => {
+        const active = mode === m;
+        return (
+          <Pressable
+            key={m}
+            onPress={() => setMode(m)}
+            style={[
+              styles.modeChip,
+              {
+                backgroundColor: active ? colors.ink : 'transparent',
+                borderColor: active ? colors.ink : colors.line,
+              },
+            ]}>
+            <Mono size={11} color={active ? '#fff' : colors.muted} weight="700" letterSpacing={0.6}>
+              {m === 'day' ? t('Day').toUpperCase() : t('Week').toUpperCase()}
+            </Mono>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 export function ScheduleScreen() {
   const { t } = useTranslation();
@@ -178,16 +213,40 @@ export function ScheduleScreen() {
   const isLoading = linesQuery.isLoading;
   const isError = linesQuery.isError;
 
+  const head = (
+    <View style={styles.head}>
+      <Text style={styles.h1}>{t('Schedule')}</Text>
+      <View style={{ flex: 1 }} />
+      <LiveDot />
+      <Pressable onPress={() => setSelectedDay(today)} hitSlop={8} style={styles.todayBtn}>
+        <FontAwesome name="calendar" size={16} color={colors.ink} />
+      </Pressable>
+    </View>
+  );
+
+  // The full production planner (weekly day×shift grid + backlog rail). It
+  // scrolls in both axes itself, so it sits outside the screen's ScrollView.
+  if (useTabletLayout && mode === 'week') {
+    return (
+      <View style={styles.screen}>
+        {/* No screen `head` here: PlannerView renders the planner's own
+            breadcrumb + title, exactly as the web page does. */}
+        <View style={styles.plannerModeRow}>
+          <ModeToggle mode={mode} setMode={setMode} />
+          <View style={{ flex: 1 }} />
+          <LiveDot />
+          <Pressable onPress={() => setSelectedDay(today)} hitSlop={8} style={styles.todayBtn}>
+            <FontAwesome name="calendar" size={16} color={colors.ink} />
+          </Pressable>
+        </View>
+        <PlannerView canEdit={canSeeSchedule} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
-      <View style={styles.head}>
-        <Text style={styles.h1}>{t('Schedule')}</Text>
-        <View style={{ flex: 1 }} />
-        <LiveDot />
-        <Pressable onPress={() => setSelectedDay(today)} hitSlop={8} style={styles.todayBtn}>
-          <FontAwesome name="calendar" size={16} color={colors.ink} />
-        </Pressable>
-      </View>
+      {head}
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -226,32 +285,7 @@ export function ScheduleScreen() {
           />
         </View>
 
-        {/* Day / Week mode toggle */}
-        <View style={styles.modeRow}>
-          {(['day', 'week'] as const).map((m) => {
-            const active = mode === m;
-            return (
-              <Pressable
-                key={m}
-                onPress={() => setMode(m)}
-                style={[
-                  styles.modeChip,
-                  {
-                    backgroundColor: active ? colors.ink : 'transparent',
-                    borderColor: active ? colors.ink : colors.line,
-                  },
-                ]}>
-                <Mono
-                  size={11}
-                  color={active ? '#fff' : colors.muted}
-                  weight="700"
-                  letterSpacing={0.6}>
-                  {m === 'day' ? t('Day').toUpperCase() : t('Week').toUpperCase()}
-                </Mono>
-              </Pressable>
-            );
-          })}
-        </View>
+        <ModeToggle mode={mode} setMode={setMode} />
 
         {/* Weekly planner — 7-day column layout. Replaces the day-strip and
         Gantt on tablet (or when the operator picks Week mode on phone). */}
@@ -765,6 +799,13 @@ function blockColor(status: MockGanttBlock['status']): { bg: string; fg: string 
 }
 
 const styles = StyleSheet.create({
+  plannerModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+  },
   screen: { flex: 1, backgroundColor: colors.bg },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 16 },
   h1: { fontSize: 22, fontFamily: fonts.sans.native.semibold, color: colors.ink, letterSpacing: -0.4 },

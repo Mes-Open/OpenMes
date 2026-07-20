@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Broadcast;
  * by tenant so a user only receives their own tenant's rows (tenantKey = the
  * user's tenant_id, or "g" for null — mirrors the null-safe TenantScope).
  *
- * This is the read-path authorization the Electric shapes never had.
+ * This is the authorization for the read path: without it any authenticated
+ * user would receive every tenant's row deltas.
  */
 Broadcast::channel('col.{tenant}.{collection}', function ($user, string $tenant, string $collection) {
     if (! $user) {
