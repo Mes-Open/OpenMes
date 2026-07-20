@@ -26,6 +26,8 @@
 
 **OpenMES** is a modern, open-source Manufacturing Execution System designed specifically for **small manufacturers** (woodworking, metalworking, assembly shops) who need powerful production tracking without enterprise complexity.
 
+![OpenMES on desktop, mobile and web](docs/screenshots/openmes-desktop-mobile-web.png)
+
 ![Admin Dashboard](docs/screenshots/dashboard.png)
 
 ### Why OpenMES?
