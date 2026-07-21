@@ -106,7 +106,7 @@ export default function MovePallet() {
                         value={data.to_location}
                         onChange={(e) => setData('to_location', e.target.value)}
                         placeholder={__('e.g. B-07-02')}
-                        className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-3 text-[16px] text-om-ink outline-none focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
+                        className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-3 text-[16px] text-om-ink outline-hidden focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
                     />
                     {errors.to_location && <p className="mt-1 text-xs text-om-blocked">{errors.to_location}</p>}
                 </div>
@@ -119,7 +119,7 @@ export default function MovePallet() {
                         rows={2}
                         value={data.notes}
                         onChange={(e) => setData('notes', e.target.value)}
-                        className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[14px] text-om-ink outline-none focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
+                        className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[14px] text-om-ink outline-hidden focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
                     />
                     {errors.notes && <p className="mt-1 text-xs text-om-blocked">{errors.notes}</p>}
                 </div>

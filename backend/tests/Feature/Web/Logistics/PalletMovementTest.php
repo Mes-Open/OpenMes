@@ -189,4 +189,33 @@ class PalletMovementTest extends TestCase
             ->assertStatus(200)
             ->assertInertia(fn (AssertableInertia $page) => $page->component('admin/pallet-movements/Index'));
     }
+
+    public function test_history_lookup_maps_are_bounded_to_the_recent_window(): void
+    {
+        // The lookup maps must only carry labels for movements the live shape
+        // can actually deliver (its rolling window), so the payload stays
+        // bounded as the append-only ledger grows.
+        $recentWorker = Worker::factory()->logistics()->create(['code' => 'FL-01']);
+        $recentPallet = Pallet::factory()->create(['pallet_no' => 'PAL-RECENT']);
+        PalletMovement::factory()->create([
+            'worker_id' => $recentWorker->id,
+            'pallet_id' => $recentPallet->id,
+            'moved_at' => now()->subDays(3),
+        ]);
+
+        $oldWorker = Worker::factory()->logistics()->create(['code' => 'FL-99']);
+        $oldPallet = Pallet::factory()->create(['pallet_no' => 'PAL-OLD']);
+        PalletMovement::factory()->create([
+            'worker_id' => $oldWorker->id,
+            'pallet_id' => $oldPallet->id,
+            'moved_at' => now()->subDays(120),
+        ]);
+
+        $this->actingAs($this->admin)->get(route('admin.pallet-movements.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('operatorNames.'.$recentWorker->id)
+                ->missing('operatorNames.'.$oldWorker->id)
+                ->has('palletNumbers.'.$recentPallet->id)
+                ->missing('palletNumbers.'.$oldPallet->id));
+    }
 }

@@ -9,6 +9,7 @@ use App\Models\Pallet;
 use App\Models\PalletMovement;
 use App\Models\Worker;
 use App\Services\Logistics\PalletMovementService;
+use App\Sync\Shapes\PalletMovementsRecentShape;
 use Inertia\Inertia;
 
 /**
@@ -51,17 +52,23 @@ class PalletMovementController extends Controller
     /** Admin movement history — rows arrive client-side via the Electric shape. */
     public function index()
     {
+        // Match the live shape's rolling window: only movements the browser can
+        // actually receive need a resolved label, so the lookup maps stay
+        // bounded even as the append-only ledger grows without limit.
+        $since = now()->subDays(PalletMovementsRecentShape::WINDOW_DAYS)->toDateString();
+        $recent = PalletMovement::query()->where('moved_at', '>=', $since);
+
         return Inertia::render('admin/pallet-movements/Index', [
             // Lookup maps for the live table (rows stream via the shape). Bound
-            // to the ids the ledger actually references so the payload can't
-            // balloon to the whole pallets/workers tables. withTrashed so
+            // to the ids the in-window ledger actually references so the payload
+            // can't balloon to the whole pallets/workers tables. withTrashed so
             // soft-deleted pallets/operators still resolve to a label.
             'operatorNames' => Worker::withTrashed()
-                ->whereIn('id', PalletMovement::query()->select('worker_id'))
+                ->whereIn('id', (clone $recent)->select('worker_id'))
                 ->get(['id', 'code', 'name'])
                 ->mapWithKeys(fn (Worker $w) => [$w->id => $w->code.' — '.$w->name]),
             'palletNumbers' => Pallet::withTrashed()
-                ->whereIn('id', PalletMovement::query()->select('pallet_id'))
+                ->whereIn('id', (clone $recent)->select('pallet_id'))
                 ->pluck('pallet_no', 'id'),
         ]);
     }
