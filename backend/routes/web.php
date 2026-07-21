@@ -415,6 +415,11 @@ Route::middleware('auth')->group(function () {
         Route::resource('customers', CustomerController::class)->except(['show']);
         Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
 
+        // Product revisions (#180) — versioned released configuration per product type.
+        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class)->except(['show']);
+        Route::post('/product-revisions/{productRevision}/release', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'release'])->name('product-revisions.release');
+        Route::post('/product-revisions/{productRevision}/obsolete', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'obsolete'])->name('product-revisions.obsolete');
+
         // Priority Settings (scoring rules + score→priority band mapping)
         Route::post('/priority-rules/bands', [PriorityRuleController::class, 'updateBands'])->name('priority-rules.bands');
         Route::resource('priority-rules', PriorityRuleController::class)->except(['show']);
