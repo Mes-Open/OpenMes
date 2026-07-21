@@ -54,6 +54,10 @@ class ShapeRegistry
             'table' => 'priority_rules',
             'columns' => ['id', 'name', 'field_source', 'condition_type', 'condition_value', 'condition_value_max', 'points', 'is_active', 'sort_order', 'created_at', 'updated_at'],
         ],
+        'product_revisions' => [
+            'table' => 'product_revisions',
+            'columns' => ['id', 'product_type_id', 'revision_code', 'description', 'lifecycle_status', 'process_template_id', 'change_reason', 'external_ref', 'effective_from', 'effective_to', 'released_at', 'obsolete_at', 'created_at', 'updated_at'],
+        ],
         'cost_sources' => [
             'table' => 'cost_sources',
             'columns' => ['id', 'code', 'name', 'description', 'unit_cost', 'unit', 'currency', 'is_active', 'created_at', 'updated_at'],
@@ -189,7 +193,7 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'planned_qty', 'unit_price', 'produced_qty', 'status', 'priority', 'priority_score', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'produced_qty', 'status', 'priority', 'priority_score', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [

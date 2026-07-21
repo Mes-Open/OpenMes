@@ -77,13 +77,14 @@ export const ADMIN_GROUPS = [
         label: 'Production',
         icon: 'beaker',
         match: [
-            '/admin/product-types', '/admin/materials', '/admin/material-lots',
+            '/admin/product-types', '/admin/product-revisions', '/admin/materials', '/admin/material-lots',
             '/admin/traceability', '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
             '/admin/issues', '/admin/companies', '/admin/anomaly-reasons', '/admin/scrap-reasons',
         ],
         children: [
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'] },
+            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'] },
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'] },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'] },
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'] },

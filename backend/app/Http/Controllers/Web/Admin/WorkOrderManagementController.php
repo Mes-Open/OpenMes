@@ -44,6 +44,7 @@ class WorkOrderManagementController extends Controller
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'bomTemplates' => $this->bomTemplateOptions(),
+            'productRevisions' => $this->productRevisionOptions(),
             'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
@@ -68,6 +69,26 @@ class WorkOrderManagementController extends Controller
                 'version' => $t->version,
                 'is_active' => (bool) $t->is_active,
                 'product_type_id' => $t->product_type_id,
+            ]);
+    }
+
+    /**
+     * Released product revisions (#180) selectable on the work-order forms. Each
+     * option carries its product_type_id so the form can scope it to the order's
+     * product type.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    protected function productRevisionOptions()
+    {
+        return \App\Models\ProductRevision::selectable()
+            ->orderBy('product_type_id')
+            ->orderBy('revision_code')
+            ->get(['id', 'revision_code', 'product_type_id'])
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'revision_code' => $r->revision_code,
+                'product_type_id' => $r->product_type_id,
             ]);
     }
 
@@ -164,7 +185,7 @@ class WorkOrderManagementController extends Controller
     {
         return Inertia::render('admin/work-orders/Edit', [
             'workOrder' => [
-                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'planned_qty', 'unit_price', 'priority', 'description', 'status', 'custom_fields'),
+                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
                 // Current BOM selection (empty for legacy single-BOM orders).
                 'bom_template_ids' => $workOrder->bomTemplates()->pluck('process_templates.id')->all(),
@@ -174,6 +195,7 @@ class WorkOrderManagementController extends Controller
             'lines' => Line::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'productTypes' => ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'bomTemplates' => $this->bomTemplateOptions(),
+            'productRevisions' => $this->productRevisionOptions(),
             'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
             'customFields' => $customFields->clientConfig('work_order'),
         ]);
@@ -227,6 +249,16 @@ class WorkOrderManagementController extends Controller
         if ($requested !== null && $workOrder->batches()->exists()) {
             return redirect()->back()->withInput()
                 ->with('error', 'Cannot change BOMs after production has started.');
+        }
+
+        // A product revision (#180) may be changed freely before production, but
+        // once batches exist the change must go through the controlled change
+        // workflow (#182) — reject it here to keep the as-built revision honest.
+        $revisionChanged = array_key_exists('product_revision_id', $validated)
+            && (int) $validated['product_revision_id'] !== (int) $workOrder->product_revision_id;
+        if ($revisionChanged && $workOrder->batches()->exists()) {
+            return redirect()->back()->withInput()
+                ->with('error', 'Cannot change the product revision after production has started.');
         }
 
         // Field edits and the BOM re-selection commit together (or not at all).

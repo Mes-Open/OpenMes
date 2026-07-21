@@ -29,6 +29,7 @@ class WorkOrdersActiveShape extends Shape
             'customer_id',
             'line_id',
             'product_type_id',
+            'product_revision_id',
             'status',
             'priority',
             'priority_score',
