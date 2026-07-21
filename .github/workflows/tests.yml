@@ -49,6 +49,10 @@ jobs:
         working-directory: backend
         run: npm ci && npm run build
 
+      - name: Run frontend tests
+        working-directory: backend
+        run: npm test
+
       - name: Copy .env and generate key
         working-directory: backend
         run: |

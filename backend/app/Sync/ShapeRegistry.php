@@ -120,6 +120,12 @@ class ShapeRegistry
             'table' => 'issue_types',
             'columns' => ['id', 'code', 'name', 'severity', 'is_blocking', 'is_active', 'created_at', 'updated_at'],
         ],
+        // Shop-floor workstation clients — the MAIN roster derives online/offline
+        // from last_seen_at. Admin list page (Admin -> Workstation devices).
+        'workstation_devices' => [
+            'table' => 'workstation_devices',
+            'columns' => ['id', 'device_uuid', 'name', 'ip_address', 'hostname', 'app_version', 'line_id', 'last_seen_at', 'registered_at', 'created_at', 'updated_at'],
+        ],
         // Quality-control trigger config (#105) — admin list.
         'quality_control_triggers' => [
             'table' => 'quality_control_triggers',

@@ -14,11 +14,14 @@ on:
         required: false
 
 jobs:
-  release:
-    name: Create Release
+  # ── Web ZIP + GitHub Release (creates the release the other jobs upload to) ──
+  web:
+    name: Create Release (web ZIP)
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout
@@ -83,9 +86,11 @@ jobs:
             BODY="${CUSTOM}"$'\n\n'
           fi
           INSTALL="## Installation"$'\n\n'
-          INSTALL="${INSTALL}Download **\`openmmes-${VERSION}.zip\`** below — it is **self-contained** (PHP dependencies in \`vendor/\` and the built frontend in \`backend/public/build/\` are already bundled, so no \`composer install\` or \`npm build\` is required)."$'\n\n'
-          INSTALL="${INSTALL}**Shared hosting (no terminal):** unzip, upload the folder to your web host, point the document root at the package root, then open the URL — the browser-based setup wizard handles environment, database and the admin account."$'\n\n'
-          INSTALL="${INSTALL}**Docker:** unzip and run \`docker compose up -d\` from the package root (or \`bash install.sh\`)."$'\n\n'
+          INSTALL="${INSTALL}**Web / self-hosted:** download **\`openmmes-${VERSION}.zip\`** below — it is **self-contained** (PHP dependencies in \`vendor/\` and the built frontend in \`backend/public/build/\` are already bundled, so no \`composer install\` or \`npm build\` is required)."$'\n\n'
+          INSTALL="${INSTALL}**Desktop:** grab the installer for your OS — Windows \`*-setup.exe\`, macOS \`*.dmg\`, or Linux \`*.deb\` / \`*.rpm\`. They bundle PHP + the backend and run OpenMES as a local app / LAN server."$'\n\n'
+          INSTALL="${INSTALL}**Mobile (Android):** install \`openmes-mobile-${VERSION}.apk\` and point it at your OpenMES server."$'\n\n'
+          INSTALL="${INSTALL}**Shared hosting (no terminal):** unzip the web package, upload the folder, point the document root at the package root, then open the URL — the browser-based setup wizard handles environment, database and the admin account."$'\n\n'
+          INSTALL="${INSTALL}**Docker:** unzip the web package and run \`docker compose up -d\` from the package root (or \`bash install.sh\`)."$'\n\n'
           BODY="${BODY}${INSTALL}## Changes"$'\n'"${LOG}"
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
@@ -94,9 +99,6 @@ jobs:
       # NOTE: the version bump (backend/config/version.php) and CHANGELOG entry
       # are committed manually during release prep on develop -> main BEFORE the
       # tag is pushed, so the tagged tree already carries the correct version.
-      # The workflow intentionally does NOT push to main here: main is a
-      # protected branch and a bot push is rejected (GH013 ruleset violation),
-      # which previously aborted the whole release before the artifact was built.
       - name: Verify tagged version matches the release
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -160,3 +162,184 @@ jobs:
           draft: false
           prerelease: false
           files: ${{ env.zip_name }}
+
+  # ── Desktop installers (Windows .exe, macOS .dmg, Linux .deb/.rpm) ───────────
+  desktop:
+    name: Desktop (${{ matrix.label }})
+    needs: web
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            label: linux
+            bundles: 'deb,rpm'
+            res_map: '{"resources/backend":"backend","resources/php":"php"}'
+            artifacts: |
+              desktop/src-tauri/target/release/bundle/deb/*.deb
+              desktop/src-tauri/target/release/bundle/rpm/*.rpm
+          - os: macos-latest
+            label: macos
+            bundles: 'dmg'
+            res_map: '{"resources/backend":"backend","resources/php":"php"}'
+            artifacts: |
+              desktop/src-tauri/target/release/bundle/dmg/*.dmg
+          - os: windows-latest
+            label: windows
+            bundles: 'nsis'
+            res_map: '{"resources/backend":"backend","resources/php":"php","resources/pgsql":"pgsql"}'
+            artifacts: |
+              desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup PHP (to build the backend that gets bundled)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo, pgsql, mbstring, zip, gd, bcmath
+          tools: composer
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Linux system dependencies (Tauri)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev \
+            librsvg2-dev patchelf build-essential curl wget file libxdo-dev libssl-dev
+
+      - name: Build backend (vendor + frontend) for bundling
+        working-directory: backend
+        shell: bash
+        run: |
+          composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
+          rm -f vendor/composer/platform_check.php
+          npm ci
+          npm run build
+
+      - name: Fetch bundled PHP (+ PostgreSQL on Windows) runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          RES="desktop/src-tauri/resources"
+          mkdir -p "$RES/php"
+          PHP_VER="8.3.31"
+          case "$RUNNER_OS" in
+            Linux)
+              curl -fL --retry 3 -o /tmp/php.tgz "https://dl.static-php.dev/static-php-cli/common/php-${PHP_VER}-cli-linux-x86_64.tar.gz"
+              tar xzf /tmp/php.tgz -C "$RES/php"
+              chmod +x "$RES/php/php"
+              ;;
+            macOS)
+              # macos-latest is arm64 (Apple Silicon)
+              curl -fL --retry 3 -o /tmp/php.tgz "https://dl.static-php.dev/static-php-cli/common/php-${PHP_VER}-cli-macos-aarch64.tar.gz"
+              tar xzf /tmp/php.tgz -C "$RES/php"
+              chmod +x "$RES/php/php"
+              ;;
+            Windows)
+              curl -fL --retry 3 -o /tmp/php.zip "https://windows.php.net/downloads/releases/latest/php-8.3-nts-Win32-vs16-x64-latest.zip"
+              unzip -q /tmp/php.zip -d "$RES/php"
+              curl -fL --retry 3 -o /tmp/pg.jar "https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-windows-amd64/16.4.0/embedded-postgres-binaries-windows-amd64-16.4.0.jar"
+              unzip -o -q /tmp/pg.jar postgres-windows-x86_64.txz -d /tmp
+              mkdir -p "$RES/pgsql"
+              tar xf /tmp/postgres-windows-x86_64.txz -C "$RES/pgsql"
+              ;;
+          esac
+
+      - name: Bundle backend into desktop resources
+        shell: bash
+        run: bash desktop/scripts/bundle-resources.sh "$PWD/backend"
+
+      - name: Install desktop deps
+        working-directory: desktop
+        shell: bash
+        run: npm ci
+
+      - name: Build desktop bundles
+        working-directory: desktop
+        shell: bash
+        env:
+          VERSION: ${{ needs.web.outputs.version }}
+          RES_MAP: ${{ matrix.res_map }}
+          BUNDLES: ${{ matrix.bundles }}
+        run: |
+          set -euo pipefail
+          VER="${VERSION#v}"
+          CONFIG=$(printf '{"version":"%s","bundle":{"resources":%s}}' "$VER" "$RES_MAP")
+          echo "tauri build --bundles $BUNDLES --config $CONFIG"
+          npm run tauri build -- --bundles "$BUNDLES" --config "$CONFIG"
+
+      - name: Upload desktop installers to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.web.outputs.version }}
+          files: ${{ matrix.artifacts }}
+
+  # ── Mobile (Android .apk via Expo prebuild + Gradle) ─────────────────────────
+  mobile:
+    name: Mobile (Android apk)
+    needs: web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Prebuild native Android project
+        working-directory: mobile
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build release APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK
+        shell: bash
+        run: |
+          VERSION="${{ needs.web.outputs.version }}"
+          SRC=$(find mobile/android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          cp "$SRC" "openmes-mobile-${VERSION}.apk"
+          echo "apk=openmes-mobile-${VERSION}.apk" >> $GITHUB_ENV
+
+      - name: Upload APK to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.web.outputs.version }}
+          files: ${{ env.apk }}

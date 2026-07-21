@@ -1010,6 +1010,14 @@
     "units/day": "szt./dzień",
     "or place the module folder in": "lub umieść folder modułu w",
     "IP address": "Adres IP",
+    "Online": "Online",
+    "Offline": "Offline",
+    "Last seen": "Ostatni kontakt",
+    "Forget": "Zapomnij",
+    "Workstation Devices": "Stacje robocze",
+    "Workstation device removed.": "Stacja robocza usunięta.",
+    "Forget workstation \":name\"? It can re-register later.": "Zapomnieć stację \":name\"? Może zarejestrować się ponownie później.",
+    "No workstations have connected yet. Install the OpenMES Workstation client and point it at this server's IP.": "Żadna stacja jeszcze się nie połączyła. Zainstaluj klienta OpenMES Workstation i wskaż adres IP tego serwera.",
     "Uninstall module :name? Files will be removed.": "Odinstalować moduł :name? Pliki zostaną usunięte.",
     "OFF": "WYŁ.",
     "Control which external domains can make API requests to this application. Leave empty to block all cross-origin requests (most secure).": "Kontroluj, które zewnętrzne domeny mogą wysyłać żądania API. Pozostaw puste, aby zablokować wszystkie żądania cross-origin (najbezpieczniej).",
@@ -4822,5 +4830,11 @@
     "Logistics operator (can move pallets)": "Operator logistyki (może przemieszczać palety)",
     "Select an active logistics operator.": "Wybierz aktywnego operatora logistyki.",
     "Pallet movement recorded.": "Zarejestrowano przemieszczenie palety.",
-    "Select a movable (not shipped) pallet.": "Wybierz paletę do przemieszczenia (nie wysłaną)."
+    "Select a movable (not shipped) pallet.": "Wybierz paletę do przemieszczenia (nie wysłaną).",
+    "Bills of Materials": "Zestawienia materiałowe (BOM)",
+    "Select one or more BOMs. Requirements sum across the selected BOMs. Leave empty to auto-use the active BOM for the product type.": "Wybierz jeden lub więcej BOM-ów. Zapotrzebowanie sumuje się po wybranych BOM-ach. Zostaw puste, aby użyć aktywnego BOM-u dla typu produktu.",
+    "Select a product type first.": "Najpierw wybierz typ produktu.",
+    "No BOMs are available for the selected product type.": "Brak dostępnych BOM-ów dla wybranego typu produktu.",
+    "Age": "Wiek",
+    "just now": "przed chwilą"
 }

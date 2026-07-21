@@ -120,6 +120,36 @@ export function timeAgo(d) {
     return past ? __('just now') : __('soon');
 }
 
+/**
+ * Human-readable elapsed duration between `from` and `now` (default: the current
+ * time), as a compact single unit: "just now", "5m", "3h", "2d", "1y". Unit
+ * suffixes are language-neutral (matching the machine-monitor "time in state"
+ * style); only "just now" is translated.
+ *
+ * `now` is injectable so a caller can drive a live tick (pass a ticking clock)
+ * and so the formatting stays deterministic under test. Empty/invalid `from`
+ * returns ''. A `from` in the future is clamped to zero ("just now").
+ */
+export function elapsed(from, now = Date.now()) {
+    if (!from) return '';
+    const start = from instanceof Date ? from.getTime() : new Date(from).getTime();
+    if (Number.isNaN(start)) return '';
+
+    const sec = Math.max(0, Math.floor((now - start) / 1000));
+    if (sec < 60) return __('just now');
+
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m`;
+
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr}h`;
+
+    const day = Math.floor(hr / 24);
+    if (day < 365) return `${day}d`;
+
+    return `${Math.floor(day / 365)}y`;
+}
+
 function capitalize(s) {
     s = String(s);
     return s.charAt(0).toUpperCase() + s.slice(1);
