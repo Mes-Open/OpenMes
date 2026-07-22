@@ -28,6 +28,16 @@ class UpdateWorkOrderRequest extends FormRequest
             'customer_id' => ['nullable', Rule::exists('customers', 'id')->whereNull('deleted_at')],
             'line_id' => ['nullable', 'exists:lines,id'],
             'product_type_id' => ['nullable', 'exists:product_types,id'],
+            // Product revision (#180) — must belong to the product type and be
+            // RELEASED. A change after production starts is rejected in the
+            // controller (that path needs the controlled change workflow, #182).
+            'product_revision_id' => [
+                'nullable',
+                Rule::exists('product_revisions', 'id')
+                    ->where('product_type_id', $this->input('product_type_id'))
+                    ->where('lifecycle_status', 'released')
+                    ->whereNull('deleted_at'),
+            ],
             // Multi-BOM selection (which process templates back this order).
             // Only applied while the order has no batches - see the controller.
             // Each selected BOM must be a live template of the order's product type.

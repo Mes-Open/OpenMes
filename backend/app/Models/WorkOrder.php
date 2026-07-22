@@ -92,6 +92,7 @@ class WorkOrder extends Model
         'customer_id',
         'line_id',
         'product_type_id',
+        'product_revision_id',
         'process_snapshot',
         'planned_qty',
         'unit_price',
@@ -281,6 +282,12 @@ class WorkOrder extends Model
     public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductType::class);
+    }
+
+    /** The product revision this order is producing (#180); null for legacy orders. */
+    public function productRevision(): BelongsTo
+    {
+        return $this->belongsTo(ProductRevision::class);
     }
 
     /**

@@ -27,6 +27,11 @@ class WorkOrderService
                 $data['bom_template_ids'] ?? [],
             );
 
+            // Embed an immutable revision block (#180) so the order always shows
+            // which product revision it was released under, even if a newer
+            // revision is released later or the revision is edited/obsoleted.
+            $processSnapshot = $this->attachRevisionSnapshot($processSnapshot, $data['product_revision_id'] ?? null);
+
             // Create work order
             $workOrder = WorkOrder::create([
                 'order_no' => $data['order_no'],
@@ -34,6 +39,7 @@ class WorkOrderService
                 'customer_id' => $data['customer_id'] ?? null,
                 'line_id' => $data['line_id'] ?? null,
                 'product_type_id' => $data['product_type_id'] ?? null,
+                'product_revision_id' => $data['product_revision_id'] ?? null,
                 'process_snapshot' => $processSnapshot,
                 'planned_qty' => $data['planned_qty'],
                 'unit_price' => $data['unit_price'] ?? null,
@@ -55,6 +61,35 @@ class WorkOrderService
 
             return $workOrder;
         });
+    }
+
+    /**
+     * Merge an immutable `revision` block into the process snapshot for the given
+     * product revision (#180). Returns the snapshot unchanged when no revision is
+     * selected; initialises an array snapshot when the order has no BOM/template.
+     */
+    private function attachRevisionSnapshot(?array $snapshot, ?int $revisionId): ?array
+    {
+        if (! $revisionId) {
+            return $snapshot;
+        }
+
+        $revision = \App\Models\ProductRevision::find($revisionId);
+        if (! $revision) {
+            return $snapshot;
+        }
+
+        $snapshot ??= [];
+        $snapshot['revision'] = [
+            'revision_id' => $revision->id,
+            'revision_code' => $revision->revision_code,
+            'lifecycle_at_release' => $revision->lifecycle_status?->value,
+            'process_template_id' => $revision->process_template_id,
+            'released_at' => $revision->released_at?->toIso8601String(),
+            'snapshotted_at' => now()->toIso8601String(),
+        ];
+
+        return $snapshot;
     }
 
     /**

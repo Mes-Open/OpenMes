@@ -34,7 +34,7 @@ function bomLabel(t) {
     return `${t.name} v${t.version}${inactive}`;
 }
 
-export function woFields(lines, productTypes, { withStatus = false, customers = [], bomTemplates = [], bomLocked = false } = {}) {
+export function woFields(lines, productTypes, { withStatus = false, customers = [], bomTemplates = [], bomLocked = false, productRevisions = [] } = {}) {
     const fields = [
         { name: 'order_no', label: __('Order No'), required: true },
         { name: 'customer_order_no', label: __('Customer Order No') },
@@ -51,6 +51,20 @@ export function woFields(lines, productTypes, { withStatus = false, customers = 
             options: [{ value: '', label: __('— None —') }, ...productTypes.map((p) => ({ value: String(p.id), label: p.name }))],
         },
     ];
+
+    // Optional product revision (#180) — released revisions only, scoped to the
+    // selected product type. Empty is fine (revision-less / legacy order).
+    if (productRevisions.length) {
+        fields.push({
+            name: 'product_revision_id', label: __('Product Revision'), type: 'select',
+            filterByField: 'product_type_id',
+            options: [
+                { value: '', label: __('— None —') },
+                ...productRevisions.map((r) => ({ value: String(r.id), label: r.revision_code, group: r.product_type_id })),
+            ],
+            help: __('Only released revisions of the selected product type. Locked once production starts.'),
+        });
+    }
 
     // Optional multi-BOM picker: select one or more bills of materials (process
     // templates) for the chosen product type. Left empty, the order auto-uses the

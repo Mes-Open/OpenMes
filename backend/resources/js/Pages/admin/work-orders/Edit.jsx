@@ -5,7 +5,7 @@ import ResourceForm from '../../../components/ResourceForm';
 import { woFields } from './fields';
 
 export default function WorkOrderEdit() {
-    const { workOrder, lines = [], productTypes = [], customers = [], bomTemplates = [], customFields = [] } = usePage().props;
+    const { workOrder, lines = [], productTypes = [], customers = [], bomTemplates = [], productRevisions = [], customFields = [] } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${workOrder.order_no}`} />
@@ -13,7 +13,7 @@ export default function WorkOrderEdit() {
             <ResourceForm
                 action={`/admin/work-orders/${workOrder.id}`}
                 method="put"
-                fields={woFields(lines, productTypes, { withStatus: true, customers, bomTemplates, bomLocked: workOrder.bom_locked })}
+                fields={woFields(lines, productTypes, { withStatus: true, customers, bomTemplates, bomLocked: workOrder.bom_locked, productRevisions })}
                 customFields={customFields}
                 initial={{
                     order_no: workOrder.order_no ?? '',
@@ -21,6 +21,7 @@ export default function WorkOrderEdit() {
                     customer_id: workOrder.customer_id != null ? String(workOrder.customer_id) : '',
                     line_id: workOrder.line_id != null ? String(workOrder.line_id) : '',
                     product_type_id: workOrder.product_type_id != null ? String(workOrder.product_type_id) : '',
+                    product_revision_id: workOrder.product_revision_id != null ? String(workOrder.product_revision_id) : '',
                     bom_template_ids: workOrder.bom_template_ids ?? [],
                     planned_qty: workOrder.planned_qty ?? '',
                     unit_price: workOrder.unit_price ?? '',
