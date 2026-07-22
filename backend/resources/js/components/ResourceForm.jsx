@@ -153,8 +153,24 @@ export default function ResourceForm({
 }
 
 function Field({ field, value, error, setData, data }) {
-    const { name, label, type = 'text', required, placeholder, help, options } = field;
+    const { name, label, type = 'text', required, placeholder, help, options, filterByField } = field;
     const set = (v) => setData(name, v);
+
+    // Dependent select: options carrying a `group` are scoped to the current
+    // value of `filterByField`; options without a group (e.g. "— None —") always
+    // show. When the driving field changes, prune a now-invalid selection.
+    const filterVal = filterByField ? data?.[filterByField] : undefined;
+    const scopedOptions = (type === 'select' && filterByField)
+        ? (options ?? []).filter((o) => o.group == null || String(o.group) === String(filterVal))
+        : options;
+
+    useEffect(() => {
+        if (type !== 'select' || !filterByField) return;
+        if (value == null || value === '') return;
+        const stillValid = (scopedOptions ?? []).some((o) => String(o.value) === String(value));
+        if (!stillValid) set('');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filterVal]);
 
     if (type === 'checkbox') {
         return (
@@ -187,7 +203,7 @@ function Field({ field, value, error, setData, data }) {
             ) : type === 'select' ? (
                 <Dropdown
                     className="w-full"
-                    options={(options ?? []).map((o) => ({ value: String(o.value), label: __(o.label) }))}
+                    options={(scopedOptions ?? []).map((o) => ({ value: String(o.value), label: __(o.label) }))}
                     value={value == null ? '' : String(value)}
                     onChange={(v) => set(v)}
                     placeholder={placeholder ? __(placeholder) : `${__(label)}…`}
