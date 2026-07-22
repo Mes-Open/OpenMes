@@ -4,6 +4,42 @@ The MQTT machine connectivity module is available since **v0.4.0** under **Admin
 
 ---
 
+## Architecture — OpenMES is a client, not a broker
+
+> **Read this first if a client "won't connect to OpenMES".** OpenMES is an MQTT
+> **subscriber (client)** — it is **not** an MQTT broker. You cannot point another
+> MQTT client (MQTTX, HiveMQ demo, a machine) "at OpenMES" and expect it to connect.
+
+MQTT is publish/subscribe **through a broker**. Every participant — including OpenMES —
+is a client that connects *to a broker*. So you always need a broker (e.g.
+[Eclipse Mosquitto](https://mosquitto.org)) sitting in the middle:
+
+```
+[ machine / MQTTX / any publisher ] ──publish──▶ [ MQTT broker ] ◀──subscribe── [ OpenMES  (php artisan mqtt:listen) ]
+                                                  (Mosquitto)
+```
+
+- OpenMES connects **outbound** to the broker host/port you set in
+  **Admin → Connectivity → MQTT** (`broker_host` / `broker_port`, default `1883`,
+  optional TLS) and subscribes to the topics you configured.
+- Your machines (or a test tool) publish to the **same broker**.
+- OpenMES never opens a listening port for machines — it does not ship or embed a broker.
+
+### Browser-based test clients need a WebSocket listener
+
+Browser MQTT clients — such as the **[MQTTX web client](https://mqttx.app/web-client)**
+and the **[HiveMQ WebSocket client](https://www.hivemq.com/demos/websocket-client/)** —
+can only speak **MQTT over WebSocket** (a browser cannot open a raw TCP socket). A
+plain broker that only listens on TCP `1883` will therefore **refuse them** — you must
+enable a **WebSocket listener** on the broker (conventionally port `9001`,
+`protocol websockets`). See [Step 1](#step-1--start-a-local-mosquitto-broker), which
+configures both listeners.
+
+Native/desktop clients (`mosquitto_pub`, MQTT Explorer, a PLC, OpenMES itself) use the
+raw TCP listener (`1883`) and do **not** need the WebSocket listener.
+
+---
+
 ## Running the MQTT listener in production
 
 Each MQTT connection requires a dedicated listener process. The listener is a separate Docker service (`mqtt-listener`) defined in `docker-compose.yml`.
@@ -51,17 +87,41 @@ Below is a reproducible test procedure for verifying MQTT connections end-to-end
 
 ## Step 1 — Start a local Mosquitto broker
 
+This config opens **two** listeners: TCP `1883` (for OpenMES and native clients) and
+WebSocket `9001` (for browser clients like MQTTX web / HiveMQ). Both ports are published.
+
 ```bash
-docker run --name mosquitto-test -d -p 1883:1883 eclipse-mosquitto:2 \
-  sh -c "printf 'listener 1883\nallow_anonymous true\n' > /mosquitto/config/mosquitto.conf \
+docker run --name mosquitto-test -d -p 1883:1883 -p 9001:9001 eclipse-mosquitto:2 \
+  sh -c "printf 'listener 1883\nprotocol mqtt\nlistener 9001\nprotocol websockets\nallow_anonymous true\n' \
+           > /mosquitto/config/mosquitto.conf \
          && mosquitto -c /mosquitto/config/mosquitto.conf"
 ```
+
+> `allow_anonymous true` is for local testing only — require credentials on any broker
+> reachable beyond localhost.
 
 If running inside Docker Compose, connect Mosquitto to the same network as the backend:
 
 ```bash
 docker network connect <your_project>_openmmes-network mosquitto-test
 ```
+
+### Testing from a browser client (MQTTX web / HiveMQ WebSocket)
+
+Point the browser client at the broker's **WebSocket** listener — not `1883`:
+
+| Field | Value |
+|---|---|
+| Host | your broker host (e.g. `localhost` / the machine's LAN IP) |
+| Port | `9001` |
+| Path | `/` (Mosquitto's default) |
+| Protocol | `ws://` (or `wss://` if you put TLS in front) |
+
+Then **publish** from that client to a topic OpenMES subscribes to (e.g.
+`factory/line1/machine01/status`) and watch it arrive in the listener (Step 3–4).
+Remember both sides must use the **same broker** — a browser client publishing to the
+public HiveMQ demo broker will not reach an OpenMES instance pointed at your local
+Mosquitto.
 
 ---
 
