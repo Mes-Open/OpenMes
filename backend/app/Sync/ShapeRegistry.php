@@ -6,6 +6,7 @@ use App\Sync\Shapes\IssuesOpenShape;
 use App\Sync\Shapes\IssueTypesShape;
 use App\Sync\Shapes\LinesActiveShape;
 use App\Sync\Shapes\OeeRecordsRecentShape;
+use App\Sync\Shapes\PalletMovementsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
 use App\Sync\Shapes\WorkOrdersActiveShape;
 
@@ -172,6 +173,10 @@ class ShapeRegistry
             'table' => 'pallets',
             'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
         ],
+        // Physical pallet movement history (#103) — who moved which pallet where.
+        // Rolling recent window (see the class) so the append-only ledger can't
+        // grow the synced payload without bound.
+        'pallet_movements' => PalletMovementsRecentShape::class,
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
             'table' => 'integration_configs',
@@ -179,7 +184,7 @@ class ShapeRegistry
         ],
         'workers' => [
             'table' => 'workers',
-            'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'is_logistics', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'process_segments' => [
             'table' => 'process_segments',
