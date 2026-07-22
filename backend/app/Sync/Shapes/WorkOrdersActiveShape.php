@@ -36,6 +36,7 @@ class WorkOrdersActiveShape extends Shape
             'planned_qty',
             'unit_price',
             'produced_qty',
+            'counting_source',
             'due_date',
             'completed_at',
             'planned_start_at',

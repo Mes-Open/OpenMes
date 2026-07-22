@@ -71,6 +71,15 @@ class WorkOrder extends Model
 
     const STATUS_CANCELLED = 'CANCELLED';
 
+    /** Counting source — which path is authoritative for produced_qty. */
+    const COUNTING_OPERATOR = 'operator';
+
+    const COUNTING_MACHINE = 'machine';
+
+    const COUNTING_BOTH = 'both';
+
+    const COUNTING_SOURCES = [self::COUNTING_OPERATOR, self::COUNTING_MACHINE, self::COUNTING_BOTH];
+
     /** Statuses that allow operators to work on the order */
     const ACTIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_ACCEPTED, self::STATUS_IN_PROGRESS, self::STATUS_BLOCKED];
 
@@ -88,6 +97,7 @@ class WorkOrder extends Model
         'planned_qty',
         'unit_price',
         'produced_qty',
+        'counting_source',
         'status',
         'line_status_id',
         'priority',
@@ -235,6 +245,26 @@ class WorkOrder extends Model
     public function line(): BelongsTo
     {
         return $this->belongsTo(Line::class);
+    }
+
+    /**
+     * Whether machine counter signals should drive produced_qty for this order
+     * (counting_source is machine or both).
+     */
+    public function isMachineCounted(): bool
+    {
+        return in_array($this->counting_source, [self::COUNTING_MACHINE, self::COUNTING_BOTH], true);
+    }
+
+    /**
+     * Whether operators may manually enter produced quantities for this order
+     * (counting_source is operator or both). Machine-only orders block manual
+     * entry so the machine stays the single source of truth.
+     */
+    public function allowsOperatorEntry(): bool
+    {
+        return in_array($this->counting_source, [self::COUNTING_OPERATOR, self::COUNTING_BOTH], true)
+            || $this->counting_source === null;
     }
 
     /**

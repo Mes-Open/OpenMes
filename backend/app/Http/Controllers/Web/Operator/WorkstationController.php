@@ -257,6 +257,10 @@ class WorkstationController extends Controller
             return back()->with('error', 'Work order is already completed.');
         }
 
+        if (! $workOrder->allowsOperatorEntry()) {
+            return back()->with('error', 'This work order is machine-counted; quantities are recorded automatically from the machine.');
+        }
+
         $validated = $request->validate([
             'produced_qty' => 'required|numeric|min:1',
         ]);
@@ -298,6 +302,10 @@ class WorkstationController extends Controller
 
         if ($workOrder->status === WorkOrder::STATUS_DONE) {
             return back()->with('error', 'Work order is already completed.');
+        }
+
+        if (! $workOrder->allowsOperatorEntry()) {
+            return back()->with('error', 'This work order is machine-counted; quantities are recorded automatically from the machine.');
         }
 
         $validated = $request->validate([

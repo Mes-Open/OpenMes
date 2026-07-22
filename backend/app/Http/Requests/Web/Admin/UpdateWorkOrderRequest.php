@@ -50,6 +50,7 @@ class UpdateWorkOrderRequest extends FormRequest
             ],
             'planned_qty' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
             'unit_price' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
+            'counting_source' => ['nullable', Rule::in(\App\Models\WorkOrder::COUNTING_SOURCES)],
             'priority' => ['nullable', 'integer', 'min:0', 'max:100'],
             'due_date' => ['nullable', 'date'],
             'description' => ['nullable', 'string', 'max:2000'],

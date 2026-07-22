@@ -5,7 +5,7 @@ export const WO_FORM_INITIAL = {
     order_no: '', customer_order_no: '', customer_id: '', line_id: '', product_type_id: '',
     product_revision_id: '',
     bom_template_ids: [],
-    planned_qty: '', unit_price: '', priority: 0, due_date: '', description: '', custom_fields: {},
+    planned_qty: '', unit_price: '', counting_source: 'operator', priority: 0, due_date: '', description: '', custom_fields: {},
 };
 
 // THE work-order create form — the full Create page and the planner's

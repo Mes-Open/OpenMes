@@ -185,7 +185,7 @@ class WorkOrderManagementController extends Controller
     {
         return Inertia::render('admin/work-orders/Edit', [
             'workOrder' => [
-                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'priority', 'description', 'status', 'custom_fields'),
+                ...$workOrder->only('id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'counting_source', 'priority', 'description', 'status', 'custom_fields'),
                 'due_date' => $workOrder->due_date?->format('Y-m-d'),
                 // Current BOM selection (empty for legacy single-BOM orders).
                 'bom_template_ids' => $workOrder->bomTemplates()->pluck('process_templates.id')->all(),

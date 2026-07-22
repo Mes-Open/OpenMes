@@ -25,6 +25,7 @@ export default function WorkOrderEdit() {
                     bom_template_ids: workOrder.bom_template_ids ?? [],
                     planned_qty: workOrder.planned_qty ?? '',
                     unit_price: workOrder.unit_price ?? '',
+                    counting_source: workOrder.counting_source ?? 'operator',
                     priority: workOrder.priority ?? 0,
                     due_date: workOrder.due_date ?? '',
                     description: workOrder.description ?? '',

@@ -44,6 +44,7 @@ class WorkOrderService
                 'planned_qty' => $data['planned_qty'],
                 'unit_price' => $data['unit_price'] ?? null,
                 'produced_qty' => 0,
+                'counting_source' => $data['counting_source'] ?? WorkOrder::COUNTING_OPERATOR,
                 'status' => WorkOrder::STATUS_PENDING,
                 'priority' => $data['priority'] ?? 0,
                 'due_date' => $data['due_date'] ?? null,
