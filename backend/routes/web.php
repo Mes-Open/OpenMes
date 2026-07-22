@@ -55,6 +55,7 @@ use App\Http\Controllers\Web\Admin\WorkstationTypeController;
 // Materials & BOM
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\IssueManagementController;
+use App\Http\Controllers\Web\Logistics\PalletMovementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 // Gate 7 — Maintenance
@@ -538,6 +539,9 @@ Route::middleware('auth')->group(function () {
         // Pallets
         Route::resource('pallets', AdminPalletController::class)->except(['show']);
 
+        // Physical pallet movement history (#103) — who moved which pallet where.
+        Route::get('pallet-movements', [PalletMovementController::class, 'index'])->name('pallet-movements.index');
+
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
         Route::post('/material-lots/{materialLot}/hold', [AdminMaterialLotController::class, 'hold'])->name('material-lots.hold');
@@ -778,6 +782,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [\App\Http\Controllers\Web\Admin\MaintenanceScheduleController::class, 'generateNow'])
             ->name('maintenance-schedules.generate-now');
     });
+
+    // ── Logistics: shop-floor pallet movement terminal (#103) ────────────────
+    Route::name('logistics.')->prefix('logistics')
+        ->middleware('role:Operator|Supervisor|Admin')
+        ->group(function () {
+            Route::get('/move-pallet', [PalletMovementController::class, 'terminal'])->name('move-pallet');
+            Route::post('/movements', [PalletMovementController::class, 'store'])->name('movements.store');
+        });
 
     // ── Packaging ───────────────────────────────────────────────────────────
     Route::name('packaging.')->prefix('packaging')->group(function () {

@@ -32,12 +32,14 @@ class Worker extends Model
         'pay_currency',
         'workstation_id',
         'is_active',
+        'is_logistics',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_logistics' => 'boolean',
             'pay_rate' => 'decimal:4',
         ];
     }
@@ -157,6 +159,15 @@ class Worker extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope to logistics operators / forklift drivers — the workers eligible to
+     * perform physical pallet movements (#103).
+     */
+    public function scopeLogistics($query)
+    {
+        return $query->where('is_logistics', true);
     }
 
     /** Children soft-deleted/restored together with this model (mirrors DB FK cascades). */
