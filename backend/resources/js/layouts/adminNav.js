@@ -88,8 +88,8 @@ export const ADMIN_GROUPS = [
             // Lightweight install hides them under this (core) Production group.
             { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'structure' },
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'structure' },
-            { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'] },
-            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'] },
+            { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'structure' },
+            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'structure' },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'] },
             { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'structure' },
             {

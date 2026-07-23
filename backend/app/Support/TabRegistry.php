@@ -22,8 +22,7 @@ class TabRegistry
         'schedule' => ['label' => 'Schedule', 'prefixes' => ['/admin/schedule']],
         'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/csv-import']],
         'production' => ['label' => 'Production', 'prefixes' => [
-            '/admin/product-types', '/admin/material-lots', '/admin/traceability',
-            '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
+            '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
             '/admin/view-templates', '/admin/shifts',
             // Note: Materials, Process Segments, Product Revisions and Companies
             // are gated by the Structure module; Issues, Anomaly Reasons and
@@ -37,7 +36,8 @@ class TabRegistry
             '/admin/workstation-types', '/admin/subassemblies',
             // Product & business master data — gated by Structure so a Lightweight
             // install hides them, though they render under the Production nav group.
-            '/admin/materials', '/admin/process-segments', '/admin/product-revisions', '/admin/companies',
+            '/admin/materials', '/admin/material-lots', '/admin/traceability',
+            '/admin/process-segments', '/admin/product-revisions', '/admin/companies',
         ]],
         'hr' => ['label' => 'HR', 'prefixes' => [
             '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',

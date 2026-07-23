@@ -77,7 +77,10 @@ class ModuleSelectionTest extends TestCase
     {
         // These live under the (core) Production nav group but are gated by Structure,
         // so a Lightweight install (Reports only) hides them.
-        $gated = ['/admin/materials', '/admin/process-segments', '/admin/product-revisions', '/admin/companies'];
+        $gated = [
+            '/admin/materials', '/admin/material-lots', '/admin/traceability',
+            '/admin/process-segments', '/admin/product-revisions', '/admin/companies',
+        ];
 
         foreach ($gated as $path) {
             $this->actingAs($this->admin)->get($path)->assertOk();
@@ -90,7 +93,7 @@ class ModuleSelectionTest extends TestCase
         }
         // …while core Production pages stay reachable.
         $this->actingAs($this->admin)->get('/admin/product-types')->assertOk();
-        $this->actingAs($this->admin)->get('/admin/material-lots')->assertOk();
+        $this->actingAs($this->admin)->get('/admin/lot-sequences')->assertOk();
     }
 
     public function test_quality_reason_codes_are_gated_by_the_maintenance_module(): void
