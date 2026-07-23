@@ -138,9 +138,10 @@ services:
       - openmmes-network
 
   # ── MQTT listener daemon ──────────────────────────────────────────────────
-  # One instance per active MQTT machine_connection.
-  # Set MQTT_CONNECTION_ID to the ID from the admin panel.
-  # Example: MQTT_CONNECTION_ID=1 docker compose up -d mqtt-listener
+  # One supervisor process services ALL active MQTT machine_connections and
+  # picks up newly-created / newly-activated ones automatically (no restart).
+  # To pin it to a single connection instead, set MQTT_CONNECTION_ID and add
+  # `--connection=${MQTT_CONNECTION_ID}` back to the command below.
   mqtt-listener:
     image: ghcr.io/mes-open/openmes:${OPENMES_VERSION:-latest}
     # Default to building from the cloned source so `docker compose up` always
@@ -154,7 +155,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: ${OPENMES_NAME_PREFIX:-openmmes}-mqtt-listener
     command:
-      ["php", "artisan", "mqtt:listen", "--connection=${MQTT_CONNECTION_ID:-1}"]
+      ["php", "artisan", "mqtt:listen"]
     environment:
       APP_ENV: ${APP_ENV:-production}
       APP_KEY: ${APP_KEY}

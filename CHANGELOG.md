@@ -7,6 +7,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-07-22
+
+### Fixed
+- **New MQTT connections weren't picked up until a manual listener restart** *([#174](https://github.com/Mes-Open/OpenMes/issues/174))*: `mqtt:listen` was a single-connection process pinned to one `--connection=<id>` at startup, so creating a connection in **Admin → Connectivity → MQTT** left it stuck at `disconnected` — the DB row existed but nothing was subscribed against it until you restarted the listener with that ID. It is now a **supervisor**: one process services **all** active MQTT connections at once (non-blocking `loopOnce()` per client) and **reconciles against the database every few seconds** — a newly created/activated connection is connected + subscribed automatically, a deactivated/deleted one is disconnected, and a connection whose broker settings or topics changed is reconnected with the new config. The `mqtt-listener` container now runs `mqtt:listen` with no pinned ID by default (pass `--connection=<id>` to supervise just one).
+- **MQTT connection detail — Live Message Log went blank after the first message** *([#174](https://github.com/Mes-Open/OpenMes/issues/174))*: the message log's time formatter was a local `formatTime` that shadowed the imported i18n helper and **recursed into itself**, so the panel rendered fine while empty ("Waiting for messages…") but blew the call stack the moment a message arrived — blanking the log. Renamed the local helper so it calls the imported formatter instead of itself.
+
 ## [0.17.0] - 2026-07-19
 
 ### Added
