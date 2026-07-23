@@ -26,11 +26,11 @@ class ModuleRegistry
     public const OPTIONAL = [
         'reports' => [
             'label' => 'Reports',
-            'description' => 'Work-order history, production cost, scrap, non-conformance and net-requirements reports.',
+            'description' => 'Work-order history report.',
         ],
         'structure' => [
             'label' => 'Company structure',
-            'description' => 'Sites, areas, factories, divisions, workstation types and subassemblies.',
+            'description' => 'Sites, areas, factories, divisions, workstation types and subassemblies; plus materials, traceability, process segments, product revisions, companies and net-requirements planning.',
         ],
         'hr' => [
             'label' => 'HR',
@@ -38,7 +38,7 @@ class ModuleRegistry
         ],
         'maintenance' => [
             'label' => 'Maintenance & Quality',
-            'description' => 'Maintenance events, tools, inspection plans, quality controls and OEE.',
+            'description' => 'Maintenance events, tools, inspection plans, quality controls and OEE; plus issues, scrap and anomaly reasons and the cost, scrap and non-conformance reports.',
         ],
         'connectivity' => [
             'label' => 'Connectivity',
