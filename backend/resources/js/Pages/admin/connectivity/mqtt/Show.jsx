@@ -613,7 +613,9 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
         }
     }, [messages, autoScroll]);
 
-    const formatTime = (iso) => {
+    // NB: must not be named `formatTime` — that would shadow the imported helper
+    // and recurse into itself, blowing the stack the moment a message renders.
+    const fmtTime = (iso) => {
         if (!iso) return '';
         try { return formatTime(new Date(iso), { hour12: false }); } catch { return iso; }
     };
@@ -654,7 +656,7 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
                     {/* Historic messages (server-side, dimmed) */}
                     {[...initialMessages].reverse().map((msg) => (
                         <div key={`init-${msg.id}`} className="flex gap-3 items-start opacity-60">
-                            <span className="text-om-muted shrink-0 tabular-nums">{formatTime(msg.received_at)}</span>
+                            <span className="text-om-muted shrink-0 tabular-nums">{fmtTime(msg.received_at)}</span>
                             <span className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${statusDot(msg.processing_status)}`} />
                             <span className="text-blue-300 shrink-0 max-w-xs truncate">{msg.topic}</span>
                             <span className="text-om-faintest break-all">{String(msg.raw_payload ?? '').substring(0, 200)}</span>
@@ -664,7 +666,7 @@ function LiveMessageLog({ initialMessages, initialLastId, messagesUrl }) {
                     {/* Live messages */}
                     {messages.map((msg) => (
                         <div key={msg.id} className="flex gap-3 items-start">
-                            <span className="text-om-muted shrink-0 tabular-nums">{formatTime(msg.received_at)}</span>
+                            <span className="text-om-muted shrink-0 tabular-nums">{fmtTime(msg.received_at)}</span>
                             <span className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${statusDot(msg.processing_status)}`} />
                             <span className="text-blue-300 shrink-0 max-w-xs truncate">{msg.topic}</span>
                             <span className="text-om-faintest break-all">{String(msg.raw_payload ?? '').substring(0, 200)}</span>

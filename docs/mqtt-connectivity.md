@@ -42,13 +42,13 @@ raw TCP listener (`1883`) and do **not** need the WebSocket listener.
 
 ## Running the MQTT listener in production
 
-Each MQTT connection requires a dedicated listener process. The listener is a separate Docker service (`mqtt-listener`) defined in `docker-compose.yml`.
+A **single** `mqtt-listener` service (defined in `docker-compose.yml`) supervises **all** active MQTT connections at once. It reconciles against the database every few seconds, so when you **create or activate a new connection in the admin panel it is picked up automatically** — no restart, no per-connection container.
 
-### Start a listener for connection ID 1
+### Start the listener
 
 ```bash
 cd /opt/openmmes   # or wherever your docker-compose.yml is
-MQTT_CONNECTION_ID=1 docker compose up -d mqtt-listener
+docker compose up -d mqtt-listener
 ```
 
 ### Check listener logs
@@ -63,7 +63,13 @@ docker logs openmmes-mqtt-listener -f
 docker compose stop mqtt-listener
 ```
 
-> **Multiple connections**: run separate listener containers per connection. The current setup supports one at a time via `MQTT_CONNECTION_ID`. For multiple simultaneous listeners, duplicate the service block in `docker-compose.yml` with different container names and connection IDs.
+What the supervisor does on each reconcile tick:
+
+- **new / newly-activated** connection → connect + subscribe automatically;
+- **deactivated / deleted** connection → disconnect;
+- **changed** broker settings or topics on an existing connection → reconnect with the new config.
+
+> **Pin to one connection** (optional): to run a dedicated process for a single connection, pass `--connection=<id>` (e.g. `php artisan mqtt:listen --connection=2`, or add it back to the `mqtt-listener` command with `MQTT_CONNECTION_ID`). Omitting it supervises everything, which is the recommended default.
 
 ---
 
