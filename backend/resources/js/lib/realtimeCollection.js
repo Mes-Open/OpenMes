@@ -75,8 +75,11 @@ export function realtimeCollection(name, getKey = (row) => row.id) {
                         if (!alive) return;
                         if (!channelName && channel) subscribe(channel);
                         apply(rows);
-                    } catch {
-                        // leave whatever we have; don't hang the UI
+                    } catch (e) {
+                        // Leave whatever we have; don't hang the UI. Surface the
+                        // reason so a failed snapshot (e.g. a 401 auth issue) is
+                        // diagnosable instead of a silently empty list. #193
+                        console.warn(`[live-sync] snapshot for "${name}" failed:`, e?.message ?? e);
                     } finally {
                         if (alive) markReady();
                     }
