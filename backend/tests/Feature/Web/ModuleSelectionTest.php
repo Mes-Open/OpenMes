@@ -80,6 +80,7 @@ class ModuleSelectionTest extends TestCase
         $gated = [
             '/admin/materials', '/admin/material-lots', '/admin/traceability',
             '/admin/process-segments', '/admin/product-revisions', '/admin/companies',
+            '/admin/net-requirements',
         ];
 
         foreach ($gated as $path) {
@@ -91,14 +92,18 @@ class ModuleSelectionTest extends TestCase
         foreach ($gated as $path) {
             $this->actingAs($this->admin)->get($path)->assertNotFound();
         }
-        // …while core Production pages stay reachable.
+        // …while core Production pages and the base Reports stay reachable.
         $this->actingAs($this->admin)->get('/admin/product-types')->assertOk();
         $this->actingAs($this->admin)->get('/admin/lot-sequences')->assertOk();
+        $this->actingAs($this->admin)->get('/admin/reports')->assertOk();
     }
 
     public function test_quality_reason_codes_are_gated_by_the_maintenance_module(): void
     {
-        $gated = ['/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons'];
+        $gated = [
+            '/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons',
+            '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports',
+        ];
 
         foreach ($gated as $path) {
             $this->actingAs($this->admin)->get($path)->assertOk();
@@ -109,7 +114,9 @@ class ModuleSelectionTest extends TestCase
         foreach ($gated as $path) {
             $this->actingAs($this->admin)->get($path)->assertNotFound();
         }
+        // …while core Production and the base Reports stay reachable.
         $this->actingAs($this->admin)->get('/admin/product-types')->assertOk();
+        $this->actingAs($this->admin)->get('/admin/reports')->assertOk();
     }
 
     public function test_disabled_module_is_dropped_from_accessible_tabs(): void

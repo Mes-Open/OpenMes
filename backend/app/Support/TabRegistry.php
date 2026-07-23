@@ -30,7 +30,10 @@ class TabRegistry
             // Production nav group but live on those tabs so a Lightweight
             // install (Reports only) hides them.
         ]],
-        'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements']],
+        // Only the base Work-Order History report stays on the always-light Reports
+        // tab; the analytical reports are gated by Maintenance (cost/quality) and
+        // Structure (net requirements) so a Lightweight install hides them.
+        'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports']],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
             '/admin/workstation-types', '/admin/subassemblies',
@@ -38,6 +41,8 @@ class TabRegistry
             // install hides them, though they render under the Production nav group.
             '/admin/materials', '/admin/material-lots', '/admin/traceability',
             '/admin/process-segments', '/admin/product-revisions', '/admin/companies',
+            // Net-requirements (MRP) planning report — material master data.
+            '/admin/net-requirements',
         ]],
         'hr' => ['label' => 'HR', 'prefixes' => [
             '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',
@@ -54,6 +59,9 @@ class TabRegistry
             // Quality reason codes + issue tracking — gated by Maintenance & Quality
             // so Lightweight hides them; they render under the Production nav group.
             '/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons',
+            // Analytical reports (cost + quality) — render under the Reports nav
+            // group but gated by Maintenance so Lightweight keeps only Work Orders.
+            '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports',
         ]],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
         'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
