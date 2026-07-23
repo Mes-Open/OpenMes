@@ -60,6 +60,19 @@ class ModuleSelectionTest extends TestCase
         $this->actingAs($this->admin)->get('/admin/workers')->assertNotFound();
     }
 
+    public function test_employee_scheduling_is_gated_by_the_hr_module(): void
+    {
+        // HR enabled → employee scheduling (under the core Schedule area) is reachable.
+        $this->actingAs($this->admin)->get('/admin/schedule/employees')->assertOk();
+
+        $this->disableModule('hr');
+
+        // HR disabled → the employee sub-page 404s, even though Schedule is core…
+        $this->actingAs($this->admin)->get('/admin/schedule/employees')->assertNotFound();
+        // …while the Schedule planner itself stays reachable.
+        $this->actingAs($this->admin)->get('/admin/schedule')->assertOk();
+    }
+
     public function test_disabled_module_is_dropped_from_accessible_tabs(): void
     {
         $this->disableModule('connectivity');

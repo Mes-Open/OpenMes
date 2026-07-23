@@ -178,7 +178,7 @@ function flattenNavItems(showTab = () => true) {
         label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
     }));
     const walk = (nodes, trail) => {
-        nodes.forEach((node) => {
+        nodes.filter((node) => showTab(node.tab)).forEach((node) => {
             if (node.href && !node.disabled) {
                 items.push({ label: node.label, href: node.href, match: node.match, exact: node.exact, trail });
             }
@@ -324,6 +324,7 @@ function Sidebar({
                                 path={path}
                                 collapsed={collapsed}
                                 showLabels={showLabels}
+                                showTab={showTab}
                             />
                         ))}
                     </>
@@ -537,7 +538,7 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
     );
 }
 
-function NavGroup({ group, path, collapsed, showLabels }) {
+function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) {
     const groupActive = isActive(path, group.match);
     const [open, setOpen] = useState(groupActive);
 
@@ -589,9 +590,9 @@ function NavGroup({ group, path, collapsed, showLabels }) {
 
             {open && showLabels && (
                 <div className="mt-0.5 ml-4 space-y-0.5 border-l border-om-line pl-3">
-                    {group.children.map((child) =>
+                    {group.children.filter((child) => showTab(child.tab)).map((child) =>
                         child.children ? (
-                            <SubGroup key={child.key} group={child} path={path} />
+                            <SubGroup key={child.key} group={child} path={path} showTab={showTab} />
                         ) : (
                             <ChildLink key={child.href} child={child} path={path} />
                         ),
@@ -602,7 +603,7 @@ function NavGroup({ group, path, collapsed, showLabels }) {
     );
 }
 
-function SubGroup({ group, path }) {
+function SubGroup({ group, path, showTab = () => true }) {
     const active = isActive(path, group.match);
     const [open, setOpen] = useState(active);
     useEffect(() => {
@@ -624,7 +625,7 @@ function SubGroup({ group, path }) {
             </button>
             {open && (
                 <div className="ml-3 mt-0.5 space-y-0.5 border-l border-om-line2 pl-3">
-                    {group.children.map((child) => (
+                    {group.children.filter((child) => showTab(child.tab)).map((child) => (
                         <ChildLink key={child.href} child={child} path={path} dot="sm" />
                     ))}
                 </div>

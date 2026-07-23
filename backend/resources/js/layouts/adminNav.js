@@ -56,7 +56,7 @@ export const ADMIN_GROUPS = [
         children: [
             { label: 'Planner', href: '/admin/schedule', match: ['/admin/schedule'], exact: true },
             { label: 'Capacity', href: '/admin/schedule/capacity', match: ['/admin/schedule/capacity'] },
-            { label: 'Employee', href: '/admin/schedule/employees', match: ['/admin/schedule/employees'] },
+            { label: 'Employee', href: '/admin/schedule/employees', match: ['/admin/schedule/employees'], tab: 'hr' },
         ],
     },
     {

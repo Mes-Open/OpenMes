@@ -35,6 +35,10 @@ class TabRegistry
         'hr' => ['label' => 'HR', 'prefixes' => [
             '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',
             '/admin/crew-break-windows', '/admin/skills', '/admin/wage-groups',
+            // Employee scheduling is labour planning — gated by HR, even though it
+            // lives under the (core) Schedule area. Longer than the 'schedule'
+            // prefix, so tabForPath's most-specific match routes it here.
+            '/admin/schedule/employees',
         ]],
         'maintenance' => ['label' => 'Maintenance', 'prefixes' => [
             '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
@@ -113,15 +117,22 @@ class TabRegistry
     {
         $path = '/'.ltrim($path, '/');
 
+        // Most-specific (longest) matching prefix wins, so a nested path can be
+        // owned by a different tab than its parent area — e.g.
+        // /admin/schedule/employees → hr, even though /admin/schedule → schedule.
+        $best = null;
+        $bestLen = -1;
+
         foreach (self::TABS as $key => $tab) {
             foreach ($tab['prefixes'] as $prefix) {
-                if ($path === $prefix || str_starts_with($path, $prefix.'/')) {
-                    return $key;
+                if (($path === $prefix || str_starts_with($path, $prefix.'/')) && strlen($prefix) > $bestLen) {
+                    $best = $key;
+                    $bestLen = strlen($prefix);
                 }
             }
         }
 
-        return null;
+        return $best;
     }
 
     /**
