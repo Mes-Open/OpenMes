@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\V1\AdditionalCostController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AnomalyReasonController;
+use App\Http\Controllers\Api\V1\ApiKeyController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\BatchController;
@@ -18,6 +19,9 @@ use App\Http\Controllers\Api\V1\CrewController;
 use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
 use App\Http\Controllers\Api\V1\DivisionController;
+use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
+use App\Http\Controllers\Api\V1\Erp\QualityExportController;
+use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\FactoryController;
 use App\Http\Controllers\Api\V1\InspectionController;
@@ -107,6 +111,26 @@ Route::prefix('auth')->group(function () {
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:sanctum');
     Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
     Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+});
+
+// ERP integration API (SAP, Comarch, enova365, MS Dynamics / Business Central).
+// Machine-to-machine: authenticated by API key (X-Api-Key or Bearer), authorized
+// per-endpoint by scope, rate limited per key. Kept separate from the Sanctum v1
+// tree because these are headless service credentials, not user sessions.
+Route::prefix('v1/erp')->middleware('auth.apikey')->group(function () {
+    // ERP → OpenMES: bulk work-order import.
+    Route::post('/work-orders/import', [ErpWorkOrderImportController::class, 'store'])
+        ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);
+
+    // OpenMES → ERP: production completion export + single-order state.
+    Route::get('/production/completions', [ProductionExportController::class, 'completions'])
+        ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
+    Route::get('/work-orders/{workOrder}', [ProductionExportController::class, 'show'])
+        ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
+
+    // OpenMES → ERP: quality / non-conformance export.
+    Route::get('/quality/issues', [QualityExportController::class, 'issues'])
+        ->middleware(['scope:erp:quality:read', 'throttle:erp-read']);
 });
 
 // Protected API routes (require authentication)
@@ -340,6 +364,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/integrations/{integration}', [IntegrationConfigController::class, 'update']);
         Route::post('/integrations/{integration}/toggle-active', [IntegrationConfigController::class, 'toggleActive']);
         Route::delete('/integrations/{integration}', [IntegrationConfigController::class, 'destroy']);
+
+        // ERP integration API keys (machine-to-machine credentials for the
+        // /v1/erp/* endpoints). The plaintext secret is returned only from store.
+        Route::get('/api-keys', [ApiKeyController::class, 'index']);
+        Route::post('/api-keys', [ApiKeyController::class, 'store']);
+        Route::patch('/api-keys/{apiKey}', [ApiKeyController::class, 'update']);
+        Route::post('/api-keys/{apiKey}/toggle-active', [ApiKeyController::class, 'toggleActive']);
+        Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy']);
         Route::get('/custom-fields', [CustomFieldDefinitionController::class, 'index']);
         Route::get('/custom-fields/meta', [CustomFieldDefinitionController::class, 'formMeta']);
         Route::post('/custom-fields', [CustomFieldDefinitionController::class, 'store']);
