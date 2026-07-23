@@ -8,6 +8,7 @@ use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Support\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
@@ -194,5 +195,86 @@ class OnboardingWizardTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('onboarding.step2'));
         $response->assertRedirect(route('onboarding.step1'));
+    }
+
+    // ── Module selection step (first step) ─────────────────────────
+
+    public function test_index_redirects_to_modules_step(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('onboarding.index'))
+            ->assertRedirect(route('onboarding.modules'));
+    }
+
+    public function test_modules_step_lightweight_preset_enables_reports_only(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), ['preset' => 'light'])
+            ->assertRedirect(route('onboarding.step1'));
+
+        $this->assertSame(['reports'], ModuleRegistry::enabled());
+    }
+
+    public function test_modules_step_advanced_preset_enables_shopfloor_set(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), ['preset' => 'advanced'])
+            ->assertRedirect(route('onboarding.step1'));
+
+        $this->assertEqualsCanonicalizing(
+            [
+                'reports', 'advanced_reports', 'materials', 'product_engineering',
+                'companies', 'quality', 'maintenance', 'connectivity', 'packaging',
+            ],
+            ModuleRegistry::enabled(),
+        );
+    }
+
+    public function test_modules_step_custom_preset_saves_exact_selection(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), [
+                'preset' => 'custom',
+                'enabled_modules' => ['hr', 'webhooks'],
+            ])
+            ->assertRedirect(route('onboarding.step1'));
+
+        $this->assertEqualsCanonicalizing(['hr', 'webhooks'], ModuleRegistry::enabled());
+    }
+
+    public function test_modules_step_custom_with_empty_selection_disables_all_optional(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), ['preset' => 'custom', 'enabled_modules' => []])
+            ->assertRedirect(route('onboarding.step1'));
+
+        $this->assertSame([], ModuleRegistry::enabled());
+    }
+
+    public function test_modules_step_rejects_invalid_preset(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), ['preset' => 'bogus'])
+            ->assertSessionHasErrors('preset');
+    }
+
+    public function test_modules_step_rejects_unknown_module_key(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), [
+                'preset' => 'custom',
+                'enabled_modules' => ['not-a-real-module'],
+            ])
+            ->assertSessionHasErrors('enabled_modules.0');
+    }
+
+    public function test_modules_step_requires_admin(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        $this->actingAs($operator)
+            ->get(route('onboarding.modules'))
+            ->assertForbidden();
     }
 }

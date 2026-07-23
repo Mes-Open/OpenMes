@@ -25,7 +25,7 @@ export default function Step4() {
     return (
         <>
             <Head title={__('Step 4 — Work Order')} />
-            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 4/4</div>
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 5/5</div>
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Create First Work Order')}</h2>
             <p className="text-sm text-om-muted mb-6">
                 {__('A work order represents a production batch to manufacture. Create your first one.')}

@@ -1,7 +1,7 @@
 // Toolbar + Backlog rail (with the Changes/undo tab), following the OpenMES
 // Schedule design.
 import { useState, useEffect } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Dropdown } from '@openmes/ui';
 import { __, formatDate } from '../../../../lib/i18n';
 import { apiGet, apiCall } from '../../../../lib/http';
@@ -25,6 +25,10 @@ function NavBtn({ children, onClick, title }) {
 
 export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, onPrev, onNext, onToday, rangeLabel }) {
     const { data } = ctx;
+    // Employee scheduling lives under the (core) Schedule area but is gated by
+    // the HR module — hide the shortcut when HR is off, mirroring the nav.
+    const accessibleTabs = usePage().props?.auth?.user?.accessibleTabs ?? [];
+    const hrEnabled = accessibleTabs.includes('hr');
     const tabs = [['weekly', __('Weekly')], ['daily', __('Daily')], ['hourly', __('Hourly')], ['monthly', __('Monthly')]];
     const seg = (active) => ({ fontSize: 12, fontWeight: 500, padding: '6px 12px', borderRadius: 6, cursor: 'pointer', ...(active ? { background: 'var(--om-ink)', color: 'var(--om-on-ink)' } : { color: 'var(--om-muted)' }) });
 
@@ -49,7 +53,9 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
             />
             <span style={{ width: 1, height: 22, background: 'var(--om-line2)' }} />
             <Link href="/admin/schedule/capacity" style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 500, color: 'var(--om-accent)', padding: '6px 8px' }}>{__('Capacity')} →</Link>
-            <Link href={`/admin/schedule/employees?date=${data.range.startDate}`} style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 500, color: 'var(--om-muted)', padding: '6px 8px' }}>{__('Employees')}</Link>
+            {hrEnabled && (
+                <Link href={`/admin/schedule/employees?date=${data.range.startDate}`} style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 500, color: 'var(--om-muted)', padding: '6px 8px' }}>{__('Employees')}</Link>
+            )}
             <div style={{ flex: 1 }} />
             <div className="flex items-center gap-3">
                 {LEGEND.map(([label, clr]) => (

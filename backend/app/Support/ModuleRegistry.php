@@ -22,11 +22,38 @@ class ModuleRegistry
 {
     public const SETTING_KEY = 'enabled_modules';
 
-    /** key => [label, description]; key is the TabRegistry tab it controls. */
+    /**
+     * key => [label, description]; key is the TabRegistry tab it controls.
+     *
+     * Fine-grained feature toggles: whole areas are split so an install can keep,
+     * say, Materials without Companies, or the Work-Order History report without
+     * the cost/scrap analytics. Core essentials (Product Types, Lines, LOT
+     * Sequences, the Planner, Orders, Admin) are never listed here — always on.
+     */
     public const OPTIONAL = [
         'reports' => [
             'label' => 'Reports',
-            'description' => 'Work-order history, production cost, scrap, non-conformance and net-requirements reports.',
+            'description' => 'Work-order history report.',
+        ],
+        'advanced_reports' => [
+            'label' => 'Advanced reports',
+            'description' => 'Production cost, scrap, non-conformance and net-requirements reports.',
+        ],
+        'materials' => [
+            'label' => 'Materials & tracing',
+            'description' => 'Materials, material lots and traceability.',
+        ],
+        'product_engineering' => [
+            'label' => 'Product engineering',
+            'description' => 'Process segments and product revisions.',
+        ],
+        'companies' => [
+            'label' => 'Companies',
+            'description' => 'Customer and supplier company records.',
+        ],
+        'quality' => [
+            'label' => 'Issues & reasons',
+            'description' => 'Issues and scrap / anomaly reason codes.',
         ],
         'structure' => [
             'label' => 'Company structure',
@@ -34,10 +61,10 @@ class ModuleRegistry
         ],
         'hr' => [
             'label' => 'HR',
-            'description' => 'Workers, crews, skills, wage groups and absences.',
+            'description' => 'Workers, crews, skills, wage groups, absences and employee scheduling.',
         ],
         'maintenance' => [
-            'label' => 'Maintenance & Quality',
+            'label' => 'Maintenance & QC',
             'description' => 'Maintenance events, tools, inspection plans, quality controls and OEE.',
         ],
         'connectivity' => [
@@ -54,10 +81,43 @@ class ModuleRegistry
         ],
     ];
 
+    /**
+     * Onboarding presets — one-click starting points for the module set the
+     * admin chooses at first login. `custom` is not listed: it means "use the
+     * admin's own checkbox selection". Keys must be a subset of OPTIONAL.
+     */
+    public const PRESETS = [
+        // Minimal: core production tracking + the work-order history report only.
+        'light' => ['reports'],
+        // Shop-floor operations: reporting + product/material data + quality +
+        // machine connectivity + packaging. Leaves multi-site structure, HR and
+        // webhooks off (an admin adds those via Custom or later in Settings).
+        'advanced' => [
+            'reports', 'advanced_reports', 'materials', 'product_engineering',
+            'companies', 'quality', 'maintenance', 'connectivity', 'packaging',
+        ],
+    ];
+
     /** @return array<int, string> */
     public static function optionalKeys(): array
     {
         return array_keys(self::OPTIONAL);
+    }
+
+    /**
+     * Resolve a preset name to its enabled-module set. `custom` (or any unknown
+     * name) returns the explicit selection passed in, filtered to valid keys.
+     *
+     * @param  array<int, string>  $customSelection
+     * @return array<int, string>
+     */
+    public static function modulesForPreset(string $preset, array $customSelection = []): array
+    {
+        if ($preset === 'custom') {
+            return array_values(array_intersect($customSelection, self::optionalKeys()));
+        }
+
+        return self::PRESETS[$preset] ?? self::optionalKeys();
     }
 
     /**

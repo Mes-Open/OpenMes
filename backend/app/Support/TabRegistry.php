@@ -22,12 +22,38 @@ class TabRegistry
         'schedule' => ['label' => 'Schedule', 'prefixes' => ['/admin/schedule']],
         'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/csv-import']],
         'production' => ['label' => 'Production', 'prefixes' => [
-            '/admin/product-types', '/admin/materials', '/admin/material-lots', '/admin/traceability',
-            '/admin/lot-sequences', '/admin/process-segments', '/admin/lines', '/admin/line-statuses',
-            '/admin/view-templates', '/admin/shifts', '/admin/issues', '/admin/companies',
-            '/admin/anomaly-reasons', '/admin/scrap-reasons',
+            '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
+            '/admin/view-templates', '/admin/shifts',
+            // Note: Materials, Process Segments, Product Revisions and Companies
+            // are gated by the Structure module; Issues, Anomaly Reasons and
+            // Scrap Reasons by Maintenance & Quality. They render under the
+            // Production nav group but live on those tabs so a Lightweight
+            // install (Reports only) hides them.
         ]],
-        'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements']],
+        // Fine-grained feature tabs. Several render under the (core) Production
+        // and Reports nav groups but live on their own tab so each can be toggled
+        // independently in Settings → Modules (and granted per-role in Access).
+        //
+        // Base work-order history report — the one report Lightweight keeps.
+        'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports']],
+        // Analytical reports (render under the Reports nav group).
+        'advanced_reports' => ['label' => 'Advanced reports', 'prefixes' => [
+            '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements',
+        ]],
+        // Material master + tracing (render under the Production nav group).
+        'materials' => ['label' => 'Materials & tracing', 'prefixes' => [
+            '/admin/materials', '/admin/material-lots', '/admin/traceability',
+        ]],
+        // Product engineering data (render under the Production nav group).
+        'product_engineering' => ['label' => 'Product engineering', 'prefixes' => [
+            '/admin/process-segments', '/admin/product-revisions',
+        ]],
+        // Customer/supplier companies (render under the Production nav group).
+        'companies' => ['label' => 'Companies', 'prefixes' => ['/admin/companies']],
+        // Issues + quality reason codes (render under the Production nav group).
+        'quality' => ['label' => 'Issues & reasons', 'prefixes' => [
+            '/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons',
+        ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
             '/admin/workstation-types', '/admin/subassemblies',
@@ -35,6 +61,10 @@ class TabRegistry
         'hr' => ['label' => 'HR', 'prefixes' => [
             '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',
             '/admin/crew-break-windows', '/admin/skills', '/admin/wage-groups',
+            // Employee scheduling is labour planning — gated by HR, even though it
+            // lives under the (core) Schedule area. Longer than the 'schedule'
+            // prefix, so tabForPath's most-specific match routes it here.
+            '/admin/schedule/employees',
         ]],
         'maintenance' => ['label' => 'Maintenance', 'prefixes' => [
             '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
@@ -113,15 +143,22 @@ class TabRegistry
     {
         $path = '/'.ltrim($path, '/');
 
+        // Most-specific (longest) matching prefix wins, so a nested path can be
+        // owned by a different tab than its parent area — e.g.
+        // /admin/schedule/employees → hr, even though /admin/schedule → schedule.
+        $best = null;
+        $bestLen = -1;
+
         foreach (self::TABS as $key => $tab) {
             foreach ($tab['prefixes'] as $prefix) {
-                if ($path === $prefix || str_starts_with($path, $prefix.'/')) {
-                    return $key;
+                if (($path === $prefix || str_starts_with($path, $prefix.'/')) && strlen($prefix) > $bestLen) {
+                    $best = $key;
+                    $bestLen = strlen($prefix);
                 }
             }
         }
 
-        return null;
+        return $best;
     }
 
     /**
