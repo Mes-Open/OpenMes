@@ -84,14 +84,14 @@ export const ADMIN_GROUPS = [
         ],
         children: [
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'] },
-            // Gated by the Structure module (product/business master data) so a
-            // Lightweight install hides them under this (core) Production group.
-            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'structure' },
-            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'structure' },
-            { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'structure' },
-            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'structure' },
+            // Fine-grained feature toggles: each renders under this (core) Production
+            // group but is gated by its own module so it can be switched off alone.
+            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering' },
+            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials' },
+            { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials' },
+            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials' },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'] },
-            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'structure' },
+            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering' },
             {
                 key: 'linesGroup',
                 label: 'Production Lines',
@@ -103,11 +103,11 @@ export const ADMIN_GROUPS = [
                     { label: 'Shifts', href: '/admin/shifts', match: ['/admin/shifts'] },
                 ],
             },
-            // Issues + quality reason codes gated by Maintenance & Quality; Companies by Structure.
-            { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'maintenance' },
-            { label: 'Companies', href: '/admin/companies', match: ['/admin/companies'], tab: 'structure' },
-            { label: 'Anomaly Reasons', href: '/admin/anomaly-reasons', match: ['/admin/anomaly-reasons'], tab: 'maintenance' },
-            { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'maintenance' },
+            // Issues + reason codes gated by the Quality module; Companies stand alone.
+            { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality' },
+            { label: 'Companies', href: '/admin/companies', match: ['/admin/companies'], tab: 'companies' },
+            { label: 'Anomaly Reasons', href: '/admin/anomaly-reasons', match: ['/admin/anomaly-reasons'], tab: 'quality' },
+            { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality' },
         ],
     },
     {
@@ -116,13 +116,13 @@ export const ADMIN_GROUPS = [
         icon: 'chart',
         match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements'],
         children: [
-            { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'] },
-            // Analytical reports gated by Maintenance (cost/quality) / Structure (MRP)
-            // so a Lightweight install keeps only Work Order History.
-            { label: 'Production Cost', href: '/admin/cost-reports', match: ['/admin/cost-reports'], tab: 'maintenance' },
-            { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'], tab: 'maintenance' },
-            { label: 'Non-conformance', href: '/admin/non-conformance-reports', match: ['/admin/non-conformance-reports'], tab: 'maintenance' },
-            { label: 'Net requirements', href: '/admin/net-requirements', match: ['/admin/net-requirements'], tab: 'structure' },
+            { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'], tab: 'reports' },
+            // Analytical reports gated by the Advanced reports module, so a Lightweight
+            // install keeps only Work Order History.
+            { label: 'Production Cost', href: '/admin/cost-reports', match: ['/admin/cost-reports'], tab: 'advanced_reports' },
+            { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'], tab: 'advanced_reports' },
+            { label: 'Non-conformance', href: '/admin/non-conformance-reports', match: ['/admin/non-conformance-reports'], tab: 'advanced_reports' },
+            { label: 'Net requirements', href: '/admin/net-requirements', match: ['/admin/net-requirements'], tab: 'advanced_reports' },
         ],
     },
     {

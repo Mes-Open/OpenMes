@@ -30,19 +30,33 @@ class TabRegistry
             // Production nav group but live on those tabs so a Lightweight
             // install (Reports only) hides them.
         ]],
-        // Only the base Work-Order History report stays on the always-light Reports
-        // tab; the analytical reports are gated by Maintenance (cost/quality) and
-        // Structure (net requirements) so a Lightweight install hides them.
+        // Fine-grained feature tabs. Several render under the (core) Production
+        // and Reports nav groups but live on their own tab so each can be toggled
+        // independently in Settings → Modules (and granted per-role in Access).
+        //
+        // Base work-order history report — the one report Lightweight keeps.
         'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports']],
+        // Analytical reports (render under the Reports nav group).
+        'advanced_reports' => ['label' => 'Advanced reports', 'prefixes' => [
+            '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements',
+        ]],
+        // Material master + tracing (render under the Production nav group).
+        'materials' => ['label' => 'Materials & tracing', 'prefixes' => [
+            '/admin/materials', '/admin/material-lots', '/admin/traceability',
+        ]],
+        // Product engineering data (render under the Production nav group).
+        'product_engineering' => ['label' => 'Product engineering', 'prefixes' => [
+            '/admin/process-segments', '/admin/product-revisions',
+        ]],
+        // Customer/supplier companies (render under the Production nav group).
+        'companies' => ['label' => 'Companies', 'prefixes' => ['/admin/companies']],
+        // Issues + quality reason codes (render under the Production nav group).
+        'quality' => ['label' => 'Issues & reasons', 'prefixes' => [
+            '/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons',
+        ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
             '/admin/workstation-types', '/admin/subassemblies',
-            // Product & business master data — gated by Structure so a Lightweight
-            // install hides them, though they render under the Production nav group.
-            '/admin/materials', '/admin/material-lots', '/admin/traceability',
-            '/admin/process-segments', '/admin/product-revisions', '/admin/companies',
-            // Net-requirements (MRP) planning report — material master data.
-            '/admin/net-requirements',
         ]],
         'hr' => ['label' => 'HR', 'prefixes' => [
             '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',
@@ -56,12 +70,6 @@ class TabRegistry
             '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
             '/admin/production-anomalies', '/admin/inspection-plans', '/admin/quality-control-triggers',
             '/admin/quality-tasks', '/admin/oee',
-            // Quality reason codes + issue tracking — gated by Maintenance & Quality
-            // so Lightweight hides them; they render under the Production nav group.
-            '/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons',
-            // Analytical reports (cost + quality) — render under the Reports nav
-            // group but gated by Maintenance so Lightweight keeps only Work Orders.
-            '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports',
         ]],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
         'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],

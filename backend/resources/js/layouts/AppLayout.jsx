@@ -173,6 +173,18 @@ function DesktopClock() {
  * `trail` is the group path shown under a result, e.g. "Production /
  * Production Lines". Disabled entries are skipped.
  */
+// A nav group is visible when its own tab is accessible OR at least one of its
+// descendants carries its own (different) accessible tab. The second clause lets
+// a group survive when its header key is off but a fine-grained child module is
+// on — e.g. Reports hidden but Advanced reports enabled. Groups whose children
+// have no explicit tab fall back to the header key alone.
+function groupVisible(group, showTab) {
+    if (showTab(group.tab ?? group.key)) return true;
+    const anyChild = (nodes) => (nodes || []).some((n) =>
+        n.children ? anyChild(n.children) : (n.tab && showTab(n.tab)));
+    return anyChild(group.children);
+}
+
 function flattenNavItems(showTab = () => true) {
     const items = ADMIN_LINKS.filter((link) => showTab(link.key)).map((link) => ({
         label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
@@ -187,8 +199,8 @@ function flattenNavItems(showTab = () => true) {
             }
         });
     };
-    // Only index groups whose tab is accessible (role + enabled module — #144).
-    walk(ADMIN_GROUPS.filter((group) => showTab(group.tab ?? group.key)), []);
+    // Only index groups with at least one accessible tab (role + enabled module — #144).
+    walk(ADMIN_GROUPS.filter((group) => groupVisible(group, showTab)), []);
     items.push({ label: 'Settings', href: '/settings', match: ['/settings'], trail: [] });
     return items;
 }
@@ -317,7 +329,7 @@ function Sidebar({
                         {/* Separator under the top links (parity with the Blade sidebar) */}
                         {showLabels && <div className="mx-4 my-2 border-t border-om-line" />}
 
-                        {ADMIN_GROUPS.filter((group) => showTab(group.tab ?? group.key)).map((group) => (
+                        {ADMIN_GROUPS.filter((group) => groupVisible(group, showTab)).map((group) => (
                             <NavGroup
                                 key={group.key}
                                 group={group}

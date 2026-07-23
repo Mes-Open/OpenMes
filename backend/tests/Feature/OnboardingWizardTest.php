@@ -222,7 +222,10 @@ class OnboardingWizardTest extends TestCase
             ->assertRedirect(route('onboarding.step1'));
 
         $this->assertEqualsCanonicalizing(
-            ['reports', 'maintenance', 'connectivity', 'packaging'],
+            [
+                'reports', 'advanced_reports', 'materials', 'product_engineering',
+                'companies', 'quality', 'maintenance', 'connectivity', 'packaging',
+            ],
             ModuleRegistry::enabled(),
         );
     }
