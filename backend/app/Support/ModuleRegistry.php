@@ -54,10 +54,40 @@ class ModuleRegistry
         ],
     ];
 
+    /**
+     * Onboarding presets — one-click starting points for the module set the
+     * admin chooses at first login. `custom` is not listed: it means "use the
+     * admin's own checkbox selection". Keys must be a subset of OPTIONAL.
+     */
+    public const PRESETS = [
+        // Minimal: core production tracking + reports only.
+        'light' => ['reports'],
+        // Shop-floor operations: reports + quality/maintenance + machine
+        // connectivity + packaging. Leaves HR / multi-site structure / webhooks
+        // off (an admin adds those via Custom or later in Settings).
+        'advanced' => ['reports', 'maintenance', 'connectivity', 'packaging'],
+    ];
+
     /** @return array<int, string> */
     public static function optionalKeys(): array
     {
         return array_keys(self::OPTIONAL);
+    }
+
+    /**
+     * Resolve a preset name to its enabled-module set. `custom` (or any unknown
+     * name) returns the explicit selection passed in, filtered to valid keys.
+     *
+     * @param  array<int, string>  $customSelection
+     * @return array<int, string>
+     */
+    public static function modulesForPreset(string $preset, array $customSelection = []): array
+    {
+        if ($preset === 'custom') {
+            return array_values(array_intersect($customSelection, self::optionalKeys()));
+        }
+
+        return self::PRESETS[$preset] ?? self::optionalKeys();
     }
 
     /**

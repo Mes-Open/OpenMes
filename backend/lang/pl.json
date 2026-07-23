@@ -4872,5 +4872,14 @@
     "Cannot delete a revision that is used by work orders.": "Nie można usunąć rewizji używanej przez zlecenia.",
     "Only draft revisions can be released.": "Tylko rewizje robocze można wydać.",
     "Select a process template before releasing the revision.": "Wybierz szablon procesu przed wydaniem rewizji.",
-    "Only released revisions can be made obsolete.": "Tylko wydane rewizje można wycofać."
+    "Only released revisions can be made obsolete.": "Tylko wydane rewizje można wycofać.",
+    "Step 1 — Modules": "Krok 1 — Moduły",
+    "Choose your modules": "Wybierz moduły",
+    "Turn on only the feature areas your team needs. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules.": "Włącz tylko obszary funkcji, których potrzebuje Twój zespół. Obszary podstawowe (Pulpit, Zamówienia, Produkcja, Admin) są zawsze włączone. Możesz to zmienić w każdej chwili w Ustawienia → System → Moduły.",
+    "Lightweight": "Lekki",
+    "Core production tracking + Reports. The simplest setup — recommended for small shops.": "Podstawowe śledzenie produkcji + Raporty. Najprostsza konfiguracja — zalecana dla małych zakładów.",
+    "Adds:": "Dodaje:",
+    "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.": "Pełne operacje na hali: raporty, jakość i utrzymanie ruchu, łączność z maszynami i pakowanie.",
+    "Pick exactly which modules to enable.": "Wybierz dokładnie, które moduły włączyć.",
+    "Next: Production Line →": "Dalej: Linia produkcyjna →"
 }

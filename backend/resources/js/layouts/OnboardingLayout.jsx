@@ -3,17 +3,17 @@ import { __ } from '../lib/i18n';
 
 /**
  * Wizard chrome for the onboarding flow.
- * Reproduces onboarding/layout.blade.php: centred card, logo, 4-step stepper
- * (Line → Product → Process → Work Order), skip link at bottom.
+ * Reproduces onboarding/layout.blade.php: centred card, logo, 5-step stepper
+ * (Modules → Line → Product → Process → Work Order), skip link at bottom.
  *
- * Reads `step` (1–5) from page props; 5 = Complete (all steps shown as done).
+ * Reads `step` (1–6) from page props; 6 = Complete (all steps shown as done).
  *
  * Geist White restyle: light-only v1 — om-* tokens, hairline card, mono labels.
  */
 export default function OnboardingLayout({ children }) {
     const { step = 1, csrf_token } = usePage().props;
 
-    const steps = ['Line', 'Product', 'Process', 'Work Order'];
+    const steps = ['Modules', 'Line', 'Product', 'Process', 'Work Order'];
 
     const skipWizard = (e) => {
         e.preventDefault();

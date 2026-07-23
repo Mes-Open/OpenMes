@@ -4872,5 +4872,14 @@
     "Cannot delete a revision that is used by work orders.": "Cannot delete a revision that is used by work orders.",
     "Only draft revisions can be released.": "Only draft revisions can be released.",
     "Select a process template before releasing the revision.": "Select a process template before releasing the revision.",
-    "Only released revisions can be made obsolete.": "Only released revisions can be made obsolete."
+    "Only released revisions can be made obsolete.": "Only released revisions can be made obsolete.",
+    "Step 1 — Modules": "Step 1 — Modules",
+    "Choose your modules": "Choose your modules",
+    "Turn on only the feature areas your team needs. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules.": "Turn on only the feature areas your team needs. Core areas (Dashboard, Orders, Production, Admin) are always on. You can change this anytime in Settings → System → Modules.",
+    "Lightweight": "Lightweight",
+    "Core production tracking + Reports. The simplest setup — recommended for small shops.": "Core production tracking + Reports. The simplest setup — recommended for small shops.",
+    "Adds:": "Adds:",
+    "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.": "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.",
+    "Pick exactly which modules to enable.": "Pick exactly which modules to enable.",
+    "Next: Production Line →": "Next: Production Line →"
 }
