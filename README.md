@@ -24,19 +24,20 @@
 
 ## What is OpenMES?
 
-**OpenMES** is a modern, open-source Manufacturing Execution System designed specifically for **small manufacturers** (woodworking, metalworking, assembly shops) who need powerful production tracking without enterprise complexity.
+**OpenMES** is a self-hosted, open-source MES (Manufacturing Execution System) built for small and mid-sized manufacturers — woodworking, metal fabrication, plastics and assembly shops — who need real production tracking without enterprise complexity or licensing costs.
 
 ![OpenMES on desktop, mobile and web](docs/screenshots/openmes-desktop-mobile-web.png)
 
 
 ### Why OpenMES?
 
-- 🎯 **Purpose-built for small manufacturers** - No bloat, just what you need
-- 📱 **Tablet-first design** - Touch-optimized for shop floor operators
-- 🔒 **Security-first** - OWASP Top 10 compliant from day one
-- 📊 **Real-time visibility** - Know exactly what's happening on every line
-- 🆓 **Truly open-source** - AGPL-3.0 licensed, no vendor lock-in
-- 🚀 **Deploy in minutes** - Single command Docker deployment
+- 🎯 **Purpose-built for small manufacturers** — woodworking, metal fabrication, plastics and assembly shops. No enterprise bloat, just what a real shop floor needs
+- 🆓 **Truly free and open-source** — AGPL-3.0, no per-user fees, no modules to unlock, no vendor lock-in
+- 📱 **Tablet-first design** — touch-optimized screens for shop-floor operators
+- 📊 **Real-time production visibility** — work orders, batches, quality checks, downtime reasons and reports for every line
+- 🔌 **Connects to your machines and ERP** — native MQTT machine data collection, REST API, CSV/XLS import (SAP, Odoo, Comarch), PrestaShop connector
+- 🚀 **Deploy in minutes** — single-command Docker deployment; an old office PC is enough
+- 🔒 **Security-first** — OWASP Top 10 compliant from day one
 - 📐 **ISA-95 aligned** — Level 3 MES with ISA-95 / IEC 62264 hierarchies and MOM coverage ([details](./docs/isa95.md))
 
 ---
