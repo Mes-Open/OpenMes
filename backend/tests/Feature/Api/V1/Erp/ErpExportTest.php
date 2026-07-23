@@ -9,6 +9,7 @@ use App\Models\Line;
 use App\Models\ProductType;
 use App\Models\Tenant;
 use App\Models\WorkOrder;
+use App\Support\ModuleRegistry;
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -123,6 +124,17 @@ class ErpExportTest extends TestCase
             ->assertJsonPath('data.order_no', 'WO-SHOW');
     }
 
+    public function test_show_does_not_leak_another_tenant_order(): void
+    {
+        app(TenantContext::class)->set($this->otherTenantId);
+        $foreign = WorkOrder::factory()->create(['tenant_id' => $this->otherTenantId, 'order_no' => 'FOREIGN']);
+        app(TenantContext::class)->set($this->tenantId);
+
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson("/api/v1/erp/work-orders/{$foreign->id}")
+            ->assertStatus(404);
+    }
+
     public function test_quality_export_returns_issues_scoped_to_tenant(): void
     {
         $wo = $this->workOrder(['order_no' => 'WO-Q', 'status' => WorkOrder::STATUS_IN_PROGRESS]);
@@ -152,5 +164,15 @@ class ErpExportTest extends TestCase
         $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
             ->getJson('/api/v1/erp/quality/issues')
             ->assertStatus(403);
+    }
+
+    public function test_erp_api_404s_when_the_module_is_disabled(): void
+    {
+        // Persist an enabled-module set that omits 'erp' → module off.
+        ModuleRegistry::save(['reports']);
+
+        $this->withHeader('X-Api-Key', $this->keyWith([ApiScope::ProductionRead]))
+            ->getJson('/api/v1/erp/production/completions')
+            ->assertStatus(404);
     }
 }

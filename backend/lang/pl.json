@@ -4879,5 +4879,7 @@
     "This API key is not authorized for :scope.": "Ten klucz API nie ma uprawnienia :scope.",
     "Import work orders": "Import zleceń produkcyjnych",
     "Read production completions": "Odczyt danych o wykonaniu produkcji",
-    "Read quality & issue reports": "Odczyt raportów jakości i niezgodności"
+    "Read quality & issue reports": "Odczyt raportów jakości i niezgodności",
+    "ERP integration": "Integracja ERP",
+    "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.": "REST API do importu zleceń produkcyjnych z ERP (SAP, Comarch, enova365, Dynamics) i eksportu danych o produkcji i jakości z powrotem, zabezpieczone kluczami API."
 }

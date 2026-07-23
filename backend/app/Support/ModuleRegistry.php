@@ -52,6 +52,10 @@ class ModuleRegistry
             'label' => 'Webhooks',
             'description' => 'Send HTTP notifications to external systems on work-order, issue and batch events.',
         ],
+        'erp' => [
+            'label' => 'ERP integration',
+            'description' => 'REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.',
+        ],
     ];
 
     /** @return array<int, string> */

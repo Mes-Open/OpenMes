@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1;
 use App\Models\ApiKey;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -83,5 +84,14 @@ class ApiKeyManagementTest extends TestCase
         $this->actingAs($user, 'sanctum')
             ->getJson('/api/v1/api-keys')
             ->assertStatus(403);
+    }
+
+    public function test_key_management_404s_when_the_erp_module_is_disabled(): void
+    {
+        ModuleRegistry::save(['reports']); // enabled set without 'erp'
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/api-keys')
+            ->assertStatus(404);
     }
 }

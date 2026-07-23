@@ -4879,5 +4879,7 @@
     "This API key is not authorized for :scope.": "This API key is not authorized for :scope.",
     "Import work orders": "Import work orders",
     "Read production completions": "Read production completions",
-    "Read quality & issue reports": "Read quality & issue reports"
+    "Read quality & issue reports": "Read quality & issue reports",
+    "ERP integration": "ERP integration",
+    "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.": "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys."
 }

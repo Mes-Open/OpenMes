@@ -47,14 +47,23 @@ class ProductionExportController extends Controller
 
     /**
      * Single work order by id — lets the ERP confirm the current state of one
-     * order it previously imported. 404 (via route-model binding) when the id
-     * is unknown within the key's tenant.
+     * order it previously imported. 404 when the id is unknown within the key's
+     * tenant.
+     *
+     * The model is resolved here rather than via implicit route-model binding on
+     * purpose: SubstituteBindings runs before this route's API-key middleware
+     * (which is not in the framework's middleware-priority list, unlike
+     * auth:sanctum), so a bound model would be looked up before TenantContext is
+     * set — with TenantScope disabled — and could return another tenant's order.
+     * Resolving in the controller runs after the middleware, so the tenant scope
+     * is always applied.
      */
-    public function show(WorkOrder $workOrder): JsonResponse
+    public function show(int $workOrder): JsonResponse
     {
-        $workOrder->load(['line:id,code,name', 'productType:id,code,name']);
+        $order = WorkOrder::with(['line:id,code,name', 'productType:id,code,name'])
+            ->findOrFail($workOrder);
 
-        return response()->json(['data' => $this->present($workOrder)]);
+        return response()->json(['data' => $this->present($order)]);
     }
 
     private function present(WorkOrder $wo): array

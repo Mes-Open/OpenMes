@@ -117,7 +117,7 @@ Route::prefix('auth')->group(function () {
 // Machine-to-machine: authenticated by API key (X-Api-Key or Bearer), authorized
 // per-endpoint by scope, rate limited per key. Kept separate from the Sanctum v1
 // tree because these are headless service credentials, not user sessions.
-Route::prefix('v1/erp')->middleware('auth.apikey')->group(function () {
+Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(function () {
     // ERP → OpenMES: bulk work-order import.
     Route::post('/work-orders/import', [ErpWorkOrderImportController::class, 'store'])
         ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);
@@ -367,11 +367,14 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
         // ERP integration API keys (machine-to-machine credentials for the
         // /v1/erp/* endpoints). The plaintext secret is returned only from store.
-        Route::get('/api-keys', [ApiKeyController::class, 'index']);
-        Route::post('/api-keys', [ApiKeyController::class, 'store']);
-        Route::patch('/api-keys/{apiKey}', [ApiKeyController::class, 'update']);
-        Route::post('/api-keys/{apiKey}/toggle-active', [ApiKeyController::class, 'toggleActive']);
-        Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy']);
+        // Gated on the ERP module: disabling it 404s key management too.
+        Route::middleware('module:erp')->group(function () {
+            Route::get('/api-keys', [ApiKeyController::class, 'index']);
+            Route::post('/api-keys', [ApiKeyController::class, 'store']);
+            Route::patch('/api-keys/{apiKey}', [ApiKeyController::class, 'update']);
+            Route::post('/api-keys/{apiKey}/toggle-active', [ApiKeyController::class, 'toggleActive']);
+            Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy']);
+        });
         Route::get('/custom-fields', [CustomFieldDefinitionController::class, 'index']);
         Route::get('/custom-fields/meta', [CustomFieldDefinitionController::class, 'formMeta']);
         Route::post('/custom-fields', [CustomFieldDefinitionController::class, 'store']);
