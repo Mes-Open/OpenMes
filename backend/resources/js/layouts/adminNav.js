@@ -84,12 +84,14 @@ export const ADMIN_GROUPS = [
         ],
         children: [
             { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'] },
-            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'] },
-            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'] },
+            // Gated by the Structure module (product/business master data) so a
+            // Lightweight install hides them under this (core) Production group.
+            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'structure' },
+            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'structure' },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'] },
             { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'] },
             { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'] },
-            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'] },
+            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'structure' },
             {
                 key: 'linesGroup',
                 label: 'Production Lines',
@@ -101,10 +103,11 @@ export const ADMIN_GROUPS = [
                     { label: 'Shifts', href: '/admin/shifts', match: ['/admin/shifts'] },
                 ],
             },
-            { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'] },
-            { label: 'Companies', href: '/admin/companies', match: ['/admin/companies'] },
-            { label: 'Anomaly Reasons', href: '/admin/anomaly-reasons', match: ['/admin/anomaly-reasons'] },
-            { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'] },
+            // Issues + quality reason codes gated by Maintenance & Quality; Companies by Structure.
+            { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'maintenance' },
+            { label: 'Companies', href: '/admin/companies', match: ['/admin/companies'], tab: 'structure' },
+            { label: 'Anomaly Reasons', href: '/admin/anomaly-reasons', match: ['/admin/anomaly-reasons'], tab: 'maintenance' },
+            { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'maintenance' },
         ],
     },
     {

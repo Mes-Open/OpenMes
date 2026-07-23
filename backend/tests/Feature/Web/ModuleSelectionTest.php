@@ -73,6 +73,42 @@ class ModuleSelectionTest extends TestCase
         $this->actingAs($this->admin)->get('/admin/schedule')->assertOk();
     }
 
+    public function test_production_master_data_is_gated_by_the_structure_module(): void
+    {
+        // These live under the (core) Production nav group but are gated by Structure,
+        // so a Lightweight install (Reports only) hides them.
+        $gated = ['/admin/materials', '/admin/process-segments', '/admin/product-revisions', '/admin/companies'];
+
+        foreach ($gated as $path) {
+            $this->actingAs($this->admin)->get($path)->assertOk();
+        }
+
+        $this->disableModule('structure');
+
+        foreach ($gated as $path) {
+            $this->actingAs($this->admin)->get($path)->assertNotFound();
+        }
+        // …while core Production pages stay reachable.
+        $this->actingAs($this->admin)->get('/admin/product-types')->assertOk();
+        $this->actingAs($this->admin)->get('/admin/material-lots')->assertOk();
+    }
+
+    public function test_quality_reason_codes_are_gated_by_the_maintenance_module(): void
+    {
+        $gated = ['/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons'];
+
+        foreach ($gated as $path) {
+            $this->actingAs($this->admin)->get($path)->assertOk();
+        }
+
+        $this->disableModule('maintenance');
+
+        foreach ($gated as $path) {
+            $this->actingAs($this->admin)->get($path)->assertNotFound();
+        }
+        $this->actingAs($this->admin)->get('/admin/product-types')->assertOk();
+    }
+
     public function test_disabled_module_is_dropped_from_accessible_tabs(): void
     {
         $this->disableModule('connectivity');

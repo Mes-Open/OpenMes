@@ -22,15 +22,22 @@ class TabRegistry
         'schedule' => ['label' => 'Schedule', 'prefixes' => ['/admin/schedule']],
         'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/csv-import']],
         'production' => ['label' => 'Production', 'prefixes' => [
-            '/admin/product-types', '/admin/materials', '/admin/material-lots', '/admin/traceability',
-            '/admin/lot-sequences', '/admin/process-segments', '/admin/lines', '/admin/line-statuses',
-            '/admin/view-templates', '/admin/shifts', '/admin/issues', '/admin/companies',
-            '/admin/anomaly-reasons', '/admin/scrap-reasons',
+            '/admin/product-types', '/admin/material-lots', '/admin/traceability',
+            '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
+            '/admin/view-templates', '/admin/shifts',
+            // Note: Materials, Process Segments, Product Revisions and Companies
+            // are gated by the Structure module; Issues, Anomaly Reasons and
+            // Scrap Reasons by Maintenance & Quality. They render under the
+            // Production nav group but live on those tabs so a Lightweight
+            // install (Reports only) hides them.
         ]],
         'reports' => ['label' => 'Reports', 'prefixes' => ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements']],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
             '/admin/workstation-types', '/admin/subassemblies',
+            // Product & business master data — gated by Structure so a Lightweight
+            // install hides them, though they render under the Production nav group.
+            '/admin/materials', '/admin/process-segments', '/admin/product-revisions', '/admin/companies',
         ]],
         'hr' => ['label' => 'HR', 'prefixes' => [
             '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',
@@ -44,6 +51,9 @@ class TabRegistry
             '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
             '/admin/production-anomalies', '/admin/inspection-plans', '/admin/quality-control-triggers',
             '/admin/quality-tasks', '/admin/oee',
+            // Quality reason codes + issue tracking — gated by Maintenance & Quality
+            // so Lightweight hides them; they render under the Production nav group.
+            '/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons',
         ]],
         'connectivity' => ['label' => 'Connectivity', 'prefixes' => ['/admin/connectivity', '/admin/machine-monitor']],
         'webhooks' => ['label' => 'Webhooks', 'prefixes' => ['/admin/webhooks']],
