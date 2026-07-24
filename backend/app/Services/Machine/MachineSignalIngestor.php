@@ -5,6 +5,7 @@ namespace App\Services\Machine;
 use App\Models\MachineEvent;
 use App\Models\MachineTag;
 use App\Models\Workstation;
+use App\Services\WorkOrder\MachineProductionService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -24,7 +25,10 @@ use Illuminate\Support\Str;
  */
 class MachineSignalIngestor
 {
-    public function __construct(private readonly WorkstationStateMachine $stateMachine) {}
+    public function __construct(
+        private readonly WorkstationStateMachine $stateMachine,
+        private readonly MachineProductionService $production,
+    ) {}
 
     public function ingest(MachineTag $tag, mixed $rawValue, ?Carbon $at = null): void
     {
@@ -91,6 +95,19 @@ class MachineSignalIngestor
             'value' => $value,
             'delta' => $delta,
         ]);
+
+        // Close the loop to work order progress: a good-count delta drives
+        // produced_qty on the order currently running at this workstation, but
+        // only when that order is machine-counted (the service enforces this).
+        // Reject counts stay in the event log for now (scrap wiring is a
+        // follow-up). No active machine-counted order → the event above is the
+        // full record, exactly as before.
+        if ($kind === 'good') {
+            $workOrder = $this->production->resolveActiveWorkOrder($ws);
+            if ($workOrder) {
+                $this->production->recordGoodCount($workOrder, $delta);
+            }
+        }
     }
 
     private function handleTelemetry(MachineTag $tag, ?Workstation $ws, mixed $value, Carbon $at): void

@@ -28,6 +28,12 @@ class WorkerFactory extends Factory
         return $this->state(fn () => ['is_active' => false]);
     }
 
+    /** A logistics operator / forklift driver (eligible to move pallets, #103). */
+    public function logistics(): static
+    {
+        return $this->state(fn () => ['is_logistics' => true]);
+    }
+
     public function paidHourly(float $rate = 40, string $currency = 'PLN'): static
     {
         return $this->state(fn () => [

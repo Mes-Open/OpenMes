@@ -55,6 +55,7 @@ use App\Http\Controllers\Web\Admin\WorkstationTypeController;
 // Materials & BOM
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\IssueManagementController;
+use App\Http\Controllers\Web\Logistics\PalletMovementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 // Gate 7 — Maintenance
@@ -228,6 +229,8 @@ Route::middleware('auth')->group(function () {
     // Onboarding Wizard (Admin only)
     Route::prefix('onboarding')->name('onboarding.')->middleware('role:Admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\Web\OnboardingController::class, 'index'])->name('index');
+        Route::get('/modules', [\App\Http\Controllers\Web\OnboardingController::class, 'modules'])->name('modules');
+        Route::post('/modules', [\App\Http\Controllers\Web\OnboardingController::class, 'storeModules']);
         Route::get('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'step1'])->name('step1');
         Route::post('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep1']);
         Route::get('/step/2', [\App\Http\Controllers\Web\OnboardingController::class, 'step2'])->name('step2');
@@ -424,6 +427,11 @@ Route::middleware('auth')->group(function () {
         Route::resource('customers', CustomerController::class)->except(['show']);
         Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
 
+        // Product revisions (#180) — versioned released configuration per product type.
+        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class)->except(['show']);
+        Route::post('/product-revisions/{productRevision}/release', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'release'])->name('product-revisions.release');
+        Route::post('/product-revisions/{productRevision}/obsolete', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'obsolete'])->name('product-revisions.obsolete');
+
         // Priority Settings (scoring rules + score→priority band mapping)
         Route::post('/priority-rules/bands', [PriorityRuleController::class, 'updateBands'])->name('priority-rules.bands');
         Route::resource('priority-rules', PriorityRuleController::class)->except(['show']);
@@ -541,6 +549,9 @@ Route::middleware('auth')->group(function () {
 
         // Pallets
         Route::resource('pallets', AdminPalletController::class)->except(['show']);
+
+        // Physical pallet movement history (#103) — who moved which pallet where.
+        Route::get('pallet-movements', [PalletMovementController::class, 'index'])->name('pallet-movements.index');
 
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
@@ -782,6 +793,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/maintenance-schedules/{maintenanceSchedule}/generate-now', [\App\Http\Controllers\Web\Admin\MaintenanceScheduleController::class, 'generateNow'])
             ->name('maintenance-schedules.generate-now');
     });
+
+    // ── Logistics: shop-floor pallet movement terminal (#103) ────────────────
+    Route::name('logistics.')->prefix('logistics')
+        ->middleware('role:Operator|Supervisor|Admin')
+        ->group(function () {
+            Route::get('/move-pallet', [PalletMovementController::class, 'terminal'])->name('move-pallet');
+            Route::post('/movements', [PalletMovementController::class, 'store'])->name('movements.store');
+        });
 
     // ── Packaging ───────────────────────────────────────────────────────────
     Route::name('packaging.')->prefix('packaging')->group(function () {

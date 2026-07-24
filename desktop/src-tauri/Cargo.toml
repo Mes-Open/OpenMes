@@ -1,6 +1,6 @@
 [package]
 name = "openmes-desktop"
-version = "0.17.2"
+version = "0.18.0"
 description = "OpenMES Desktop — lokalny serwer MES w aplikacji desktopowej"
 authors = ["OpenMES"]
 edition = "2021"

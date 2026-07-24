@@ -39,6 +39,7 @@ class SoftDeleteRegistry
         'shifts' => Models\Shift::class,
         'inspection_plans' => Models\InspectionPlan::class,
         'priority_rules' => Models\PriorityRule::class,
+        'product_revisions' => Models\ProductRevision::class,
 
         // Structure
         'customers' => Models\Customer::class,

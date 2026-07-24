@@ -2,7 +2,6 @@
 
 namespace App\Services\Connectivity;
 
-use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\Issue;
 use App\Models\Line;
@@ -10,14 +9,15 @@ use App\Models\LineStatus;
 use App\Models\MachineTopic;
 use App\Models\TopicMapping;
 use App\Models\WorkOrder;
-use Illuminate\Support\Facades\DB;
+use App\Services\WorkOrder\MachineProductionService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ActionExecutor
 {
     public function __construct(
-        private readonly MqttMessageParser $parser
+        private readonly MqttMessageParser $parser,
+        private readonly MachineProductionService $production,
     ) {}
 
     /**
@@ -42,10 +42,10 @@ class ActionExecutor
     public function executeSingle(TopicMapping $mapping, array $parsedData): array
     {
         $result = [
-            'mapping_id'  => $mapping->id,
+            'mapping_id' => $mapping->id,
             'action_type' => $mapping->action_type,
-            'status'      => 'skipped',
-            'message'     => null,
+            'status' => 'skipped',
+            'message' => null,
         ];
 
         try {
@@ -53,31 +53,32 @@ class ActionExecutor
             $fieldValue = $this->parser->resolvePath($mapping->field_path, $parsedData);
 
             // Evaluate condition
-            if (!$this->parser->evaluateCondition($mapping->condition_expr, $fieldValue)) {
+            if (! $this->parser->evaluateCondition($mapping->condition_expr, $fieldValue)) {
                 $result['message'] = 'Condition not met';
+
                 return $result;
             }
 
             $params = $mapping->action_params ?? [];
             $outcome = match ($mapping->action_type) {
-                TopicMapping::ACTION_UPDATE_BATCH_STEP     => $this->updateBatchStep($params, $parsedData, $fieldValue),
+                TopicMapping::ACTION_UPDATE_BATCH_STEP => $this->updateBatchStep($params, $parsedData, $fieldValue),
                 TopicMapping::ACTION_UPDATE_WORK_ORDER_QTY => $this->updateWorkOrderQty($params, $parsedData, $fieldValue),
-                TopicMapping::ACTION_CREATE_ISSUE          => $this->createIssue($params, $parsedData, $fieldValue),
-                TopicMapping::ACTION_UPDATE_LINE_STATUS    => $this->updateLineStatus($params, $parsedData, $fieldValue),
+                TopicMapping::ACTION_CREATE_ISSUE => $this->createIssue($params, $parsedData, $fieldValue),
+                TopicMapping::ACTION_UPDATE_LINE_STATUS => $this->updateLineStatus($params, $parsedData, $fieldValue),
                 TopicMapping::ACTION_SET_WORK_ORDER_STATUS => $this->setWorkOrderStatus($params, $parsedData, $fieldValue),
-                TopicMapping::ACTION_WEBHOOK_FORWARD       => $this->webhookForward($params, $parsedData),
-                TopicMapping::ACTION_LOG_EVENT             => ['logged' => true],
+                TopicMapping::ACTION_WEBHOOK_FORWARD => $this->webhookForward($params, $parsedData),
+                TopicMapping::ACTION_LOG_EVENT => ['logged' => true],
                 default => throw new \InvalidArgumentException("Unknown action: {$mapping->action_type}"),
             };
 
-            $result['status']  = 'ok';
+            $result['status'] = 'ok';
             $result['message'] = json_encode($outcome);
         } catch (\Throwable $e) {
-            $result['status']  = 'error';
+            $result['status'] = 'error';
             $result['message'] = $e->getMessage();
             Log::warning('ActionExecutor error', [
                 'mapping_id' => $mapping->id,
-                'error'      => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -89,10 +90,10 @@ class ActionExecutor
     private function updateBatchStep(array $params, array $data, mixed $fieldValue): array
     {
         // params: { step_id_path, result_path, result (static), batch_id_path, step_order }
-        $stepId    = $this->resolveParam($params, 'step_id_path', $data);
-        $batchId   = $this->resolveParam($params, 'batch_id_path', $data);
+        $stepId = $this->resolveParam($params, 'step_id_path', $data);
+        $batchId = $this->resolveParam($params, 'batch_id_path', $data);
         $stepOrder = $this->resolveParam($params, 'step_order_path', $data) ?? ($params['step_order'] ?? null);
-        $result    = $this->resolveParam($params, 'result_path', $data) ?? ($params['result'] ?? 'done');
+        $result = $this->resolveParam($params, 'result_path', $data) ?? ($params['result'] ?? 'done');
 
         $step = null;
         if ($stepId) {
@@ -103,18 +104,18 @@ class ActionExecutor
                 ->first();
         }
 
-        if (!$step) {
+        if (! $step) {
             throw new \RuntimeException("BatchStep not found (step_id={$stepId}, batch_id={$batchId})");
         }
 
         $newStatus = match ($result) {
             'done', 'completed', '1', 'true' => 'done',
-            'failed', 'error', '0', 'false'  => 'failed',
-            default                           => 'done',
+            'failed', 'error', '0', 'false' => 'failed',
+            default => 'done',
         };
 
         $step->update([
-            'status'       => $newStatus,
+            'status' => $newStatus,
             'completed_at' => $newStatus === 'done' ? now() : null,
         ]);
 
@@ -124,9 +125,9 @@ class ActionExecutor
     private function updateWorkOrderQty(array $params, array $data, mixed $fieldValue): array
     {
         // params: { order_no_path, order_id (static), qty_path, qty_increment (bool) }
-        $orderNo  = $this->resolveParam($params, 'order_no_path', $data) ?? ($params['order_no'] ?? null);
-        $orderId  = $this->resolveParam($params, 'order_id_path', $data) ?? ($params['order_id'] ?? null);
-        $qty      = $this->resolveParam($params, 'qty_path', $data) ?? $fieldValue;
+        $orderNo = $this->resolveParam($params, 'order_no_path', $data) ?? ($params['order_no'] ?? null);
+        $orderId = $this->resolveParam($params, 'order_id_path', $data) ?? ($params['order_id'] ?? null);
+        $qty = $this->resolveParam($params, 'qty_path', $data) ?? $fieldValue;
         $increment = (bool) ($params['qty_increment'] ?? false);
 
         $workOrder = null;
@@ -136,25 +137,34 @@ class ActionExecutor
             $workOrder = WorkOrder::find($orderId);
         }
 
-        if (!$workOrder) {
+        if (! $workOrder) {
             throw new \RuntimeException("WorkOrder not found (order_no={$orderNo})");
         }
 
-        if ($increment) {
-            $workOrder->increment('produced_qty', (float) $qty);
-            \App\Sync\CollectionBroadcaster::flush($workOrder); // increment() bypasses model events
-        } else {
-            $workOrder->update(['produced_qty' => (float) $qty]);
-        }
+        // Route through the shared machine-count path so counting_source is
+        // honoured (an operator-counted order is not touched — this is what
+        // eliminates the double-count when both a machine mapping and operator
+        // entry target the same order) and the auto-start / auto-complete side
+        // effects stay identical to the signal pipeline.
+        $applied = $increment
+            ? $this->production->recordGoodCount($workOrder, (float) $qty)
+            : $this->production->recordAbsoluteCount($workOrder, (float) $qty);
 
-        return ['order_no' => $workOrder->order_no, 'produced_qty' => $workOrder->fresh()->produced_qty];
+        $workOrder->refresh();
+
+        return [
+            'order_no' => $workOrder->order_no,
+            'produced_qty' => $workOrder->produced_qty,
+            'applied' => $applied,
+            'skipped' => $applied ? null : 'work order is not machine-counted (counting_source)',
+        ];
     }
 
     private function createIssue(array $params, array $data, mixed $fieldValue): array
     {
         // params: { issue_type_id, work_order_no_path, description_path, description (static) }
         $issueTypeId = $this->resolveParam($params, 'issue_type_id_path', $data) ?? ($params['issue_type_id'] ?? null);
-        $orderNo     = $this->resolveParam($params, 'work_order_no_path', $data) ?? ($params['work_order_no'] ?? null);
+        $orderNo = $this->resolveParam($params, 'work_order_no_path', $data) ?? ($params['work_order_no'] ?? null);
         $description = $this->resolveParam($params, 'description_path', $data)
             ?? ($params['description'] ?? 'Machine-generated issue');
 
@@ -164,11 +174,11 @@ class ActionExecutor
         }
 
         $issue = Issue::create([
-            'issue_type_id'  => $issueTypeId,
-            'work_order_id'  => $workOrderId,
-            'description'    => (string) $description,
-            'status'         => 'open',
-            'reported_by'    => null, // machine-generated
+            'issue_type_id' => $issueTypeId,
+            'work_order_id' => $workOrderId,
+            'description' => (string) $description,
+            'status' => 'open',
+            'reported_by' => null, // machine-generated
         ]);
 
         return ['issue_id' => $issue->id];
@@ -177,16 +187,16 @@ class ActionExecutor
     private function updateLineStatus(array $params, array $data, mixed $fieldValue): array
     {
         // params: { line_id (static), line_code_path, status_id (static), status_code_path }
-        $lineId      = $this->resolveParam($params, 'line_id_path', $data) ?? ($params['line_id'] ?? null);
-        $lineCode    = $this->resolveParam($params, 'line_code_path', $data) ?? ($params['line_code'] ?? null);
-        $statusId    = $this->resolveParam($params, 'status_id_path', $data) ?? ($params['status_id'] ?? null);
-        $statusCode  = $this->resolveParam($params, 'status_code_path', $data) ?? ($params['status_code'] ?? null);
+        $lineId = $this->resolveParam($params, 'line_id_path', $data) ?? ($params['line_id'] ?? null);
+        $lineCode = $this->resolveParam($params, 'line_code_path', $data) ?? ($params['line_code'] ?? null);
+        $statusId = $this->resolveParam($params, 'status_id_path', $data) ?? ($params['status_id'] ?? null);
+        $statusCode = $this->resolveParam($params, 'status_code_path', $data) ?? ($params['status_code'] ?? null);
 
         $line = $lineId
             ? Line::find($lineId)
             : Line::where('code', $lineCode)->first();
 
-        if (!$line) {
+        if (! $line) {
             throw new \RuntimeException("Line not found (id={$lineId}, code={$lineCode})");
         }
 
@@ -194,7 +204,7 @@ class ActionExecutor
             ? LineStatus::find($statusId)
             : LineStatus::where('code', $statusCode)->first();
 
-        if (!$lineStatus) {
+        if (! $lineStatus) {
             throw new \RuntimeException("LineStatus not found (id={$statusId}, code={$statusCode})");
         }
 
@@ -214,12 +224,12 @@ class ActionExecutor
     private function setWorkOrderStatus(array $params, array $data, mixed $fieldValue): array
     {
         // params: { order_no_path, order_id (static), status (static), status_path }
-        $orderNo  = $this->resolveParam($params, 'order_no_path', $data) ?? ($params['order_no'] ?? null);
-        $orderId  = $this->resolveParam($params, 'order_id_path', $data) ?? ($params['order_id'] ?? null);
-        $status   = $this->resolveParam($params, 'status_path', $data) ?? ($params['status'] ?? null);
+        $orderNo = $this->resolveParam($params, 'order_no_path', $data) ?? ($params['order_no'] ?? null);
+        $orderId = $this->resolveParam($params, 'order_id_path', $data) ?? ($params['order_id'] ?? null);
+        $status = $this->resolveParam($params, 'status_path', $data) ?? ($params['status'] ?? null);
 
         $allowed = ['pending', 'accepted', 'in_progress', 'completed', 'paused', 'rejected'];
-        if (!in_array($status, $allowed)) {
+        if (! in_array($status, $allowed)) {
             throw new \RuntimeException("Invalid work order status: {$status}");
         }
 
@@ -227,8 +237,8 @@ class ActionExecutor
             ? WorkOrder::where('order_no', $orderNo)->first()
             : WorkOrder::find($orderId);
 
-        if (!$workOrder) {
-            throw new \RuntimeException("WorkOrder not found");
+        if (! $workOrder) {
+            throw new \RuntimeException('WorkOrder not found');
         }
 
         $workOrder->update(['status' => $status]);
@@ -239,12 +249,12 @@ class ActionExecutor
     private function webhookForward(array $params, array $data): array
     {
         // params: { url, method (GET/POST), headers (object) }
-        $url     = $params['url'] ?? null;
-        $method  = strtolower($params['method'] ?? 'post');
+        $url = $params['url'] ?? null;
+        $method = strtolower($params['method'] ?? 'post');
         $headers = $params['headers'] ?? [];
 
-        if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
-            throw new \RuntimeException("Invalid or missing webhook URL");
+        if (! $url || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            throw new \RuntimeException('Invalid or missing webhook URL');
         }
 
         // Block SSRF — reject requests to private/loopback/metadata addresses
@@ -256,13 +266,13 @@ class ActionExecutor
                     FILTER_FLAG_NO_PRIV_RANGE,
                     FILTER_FLAG_NO_RES_RANGE,
                 ] as $flag) {
-                    if (!filter_var($ip, FILTER_VALIDATE_IP, $flag)) {
-                        throw new \RuntimeException("Webhook URL resolves to a private/reserved address");
+                    if (! filter_var($ip, FILTER_VALIDATE_IP, $flag)) {
+                        throw new \RuntimeException('Webhook URL resolves to a private/reserved address');
                     }
                 }
                 // Block AWS/GCP/Azure metadata endpoints explicitly
                 if (in_array($ip, ['169.254.169.254', '169.254.170.2', '100.100.100.200'])) {
-                    throw new \RuntimeException("Webhook URL resolves to a private/reserved address");
+                    throw new \RuntimeException('Webhook URL resolves to a private/reserved address');
                 }
             }
         }
@@ -282,9 +292,10 @@ class ActionExecutor
      */
     private function resolveParam(array $params, string $pathKey, array $data): mixed
     {
-        if (!isset($params[$pathKey])) {
+        if (! isset($params[$pathKey])) {
             return null;
         }
+
         return $this->parser->resolvePath($params[$pathKey], $data);
     }
 }

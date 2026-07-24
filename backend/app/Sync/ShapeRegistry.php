@@ -6,6 +6,7 @@ use App\Sync\Shapes\IssuesOpenShape;
 use App\Sync\Shapes\IssueTypesShape;
 use App\Sync\Shapes\LinesActiveShape;
 use App\Sync\Shapes\OeeRecordsRecentShape;
+use App\Sync\Shapes\PalletMovementsRecentShape;
 use App\Sync\Shapes\ProductTypesShape;
 use App\Sync\Shapes\WorkOrdersActiveShape;
 
@@ -53,6 +54,10 @@ class ShapeRegistry
         'priority_rules' => [
             'table' => 'priority_rules',
             'columns' => ['id', 'name', 'field_source', 'condition_type', 'condition_value', 'condition_value_max', 'points', 'is_active', 'sort_order', 'created_at', 'updated_at'],
+        ],
+        'product_revisions' => [
+            'table' => 'product_revisions',
+            'columns' => ['id', 'product_type_id', 'revision_code', 'description', 'lifecycle_status', 'process_template_id', 'change_reason', 'external_ref', 'effective_from', 'effective_to', 'released_at', 'obsolete_at', 'created_at', 'updated_at'],
         ],
         'cost_sources' => [
             'table' => 'cost_sources',
@@ -172,6 +177,10 @@ class ShapeRegistry
             'table' => 'pallets',
             'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
         ],
+        // Physical pallet movement history (#103) — who moved which pallet where.
+        // Rolling recent window (see the class) so the append-only ledger can't
+        // grow the synced payload without bound.
+        'pallet_movements' => PalletMovementsRecentShape::class,
         // integration_configs: exclude api_config (may hold credentials).
         'integration_configs' => [
             'table' => 'integration_configs',
@@ -179,7 +188,7 @@ class ShapeRegistry
         ],
         'workers' => [
             'table' => 'workers',
-            'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'email', 'phone', 'crew_id', 'wage_group_id', 'personnel_class_id', 'workstation_id', 'is_active', 'is_logistics', 'custom_fields', 'created_at', 'updated_at'],
         ],
         'process_segments' => [
             'table' => 'process_segments',
@@ -189,7 +198,7 @@ class ShapeRegistry
         // work_orders_active excludes done/cancelled/rejected.
         'work_orders_all' => [
             'table' => 'work_orders',
-            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'planned_qty', 'unit_price', 'produced_qty', 'status', 'priority', 'priority_score', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'order_no', 'customer_order_no', 'customer_id', 'line_id', 'product_type_id', 'product_revision_id', 'planned_qty', 'unit_price', 'produced_qty', 'counting_source', 'status', 'priority', 'priority_score', 'due_date', 'completed_at', 'custom_fields', 'created_at', 'updated_at'],
         ],
         // All lines (incl. inactive) for the admin list — lines_active is active-only.
         'lines_all' => [

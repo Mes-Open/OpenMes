@@ -408,12 +408,10 @@ class SettingsController extends Controller
 
         Cache::forget('cors_allowed_origins');
 
-        // Only realign the session locale when the language actually changed,
-        // so saving an unrelated setting does not clobber a per-session
-        // language the user picked via the switcher.
-        if ($map['language'] !== $previousLanguage) {
-            $request->session()->put('locale', $map['language']);
-        }
+        // Always sync session locale with the saved language so the UI
+        // reflects the choice immediately — even when the session had a
+        // stale override from the login-screen switcher (#205).
+        $request->session()->put('locale', $map['language']);
 
         return redirect()->route('settings.system')
             ->with('success', 'System settings updated.');

@@ -2309,7 +2309,7 @@ dependencies = [
 
 [[package]]
 name = "openmes-desktop"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "libc",
  "serde",
