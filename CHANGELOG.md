@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- **Sample data now fills the production planner** *(demo)*: the "Load sample data" seeder used to scatter ~46 work orders one-every-two-days across a 3-month horizon, so any single week of the planner looked nearly empty (~9 orders spread over 5 lines × 7 days × 3 shifts). It now **densely packs the current week** — an order in most (line, day, shift) slots, anchored to `now()->startOfWeek()` so the visible week is always the busy one — with a lighter taper over the neighbouring weeks and last week's work marked DONE. The current week stays **active end-to-end** (in-progress / accepted / pending) so every day renders blocks, including days already behind "today". A freshly seeded demo now opens on a realistic, almost-full weekly board instead of a sparse one. `PrintShopDemoSeeder` only; no schema or app-logic change.
+
 ## [0.17.1] - 2026-07-23
 
 ### Fixed
