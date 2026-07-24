@@ -60,6 +60,101 @@ class ModuleSelectionTest extends TestCase
         $this->actingAs($this->admin)->get('/admin/workers')->assertNotFound();
     }
 
+    public function test_employee_scheduling_is_gated_by_the_hr_module(): void
+    {
+        // HR enabled → employee scheduling (under the core Schedule area) is reachable.
+        $this->actingAs($this->admin)->get('/admin/schedule/employees')->assertOk();
+
+        $this->disableModule('hr');
+
+        // HR disabled → the employee sub-page 404s, even though Schedule is core…
+        $this->actingAs($this->admin)->get('/admin/schedule/employees')->assertNotFound();
+        // …while the Schedule planner itself stays reachable.
+        $this->actingAs($this->admin)->get('/admin/schedule')->assertOk();
+    }
+
+    /**
+     * The granular feature modules (#144 split): each renders under the (core)
+     * Production or Reports nav group but is toggled independently.
+     *
+     * @return array<string, array{0: string, 1: array<int, string>}>
+     */
+    public static function granularModuleProvider(): array
+    {
+        return [
+            'materials' => ['materials', ['/admin/materials', '/admin/material-lots', '/admin/traceability']],
+            'product_engineering' => ['product_engineering', ['/admin/process-segments', '/admin/product-revisions']],
+            'companies' => ['companies', ['/admin/companies']],
+            'quality' => ['quality', ['/admin/issues', '/admin/anomaly-reasons', '/admin/scrap-reasons']],
+            'advanced_reports' => ['advanced_reports', [
+                '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/net-requirements',
+            ]],
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $gated
+     *
+     * @dataProvider granularModuleProvider
+     */
+    public function test_granular_module_gates_only_its_own_pages(string $module, array $gated): void
+    {
+        foreach ($gated as $path) {
+            $this->actingAs($this->admin)->get($path)->assertOk();
+        }
+
+        $this->disableModule($module);
+
+        foreach ($gated as $path) {
+            $this->actingAs($this->admin)->get($path)->assertNotFound();
+        }
+
+        // Core essentials and the base Work-Order History report stay reachable
+        // regardless of which fine-grained module is off.
+        $this->actingAs($this->admin)->get('/admin/product-types')->assertOk();
+        $this->actingAs($this->admin)->get('/admin/lot-sequences')->assertOk();
+        $this->actingAs($this->admin)->get('/admin/reports')->assertOk();
+    }
+
+    public function test_base_reports_and_advanced_reports_toggle_independently(): void
+    {
+        // Turning off the base Reports module must not take the analytical reports
+        // with it, and vice-versa — they are separate toggles now.
+        $this->disableModule('reports');
+        $this->actingAs($this->admin)->get('/admin/reports')->assertNotFound();
+        $this->actingAs($this->admin)->get('/admin/cost-reports')->assertOk();
+
+        ModuleRegistry::save(array_values(array_diff(ModuleRegistry::optionalKeys(), ['advanced_reports'])));
+        $this->actingAs($this->admin)->get('/admin/reports')->assertOk();
+        $this->actingAs($this->admin)->get('/admin/cost-reports')->assertNotFound();
+    }
+
+    public function test_upgrade_migration_expands_a_pre_split_module_set(): void
+    {
+        // A pre-split install that explicitly saved a subset (materials/companies
+        // etc. were core then; advanced reports lived under the Reports tab).
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => ModuleRegistry::SETTING_KEY],
+            ['value' => json_encode(['reports', 'hr']), 'updated_at' => now()],
+        );
+
+        (require database_path('migrations/2026_07_23_120000_expand_enabled_modules_for_granular_split.php'))->up();
+
+        $enabled = ModuleRegistry::enabled();
+        // Formerly-core areas stay visible…
+        foreach (['materials', 'product_engineering', 'companies', 'quality'] as $key) {
+            $this->assertContains($key, $enabled, "$key should be kept on after upgrade");
+        }
+        // …'reports' present ⇒ its old analytical reports follow…
+        $this->assertContains('advanced_reports', $enabled);
+        // …and the original explicit picks are retained.
+        $this->assertContains('reports', $enabled);
+        $this->assertContains('hr', $enabled);
+        // Structure was NOT in the saved set and isn't a formerly-core area, so it
+        // stays off — the backfill only restores what used to be always-visible.
+        $this->assertNotContains('structure', $enabled);
+    }
+
     public function test_disabled_module_is_dropped_from_accessible_tabs(): void
     {
         $this->disableModule('connectivity');

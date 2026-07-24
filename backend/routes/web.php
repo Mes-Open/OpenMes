@@ -220,6 +220,8 @@ Route::middleware('auth')->group(function () {
     // Onboarding Wizard (Admin only)
     Route::prefix('onboarding')->name('onboarding.')->middleware('role:Admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\Web\OnboardingController::class, 'index'])->name('index');
+        Route::get('/modules', [\App\Http\Controllers\Web\OnboardingController::class, 'modules'])->name('modules');
+        Route::post('/modules', [\App\Http\Controllers\Web\OnboardingController::class, 'storeModules']);
         Route::get('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'step1'])->name('step1');
         Route::post('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep1']);
         Route::get('/step/2', [\App\Http\Controllers\Web\OnboardingController::class, 'step2'])->name('step2');

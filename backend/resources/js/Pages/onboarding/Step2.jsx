@@ -21,7 +21,7 @@ export default function Step2() {
     return (
         <>
             <Head title={__('Step 2 — Product Type')} />
-            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 2/4</div>
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 3/5</div>
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Add a Product Type')}</h2>
             <p className="text-sm text-om-muted mb-6">{__('What product does this line produce? Define the product type.')}</p>
 
