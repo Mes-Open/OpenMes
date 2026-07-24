@@ -11,8 +11,18 @@ trait HasTenant
         static::addGlobalScope(new TenantScope);
 
         static::creating(function ($model) {
-            if (auth()->check() && empty($model->tenant_id)) {
-                $model->tenant_id = auth()->user()->tenant_id;
+            if (! empty($model->tenant_id)) {
+                return;
+            }
+
+            // Logged-in user's tenant first; fall back to the request-scoped
+            // TenantContext so API-key (headless) writes are tenant-stamped too.
+            $tenantId = auth()->check()
+                ? auth()->user()->tenant_id
+                : app(\App\Support\TenantContext::class)->id();
+
+            if ($tenantId) {
+                $model->tenant_id = $tenantId;
             }
         });
     }

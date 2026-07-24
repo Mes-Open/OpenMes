@@ -4872,5 +4872,14 @@
     "Cannot delete a revision that is used by work orders.": "Cannot delete a revision that is used by work orders.",
     "Only draft revisions can be released.": "Only draft revisions can be released.",
     "Select a process template before releasing the revision.": "Select a process template before releasing the revision.",
-    "Only released revisions can be made obsolete.": "Only released revisions can be made obsolete."
+    "Only released revisions can be made obsolete.": "Only released revisions can be made obsolete.",
+    "API key missing.": "API key missing.",
+    "Invalid or expired API key.": "Invalid or expired API key.",
+    "Source IP not allowed for this API key.": "Source IP not allowed for this API key.",
+    "This API key is not authorized for :scope.": "This API key is not authorized for :scope.",
+    "Import work orders": "Import work orders",
+    "Read production completions": "Read production completions",
+    "Read quality & issue reports": "Read quality & issue reports",
+    "ERP integration": "ERP integration",
+    "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.": "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys."
 }

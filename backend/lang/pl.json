@@ -4872,5 +4872,14 @@
     "Cannot delete a revision that is used by work orders.": "Nie można usunąć rewizji używanej przez zlecenia.",
     "Only draft revisions can be released.": "Tylko rewizje robocze można wydać.",
     "Select a process template before releasing the revision.": "Wybierz szablon procesu przed wydaniem rewizji.",
-    "Only released revisions can be made obsolete.": "Tylko wydane rewizje można wycofać."
+    "Only released revisions can be made obsolete.": "Tylko wydane rewizje można wycofać.",
+    "API key missing.": "Brak klucza API.",
+    "Invalid or expired API key.": "Nieprawidłowy lub wygasły klucz API.",
+    "Source IP not allowed for this API key.": "Adres IP źródła niedozwolony dla tego klucza API.",
+    "This API key is not authorized for :scope.": "Ten klucz API nie ma uprawnienia :scope.",
+    "Import work orders": "Import zleceń produkcyjnych",
+    "Read production completions": "Odczyt danych o wykonaniu produkcji",
+    "Read quality & issue reports": "Odczyt raportów jakości i niezgodności",
+    "ERP integration": "Integracja ERP",
+    "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.": "REST API do importu zleceń produkcyjnych z ERP (SAP, Comarch, enova365, Dynamics) i eksportu danych o produkcji i jakości z powrotem, zabezpieczone kluczami API."
 }
