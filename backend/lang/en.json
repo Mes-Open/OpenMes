@@ -4656,6 +4656,7 @@
     "No shift configured": "No shift configured",
     "Not found": "Not found",
     "ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK": "ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK",
+    "Offline": "Offline",
     "Open API in browser": "Open API in browser",
     "PARAM": "PARAM",
     "PICK A SUPERVISOR": "PICK A SUPERVISOR",
@@ -4891,5 +4892,6 @@
     "Adds:": "Adds:",
     "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.": "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.",
     "Pick exactly which modules to enable.": "Pick exactly which modules to enable.",
-    "Next: Production Line →": "Next: Production Line →"
+    "Next: Production Line →": "Next: Production Line →",
+    "just now": "just now"
 }

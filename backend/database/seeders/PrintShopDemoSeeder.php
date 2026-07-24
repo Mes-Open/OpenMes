@@ -451,7 +451,11 @@ class PrintShopDemoSeeder extends Seeder
             );
         }
 
-        // Generate additional orders spread over 3 months
+        // Fill the planner densely for the CURRENT week — a busy shop should read
+        // as an almost-full weekly board — then taper off over the neighbouring
+        // weeks so paging forward/back still shows work (with a short DONE tail
+        // behind "today"). Everything is anchored to now()->startOfWeek(), so the
+        // visible week is always the packed one whenever the sample data loads.
         $allLines = array_values($lines);
         $allPt = array_values($pt);
         $descriptions = [
@@ -467,41 +471,77 @@ class PrintShopDemoSeeder extends Seeder
             'Prototype — client approval pending',
         ];
 
-        $n = 8; // start after WO-2026-007
-        for ($day = -7; $day <= 83; $day += 2) {
-            $n++;
-            $orderNo = sprintf('WO-2026-%04d', $n);
-            $line = $allLines[array_rand($allLines)];
-            $product = $allPt[array_rand($allPt)];
-            $qty = rand(10, 200);
-            $priority = rand(1, 5);
-            $startDate = now()->addDays($day)->setTime(rand(6, 14), 0);
-            $durationHours = rand(4, 48);
-            $endDate = $startDate->copy()->addHours($durationHours);
+        // Representative start hour per shift column (Morning 06–14, Afternoon
+        // 14–22, Night 22–06). The planner derives a block's shift column from
+        // planned_start_at's time, so a start inside a shift lands the block in
+        // that column. Night runs on DTG/SITO, Mon–Thu only (see seedShifts).
+        $shifts = [['h' => 8, 'night' => false], ['h' => 16, 'night' => false], ['h' => 23, 'night' => true]];
+        $nightLines = ['DTG', 'SITO'];
 
-            $status = match (true) {
-                $day < -3 => WorkOrder::STATUS_DONE,
-                $day < 0 => WorkOrder::STATUS_IN_PROGRESS,
-                $day < 3 => WorkOrder::STATUS_ACCEPTED,
-                default => WorkOrder::STATUS_PENDING,
-            };
+        // week offset => fill probability. The current week (0) is packed; the
+        // neighbours taper so the board stays believable as you page around.
+        $weekFill = [-1 => 0.35, 0 => 0.85, 1 => 0.40, 2 => 0.25];
 
-            WorkOrder::updateOrCreate(
-                ['order_no' => $orderNo],
-                [
-                    'line_id' => $line->id,
-                    'product_type_id' => $product->id,
-                    'planned_qty' => $qty,
-                    'produced_qty' => $status === WorkOrder::STATUS_DONE ? $qty : 0,
-                    'status' => $status,
-                    'priority' => $priority,
-                    'due_date' => $endDate->copy()->addDays(rand(0, 3)),
-                    'planned_start_at' => $startDate,
-                    'planned_end_at' => $endDate,
-                    'description' => $descriptions[array_rand($descriptions)],
-                    'completed_at' => $status === WorkOrder::STATUS_DONE ? $endDate : null,
-                ]
-            );
+        $weekStart = now()->startOfWeek();
+        $n = 100; // WO-2026-0100+, clear of the hand-authored WO-2026-001..010
+
+        foreach ($weekFill as $weekOffset => $fill) {
+            foreach ($allLines as $line) {
+                for ($d = 0; $d < 7; $d++) {
+                    foreach ($shifts as $shift) {
+                        // Night is DTG/SITO, Mon–Thu only — keep the board honest.
+                        if ($shift['night'] && (! in_array($line->code, $nightLines, true) || $d > 3)) {
+                            continue;
+                        }
+                        if (mt_rand(1, 100) > (int) round($fill * 100)) {
+                            continue;
+                        }
+
+                        $n++;
+                        $start = $weekStart->copy()->addWeeks($weekOffset)->addDays($d)->setTime($shift['h'], 0);
+                        $end = $start->copy()->addHours(mt_rand(2, 7));
+                        $qty = mt_rand(10, 200);
+
+                        // Last week's work is DONE (drops off the active board);
+                        // the current week stays ACTIVE end-to-end so every day
+                        // renders blocks (a packed board), even the days already
+                        // behind "today" (long / carried-over jobs); future weeks
+                        // are still-to-start. DONE orders aren't drawn as blocks,
+                        // so keeping the visible week active is what fills the grid.
+                        $status = match (true) {
+                            $weekOffset < 0 => WorkOrder::STATUS_DONE,
+                            $weekOffset > 0 => mt_rand(0, 1) ? WorkOrder::STATUS_PENDING : WorkOrder::STATUS_ACCEPTED,
+                            default => [
+                                WorkOrder::STATUS_IN_PROGRESS,
+                                WorkOrder::STATUS_IN_PROGRESS,
+                                WorkOrder::STATUS_ACCEPTED,
+                                WorkOrder::STATUS_PENDING,
+                            ][mt_rand(0, 3)],
+                        };
+
+                        WorkOrder::updateOrCreate(
+                            ['order_no' => sprintf('WO-2026-%04d', $n)],
+                            [
+                                'line_id' => $line->id,
+                                'product_type_id' => $allPt[array_rand($allPt)]->id,
+                                'planned_qty' => $qty,
+                                'produced_qty' => match ($status) {
+                                    WorkOrder::STATUS_DONE => $qty,
+                                    WorkOrder::STATUS_IN_PROGRESS => intdiv($qty, 2),
+                                    default => 0,
+                                },
+                                'status' => $status,
+                                'priority' => mt_rand(1, 5),
+                                'due_date' => $end->copy()->addDays(mt_rand(0, 2)),
+                                'planned_start_at' => $start,
+                                'planned_end_at' => $end,
+                                'description' => $descriptions[array_rand($descriptions)],
+                                'completed_at' => $status === WorkOrder::STATUS_DONE ? $end : null,
+                            ]
+                        );
+                    }
+                }
+            }
         }
     }
 
