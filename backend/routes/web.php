@@ -149,6 +149,15 @@ Route::middleware('auth')->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    // SPA live-sync snapshot — initial rows for a Reverb-synced collection (live
+    // deltas then arrive on the channel). Served in the *web* group so it
+    // authenticates via the plain session cookie, exactly like every Inertia
+    // page. The api-group equivalent relied on Sanctum stateful-domain matching,
+    // which can fail behind a reverse proxy or on a host APP_URL doesn't cover —
+    // leaving admin lists silently empty while the rest of the SPA works. #193
+    Route::get('/api/collections/{name}', [\App\Http\Controllers\Api\CollectionController::class, 'index'])
+        ->name('collections.index');
+
     // Maintenance upcoming count (for reminder polling — all authenticated users)
     Route::get('/maintenance/upcoming-count', function () {
         $count = \App\Models\MaintenanceEvent::whereIn('status', ['pending', 'in_progress'])
