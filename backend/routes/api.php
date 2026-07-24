@@ -94,11 +94,9 @@ Route::post('/workstations/heartbeat', [\App\Http\Controllers\Api\V1\Workstation
     ->middleware('throttle:120,1')
     ->name('api.workstations.heartbeat');
 
-// Reverb sync: initial snapshot for a collection (live deltas arrive via the
-// CollectionChanged broadcast on the channel).
-Route::get('/collections/{name}', [\App\Http\Controllers\Api\CollectionController::class, 'index'])
-    ->middleware('auth:web,sanctum')
-    ->name('api.collections.index');
+// NOTE: the live-sync snapshot GET /api/collections/{name} lives in routes/web.php
+// so it authenticates via the session cookie (host-independent) instead of Sanctum
+// stateful-domain matching. See the "#193" comment there.
 
 // Authentication routes (no auth required)
 Route::prefix('auth')->group(function () {

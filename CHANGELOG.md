@@ -7,6 +7,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-07-24
+
+### Fixed
+- **Data saved but admin lists show nothing** *([#193](https://github.com/orgs/Mes-Open/discussions/193))*: on some deployments the admin list pages (work orders, lines, product types, …) rendered **empty even though the data existed** — you could pick a line in the work-order form and save, the planner showed sample data, but the lists stayed blank. The lists are fed by a live-sync snapshot (`GET /api/collections/{name}`) that lived in the **api route group** and authenticated via Sanctum **stateful-domain matching** (Origin/Referer vs the app host). Behind a reverse proxy, or when `APP_URL` didn't cover the host the app was actually served on, that check failed → the snapshot returned **401** → the frontend **silently swallowed the error into an empty list** while the rest of the SPA (which uses the session cookie directly) kept working. The snapshot now lives in the **web route group**, so it authenticates with the **plain session cookie** exactly like every Inertia page — host-independent, no `SANCTUM_STATEFUL_DOMAINS` tuning required. The client also now **logs a console warning** when a snapshot fails instead of failing silently. No API contract or URL change (`GET /api/collections/{name}` is unchanged); mobile/token clients are unaffected (they use `/api/v1/*`).
+
 ### Changed
 - **Sample data now fills the production planner** *(demo)*: the "Load sample data" seeder used to scatter ~46 work orders one-every-two-days across a 3-month horizon, so any single week of the planner looked nearly empty (~9 orders spread over 5 lines × 7 days × 3 shifts). It now **densely packs the current week** — an order in most (line, day, shift) slots, anchored to `now()->startOfWeek()` so the visible week is always the busy one — with a lighter taper over the neighbouring weeks and last week's work marked DONE. The current week stays **active end-to-end** (in-progress / accepted / pending) so every day renders blocks, including days already behind "today". A freshly seeded demo now opens on a realistic, almost-full weekly board instead of a sparse one. `PrintShopDemoSeeder` only; no schema or app-logic change.
 
