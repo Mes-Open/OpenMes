@@ -4930,5 +4930,6 @@
     "Two-factor authentication enabled.": "Uwierzytelnianie dwuskładnikowe zostało włączone.",
     "Two-factor authentication has been disabled.": "Uwierzytelnianie dwuskładnikowe zostało wyłączone.",
     "Username may only contain letters and numbers.": "Nazwa użytkownika może zawierać tylko litery i cyfry.",
-    "You have been logged out successfully.": "Zostałeś wylogowany."
+    "You have been logged out successfully.": "Zostałeś wylogowany.",
+    "Too many attempts. Please wait :seconds seconds.": "Zbyt wiele prób. Odczekaj :seconds s."
 }

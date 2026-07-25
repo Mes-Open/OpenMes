@@ -12,8 +12,13 @@ return new class extends Migration
      * authority it already answers "who moved it".
      *
      * A row where from_location === to_location is a destination-only change
-     * (the pallet was re-routed without being touched); a row where
-     * to_destination is null while from_destination was set is an arrival.
+     * (re-routed or unassigned without being touched). A move that lands on the
+     * pending destination — to_location === from_destination with to_destination
+     * back to null — is an arrival.
+     *
+     * Note that to_destination === null alone does NOT prove an arrival:
+     * clearing a destination produces the same shape. The two are only
+     * distinguishable via pallets.arrived_at, which is authoritative.
      */
     public function up(): void
     {

@@ -4930,5 +4930,6 @@
     "Two-factor authentication enabled.": "Two-factor authentication enabled.",
     "Two-factor authentication has been disabled.": "Two-factor authentication has been disabled.",
     "Username may only contain letters and numbers.": "Username may only contain letters and numbers.",
-    "You have been logged out successfully.": "You have been logged out successfully."
+    "You have been logged out successfully.": "You have been logged out successfully.",
+    "Too many attempts. Please wait :seconds seconds.": "Too many attempts. Please wait :seconds seconds."
 }

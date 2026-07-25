@@ -49,7 +49,7 @@ class TwoFactorChallengeController extends Controller
             $seconds = RateLimiter::availableIn($key);
 
             return back()->withErrors([
-                'code' => "Too many attempts. Please wait {$seconds} seconds.",
+                'code' => __('Too many attempts. Please wait :seconds seconds.', ['seconds' => $seconds]),
             ]);
         }
 

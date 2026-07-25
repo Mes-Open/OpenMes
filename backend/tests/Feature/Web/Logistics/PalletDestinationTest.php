@@ -357,6 +357,11 @@ class PalletDestinationTest extends TestCase
         ])->assertRedirect(route('admin.pallets.index'));
 
         $this->assertSame('DOCK-04', $pallet->fresh()->destination);
+
+        // Admin CRUD writes the column directly — deliberately no ledger entry,
+        // matching how it already treats `location`. Asserted so the documented
+        // behaviour can't drift silently.
+        $this->assertDatabaseCount('pallet_movements', 0);
     }
 
     public function test_history_survives_a_pallets_full_journey(): void
