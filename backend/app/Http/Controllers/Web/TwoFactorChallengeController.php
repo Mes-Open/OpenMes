@@ -19,7 +19,7 @@ class TwoFactorChallengeController extends Controller
      */
     public function show(Request $request)
     {
-        if (!$request->session()->has('2fa_user_id')) {
+        if (! $request->session()->has('2fa_user_id')) {
             return redirect()->route('login');
         }
 
@@ -39,28 +39,30 @@ class TwoFactorChallengeController extends Controller
         $userId = $request->session()->get('2fa_user_id');
         $remember = $request->session()->get('2fa_remember', false);
 
-        if (!$userId) {
+        if (! $userId) {
             return redirect()->route('login');
         }
 
         // Rate limit: 5 attempts per minute
-        $key = '2fa-challenge:' . $userId;
+        $key = '2fa-challenge:'.$userId;
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
+
             return back()->withErrors([
                 'code' => "Too many attempts. Please wait {$seconds} seconds.",
             ]);
         }
 
         $user = User::find($userId);
-        if (!$user || !$user->two_factor_enabled) {
+        if (! $user || ! $user->two_factor_enabled) {
             $request->session()->forget(['2fa_user_id', '2fa_remember']);
+
             return redirect()->route('login');
         }
 
         // Try TOTP code
         if ($request->filled('code')) {
-            $google2fa = new Google2FA();
+            $google2fa = new Google2FA;
             $secret = Crypt::decryptString($user->two_factor_secret);
             $valid = $google2fa->verifyKey($secret, $request->input('code'), 1);
 
@@ -69,7 +71,8 @@ class TwoFactorChallengeController extends Controller
             }
 
             RateLimiter::hit($key, 60);
-            return back()->withErrors(['code' => 'Invalid authentication code.']);
+
+            return back()->withErrors(['code' => __('Invalid authentication code.')]);
         }
 
         // Try recovery code
@@ -90,10 +93,11 @@ class TwoFactorChallengeController extends Controller
             }
 
             RateLimiter::hit($key, 60);
-            return back()->withErrors(['recovery_code' => 'Invalid recovery code.']);
+
+            return back()->withErrors(['recovery_code' => __('Invalid recovery code.')]);
         }
 
-        return back()->withErrors(['code' => 'Please enter an authentication code or recovery code.']);
+        return back()->withErrors(['code' => __('Please enter an authentication code or recovery code.')]);
     }
 
     /**
@@ -109,7 +113,7 @@ class TwoFactorChallengeController extends Controller
 
         if ($user->force_password_change) {
             return redirect()->route('change-password')
-                ->with('error', 'You must change your password before continuing.');
+                ->with('error', __('You must change your password before continuing.'));
         }
 
         // Redirect based on role (same logic as AuthController)
@@ -117,6 +121,7 @@ class TwoFactorChallengeController extends Controller
             if (OnboardingController::shouldShowWizard()) {
                 return redirect()->route('onboarding.index');
             }
+
             return redirect()->route('admin.dashboard');
         }
 

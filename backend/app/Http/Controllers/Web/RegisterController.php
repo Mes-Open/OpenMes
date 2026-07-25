@@ -16,7 +16,7 @@ class RegisterController extends Controller
 {
     public function show()
     {
-        if (!$this->registrationEnabled()) {
+        if (! $this->registrationEnabled()) {
             abort(404);
         }
 
@@ -25,33 +25,33 @@ class RegisterController extends Controller
 
     public function store(RegisterRequest $request)
     {
-        if (!$this->registrationEnabled()) {
+        if (! $this->registrationEnabled()) {
             abort(404);
         }
 
-        $key = 'register:' . $request->ip();
+        $key = 'register:'.$request->ip();
         if (RateLimiter::tooManyAttempts($key, 5)) {
-            return back()->withErrors(['email' => 'Too many registration attempts. Please try again later.']);
+            return back()->withErrors(['email' => __('Too many registration attempts. Please try again later.')]);
         }
         RateLimiter::hit($key, 60);
 
         $user = User::create([
-            'name'                  => $request->name,
-            'username'              => $request->username,
-            'email'                 => $request->email,
-            'password'              => Hash::make($request->password),
-            'account_type'          => 'user',
+            'name' => $request->name,
+            'username' => $request->username,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'account_type' => 'user',
             'force_password_change' => false,
-            'email_verified_at'     => now(),
+            'email_verified_at' => now(),
         ]);
 
         $user->assignRole('Operator');
 
         RegistrationLog::create([
-            'name'          => $request->name,
-            'email'         => $request->email,
-            'username'      => $request->username,
-            'ip_address'    => $request->ip(),
+            'name' => $request->name,
+            'email' => $request->email,
+            'username' => $request->username,
+            'ip_address' => $request->ip(),
             'registered_at' => now(),
         ]);
 
@@ -59,7 +59,7 @@ class RegisterController extends Controller
         $request->session()->regenerate();
 
         return redirect()->route('operator.select-line')
-            ->with('success', 'Account created successfully. Welcome to OpenMES!');
+            ->with('success', __('Account created successfully. Welcome to OpenMES!'));
     }
 
     private function registrationEnabled(): bool
