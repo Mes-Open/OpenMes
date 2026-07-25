@@ -175,7 +175,7 @@ class ShapeRegistry
         ],
         'pallets' => [
             'table' => 'pallets',
-            'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'erp_reference', 'created_at', 'updated_at'],
+            'columns' => ['id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'quality_status', 'location', 'destination', 'arrived_at', 'erp_reference', 'created_at', 'updated_at'],
         ],
         // Physical pallet movement history (#103) — who moved which pallet where.
         // Rolling recent window (see the class) so the append-only ledger can't

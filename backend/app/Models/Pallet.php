@@ -33,6 +33,8 @@ class Pallet extends Model
         'status',
         'quality_status',
         'location',
+        'destination',
+        'arrived_at',
         'erp_reference',
         'tenant_id',
     ];
@@ -43,6 +45,7 @@ class Pallet extends Model
             'status' => PalletStatus::class,
             'qty' => 'integer',
             'shipped_at' => 'datetime',
+            'arrived_at' => 'datetime',
         ];
     }
 
@@ -152,8 +155,24 @@ class Pallet extends Model
             ->where('source_type', StockMovement::SOURCE_PALLET);
     }
 
+    /** Append-only trail of physical moves and destination changes (#101, #103). */
+    public function movements(): HasMany
+    {
+        return $this->hasMany(PalletMovement::class);
+    }
+
     public function isOpen(): bool
     {
         return $this->status === PalletStatus::Open;
+    }
+
+    /**
+     * The pallet has somewhere to be and isn't there yet (#101). Destination is
+     * cleared on arrival, so a pending destination is the whole test — no string
+     * comparison against the current location needed.
+     */
+    public function isInTransit(): bool
+    {
+        return $this->destination !== null;
     }
 }

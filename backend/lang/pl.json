@@ -4891,5 +4891,20 @@
     "Adds:": "Dodaje:",
     "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.": "Pełne operacje na hali: raporty, jakość i utrzymanie ruchu, łączność z maszynami i pakowanie.",
     "Pick exactly which modules to enable.": "Wybierz dokładnie, które moduły włączyć.",
-    "Next: Production Line →": "Dalej: Linia produkcyjna →"
+    "Next: Production Line →": "Dalej: Linia produkcyjna →",
+    "Pallet Logistics": "Logistyka palet",
+    "Set destination": "Ustaw cel",
+    "Assign where a pallet should go, or leave the destination blank to clear it.": "Wskaż, gdzie paleta ma trafić, albo zostaw cel pusty, aby go usunąć.",
+    "Destination": "Cel",
+    "Current destination": "Aktualny cel",
+    "e.g. DOCK-01": "np. DOCK-01",
+    "Update destination": "Zaktualizuj cel",
+    "Transit": "Transport",
+    "In transit": "W transporcie",
+    "At destination": "Na miejscu",
+    "Arrived": "Dotarcie",
+    "New destination": "Nowy cel",
+    "Leave blank to keep the current destination.": "Zostaw puste, aby zachować aktualny cel.",
+    "This move completes the assigned destination.": "Ten ruch kończy przypisany cel.",
+    "Pallet destination updated.": "Cel palety został zaktualizowany."
 }

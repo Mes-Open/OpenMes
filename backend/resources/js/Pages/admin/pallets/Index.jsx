@@ -117,6 +117,7 @@ export default function PalletsIndex() {
             ),
         },
         { key: 'location', label: 'Location', render: (r) => r.location || '—' },
+        { key: 'destination', label: 'Destination', render: (r) => r.destination || '—' },
         { key: 'erp_reference', label: 'ERP reference', render: (r) => r.erp_reference || '—' },
         {
             key: 'label',

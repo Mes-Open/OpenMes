@@ -37,6 +37,8 @@ class PalletMovementsRecentShape extends Shape
             'worker_id',
             'from_location',
             'to_location',
+            'from_destination',
+            'to_destination',
             'moved_at',
             'notes',
             'performed_by',

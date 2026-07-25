@@ -4891,5 +4891,20 @@
     "Adds:": "Adds:",
     "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.": "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.",
     "Pick exactly which modules to enable.": "Pick exactly which modules to enable.",
-    "Next: Production Line →": "Next: Production Line →"
+    "Next: Production Line →": "Next: Production Line →",
+    "Pallet Logistics": "Pallet Logistics",
+    "Set destination": "Set destination",
+    "Assign where a pallet should go, or leave the destination blank to clear it.": "Assign where a pallet should go, or leave the destination blank to clear it.",
+    "Destination": "Destination",
+    "Current destination": "Current destination",
+    "e.g. DOCK-01": "e.g. DOCK-01",
+    "Update destination": "Update destination",
+    "Transit": "Transit",
+    "In transit": "In transit",
+    "At destination": "At destination",
+    "Arrived": "Arrived",
+    "New destination": "New destination",
+    "Leave blank to keep the current destination.": "Leave blank to keep the current destination.",
+    "This move completes the assigned destination.": "This move completes the assigned destination.",
+    "Pallet destination updated.": "Pallet destination updated."
 }

@@ -791,6 +791,11 @@ Route::middleware('auth')->group(function () {
         ->group(function () {
             Route::get('/move-pallet', [PalletMovementController::class, 'terminal'])->name('move-pallet');
             Route::post('/movements', [PalletMovementController::class, 'store'])->name('movements.store');
+
+            // Pallet status / location / destination overview (#101).
+            Route::get('/pallets', [PalletMovementController::class, 'pallets'])->name('pallets');
+            Route::post('/pallets/destination', [PalletMovementController::class, 'assignDestination'])
+                ->name('pallets.destination');
         });
 
     // ── Packaging ───────────────────────────────────────────────────────────
