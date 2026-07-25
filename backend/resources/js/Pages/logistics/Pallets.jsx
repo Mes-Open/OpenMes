@@ -36,6 +36,17 @@ const TRANSIT_BADGE = {
 };
 const TRANSIT_LABELS = { in_transit: 'In transit', arrived: 'At destination', idle: 'Not assigned' };
 
+/**
+ * Text-input metrics matched to the shared Dropdown trigger (px-[13px]
+ * py-[10px], 13.5px text) so the four fields in the re-route row line up.
+ * The global .form-input is min-h-[48px], which stands ~9px taller than a
+ * Dropdown and makes a mixed row look ragged.
+ */
+const FIELD_CLS =
+    'w-full rounded-om-sm border border-om-line bg-om-bg px-[13px] py-[10px] text-[13.5px] '
+    + 'text-om-ink placeholder:text-om-faint outline-none transition-colors '
+    + 'focus:border-om-accent focus:ring-[3px] focus:ring-om-accent/15';
+
 /** Assign or clear a pallet's destination — an explicit, logged re-route. */
 function RerouteCard() {
     const { movablePallets = [], operators = [] } = usePage().props;
@@ -54,6 +65,8 @@ function RerouteCard() {
     };
 
     return (
+        // Uncapped like the table below it (ResourceTable fullWidth), so the two
+        // share the same left/right edge.
         <form onSubmit={submit} className="bg-om-card border border-om-line rounded-om p-5 mb-6">
             <h2 className="text-sm font-semibold text-om-ink mb-1">{__('Set destination')}</h2>
             <p className="text-[12px] text-om-muted mb-4">
@@ -92,7 +105,7 @@ function RerouteCard() {
                         value={data.destination}
                         onChange={(e) => setData('destination', e.target.value)}
                         placeholder={__('e.g. DOCK-01')}
-                        className="form-input w-full"
+                        className={FIELD_CLS}
                     />
                     {errors.destination && <p className="mt-1 text-xs text-om-blocked">{errors.destination}</p>}
                 </div>
@@ -116,7 +129,7 @@ function RerouteCard() {
                         name="notes"
                         value={data.notes}
                         onChange={(e) => setData('notes', e.target.value)}
-                        className="form-input w-full"
+                        className={FIELD_CLS}
                     />
                     {errors.notes && <p className="mt-1 text-xs text-om-blocked">{errors.notes}</p>}
                 </div>
@@ -199,6 +212,7 @@ export default function LogisticsPallets() {
             <RerouteCard />
             <ResourceTable
                 shape="pallets"
+                fullWidth
                 title={__('Pallet Logistics')}
                 columns={columns}
                 orderBy="pallet_no"
