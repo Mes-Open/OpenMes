@@ -27,10 +27,15 @@ return new class extends Migration
             $table->boolean('is_manufactured')->default(false)->after('tracking_type')
                 ->comment('Produced in-house (subassembly) rather than purchased');
 
-            // The BOM/routing that produces this material. Nullable even when
-            // is_manufactured is true: an item can be flagged as made in-house
-            // before its process template exists. Explosion treats such a
-            // material as a leaf until the template is set.
+            // The BOM/routing that produces this material.
+            //
+            // The two columns are deliberately independent rather than one
+            // implying the other. Nullable while is_manufactured is true: an
+            // item can be flagged as made in-house before its template exists.
+            // Set while is_manufactured is false: a make-or-buy item can be
+            // bought for now while its routing stays on file. Explosion needs
+            // both (see Material::isExplodable), so either half on its own
+            // simply leaves the material a leaf — never an inconsistent state.
             $table->foreignId('producing_process_template_id')->nullable()
                 ->after('is_manufactured')
                 ->constrained('process_templates')

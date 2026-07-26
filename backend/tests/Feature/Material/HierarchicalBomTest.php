@@ -210,6 +210,61 @@ class HierarchicalBomTest extends TestCase
         $this->assertSame(10.0, $leaves['SUB-NO-BOM']);
     }
 
+    public function test_a_soft_deleted_producing_template_makes_the_material_a_leaf(): void
+    {
+        $parent = $this->template('P');
+        $childTemplate = $this->template('C');
+        $sub = $this->subassembly('SUB', $childTemplate);
+        $this->line($parent, $sub, 2);
+        $this->line($childTemplate, $this->purchased('PART'), 5);
+
+        // Soft delete leaves the FK pointing at a row the relation won't resolve
+        // (nullOnDelete only fires on a hard delete), so explosion must not try
+        // to descend into a template it can't load.
+        $childTemplate->delete();
+
+        $this->assertFalse($sub->fresh()->isExplodable());
+
+        $leaves = $this->byCode($this->explosion->leafRequirements($parent, 10));
+
+        $this->assertSame(20.0, $leaves['SUB'], 'Falls back to a requirement for the subassembly itself.');
+        $this->assertArrayNotHasKey('PART', $leaves);
+    }
+
+    public function test_a_producing_template_without_the_manufactured_flag_stays_purchased(): void
+    {
+        $parent = $this->template('P');
+        $childTemplate = $this->template('C');
+        $this->line($childTemplate, $this->purchased('PART'), 5);
+
+        // Make-or-buy item: the routing is on file but the part is bought for
+        // now. Explosion needs both halves, so this is a leaf, not a subassembly.
+        $boughtForNow = Material::factory()->create([
+            'code' => 'DUAL-SOURCE',
+            'material_type_id' => $this->type->id,
+            'is_manufactured' => false,
+            'producing_process_template_id' => $childTemplate->id,
+        ]);
+        $this->line($parent, $boughtForNow, 2);
+
+        $this->assertFalse($boughtForNow->isExplodable());
+
+        $leaves = $this->byCode($this->explosion->leafRequirements($parent, 10));
+
+        $this->assertSame(20.0, $leaves['DUAL-SOURCE']);
+        $this->assertArrayNotHasKey('PART', $leaves);
+    }
+
+    public function test_new_columns_are_exposed_to_the_materials_shape(): void
+    {
+        // A column missing from the allowlist never reaches the browser, so the
+        // make-or-buy flag would be invisible to any UI built on the shape.
+        $columns = app(\App\Sync\ShapeRegistry::class)->find('materials')->columns();
+
+        $this->assertContains('is_manufactured', $columns);
+        $this->assertContains('producing_process_template_id', $columns);
+    }
+
     // ── Circular references ──────────────────────────────────────────────────
 
     public function test_a_material_produced_by_the_template_itself_is_rejected(): void

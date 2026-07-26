@@ -147,12 +147,20 @@ class Material extends Model
     }
 
     /**
-     * Made in-house *and* explodable — the pair that lets a BOM line descend a
-     * level. `is_manufactured` alone doesn't, since the template may be missing.
+     * Made in-house *and* explodable — what lets a BOM line descend a level.
+     *
+     * The relation itself has to resolve, not just the FK: process templates
+     * soft-delete, and `nullOnDelete` only fires on a hard delete, so a
+     * soft-deleted template leaves the id pointing at a row the relation
+     * returns null for. Without this check explosion would descend into a null
+     * template. Such a material falls back to being a leaf — a requirement for
+     * the subassembly itself — which is the safe reading.
      */
     public function isExplodable(): bool
     {
-        return $this->is_manufactured && $this->producing_process_template_id !== null;
+        return $this->is_manufactured
+            && $this->producing_process_template_id !== null
+            && $this->producingTemplate !== null;
     }
 
     public function scopeActive($query)

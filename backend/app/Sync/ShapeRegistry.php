@@ -151,7 +151,7 @@ class ShapeRegistry
         ],
         'materials' => [
             'table' => 'materials',
-            'columns' => ['id', 'code', 'name', 'description', 'material_type_id', 'unit_of_measure', 'tracking_type', 'default_scrap_percentage', 'external_code', 'external_system', 'stock_quantity', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
+            'columns' => ['id', 'code', 'name', 'description', 'material_type_id', 'unit_of_measure', 'tracking_type', 'is_manufactured', 'producing_process_template_id', 'default_scrap_percentage', 'external_code', 'external_system', 'stock_quantity', 'is_active', 'custom_fields', 'created_at', 'updated_at'],
         ],
 
         // Admin-defined custom-field schema. Tenant-scoped (global defs on "g").
