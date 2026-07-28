@@ -18,6 +18,7 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 
 | Document | Description |
 |---|---|
+| [Customization Layers](customization-layers.md) | Standard vs configuration vs customer/vendor custom development |
 | [Roadmap](roadmap.md) | Planned features, priorities, and current status |
 
 ---
@@ -40,3 +41,4 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 - **Setting up tablets?** → See [PWA Installation](../README.md#-pwa-installation-tablets) in the main README
 - **Building integrations?** → See the [API Documentation](API_DOCUMENTATION.md)
 - **Writing a module?** → See [HOOKS.md](../HOOKS.md) and [Technical Documentation](development.md)
+- **What counts as config vs custom code?** → See [Customization Layers](customization-layers.md)
