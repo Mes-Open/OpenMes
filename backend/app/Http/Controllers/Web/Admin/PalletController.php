@@ -16,7 +16,7 @@ class PalletController extends Controller
     {
         return Inertia::render('admin/pallets/Index', [
             'workOrderNumbers' => WorkOrder::pluck('order_no', 'id'),
-            'statusLabels' => $this->statusLabels(),
+            'statusLabels' => PalletStatus::labels(),
             'labelTemplates' => $this->activeLabelTemplates(),
         ]);
     }
@@ -25,7 +25,7 @@ class PalletController extends Controller
     {
         return Inertia::render('admin/pallets/Create', [
             'workOrders' => $this->workOrderOptions(),
-            'statuses' => $this->statusOptions(),
+            'statuses' => PalletStatus::options(),
         ]);
     }
 
@@ -41,10 +41,10 @@ class PalletController extends Controller
     {
         return Inertia::render('admin/pallets/Edit', [
             'pallet' => $pallet->only(
-                'id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'location', 'erp_reference',
+                'id', 'pallet_no', 'work_order_id', 'batch_id', 'qty', 'status', 'location', 'destination', 'erp_reference',
             ),
             'workOrders' => $this->workOrderOptions(),
-            'statuses' => $this->statusOptions(),
+            'statuses' => PalletStatus::options(),
             'labelTemplates' => $this->activeLabelTemplates(),
         ]);
     }
@@ -84,26 +84,6 @@ class PalletController extends Controller
                     'label' => $b->displayLabel(),
                 ])->values(),
             ]);
-    }
-
-    /** @return array<string, string> */
-    private function statusLabels(): array
-    {
-        $labels = [];
-        foreach (PalletStatus::cases() as $case) {
-            $labels[$case->value] = $case->label();
-        }
-
-        return $labels;
-    }
-
-    /** @return list<array{value: string, label: string}> */
-    private function statusOptions(): array
-    {
-        return array_map(
-            fn (PalletStatus $c) => ['value' => $c->value, 'label' => $c->label()],
-            PalletStatus::cases(),
-        );
     }
 
     private function activeLabelTemplates()

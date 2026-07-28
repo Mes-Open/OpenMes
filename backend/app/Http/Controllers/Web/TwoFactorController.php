@@ -19,7 +19,7 @@ class TwoFactorController extends Controller
 
     public function __construct()
     {
-        $this->google2fa = new Google2FA();
+        $this->google2fa = new Google2FA;
     }
 
     /**
@@ -42,7 +42,7 @@ class TwoFactorController extends Controller
 
         // Generate secret (or reuse pending one from session)
         $secret = $request->session()->get('2fa_setup_secret');
-        if (!$secret) {
+        if (! $secret) {
             $secret = $this->google2fa->generateSecretKey();
             $request->session()->put('2fa_setup_secret', $secret);
         }
@@ -55,7 +55,7 @@ class TwoFactorController extends Controller
 
         // Generate QR code image as data URI
         $result = Builder::create()
-            ->writer(new PngWriter())
+            ->writer(new PngWriter)
             ->data($qrCodeUrl)
             ->encoding(new Encoding('UTF-8'))
             ->size(250)
@@ -81,21 +81,21 @@ class TwoFactorController extends Controller
         ]);
 
         $secret = $request->session()->get('2fa_setup_secret');
-        if (!$secret) {
-            return back()->withErrors(['code' => 'Setup session expired. Please start again.']);
+        if (! $secret) {
+            return back()->withErrors(['code' => __('Setup session expired. Please start again.')]);
         }
 
         $valid = $this->google2fa->verifyKey($secret, $request->input('code'), 1);
 
-        if (!$valid) {
-            return back()->withErrors(['code' => 'Invalid code. Please try again.']);
+        if (! $valid) {
+            return back()->withErrors(['code' => __('Invalid code. Please try again.')]);
         }
 
         $user = auth()->user();
 
         // Generate 8 recovery codes
-        $recoveryCodes = collect(range(1, 8))->map(fn() => Str::random(10))->values();
-        $hashedCodes = $recoveryCodes->map(fn($c) => Hash::make($c))->toArray();
+        $recoveryCodes = collect(range(1, 8))->map(fn () => Str::random(10))->values();
+        $hashedCodes = $recoveryCodes->map(fn ($c) => Hash::make($c))->toArray();
 
         $user->update([
             'two_factor_secret' => Crypt::encryptString($secret),
@@ -109,7 +109,7 @@ class TwoFactorController extends Controller
         // Show the recovery codes once on the 2FA page (flashed → read by enable()).
         return redirect()->route('settings.two-factor.enable')
             ->with('recoveryCodes', $recoveryCodes->all())
-            ->with('success', 'Two-factor authentication enabled.');
+            ->with('success', __('Two-factor authentication enabled.'));
     }
 
     /**
@@ -123,8 +123,8 @@ class TwoFactorController extends Controller
 
         $user = auth()->user();
 
-        if (!Hash::check($request->input('password'), $user->password)) {
-            return back()->withErrors(['password' => 'Incorrect password.']);
+        if (! Hash::check($request->input('password'), $user->password)) {
+            return back()->withErrors(['password' => __('Incorrect password.')]);
         }
 
         $user->update([
@@ -135,7 +135,7 @@ class TwoFactorController extends Controller
         ]);
 
         return redirect()->route('settings.index')
-            ->with('success', 'Two-factor authentication has been disabled.');
+            ->with('success', __('Two-factor authentication has been disabled.'));
     }
 
     /**
@@ -149,16 +149,16 @@ class TwoFactorController extends Controller
 
         $user = auth()->user();
 
-        if (!Hash::check($request->input('password'), $user->password)) {
-            return back()->withErrors(['password' => 'Incorrect password.']);
+        if (! Hash::check($request->input('password'), $user->password)) {
+            return back()->withErrors(['password' => __('Incorrect password.')]);
         }
 
-        if (!$user->two_factor_enabled) {
-            return back()->with('error', '2FA is not enabled.');
+        if (! $user->two_factor_enabled) {
+            return back()->with('error', __('2FA is not enabled.'));
         }
 
-        $recoveryCodes = collect(range(1, 8))->map(fn() => Str::random(10))->values();
-        $hashedCodes = $recoveryCodes->map(fn($c) => Hash::make($c))->toArray();
+        $recoveryCodes = collect(range(1, 8))->map(fn () => Str::random(10))->values();
+        $hashedCodes = $recoveryCodes->map(fn ($c) => Hash::make($c))->toArray();
 
         $user->update([
             'two_factor_recovery_codes' => Crypt::encryptString(json_encode($hashedCodes)),
@@ -166,6 +166,6 @@ class TwoFactorController extends Controller
 
         return redirect()->route('settings.two-factor.enable')
             ->with('recoveryCodes', $recoveryCodes->all())
-            ->with('success', 'Recovery codes regenerated.');
+            ->with('success', __('Recovery codes regenerated.'));
     }
 }
