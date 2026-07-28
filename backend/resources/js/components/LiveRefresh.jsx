@@ -33,11 +33,16 @@ export default function LiveRefresh({
 
     useEffect(() => {
         if (!enabled || !pollUrl) return undefined;
+        let t = null;
         const tick = async () => {
             try {
                 const r = await fetch(pollUrl, {
                     headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 });
+                // Session gone (expired / logged out in another tab). Keep polling
+                // and every tick 401s forever — a left-open tab quietly generates
+                // hundreds of errors. Stop; a real navigation will bounce to login.
+                if (r.status === 401 || r.status === 419) { clearInterval(t); return; }
                 if (!r.ok) return;
                 const d = await r.json();
                 if (!d.last_updated) return;
@@ -49,7 +54,7 @@ export default function LiveRefresh({
                 }
             } catch { /* silent — try again next tick */ }
         };
-        const t = setInterval(tick, intervalMs);
+        t = setInterval(tick, intervalMs);
         return () => clearInterval(t);
     }, [enabled, pollUrl, intervalMs]);
 

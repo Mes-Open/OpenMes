@@ -77,7 +77,7 @@ export default function Step3() {
     return (
         <>
             <Head title={__('Step 3 — Process Template')} />
-            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 3/4</div>
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 4/5</div>
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Define Process Template')}</h2>
             <p className="text-sm text-om-muted mb-6">
                 A process template defines the production steps (recipe) for your product. Add each step in the order

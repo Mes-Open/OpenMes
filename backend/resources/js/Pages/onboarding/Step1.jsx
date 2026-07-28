@@ -21,7 +21,7 @@ export default function Step1() {
     return (
         <>
             <Head title={__('Step 1 — Production Line')} />
-            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 1/4</div>
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-2">Step 2/5</div>
             <h2 className="text-xl font-semibold tracking-[-0.02em] text-om-ink mb-2">{__('Create a Production Line')}</h2>
             <p className="text-sm text-om-muted mb-6">
                 {__('A production line is a physical area where manufacturing happens. Start by creating your first one.')}
