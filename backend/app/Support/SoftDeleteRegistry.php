@@ -108,6 +108,7 @@ class SoftDeleteRegistry
 
         // Integrations
         'webhooks' => Models\Webhook::class,
+        'api_keys' => Models\ApiKey::class,
     ];
 
     /** Attributes tried (in order) to label a trashed row in the Trash UI. */

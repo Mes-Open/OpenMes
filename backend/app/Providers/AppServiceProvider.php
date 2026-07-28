@@ -7,10 +7,12 @@ use App\Listeners\LogAuthEvent;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ModuleManager::class, fn () => new ModuleManager);
         $this->app->singleton(MenuRegistry::class, fn () => new MenuRegistry);
         $this->app->singleton(WidgetRegistry::class, fn () => new WidgetRegistry);
+        // Request-scoped tenant for headless (API-key) contexts. Set per request
+        // by AuthenticateApiKey; falls through to null for user-authenticated
+        // requests, which resolve the tenant from the logged-in user instead.
+        $this->app->singleton(\App\Support\TenantContext::class, fn () => new \App\Support\TenantContext);
     }
 
     /**
@@ -55,6 +61,22 @@ class AppServiceProvider extends ServiceProvider
         $this->app['validator']->setPresenceVerifier(
             new \App\Validation\SoftDeleteAwarePresenceVerifier($this->app['db']),
         );
+
+        // ERP integration API rate limits, keyed per API key (falling back to
+        // client IP before a key is resolved). Import is heavier and DB-mutating
+        // so it is throttled tighter than the read/export endpoints.
+        RateLimiter::for('erp-import', function ($request) {
+            $key = $request->attributes->get('api_key');
+            $id = $key?->id ?? $request->ip();
+
+            return Limit::perMinute(30)->by('erp-import:'.$id);
+        });
+        RateLimiter::for('erp-read', function ($request) {
+            $key = $request->attributes->get('api_key');
+            $id = $key?->id ?? $request->ip();
+
+            return Limit::perMinute(120)->by('erp-read:'.$id);
+        });
 
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);

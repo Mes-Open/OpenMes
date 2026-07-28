@@ -68,13 +68,65 @@ class WorkOrderImportService
     }
 
     /**
+     * Bulk-import work orders from an ERP payload (already-validated array of
+     * canonical rows, not CSV). Reuses the same per-row logic as the CSV import
+     * but returns an ERP-shaped result that distinguishes created vs updated and
+     * carries structured per-row errors ({row, field, message}).
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{imported: int, updated: int, skipped: int, errors: array<int, array{row: int, field: string|null, message: string}>}
+     */
+    public function importErp(array $rows, string $strategy): array
+    {
+        $imported = 0;
+        $updated = 0;
+        $skipped = 0;
+        $errors = [];
+
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 1;
+            $row['row_number'] = $rowNumber;
+
+            try {
+                $result = $this->importRow($row, $strategy);
+
+                if ($result['status'] === 'success') {
+                    ($result['action'] ?? null) === 'updated' ? $updated++ : $imported++;
+                } elseif ($result['status'] === 'skipped') {
+                    $skipped++;
+                } else {
+                    $errors[] = [
+                        'row' => $rowNumber,
+                        'field' => $result['field'] ?? null,
+                        'message' => $result['error'],
+                    ];
+                }
+            } catch (\Throwable $e) {
+                $errors[] = ['row' => $rowNumber, 'field' => null, 'message' => $e->getMessage()];
+
+                Log::error('ERP work order import row failed', [
+                    'row' => $rowNumber,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return [
+            'imported' => $imported,
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'errors' => $errors,
+        ];
+    }
+
+    /**
      * Import a single row.
      */
     protected function importRow(array $row, string $strategy, ?int $targetLineId = null): array
     {
         // Validate required fields
         if (empty($row['order_no'])) {
-            return ['status' => 'error', 'error' => 'Order number is required'];
+            return ['status' => 'error', 'field' => 'order_no', 'error' => 'Order number is required'];
         }
 
         // Find the line: an explicit "assign all rows to this line" override wins
@@ -82,24 +134,24 @@ class WorkOrderImportService
         if ($targetLineId !== null) {
             $line = Line::find($targetLineId);
             if (! $line) {
-                return ['status' => 'error', 'error' => "Target line #{$targetLineId} not found"];
+                return ['status' => 'error', 'field' => 'line_code', 'error' => "Target line #{$targetLineId} not found"];
             }
         } else {
-            $line = Line::where('code', $row['line_code'])->first();
+            $line = Line::where('code', $row['line_code'] ?? null)->first();
             if (! $line) {
-                return ['status' => 'error', 'error' => "Line '{$row['line_code']}' not found"];
+                return ['status' => 'error', 'field' => 'line_code', 'error' => "Line '".($row['line_code'] ?? '')."' not found"];
             }
         }
 
         // Find product type by code
-        $productType = ProductType::where('code', $row['product_type_code'])->first();
+        $productType = ProductType::where('code', $row['product_type_code'] ?? null)->first();
         if (! $productType) {
-            return ['status' => 'error', 'error' => "Product type '{$row['product_type_code']}' not found"];
+            return ['status' => 'error', 'field' => 'product_type_code', 'error' => "Product type '".($row['product_type_code'] ?? '')."' not found"];
         }
 
         // Validate planned quantity
         if (empty($row['planned_qty']) || $row['planned_qty'] <= 0) {
-            return ['status' => 'error', 'error' => 'Planned quantity must be greater than 0'];
+            return ['status' => 'error', 'field' => 'planned_qty', 'error' => 'Planned quantity must be greater than 0'];
         }
 
         // Check if work order exists
@@ -130,7 +182,7 @@ class WorkOrderImportService
                 return ['status' => 'skipped', 'message' => 'Work order already exists'];
 
             case 'error_on_duplicate':
-                return ['status' => 'error', 'error' => "Duplicate order number: {$row['order_no']}"];
+                return ['status' => 'error', 'field' => 'order_no', 'error' => "Duplicate order number: {$row['order_no']}"];
 
             default:
                 return ['status' => 'error', 'error' => 'Invalid import strategy'];
@@ -152,14 +204,14 @@ class WorkOrderImportService
         }
 
         DB::transaction(function () use ($existing, $row, $line, $productType) {
-            $existing->update([
+            $existing->update(array_merge([
                 'line_id' => $line->id,
                 'product_type_id' => $productType->id,
                 'planned_qty' => $row['planned_qty'],
                 'priority' => $row['priority'] ?? 0,
                 'due_date' => $row['due_date'] ?? null,
                 'description' => $row['description'] ?? null,
-            ]);
+            ], $this->optionalErpFields($row)));
 
             Log::info('Work order updated via CSV import', [
                 'order_no' => $existing->order_no,
@@ -187,7 +239,7 @@ class WorkOrderImportService
             // Generate process snapshot
             $snapshot = $this->snapshotService->createSnapshot($processTemplate);
 
-            WorkOrder::create([
+            WorkOrder::create(array_merge([
                 'order_no' => $row['order_no'],
                 'line_id' => $line->id,
                 'product_type_id' => $productType->id,
@@ -198,7 +250,7 @@ class WorkOrderImportService
                 'priority' => $row['priority'] ?? 0,
                 'due_date' => $row['due_date'] ?? null,
                 'description' => $row['description'] ?? null,
-            ]);
+            ], $this->optionalErpFields($row)));
 
             Log::info('Work order created via CSV import', [
                 'order_no' => $row['order_no'],
@@ -206,5 +258,28 @@ class WorkOrderImportService
         });
 
         return ['status' => 'success', 'action' => 'created'];
+    }
+
+    /**
+     * ERP-only columns applied on top of the shared create/update set, and only
+     * when present in the row — so the CSV path (which never supplies them) is
+     * unaffected.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected function optionalErpFields(array $row): array
+    {
+        $fields = [];
+
+        if (array_key_exists('customer_order_no', $row) && $row['customer_order_no'] !== null) {
+            $fields['customer_order_no'] = $row['customer_order_no'];
+        }
+
+        if (array_key_exists('unit_price', $row) && $row['unit_price'] !== null) {
+            $fields['unit_price'] = $row['unit_price'];
+        }
+
+        return $fields;
     }
 }

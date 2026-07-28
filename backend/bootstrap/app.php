@@ -54,6 +54,11 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'tab.access' => \App\Http\Middleware\TabAccessMiddleware::class,
+            // ERP integration API: key auth + per-endpoint scope check.
+            'auth.apikey' => \App\Http\Middleware\AuthenticateApiKey::class,
+            'scope' => \App\Http\Middleware\EnsureApiScope::class,
+            // Gate a route on an optional feature module (ModuleRegistry) being on.
+            'module' => \App\Http\Middleware\EnsureModuleEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
