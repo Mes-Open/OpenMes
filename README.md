@@ -360,6 +360,7 @@ sudo lsof -i :80
 ## 📚 Documentation
 
 - [User Guides](docs/) - Operator, Supervisor, and Admin guides
+- [Customization Layers](docs/customization-layers.md) - Standard / configuration / customer vs vendor custom development
 - [API Documentation](docs/API_DOCUMENTATION.md) - REST API reference
 - [PWA Testing Guide](docs/pwa-testing-guide.md) - Offline functionality testing
 - [Technical Documentation](docs/development.md) - For developers
