@@ -20,7 +20,7 @@ class TabRegistry
         'dashboard' => ['label' => 'Dashboard', 'prefixes' => ['/admin/dashboard']],
         'alerts' => ['label' => 'Alerts', 'prefixes' => ['/admin/alerts']],
         'schedule' => ['label' => 'Schedule', 'prefixes' => ['/admin/schedule']],
-        'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/csv-import']],
+        'orders' => ['label' => 'Orders', 'prefixes' => ['/admin/work-orders', '/admin/customers', '/admin/priority-rules', '/admin/csv-import']],
         'production' => ['label' => 'Production', 'prefixes' => [
             '/admin/product-types', '/admin/lot-sequences', '/admin/lines', '/admin/line-statuses',
             '/admin/view-templates', '/admin/shifts',
