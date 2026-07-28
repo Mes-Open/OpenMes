@@ -20,7 +20,7 @@ class AuthService
 
         if (! $user || ! Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
-                'username' => ['The provided credentials are incorrect.'],
+                'username' => [__('The provided credentials are incorrect.')],
             ]);
         }
 
@@ -64,7 +64,7 @@ class AuthService
     {
         if (! Hash::check($currentPassword, $user->password)) {
             throw ValidationException::withMessages([
-                'current_password' => ['The current password is incorrect.'],
+                'current_password' => [__('The current password is incorrect.')],
             ]);
         }
 

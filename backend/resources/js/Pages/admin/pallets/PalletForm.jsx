@@ -78,6 +78,12 @@ export default function PalletForm({ action, method, initial, submitLabel }) {
                 onChange={(v) => setData('location', v)}
             />
             <TextField
+                label={__('Destination')}
+                value={data.destination}
+                error={errors.destination}
+                onChange={(v) => setData('destination', v)}
+            />
+            <TextField
                 label={__('ERP reference')}
                 value={data.erp_reference}
                 error={errors.erp_reference}

@@ -16,6 +16,7 @@ export default function MovePallet() {
         worker_id: '',
         pallet_id: '',
         to_location: '',
+        to_destination: '',
         notes: '',
     });
     const { data, setData, errors, processing } = form;
@@ -26,7 +27,7 @@ export default function MovePallet() {
         e.preventDefault();
         form.post('/logistics/movements', {
             preserveScroll: true,
-            onSuccess: () => form.reset('pallet_id', 'to_location', 'notes'),
+            onSuccess: () => form.reset('pallet_id', 'to_location', 'to_destination', 'notes'),
         });
     };
 
@@ -90,6 +91,8 @@ export default function MovePallet() {
                     {selectedPallet && (
                         <p className="mt-1 text-[12px] text-om-muted">
                             {__('Current location')}: <span className="font-mono">{selectedPallet.location || '—'}</span>
+                            {' · '}
+                            {__('Destination')}: <span className="font-mono">{selectedPallet.destination || '—'}</span>
                         </p>
                     )}
                     {errors.pallet_id && <p className="mt-1 text-xs text-om-blocked">{errors.pallet_id}</p>}
@@ -109,6 +112,31 @@ export default function MovePallet() {
                         className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-3 text-[16px] text-om-ink outline-hidden focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
                     />
                     {errors.to_location && <p className="mt-1 text-xs text-om-blocked">{errors.to_location}</p>}
+                    {/* Moving the pallet onto its destination completes the run:
+                        the backend clears the destination and stamps the arrival. */}
+                    {selectedPallet?.destination
+                        && data.to_location.trim() === selectedPallet.destination && (
+                        <p className="mt-1 text-[12px] text-om-running">
+                            {__('This move completes the assigned destination.')}
+                        </p>
+                    )}
+                </div>
+
+                {/* Destination — optional re-route booked with this move */}
+                <div>
+                    <label className="block text-sm font-semibold text-om-ink mb-2">{__('New destination')}</label>
+                    <input
+                        type="text"
+                        name="to_destination"
+                        value={data.to_destination}
+                        onChange={(e) => setData('to_destination', e.target.value)}
+                        placeholder={__('e.g. DOCK-01')}
+                        className="w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-3 text-[16px] text-om-ink outline-hidden focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]"
+                    />
+                    <p className="mt-1 text-[12px] text-om-muted">
+                        {__('Leave blank to keep the current destination.')}
+                    </p>
+                    {errors.to_destination && <p className="mt-1 text-xs text-om-blocked">{errors.to_destination}</p>}
                 </div>
 
                 {/* Notes (optional) */}

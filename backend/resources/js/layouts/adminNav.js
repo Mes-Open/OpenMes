@@ -247,6 +247,7 @@ export const ADMIN_GROUPS = [
             { label: 'Packaging Overview', href: '/packaging', match: ['/packaging'], exact: true },
             { label: 'Shift Handover', href: '/supervisor/shift-handover', match: ['/supervisor/shift-handover'] },
             { label: 'Pallets', href: '/admin/pallets', match: ['/admin/pallets'] },
+            { label: 'Pallet Logistics', href: '/logistics/pallets', match: ['/logistics/pallets'] },
             { label: 'Move Pallet', href: '/logistics/move-pallet', match: ['/logistics/move-pallet'] },
             { label: 'Pallet Movements', href: '/admin/pallet-movements', match: ['/admin/pallet-movements'] },
             { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'] },

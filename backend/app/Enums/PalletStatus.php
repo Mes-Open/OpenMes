@@ -37,4 +37,29 @@ enum PalletStatus: string
     {
         return array_map(fn (self $c) => $c->value, self::cases());
     }
+
+    /**
+     * value => label map, for pages that render a status column or filter from
+     * a raw string. The enum owns its labels so the admin and logistics views
+     * can't drift apart.
+     *
+     * @return array<string, string>
+     */
+    public static function labels(): array
+    {
+        return array_reduce(
+            self::cases(),
+            fn (array $carry, self $c) => $carry + [$c->value => $c->label()],
+            [],
+        );
+    }
+
+    /** @return list<array{value: string, label: string}> */
+    public static function options(): array
+    {
+        return array_map(
+            fn (self $c) => ['value' => $c->value, 'label' => $c->label()],
+            self::cases(),
+        );
+    }
 }

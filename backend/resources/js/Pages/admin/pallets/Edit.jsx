@@ -25,6 +25,7 @@ export default function PalletEdit() {
                     qty: pallet.qty ?? 0,
                     status: pallet.status ?? 'open',
                     location: pallet.location ?? '',
+                    destination: pallet.destination ?? '',
                     erp_reference: pallet.erp_reference ?? '',
                 }}
                 submitLabel={__('Save Changes')}
