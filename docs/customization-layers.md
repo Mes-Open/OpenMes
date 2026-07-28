@@ -42,7 +42,9 @@ Ask these in order:
 | Does it ship with OpenMES core and work after install without writing code? | **Standard functionality** |
 | Can an admin achieve it only through UI / `.env` / data setup, with no new PHP/JS? | **Configuration** |
 | Does it need code, but only via modules, hooks, API clients, or other extension points that leave core untouched? | **Customer-maintainable custom development** |
-| Does it require changing core application code, deep schema changes, or a commercial support agreement to own and upgrade safely? | **Vendor-supported custom development** |
+| Does it change core (or need deep schema work) **and** a commercial support / professional-services agreement owns upgrades? | **Vendor-supported custom development** |
+
+If the work changes core **without** a support agreement, it is an **unsupported core fork** — not vendor-supported. Prefer a module (layer 3) or a contracted engagement (layer 4); see the callout under layer 4.
 
 If two answers seem plausible, prefer the **least invasive** layer that still meets the requirement.
 
@@ -130,7 +132,7 @@ Code or integrations the customer (or their integrator) builds and owns, using *
 
 - Community support covers how extension points work (modules, hooks, API) — not debugging proprietary plant logic
 - Customer is responsible for tests, backups, and re-testing modules after OpenMES upgrades
-- If a module starts requiring core patches to function, treat those patches as vendor-supported (or refactor back onto hooks)
+- If a module starts requiring core patches to function, refactor onto hooks/modules, or move the work under a vendor agreement (layer 4) — do not leave an unsupported core fork in place
 
 Technical how-to: [Technical Documentation](development.md) (Module System) and [HOOKS.md](../HOOKS.md).
 
@@ -140,30 +142,37 @@ Technical how-to: [Technical Documentation](development.md) (Module System) and 
 
 ### Definition
 
-Custom work that **cannot** (or should not) live solely in customer-owned modules: core application changes, invasive schema work, long-lived forks, or features delivered under a **commercial support / professional services** agreement where the vendor takes upgrade and warranty responsibility.
+Custom work delivered and owned under a **commercial support / professional services** agreement, where the vendor takes upgrade and warranty responsibility. Typical scope includes core application changes, invasive schema work, or long-lived forks that cannot live solely in customer-owned modules.
 
-Use this layer when the requirement crosses product boundaries, needs guaranteed upgrade paths, or the customer does not want to staff MES engineers.
+**Vendor support is a support-status qualifier**, not a synonym for “we edited core.” Core edits without a contract are **not** this layer (see Unsupported core forks below).
+
+Use this layer when the requirement crosses product boundaries, needs a guaranteed upgrade path, or the customer does not want to staff MES engineers.
 
 ### Examples
 
-- Changing core controllers, models, or migrations under `backend/` outside a module
 - Features that must ship in the main product line under a paid roadmap engagement
-- Deep integration that needs vendor-owned adapters and release-aligned testing
-- Hotfixes applied directly to core with an agreed merge-forward plan
+- Deep integration with vendor-owned adapters and release-aligned testing
+- Hotfixes applied directly to core with an agreed merge-forward plan under contract
 - SLA-backed support for a customized deployment (as offered by the project’s commercial contacts)
 
 ### Who maintains it
 
-- **Vendor / professional services** under contract, or
-- Customer **only** if they explicitly accept a long-lived fork and all upgrade risk (generally discouraged)
+- **Vendor / professional services** under contract
 
 ### Support boundary
 
 - Scope, SLA, and upgrade policy are defined by the commercial agreement — not by the AGPL community issue tracker alone
-- Unilateral core forks without a support agreement are still “custom development,” but **without** vendor support: the site owns every conflict on upgrade
-- Prefer contributing reusable pieces upstream or packaging them as modules before committing to a permanent core fork
+- Prefer contributing reusable pieces upstream or packaging them as modules when that meets the need without a permanent core fork
 
 Contact for commercial / supported work is listed in project docs (e.g. `support@openmmes.com` in [Contributing](CONTRIBUTING.md) for security and related channels; use the project’s published support contacts for paid engagements).
+
+### Unsupported core forks (not layer 4)
+
+Unilateral edits to `backend/` (or a private fork of core) **without** a support agreement are still custom development, but they are **not** vendor-supported:
+
+- The **site owns every upgrade conflict**
+- Community channels do not absorb that risk
+- For handover, label them explicitly as **unsupported core fork**, then either (a) rewrite onto modules/hooks (layer 3) or (b) put them under a commercial agreement (layer 4)
 
 ---
 
@@ -197,9 +206,10 @@ When transferring a deployment between teams, list every non-standard item and t
 1. Core version in use (standard)
 2. Env and system settings that differ from defaults (configuration)
 3. Installed modules and external API clients (customer-maintainable custom, unless vendor-owned)
-4. Any core diffs, private forks, or paid deliverables (vendor-supported or unsupported fork — label explicitly)
+4. Paid / SLA-backed custom deliverables (**vendor-supported**)
+5. Any unilateral core diffs or private forks (**unsupported core fork** — not layer 4; plan rewrite or contract)
 
-A reviewer should be able to pick any feature on the site and place it in exactly one primary layer using this document.
+A reviewer should be able to pick any feature on the site and place it in exactly one primary layer (or mark it as an unsupported core fork) using this document.
 
 ---
 
@@ -212,7 +222,7 @@ A reviewer should be able to pick any feature on the site and place it in exactl
 | Enable the Packaging module from Admin | Configuration | Enabling shipped/installed module; no new code |
 | Module that emails purchasing on material shortage issues | Customer-maintainable custom | Module + hooks; core untouched |
 | Script that creates work orders via the REST API | Customer-maintainable custom | External client on public API |
-| Patch `WorkOrderController` in core for a one-off UI | Vendor-supported (or unsupported fork) | Core change; prefer a module, or contract upgrade ownership |
+| Patch `WorkOrderController` in core for a one-off UI (no contract) | Unsupported core fork | Core change without vendor ownership; rewrite as a module or engage support |
 | Paid delivery of a plant-wide WMS bridge with SLA | Vendor-supported | Commercial ownership and upgrade path |
 
 ---
