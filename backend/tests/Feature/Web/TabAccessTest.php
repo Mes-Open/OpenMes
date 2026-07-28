@@ -3,6 +3,7 @@
 namespace Tests\Feature\Web;
 
 use App\Models\User;
+use App\Support\TabRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
@@ -46,6 +47,20 @@ class TabAccessTest extends TestCase
         // Supervisor holds tab:orders by default, but not other tabs.
         $this->actingAs($this->supervisor)->get('/admin/sites')->assertForbidden();
         $this->actingAs($this->supervisor)->get('/admin/users')->assertForbidden();
+    }
+
+    public function test_customers_and_priority_rules_are_reachable_with_the_orders_tab(): void
+    {
+        // Regression: these sat outside every tab prefix, so tab.access treated
+        // them as Admin-only (403) while the sidebar still showed them under the
+        // Orders group to any tab:orders holder — a link that 403s on click. They
+        // now resolve to the Orders tab, matching where the nav puts them.
+        $this->assertSame('orders', TabRegistry::tabForPath('/admin/customers'));
+        $this->assertSame('orders', TabRegistry::tabForPath('/admin/priority-rules'));
+
+        // Supervisor holds tab:orders by default → both are now reachable (was 403).
+        $this->actingAs($this->supervisor)->get('/admin/customers')->assertOk();
+        $this->actingAs($this->supervisor)->get('/admin/priority-rules')->assertOk();
     }
 
     public function test_granting_a_tab_lets_the_role_in(): void

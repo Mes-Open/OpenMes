@@ -281,16 +281,20 @@ export default function Planner() {
         setTrackingData(null);
         if (!trackId) return undefined;
         let alive = true;
+        let t = null;
         const fetchIt = async () => {
             try {
                 const r = await apiGet(`/admin/schedule/check-updates?track=${trackId}`);
+                // Session expired → stop this 5s poll instead of 401ing forever
+                // on a left-open planner tab (a real action will redirect to login).
+                if (r.status === 401 || r.status === 419) { clearInterval(t); return; }
                 if (!r.ok) return;
                 const d = await r.json();
                 if (alive && d.tracked_order) setTrackingData(d.tracked_order);
             } catch { /* silent */ }
         };
         fetchIt();
-        const t = setInterval(fetchIt, 5000);
+        t = setInterval(fetchIt, 5000);
         return () => { alive = false; clearInterval(t); };
     }, [trackId]);
 
