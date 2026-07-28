@@ -4891,5 +4891,7 @@
     "Adds:": "Dodaje:",
     "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.": "Pełne operacje na hali: raporty, jakość i utrzymanie ruchu, łączność z maszynami i pakowanie.",
     "Pick exactly which modules to enable.": "Wybierz dokładnie, które moduły włączyć.",
-    "Next: Production Line →": "Dalej: Linia produkcyjna →"
+    "Next: Production Line →": "Dalej: Linia produkcyjna →",
+    "Adding :material here would create a circular BOM reference.": "Dodanie :material w tym miejscu utworzyłoby cykliczne odwołanie w BOM.",
+    "That template already consumes :material, so it cannot also produce it.": "Ten szablon już zużywa :material, więc nie może go jednocześnie produkować."
 }

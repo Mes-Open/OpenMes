@@ -21,6 +21,10 @@ class UpdateMaterialRequest extends FormRequest
             'material_type_id' => ['sometimes', 'exists:material_types,id'],
             'unit_of_measure' => ['sometimes', 'string', 'max:20'],
             'tracking_type' => ['sometimes', 'string', 'in:none,batch,serial'],
+            // Make-or-buy: a manufactured material is a subassembly that BOM
+            // explosion descends into via its producing template.
+            'is_manufactured' => ['nullable', 'boolean'],
+            'producing_process_template_id' => ['nullable', 'integer', 'exists:process_templates,id'],
             'default_scrap_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'extra_data' => ['nullable', 'array'],
             'external_code' => ['nullable', 'string', 'max:100'],

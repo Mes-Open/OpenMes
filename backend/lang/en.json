@@ -4891,5 +4891,7 @@
     "Adds:": "Adds:",
     "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.": "Full shop-floor operations: reports, quality & maintenance, machine connectivity and packaging.",
     "Pick exactly which modules to enable.": "Pick exactly which modules to enable.",
-    "Next: Production Line →": "Next: Production Line →"
+    "Next: Production Line →": "Next: Production Line →",
+    "Adding :material here would create a circular BOM reference.": "Adding :material here would create a circular BOM reference.",
+    "That template already consumes :material, so it cannot also produce it.": "That template already consumes :material, so it cannot also produce it."
 }
