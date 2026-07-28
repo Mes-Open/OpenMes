@@ -14,6 +14,17 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 
 ---
 
+## Training
+
+| Document | Audience | Description |
+|---|---|---|
+| [Training Program](training-program.md) | Trainers & site leads | Onboarding curricula for operators, administrators, and developers |
+| [Operator track](training/operator.md) | Production operators | Shop-floor workflow objectives, exercises, checklist |
+| [Administrator track](training/administrator.md) | Admins & configurators | Installation and configuration objectives, exercises, checklist |
+| [Developer track](training/developer.md) | Developers & integrators | Modules, hooks, API extensibility objectives, exercises, checklist |
+
+---
+
 ## Project
 
 | Document | Description |
@@ -37,6 +48,7 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 ## Quick Navigation
 
 - **New to OpenMES?** → Start with the [Admin Guide](admin-guide.md) to set up the system
+- **Onboarding a plant team?** → Use the [Training Program](training-program.md)
 - **Setting up tablets?** → See [PWA Installation](../README.md#-pwa-installation-tablets) in the main README
 - **Building integrations?** → See the [API Documentation](API_DOCUMENTATION.md)
 - **Writing a module?** → See [HOOKS.md](../HOOKS.md) and [Technical Documentation](development.md)
