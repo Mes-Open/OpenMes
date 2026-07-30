@@ -110,6 +110,54 @@ class OnboardingWizardTest extends TestCase
         $this->assertEquals(3, ProcessTemplate::first()->steps()->count());
     }
 
+    public function test_step3_resubmit_does_not_create_duplicate_template(): void
+    {
+        $pt = ProductType::factory()->create();
+
+        $payload = [
+            'name' => 'Assembly Process',
+            'steps' => [['name' => 'Preparation', 'estimated_duration_minutes' => 10]],
+        ];
+
+        $this->actingAs($this->admin)
+            ->withSession(['onboarding.product_type_id' => $pt->id])
+            ->post(route('onboarding.step3'), $payload)
+            ->assertRedirect(route('onboarding.step4'));
+
+        // Same session replays the step (double click / browser back / Inertia retry).
+        $this->actingAs($this->admin)
+            ->withSession([
+                'onboarding.product_type_id' => $pt->id,
+                'onboarding.template_id' => ProcessTemplate::first()->id,
+            ])
+            ->post(route('onboarding.step3'), $payload)
+            ->assertRedirect(route('onboarding.step4'));
+
+        $this->assertEquals(1, ProcessTemplate::count());
+        $this->assertEquals(1, ProcessTemplate::first()->steps()->count());
+    }
+
+    public function test_step3_assigns_next_version_when_product_type_already_has_template(): void
+    {
+        $pt = ProductType::factory()->create();
+        ProcessTemplate::factory()->create(['product_type_id' => $pt->id, 'version' => 1]);
+
+        $response = $this->actingAs($this->admin)
+            ->withSession(['onboarding.product_type_id' => $pt->id])
+            ->post(route('onboarding.step3'), [
+                'name' => 'Second Process',
+                'steps' => [['name' => 'Preparation', 'estimated_duration_minutes' => 10]],
+            ]);
+
+        $response->assertRedirect(route('onboarding.step4'));
+        $this->assertDatabaseHas('process_templates', [
+            'product_type_id' => $pt->id,
+            'name' => 'Second Process',
+            'version' => 2,
+        ]);
+        $this->assertEquals(2, ProcessTemplate::where('product_type_id', $pt->id)->count());
+    }
+
     public function test_step4_creates_work_order(): void
     {
         $line = Line::factory()->create();
