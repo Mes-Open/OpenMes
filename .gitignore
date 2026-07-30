@@ -95,3 +95,20 @@ desktop/.linux-php-backup/
 desktop/.tauri.conf.json.bak
 
 .playwright-mcp
+_test_commands.ps1
+
+# Local dev scripts 
+*.ps1
+*.bat
+
+# Local PHP runtime / config
+backend/composer.phar
+backend/.rr.yaml
+backend/rr
+
+# Scratch / temp
+scratch/
+magika/
+
+# E2E local specs (not upstream)
+tests/e2e/car-production-buildout.spec.ts
