@@ -29,4 +29,5 @@ Thumbs.db
 !/modules/.gitkeep
 !/modules/ExampleHooks
 !/modules/ExampleShowcase
+!/modules/OrderPinger
 backend/test-results/
