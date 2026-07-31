@@ -151,7 +151,8 @@ app(MenuRegistry::class)->addItem('production', 'My Page', url('/modules/mine'))
 - **Inventory Management** - Auto-update stock levels
 - **Barcode/RFID** - Track materials and products
 
-📚 **Full Documentation**: [HOOKS.md](HOOKS.md) — every event, menu and widget hook, with examples
+🛠️ **Build a module (step-by-step tutorial)**: [backend/modules/README.md](backend/modules/README.md) — from an empty folder to a running module, plus a code map of how it all works
+📚 **Hook reference**: [HOOKS.md](HOOKS.md) — every event, menu and widget hook, with payloads and examples
 📁 **Reference Modules**: [`backend/modules/ExampleShowcase`](backend/modules/ExampleShowcase) (all hooks) · [`backend/modules/ExampleHooks`](backend/modules/ExampleHooks) (minimal)
 
 ---

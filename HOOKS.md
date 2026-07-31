@@ -8,6 +8,11 @@ it. A module hooks into three kinds of extension point:
 2. **Menu hooks** — add links and dropdowns to the sidebar.
 3. **Dashboard widget hooks** — add cards to the admin dashboard.
 
+> **New to modules?** Start with the step-by-step tutorial —
+> [`backend/modules/README.md`](backend/modules/README.md) — which builds a working
+> module from an empty folder and maps every core piece. This file is the
+> **reference** (every hook + payload); the tutorial is the **how-to**.
+
 Two reference modules ship in the repo (disabled by default):
 
 - [`backend/modules/ExampleShowcase`](backend/modules/ExampleShowcase) — exercises **every** hook; copy it as a starting point.
