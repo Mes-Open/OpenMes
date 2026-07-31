@@ -38,6 +38,15 @@ PrestaShop-style: one method per hook. The provider maps each event to its metho
 | `Machine\WorkstationStateChanged` | `onWorkstationStateChanged` |
 | `MachineMessageReceived` | `onMachineMessageReceived` |
 | `User\UserAssignedToLine` | `onUserAssignedToLine` |
+| `Resource\ResourceChanged` | `onResourceChanged` — **any** curated resource create/update/delete |
+| `Schedule\WorkOrderScheduled` | `onWorkOrderScheduled` — planner placement change |
+
+`ResourceChanged` is the generic CRUD hook: it fires for every create/update/delete
+of a curated resource (the `SoftDeleteRegistry::MODELS` set — work orders, customers,
+materials, lines, …), so a module can react to any save without wiring each model.
+Filter by `$e->model instanceof …` and `$e->action` (`created|updated|deleted`).
+Typed events (`WorkOrderCreated`, `BatchCreated`, …) still fire too, for when you
+want one specific entity.
 
 Watch them fire while enabled:
 

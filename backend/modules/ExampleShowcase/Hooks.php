@@ -7,6 +7,8 @@ use App\Events\BatchStep\StepCompleted;
 use App\Events\BatchStep\StepStarted;
 use App\Events\Machine\WorkstationStateChanged;
 use App\Events\MachineMessageReceived;
+use App\Events\Resource\ResourceChanged;
+use App\Events\Schedule\WorkOrderScheduled;
 use App\Events\User\UserAssignedToLine;
 use App\Events\WorkOrder\WorkOrderCompleted;
 use App\Events\WorkOrder\WorkOrderCreated;
@@ -118,6 +120,30 @@ class Hooks
         $this->log('userAssignedToLine', [
             'user_id' => $e->user->id,
             'line_id' => $e->line->id,
+        ]);
+    }
+
+    // ── Generic CRUD + scheduling ────────────────────────────────────────────
+
+    /**
+     * Fired for every create/update/delete of a curated resource (work orders,
+     * customers, materials, lines, …). Filter by model class and/or action.
+     */
+    public function onResourceChanged(ResourceChanged $e): void
+    {
+        $this->log('resourceChanged', [
+            'type' => $e->type(),
+            'id' => $e->model->getKey(),
+            'action' => $e->action,
+        ]);
+    }
+
+    /** Fired when a work order's placement changes on the planner. */
+    public function onWorkOrderScheduled(WorkOrderScheduled $e): void
+    {
+        $this->log('workOrderScheduled', [
+            'order_no' => $e->workOrder->order_no,
+            'changed' => array_keys($e->changes),
         ]);
     }
 }

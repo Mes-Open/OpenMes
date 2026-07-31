@@ -115,6 +115,26 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\Issue::observe(\App\Observers\IssueWebhookObserver::class);
         \App\Models\Batch::observe(\App\Observers\BatchWebhookObserver::class);
 
+        // Module hook system: dispatch the domain events modules listen to.
+        // Typed lifecycle events (previously defined but never fired) — these make
+        // WorkOrderCreated/Updated/Completed and StepStarted/Completed real on every
+        // save path; BatchCreated is fired via Batch::$dispatchesEvents.
+        \App\Models\WorkOrder::observe(\App\Observers\WorkOrderEventObserver::class);
+        \App\Models\BatchStep::observe(\App\Observers\BatchStepEventObserver::class);
+
+        // Generic CRUD hook: one wildcard Eloquent listener re-dispatches
+        // ResourceChanged for every curated resource (SoftDeleteRegistry::MODELS)
+        // so a module can hook any create/update/delete without per-model wiring.
+        $hookedModels = array_flip(array_values(\App\Support\SoftDeleteRegistry::MODELS));
+        foreach (['created', 'updated', 'deleted'] as $verb) {
+            Event::listen("eloquent.{$verb}: *", function (string $eventName, array $data) use ($hookedModels, $verb) {
+                $model = $data[0] ?? null;
+                if ($model instanceof \Illuminate\Database\Eloquent\Model && isset($hookedModels[$model::class])) {
+                    event(new \App\Events\Resource\ResourceChanged($model, $verb));
+                }
+            });
+        }
+
         // Live-edit (dev/staging only): under Octane the Vite manifest is cached
         // in a static property in worker memory, so a `vite build --watch` rebuild
         // wouldn't appear until workers recycle. When OCTANE_LIVE_RELOAD is set

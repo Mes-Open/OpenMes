@@ -7,6 +7,8 @@ use App\Events\BatchStep\StepCompleted;
 use App\Events\BatchStep\StepStarted;
 use App\Events\Machine\WorkstationStateChanged;
 use App\Events\MachineMessageReceived;
+use App\Events\Resource\ResourceChanged;
+use App\Events\Schedule\WorkOrderScheduled;
 use App\Events\User\UserAssignedToLine;
 use App\Events\WorkOrder\WorkOrderCompleted;
 use App\Events\WorkOrder\WorkOrderCreated;
@@ -58,6 +60,10 @@ class ExampleShowcaseServiceProvider extends ServiceProvider
         Event::listen(WorkstationStateChanged::class, [Hooks::class, 'onWorkstationStateChanged']);
         Event::listen(MachineMessageReceived::class, [Hooks::class, 'onMachineMessageReceived']);
         Event::listen(UserAssignedToLine::class, [Hooks::class, 'onUserAssignedToLine']);
+
+        // Generic CRUD (any curated resource) + planner scheduling changes.
+        Event::listen(ResourceChanged::class, [Hooks::class, 'onResourceChanged']);
+        Event::listen(WorkOrderScheduled::class, [Hooks::class, 'onWorkOrderScheduled']);
     }
 
     /**

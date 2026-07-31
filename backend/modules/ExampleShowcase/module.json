@@ -16,6 +16,8 @@
         "Machine\\WorkstationStateChanged",
         "Machine\\MachineMessageReceived",
         "User\\UserAssignedToLine",
+        "Resource\\ResourceChanged",
+        "Schedule\\WorkOrderScheduled",
         "Menu\\addItem",
         "Menu\\addGroup",
         "Menu\\addGroupItem",
