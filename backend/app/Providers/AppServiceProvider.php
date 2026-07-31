@@ -128,8 +128,12 @@ class AppServiceProvider extends ServiceProvider
             });
         }
 
-        // Share registries with every view so layouts and dashboards can render
-        // items registered by modules without additional controller work.
+        // Share registries with every Blade view (legacy module pages, PDFs) so
+        // they can render module-registered items without extra controller work.
+        // The React sidebar can't read a Blade share, so MenuRegistry is ALSO
+        // bridged to Inertia as the `moduleNav` prop in HandleInertiaRequests —
+        // that is what makes module menu hooks appear in the SPA. WidgetRegistry
+        // (dashboard widgets) is still Blade-only; it needs the same bridge.
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
         View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
 
