@@ -28,4 +28,5 @@ Thumbs.db
 !/modules/README.md
 !/modules/.gitkeep
 !/modules/ExampleHooks
+!/modules/ExampleShowcase
 backend/test-results/

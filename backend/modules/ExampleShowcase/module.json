@@ -1,0 +1,27 @@
+{
+    "name": "ExampleShowcase",
+    "display_name": "Example Showcase (all hooks)",
+    "version": "1.0.0",
+    "description": "Reference module that exercises EVERY OpenMES extension point — all domain events, all menu hooks and all dashboard widget hooks — without touching core. Disabled by default; enable it under Admin → Modules to watch it wire up (events log to storage/logs, menu entries appear in the sidebar). Copy it as the starting point for a real module.",
+    "author": "OpenMES Team",
+    "homepage": "https://github.com/Mes-Open/OpenMes",
+    "provider": "Modules\\ExampleShowcase\\Providers\\ExampleShowcaseServiceProvider",
+    "hooks": [
+        "WorkOrder\\WorkOrderCreated",
+        "WorkOrder\\WorkOrderUpdated",
+        "WorkOrder\\WorkOrderCompleted",
+        "Batch\\BatchCreated",
+        "BatchStep\\StepStarted",
+        "BatchStep\\StepCompleted",
+        "Machine\\WorkstationStateChanged",
+        "Machine\\MachineMessageReceived",
+        "User\\UserAssignedToLine",
+        "Menu\\addItem",
+        "Menu\\addGroup",
+        "Menu\\addGroupItem",
+        "Widget\\admin_dashboard.kpi",
+        "Widget\\admin_dashboard.main",
+        "Widget\\admin_dashboard.sidebar"
+    ],
+    "requires": []
+}
