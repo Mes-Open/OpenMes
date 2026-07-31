@@ -7,6 +7,7 @@ use App\Events\BatchStep\StepCompleted;
 use App\Events\BatchStep\StepStarted;
 use App\Events\Resource\ResourceChanged;
 use App\Events\Schedule\WorkOrderScheduled;
+use App\Events\User\UserAssignedToLine;
 use App\Events\WorkOrder\WorkOrderCompleted;
 use App\Events\WorkOrder\WorkOrderCreated;
 use App\Events\WorkOrder\WorkOrderUpdated;
@@ -100,5 +101,27 @@ class ModuleHookEventsTest extends TestCase
             ->assertSuccessful();
 
         Event::assertDispatched(WorkOrderScheduled::class, fn ($e) => $e->workOrder->is($wo));
+    }
+
+    public function test_user_assigned_to_line_fires_on_assignment(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $admin = User::factory()->create();
+        $admin->assignRole('Admin');
+
+        $line = Line::factory()->create();
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        Event::fake([UserAssignedToLine::class]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.lines.assign-operator', $line), ['user_id' => $operator->id])
+            ->assertRedirect();
+
+        Event::assertDispatched(
+            UserAssignedToLine::class,
+            fn ($e) => $e->user->is($operator) && $e->line->is($line),
+        );
     }
 }

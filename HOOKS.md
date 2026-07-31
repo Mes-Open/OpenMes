@@ -1,667 +1,310 @@
-# OpenMES Hooks & Events System
+# OpenMES Module Hooks
 
-OpenMES provides a comprehensive hook system that allows you to extend functionality without modifying core code. This is perfect for creating custom modules and integrations.
+OpenMES can be extended with **modules** that plug into the core without editing
+it. A module hooks into three kinds of extension point:
 
-## 📋 Table of Contents
+1. **Domain events** — react to production activity (an order is saved, a step
+   completes, any resource changes, a work order is scheduled).
+2. **Menu hooks** — add links and dropdowns to the sidebar.
+3. **Dashboard widget hooks** — add cards to the admin dashboard.
 
-- [How Hooks Work](#how-hooks-work)
-- [Creating a Module](#creating-a-module)
-- [Available Hooks](#available-hooks)
-  - [Work Order Hooks](#work-order-hooks)
-  - [Batch Hooks](#batch-hooks)
-  - [Batch Step Hooks](#batch-step-hooks)
-  - [User Hooks](#user-hooks)
-  - [Line Hooks](#line-hooks)
-  - [Process Template Hooks](#process-template-hooks)
-  - [CSV Import Hooks](#csv-import-hooks)
-- [Best Practices](#best-practices)
+Two reference modules ship in the repo (disabled by default):
 
----
+- [`backend/modules/ExampleShowcase`](backend/modules/ExampleShowcase) — exercises **every** hook; copy it as a starting point.
+- [`backend/modules/ExampleHooks`](backend/modules/ExampleHooks) — a smaller "hello world".
 
-## How Hooks Work
+## 📋 Contents
 
-OpenMES uses Laravel's event system. Each hook is an Event that you can listen to using Event Listeners.
-
-### Basic Usage
-
-1. Create an event listener in your module
-2. Register it in your module's service provider
-3. The listener will be called automatically when the event occurs
-
-### Example
-
-```php
-// modules/MyModule/Listeners/NotifyOnWorkOrderComplete.php
-namespace Modules\MyModule\Listeners;
-
-use App\Events\WorkOrder\WorkOrderCompleted;
-
-class NotifyOnWorkOrderComplete
-{
-    public function handle(WorkOrderCompleted $event): void
-    {
-        $workOrder = $event->workOrder;
-
-        // Your custom logic here
-        // e.g., send notification, update external system, etc.
-    }
-}
-```
-
-```php
-// modules/MyModule/Providers/MyModuleServiceProvider.php
-namespace Modules\MyModule\Providers;
-
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Event;
-use App\Events\WorkOrder\WorkOrderCompleted;
-use Modules\MyModule\Listeners\NotifyOnWorkOrderComplete;
-
-class MyModuleServiceProvider extends ServiceProvider
-{
-    public function boot(): void
-    {
-        Event::listen(
-            WorkOrderCompleted::class,
-            NotifyOnWorkOrderComplete::class
-        );
-    }
-}
-```
+- [How modules work](#how-modules-work)
+- [Module structure](#module-structure)
+- [1. Domain event hooks](#1-domain-event-hooks)
+  - [Event catalog](#event-catalog)
+  - [Generic CRUD hook — `ResourceChanged`](#generic-crud-hook--resourcechanged)
+  - [Scheduling hook — `WorkOrderScheduled`](#scheduling-hook--workorderscheduled)
+- [2. Menu hooks](#2-menu-hooks)
+- [3. Dashboard widget hooks](#3-dashboard-widget-hooks)
+- [Enabling a module](#enabling-a-module)
+- [Best practices](#best-practices)
+- [Complete hook reference](#complete-hook-reference)
 
 ---
 
-## Creating a Module
+## How modules work
 
-### Module Structure
+- A module lives in `backend/modules/<Name>/` and is described by a `module.json`
+  manifest. The `Modules\` namespace is PSR-4-mapped to that directory, so module
+  classes autoload with no extra config.
+- `App\Services\ModuleManager` discovers modules (`discover()`) and, for the ones
+  that are **enabled**, registers their service provider on every boot
+  (`loadEnabled()` in `AppServiceProvider`). A disabled module's provider never
+  boots — **zero listeners, zero menu entries, zero widgets, zero runtime cost**.
+- All wiring happens in the module's `ServiceProvider::boot()`.
+
+There is no `config/app.php` editing and no `composer.json` provider entry — a
+module is dropped into `backend/modules/` and toggled in the UI.
+
+## Module structure
 
 ```
-modules/
-└── YourModule/
-    ├── Providers/
-    │   └── YourModuleServiceProvider.php
-    ├── Listeners/
-    │   └── YourListener.php
-    ├── Models/
-    │   └── YourModel.php
-    ├── Controllers/
-    │   └── YourController.php
-    ├── views/
-    │   └── your-view.blade.php
-    ├── routes/
-    │   └── web.php
-    ├── database/
-    │   └── migrations/
-    └── module.json
+backend/modules/YourModule/
+├── module.json                         # manifest (name, provider, declared hooks)
+├── Hooks.php                           # your event-handler methods (optional convention)
+├── Providers/
+│   └── YourModuleServiceProvider.php   # boot(): wires events + menu + widgets
+├── routes.php                          # your own page routes (optional)
+├── views/                              # your own Blade pages/partials (optional)
+└── README.md
 ```
 
-### module.json Example
+### `module.json`
 
 ```json
 {
     "name": "YourModule",
-    "description": "Description of your module",
+    "display_name": "Your Module",
     "version": "1.0.0",
-    "author": "Your Name",
-    "providers": [
-        "Modules\\YourModule\\Providers\\YourModuleServiceProvider"
-    ]
+    "description": "What it does.",
+    "author": "You",
+    "provider": "Modules\\YourModule\\Providers\\YourModuleServiceProvider",
+    "hooks": [
+        "WorkOrder\\WorkOrderCreated",
+        "Resource\\ResourceChanged",
+        "Menu\\addItem"
+    ],
+    "requires": []
 }
 ```
 
-### Registering Your Module
+`provider` is a **single** provider class string (must start with `Modules\`).
+`hooks` is documentation only — the actual wiring is in the provider.
 
-Add to `config/app.php`:
+### The provider
 
 ```php
-'providers' => [
-    // ...
-    Modules\YourModule\Providers\YourModuleServiceProvider::class,
-],
-```
+namespace Modules\YourModule\Providers;
 
-Or use auto-discovery by adding to `composer.json`:
-
-```json
-"extra": {
-    "laravel": {
-        "providers": [
-            "Modules\\YourModule\\Providers\\YourModuleServiceProvider"
-        ]
-    }
-}
-```
-
----
-
-## Available Hooks
-
-### Work Order Hooks
-
-#### `WorkOrderCreated`
-**Fired when:** A new work order is created
-**Location:** `App\Events\WorkOrder\WorkOrderCreated`
-**Data available:**
-- `$event->workOrder` - The created WorkOrder model
-
-**Use cases:**
-- Send notifications to production team
-- Update external ERP system
-- Generate QR codes for work orders
-- Trigger automated workflows
-
-**Example:**
-```php
 use App\Events\WorkOrder\WorkOrderCreated;
+use App\Services\MenuRegistry;
+use App\Services\WidgetRegistry;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\ServiceProvider;
+use Modules\YourModule\Hooks;
 
-Event::listen(WorkOrderCreated::class, function ($event) {
-    $workOrder = $event->workOrder;
+class YourModuleServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        // Own routes/views first (menu links below may point at them).
+        $this->loadViewsFrom(__DIR__.'/../views', 'your-module');
+        $this->loadRoutesFrom(__DIR__.'/../routes.php');
 
-    // Send email notification
-    Mail::to('production@company.com')
-        ->send(new WorkOrderCreatedNotification($workOrder));
+        // 1) Domain events
+        Event::listen(WorkOrderCreated::class, [Hooks::class, 'onWorkOrderCreated']);
 
-    // Sync with external system
-    ExternalAPI::createWorkOrder([
-        'number' => $workOrder->work_order_number,
-        'quantity' => $workOrder->quantity,
-    ]);
-});
-```
+        // 2) Menu hooks
+        $menu = app(MenuRegistry::class);
+        $menu->addItem('production', 'My Page', url('/modules/your-module'));
 
----
-
-#### `WorkOrderUpdated`
-**Fired when:** A work order is updated
-**Location:** `App\Events\WorkOrder\WorkOrderUpdated`
-**Data available:**
-- `$event->workOrder` - The updated WorkOrder model
-- `$event->changes` - Array of changed attributes
-
-**Use cases:**
-- Track changes for audit purposes
-- Sync updates with external systems
-- Send change notifications
-
-**Example:**
-```php
-use App\Events\WorkOrder\WorkOrderUpdated;
-
-Event::listen(WorkOrderUpdated::class, function ($event) {
-    if (isset($event->changes['status'])) {
-        // Status changed - notify stakeholders
-        Notification::send(
-            $event->workOrder->line->users,
-            new WorkOrderStatusChanged($event->workOrder)
-        );
+        // 3) Widget hooks
+        app(WidgetRegistry::class)->register('kpi', [
+            'title' => 'My metric', 'metric' => '42',
+        ]);
     }
-});
+}
 ```
 
 ---
 
-#### `WorkOrderCompleted`
-**Fired when:** A work order is marked as completed
-**Location:** `App\Events\WorkOrder\WorkOrderCompleted`
-**Data available:**
-- `$event->workOrder` - The completed WorkOrder model
+## 1. Domain event hooks
 
-**Use cases:**
-- Update inventory systems
-- Generate completion reports
-- Trigger quality control workflows
-- Calculate production metrics
+Hooks are plain Laravel events. Listen to them in your provider's `boot()`.
+Handlers may be a class with a `handle()` method, an invokable, a closure, or a
+`[Class::class, 'method']` pair (the PrestaShop-style "one method per hook" that
+`ExampleShowcase/Hooks.php` uses).
 
-**Example:**
 ```php
 use App\Events\WorkOrder\WorkOrderCompleted;
 
-Event::listen(WorkOrderCompleted::class, function ($event) {
-    $workOrder = $event->workOrder;
-
-    // Update inventory
-    Inventory::increment($workOrder->product_type_id, $workOrder->quantity);
-
-    // Generate report
-    Report::generateProductionReport($workOrder);
-
-    // Notify warehouse
-    event(new NotifyWarehouse($workOrder));
+Event::listen(WorkOrderCompleted::class, function (WorkOrderCompleted $e) {
+    ExternalErp::notifyCompletion($e->workOrder);   // read + act, never mutate the order
 });
 ```
 
----
+All lifecycle events fire from the **model layer**, so they trigger on every save
+path — admin UI, CSV import, ERP API, internal services — without each caller
+opting in.
 
-### Batch Hooks
+### Event catalog
 
-#### `BatchCreated`
-**Fired when:** A new batch is created
-**Location:** `App\Events\Batch\BatchCreated`
-**Data available:**
-- `$event->batch` - The created Batch model
+| Event | Fires when | Payload |
+|---|---|---|
+| `WorkOrder\WorkOrderCreated` | a work order is created | `workOrder` |
+| `WorkOrder\WorkOrderUpdated` | a work order is updated | `workOrder`, `changes` (array of changed attributes) |
+| `WorkOrder\WorkOrderCompleted` | a work order first enters `DONE` | `workOrder` |
+| `Batch\BatchCreated` | a batch is created | `batch` |
+| `BatchStep\StepStarted` | a step enters `IN_PROGRESS` | `batchStep` |
+| `BatchStep\StepCompleted` | a step enters `DONE` | `batchStep` |
+| `Machine\WorkstationStateChanged` | the signal pipeline changes a workstation state | `workstation`, `from`, `to`, `state` |
+| `MachineMessageReceived` | an inbound MQTT message is parsed | `message` |
+| `User\UserAssignedToLine` | a user is assigned to a line | `user`, `line` |
+| `Resource\ResourceChanged` | **any** curated resource is created/updated/deleted | `model`, `action` |
+| `Schedule\WorkOrderScheduled` | a work order is (re)placed on the planner | `workOrder`, `changes` |
 
-**Use cases:**
-- Initialize tracking systems
-- Create batch-specific resources
-- Send start notifications
+See [Machine Connectivity](docs/machine-connectivity.md) for the signal-pipeline
+events (`WorkstationStateChanged`, `MachineMessageReceived`).
 
-**Example:**
+### Generic CRUD hook — `ResourceChanged`
+
+Instead of a separate event per entity, **one** event covers create/update/delete
+for every user-CRUD-able resource — work orders, customers, materials, lines,
+product types, and every other entry in `App\Support\SoftDeleteRegistry::MODELS`.
+A single wildcard Eloquent listener re-dispatches it, so you hook any resource
+save without wiring each model.
+
 ```php
-use App\Events\Batch\BatchCreated;
+use App\Events\Resource\ResourceChanged;
+use App\Models\Customer;
 
-Event::listen(BatchCreated::class, function ($event) {
-    $batch = $event->batch;
-
-    // Create tracking record
-    TrackingSystem::createBatch([
-        'batch_number' => $batch->batch_number,
-        'work_order' => $batch->workOrder->work_order_number,
-        'quantity' => $batch->quantity,
-    ]);
-});
-```
-
----
-
-#### `BatchCompleted`
-**Fired when:** A batch is completed
-**Location:** `App\Events\Batch\BatchCompleted`
-**Data available:**
-- `$event->batch` - The completed Batch model
-
-**Use cases:**
-- Calculate batch metrics
-- Update production statistics
-- Trigger next batch creation
-
----
-
-### Batch Step Hooks
-
-#### `StepStarted`
-**Fired when:** A batch step is started
-**Location:** `App\Events\BatchStep\StepStarted`
-**Data available:**
-- `$event->batchStep` - The started BatchStep model
-
-**Use cases:**
-- Start timers
-- Notify operators
-- Check equipment availability
-
-**Example:**
-```php
-use App\Events\BatchStep\StepStarted;
-
-Event::listen(StepStarted::class, function ($event) {
-    $step = $event->batchStep;
-
-    // Check if workstation is available
-    if ($step->templateStep->workstation) {
-        WorkstationMonitor::markBusy($step->templateStep->workstation_id);
-    }
-
-    // Start time tracking
-    TimeTracker::startStep($step->id);
-});
-```
-
----
-
-#### `StepCompleted`
-**Fired when:** A batch step is completed
-**Location:** `App\Events\BatchStep\StepCompleted`
-**Data available:**
-- `$event->batchStep` - The completed BatchStep model
-
-**Use cases:**
-- Calculate step duration
-- Update workstation availability
-- Trigger quality checks
-
-**Example:**
-```php
-use App\Events\BatchStep\StepCompleted;
-
-Event::listen(StepCompleted::class, function ($event) {
-    $step = $event->batchStep;
-
-    // Calculate actual vs estimated time
-    $actual = $step->completed_at->diffInMinutes($step->started_at);
-    $estimated = $step->templateStep->estimated_duration_minutes;
-
-    if ($actual > $estimated * 1.2) {
-        // Step took 20% longer than expected
-        Alert::create([
-            'type' => 'slow_step',
-            'step_id' => $step->id,
-            'message' => "Step took {$actual}min (expected {$estimated}min)",
-        ]);
-    }
-
-    // Free up workstation
-    if ($step->templateStep->workstation) {
-        WorkstationMonitor::markAvailable($step->templateStep->workstation_id);
+Event::listen(ResourceChanged::class, function (ResourceChanged $e) {
+    // $e->action is 'created' | 'updated' | 'deleted'
+    // $e->model  is the affected model; $e->type() is its short class name
+    if ($e->model instanceof Customer && $e->action === 'created') {
+        Crm::push($e->model);
     }
 });
 ```
 
----
+The **typed** events (`WorkOrderCreated`, `BatchCreated`, …) still fire too — use
+those when you care about one specific entity, and `ResourceChanged` when you want
+"any resource".
 
-#### `StepProblemReported`
-**Fired when:** An issue is reported for a step
-**Location:** `App\Events\BatchStep\StepProblemReported`
-**Data available:**
-- `$event->batchStep` - The BatchStep model
-- `$event->issue` - The reported Issue model
+### Scheduling hook — `WorkOrderScheduled`
 
-**Use cases:**
-- Escalate critical issues
-- Notify maintenance team
-- Pause related production
+Fired from the planner whenever a work order's placement changes — assigned to a
+line, moved to another day/shift, resized, or unassigned.
 
----
-
-### User Hooks
-
-#### `UserAssignedToLine`
-**Fired when:** A user is assigned to a production line
-**Location:** `App\Events\User\UserAssignedToLine`
-**Data available:**
-- `$event->user` - The User model
-- `$event->line` - The Line model
-
-**Use cases:**
-- Send welcome notifications
-- Grant access to line-specific resources
-- Update scheduling systems
-
-**Example:**
 ```php
-use App\Events\User\UserAssignedToLine;
+use App\Events\Schedule\WorkOrderScheduled;
 
-Event::listen(UserAssignedToLine::class, function ($event) {
-    // Send notification to user
-    $event->user->notify(new AssignedToLineNotification($event->line));
-
-    // Grant access to line documentation
-    Documentation::grantAccess($event->user, $event->line);
+Event::listen(WorkOrderScheduled::class, function (WorkOrderScheduled $e) {
+    // $e->changes = the placement fields that were written
+    Calendar::sync($e->workOrder, $e->changes);
 });
 ```
 
 ---
 
-#### `UserUnassignedFromLine`
-**Fired when:** A user is removed from a production line
-**Location:** `App\Events\User\UserUnassignedFromLine`
-**Data available:**
-- `$event->user` - The User model
-- `$event->line` - The Line model
+## 2. Menu hooks
 
-**Use cases:**
-- Revoke access to line resources
-- Update scheduling
+`App\Services\MenuRegistry` lets a module add entries to the sidebar. They are
+bridged to the React frontend as the `moduleNav` Inertia prop and rendered by
+`AppLayout`. Because module pages are server-rendered, menu links do a **full page
+load** (not an Inertia visit).
 
----
-
-### Line Hooks
-
-#### `LineActivated`
-**Fired when:** A production line is activated
-**Location:** `App\Events\Line\LineActivated`
-**Data available:**
-- `$event->line` - The activated Line model
-
-**Use cases:**
-- Initialize line resources
-- Notify operators
-- Start monitoring systems
-
----
-
-#### `LineDeactivated`
-**Fired when:** A production line is deactivated
-**Location:** `App\Events\Line\LineDeactivated`
-**Data available:**
-- `$event->line` - The deactivated Line model
-
-**Use cases:**
-- Stop monitoring
-- Reassign operators
-- Archive line data
-
----
-
-### Process Template Hooks
-
-#### `TemplateCreated`
-**Fired when:** A new process template is created
-**Location:** `App\Events\ProcessTemplate\TemplateCreated`
-**Data available:**
-- `$event->template` - The created ProcessTemplate model
-
-**Use cases:**
-- Validate against standards
-- Generate documentation
-- Notify quality team
-
----
-
-#### `TemplateStepAdded`
-**Fired when:** A step is added to a process template
-**Location:** `App\Events\ProcessTemplate\TemplateStepAdded`
-**Data available:**
-- `$event->template` - The ProcessTemplate model
-- `$event->step` - The added TemplateStep model
-
-**Use cases:**
-- Update time estimates
-- Recalculate costs
-- Validate step sequence
-
----
-
-### CSV Import Hooks
-
-#### `CsvImportStarted`
-**Fired when:** A CSV import begins
-**Location:** `App\Events\CsvImport\CsvImportStarted`
-**Data available:**
-- `$event->import` - The CsvImport model
-
-**Use cases:**
-- Notify administrators
-- Lock related resources
-- Start monitoring
-
----
-
-#### `CsvImportCompleted`
-**Fired when:** A CSV import finishes successfully
-**Location:** `App\Events\CsvImport\CsvImportCompleted`
-**Data available:**
-- `$event->import` - The CsvImport model
-- `$event->recordsImported` - Number of records imported
-
-**Use cases:**
-- Generate import report
-- Trigger data validation
-- Notify stakeholders
-
----
-
-#### `CsvImportFailed`
-**Fired when:** A CSV import fails
-**Location:** `App\Events\CsvImport\CsvImportFailed`
-**Data available:**
-- `$event->import` - The CsvImport model
-- `$event->error` - Error message
-
-**Use cases:**
-- Alert administrators
-- Log errors
-- Rollback changes
-
----
-
-## Best Practices
-
-### 1. Keep Listeners Focused
-Each listener should do one thing well. If you need to perform multiple actions, create multiple listeners.
-
-✅ **Good:**
 ```php
-Event::listen(WorkOrderCompleted::class, SendCompletionEmail::class);
-Event::listen(WorkOrderCompleted::class, UpdateInventory::class);
-Event::listen(WorkOrderCompleted::class, NotifyWarehouse::class);
+$menu = app(MenuRegistry::class);
+
+// (a) inject a link into a built-in dropdown
+//     keys: orders | production | structure | hr | maintenance | admin
+$menu->addItem('production', 'My Page', url('/modules/your-module'), order: 90);
+
+// (b) declare your own top-level dropdown …
+$menu->addGroup('yourmod', 'Your Module', order: 55);
+// (c) … and add links to it
+$menu->addGroupItem('yourmod', 'Overview', url('/modules/your-module'), order: 10);
 ```
 
-❌ **Bad:**
+Resolve URLs with `url()` (not `route()`) so registration never depends on route
+load order or a cached route table.
+
+## 3. Dashboard widget hooks
+
+`App\Services\WidgetRegistry` lets a module add cards to the admin dashboard.
+A widget is **structured data** (not a Blade view): the React dashboard renders a
+standard card and escapes every field, so a module never ships raw HTML. It is
+exposed as the `moduleWidgets` prop by `DashboardController`.
+
 ```php
-Event::listen(WorkOrderCompleted::class, function ($event) {
-    // Send email
-    // Update inventory
-    // Notify warehouse
-    // Generate report
-    // ... 100 lines of code
-});
+$widgets = app(WidgetRegistry::class);
+
+$widgets->register('kpi', [
+    'title'    => 'Open jobs',
+    'metric'   => (string) $count,   // optional big number
+    'body'     => 'Awaiting start',  // optional caption
+    'href'     => url('/modules/your-module'), // optional link
+    'external' => true,              // optional: full page load
+], order: 50);
 ```
 
-### 2. Use Queued Listeners for Heavy Operations
-If your listener performs time-consuming operations, implement `ShouldQueue`:
+Zones: `kpi` and `sidebar` render as compact cards in the grid under the core
+KPIs; `main` renders as a full-width card at the bottom of the dashboard column.
+
+---
+
+## Enabling a module
+
+1. **Admin → Modules → your module → Enable** (or add its name to the
+   `system_settings.modules_enabled` set).
+2. On a production install with cached routes, run `php artisan route:cache` after
+   enabling — module routes are registered at boot, not baked into the core route
+   file. (Under Octane, reload workers so the newly enabled provider boots:
+   `php artisan octane:reload`.)
+
+Disable it again and every hook detaches — back to zero runtime cost.
+
+---
+
+## Best practices
+
+1. **Never mutate core state from an event handler.** Handlers observe; they must
+   not save/update the core models they are notified about, or you can cause
+   double counts, re-entrant events and broken transactions. Do your side effects
+   (notify, export, write your own tables) instead.
+2. **Keep listeners focused** — one listener per concern. Register several rather
+   than one giant closure.
+3. **Queue heavy work** — implement `ShouldQueue` on listeners that call slow
+   external systems, so they run in the background.
+4. **Handle your own errors** — wrap external calls in try/catch and log; don't let
+   your failure break the user's save or other listeners.
+5. **Don't rely on listener order** across modules.
+6. **Version and document** your module (`README.md`, semantic `version`).
 
 ```php
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class GenerateProductionReport implements ShouldQueue
+class SyncToErp implements ShouldQueue
 {
-    public function handle(WorkOrderCompleted $event): void
+    public function handle(\App\Events\WorkOrder\WorkOrderCompleted $e): void
     {
-        // Heavy operation that will run in background
-        Report::generate($event->workOrder);
+        try {
+            Erp::sync($e->workOrder);
+        } catch (\Throwable $ex) {
+            \Log::error('ERP sync failed', ['wo' => $e->workOrder->id, 'err' => $ex->getMessage()]);
+        }
     }
-}
-```
-
-### 3. Handle Errors Gracefully
-Always wrap your listener logic in try-catch blocks:
-
-```php
-public function handle(WorkOrderCompleted $event): void
-{
-    try {
-        ExternalAPI::sync($event->workOrder);
-    } catch (\Exception $e) {
-        \Log::error('Failed to sync work order', [
-            'work_order_id' => $event->workOrder->id,
-            'error' => $e->getMessage(),
-        ]);
-        // Don't throw - other listeners should still run
-    }
-}
-```
-
-### 4. Don't Modify Core Events
-Never modify events in the `App\Events\` namespace. Instead, dispatch your own custom events from your listeners:
-
-```php
-Event::listen(WorkOrderCompleted::class, function ($event) {
-    // Dispatch your own event
-    event(new Modules\MyModule\Events\CustomWorkOrderProcessed($event->workOrder));
-});
-```
-
-### 5. Document Your Modules
-Always include a README.md in your module explaining:
-- What it does
-- Which hooks it uses
-- Configuration options
-- Installation instructions
-
-### 6. Version Your Modules
-Use semantic versioning (1.0.0, 1.1.0, 2.0.0) and document breaking changes.
-
-### 7. Test Your Listeners
-Write tests for your event listeners:
-
-```php
-public function test_work_order_completion_sends_email()
-{
-    Event::fake();
-
-    $workOrder = WorkOrder::factory()->create();
-    event(new WorkOrderCompleted($workOrder));
-
-    Event::assertListened(WorkOrderCompleted::class);
 }
 ```
 
 ---
 
-## Complete Hook List
+## Complete hook reference
 
-### Work Order
-- `WorkOrderCreated` - New work order created
-- `WorkOrderUpdated` - Work order updated
-- `WorkOrderCompleted` - Work order completed
-- `WorkOrderBlocked` - Work order blocked
-- `WorkOrderUnblocked` - Work order unblocked
+**Domain events** (`App\Events\…`): `WorkOrder\WorkOrderCreated`,
+`WorkOrder\WorkOrderUpdated`, `WorkOrder\WorkOrderCompleted`, `Batch\BatchCreated`,
+`BatchStep\StepStarted`, `BatchStep\StepCompleted`,
+`Machine\WorkstationStateChanged`, `MachineMessageReceived`,
+`User\UserAssignedToLine`, `Resource\ResourceChanged` (generic CRUD),
+`Schedule\WorkOrderScheduled`.
 
-### Batch
-- `BatchCreated` - New batch created
-- `BatchCompleted` - Batch completed
-- `BatchCancelled` - Batch cancelled
+**Menu** (`App\Services\MenuRegistry`): `addItem`, `addGroup`, `addGroupItem`.
 
-### Batch Step
-- `StepStarted` - Step started
-- `StepCompleted` - Step completed
-- `StepProblemReported` - Problem reported
-
-### User
-- `UserAssignedToLine` - User assigned to line
-- `UserUnassignedFromLine` - User removed from line
-- `UserCreated` - New user created
-- `UserUpdated` - User updated
-
-### Line
-- `LineCreated` - New line created
-- `LineActivated` - Line activated
-- `LineDeactivated` - Line deactivated
-- `LineDeleted` - Line deleted
-
-### Workstation
-- `WorkstationCreated` - New workstation created
-- `WorkstationActivated` - Workstation activated
-- `WorkstationDeactivated` - Workstation deactivated
-
-### Product Type
-- `ProductTypeCreated` - New product type created
-- `ProductTypeUpdated` - Product type updated
-
-### Process Template
-- `TemplateCreated` - New template created
-- `TemplateActivated` - Template activated
-- `TemplateStepAdded` - Step added to template
-- `TemplateStepUpdated` - Step updated
-- `TemplateStepDeleted` - Step removed
-
-### CSV Import
-- `CsvImportStarted` - Import started
-- `CsvImportCompleted` - Import finished
-- `CsvImportFailed` - Import failed
+**Widgets** (`App\Services\WidgetRegistry`): `register` — zones `kpi`, `main`,
+`sidebar`.
 
 ---
 
 ## Support
 
-For questions or issues with the hook system:
-- GitHub Issues: https://github.com/Mes-Open/OpenMes/issues
-- Documentation: https://github.com/Mes-Open/OpenMes
-
-## Contributing
-
-Want to suggest a new hook? Open an issue with:
-1. Hook name
-2. When it should fire
-3. What data it should provide
-4. Use cases
+- Issues: <https://github.com/Mes-Open/OpenMes/issues>
+- Want a new hook? Open an issue with the name, when it should fire, its payload,
+  and your use case.

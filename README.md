@@ -109,31 +109,36 @@ Drag-and-drop production scheduling with Gantt-style views across multiple produ
 
 OpenMES is built to be extended! Use our comprehensive **hook system** to add custom functionality without modifying core code.
 
+A module drops into `backend/modules/`, is toggled in **Admin → Modules**, and
+plugs into three kinds of extension point — with **zero runtime cost when
+disabled**:
+
 ### Hook System
 
-- **40+ events** covering the entire production lifecycle
-- **Work Order hooks** - Created, Updated, Completed, Blocked
-- **Batch hooks** - Created, Completed, Cancelled
-- **Step hooks** - Started, Completed, Problem Reported
-- **User hooks** - Assigned to Line, Created, Updated
-- **Line hooks** - Created, Activated, Deactivated
-- **Process Template hooks** - Template & Step management
-- **CSV Import hooks** - Started, Completed, Failed
+- **Domain events** — react to production activity:
+  - Work orders — `WorkOrderCreated`, `WorkOrderUpdated`, `WorkOrderCompleted`
+  - Batches & steps — `BatchCreated`, `StepStarted`, `StepCompleted`
+  - Machine — `WorkstationStateChanged`, `MachineMessageReceived`
+  - Users — `UserAssignedToLine`
+  - **`ResourceChanged`** — a generic CRUD hook for **any** curated resource (work orders, customers, materials, lines, …) on create/update/delete
+  - **`WorkOrderScheduled`** — a work order is placed/moved on the planner
+- **Menu hooks** (`MenuRegistry`) — add links and dropdowns to the sidebar
+- **Dashboard widget hooks** (`WidgetRegistry`) — add cards to the admin dashboard
 
 ### Create Custom Modules
 
 ```php
-// Listen to work order completion
+// In your module's ServiceProvider::boot()
+use App\Events\WorkOrder\WorkOrderCompleted;
+use App\Services\MenuRegistry;
+
+// React to an order completing (observe — never mutate core state here)
 Event::listen(WorkOrderCompleted::class, function ($event) {
-    // Send notification to ERP system
-    ExternalAPI::notifyCompletion($event->workOrder);
-
-    // Update inventory
-    Inventory::increment($event->workOrder->product_type_id);
-
-    // Send email to warehouse
-    Mail::to('warehouse@company.com')->send(/* ... */);
+    ExternalErp::notifyCompletion($event->workOrder);
 });
+
+// Add a link to the sidebar
+app(MenuRegistry::class)->addItem('production', 'My Page', url('/modules/mine'));
 ```
 
 ### Example Use Cases
@@ -146,8 +151,8 @@ Event::listen(WorkOrderCompleted::class, function ($event) {
 - **Inventory Management** - Auto-update stock levels
 - **Barcode/RFID** - Track materials and products
 
-📚 **Full Documentation**: [HOOKS.md](HOOKS.md)
-📁 **Module Examples**: [modules/](modules/)
+📚 **Full Documentation**: [HOOKS.md](HOOKS.md) — every event, menu and widget hook, with examples
+📁 **Reference Modules**: [`backend/modules/ExampleShowcase`](backend/modules/ExampleShowcase) (all hooks) · [`backend/modules/ExampleHooks`](backend/modules/ExampleHooks) (minimal)
 
 ---
 
