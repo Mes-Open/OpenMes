@@ -45,7 +45,7 @@ sidebar link and a dashboard KPI, and serves a status page.
 
 ## Step 1 — Create the folder and manifest
 
-```
+```text
 backend/modules/OrderPinger/
 └── module.json
 ```
@@ -272,7 +272,7 @@ The `order-pinger::status` view name works because Step 2 called
 
 Final layout:
 
-```
+```text
 backend/modules/OrderPinger/
 ├── module.json
 ├── Hooks.php
@@ -341,7 +341,7 @@ Where each piece lives in the core, so you know what you're plugging into:
 
 ### The flow, end to end
 
-```
+```text
 enable module ─► ModuleManager::loadEnabled ─► YourServiceProvider::boot()
    ├─ Event::listen(...)            → your Hooks methods run when core dispatches events
    │      core save ─► Observer/$dispatchesEvents/wildcard listener ─► event ─► your handler

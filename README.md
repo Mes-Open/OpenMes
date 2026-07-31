@@ -131,6 +131,7 @@ disabled**:
 // In your module's ServiceProvider::boot()
 use App\Events\WorkOrder\WorkOrderCompleted;
 use App\Services\MenuRegistry;
+use Illuminate\Support\Facades\Event;
 
 // React to an order completing (observe — never mutate core state here)
 Event::listen(WorkOrderCompleted::class, function ($event) {

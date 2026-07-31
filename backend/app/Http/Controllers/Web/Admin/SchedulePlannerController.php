@@ -718,6 +718,9 @@ class SchedulePlannerController extends Controller
             'after' => $this->placementSnapshot($workOrder->fresh('extraPlacements')),
         ]);
 
+        // Module hook: an undo restores a previous placement — a schedule change too.
+        \App\Events\Schedule\WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
+
         return response()->json(['success' => true, 'message' => __('Change undone.')]);
     }
 

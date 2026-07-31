@@ -14,7 +14,7 @@
         "BatchStep\\StepStarted",
         "BatchStep\\StepCompleted",
         "Machine\\WorkstationStateChanged",
-        "Machine\\MachineMessageReceived",
+        "MachineMessageReceived",
         "User\\UserAssignedToLine",
         "Resource\\ResourceChanged",
         "Schedule\\WorkOrderScheduled",

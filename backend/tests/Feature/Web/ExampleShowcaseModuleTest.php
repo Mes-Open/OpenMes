@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Web;
 
+use App\Models\User;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
@@ -47,5 +48,20 @@ class ExampleShowcaseModuleTest extends TestCase
         // Name lookups are built lazily on match, so refresh them as a request would.
         app('router')->getRoutes()->refreshNameLookups();
         $this->assertTrue(app('router')->has('example-showcase.index'));
+    }
+
+    public function test_module_page_is_behind_auth(): void
+    {
+        $this->app->register(ExampleShowcaseServiceProvider::class);
+        app('router')->getRoutes()->refreshNameLookups();
+
+        // Guest → redirected to login (the route is in the web+auth group).
+        $this->get('/modules/example-showcase')->assertRedirect(route('login'));
+
+        // Authenticated → the module's own Blade page renders.
+        $this->actingAs(User::factory()->create())
+            ->get('/modules/example-showcase')
+            ->assertOk()
+            ->assertSee('Example Showcase');
     }
 }

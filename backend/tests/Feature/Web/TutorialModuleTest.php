@@ -5,6 +5,7 @@ namespace Tests\Feature\Web;
 use App\Events\Resource\ResourceChanged;
 use App\Events\WorkOrder\WorkOrderCreated;
 use App\Models\Customer;
+use App\Models\User;
 use App\Models\WorkOrder;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
@@ -62,5 +63,20 @@ class TutorialModuleTest extends TestCase
 
         $this->assertModelExists($wo);
         $this->assertModelExists($customer);
+    }
+
+    public function test_module_page_is_behind_auth(): void
+    {
+        $this->app->register(OrderPingerServiceProvider::class);
+        app('router')->getRoutes()->refreshNameLookups();
+
+        // Guest → redirected to login (the route is in the web+auth group).
+        $this->get('/modules/order-pinger')->assertRedirect(route('login'));
+
+        // Authenticated → the module's own Blade page renders.
+        $this->actingAs(User::factory()->create())
+            ->get('/modules/order-pinger')
+            ->assertOk()
+            ->assertSee('Order Pinger');
     }
 }

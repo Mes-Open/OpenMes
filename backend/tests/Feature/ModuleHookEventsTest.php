@@ -49,6 +49,10 @@ class ModuleHookEventsTest extends TestCase
 
         $wo->update(['status' => WorkOrder::STATUS_DONE]);
         Event::assertDispatched(WorkOrderCompleted::class, fn ($e) => $e->workOrder->is($wo));
+
+        // A work order inserted already DONE (historical import) also completes.
+        $done = WorkOrder::factory()->create(['status' => WorkOrder::STATUS_DONE]);
+        Event::assertDispatched(WorkOrderCompleted::class, fn ($e) => $e->workOrder->is($done));
     }
 
     public function test_batch_and_step_events_fire(): void
@@ -78,7 +82,7 @@ class ModuleHookEventsTest extends TestCase
         Event::assertDispatched(ResourceChanged::class, fn ($e) => $e->model->is($customer) && $e->action === 'updated');
 
         $customer->delete();
-        Event::assertDispatched(ResourceChanged::class, fn ($e) => $e->action === 'deleted');
+        Event::assertDispatched(ResourceChanged::class, fn ($e) => $e->model->is($customer) && $e->action === 'deleted');
     }
 
     public function test_work_order_scheduled_fires_on_planner_update(): void
@@ -123,5 +127,42 @@ class ModuleHookEventsTest extends TestCase
             UserAssignedToLine::class,
             fn ($e) => $e->user->is($operator) && $e->line->is($line),
         );
+    }
+
+    public function test_scheduling_hook_does_not_fire_for_a_guest(): void
+    {
+        $line = Line::factory()->create();
+        $wo = WorkOrder::factory()->create(['line_id' => null]);
+
+        Event::fake([WorkOrderScheduled::class]);
+
+        // Guest → redirected to login, no placement written, no hook.
+        $this->putJson(route('admin.schedule.update', $wo), [
+            'line_id' => $line->id,
+            'due_date' => now()->addDay()->format('Y-m-d'),
+            'shift_number' => 1,
+        ])->assertUnauthorized();
+
+        Event::assertNotDispatched(WorkOrderScheduled::class);
+    }
+
+    public function test_assignment_hook_does_not_fire_for_a_non_admin(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        $line = Line::factory()->create();
+        $target = User::factory()->create();
+        $target->assignRole('Operator');
+
+        Event::fake([UserAssignedToLine::class]);
+
+        // Wrong role → forbidden, no assignment, no hook.
+        $this->actingAs($operator)
+            ->post(route('admin.lines.assign-operator', $line), ['user_id' => $target->id])
+            ->assertForbidden();
+
+        Event::assertNotDispatched(UserAssignedToLine::class);
     }
 }

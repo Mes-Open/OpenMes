@@ -125,12 +125,25 @@ class AppServiceProvider extends ServiceProvider
         // Generic CRUD hook: one wildcard Eloquent listener re-dispatches
         // ResourceChanged for every curated resource (SoftDeleteRegistry::MODELS)
         // so a module can hook any create/update/delete without per-model wiring.
-        $hookedModels = array_flip(array_values(\App\Support\SoftDeleteRegistry::MODELS));
+        // Sensitive models are excluded — ResourceChanged carries the full model
+        // to third-party listeners, so we never hand out User (password hash) or
+        // ApiKey (secret hash) rows.
+        $sensitive = [\App\Models\User::class, \App\Models\ApiKey::class];
+        $hookedModels = array_diff_key(
+            array_flip(array_values(\App\Support\SoftDeleteRegistry::MODELS)),
+            array_flip($sensitive),
+        );
         foreach (['created', 'updated', 'deleted'] as $verb) {
             Event::listen("eloquent.{$verb}: *", function (string $eventName, array $data) use ($hookedModels, $verb) {
                 $model = $data[0] ?? null;
                 if ($model instanceof \Illuminate\Database\Eloquent\Model && isset($hookedModels[$model::class])) {
-                    event(new \App\Events\Resource\ResourceChanged($model, $verb));
+                    // A throwing module listener must never break the core write
+                    // that triggered it (mirrors the best-effort webhook observers).
+                    try {
+                        event(new \App\Events\Resource\ResourceChanged($model, $verb));
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('ResourceChanged hook failed', ['error' => $e->getMessage()]);
+                    }
                 }
             });
         }

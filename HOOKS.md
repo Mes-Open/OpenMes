@@ -13,10 +13,11 @@ it. A module hooks into three kinds of extension point:
 > module from an empty folder and maps every core piece. This file is the
 > **reference** (every hook + payload); the tutorial is the **how-to**.
 
-Two reference modules ship in the repo (disabled by default):
+Three reference modules ship in the repo (all disabled by default):
 
 - [`backend/modules/ExampleShowcase`](backend/modules/ExampleShowcase) — exercises **every** hook; copy it as a starting point.
 - [`backend/modules/ExampleHooks`](backend/modules/ExampleHooks) — a smaller "hello world".
+- [`backend/modules/OrderPinger`](backend/modules/OrderPinger) — the output of the [step-by-step tutorial](backend/modules/README.md), kept as its tested proof.
 
 ## 📋 Contents
 
@@ -135,9 +136,13 @@ Event::listen(WorkOrderCompleted::class, function (WorkOrderCompleted $e) {
 });
 ```
 
-All lifecycle events fire from the **model layer**, so they trigger on every save
-path — admin UI, CSV import, ERP API, internal services — without each caller
-opting in.
+The **lifecycle** events — `WorkOrderCreated/Updated/Completed`, `BatchCreated`,
+`StepStarted/Completed` — fire from the **model layer** (observers /
+`$dispatchesEvents`), so they trigger on every save path (admin UI, CSV import,
+ERP API, services) without each caller opting in. The others fire from a specific
+place: `ResourceChanged` from a wildcard Eloquent listener, `WorkOrderScheduled`
+from the planner controller, `UserAssignedToLine` from line assignment, and the
+machine events from the signal pipeline.
 
 ### Event catalog
 
