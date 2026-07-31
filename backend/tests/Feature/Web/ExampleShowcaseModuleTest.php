@@ -36,11 +36,12 @@ class ExampleShowcaseModuleTest extends TestCase
         $this->assertNotEmpty($menu->getItems('production'));
         $this->assertContains('showcase', array_column($menu->getGroups(), 'id'));
 
-        // Widgets: one registered per built-in dashboard zone.
+        // Widgets: one registered per dashboard zone (structured data, not Blade).
         $widgets = app(WidgetRegistry::class);
-        $this->assertTrue($widgets->hasWidgets('admin_dashboard.kpi'));
-        $this->assertTrue($widgets->hasWidgets('admin_dashboard.main'));
-        $this->assertTrue($widgets->hasWidgets('admin_dashboard.sidebar'));
+        $this->assertTrue($widgets->hasWidgets('kpi'));
+        $this->assertTrue($widgets->hasWidgets('main'));
+        $this->assertTrue($widgets->hasWidgets('sidebar'));
+        $this->assertSame('Example Showcase', $widgets->getWidgets('kpi')[0]['title']);
 
         // The module's own page route was registered (menu links resolve to it).
         // Name lookups are built lazily on match, so refresh them as a request would.

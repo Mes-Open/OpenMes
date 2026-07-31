@@ -61,14 +61,14 @@ an Inertia visit. The injected "Showcase Page" link opens this module's own page
 
 ### 3. Dashboard widget hooks (`WidgetRegistry`)
 
-`registerWidgetHooks()` registers one widget per built-in zone
-(`admin_dashboard.kpi | .main | .sidebar`), each a Blade partial under
-`views/widgets/`.
+`registerWidgetHooks()` registers one card per zone (`kpi | main | sidebar`).
+A widget is **structured data** — `title`, optional `metric`, `body`, `href`,
+`external` — not a Blade view. The React dashboard renders a standard card from
+those fields (`DashboardController` → the `moduleWidgets` Inertia prop), and every
+value is escaped by React, so a module never ships raw HTML.
 
-> **Heads-up:** `WidgetRegistry` is currently consumed only by Blade; the React
-> dashboard does not yet render these zones. The registration here is the correct,
-> forward-compatible API and will light up once the `WidgetRegistry → Inertia`
-> bridge lands (the same bridge pattern already used for `MenuRegistry`).
+- `kpi` / `sidebar` → compact cards in the grid under the core KPIs.
+- `main` → full-width card at the bottom of the dashboard column.
 
 ## Layout
 
@@ -80,11 +80,7 @@ modules/ExampleShowcase/
 │   └── ExampleShowcaseServiceProvider.php   # wires events + menu + widgets
 ├── routes.php                  # the module's own page route (web + auth)
 ├── views/
-│   ├── index.blade.php         # self-contained module page
-│   └── widgets/                # one partial per dashboard zone
-│       ├── kpi.blade.php
-│       ├── main.blade.php
-│       └── sidebar.blade.php
+│   └── index.blade.php         # self-contained module page (full page load)
 └── README.md
 ```
 

@@ -85,18 +85,34 @@ class ExampleShowcaseServiceProvider extends ServiceProvider
     }
 
     /**
-     * 3) Dashboard widget hooks. One widget per built-in zone. NOTE: WidgetRegistry
-     *    is still consumed only by Blade; the React dashboard does not yet render
-     *    these zones (a WidgetRegistry→Inertia bridge is the pending follow-up,
-     *    mirroring the MenuRegistry one). The registration below is the correct,
-     *    forward-compatible API — it will light up once that bridge lands.
+     * 3) Dashboard widget hooks. One card per zone (kpi | main | sidebar). Widgets
+     *    are structured data — the React dashboard (DashboardController → the
+     *    `moduleWidgets` prop) renders a standard card and escapes every field, so
+     *    a module never ships raw HTML.
      */
     private function registerWidgetHooks(): void
     {
         $widgets = app(WidgetRegistry::class);
+        $page = url('/modules/example-showcase');
 
-        $widgets->register('admin_dashboard.kpi', 'example-showcase::widgets.kpi', [], 90);
-        $widgets->register('admin_dashboard.main', 'example-showcase::widgets.main', [], 90);
-        $widgets->register('admin_dashboard.sidebar', 'example-showcase::widgets.sidebar', [], 90);
+        $widgets->register('kpi', [
+            'title' => 'Example Showcase',
+            'metric' => '9',
+            'body' => 'hooks wired',
+            'href' => $page,
+            'external' => true,
+        ], order: 90);
+
+        $widgets->register('main', [
+            'title' => 'Example Showcase — main widget',
+            'body' => 'A module can drop a full-width card here (metrics, links to its own pages).',
+            'href' => $page,
+            'external' => true,
+        ], order: 90);
+
+        $widgets->register('sidebar', [
+            'title' => 'Example Showcase',
+            'body' => 'Sidebar-zone card.',
+        ], order: 90);
     }
 }

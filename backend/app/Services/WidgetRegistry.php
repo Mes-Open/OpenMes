@@ -2,45 +2,85 @@
 
 namespace App\Services;
 
+/**
+ * WidgetRegistry — lets modules add cards to the admin dashboard.
+ *
+ * Registered as a singleton in AppServiceProvider. Modules call register() in
+ * their ServiceProvider::boot(); only ENABLED modules boot, so the registry is
+ * self-gating.
+ *
+ * React-native contract: a widget is STRUCTURED DATA (not a Blade view). The
+ * dashboard is a React/Inertia page, so it renders a standard card from these
+ * fields — every string is escaped by React (no raw HTML, no dangerouslySetInnerHTML).
+ * DashboardController exposes the registry as the `moduleWidgets` Inertia prop.
+ *
+ * Zones (map onto the React dashboard layout):
+ *   kpi     — compact metric card in the KPI grid near the top
+ *   main    — full-width card in the main column
+ *   sidebar — compact card (rendered alongside the KPI cards)
+ *
+ * Usage in a module ServiceProvider::boot():
+ *   app(WidgetRegistry::class)->register('kpi', [
+ *       'title'  => 'Open jobs',
+ *       'metric' => (string) $count,
+ *       'body'   => 'Awaiting start',
+ *       'href'   => url('/modules/mymodule'),   // optional
+ *       'external' => true,                       // optional: full page load
+ *   ], order: 50);
+ */
 class WidgetRegistry
 {
+    /** @var array<string, list<array<string, mixed>>> */
     private array $widgets = [];
 
+    /** Fields a widget may carry; anything else is ignored (keeps the prop lean and safe). */
+    private const ALLOWED = ['title', 'metric', 'body', 'href', 'external', 'tone'];
+
     /**
-     * Register a widget for a dashboard zone.
+     * Register a dashboard card for a zone.
      *
-     * Modules call this in their ServiceProvider::boot():
-     *   app(WidgetRegistry::class)->register('admin_dashboard.main', 'mymodule::widgets.my-widget', ['key' => $value], 50);
-     *
-     * Built-in zones:
-     *   admin_dashboard.kpi    — after the KPI cards grid
-     *   admin_dashboard.main   — below the main work orders / sidebar grid
-     *   admin_dashboard.sidebar — inside the sidebar column
-     *
-     * @param string $zone   Zone identifier
-     * @param string $view   Blade view name (supports namespaced views from modules)
-     * @param array  $data   Data to pass to the view
-     * @param int    $order  Sort order — lower numbers render first
+     * @param  string  $zone  kpi | main | sidebar
+     * @param  array<string, mixed>  $widget  title (required) + optional metric/body/href/external/tone
+     * @param  int  $order  Sort weight within the zone — lower renders first
      */
-    public function register(string $zone, string $view, array $data = [], int $order = 50): void
+    public function register(string $zone, array $widget, int $order = 50): void
     {
-        $this->widgets[$zone][] = compact('view', 'data', 'order');
+        $card = array_intersect_key($widget, array_flip(self::ALLOWED));
+        $card['order'] = $order;
+
+        $this->widgets[$zone][] = $card;
     }
 
     /**
-     * Return widgets for a zone sorted by order.
+     * Widgets for one zone, sorted by order.
      *
-     * @return array<array{view: string, data: array, order: int}>
+     * @return list<array<string, mixed>>
      */
     public function getWidgets(string $zone): array
     {
         $widgets = $this->widgets[$zone] ?? [];
-        usort($widgets, fn($a, $b) => $a['order'] <=> $b['order']);
+        usort($widgets, fn ($a, $b) => $a['order'] <=> $b['order']);
+
         return $widgets;
     }
 
     public function hasWidgets(string $zone): bool
     {
-        return !empty($this->widgets[$zone]);
+        return ! empty($this->widgets[$zone]);
+    }
+
+    /**
+     * Every zone's widgets, sorted — the shape handed to the React dashboard.
+     *
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function all(): array
+    {
+        $out = [];
+        foreach (array_keys($this->widgets) as $zone) {
+            $out[$zone] = $this->getWidgets($zone);
+        }
+
+        return $out;
     }
 }

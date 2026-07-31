@@ -128,14 +128,13 @@ class AppServiceProvider extends ServiceProvider
             });
         }
 
-        // Share registries with every Blade view (legacy module pages, PDFs) so
-        // they can render module-registered items without extra controller work.
-        // The React sidebar can't read a Blade share, so MenuRegistry is ALSO
-        // bridged to Inertia as the `moduleNav` prop in HandleInertiaRequests —
-        // that is what makes module menu hooks appear in the SPA. WidgetRegistry
-        // (dashboard widgets) is still Blade-only; it needs the same bridge.
+        // Module extension registries are bridged to the React/Inertia frontend,
+        // not consumed from Blade (the Blade layouts were deleted in the React
+        // migration): MenuRegistry → the `moduleNav` prop (HandleInertiaRequests)
+        // drives the sidebar; WidgetRegistry → the `moduleWidgets` prop
+        // (DashboardController) drives the dashboard cards. The MenuRegistry share
+        // stays for any remaining standalone Blade (module pages, PDFs).
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
-        View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
 
         // Set application locale from system_settings. Also override
         // config('app.locale') so that under Octane, where FlushLocaleState
