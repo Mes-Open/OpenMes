@@ -66,6 +66,22 @@ $app = Application::configure(basePath: dirname(__DIR__))
             return redirect()->route('login')->withErrors(['session' => 'Your session has expired. Please log in again.']);
         });
 
+        // A DELETE for an admin record that's already gone — soft-deleted in
+        // another tab, a stale list, a double submit — should not dump a bare 404.
+        // The delete's intent is already satisfied, so bounce back to the list with
+        // an informational message instead. Covers every admin CRUD resource in one
+        // place. Only when the 404 came from route-model binding failing to resolve
+        // the record itself (the framework wraps the original ModelNotFoundException
+        // as the previous exception) — so deliberate security-scoping abort(404)s
+        // inside controllers (foreign/IDOR paths) keep their 404.
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, \Illuminate\Http\Request $request) {
+            $fromBinding = $e->getPrevious() instanceof \Illuminate\Database\Eloquent\ModelNotFoundException;
+
+            if ($fromBinding && $request->isMethod('DELETE') && $request->is('admin/*')) {
+                return back()->with('info', __('That item was already removed.'));
+            }
+        });
+
         // Render a friendly Inertia "Error" page for error statuses in
         // production, so the app chrome (sidebar) stays put and the user can
         // navigate away instead of landing on a bare error screen. API/JSON

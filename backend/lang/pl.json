@@ -1930,7 +1930,7 @@
     "Add one to control how lot numbers are generated.": "Dodaj sekwencję, aby kontrolować generowanie numerów LOT.",
     "No label template configured for type :type. Configure one in Packaging → Label Templates.": "Brak skonfigurowanego szablonu etykiety dla typu :type. Skonfiguruj go w Pakowanie → Szablony etykiet.",
     "No workstations are wired to a machine connection yet.": "Żadne stanowisko nie jest jeszcze podłączone do połączenia maszynowego.",
-    "ERP integration": "Integracja z ERP",
+    "ERP integration": "Integracja ERP",
     "Generate this many days before due": "Generuj tyle dni przed terminem",
     "No lines mapped under this site yet.": "Brak linii przypisanych do tego zakładu.",
     "Work patterns": "Wzorce pracy",
@@ -4890,7 +4890,6 @@
     "Import work orders": "Import zleceń produkcyjnych",
     "Read production completions": "Odczyt danych o wykonaniu produkcji",
     "Read quality & issue reports": "Odczyt raportów jakości i niezgodności",
-    "ERP integration": "Integracja ERP",
     "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.": "REST API do importu zleceń produkcyjnych z ERP (SAP, Comarch, enova365, Dynamics) i eksportu danych o produkcji i jakości z powrotem, zabezpieczone kluczami API.",
     "Step 1 — Modules": "Krok 1 — Moduły",
     "Choose your modules": "Wybierz moduły",
@@ -4942,5 +4941,6 @@
     "You have been logged out successfully.": "Zostałeś wylogowany.",
     "Too many attempts. Please wait :seconds seconds.": "Zbyt wiele prób. Odczekaj :seconds s.",
     "Adding :material here would create a circular BOM reference.": "Dodanie :material w tym miejscu utworzyłoby cykliczne odwołanie w BOM.",
-    "That template already consumes :material, so it cannot also produce it.": "Ten szablon już zużywa :material, więc nie może go jednocześnie produkować."
+    "That template already consumes :material, so it cannot also produce it.": "Ten szablon już zużywa :material, więc nie może go jednocześnie produkować.",
+    "That item was already removed.": "Ten element został już usunięty."
 }
