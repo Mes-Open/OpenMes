@@ -18,17 +18,26 @@ fi
 echo "Kopiuję backend z $BACKEND_SRC → $DEST (bez node_modules/storage/.git)…"
 rm -rf "$DEST"
 mkdir -p "$DEST"
-# vendor JEST kopiowany (wymagany w runtime); node_modules NIE (assety są w public/build).
-rsync -a --delete \
-  --exclude 'node_modules' \
-  --exclude '.git' \
-  --exclude 'storage/logs/*' \
-  --exclude 'storage/framework/cache/*' \
-  --exclude 'storage/framework/sessions/*' \
-  --exclude 'storage/framework/views/*' \
-  --exclude 'storage/installed' \
-  --exclude '.env' \
-  "$BACKEND_SRC/" "$DEST/"
+# Portable copy — no rsync: it is not installed on the Windows git-bash CI
+# runner (the desktop-windows build failed with "rsync: command not found").
+# vendor IS copied (needed at runtime); node_modules is NOT (assets ship in
+# public/build). Copy each top-level entry except the excluded ones, then prune
+# the runtime-only storage state rsync used to skip. cp -R works on Linux,
+# macOS and Windows git-bash alike.
+shopt -s dotglob nullglob
+for item in "$BACKEND_SRC"/*; do
+  case "$(basename "$item")" in
+    node_modules|.git|.env) continue ;;
+  esac
+  cp -R "$item" "$DEST/"
+done
+shopt -u dotglob nullglob
+rm -rf \
+  "$DEST/storage/logs/"* \
+  "$DEST/storage/framework/cache/"* \
+  "$DEST/storage/framework/sessions/"* \
+  "$DEST/storage/framework/views/"* \
+  "$DEST/storage/installed"
 
 echo "Backend: $(du -sh "$DEST" | cut -f1)"
 if [ -f "$HERE/src-tauri/resources/php/php" ] || [ -f "$HERE/src-tauri/resources/php/php.exe" ]; then
