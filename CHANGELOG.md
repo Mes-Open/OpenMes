@@ -5,6 +5,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Engineering CAD documents — Phase 1 (backend core)** *([#179](https://github.com/Mes-Open/OpenMes/issues/179))*: engineering files can now be associated with a **material, product type, product revision, subassembly, process template or step**. A new `engineering_documents` table + `EngineeringDocument` model (polymorphic via a short allowlisted `entity_type` key — not a FQCN, so the existing `Attachment` model is untouched) stores each file on the **private disk** under a server-generated, non-predictable path, with **sha256 checksum**, original filename, package type, revision, lifecycle and effectivity dates. Package types (`EngineeringPackageType`): native/neutral CAD (STEP/IGES), eDrawings (`.eprt`/`.easm`/`.edrw`), interactive HTML, PDF and image; the upload allowlist and 100 MB limit are configurable (`config/engineering.php`). Documents follow a **Draft → Released → Obsolete** lifecycle; a **released document is immutable** and cannot be deleted (obsolete it instead). REST surface under `/api/v1/engineering-documents` (list/show/**upload** multipart/**download**/release/obsolete/delete) — downloads stream with `X-Content-Type-Options: nosniff`, forced as attachments except PDF/image which may be inline. Authorization is permission-gated: `view engineering documents` (granted to Operator/Supervisor/Admin) for list/view/download, `manage engineering documents` (Supervisor/Admin) for upload and lifecycle changes. Soft-deletable (Trash + audit) and registered in `SoftDeleteRegistry`. **Follow-up phases** (not in this change): work-order revision snapshotting on release, and the sandboxed interactive-HTML viewer (iframe + strict CSP + isolated origin) for browser-based assembly inspection.
+
 ## [0.19.0] - 2026-08-01
 
 ### Fixed

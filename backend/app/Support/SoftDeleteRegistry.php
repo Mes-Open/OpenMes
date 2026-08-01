@@ -40,6 +40,7 @@ class SoftDeleteRegistry
         'inspection_plans' => Models\InspectionPlan::class,
         'priority_rules' => Models\PriorityRule::class,
         'product_revisions' => Models\ProductRevision::class,
+        'engineering_documents' => Models\EngineeringDocument::class,
 
         // Structure
         'customers' => Models\Customer::class,

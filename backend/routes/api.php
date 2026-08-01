@@ -242,6 +242,17 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/machine-connections/{machineConnection}/signals', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'ingest']);
     Route::post('/machine-connections/{machineConnection}/heartbeat', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'heartbeat']);
 
+    // Engineering CAD documents (#179). View/download for any grantee of
+    // `view engineering documents`; mutations gated in the controller by
+    // `manage engineering documents`.
+    Route::get('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'index']);
+    Route::post('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'store']);
+    Route::get('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'show']);
+    Route::get('/engineering-documents/{engineeringDocument}/download', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'download']);
+    Route::post('/engineering-documents/{engineeringDocument}/release', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'release']);
+    Route::post('/engineering-documents/{engineeringDocument}/obsolete', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'obsolete']);
+    Route::delete('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'destroy']);
+
     // Per-unit (serial) genealogy
     Route::get('/serial-units', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'index']);
     Route::get('/serial-units/{serialUnit}', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'show']);
