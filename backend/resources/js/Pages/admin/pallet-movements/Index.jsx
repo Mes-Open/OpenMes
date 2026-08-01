@@ -37,6 +37,20 @@ export default function PalletMovementsIndex() {
             render: (r) => r.to_location || '—',
         },
         {
+            // Destination changes share this ledger (#101). A row whose From and
+            // To locations match is a re-route or an unassignment, not a physical
+            // move. An emptied destination alone doesn't prove an arrival — only a
+            // move landing on the pending destination does; pallets.arrived_at is
+            // the authoritative record.
+            key: 'to_destination',
+            label: __('Destination'),
+            className: 'font-mono text-om-muted',
+            render: (r) => {
+                if (r.from_destination === r.to_destination) return r.to_destination || '—';
+                return `${r.from_destination || '—'} → ${r.to_destination || '—'}`;
+            },
+        },
+        {
             key: 'operator',
             label: __('Operator'),
             className: 'text-om-muted',

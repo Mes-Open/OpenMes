@@ -2,12 +2,13 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\PalletStatus;
+use App\Http\Requests\Concerns\ValidatesPalletLogistics;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StorePalletMovementRequest extends FormRequest
 {
+    use ValidatesPalletLogistics;
+
     public function authorize(): bool
     {
         // Route is gated by the Operator|Supervisor|Admin role middleware.
@@ -17,37 +18,25 @@ class StorePalletMovementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Must be a live, still-movable pallet — the same set the terminal
-            // offers. Shipped pallets are dispatched (their location and ledger
-            // are frozen); soft-deleted pallets are gone. Excluding them here
-            // keeps validation and the controller's findOrFail in agreement,
-            // so a stale id yields a 422 rather than a 404.
-            'pallet_id' => [
-                'required',
-                'integer',
-                Rule::exists('pallets', 'id')->where(fn ($q) => $q
-                    ->whereNull('deleted_at')
-                    ->where('status', '!=', PalletStatus::Shipped->value)),
-            ],
-            // The operator must be an active, non-deleted logistics worker.
-            'worker_id' => [
-                'required',
-                'integer',
-                Rule::exists('workers', 'id')->where(fn ($q) => $q
-                    ->whereNull('deleted_at')
-                    ->where('is_active', true)
-                    ->where('is_logistics', true)),
-            ],
+            'pallet_id' => ['required', 'integer', $this->movablePalletExists()],
+            'worker_id' => ['required', 'integer', $this->activeLogisticsOperatorExists()],
             'to_location' => ['required', 'string', 'max:100'],
+            // Optional re-route booked with the move (#101). Omitted/blank keeps
+            // whatever destination the pallet already had — clearing one is a
+            // deliberate act that goes through the destination endpoint.
+            'to_destination' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
     public function messages(): array
     {
-        return [
-            'pallet_id.exists' => __('Select a movable (not shipped) pallet.'),
-            'worker_id.exists' => __('Select an active logistics operator.'),
-        ];
+        return $this->palletLogisticsMessages();
+    }
+
+    /** The re-route booked with this move, or null to keep the standing one. */
+    public function toDestination(): ?string
+    {
+        return $this->optionalText('to_destination');
     }
 }

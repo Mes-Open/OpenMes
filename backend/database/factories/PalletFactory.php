@@ -20,8 +20,18 @@ class PalletFactory extends Factory
             'qty' => 0,
             'status' => PalletStatus::Open->value,
             'location' => fake()->optional()->bothify('A-##-##'),
+            'destination' => null,
             'erp_reference' => fake()->optional()->bothify('ERP-#####'),
         ];
+    }
+
+    /** A pallet with somewhere to be and not there yet (#101). */
+    public function inTransit(string $destination = 'DOCK-01'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'destination' => $destination,
+            'arrived_at' => null,
+        ]);
     }
 
     public function closed(): static

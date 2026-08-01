@@ -18,6 +18,8 @@ class PalletMovementFactory extends Factory
             'worker_id' => Worker::factory()->logistics(),
             'from_location' => fake()->optional()->bothify('A-##-##'),
             'to_location' => fake()->bothify('B-##-##'),
+            'from_destination' => null,
+            'to_destination' => null,
             'moved_at' => now(),
             'notes' => fake()->optional()->sentence(),
         ];

@@ -1,0 +1,15 @@
+{
+    "name": "OrderPinger",
+    "display_name": "Order Pinger",
+    "version": "1.0.0",
+    "description": "Tutorial module — logs order saves and shows a dashboard KPI. Built by following backend/modules/README.md; kept as the tutorial's tested output.",
+    "author": "OpenMES Team",
+    "provider": "Modules\\OrderPinger\\Providers\\OrderPingerServiceProvider",
+    "hooks": [
+        "WorkOrder\\WorkOrderCreated",
+        "Resource\\ResourceChanged",
+        "Menu\\addItem",
+        "Widget\\kpi"
+    ],
+    "requires": []
+}

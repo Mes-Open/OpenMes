@@ -40,10 +40,10 @@ class MenuRegistry
     /**
      * Add a link to one of the existing nav dropdowns.
      *
-     * @param string $group  Dropdown key: orders | production | structure | hr | maintenance | admin
-     * @param string $label  Link text displayed in the dropdown
-     * @param string $url    Resolved URL (call route() or url() in your ServiceProvider)
-     * @param int    $order  Sort weight — built-in items use multiples of 10; use ≥50 to appear after them
+     * @param  string  $group  Dropdown key: orders | production | structure | hr | maintenance | admin
+     * @param  string  $label  Link text displayed in the dropdown
+     * @param  string  $url  Resolved URL (call route() or url() in your ServiceProvider)
+     * @param  int  $order  Sort weight — built-in items use multiples of 10; use ≥50 to appear after them
      */
     public function addItem(string $group, string $label, string $url, int $order = 50): void
     {
@@ -58,8 +58,26 @@ class MenuRegistry
     public function getItems(string $group): array
     {
         $items = $this->items[$group] ?? [];
-        usort($items, fn($a, $b) => $a['order'] <=> $b['order']);
+        usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
+
         return $items;
+    }
+
+    /**
+     * All built-in-dropdown injections keyed by group, each list sorted by order.
+     * Feeds the React sidebar (HandleInertiaRequests) so module menu hooks render
+     * in the SPA the same way they used to render in the deleted Blade sidebar.
+     *
+     * @return array<string, list<array{label: string, url: string, order: int}>>
+     */
+    public function getAllItems(): array
+    {
+        $out = [];
+        foreach (array_keys($this->items) as $group) {
+            $out[$group] = $this->getItems($group);
+        }
+
+        return $out;
     }
 
     // -------------------------------------------------------------------------
@@ -71,13 +89,13 @@ class MenuRegistry
      * Call this before addGroupItem() to control the label and sort order.
      * Calling it again with the same id is a no-op (first registration wins).
      *
-     * @param string $id    Unique identifier used as key for addGroupItem()
-     * @param string $label Dropdown button text
-     * @param int    $order Position relative to other custom groups (lower = rendered first / leftmost)
+     * @param  string  $id  Unique identifier used as key for addGroupItem()
+     * @param  string  $label  Dropdown button text
+     * @param  int  $order  Position relative to other custom groups (lower = rendered first / leftmost)
      */
     public function addGroup(string $id, string $label, int $order = 50): void
     {
-        if (!isset($this->groups[$id])) {
+        if (! isset($this->groups[$id])) {
             $this->groups[$id] = ['id' => $id, 'label' => $label, 'order' => $order, 'items' => []];
         }
     }
@@ -86,14 +104,14 @@ class MenuRegistry
      * Add a link to a custom dropdown group.
      * If the group has not been registered yet, it is auto-created using the id as its label.
      *
-     * @param string $groupId Target group id (must match a prior addGroup() call)
-     * @param string $label   Link text
-     * @param string $url     Resolved URL
-     * @param int    $order   Sort weight within the group
+     * @param  string  $groupId  Target group id (must match a prior addGroup() call)
+     * @param  string  $label  Link text
+     * @param  string  $url  Resolved URL
+     * @param  int  $order  Sort weight within the group
      */
     public function addGroupItem(string $groupId, string $label, string $url, int $order = 50): void
     {
-        if (!isset($this->groups[$groupId])) {
+        if (! isset($this->groups[$groupId])) {
             $this->addGroup($groupId, ucfirst($groupId));
         }
 
@@ -109,14 +127,14 @@ class MenuRegistry
     {
         $groups = array_values(array_filter(
             $this->groups,
-            fn($g) => !empty($g['items'])
+            fn ($g) => ! empty($g['items'])
         ));
 
         foreach ($groups as &$group) {
-            usort($group['items'], fn($a, $b) => $a['order'] <=> $b['order']);
+            usort($group['items'], fn ($a, $b) => $a['order'] <=> $b['order']);
         }
 
-        usort($groups, fn($a, $b) => $a['order'] <=> $b['order']);
+        usort($groups, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         return $groups;
     }

@@ -69,6 +69,10 @@ function LiveClockProvider({ active, children }) {
  *   emptyText   — shown when no rows
  *   pageSize    — rows per page (default 12)
  *   enableSelection / bulkActions / selectionLabel — opt-in row selection toolbar
+ *   fullWidth   — drop the default max-w-7xl cap and span the content area.
+ *                 Opt-in: lists stay 7xl-capped unless a page has enough columns
+ *                 to need the room. A page that sets it must widen its own
+ *                 surrounding cards to match, or they'll misalign with the table.
  */
 
 /**
@@ -159,6 +163,7 @@ export default function ResourceTable({
     enableSelection = false,
     bulkActions,
     selectionLabel,
+    fullWidth = false,
 }) {
     const collection = useMemo(() => realtimeCollection(shape, getKey), [shape]);
 
@@ -237,7 +242,7 @@ export default function ResourceTable({
 
     return (
         <LiveClockProvider active={hasLiveColumn}>
-        <div className="max-w-7xl mx-auto">
+        <div className={fullWidth ? '' : 'max-w-7xl mx-auto'}>
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink">{__(title)}</h1>

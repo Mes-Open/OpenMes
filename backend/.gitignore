@@ -28,4 +28,6 @@ Thumbs.db
 !/modules/README.md
 !/modules/.gitkeep
 !/modules/ExampleHooks
+!/modules/ExampleShowcase
+!/modules/OrderPinger
 backend/test-results/

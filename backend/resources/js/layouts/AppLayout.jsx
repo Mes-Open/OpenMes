@@ -5,6 +5,48 @@ import LiveAlertCount from '../components/LiveAlertCount';
 import { LiveShapesProvider } from '../components/LiveShapesProvider';
 import { __ } from '../lib/i18n';
 
+// ── Module menu hooks ────────────────────────────────────────────────────────
+// Modules register nav entries server-side via MenuRegistry; HandleInertiaRequests
+// exposes them as the `moduleNav` prop. We merge them into the static admin nav
+// here so module hooks render in the SPA (they used to render in the deleted
+// Blade sidebar). MenuRegistry's built-in group key `admin` maps to the React
+// dropdown key `adminGroup`.
+const MODULE_GROUP_ALIASES = { admin: 'adminGroup' };
+
+// Module pages are legacy server-rendered (Blade), not Inertia components, so
+// their links must trigger a full navigation (`external`) — an Inertia <Link>
+// would fetch JSON for a non-Inertia route and fail.
+function moduleItemToChild(item) {
+    return { label: item.label, href: item.url, match: [item.url], external: true };
+}
+
+// Merge module-registered hooks into ADMIN_GROUPS: inject items into built-in
+// dropdowns (by aliased key) and append any custom top-level dropdowns.
+function mergeModuleNav(moduleNav) {
+    const items = moduleNav?.items ?? {};
+    const groups = moduleNav?.groups ?? [];
+
+    const injected = {};
+    for (const [group, list] of Object.entries(items)) {
+        const key = MODULE_GROUP_ALIASES[group] ?? group;
+        injected[key] = (list ?? []).map(moduleItemToChild);
+    }
+
+    const base = ADMIN_GROUPS.map((g) =>
+        injected[g.key]?.length ? { ...g, children: [...g.children, ...injected[g.key]] } : g,
+    );
+
+    const custom = groups.map((g) => ({
+        key: `module:${g.id}`,
+        label: g.label,
+        icon: 'cube',
+        moduleGroup: true,
+        children: (g.items ?? []).map(moduleItemToChild),
+    }));
+
+    return [...base, ...custom];
+}
+
 /**
  * App chrome (sidebar + header) for authenticated React pages.
  *
@@ -185,22 +227,23 @@ function groupVisible(group, showTab) {
     return anyChild(group.children);
 }
 
-function flattenNavItems(showTab = () => true) {
+function flattenNavItems(showTab = () => true, groups = ADMIN_GROUPS) {
     const items = ADMIN_LINKS.filter((link) => showTab(link.key)).map((link) => ({
         label: link.label, href: link.href, match: link.match, exact: link.exact, trail: [],
     }));
     const walk = (nodes, trail) => {
         nodes.filter((node) => showTab(node.tab)).forEach((node) => {
             if (node.href && !node.disabled) {
-                items.push({ label: node.label, href: node.href, match: node.match, exact: node.exact, trail });
+                items.push({ label: node.label, href: node.href, match: node.match, exact: node.exact, external: node.external, trail });
             }
             if (node.children) {
                 walk(node.children, [...trail, node.label]);
             }
         });
     };
-    // Only index groups with at least one accessible tab (role + enabled module — #144).
-    walk(ADMIN_GROUPS.filter((group) => groupVisible(group, showTab)), []);
+    // Index groups with at least one accessible tab (role + enabled module — #144);
+    // module-declared groups are always indexed (already gated server-side).
+    walk(groups.filter((group) => group.moduleGroup || groupVisible(group, showTab)), []);
     items.push({ label: 'Settings', href: '/settings', match: ['/settings'], trail: [] });
     return items;
 }
@@ -219,11 +262,16 @@ function Sidebar({
     const allowedTabs = auth?.user?.accessibleTabs;
     const showTab = (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key);
 
+    // Merge module-registered menu hooks (MenuRegistry → moduleNav prop) into the
+    // static admin nav, so enabled modules can add dropdowns / items like before.
+    const moduleNav = usePage().props.moduleNav;
+    const navGroups = useMemo(() => mergeModuleNav(moduleNav), [moduleNav]);
+
     // Menu search: a non-empty query swaps the nav tree for a flat result list.
     // Matches both the English label and its translation so users can search
     // in the active locale.
     const [query, setQuery] = useState('');
-    const searchItems = useMemo(() => flattenNavItems(showTab), [allowedTabs]); // eslint-disable-line react-hooks/exhaustive-deps
+    const searchItems = useMemo(() => flattenNavItems(showTab, navGroups), [allowedTabs, navGroups]); // eslint-disable-line react-hooks/exhaustive-deps
     const q = query.trim().toLowerCase();
     const results = q
         ? searchItems.filter((item) =>
@@ -236,7 +284,10 @@ function Sidebar({
     const clearSearch = () => setQuery('');
     const submitSearch = () => {
         if (results?.length) {
-            router.visit(results[0].href);
+            const first = results[0];
+            // Module (legacy Blade) targets need a full load, not an Inertia visit.
+            if (first.external) window.location.href = first.href;
+            else router.visit(first.href);
             clearSearch();
         }
     };
@@ -329,16 +380,18 @@ function Sidebar({
                         {/* Separator under the top links (parity with the Blade sidebar) */}
                         {showLabels && <div className="mx-4 my-2 border-t border-om-line" />}
 
-                        {ADMIN_GROUPS.filter((group) => groupVisible(group, showTab)).map((group) => (
-                            <NavGroup
-                                key={group.key}
-                                group={group}
-                                path={path}
-                                collapsed={collapsed}
-                                showLabels={showLabels}
-                                showTab={showTab}
-                            />
-                        ))}
+                        {navGroups
+                            .filter((group) => group.moduleGroup || groupVisible(group, showTab))
+                            .map((group) => (
+                                <NavGroup
+                                    key={group.key}
+                                    group={group}
+                                    path={path}
+                                    collapsed={collapsed}
+                                    showLabels={showLabels}
+                                    showTab={showTab}
+                                />
+                            ))}
                     </>
                 )}
             </nav>
@@ -495,22 +548,25 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
 
 function SearchResultLink({ item, path, onNavigate }) {
     const active = isActive(path, item.match, item.exact);
+    const className = `flex flex-col gap-0.5 px-3 py-2 rounded-om-sm text-[13px] transition-colors
+                            ${active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`;
+    const inner = (
+        <>
+            <span className="font-medium">{__(item.label)}</span>
+            {item.trail.length > 0 && (
+                <span className={`text-xs ${active ? 'text-white/60' : 'text-om-faint'}`}>
+                    {item.trail.map((t) => __(t)).join(' / ')}
+                </span>
+            )}
+        </>
+    );
     return (
         <div className="px-2">
-            <Link
-                href={item.href}
-                prefetch
-                onClick={onNavigate}
-                className={`flex flex-col gap-0.5 px-3 py-2 rounded-om-sm text-[13px] transition-colors
-                            ${active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
-            >
-                <span className="font-medium">{__(item.label)}</span>
-                {item.trail.length > 0 && (
-                    <span className={`text-xs ${active ? 'text-white/60' : 'text-om-faint'}`}>
-                        {item.trail.map((t) => __(t)).join(' / ')}
-                    </span>
-                )}
-            </Link>
+            {item.external ? (
+                <a href={item.href} onClick={onNavigate} className={className}>{inner}</a>
+            ) : (
+                <Link href={item.href} prefetch onClick={onNavigate} className={className}>{inner}</Link>
+            )}
         </div>
     );
 }
@@ -669,13 +725,21 @@ function ChildLink({ child, path, dot }) {
         );
     }
 
+    const className = `flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
+                        ${active ? 'bg-om-ink text-om-on-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`;
+
+    // Module (legacy Blade) target — plain anchor for a full page load.
+    if (child.external) {
+        return (
+            <a href={child.href} className={className}>
+                <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
+                {__(child.label)}
+            </a>
+        );
+    }
+
     return (
-        <Link
-            href={child.href}
-            prefetch
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
-                        ${active ? 'bg-om-ink text-om-on-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`}
-        >
+        <Link href={child.href} prefetch className={className}>
             <span className={`rounded-full bg-current shrink-0 ${dotClass}`} />
             {__(child.label)}
         </Link>

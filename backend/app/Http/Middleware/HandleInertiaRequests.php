@@ -42,6 +42,19 @@ class HandleInertiaRequests extends Middleware
             'nav' => [
                 'alertCount' => fn () => $this->alertCount($user),
             ],
+            // Menu items registered by enabled modules via MenuRegistry. The old
+            // Blade sidebar read the registry directly; the React sidebar can't,
+            // so bridge it here. Only enabled modules populate the registry
+            // (AppServiceProvider boots their providers), so this is self-gating.
+            //   items:  { <builtin-group>: [{label,url,order}] } injected into
+            //           existing dropdowns (orders|production|structure|hr|
+            //           maintenance|admin).
+            //   groups: [{id,label,order,items:[{label,url,order}]}] custom
+            //           top-level dropdowns a module declares on its own.
+            'moduleNav' => [
+                'items' => fn () => app(\App\Services\MenuRegistry::class)->getAllItems(),
+                'groups' => fn () => app(\App\Services\MenuRegistry::class)->getGroups(),
+            ],
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),
             // i18n: the active locale + the switcher's options. The frontend

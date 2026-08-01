@@ -86,6 +86,18 @@ class WorkOrder extends Model
     /** Terminal statuses - no further transitions */
     const TERMINAL_STATUSES = [self::STATUS_DONE, self::STATUS_REJECTED, self::STATUS_CANCELLED];
 
+    /** All valid work order statuses (used for API filter validation). */
+    const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_ACCEPTED,
+        self::STATUS_IN_PROGRESS,
+        self::STATUS_BLOCKED,
+        self::STATUS_PAUSED,
+        self::STATUS_DONE,
+        self::STATUS_REJECTED,
+        self::STATUS_CANCELLED,
+    ];
+
     protected $fillable = [
         'order_no',
         'customer_order_no',

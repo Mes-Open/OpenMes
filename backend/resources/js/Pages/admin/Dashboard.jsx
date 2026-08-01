@@ -1,6 +1,6 @@
 // Geist White restyle: light-only v1 — om-* tokens + @openmes/ui (live-shape wiring and stats logic untouched).
 import { useMemo, useState } from 'react';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Badge, Dropdown, StatusPill } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import { useDashboardShapes } from '../../lib/useDashboardShapes';
@@ -41,6 +41,7 @@ function DashboardBody({
     scrapStats,
     nonConformanceStats,
     topCustomers,
+    moduleWidgets = {},
 }) {
     const { workOrders, lines, issues, issueTypes, oeeRecords, isLoading, error } =
         useDashboardShapes(hot);
@@ -86,6 +87,12 @@ function DashboardBody({
     const showWidget = (id) => enabledWidgets.length === 0 || enabledWidgets.includes(id);
     const order = useMemo(() => buildOrder(widgetOrder), [widgetOrder]);
 
+    // Module-registered cards (WidgetRegistry → moduleWidgets prop). kpi + sidebar
+    // zones render as compact cards in a grid right after the core KPIs; main zone
+    // renders as full-width cards at the end of the column.
+    const moduleKpi = [...(moduleWidgets.kpi ?? []), ...(moduleWidgets.sidebar ?? [])];
+    const moduleMain = moduleWidgets.main ?? [];
+
     return (
         <div className="max-w-7xl mx-auto">
                 <Header
@@ -108,6 +115,14 @@ function DashboardBody({
                     {showWidget('kpi_cards') && (
                         <Section order={order.kpi_cards}>
                             <KpiCards stats={stats} selectedLineId={selectedLineId} />
+                        </Section>
+                    )}
+
+                    {moduleKpi.length > 0 && (
+                        <Section order={order.kpi_cards + 0.5}>
+                            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {moduleKpi.map((w, i) => <ModuleWidget key={i} w={w} compact />)}
+                            </div>
                         </Section>
                     )}
 
@@ -158,6 +173,12 @@ function DashboardBody({
                             <RecentIssues rows={recentIssues} issueTypes={issueTypes} />
                         </Section>
                     )}
+
+                    {moduleMain.map((w, i) => (
+                        <Section key={i} order={500 + i}>
+                            <ModuleWidget w={w} />
+                        </Section>
+                    ))}
                 </div>
         </div>
     );
@@ -651,6 +672,31 @@ function StatusBadge({ status }) {
 
 function Section({ order, children }) {
     return <div style={{ order: order * 10 }}>{children}</div>;
+}
+
+/**
+ * A dashboard card registered by a module via WidgetRegistry. All fields are
+ * plain data rendered through React (escaped) — modules never inject raw HTML.
+ * `compact` is the KPI/sidebar styling; full width is the default (main zone).
+ */
+function ModuleWidget({ w, compact = false }) {
+    const card = (
+        <div className={`bg-om-card border border-om-line rounded-om ${compact ? 'p-4' : 'p-5'}`}>
+            {w.title && <p className="text-xs uppercase tracking-wide text-om-faint">{w.title}</p>}
+            {w.metric != null && w.metric !== '' && (
+                <p className="mt-1 text-2xl font-semibold text-om-ink tabular-nums">{w.metric}</p>
+            )}
+            {w.body && <p className="mt-1 text-sm text-om-muted">{w.body}</p>}
+        </div>
+    );
+
+    if (!w.href) return card;
+
+    const cls = 'block hover:opacity-90 transition-opacity';
+    // Module pages are server-rendered (Blade); external links do a full load.
+    return w.external
+        ? <a href={w.href} className={cls}>{card}</a>
+        : <Link href={w.href} className={cls}>{card}</Link>;
 }
 
 function computeStats(workOrders, issues, issueTypes, lines) {

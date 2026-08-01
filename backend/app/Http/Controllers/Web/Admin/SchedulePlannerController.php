@@ -457,6 +457,10 @@ class SchedulePlannerController extends Controller
 
         $this->logChange($workOrder, $snapshotBefore);
 
+        // Module hook: the placement changed on the planner (assigned / moved /
+        // unassigned). Carries the fields the edit actually wrote.
+        \App\Events\Schedule\WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
+
         // The schedule placement is already persisted above. The snapshot /
         // auto-batch side-effects below can throw on incomplete product data
         // (missing BOM material, lot allocation, …); that must NOT 500 the
@@ -552,6 +556,7 @@ class SchedulePlannerController extends Controller
                 'planned_end_at' => $validated['planned_end_at'],
             ]);
             $this->logChange($workOrder, $snapshotBefore);
+            \App\Events\Schedule\WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
 
             return response()->json([
                 'success' => true,
@@ -579,6 +584,7 @@ class SchedulePlannerController extends Controller
             ]);
         }
         $this->logChange($workOrder, $snapshotBefore);
+        \App\Events\Schedule\WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
 
         return response()->json([
             'success' => true,
@@ -711,6 +717,9 @@ class SchedulePlannerController extends Controller
             'before' => $current,
             'after' => $this->placementSnapshot($workOrder->fresh('extraPlacements')),
         ]);
+
+        // Module hook: an undo restores a previous placement — a schedule change too.
+        \App\Events\Schedule\WorkOrderScheduled::dispatch($workOrder, $workOrder->getChanges());
 
         return response()->json(['success' => true, 'message' => __('Change undone.')]);
     }

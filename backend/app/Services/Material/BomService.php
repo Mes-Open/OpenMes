@@ -3,11 +3,15 @@
 namespace App\Services\Material;
 
 use App\Models\BomItem;
+use App\Models\Material;
 use App\Models\ProcessTemplate;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\ValidationException;
 
 class BomService
 {
+    public function __construct(private readonly BomExplosionService $explosion) {}
+
     /**
      * Get all BOM items for a process template.
      */
@@ -22,6 +26,8 @@ class BomService
     public function addItem(ProcessTemplate $template, array $data): BomItem
     {
         $data['process_template_id'] = $template->id;
+
+        $this->guardAgainstCycle($template, $data['material_id'] ?? null);
 
         if (! isset($data['scrap_percentage']) && isset($data['material_id'])) {
             $material = \App\Models\Material::find($data['material_id']);
@@ -41,6 +47,11 @@ class BomService
 
     public function updateItem(BomItem $item, array $data): BomItem
     {
+        // Swapping the material can introduce a loop just as adding one can.
+        if (array_key_exists('material_id', $data) && (int) $data['material_id'] !== (int) $item->material_id) {
+            $this->guardAgainstCycle($item->processTemplate, $data['material_id']);
+        }
+
         // Preserve the existing value when a NOT NULL column's field is cleared,
         // rather than passing an explicit null (which trips the constraint).
         $data['scrap_percentage'] ??= $item->scrap_percentage;
@@ -54,6 +65,36 @@ class BomService
     public function removeItem(BomItem $item): void
     {
         $item->delete();
+    }
+
+    /**
+     * Reject a line that would make a template a component of itself, directly
+     * or through any number of intermediate subassemblies. Both the web and API
+     * paths funnel through addItem/updateItem, so this is the single gate.
+     *
+     * Thrown as a ValidationException so either surface answers 422 with the
+     * message against the offending field, rather than a 500.
+     *
+     * @throws ValidationException
+     */
+    private function guardAgainstCycle(ProcessTemplate $template, int|string|null $materialId): void
+    {
+        if ($materialId === null) {
+            return;
+        }
+
+        $material = Material::with('producingTemplate')->find($materialId);
+
+        if (! $material || ! $this->explosion->wouldCreateCycle($template, $material)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'material_id' => __(
+                'Adding :material here would create a circular BOM reference.',
+                ['material' => $material->code],
+            ),
+        ]);
     }
 
     /**

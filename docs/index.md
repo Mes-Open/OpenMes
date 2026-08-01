@@ -39,6 +39,7 @@ Welcome to the OpenMES documentation. Choose a guide based on your role or use c
 | Document | Description |
 |---|---|
 | [API Documentation](API_DOCUMENTATION.md) | Full REST API reference with request/response examples |
+| [Module Hooks](../HOOKS.md) | Extend OpenMES with modules — event, menu and dashboard-widget hooks |
 | [Technical Documentation](development.md) | Architecture, modules system, development guide |
 | [Machine Connectivity](machine-connectivity.md) | Signal pipeline, Modbus/OPC UA/MQTT, adding a new protocol |
 | [MQTT Connectivity](mqtt-connectivity.md) | MQTT setup and the listener daemon |
