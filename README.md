@@ -572,7 +572,7 @@ See [LICENSE](LICENSE) for full details.
 
 ### Commercial Support
 Need help with deployment, customization, or training?
-Contact us at **jakub.przepioraa@gmail.com**
+Contact us at **jakub.przepiora@nice-code.com**
 
 ---
 
