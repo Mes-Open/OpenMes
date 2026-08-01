@@ -4656,7 +4656,6 @@
     "No shift configured": "No shift configured",
     "Not found": "Not found",
     "ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK": "ONE SEQUENCE PER PRODUCT TYPE · DEFAULT IS THE GLOBAL FALLBACK",
-    "Offline": "Offline",
     "Open API in browser": "Open API in browser",
     "PARAM": "PARAM",
     "PICK A SUPERVISOR": "PICK A SUPERVISOR",
@@ -4891,7 +4890,6 @@
     "Import work orders": "Import work orders",
     "Read production completions": "Read production completions",
     "Read quality & issue reports": "Read quality & issue reports",
-    "ERP integration": "ERP integration",
     "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.": "REST API to import work orders from an ERP (SAP, Comarch, enova365, Dynamics) and export production and quality data back, secured by API keys.",
     "Step 1 — Modules": "Step 1 — Modules",
     "Choose your modules": "Choose your modules",
@@ -4943,5 +4941,6 @@
     "You have been logged out successfully.": "You have been logged out successfully.",
     "Too many attempts. Please wait :seconds seconds.": "Too many attempts. Please wait :seconds seconds.",
     "Adding :material here would create a circular BOM reference.": "Adding :material here would create a circular BOM reference.",
-    "That template already consumes :material, so it cannot also produce it.": "That template already consumes :material, so it cannot also produce it."
+    "That template already consumes :material, so it cannot also produce it.": "That template already consumes :material, so it cannot also produce it.",
+    "That item was already removed.": "That item was already removed."
 }

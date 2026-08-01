@@ -7,6 +7,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **Deleting an already-removed record dumped a bare 404 instead of a message**: deleting an admin CRUD record that was already gone — soft-deleted in another tab, a stale list, or a double submit — hit route-model binding, which excludes soft-deleted rows, and returned a raw 404 with no feedback. A `DELETE` to `/admin/*` whose record no longer exists now bounces back to the list with an informational flash ("That item was already removed.") instead — the delete's intent is already satisfied. Handled centrally in `bootstrap/app.php` for **every** admin resource in one place; a normal single delete still shows "deleted successfully".
+
 ## [0.18.0] - 2026-07-25
 
 ### Added
