@@ -37,4 +37,27 @@ return [
         'zip' => 'interactive_html',
         'html' => 'interactive_html',
     ],
+
+    /*
+     | Interactive-HTML viewer (Phase 3). A zip package is validated (zip-slip,
+     | counts, size, inner-extension allowlist) and extracted to an isolated
+     | per-document directory, then served through a signed, CSP-locked route.
+     */
+    'inner_extensions' => [
+        'html', 'htm', 'js', 'mjs', 'css', 'json', 'map', 'wasm',
+        'svg', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp',
+        'woff', 'woff2', 'ttf', 'otf', 'eot',
+        'bin', 'glb', 'gltf', 'obj', 'stl', 'txt', 'xml',
+    ],
+
+    // Short-lived signed viewer URLs (seconds).
+    'viewer_url_ttl' => (int) env('ENGINEERING_VIEWER_TTL', 300),
+
+    /*
+     | Content-Security-Policy served with every viewer response. default-src
+     | 'none' + connect-src 'self' keep the package fully offline (no external
+     | CDNs / exfiltration); frame-ancestors is filled with the app origin so
+     | only the MES app may embed it.
+     */
+    'viewer_csp' => "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'",
 ];

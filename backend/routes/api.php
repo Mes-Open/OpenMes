@@ -249,6 +249,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'store']);
     Route::get('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'show']);
     Route::get('/engineering-documents/{engineeringDocument}/download', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'download']);
+    Route::get('/engineering-documents/{engineeringDocument}/viewer-url', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'viewerUrl']);
     Route::post('/engineering-documents/{engineeringDocument}/release', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'release']);
     Route::post('/engineering-documents/{engineeringDocument}/obsolete', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'obsolete']);
     Route::delete('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'destroy']);

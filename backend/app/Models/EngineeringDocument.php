@@ -60,11 +60,13 @@ class EngineeringDocument extends Model
 
     protected static function booted(): void
     {
-        // Remove the stored file (and any extracted package dir) on hard delete.
+        // Remove the stored file and any extracted interactive package on hard delete.
         static::forceDeleted(function (EngineeringDocument $doc) {
+            $disk = Storage::disk($doc->disk());
             if ($doc->storage_path) {
-                Storage::disk($doc->disk())->delete($doc->storage_path);
+                $disk->delete($doc->storage_path);
             }
+            $disk->deleteDirectory("engineering/interactive/{$doc->id}");
         });
     }
 

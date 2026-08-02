@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
  */
 class EngineeringDocumentService
 {
+    public function __construct(private EngineeringPackageService $packages) {}
+
     public function disk(): string
     {
         return config('engineering.disk', 'local');
@@ -48,7 +50,7 @@ class EngineeringDocumentService
 
         Storage::disk($this->disk())->putFileAs($dir, $file, $name);
 
-        return EngineeringDocument::create([
+        $doc = EngineeringDocument::create([
             'entity_type' => $meta['entity_type'],
             'entity_id' => $meta['entity_id'],
             'original_filename' => $file->getClientOriginalName(),
@@ -65,6 +67,28 @@ class EngineeringDocumentService
             'effective_to' => $meta['effective_to'] ?? null,
             'uploaded_by_id' => $uploader->id,
         ]);
+
+        // Interactive HTML is active content: a zip is validated + extracted into
+        // the document's isolated directory (served later behind the signed,
+        // CSP-locked viewer); a single .html is its own entry point.
+        if ($packageType === 'interactive_html') {
+            try {
+                $abs = Storage::disk($this->disk())->path($path);
+                if ($ext === 'zip') {
+                    $result = $this->packages->extract($doc, $abs, $meta['entry_point'] ?? null);
+                    $doc->update(['extracted_size' => $result['extracted_size'], 'entry_point' => $result['entry_point']]);
+                } else { // single-file .html
+                    $doc->update(['entry_point' => $name]);
+                }
+            } catch (ValidationException $e) {
+                // Reject the whole upload: force-delete removes the row, the stored
+                // zip and any partially-extracted files, then re-surface the 422.
+                $doc->forceDelete();
+                throw $e;
+            }
+        }
+
+        return $doc;
     }
 
     /** Mark a document released (immutable from here on). No-op if already released. */

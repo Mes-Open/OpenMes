@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\EngineeringPackageType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEngineeringDocumentRequest;
 use App\Models\EngineeringDocument;
@@ -9,6 +10,7 @@ use App\Services\Engineering\EngineeringDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -92,6 +94,31 @@ class EngineeringDocumentController extends Controller
         return $disk->download($engineeringDocument->storage_path, $engineeringDocument->original_filename, $headers + [
             'Content-Disposition' => $disposition.'; filename="'.addslashes($engineeringDocument->original_filename).'"',
         ]);
+    }
+
+    /**
+     * A short-lived SIGNED URL to the interactive package's entry point (#179
+     * Phase 3). The frontend loads this inside a sandboxed <iframe>; the viewer
+     * route validates the signature, serves the extracted files with a strict CSP
+     * and never touches the app session.
+     */
+    public function viewerUrl(Request $request, EngineeringDocument $engineeringDocument): JsonResponse
+    {
+        $this->authorizeView($request);
+
+        abort_unless(
+            $engineeringDocument->package_type === EngineeringPackageType::InteractiveHtml && $engineeringDocument->entry_point,
+            422,
+            'This document has no interactive viewer.'
+        );
+
+        $url = URL::temporarySignedRoute(
+            'engineering.viewer',
+            now()->addSeconds((int) config('engineering.viewer_url_ttl', 300)),
+            ['engineeringDocument' => $engineeringDocument->id, 'path' => $engineeringDocument->entry_point],
+        );
+
+        return response()->json(['data' => ['url' => $url, 'entry_point' => $engineeringDocument->entry_point]]);
     }
 
     public function release(Request $request, EngineeringDocument $engineeringDocument): JsonResponse

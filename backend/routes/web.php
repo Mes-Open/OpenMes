@@ -846,3 +846,25 @@ Route::middleware('auth')->group(function () {
         });
     });
 });
+
+// Engineering interactive-HTML viewer (#179 Phase 3). Reached ONLY via a
+// short-lived signed URL and loaded inside a sandboxed <iframe>. Session/cookie
+// middleware is stripped so the app's auth cookie is never handed to the
+// package; the signature is the sole authorization. The response carries a
+// strict CSP + nosniff (see EngineeringViewerController).
+Route::get('/engineering/viewer/{engineeringDocument}/{path}', [\App\Http\Controllers\EngineeringViewerController::class, 'serve'])
+    ->where('path', '.*')
+    ->middleware('signed')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\Session\Middleware\AuthenticateSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \App\Http\Middleware\SetLocale::class,
+        \App\Http\Middleware\LogRequest::class,
+        \App\Http\Middleware\HandleInertiaRequests::class,
+    ])
+    ->name('engineering.viewer');
