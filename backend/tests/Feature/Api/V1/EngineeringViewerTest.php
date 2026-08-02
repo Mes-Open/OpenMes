@@ -90,6 +90,23 @@ class EngineeringViewerTest extends TestCase
         $this->assertDatabaseCount('engineering_documents', 0);
     }
 
+    public function test_oversized_extracted_entry_is_rejected(): void
+    {
+        // The per-file extraction cap is enforced on the REAL streamed bytes, so an
+        // entry exceeding it is aborted (a zip-bomb can't inflate into memory).
+        config(['engineering.max_extracted_file_bytes' => 16]);
+
+        $this->actingAs($this->admin)
+            ->postJson('/api/v1/engineering-documents', [
+                'file' => $this->zip(['index.html' => str_repeat('A', 64)]),
+                'entity_type' => 'material', 'entity_id' => $this->material->id, 'revision' => 'B',
+            ])
+            ->assertStatus(422);
+
+        // The rejected upload leaves nothing behind.
+        $this->assertDatabaseCount('engineering_documents', 0);
+    }
+
     public function test_disallowed_inner_type_is_rejected(): void
     {
         $this->actingAs($this->admin)

@@ -14,6 +14,10 @@ return [
 
     'max_upload_bytes' => (int) env('ENGINEERING_MAX_UPLOAD_BYTES', 100 * 1024 * 1024),      // 100 MB
     'max_extracted_bytes' => (int) env('ENGINEERING_MAX_EXTRACTED_BYTES', 500 * 1024 * 1024), // 500 MB (Phase 3)
+    // Per-file cap on a single extracted entry. Enforced while streaming the
+    // entry out (never trusting the archive's declared size), so a zip-bomb
+    // entry is aborted after this many bytes instead of inflating into memory.
+    'max_extracted_file_bytes' => (int) env('ENGINEERING_MAX_EXTRACTED_FILE_BYTES', 64 * 1024 * 1024), // 64 MB
     'max_files' => (int) env('ENGINEERING_MAX_FILES', 2000),                                  // (Phase 3)
 
     /*
@@ -54,10 +58,17 @@ return [
     'viewer_url_ttl' => (int) env('ENGINEERING_VIEWER_TTL', 300),
 
     /*
-     | Content-Security-Policy served with every viewer response. default-src
-     | 'none' + connect-src 'self' keep the package fully offline (no external
-     | CDNs / exfiltration); frame-ancestors is filled with the app origin so
+     | Content-Security-Policy served with every viewer response. `{origin}` is
+     | substituted at request time with the app's scheme://host[:port] (from
+     | APP_URL). We name the explicit origin rather than 'self' on purpose: the
+     | package is framed in a sandbox WITHOUT allow-same-origin, so its document
+     | origin is opaque and 'self' would match nothing — an explicit host still
+     | authorises the package's own (signed) subresources. `connect-src 'none'`
+     | means package JS cannot call the app's API at all (there is no supported
+     | dynamic-fetch path), so even if the frame ever shared the app origin it
+     | could not act against `/api/*`. `default-src 'none'` blocks external
+     | loads/exfiltration; frame-ancestors is appended with the app origin so
      | only the MES app may embed it.
      */
-    'viewer_csp' => "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'",
+    'viewer_csp' => "default-src 'none'; script-src {origin}; style-src {origin} 'unsafe-inline'; img-src {origin} data: blob:; font-src {origin} data:; connect-src 'none'; worker-src {origin} blob:; media-src {origin} blob:; object-src 'none'; base-uri 'none'; form-action 'none'",
 ];

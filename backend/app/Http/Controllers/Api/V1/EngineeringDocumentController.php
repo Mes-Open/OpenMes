@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\EngineeringDocumentLifecycle;
 use App\Enums\EngineeringPackageType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEngineeringDocumentRequest;
@@ -11,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -87,18 +89,51 @@ class EngineeringDocumentController extends Controller
         $disk = Storage::disk($engineeringDocument->disk());
         abort_unless($disk->exists($engineeringDocument->storage_path), 404, 'File no longer exists on storage.');
 
-        $headers = [
-            'Content-Type' => $engineeringDocument->mime_type ?? 'application/octet-stream',
+        // Derive the served Content-Type from the package type + stored extension —
+        // NEVER from the sniffed mime_type. Otherwise a file whose bytes are HTML/SVG
+        // but whose extension is .png (package_type "image") would be served as
+        // `Content-Type: text/html` inline and execute as active content on the app
+        // origin. Only a fixed set of inert types is served inline; anything else is
+        // a forced download as application/octet-stream. nosniff blocks type sniffing.
+        [$contentType, $inline] = $this->safeServeType($engineeringDocument);
+
+        $disposition = HeaderUtils::makeDisposition(
+            $inline ? HeaderUtils::DISPOSITION_INLINE : HeaderUtils::DISPOSITION_ATTACHMENT,
+            $engineeringDocument->original_filename,
+            preg_replace('/[^\x20-\x7e]/', '_', $engineeringDocument->original_filename) ?: 'download',
+        );
+
+        return $disk->download($engineeringDocument->storage_path, $engineeringDocument->original_filename, [
+            'Content-Type' => $contentType,
             'X-Content-Type-Options' => 'nosniff',
-        ];
-
-        // PDF and image may be shown inline; every other engineering format is a
-        // forced download (never sniffed, never rendered as active content here).
-        $disposition = $engineeringDocument->package_type->isInlineViewable() ? 'inline' : 'attachment';
-
-        return $disk->download($engineeringDocument->storage_path, $engineeringDocument->original_filename, $headers + [
-            'Content-Disposition' => $disposition.'; filename="'.addslashes($engineeringDocument->original_filename).'"',
+            'Content-Disposition' => $disposition,
         ]);
+    }
+
+    /**
+     * The safe (Content-Type, inline?) pair for serving a document. Inline is
+     * allowed only for PDF and a raster-image allowlist, each with a fixed inert
+     * type; every other document downloads as application/octet-stream.
+     *
+     * @return array{0: string, 1: bool}
+     */
+    private function safeServeType(EngineeringDocument $doc): array
+    {
+        if ($doc->package_type === EngineeringPackageType::Pdf) {
+            return ['application/pdf', true];
+        }
+
+        $imageTypes = [
+            'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif', 'webp' => 'image/webp',
+        ];
+        $ext = strtolower(pathinfo((string) $doc->storage_path, PATHINFO_EXTENSION));
+
+        if ($doc->package_type === EngineeringPackageType::Image && isset($imageTypes[$ext])) {
+            return [$imageTypes[$ext], true];
+        }
+
+        return ['application/octet-stream', false];
     }
 
     /**
@@ -129,6 +164,15 @@ class EngineeringDocumentController extends Controller
     public function release(Request $request, EngineeringDocument $engineeringDocument): JsonResponse
     {
         $this->authorizeManage($request);
+
+        // A retired (obsolete) document is terminal — it cannot be resurrected to
+        // Released. Only Draft -> Released (or a no-op re-release) is allowed.
+        abort_if(
+            $engineeringDocument->lifecycle_status === EngineeringDocumentLifecycle::Obsolete,
+            422,
+            'An obsolete document cannot be released again.'
+        );
+
         $doc = $this->service->release($engineeringDocument, $request->user());
 
         return response()->json(['data' => $doc]);
@@ -146,9 +190,15 @@ class EngineeringDocumentController extends Controller
     {
         $this->authorizeManage($request);
 
-        // Released documents are immutable and kept for traceability — obsolete
-        // them instead of deleting.
-        abort_if($engineeringDocument->isImmutable(), 422, 'A released document cannot be deleted; obsolete it instead.');
+        // A document that was EVER released is kept for traceability (a released
+        // doc is snapshotted onto work orders). Guarding on `released_at` — not just
+        // the current status — closes the release -> obsolete -> delete bypass, since
+        // an obsolete document is no longer "immutable" by status alone.
+        abort_if(
+            $engineeringDocument->isImmutable() || $engineeringDocument->released_at !== null,
+            422,
+            'A document that has been released cannot be deleted; obsolete it instead.'
+        );
 
         $engineeringDocument->delete();
 

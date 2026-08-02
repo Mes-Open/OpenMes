@@ -98,6 +98,26 @@ class EngineeringWorkOrderSnapshotTest extends TestCase
         $this->assertSame('B', $frozen[0]['revision']);
     }
 
+    public function test_bom_reselection_preserves_the_frozen_engineering_snapshot(): void
+    {
+        $doc = EngineeringDocument::factory()->released()->create([
+            'entity_type' => 'product_revision', 'entity_id' => $this->revision->id, 'revision' => 'B',
+        ]);
+
+        $wo = $this->makeWorkOrder();
+        $this->assertCount(1, $wo->process_snapshot['engineering_documents']);
+
+        // Re-selecting the BOM rebuilds the process snapshot — it must NOT drop the
+        // frozen engineering (and revision) blocks.
+        app(WorkOrderService::class)->updateBomSelection($wo, []);
+
+        $wo->refresh();
+        $this->assertArrayHasKey('engineering_documents', $wo->process_snapshot ?? []);
+        $this->assertCount(1, $wo->process_snapshot['engineering_documents']);
+        $this->assertSame($doc->id, $wo->process_snapshot['engineering_documents'][0]['document_id']);
+        $this->assertArrayHasKey('revision', $wo->process_snapshot);
+    }
+
     public function test_work_order_documents_endpoint_returns_the_frozen_references(): void
     {
         $admin = User::factory()->create();

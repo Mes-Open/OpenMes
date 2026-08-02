@@ -45,6 +45,10 @@ class EngineeringDocument extends Model
         'released_at', 'released_by_id', 'uploaded_by_id',
     ];
 
+    // Never expose the internal private-disk path over the API — downloads go
+    // through the controller, so the layout of the private disk is not client data.
+    protected $hidden = ['storage_path'];
+
     protected function casts(): array
     {
         return [

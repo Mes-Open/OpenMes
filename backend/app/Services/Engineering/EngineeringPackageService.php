@@ -21,7 +21,11 @@ class EngineeringPackageService
         return config('engineering.disk', 'local');
     }
 
-    /** Extracted files for a document live under this isolated, non-guessable prefix. */
+    /**
+     * Extracted files for a document live under this isolated per-document prefix.
+     * The id is a sequential key, not a secret — access is authorised by the
+     * signed viewer URL, never by the path being unguessable.
+     */
     public function extractDir(EngineeringDocument $doc): string
     {
         return "engineering/interactive/{$doc->id}";
@@ -43,6 +47,7 @@ class EngineeringPackageService
 
         $maxFiles = (int) config('engineering.max_files', 2000);
         $maxBytes = (int) config('engineering.max_extracted_bytes', 500 * 1024 * 1024);
+        $maxFileBytes = (int) config('engineering.max_extracted_file_bytes', 64 * 1024 * 1024);
         $allowed = array_flip((array) config('engineering.inner_extensions', []));
 
         if ($zip->numFiles > $maxFiles) {
@@ -58,16 +63,20 @@ class EngineeringPackageService
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            $stat = $zip->statIndex($i);
 
             // Directory entry — nothing to write.
             if ($name === false || str_ends_with($name, '/')) {
                 continue;
             }
 
-            // Zip-slip / absolute path / traversal.
+            // Zip-slip: reject null bytes, absolute paths and any `..` path SEGMENT
+            // (backslashes are normalised to `/` first, so `..\` is covered too).
             $normalized = str_replace('\\', '/', $name);
-            if (str_starts_with($normalized, '/') || str_contains($normalized, '../') || str_contains($normalized, '..\\')) {
+            if (
+                str_contains($normalized, "\0")
+                || str_starts_with($normalized, '/')
+                || in_array('..', explode('/', $normalized), true)
+            ) {
                 $zip->close();
                 $this->fail('The interactive package contains an unsafe path.');
             }
@@ -78,19 +87,41 @@ class EngineeringPackageService
                 $this->fail("The interactive package contains a disallowed file type “{$ext}”.");
             }
 
-            $total += (int) ($stat['size'] ?? 0);
-            if ($total > $maxBytes) {
-                $zip->close();
-                $this->fail('The interactive package is larger than the extraction limit.');
-            }
-
-            $content = $zip->getFromIndex($i);
-            if ($content === false) {
+            // Stream the entry out, counting the REAL decompressed bytes (never the
+            // archive's declared size, which an attacker controls) and aborting the
+            // moment a per-file or cumulative cap is exceeded. A php://temp buffer
+            // spills to disk past 2 MB, so a zip-bomb entry can't inflate into
+            // memory — it is stopped after at most $maxFileBytes.
+            $stream = $zip->getStreamIndex($i);
+            if ($stream === false) {
                 $zip->close();
                 $this->fail('The interactive package could not be read.');
             }
 
-            $disk->put("{$prefix}/{$normalized}", $content);
+            $buffer = fopen('php://temp/maxmemory:'.(2 * 1024 * 1024), 'r+');
+            $fileBytes = 0;
+            while (! feof($stream)) {
+                $chunk = fread($stream, 65536);
+                if ($chunk === false) {
+                    break;
+                }
+                $len = strlen($chunk);
+                $fileBytes += $len;
+                $total += $len;
+                if ($fileBytes > $maxFileBytes || $total > $maxBytes) {
+                    fclose($stream);
+                    fclose($buffer);
+                    $zip->close();
+                    $this->fail('The interactive package is larger than the extraction limit.');
+                }
+                fwrite($buffer, $chunk);
+            }
+            fclose($stream);
+
+            rewind($buffer);
+            $disk->writeStream("{$prefix}/{$normalized}", $buffer);
+            fclose($buffer);
+
             $names[] = $normalized;
             $count++;
         }

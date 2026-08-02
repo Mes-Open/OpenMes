@@ -54,9 +54,12 @@ class EngineeringViewerController extends Controller
             $body = $this->signAssetUrls($body, $engineeringDocument->id, $clean);
         }
 
-        // frame-ancestors is appended at request time so the app origin stays
-        // configurable and external network access remains disabled by default.
-        $csp = config('engineering.viewer_csp').'; frame-ancestors '.config('app.url');
+        // Pin the CSP to the app's exact origin (scheme://host[:port]). Used for
+        // both the source directives (`{origin}` placeholder) and frame-ancestors,
+        // so the sandboxed, opaque-origin package can still load its own signed
+        // subresources while only the MES app may embed it.
+        $origin = $this->appOrigin();
+        $csp = str_replace('{origin}', $origin, config('engineering.viewer_csp')).'; frame-ancestors '.$origin;
 
         return response($body, 200, [
             'Content-Type' => $contentType,
@@ -73,11 +76,27 @@ class EngineeringViewerController extends Controller
     {
         $clean = str_replace('\\', '/', $path);
         abort_if(
-            $clean === '' || str_starts_with($clean, '/') || str_contains($clean, '../') || str_contains($clean, "\0"),
+            $clean === '' || str_starts_with($clean, '/') || str_contains($clean, "\0"),
             404,
         );
 
+        // Reject any `..` path SEGMENT explicitly (not just the `../` substring, so a
+        // bare or trailing `..` is caught too) rather than relying on the storage
+        // layer's normalisation as the only backstop.
+        abort_if(in_array('..', explode('/', $clean), true), 404);
+
         return $clean;
+    }
+
+    /** The app's exact origin: scheme://host[:port], derived from APP_URL. */
+    private function appOrigin(): string
+    {
+        $parts = parse_url((string) config('app.url'));
+        $scheme = $parts['scheme'] ?? 'https';
+        $host = $parts['host'] ?? 'localhost';
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+
+        return "{$scheme}://{$host}{$port}";
     }
 
     /**

@@ -41,6 +41,13 @@ class EngineeringDocumentService
         }
 
         $packageType = $allow[$ext];
+
+        // For the types we ever render inline (image / pdf), the real bytes must
+        // match the claimed extension. Blocks uploading e.g. an HTML/SVG-with-script
+        // payload named `drawing.png` that would otherwise be sniffed as active
+        // content (defence in depth — the download route also fixes the served type).
+        $this->assertContentMatchesType($packageType, $file);
+
         $checksum = hash_file('sha256', $file->getRealPath());
 
         // Non-predictable, entity-scoped path on the private disk.
@@ -80,15 +87,39 @@ class EngineeringDocumentService
                 } else { // single-file .html
                     $doc->update(['entry_point' => $name]);
                 }
-            } catch (ValidationException $e) {
-                // Reject the whole upload: force-delete removes the row, the stored
-                // zip and any partially-extracted files, then re-surface the 422.
+            } catch (\Throwable $e) {
+                // Reject the whole upload on ANY failure (validation, a null-byte
+                // entry name, a disk/OOM error, …): force-delete removes the row, the
+                // stored zip and any partially-extracted files, then re-surface the
+                // error — never leave an orphaned row or half-extracted package.
                 $doc->forceDelete();
                 throw $e;
             }
         }
 
         return $doc;
+    }
+
+    /**
+     * Reject an upload whose real content type contradicts the claimed extension,
+     * for the package types served inline (image / pdf). CAD/eDrawings/zip types
+     * have unreliable sniffed MIME and are download-only, so they're not checked.
+     */
+    private function assertContentMatchesType(string $packageType, UploadedFile $file): void
+    {
+        $mime = (string) $file->getMimeType();
+
+        $ok = match ($packageType) {
+            'image' => str_starts_with($mime, 'image/') && $mime !== 'image/svg+xml',
+            'pdf' => $mime === 'application/pdf',
+            default => true,
+        };
+
+        if (! $ok) {
+            throw ValidationException::withMessages([
+                'file' => __('The file content does not match its :type extension.', ['type' => $packageType]),
+            ]);
+        }
     }
 
     /** Mark a document released (immutable from here on). No-op if already released. */

@@ -175,6 +175,16 @@ class WorkOrderService
 
             $snapshot = $this->buildProcessSnapshot($workOrder->product_type_id, $templateIds);
 
+            // Re-attach the immutable revision (#180) and engineering-document (#179)
+            // blocks — buildProcessSnapshot only rebuilds the BOM/structure, so
+            // without this the frozen references would be silently dropped on a BOM
+            // re-selection. Safe: this only runs before any batch exists.
+            $snapshot = $this->attachRevisionSnapshot($snapshot, $workOrder->product_revision_id);
+            $snapshot = $this->attachEngineeringSnapshot($snapshot, [
+                'product_revision_id' => $workOrder->product_revision_id,
+                'product_type_id' => $workOrder->product_type_id,
+            ]);
+
             $workOrder->update(['process_snapshot' => $snapshot]);
             $this->syncBomSelection($workOrder, $snapshot['bom_template_ids'] ?? []);
 

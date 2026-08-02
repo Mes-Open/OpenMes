@@ -281,19 +281,16 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
                         <iframe
                             title={viewer.title}
                             src={viewer.url}
-                            // Isolated: scripts run but the frame cannot navigate the
-                            // top window, open popups or submit forms out of the app.
-                            sandbox="allow-scripts allow-same-origin"
+                            // Isolated: `allow-scripts` WITHOUT `allow-same-origin`, so
+                            // the package runs at an opaque origin — it cannot read the
+                            // app's cookies/localStorage or call the app API as the
+                            // viewer. It also can't navigate the top window, open popups
+                            // or submit forms out of the app. (No "open in a new tab"
+                            // affordance: a top-level load would run the package on the
+                            // app origin with no sandbox.)
+                            sandbox="allow-scripts"
                             className="w-full h-[70vh] rounded-om-sm border border-om-line bg-white"
                         />
-                        <a
-                            href={viewer.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-om-accent self-end"
-                        >
-                            {__('Open in a new tab')}
-                        </a>
                     </div>
                 </Modal>
             )}

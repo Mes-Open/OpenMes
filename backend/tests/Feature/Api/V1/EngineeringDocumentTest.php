@@ -131,7 +131,84 @@ class EngineeringDocumentTest extends TestCase
             ->get("/api/v1/engineering-documents/{$id}/download")
             ->assertOk()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('Content-Disposition', 'attachment; filename="PART-1000.step"');
+            // A CAD blob is a forced download served as an inert octet-stream, never
+            // the sniffed mime type.
+            ->assertHeader('Content-Type', 'application/octet-stream')
+            ->assertHeader('Content-Disposition', 'attachment; filename=PART-1000.step');
+    }
+
+    public function test_inline_image_is_served_with_a_fixed_safe_content_type(): void
+    {
+        // A real 1x1 PNG (content matches the .png extension).
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+
+        $id = $this->actingAs($this->admin)
+            ->postJson('/api/v1/engineering-documents', [
+                'file' => UploadedFile::fake()->createWithContent('drawing.png', $png),
+                'entity_type' => 'material', 'entity_id' => $this->material->id, 'revision' => 'A',
+            ])->assertCreated()->json('data.id');
+
+        $this->actingAs($this->admin)
+            ->get("/api/v1/engineering-documents/{$id}/download")
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png')
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('Content-Disposition', 'inline; filename=drawing.png');
+    }
+
+    public function test_html_payload_disguised_as_an_image_is_rejected(): void
+    {
+        // A file whose real (sniffed) type is text/html but whose name claims .png.
+        // In production `getMimeType()` sniffs content via finfo; here we pin the
+        // fake's mime to text/html to reproduce that. Must be rejected at upload so
+        // it can never be served as active content (stored-XSS guard).
+        $this->actingAs($this->admin)
+            ->postJson('/api/v1/engineering-documents', [
+                'file' => UploadedFile::fake()->create('drawing.png', 1, 'text/html'),
+                'entity_type' => 'material', 'entity_id' => $this->material->id, 'revision' => 'A',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('file');
+
+        $this->assertDatabaseCount('engineering_documents', 0);
+    }
+
+    public function test_released_then_obsoleted_document_still_cannot_be_deleted(): void
+    {
+        $doc = EngineeringDocument::factory()->create(['entity_type' => 'material', 'entity_id' => $this->material->id]);
+
+        $this->actingAs($this->admin)->postJson("/api/v1/engineering-documents/{$doc->id}/release")->assertOk();
+        $this->actingAs($this->admin)->postJson("/api/v1/engineering-documents/{$doc->id}/obsolete")
+            ->assertOk()->assertJsonPath('data.lifecycle_status', 'obsolete');
+
+        // The release -> obsolete -> delete bypass must be closed.
+        $this->actingAs($this->admin)
+            ->deleteJson("/api/v1/engineering-documents/{$doc->id}")
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('engineering_documents', ['id' => $doc->id, 'deleted_at' => null]);
+    }
+
+    public function test_obsolete_document_cannot_be_released_again(): void
+    {
+        $doc = EngineeringDocument::factory()->create(['entity_type' => 'material', 'entity_id' => $this->material->id]);
+
+        $this->actingAs($this->admin)->postJson("/api/v1/engineering-documents/{$doc->id}/release")->assertOk();
+        $this->actingAs($this->admin)->postJson("/api/v1/engineering-documents/{$doc->id}/obsolete")->assertOk();
+
+        $this->actingAs($this->admin)
+            ->postJson("/api/v1/engineering-documents/{$doc->id}/release")
+            ->assertStatus(422);
+    }
+
+    public function test_storage_path_is_not_exposed_over_the_api(): void
+    {
+        $doc = EngineeringDocument::factory()->create(['entity_type' => 'material', 'entity_id' => $this->material->id]);
+
+        $this->actingAs($this->admin)
+            ->getJson("/api/v1/engineering-documents/{$doc->id}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.storage_path');
     }
 
     public function test_release_makes_it_immutable_and_blocks_delete(): void
