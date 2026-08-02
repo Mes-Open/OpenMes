@@ -58,6 +58,21 @@ class EngineeringDocumentController extends Controller
         return response()->json(['data' => $doc], 201);
     }
 
+    /**
+     * The engineering documents frozen onto a work order at release (#179 Phase 2).
+     * Returns the immutable snapshot references (id + revision + checksum + lifecycle)
+     * — not the live documents — so a newer upload never changes what a released
+     * order shows.
+     */
+    public function forWorkOrder(Request $request, \App\Models\WorkOrder $workOrder): JsonResponse
+    {
+        $this->authorizeView($request);
+
+        return response()->json([
+            'data' => $workOrder->process_snapshot['engineering_documents'] ?? [],
+        ]);
+    }
+
     public function download(Request $request, EngineeringDocument $engineeringDocument): StreamedResponse
     {
         $this->authorizeView($request);

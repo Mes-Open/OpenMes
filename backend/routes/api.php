@@ -252,6 +252,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/engineering-documents/{engineeringDocument}/release', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'release']);
     Route::post('/engineering-documents/{engineeringDocument}/obsolete', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'obsolete']);
     Route::delete('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'destroy']);
+    // Documents frozen onto a work order at release (Phase 2 snapshot).
+    Route::get('/work-orders/{workOrder}/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'forWorkOrder']);
 
     // Per-unit (serial) genealogy
     Route::get('/serial-units', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'index']);
