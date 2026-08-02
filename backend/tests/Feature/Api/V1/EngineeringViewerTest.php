@@ -118,6 +118,39 @@ class EngineeringViewerTest extends TestCase
         $this->assertStringContainsString('MODEL', $res->getContent());
     }
 
+    public function test_entry_html_asset_urls_are_rewritten_to_signed_ones(): void
+    {
+        $id = $this->upload($this->zip([
+            'index.html' => '<html><head><link rel="stylesheet" href="assets/app.css"></head>'
+                .'<body><script src="app.js"></script>'
+                .'<a href="https://example.com/x">ext</a></body></html>',
+            'app.js' => 'console.log("hi")',
+            'assets/app.css' => 'body{color:red}',
+        ]));
+
+        $entryUrl = $this->actingAs($this->admin)
+            ->getJson("/api/v1/engineering-documents/{$id}/viewer-url")->assertOk()->json('data.url');
+
+        $html = $this->get($entryUrl)->assertOk()->getContent();
+
+        // External URL untouched; relative refs now carry their own signature.
+        $this->assertStringContainsString('href="https://example.com/x"', $html);
+        $this->assertStringNotContainsString('src="app.js"', $html);
+        $this->assertMatchesRegularExpression('/src="[^"]*signature=/', $html);
+
+        // A rewritten root-level asset resolves and serves the right file + type.
+        preg_match('/src="([^"]+app\.js[^"]*)"/', $html, $m);
+        $this->assertNotEmpty($m[1] ?? null);
+        $js = $this->get(html_entity_decode($m[1]))->assertOk()->assertSee('console.log');
+        $this->assertStringStartsWith('text/javascript', $js->headers->get('Content-Type'));
+
+        // A subdirectory asset round-trips through the wildcard route too.
+        preg_match('/href="([^"]+app\.css[^"]*)"/', $html, $c);
+        $this->assertNotEmpty($c[1] ?? null);
+        $css = $this->get(html_entity_decode($c[1]))->assertOk();
+        $this->assertStringStartsWith('text/css', $css->headers->get('Content-Type'));
+    }
+
     public function test_viewer_requires_a_valid_signature(): void
     {
         $doc = EngineeringDocument::factory()->create([
