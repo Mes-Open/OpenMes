@@ -44,7 +44,6 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
     const [file, setFile] = useState(null);
     const [revision, setRevision] = useState(defaultRevision);
     const [documentType, setDocumentType] = useState('');
-    const [entryPoint, setEntryPoint] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
     const [uploading, setUploading] = useState(false);
 
@@ -88,7 +87,8 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
         fd.append('entity_id', entityId);
         fd.append('revision', revision);
         if (documentType) fd.append('document_type', documentType);
-        if (entryPoint) fd.append('entry_point', entryPoint);
+        // The server derives the interactive entry point (zip extraction /
+        // single-html), so the panel never sends one.
         try {
             const res = await postForm(BASE, fd);
             if (res.status === 422) {
@@ -100,7 +100,6 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
             // Reset and refresh.
             setFile(null);
             setDocumentType('');
-            setEntryPoint('');
             if (fileRef.current) fileRef.current.value = '';
             await load();
         } catch {
@@ -111,22 +110,49 @@ export default function EngineeringDocuments({ entityType, entityId, defaultRevi
     }
 
     async function lifecycle(doc, action) {
-        const res = await apiCall(`${BASE}/${doc.id}/${action}`, 'POST');
-        if (res.ok) await load();
+        setError(null);
+        try {
+            const res = await apiCall(`${BASE}/${doc.id}/${action}`, 'POST');
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                setError(body.message ?? __('The action could not be completed.'));
+                return;
+            }
+            await load();
+        } catch {
+            setError(__('The action could not be completed.'));
+        }
     }
 
     async function confirmDelete() {
         if (!toDelete) return;
-        const res = await apiCall(`${BASE}/${toDelete.id}`, 'DELETE');
-        setToDelete(null);
-        if (res.ok) await load();
+        setError(null);
+        try {
+            const res = await apiCall(`${BASE}/${toDelete.id}`, 'DELETE');
+            setToDelete(null);
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                setError(body.message ?? __('The document could not be deleted.'));
+                return;
+            }
+            await load();
+        } catch {
+            setToDelete(null);
+            setError(__('The document could not be deleted.'));
+        }
     }
 
     async function openViewer(doc) {
-        const res = await apiGet(`${BASE}/${doc.id}/viewer-url`);
-        if (!res.ok) return;
-        const json = await res.json();
-        setViewer({ url: json.data?.url, title: doc.original_filename });
+        setError(null);
+        try {
+            const res = await apiGet(`${BASE}/${doc.id}/viewer-url`);
+            if (!res.ok) throw new Error('viewer');
+            const json = await res.json();
+            if (!json.data?.url) throw new Error('viewer');
+            setViewer({ url: json.data.url, title: doc.original_filename });
+        } catch {
+            setError(__('The interactive viewer could not be opened.'));
+        }
     }
 
     return (

@@ -246,7 +246,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     // `view engineering documents`; mutations gated in the controller by
     // `manage engineering documents`.
     Route::get('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'index']);
-    Route::post('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'store']);
+    Route::post('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'store'])
+        ->middleware('throttle:30,1'); // 100 MB uploads + checksum + zip extraction — rate-limit like photos/media
     Route::get('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'show']);
     Route::get('/engineering-documents/{engineeringDocument}/download', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'download']);
     Route::get('/engineering-documents/{engineeringDocument}/viewer-url', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'viewerUrl']);

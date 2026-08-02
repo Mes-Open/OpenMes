@@ -98,24 +98,57 @@ class EngineeringWorkOrderSnapshotTest extends TestCase
         $this->assertSame('B', $frozen[0]['revision']);
     }
 
-    public function test_bom_reselection_preserves_the_frozen_engineering_snapshot(): void
+    public function test_bom_reselection_preserves_the_exact_frozen_engineering_snapshot(): void
     {
-        $doc = EngineeringDocument::factory()->released()->create([
+        EngineeringDocument::factory()->released()->create([
             'entity_type' => 'product_revision', 'entity_id' => $this->revision->id, 'revision' => 'B',
         ]);
 
         $wo = $this->makeWorkOrder();
-        $this->assertCount(1, $wo->process_snapshot['engineering_documents']);
+        $frozenDocs = $wo->process_snapshot['engineering_documents'];
+        $frozenAt = $wo->process_snapshot['engineering_snapshotted_at'];
+        $this->assertCount(1, $frozenDocs);
 
-        // Re-selecting the BOM rebuilds the process snapshot — it must NOT drop the
-        // frozen engineering (and revision) blocks.
+        // A newer released document appears AFTER creation. Re-selecting the BOM
+        // must copy the frozen blocks verbatim — never re-query and pull in the new
+        // document — or the "immutable snapshot" guarantee is broken.
+        EngineeringDocument::factory()->released()->create([
+            'entity_type' => 'product_revision', 'entity_id' => $this->revision->id,
+            'revision' => 'C', 'package_type' => 'pdf',
+        ]);
+
         app(WorkOrderService::class)->updateBomSelection($wo, []);
 
         $wo->refresh();
-        $this->assertArrayHasKey('engineering_documents', $wo->process_snapshot ?? []);
-        $this->assertCount(1, $wo->process_snapshot['engineering_documents']);
-        $this->assertSame($doc->id, $wo->process_snapshot['engineering_documents'][0]['document_id']);
+        $this->assertSame($frozenDocs, $wo->process_snapshot['engineering_documents']);
+        $this->assertSame($frozenAt, $wo->process_snapshot['engineering_snapshotted_at']);
         $this->assertArrayHasKey('revision', $wo->process_snapshot);
+    }
+
+    public function test_future_dated_and_expired_released_documents_are_not_snapshotted(): void
+    {
+        // Effective now (captured).
+        EngineeringDocument::factory()->released()->create([
+            'entity_type' => 'product_revision', 'entity_id' => $this->revision->id, 'revision' => 'ACT',
+            'effective_from' => now()->subDay(), 'effective_to' => now()->addDay(),
+        ]);
+        // Not yet effective.
+        EngineeringDocument::factory()->released()->create([
+            'entity_type' => 'product_revision', 'entity_id' => $this->revision->id, 'revision' => 'FUT',
+            'effective_from' => now()->addWeek(),
+        ]);
+        // Expired.
+        EngineeringDocument::factory()->released()->create([
+            'entity_type' => 'product_revision', 'entity_id' => $this->revision->id, 'revision' => 'EXP',
+            'effective_to' => now()->subWeek(),
+        ]);
+
+        $wo = $this->makeWorkOrder();
+        $revisions = array_column($wo->process_snapshot['engineering_documents'] ?? [], 'revision');
+
+        $this->assertContains('ACT', $revisions);
+        $this->assertNotContains('FUT', $revisions);
+        $this->assertNotContains('EXP', $revisions);
     }
 
     public function test_work_order_documents_endpoint_returns_the_frozen_references(): void
@@ -133,5 +166,19 @@ class EngineeringWorkOrderSnapshotTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.document_id', $doc->id)
             ->assertJsonPath('data.0.revision', 'B');
+    }
+
+    public function test_work_order_documents_endpoint_rejects_guest_and_unpermitted_user(): void
+    {
+        $wo = $this->makeWorkOrder();
+
+        // Guest — unauthenticated.
+        $this->getJson("/api/v1/work-orders/{$wo->id}/engineering-documents")->assertUnauthorized();
+
+        // Authenticated but without `view engineering documents`.
+        $user = User::factory()->create();
+        $this->actingAs($user)
+            ->getJson("/api/v1/work-orders/{$wo->id}/engineering-documents")
+            ->assertForbidden();
     }
 }

@@ -211,6 +211,30 @@ class EngineeringDocumentTest extends TestCase
             ->assertJsonMissingPath('data.storage_path');
     }
 
+    public function test_duplicate_package_is_rejected_without_orphaning_a_file(): void
+    {
+        $this->actingAs($this->admin)->postJson('/api/v1/engineering-documents', $this->payload())->assertCreated();
+        $filesAfterFirst = count(Storage::disk('local')->allFiles('engineering'));
+
+        // Same entity + revision + package type → the partial unique index would
+        // 500; instead it is a clean 422 and no second blob is written.
+        $this->actingAs($this->admin)->postJson('/api/v1/engineering-documents', $this->payload())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('file');
+
+        $this->assertDatabaseCount('engineering_documents', 1);
+        $this->assertCount($filesAfterFirst, Storage::disk('local')->allFiles('engineering'));
+    }
+
+    public function test_operator_cannot_change_lifecycle_or_delete(): void
+    {
+        $doc = EngineeringDocument::factory()->create(['entity_type' => 'material', 'entity_id' => $this->material->id]);
+
+        $this->actingAs($this->operator)->postJson("/api/v1/engineering-documents/{$doc->id}/release")->assertForbidden();
+        $this->actingAs($this->operator)->postJson("/api/v1/engineering-documents/{$doc->id}/obsolete")->assertForbidden();
+        $this->actingAs($this->operator)->deleteJson("/api/v1/engineering-documents/{$doc->id}")->assertForbidden();
+    }
+
     public function test_release_makes_it_immutable_and_blocks_delete(): void
     {
         $doc = EngineeringDocument::factory()->create(['entity_type' => 'material', 'entity_id' => $this->material->id]);

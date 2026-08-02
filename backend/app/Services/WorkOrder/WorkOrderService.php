@@ -120,8 +120,14 @@ class WorkOrderService
             return $snapshot;
         }
 
+        // Only freeze documents that are RELEASED and in their effectivity window
+        // at snapshot time — a future-dated or expired release is not active yet /
+        // any more and must not be captured onto the order.
+        $now = now();
         $docs = \App\Models\EngineeringDocument::query()
             ->where('lifecycle_status', \App\Enums\EngineeringDocumentLifecycle::Released)
+            ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $now))
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $now))
             ->where(function ($q) use ($owners) {
                 foreach ($owners as [$type, $id]) {
                     $q->orWhere(fn ($qq) => $qq->where('entity_type', $type)->where('entity_id', $id));
@@ -175,15 +181,18 @@ class WorkOrderService
 
             $snapshot = $this->buildProcessSnapshot($workOrder->product_type_id, $templateIds);
 
-            // Re-attach the immutable revision (#180) and engineering-document (#179)
-            // blocks — buildProcessSnapshot only rebuilds the BOM/structure, so
-            // without this the frozen references would be silently dropped on a BOM
-            // re-selection. Safe: this only runs before any batch exists.
-            $snapshot = $this->attachRevisionSnapshot($snapshot, $workOrder->product_revision_id);
-            $snapshot = $this->attachEngineeringSnapshot($snapshot, [
-                'product_revision_id' => $workOrder->product_revision_id,
-                'product_type_id' => $workOrder->product_type_id,
-            ]);
+            // Preserve the immutable frozen blocks verbatim. The revision (#180) and
+            // engineering documents (#179) were snapshotted at work-order creation;
+            // BOM reselection rebuilds only the BOM/structure and must NOT re-query
+            // those from (possibly newer) live records, or the "immutable snapshot"
+            // guarantee would break. Copy them across unchanged.
+            $existing = $workOrder->process_snapshot ?? [];
+            foreach (['revision', 'engineering_documents', 'engineering_snapshotted_at'] as $key) {
+                if (array_key_exists($key, $existing)) {
+                    $snapshot ??= [];
+                    $snapshot[$key] = $existing[$key];
+                }
+            }
 
             $workOrder->update(['process_snapshot' => $snapshot]);
             $this->syncBomSelection($workOrder, $snapshot['bom_template_ids'] ?? []);

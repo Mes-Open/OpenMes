@@ -46,7 +46,9 @@ class EngineeringDocumentController extends Controller
         }
 
         return response()->json([
-            'data' => $q->paginate(50),
+            // The panel is entity-scoped and reads the first page; 200 comfortably
+            // covers every document a single entity would ever have.
+            'data' => $q->paginate(200),
             // Lets the UI decide whether to show upload / lifecycle controls
             // without leaking the full permission set to the frontend.
             'can_manage' => (bool) $request->user()?->can('manage engineering documents'),

@@ -112,7 +112,8 @@ class EngineeringViewerController extends Controller
         $rewritten = preg_replace_callback(
             '/\b(src|href)\s*=\s*(["\'])(?!https?:|\/\/|data:|blob:|mailto:|#)([^"\']+)\2/i',
             function (array $m) use ($id, $expires, $baseDir) {
-                $refPath = preg_split('/[?#]/', $m[3])[0];
+                $ref = $m[3];
+                $refPath = preg_split('/[?#]/', $ref)[0];
                 if ($refPath === '' || str_starts_with($refPath, '/')) {
                     return $m[0];
                 }
@@ -124,6 +125,15 @@ class EngineeringViewerController extends Controller
                     'engineeringDocument' => $id,
                     'path' => $resolved,
                 ]);
+
+                // Preserve a fragment (#…): it is client-only, never sent to the
+                // server, so re-appending it doesn't affect signature validation. A
+                // query string is intentionally dropped — it would invalidate the
+                // signature, and a signed URL is already unique per generation.
+                $hash = strpbrk($ref, '#');
+                if ($hash !== false) {
+                    $url .= $hash;
+                }
 
                 return $m[1].'='.$m[2].$url.$m[2];
             },

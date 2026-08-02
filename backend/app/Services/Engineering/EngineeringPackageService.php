@@ -99,11 +99,21 @@ class EngineeringPackageService
             }
 
             $buffer = fopen('php://temp/maxmemory:'.(2 * 1024 * 1024), 'r+');
+            if ($buffer === false) {
+                fclose($stream);
+                $zip->close();
+                $this->fail('The interactive package could not be read.');
+            }
             $fileBytes = 0;
             while (! feof($stream)) {
                 $chunk = fread($stream, 65536);
                 if ($chunk === false) {
-                    break;
+                    // A read error must fail the whole extraction, never write a
+                    // truncated asset and count it as successfully extracted.
+                    fclose($stream);
+                    fclose($buffer);
+                    $zip->close();
+                    $this->fail('The interactive package could not be read.');
                 }
                 $len = strlen($chunk);
                 $fileBytes += $len;
@@ -119,8 +129,12 @@ class EngineeringPackageService
             fclose($stream);
 
             rewind($buffer);
-            $disk->writeStream("{$prefix}/{$normalized}", $buffer);
+            $written = $disk->writeStream("{$prefix}/{$normalized}", $buffer);
             fclose($buffer);
+            if ($written === false) {
+                $zip->close();
+                $this->fail('The interactive package could not be stored.');
+            }
 
             $names[] = $normalized;
             $count++;
@@ -132,11 +146,20 @@ class EngineeringPackageService
             $this->fail('The interactive package is empty.');
         }
 
-        // Resolve the entry point: the declared one must exist; otherwise fall
-        // back to an index.html at the package root.
-        $entry = $declaredEntry ?: 'index.html';
+        // Resolve the entry point: a declared one (normalised the same way as the
+        // entry names) must exist; otherwise fall back to index.html at the root,
+        // then to the first HTML document. Never fall back to a non-HTML asset
+        // (a .png/.js entry point would serve the wrong thing).
+        $entry = ltrim(str_replace('\\', '/', (string) $declaredEntry), './') ?: 'index.html';
         if (! in_array($entry, $names, true)) {
-            $entry = in_array('index.html', $names, true) ? 'index.html' : $names[0];
+            $html = array_values(array_filter(
+                $names,
+                fn (string $n) => in_array(strtolower(pathinfo($n, PATHINFO_EXTENSION)), ['html', 'htm'], true),
+            ));
+            if ($html === []) {
+                $this->fail('The interactive package has no HTML entry point.');
+            }
+            $entry = in_array('index.html', $html, true) ? 'index.html' : $html[0];
         }
 
         return ['extracted_size' => $total, 'file_count' => $count, 'entry_point' => $entry];

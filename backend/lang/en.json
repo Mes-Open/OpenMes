@@ -4960,5 +4960,8 @@
     "Uploaded": "Uploaded",
     "Interactive viewer — sandboxed": "Interactive viewer — sandboxed",
     "Open in a new tab": "Open in a new tab",
-    "Delete engineering document \":name\"?": "Delete engineering document \":name\"?"
+    "Delete engineering document \":name\"?": "Delete engineering document \":name\"?",
+    "The action could not be completed.": "The action could not be completed.",
+    "The document could not be deleted.": "The document could not be deleted.",
+    "The interactive viewer could not be opened.": "The interactive viewer could not be opened."
 }

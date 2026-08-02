@@ -21,6 +21,12 @@ use Illuminate\Support\Facades\Storage;
  * The file lives on the private disk under a server-generated path. Released
  * documents are immutable. Soft-deletable (Admin -> Trash); the disk file is
  * removed when the row is force-deleted.
+ *
+ * Owner association is by (entity_type, entity_id) key, not a DB foreign key, so
+ * it is intentionally INDEPENDENT of the owner's soft-delete: trashing a material
+ * or product type does NOT cascade to its engineering documents, and restoring
+ * the owner leaves them intact. Documents are managed and trashed on their own
+ * (the owner's page simply becomes unreachable while it is trashed).
  */
 class EngineeringDocument extends Model
 {

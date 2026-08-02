@@ -78,6 +78,23 @@ class EngineeringViewerTest extends TestCase
         Storage::disk('local')->assertExists("engineering/interactive/{$doc->id}/assets/style.css");
     }
 
+    public function test_single_html_package_is_extracted_and_viewable(): void
+    {
+        $id = $this->actingAs($this->admin)
+            ->postJson('/api/v1/engineering-documents', [
+                'file' => UploadedFile::fake()->createWithContent('viewer.html', '<html><body>SINGLE FILE VIEW</body></html>'),
+                'entity_type' => 'material', 'entity_id' => $this->material->id, 'revision' => 'H',
+            ])->assertCreated()->json('data.id');
+
+        $doc = EngineeringDocument::find($id);
+        $this->assertSame('index.html', $doc->entry_point);
+
+        $url = $this->actingAs($this->admin)
+            ->getJson("/api/v1/engineering-documents/{$id}/viewer-url")->assertOk()->json('data.url');
+
+        $this->get($url)->assertOk()->assertSee('SINGLE FILE VIEW', false);
+    }
+
     public function test_zip_slip_is_rejected(): void
     {
         $this->actingAs($this->admin)

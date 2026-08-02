@@ -24,9 +24,14 @@ class EngineeringDocumentFactory extends Factory
             'document_type' => 'model',
             'mime_type' => 'model/step',
             'file_size' => 2048,
-            'revision' => 'A',
+            // Vary the revision to avoid colliding on the partial unique index
+            // (entity_type, entity_id, revision, package_type). A wide space (no
+            // unique() — which could exhaust over a long suite) is enough: each
+            // default doc also gets its own Material, so entity_id already differs;
+            // tests override the revision when it matters.
+            'revision' => strtoupper($this->faker->bothify('??##')),
             'checksum' => hash('sha256', $uuid),
-            'storage_path' => "engineering/material/1/{$uuid}.step",
+            'storage_path' => fn (array $attrs) => "engineering/{$attrs['entity_type']}/{$attrs['entity_id']}/{$uuid}.step",
             'lifecycle_status' => 'draft',
             'uploaded_by_id' => User::factory(),
         ];
