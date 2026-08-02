@@ -4949,5 +4949,16 @@
     "Interactive viewer": "Interactive viewer",
     "Drawing (PDF)": "Drawing (PDF)",
     "File type “:ext” is not an allowed engineering format.": "File type “:ext” is not an allowed engineering format.",
-    "The selected owner does not exist.": "The selected owner does not exist."
+    "The selected owner does not exist.": "The selected owner does not exist.",
+    "Engineering documents": "Engineering documents",
+    "Could not load engineering documents.": "Could not load engineering documents.",
+    "Upload failed. Please try again.": "Upload failed. Please try again.",
+    "No engineering documents yet.": "No engineering documents yet.",
+    "Document type": "Document type",
+    "e.g. A": "e.g. A",
+    "For an interactive HTML package, upload a .zip or a single .html.": "For an interactive HTML package, upload a .zip or a single .html.",
+    "Uploaded": "Uploaded",
+    "Interactive viewer — sandboxed": "Interactive viewer — sandboxed",
+    "Open in a new tab": "Open in a new tab",
+    "Delete engineering document \":name\"?": "Delete engineering document \":name\"?"
 }

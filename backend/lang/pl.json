@@ -4949,5 +4949,16 @@
     "Interactive viewer": "Podgląd interaktywny",
     "Drawing (PDF)": "Rysunek (PDF)",
     "File type “:ext” is not an allowed engineering format.": "Typ pliku „:ext” nie jest dozwolonym formatem inżynieryjnym.",
-    "The selected owner does not exist.": "Wybrany właściciel nie istnieje."
+    "The selected owner does not exist.": "Wybrany właściciel nie istnieje.",
+    "Engineering documents": "Dokumenty inżynieryjne",
+    "Could not load engineering documents.": "Nie udało się załadować dokumentów inżynieryjnych.",
+    "Upload failed. Please try again.": "Przesyłanie nie powiodło się. Spróbuj ponownie.",
+    "No engineering documents yet.": "Brak dokumentów inżynieryjnych.",
+    "Document type": "Typ dokumentu",
+    "e.g. A": "np. A",
+    "For an interactive HTML package, upload a .zip or a single .html.": "Dla interaktywnej paczki HTML prześlij plik .zip lub pojedynczy .html.",
+    "Uploaded": "Przesłano",
+    "Interactive viewer — sandboxed": "Przeglądarka interaktywna — piaskownica",
+    "Open in a new tab": "Otwórz w nowej karcie",
+    "Delete engineering document \":name\"?": "Usunąć dokument inżynieryjny „:name”?"
 }

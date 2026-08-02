@@ -100,6 +100,21 @@ class EngineeringDocumentTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_index_reports_manage_capability_for_the_ui(): void
+    {
+        // A manager sees can_manage = true (upload/lifecycle controls shown)…
+        $this->actingAs($this->admin)
+            ->getJson('/api/v1/engineering-documents')
+            ->assertOk()
+            ->assertJsonPath('can_manage', true);
+
+        // …a view-only operator sees can_manage = false.
+        $this->actingAs($this->operator)
+            ->getJson('/api/v1/engineering-documents')
+            ->assertOk()
+            ->assertJsonPath('can_manage', false);
+    }
+
     public function test_guest_cannot_list(): void
     {
         $this->getJson('/api/v1/engineering-documents')->assertUnauthorized();

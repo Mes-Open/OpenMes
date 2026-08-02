@@ -43,7 +43,12 @@ class EngineeringDocumentController extends Controller
             $q->where('lifecycle_status', $request->string('lifecycle_status'));
         }
 
-        return response()->json(['data' => $q->paginate(50)]);
+        return response()->json([
+            'data' => $q->paginate(50),
+            // Lets the UI decide whether to show upload / lifecycle controls
+            // without leaking the full permission set to the frontend.
+            'can_manage' => (bool) $request->user()?->can('manage engineering documents'),
+        ]);
     }
 
     public function show(Request $request, EngineeringDocument $engineeringDocument): JsonResponse
