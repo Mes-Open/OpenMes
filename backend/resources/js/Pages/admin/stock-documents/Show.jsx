@@ -1,14 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Button, StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
-import { __ } from '../../../lib/i18n';
-
-const TYPE_LABELS = {
-    material_issue: __('Material release'),
-    material_receipt: __('Material receipt'),
-    product_receipt: __('Product receipt'),
-    product_issue: __('Product release'),
-};
+import { documentTypeLabels } from './types';
+import { __, formatDateTime } from '../../../lib/i18n';
 
 const STATUS_PILL = { draft: 'pending', posted: 'done', cancelled: 'blocked' };
 
@@ -28,6 +22,8 @@ function Field({ label, children }) {
  */
 export default function StockDocumentShow({ document: doc }) {
     const sign = doc.direction === 'in' ? '+' : '−';
+    const typeLabels = documentTypeLabels();
+    const dt = (value) => (value ? formatDateTime(value) : null);
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -68,7 +64,7 @@ export default function StockDocumentShow({ document: doc }) {
             </div>
 
             <div className="bg-om-surface border border-om-line rounded-om p-5 mb-5 grid grid-cols-2 md:grid-cols-4 gap-5">
-                <Field label={__('Type')}>{TYPE_LABELS[doc.type] ?? doc.type}</Field>
+                <Field label={__('Type')}>{typeLabels[doc.type] ?? doc.type}</Field>
                 <Field label={__('Warehouse')}>
                     {doc.warehouse ? `${doc.warehouse.code} — ${doc.warehouse.name}` : null}
                 </Field>
@@ -76,12 +72,12 @@ export default function StockDocumentShow({ document: doc }) {
                 <Field label={__('Direction')}>
                     {doc.direction === 'in' ? __('Into warehouse') : __('Out of warehouse')}
                 </Field>
-                <Field label={__('Created')}>{doc.created_at}</Field>
+                <Field label={__('Created')}>{dt(doc.created_at)}</Field>
                 <Field label={__('Created By')}>{doc.created_by}</Field>
-                <Field label={__('Posted')}>{doc.posted_at}</Field>
+                <Field label={__('Posted')}>{dt(doc.posted_at)}</Field>
                 <Field label={__('Posted By')}>{doc.posted_by}</Field>
                 <Field label={__('ERP Reference')}>{doc.erp_reference}</Field>
-                <Field label={__('ERP Synced')}>{doc.erp_synced_at}</Field>
+                <Field label={__('ERP Synced')}>{dt(doc.erp_synced_at)}</Field>
                 {doc.notes && (
                     <div className="col-span-2 md:col-span-4">
                         <Field label={__('Notes')}>{doc.notes}</Field>
@@ -91,7 +87,7 @@ export default function StockDocumentShow({ document: doc }) {
 
             <div className="bg-om-surface border border-om-line rounded-om overflow-hidden">
                 <div className="px-5 py-3 border-b border-om-line text-[13px] font-medium text-om-ink">
-                    {__('Lines')}
+                    {__('Document Lines')}
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-[13px]">

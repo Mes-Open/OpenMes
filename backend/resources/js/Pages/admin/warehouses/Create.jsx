@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceForm from '../../../components/ResourceForm';
-import { WAREHOUSE_FIELDS } from './fields';
+import { warehouseFields } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function WarehouseCreate() {
@@ -12,7 +12,7 @@ export default function WarehouseCreate() {
             <ResourceForm
                 action="/admin/warehouses"
                 method="post"
-                fields={WAREHOUSE_FIELDS}
+                fields={warehouseFields()}
                 initial={{
                     code: '',
                     name: '',

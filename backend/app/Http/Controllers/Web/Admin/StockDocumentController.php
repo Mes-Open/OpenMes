@@ -77,11 +77,14 @@ class StockDocumentController extends Controller
                 'direction' => $stockDocument->direction() > 0 ? 'in' : 'out',
                 'warehouse' => $stockDocument->warehouse?->only('id', 'code', 'name', 'kind'),
                 'work_order_no' => $stockDocument->workOrder?->order_no,
-                'posted_at' => $stockDocument->posted_at?->toDateTimeString(),
+                // ISO strings: the page formats them with formatDateTime(), which
+                // applies the configured plant timezone. A pre-formatted string
+                // would print raw UTC and disagree with the list.
+                'posted_at' => $stockDocument->posted_at?->toIso8601String(),
                 'posted_by' => $stockDocument->postedBy?->name,
                 'created_by' => $stockDocument->createdBy?->name,
-                'erp_synced_at' => $stockDocument->erp_synced_at?->toDateTimeString(),
-                'created_at' => $stockDocument->created_at?->toDateTimeString(),
+                'erp_synced_at' => $stockDocument->erp_synced_at?->toIso8601String(),
+                'created_at' => $stockDocument->created_at?->toIso8601String(),
                 'lines' => $stockDocument->lines->map(fn ($line) => [
                     'id' => $line->id,
                     'item_code' => $line->material?->code ?? $line->productType?->code,

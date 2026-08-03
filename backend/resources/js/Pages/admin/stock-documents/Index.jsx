@@ -2,17 +2,8 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { StatusPill } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
-import { __ } from '../../../lib/i18n';
-
-/** Keep in sync with StockDocument::TYPES. */
-export const DOCUMENT_TYPES = [
-    { value: 'material_issue', label: __('Material release') },
-    { value: 'material_receipt', label: __('Material receipt') },
-    { value: 'product_receipt', label: __('Product receipt') },
-    { value: 'product_issue', label: __('Product release') },
-];
-
-const TYPE_LABELS = Object.fromEntries(DOCUMENT_TYPES.map((t) => [t.value, t.label]));
+import { documentTypeLabels, documentTypes } from './types';
+import { __, formatDateTime } from '../../../lib/i18n';
 
 /** StatusPill takes the shop-floor status tokens — map document states onto them. */
 const STATUS_PILL = { draft: 'pending', posted: 'done', cancelled: 'blocked' };
@@ -20,16 +11,18 @@ const STATUS_PILL = { draft: 'pending', posted: 'done', cancelled: 'blocked' };
 export default function StockDocumentsIndex() {
     const { warehouses = [], workOrders = {} } = usePage().props;
     const warehouseById = Object.fromEntries(warehouses.map((w) => [w.id, w]));
+    const types = documentTypes();
+    const typeLabels = documentTypeLabels();
 
     const columns = [
-        { key: 'document_no', label: __('Number'), className: 'font-mono text-om-ink font-medium' },
+        { key: 'document_no', label: __('Document No.'), className: 'font-mono text-om-ink font-medium' },
         {
             key: 'type',
             label: __('Type'),
             filter: 'select',
-            options: DOCUMENT_TYPES,
+            options: types,
             allLabel: __('All types'),
-            render: (r) => TYPE_LABELS[r.type] ?? r.type,
+            render: (r) => typeLabels[r.type] ?? r.type,
         },
         {
             key: 'status',
@@ -63,7 +56,7 @@ export default function StockDocumentsIndex() {
         {
             key: 'posted_at',
             label: __('Posted'),
-            render: (r) => (r.posted_at ? new Date(r.posted_at).toLocaleString() : '—'),
+            render: (r) => (r.posted_at ? formatDateTime(r.posted_at) : '—'),
         },
     ];
 

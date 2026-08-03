@@ -5061,5 +5061,9 @@
     "ERP stock sync": "Synchronizacja stanów z ERP",
     "Import products, materials, lots & recipes": "Import wyrobów, materiałów, partii i receptur",
     "Read warehouse stock & documents": "Odczyt stanów i dokumentów magazynowych",
-    "Sync warehouse stock & acknowledge documents": "Synchronizacja stanów i potwierdzanie dokumentów"
+    "Sync warehouse stock & acknowledge documents": "Synchronizacja stanów i potwierdzanie dokumentów",
+    "All Warehouses": "Wszystkie magazyny",
+    "Warehouse": "Magazyn",
+    "Document No.": "Numer dokumentu",
+    "Document Lines": "Pozycje dokumentu"
 }

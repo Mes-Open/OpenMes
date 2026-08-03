@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable from '../../../components/ResourceTable';
-import { __ } from '../../../lib/i18n';
+import { __, formatDateTime } from '../../../lib/i18n';
 
 /**
  * Read-only stock overview: what each warehouse holds. Balances arrive live via
@@ -55,7 +55,7 @@ export default function WarehouseStockIndex() {
         {
             key: 'erp_synced_at',
             label: __('ERP Synced'),
-            render: (r) => (r.erp_synced_at ? new Date(r.erp_synced_at).toLocaleString() : '—'),
+            render: (r) => (r.erp_synced_at ? formatDateTime(r.erp_synced_at) : '—'),
         },
     ];
 

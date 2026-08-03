@@ -2,18 +2,12 @@ import { useMemo, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Button } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import { documentTypeLabels } from './types';
 import { __ } from '../../../lib/i18n';
 
 const LABEL_CLASS = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-[7px]';
 const INPUT_CLASS =
     'w-full bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
-
-const TYPE_LABELS = {
-    material_issue: __('Material release'),
-    material_receipt: __('Material receipt'),
-    product_receipt: __('Product receipt'),
-    product_issue: __('Product release'),
-};
 
 const MATERIAL_TYPES = ['material_issue', 'material_receipt'];
 
@@ -30,6 +24,7 @@ const emptyLine = () => ({ item_id: '', lot_number: '', quantity: '', unit_of_me
  */
 export default function StockDocumentCreate({ warehouses = [], materials = [], productTypes = [], types = [] }) {
     const [lines, setLines] = useState([emptyLine()]);
+    const typeLabels = documentTypeLabels();
 
     const form = useForm({
         type: types[0] ?? 'material_issue',
@@ -94,8 +89,8 @@ export default function StockDocumentCreate({ warehouses = [], materials = [], p
                                 setData('warehouse_id', '');
                             }}
                         >
-                            {(types.length ? types : Object.keys(TYPE_LABELS)).map((type) => (
-                                <option key={type} value={type}>{TYPE_LABELS[type] ?? type}</option>
+                            {(types.length ? types : Object.keys(typeLabels)).map((type) => (
+                                <option key={type} value={type}>{typeLabels[type] ?? type}</option>
                             ))}
                         </select>
                         {errors.type && <p className="mt-1 text-[12px] text-om-danger">{errors.type}</p>}
@@ -132,7 +127,7 @@ export default function StockDocumentCreate({ warehouses = [], materials = [], p
 
                 <div className="bg-om-surface border border-om-line rounded-om p-5">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-[13px] font-medium text-om-ink">{__('Lines')}</h2>
+                        <h2 className="text-[13px] font-medium text-om-ink">{__('Document Lines')}</h2>
                         <Button type="button" variant="secondary" onClick={() => setLines((c) => [...c, emptyLine()])}>
                             {__('+ Add Line')}
                         </Button>

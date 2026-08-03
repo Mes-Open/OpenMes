@@ -5061,5 +5061,9 @@
     "ERP stock sync": "ERP stock sync",
     "Import products, materials, lots & recipes": "Import products, materials, lots & recipes",
     "Read warehouse stock & documents": "Read warehouse stock & documents",
-    "Sync warehouse stock & acknowledge documents": "Sync warehouse stock & acknowledge documents"
+    "Sync warehouse stock & acknowledge documents": "Sync warehouse stock & acknowledge documents",
+    "All Warehouses": "All Warehouses",
+    "Warehouse": "Warehouse",
+    "Document No.": "Document No.",
+    "Document Lines": "Document Lines"
 }

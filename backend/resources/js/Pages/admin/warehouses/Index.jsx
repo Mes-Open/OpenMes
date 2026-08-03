@@ -1,18 +1,20 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
-import { WAREHOUSE_KINDS } from './fields';
+import { warehouseKinds } from './fields';
 import { __ } from '../../../lib/i18n';
-
-const KIND_LABELS = Object.fromEntries(WAREHOUSE_KINDS.map((k) => [k.value, k.label]));
 
 export default function WarehousesIndex() {
     const { stockCounts = {}, documentCounts = {} } = usePage().props;
 
+    // Built during render: page modules load before the locale chunk, so a
+    // module-scope __() would freeze the untranslated key (see ./fields.js).
+    const kindLabels = Object.fromEntries(warehouseKinds().map((k) => [k.value, k.label]));
+
     const columns = [
         { key: 'code', label: __('Code'), className: 'font-mono text-om-muted' },
         { key: 'name', label: __('Name'), className: 'font-medium text-om-ink' },
-        { key: 'kind', label: __('Kind'), render: (r) => KIND_LABELS[r.kind] ?? r.kind },
+        { key: 'kind', label: __('Kind'), render: (r) => kindLabels[r.kind] ?? r.kind },
         { key: 'erp_code', label: __('ERP Code'), className: 'font-mono text-om-muted', render: (r) => r.erp_code || '—' },
         {
             key: 'is_default',
