@@ -7,10 +7,12 @@ use App\Listeners\LogAuthEvent;
 use App\Services\MenuRegistry;
 use App\Services\ModuleManager;
 use App\Services\WidgetRegistry;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ModuleManager::class, fn () => new ModuleManager);
         $this->app->singleton(MenuRegistry::class, fn () => new MenuRegistry);
         $this->app->singleton(WidgetRegistry::class, fn () => new WidgetRegistry);
+        // Request-scoped tenant for headless (API-key) contexts. Set per request
+        // by AuthenticateApiKey; falls through to null for user-authenticated
+        // requests, which resolve the tenant from the logged-in user instead.
+        $this->app->singleton(\App\Support\TenantContext::class, fn () => new \App\Support\TenantContext);
     }
 
     /**
@@ -55,6 +61,22 @@ class AppServiceProvider extends ServiceProvider
         $this->app['validator']->setPresenceVerifier(
             new \App\Validation\SoftDeleteAwarePresenceVerifier($this->app['db']),
         );
+
+        // ERP integration API rate limits, keyed per API key (falling back to
+        // client IP before a key is resolved). Import is heavier and DB-mutating
+        // so it is throttled tighter than the read/export endpoints.
+        RateLimiter::for('erp-import', function ($request) {
+            $key = $request->attributes->get('api_key');
+            $id = $key?->id ?? $request->ip();
+
+            return Limit::perMinute(30)->by('erp-import:'.$id);
+        });
+        RateLimiter::for('erp-read', function ($request) {
+            $key = $request->attributes->get('api_key');
+            $id = $key?->id ?? $request->ip();
+
+            return Limit::perMinute(120)->by('erp-read:'.$id);
+        });
 
         // Scramble API docs — only logged-in users can view /docs/api and /docs/api.json.
         Gate::define('viewApiDocs', fn ($user) => $user !== null);
@@ -93,6 +115,39 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\Issue::observe(\App\Observers\IssueWebhookObserver::class);
         \App\Models\Batch::observe(\App\Observers\BatchWebhookObserver::class);
 
+        // Module hook system: dispatch the domain events modules listen to.
+        // Typed lifecycle events (previously defined but never fired) — these make
+        // WorkOrderCreated/Updated/Completed and StepStarted/Completed real on every
+        // save path; BatchCreated is fired via Batch::$dispatchesEvents.
+        \App\Models\WorkOrder::observe(\App\Observers\WorkOrderEventObserver::class);
+        \App\Models\BatchStep::observe(\App\Observers\BatchStepEventObserver::class);
+
+        // Generic CRUD hook: one wildcard Eloquent listener re-dispatches
+        // ResourceChanged for every curated resource (SoftDeleteRegistry::MODELS)
+        // so a module can hook any create/update/delete without per-model wiring.
+        // Sensitive models are excluded — ResourceChanged carries the full model
+        // to third-party listeners, so we never hand out User (password hash) or
+        // ApiKey (secret hash) rows.
+        $sensitive = [\App\Models\User::class, \App\Models\ApiKey::class];
+        $hookedModels = array_diff_key(
+            array_flip(array_values(\App\Support\SoftDeleteRegistry::MODELS)),
+            array_flip($sensitive),
+        );
+        foreach (['created', 'updated', 'deleted'] as $verb) {
+            Event::listen("eloquent.{$verb}: *", function (string $eventName, array $data) use ($hookedModels, $verb) {
+                $model = $data[0] ?? null;
+                if ($model instanceof \Illuminate\Database\Eloquent\Model && isset($hookedModels[$model::class])) {
+                    // A throwing module listener must never break the core write
+                    // that triggered it (mirrors the best-effort webhook observers).
+                    try {
+                        event(new \App\Events\Resource\ResourceChanged($model, $verb));
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('ResourceChanged hook failed', ['error' => $e->getMessage()]);
+                    }
+                }
+            });
+        }
+
         // Live-edit (dev/staging only): under Octane the Vite manifest is cached
         // in a static property in worker memory, so a `vite build --watch` rebuild
         // wouldn't appear until workers recycle. When OCTANE_LIVE_RELOAD is set
@@ -106,10 +161,13 @@ class AppServiceProvider extends ServiceProvider
             });
         }
 
-        // Share registries with every view so layouts and dashboards can render
-        // items registered by modules without additional controller work.
+        // Module extension registries are bridged to the React/Inertia frontend,
+        // not consumed from Blade (the Blade layouts were deleted in the React
+        // migration): MenuRegistry → the `moduleNav` prop (HandleInertiaRequests)
+        // drives the sidebar; WidgetRegistry → the `moduleWidgets` prop
+        // (DashboardController) drives the dashboard cards. The MenuRegistry share
+        // stays for any remaining standalone Blade (module pages, PDFs).
         View::share('menuRegistry', $this->app->make(MenuRegistry::class));
-        View::share('widgetRegistry', $this->app->make(WidgetRegistry::class));
 
         // Set application locale from system_settings. Also override
         // config('app.locale') so that under Octane, where FlushLocaleState

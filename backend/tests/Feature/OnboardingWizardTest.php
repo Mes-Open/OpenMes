@@ -8,6 +8,7 @@ use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\User;
 use App\Models\WorkOrder;
+use App\Support\ModuleRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
@@ -109,6 +110,116 @@ class OnboardingWizardTest extends TestCase
         $this->assertEquals(3, ProcessTemplate::first()->steps()->count());
     }
 
+    public function test_step3_resubmit_does_not_create_duplicate_template(): void
+    {
+        $pt = ProductType::factory()->create();
+
+        $payload = [
+            'name' => 'Assembly Process',
+            'steps' => [['name' => 'Preparation', 'estimated_duration_minutes' => 10]],
+        ];
+
+        $first = $this->actingAs($this->admin)
+            ->withSession(['onboarding.product_type_id' => $pt->id])
+            ->post(route('onboarding.step3'), $payload);
+
+        $first->assertRedirect(route('onboarding.step4'))
+            ->assertSessionHas('onboarding.template_id');
+
+        // Reuse the exact template id the controller stashed in the session, so the
+        // replay mirrors the real browser state rather than a proxy lookup.
+        $templateId = $first->getSession()->get('onboarding.template_id');
+
+        // Same session replays the step (double click / browser back / Inertia retry).
+        $this->actingAs($this->admin)
+            ->withSession([
+                'onboarding.product_type_id' => $pt->id,
+                'onboarding.template_id' => $templateId,
+            ])
+            ->post(route('onboarding.step3'), $payload)
+            ->assertRedirect(route('onboarding.step4'));
+
+        $this->assertEquals(1, ProcessTemplate::count());
+        $this->assertEquals(1, ProcessTemplate::first()->steps()->count());
+    }
+
+    public function test_step3_first_template_for_product_type_gets_version_1(): void
+    {
+        $pt = ProductType::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->withSession(['onboarding.product_type_id' => $pt->id])
+            ->post(route('onboarding.step3'), [
+                'name' => 'First Process',
+                'steps' => [['name' => 'Preparation', 'estimated_duration_minutes' => 10]],
+            ])
+            ->assertRedirect(route('onboarding.step4'));
+
+        $this->assertDatabaseHas('process_templates', [
+            'product_type_id' => $pt->id,
+            'name' => 'First Process',
+            'version' => 1,
+        ]);
+    }
+
+    public function test_step3_validation_errors_on_empty_payload(): void
+    {
+        $pt = ProductType::factory()->create();
+
+        $this->actingAs($this->admin)
+            ->withSession(['onboarding.product_type_id' => $pt->id])
+            ->post(route('onboarding.step3'), [])
+            ->assertSessionHasErrors(['name', 'steps']);
+
+        $this->assertEquals(0, ProcessTemplate::count());
+    }
+
+    public function test_step3_is_forbidden_for_guests_and_non_admins(): void
+    {
+        $pt = ProductType::factory()->create();
+        $payload = [
+            'name' => 'Assembly Process',
+            'steps' => [['name' => 'Preparation']],
+        ];
+
+        // Guest → redirected to login, no template created.
+        $this->withSession(['onboarding.product_type_id' => $pt->id])
+            ->post(route('onboarding.step3'), $payload)
+            ->assertRedirect(route('login'));
+
+        // Authenticated but wrong role → 403 (onboarding is Admin-only).
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        $this->actingAs($operator)
+            ->withSession(['onboarding.product_type_id' => $pt->id])
+            ->post(route('onboarding.step3'), $payload)
+            ->assertForbidden();
+
+        $this->assertEquals(0, ProcessTemplate::count());
+    }
+
+    public function test_step3_assigns_next_version_when_product_type_already_has_template(): void
+    {
+        $pt = ProductType::factory()->create();
+        ProcessTemplate::factory()->create(['product_type_id' => $pt->id, 'version' => 1]);
+
+        $response = $this->actingAs($this->admin)
+            ->withSession(['onboarding.product_type_id' => $pt->id])
+            ->post(route('onboarding.step3'), [
+                'name' => 'Second Process',
+                'steps' => [['name' => 'Preparation', 'estimated_duration_minutes' => 10]],
+            ]);
+
+        $response->assertRedirect(route('onboarding.step4'));
+        $this->assertDatabaseHas('process_templates', [
+            'product_type_id' => $pt->id,
+            'name' => 'Second Process',
+            'version' => 2,
+        ]);
+        $this->assertEquals(2, ProcessTemplate::where('product_type_id', $pt->id)->count());
+    }
+
     public function test_step4_creates_work_order(): void
     {
         $line = Line::factory()->create();
@@ -194,5 +305,86 @@ class OnboardingWizardTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('onboarding.step2'));
         $response->assertRedirect(route('onboarding.step1'));
+    }
+
+    // ── Module selection step (first step) ─────────────────────────
+
+    public function test_index_redirects_to_modules_step(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('onboarding.index'))
+            ->assertRedirect(route('onboarding.modules'));
+    }
+
+    public function test_modules_step_lightweight_preset_enables_reports_only(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), ['preset' => 'light'])
+            ->assertRedirect(route('onboarding.step1'));
+
+        $this->assertSame(['reports'], ModuleRegistry::enabled());
+    }
+
+    public function test_modules_step_advanced_preset_enables_shopfloor_set(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), ['preset' => 'advanced'])
+            ->assertRedirect(route('onboarding.step1'));
+
+        $this->assertEqualsCanonicalizing(
+            [
+                'reports', 'advanced_reports', 'materials', 'product_engineering',
+                'companies', 'quality', 'maintenance', 'connectivity', 'packaging',
+            ],
+            ModuleRegistry::enabled(),
+        );
+    }
+
+    public function test_modules_step_custom_preset_saves_exact_selection(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), [
+                'preset' => 'custom',
+                'enabled_modules' => ['hr', 'webhooks'],
+            ])
+            ->assertRedirect(route('onboarding.step1'));
+
+        $this->assertEqualsCanonicalizing(['hr', 'webhooks'], ModuleRegistry::enabled());
+    }
+
+    public function test_modules_step_custom_with_empty_selection_disables_all_optional(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), ['preset' => 'custom', 'enabled_modules' => []])
+            ->assertRedirect(route('onboarding.step1'));
+
+        $this->assertSame([], ModuleRegistry::enabled());
+    }
+
+    public function test_modules_step_rejects_invalid_preset(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), ['preset' => 'bogus'])
+            ->assertSessionHasErrors('preset');
+    }
+
+    public function test_modules_step_rejects_unknown_module_key(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('onboarding.modules'), [
+                'preset' => 'custom',
+                'enabled_modules' => ['not-a-real-module'],
+            ])
+            ->assertSessionHasErrors('enabled_modules.0');
+    }
+
+    public function test_modules_step_requires_admin(): void
+    {
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+
+        $this->actingAs($operator)
+            ->get(route('onboarding.modules'))
+            ->assertForbidden();
     }
 }

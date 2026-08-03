@@ -24,18 +24,20 @@
 
 ## What is OpenMES?
 
-**OpenMES** is a modern, open-source Manufacturing Execution System designed specifically for **small manufacturers** (woodworking, metalworking, assembly shops) who need powerful production tracking without enterprise complexity.
+**OpenMES** is a self-hosted, open-source MES (Manufacturing Execution System) built for small and mid-sized manufacturers — woodworking, metal fabrication, plastics and assembly shops — who need real production tracking without enterprise complexity or licensing costs.
 
-![Admin Dashboard](docs/screenshots/dashboard.png)
+![OpenMES on desktop, mobile and web](docs/screenshots/openmes-desktop-mobile-web.png)
+
 
 ### Why OpenMES?
 
-- 🎯 **Purpose-built for small manufacturers** - No bloat, just what you need
-- 📱 **Tablet-first design** - Touch-optimized for shop floor operators
-- 🔒 **Security-first** - OWASP Top 10 compliant from day one
-- 📊 **Real-time visibility** - Know exactly what's happening on every line
-- 🆓 **Truly open-source** - AGPL-3.0 licensed, no vendor lock-in
-- 🚀 **Deploy in minutes** - Single command Docker deployment
+- 🎯 **Purpose-built for small manufacturers** — woodworking, metal fabrication, plastics and assembly shops. No enterprise bloat, just what a real shop floor needs
+- 🆓 **Truly free and open-source** — AGPL-3.0, no per-user fees, no modules to unlock, no vendor lock-in
+- 📱 **Tablet-first design** — touch-optimized screens for shop-floor operators
+- 📊 **Real-time production visibility** — work orders, batches, quality checks, downtime reasons and reports for every line
+- 🔌 **Connects to your machines and ERP** — native MQTT machine data collection, REST API, CSV/XLS import (SAP, Odoo, Comarch), PrestaShop connector
+- 🚀 **Deploy in minutes** — single-command Docker deployment; an old office PC is enough
+- 🔒 **Security-first** — OWASP Top 10 compliant from day one
 - 📐 **ISA-95 aligned** — Level 3 MES with ISA-95 / IEC 62264 hierarchies and MOM coverage ([details](./docs/isa95.md))
 
 ---
@@ -109,31 +111,37 @@ Drag-and-drop production scheduling with Gantt-style views across multiple produ
 
 OpenMES is built to be extended! Use our comprehensive **hook system** to add custom functionality without modifying core code.
 
+A module drops into `backend/modules/`, is toggled in **Admin → Modules**, and
+plugs into three kinds of extension point — with **zero runtime cost when
+disabled**:
+
 ### Hook System
 
-- **40+ events** covering the entire production lifecycle
-- **Work Order hooks** - Created, Updated, Completed, Blocked
-- **Batch hooks** - Created, Completed, Cancelled
-- **Step hooks** - Started, Completed, Problem Reported
-- **User hooks** - Assigned to Line, Created, Updated
-- **Line hooks** - Created, Activated, Deactivated
-- **Process Template hooks** - Template & Step management
-- **CSV Import hooks** - Started, Completed, Failed
+- **Domain events** — react to production activity:
+  - Work orders — `WorkOrderCreated`, `WorkOrderUpdated`, `WorkOrderCompleted`
+  - Batches & steps — `BatchCreated`, `StepStarted`, `StepCompleted`
+  - Machine — `WorkstationStateChanged`, `MachineMessageReceived`
+  - Users — `UserAssignedToLine`
+  - **`ResourceChanged`** — a generic CRUD hook for **any** curated resource (work orders, customers, materials, lines, …) on create/update/delete
+  - **`WorkOrderScheduled`** — a work order is placed/moved on the planner
+- **Menu hooks** (`MenuRegistry`) — add links and dropdowns to the sidebar
+- **Dashboard widget hooks** (`WidgetRegistry`) — add cards to the admin dashboard
 
 ### Create Custom Modules
 
 ```php
-// Listen to work order completion
+// In your module's ServiceProvider::boot()
+use App\Events\WorkOrder\WorkOrderCompleted;
+use App\Services\MenuRegistry;
+use Illuminate\Support\Facades\Event;
+
+// React to an order completing (observe — never mutate core state here)
 Event::listen(WorkOrderCompleted::class, function ($event) {
-    // Send notification to ERP system
-    ExternalAPI::notifyCompletion($event->workOrder);
-
-    // Update inventory
-    Inventory::increment($event->workOrder->product_type_id);
-
-    // Send email to warehouse
-    Mail::to('warehouse@company.com')->send(/* ... */);
+    ExternalErp::notifyCompletion($event->workOrder);
 });
+
+// Add a link to the sidebar
+app(MenuRegistry::class)->addItem('production', 'My Page', url('/modules/mine'));
 ```
 
 ### Example Use Cases
@@ -146,8 +154,9 @@ Event::listen(WorkOrderCompleted::class, function ($event) {
 - **Inventory Management** - Auto-update stock levels
 - **Barcode/RFID** - Track materials and products
 
-📚 **Full Documentation**: [HOOKS.md](HOOKS.md)
-📁 **Module Examples**: [modules/](modules/)
+🛠️ **Build a module (step-by-step tutorial)**: [backend/modules/README.md](backend/modules/README.md) — from an empty folder to a running module, plus a code map of how it all works
+📚 **Hook reference**: [HOOKS.md](HOOKS.md) — every event, menu and widget hook, with payloads and examples
+📁 **Reference Modules**: [`backend/modules/ExampleShowcase`](backend/modules/ExampleShowcase) (all hooks) · [`backend/modules/ExampleHooks`](backend/modules/ExampleHooks) (minimal)
 
 ---
 
@@ -358,6 +367,7 @@ sudo lsof -i :80
 ## 📚 Documentation
 
 - [User Guides](docs/) - Operator, Supervisor, and Admin guides
+- [Customization Layers](docs/customization-layers.md) - Standard / configuration / customer vs vendor custom development
 - [API Documentation](docs/API_DOCUMENTATION.md) - REST API reference
 - [PWA Testing Guide](docs/pwa-testing-guide.md) - Offline functionality testing
 - [Technical Documentation](docs/development.md) - For developers
@@ -570,7 +580,7 @@ See [LICENSE](LICENSE) for full details.
 
 ### Commercial Support
 Need help with deployment, customization, or training?
-Contact us at **jakub.przepioraa@gmail.com**
+Contact us at **jakub.przepiora@nice-code.com**
 
 ---
 

@@ -8,8 +8,11 @@ use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\TemplateStep;
 use App\Services\WorkOrder\WorkOrderService;
+use App\Support\ModuleRegistry;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class OnboardingController extends Controller
@@ -20,12 +23,42 @@ class OnboardingController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
+        return redirect()->route('onboarding.modules');
+    }
+
+    /**
+     * Step 1 — choose which optional feature modules the MES exposes. Reuses the
+     * existing ModuleRegistry / enabled_modules mechanism (changeable later in
+     * Settings → System → Modules).
+     */
+    public function modules()
+    {
+        return Inertia::render('onboarding/Modules', [
+            'step' => 1,
+            'modules' => ModuleRegistry::forForm(),
+            'presets' => ModuleRegistry::PRESETS,
+        ]);
+    }
+
+    public function storeModules(Request $request)
+    {
+        $validated = $request->validate([
+            'preset' => ['required', Rule::in(['light', 'advanced', 'custom'])],
+            'enabled_modules' => ['nullable', 'array'],
+            'enabled_modules.*' => ['string', Rule::in(ModuleRegistry::optionalKeys())],
+        ]);
+
+        ModuleRegistry::save(ModuleRegistry::modulesForPreset(
+            $validated['preset'],
+            $validated['enabled_modules'] ?? [],
+        ));
+
         return redirect()->route('onboarding.step1');
     }
 
     public function step1()
     {
-        return Inertia::render('onboarding/Step1', ['step' => 1]);
+        return Inertia::render('onboarding/Step1', ['step' => 2]);
     }
 
     public function storeStep1(Request $request)
@@ -50,7 +83,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return Inertia::render('onboarding/Step2', ['step' => 2]);
+        return Inertia::render('onboarding/Step2', ['step' => 3]);
     }
 
     public function storeStep2(Request $request)
@@ -82,11 +115,18 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return Inertia::render('onboarding/Step3', ['step' => 3]);
+        return Inertia::render('onboarding/Step3', ['step' => 4]);
     }
 
     public function storeStep3(Request $request)
     {
+        // The step is not repeatable: a resubmit (double click, browser back,
+        // Inertia retry) would otherwise insert a second template and violate
+        // the (product_type_id, version) unique index.
+        if ($request->session()->has('onboarding.template_id')) {
+            return redirect()->route('onboarding.step4');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'steps' => 'required|array|min:1',
@@ -96,20 +136,40 @@ class OnboardingController extends Controller
 
         $productTypeId = $request->session()->get('onboarding.product_type_id');
 
-        $template = ProcessTemplate::create([
-            'product_type_id' => $productTypeId,
-            'name' => $validated['name'],
-            'version' => 1,
-            'is_active' => true,
-        ]);
+        try {
+            $template = DB::transaction(function () use ($validated, $productTypeId) {
+                // Same versioning rule as the admin UI and the API: never assume v1.
+                $nextVersion = ProcessTemplate::where('product_type_id', $productTypeId)->max('version') + 1;
 
-        foreach ($validated['steps'] as $i => $stepData) {
-            TemplateStep::create([
-                'process_template_id' => $template->id,
-                'step_number' => $i + 1,
-                'name' => $stepData['name'],
-                'estimated_duration_minutes' => $stepData['estimated_duration_minutes'] ?? null,
-            ]);
+                $template = ProcessTemplate::create([
+                    'product_type_id' => $productTypeId,
+                    'name' => $validated['name'],
+                    'version' => $nextVersion,
+                    'is_active' => true,
+                ]);
+
+                foreach ($validated['steps'] as $i => $stepData) {
+                    TemplateStep::create([
+                        'process_template_id' => $template->id,
+                        'step_number' => $i + 1,
+                        'name' => $stepData['name'],
+                        'estimated_duration_minutes' => $stepData['estimated_duration_minutes'] ?? null,
+                    ]);
+                }
+
+                return $template;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            // The session guard above stops sequential replays, but two truly
+            // concurrent same-session POSTs (rapid double click) can both read an
+            // empty table and pick the same (product_type_id, version) — a
+            // FOR UPDATE lock can't serialise the first insert because there are
+            // no rows to lock yet. Rather than a cross-writer lock, treat the loser
+            // idempotently: a template now exists, so adopt the latest one and
+            // continue instead of surfacing a 500.
+            $template = ProcessTemplate::where('product_type_id', $productTypeId)
+                ->orderByDesc('version')
+                ->firstOrFail();
         }
 
         $request->session()->put('onboarding.template_id', $template->id);
@@ -123,7 +183,7 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.step1');
         }
 
-        return Inertia::render('onboarding/Step4', ['step' => 4]);
+        return Inertia::render('onboarding/Step4', ['step' => 5]);
     }
 
     public function storeStep4(Request $request, WorkOrderService $workOrderService)
@@ -150,7 +210,7 @@ class OnboardingController extends Controller
         $this->markCompleted();
         $request->session()->forget('onboarding');
 
-        return Inertia::render('onboarding/Complete', ['step' => 5]);
+        return Inertia::render('onboarding/Complete', ['step' => 6]);
     }
 
     public function skip(Request $request)

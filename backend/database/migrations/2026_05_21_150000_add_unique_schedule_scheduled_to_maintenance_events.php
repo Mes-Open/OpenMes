@@ -27,10 +27,17 @@ return new class extends Migration
         // be no duplicates, but the statement is cheap and guarantees the
         // migration succeeds on production data that may have slipped through
         // before the application-level guard was added.
+        // NOTE: select the aggregate under an explicit `id` alias and pluck by
+        // that alias. `pluck(DB::raw('MIN(id)'))` looks up a property literally
+        // named "MIN(id)" on each row — SQLite happens to name the output column
+        // that way, but Postgres names it "min", so the lookup returns null and
+        // the dedup below silently deletes nothing (then the unique index fails).
         $keepIds = DB::table('maintenance_events')
             ->whereNotNull('schedule_id')
             ->groupBy('schedule_id', 'scheduled_at')
-            ->pluck(DB::raw('MIN(id)'));
+            ->selectRaw('MIN(id) AS id')
+            ->get()
+            ->pluck('id');
 
         DB::table('maintenance_events')
             ->whereNotNull('schedule_id')

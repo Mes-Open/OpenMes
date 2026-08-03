@@ -64,6 +64,9 @@ class DashboardController extends Controller
             'scrapStats' => fn () => $this->scrapStats($enabledWidgets),
             'nonConformanceStats' => fn () => $this->nonConformanceStats($enabledWidgets),
             'topCustomers' => fn () => $this->topCustomers($enabledWidgets),
+            // Cards registered by enabled modules via WidgetRegistry, keyed by
+            // zone (kpi | main | sidebar). Empty when no module registers any.
+            'moduleWidgets' => fn () => app(\App\Services\WidgetRegistry::class)->all(),
         ]);
     }
 

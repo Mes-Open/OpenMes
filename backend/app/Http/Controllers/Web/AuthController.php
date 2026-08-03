@@ -55,7 +55,7 @@ class AuthController extends Controller
             'password' => $request->input('password'),
         ], $request->filled('remember'))) {
             throw ValidationException::withMessages([
-                'username' => ['The provided credentials are incorrect.'],
+                'username' => [__('The provided credentials are incorrect.')],
             ]);
         }
 
@@ -80,7 +80,7 @@ class AuthController extends Controller
         // Check if user needs to change password
         if ($user->force_password_change) {
             return redirect()->route('change-password')
-                ->with('error', 'You must change your password before continuing.');
+                ->with('error', __('You must change your password before continuing.'));
         }
 
         // Redirect to appropriate dashboard based on role
@@ -99,7 +99,7 @@ class AuthController extends Controller
 
         if (! $pinEnabled) {
             throw ValidationException::withMessages([
-                'pin' => ['PIN login is not enabled.'],
+                'pin' => [__('PIN login is not enabled.')],
             ]);
         }
 
@@ -107,7 +107,7 @@ class AuthController extends Controller
 
         if (! $user || empty($user->pin) || ! Hash::check($request->input('pin'), $user->pin)) {
             throw ValidationException::withMessages([
-                'username' => ['Invalid username or PIN.'],
+                'username' => [__('Invalid username or PIN.')],
             ]);
         }
 
@@ -128,7 +128,7 @@ class AuthController extends Controller
 
         if ($user->force_password_change) {
             return redirect()->route('change-password')
-                ->with('error', 'You must change your password before continuing.');
+                ->with('error', __('You must change your password before continuing.'));
         }
 
         return $this->redirectToDashboard();
@@ -162,7 +162,7 @@ class AuthController extends Controller
             );
 
             return redirect()->route('operator.select-line')
-                ->with('success', 'Password changed successfully.');
+                ->with('success', __('Password changed successfully.'));
         } catch (ValidationException $e) {
             return back()
                 ->withErrors($e->errors())
@@ -181,7 +181,7 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')
-            ->with('success', 'You have been logged out successfully.');
+            ->with('success', __('You have been logged out successfully.'));
     }
 
     /**

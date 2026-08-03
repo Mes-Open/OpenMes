@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\V1\AdditionalCostController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AnomalyReasonController;
+use App\Http\Controllers\Api\V1\ApiKeyController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\BatchController;
@@ -18,6 +19,9 @@ use App\Http\Controllers\Api\V1\CrewController;
 use App\Http\Controllers\Api\V1\CsvImportController;
 use App\Http\Controllers\Api\V1\CustomFieldDefinitionController;
 use App\Http\Controllers\Api\V1\DivisionController;
+use App\Http\Controllers\Api\V1\Erp\ProductionExportController;
+use App\Http\Controllers\Api\V1\Erp\QualityExportController;
+use App\Http\Controllers\Api\V1\Erp\WorkOrderImportController as ErpWorkOrderImportController;
 use App\Http\Controllers\Api\V1\EventLogController;
 use App\Http\Controllers\Api\V1\FactoryController;
 use App\Http\Controllers\Api\V1\InspectionController;
@@ -94,11 +98,9 @@ Route::post('/workstations/heartbeat', [\App\Http\Controllers\Api\V1\Workstation
     ->middleware('throttle:120,1')
     ->name('api.workstations.heartbeat');
 
-// Reverb sync: initial snapshot for a collection (live deltas arrive via the
-// CollectionChanged broadcast on the channel).
-Route::get('/collections/{name}', [\App\Http\Controllers\Api\CollectionController::class, 'index'])
-    ->middleware('auth:web,sanctum')
-    ->name('api.collections.index');
+// NOTE: the live-sync snapshot GET /api/collections/{name} lives in routes/web.php
+// so it authenticates via the session cookie (host-independent) instead of Sanctum
+// stateful-domain matching. See the "#193" comment there.
 
 // Authentication routes (no auth required)
 Route::prefix('auth')->group(function () {
@@ -107,6 +109,26 @@ Route::prefix('auth')->group(function () {
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:sanctum');
     Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
     Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+});
+
+// ERP integration API (SAP, Comarch, enova365, MS Dynamics / Business Central).
+// Machine-to-machine: authenticated by API key (X-Api-Key or Bearer), authorized
+// per-endpoint by scope, rate limited per key. Kept separate from the Sanctum v1
+// tree because these are headless service credentials, not user sessions.
+Route::prefix('v1/erp')->middleware(['module:erp', 'auth.apikey'])->group(function () {
+    // ERP → OpenMES: bulk work-order import.
+    Route::post('/work-orders/import', [ErpWorkOrderImportController::class, 'store'])
+        ->middleware(['scope:erp:orders:import', 'throttle:erp-import']);
+
+    // OpenMES → ERP: production completion export + single-order state.
+    Route::get('/production/completions', [ProductionExportController::class, 'completions'])
+        ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
+    Route::get('/work-orders/{workOrder}', [ProductionExportController::class, 'show'])
+        ->middleware(['scope:erp:production:read', 'throttle:erp-read']);
+
+    // OpenMES → ERP: quality / non-conformance export.
+    Route::get('/quality/issues', [QualityExportController::class, 'issues'])
+        ->middleware(['scope:erp:quality:read', 'throttle:erp-read']);
 });
 
 // Protected API routes (require authentication)
@@ -219,6 +241,21 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::get('/machine-connections/{machineConnection}/gateway-config', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'config']);
     Route::post('/machine-connections/{machineConnection}/signals', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'ingest']);
     Route::post('/machine-connections/{machineConnection}/heartbeat', [\App\Http\Controllers\Api\V1\MachineGatewayController::class, 'heartbeat']);
+
+    // Engineering CAD documents (#179). View/download for any grantee of
+    // `view engineering documents`; mutations gated in the controller by
+    // `manage engineering documents`.
+    Route::get('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'index']);
+    Route::post('/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'store'])
+        ->middleware('throttle:30,1'); // 100 MB uploads + checksum + zip extraction — rate-limit like photos/media
+    Route::get('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'show']);
+    Route::get('/engineering-documents/{engineeringDocument}/download', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'download']);
+    Route::get('/engineering-documents/{engineeringDocument}/viewer-url', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'viewerUrl']);
+    Route::post('/engineering-documents/{engineeringDocument}/release', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'release']);
+    Route::post('/engineering-documents/{engineeringDocument}/obsolete', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'obsolete']);
+    Route::delete('/engineering-documents/{engineeringDocument}', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'destroy']);
+    // Documents frozen onto a work order at release (Phase 2 snapshot).
+    Route::get('/work-orders/{workOrder}/engineering-documents', [\App\Http\Controllers\Api\V1\EngineeringDocumentController::class, 'forWorkOrder']);
 
     // Per-unit (serial) genealogy
     Route::get('/serial-units', [\App\Http\Controllers\Api\V1\SerialUnitController::class, 'index']);
@@ -340,6 +377,17 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         Route::patch('/integrations/{integration}', [IntegrationConfigController::class, 'update']);
         Route::post('/integrations/{integration}/toggle-active', [IntegrationConfigController::class, 'toggleActive']);
         Route::delete('/integrations/{integration}', [IntegrationConfigController::class, 'destroy']);
+
+        // ERP integration API keys (machine-to-machine credentials for the
+        // /v1/erp/* endpoints). The plaintext secret is returned only from store.
+        // Gated on the ERP module: disabling it 404s key management too.
+        Route::middleware('module:erp')->group(function () {
+            Route::get('/api-keys', [ApiKeyController::class, 'index']);
+            Route::post('/api-keys', [ApiKeyController::class, 'store']);
+            Route::patch('/api-keys/{apiKey}', [ApiKeyController::class, 'update']);
+            Route::post('/api-keys/{apiKey}/toggle-active', [ApiKeyController::class, 'toggleActive']);
+            Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy']);
+        });
         Route::get('/custom-fields', [CustomFieldDefinitionController::class, 'index']);
         Route::get('/custom-fields/meta', [CustomFieldDefinitionController::class, 'formMeta']);
         Route::post('/custom-fields', [CustomFieldDefinitionController::class, 'store']);

@@ -71,11 +71,32 @@ class WorkOrder extends Model
 
     const STATUS_CANCELLED = 'CANCELLED';
 
+    /** Counting source — which path is authoritative for produced_qty. */
+    const COUNTING_OPERATOR = 'operator';
+
+    const COUNTING_MACHINE = 'machine';
+
+    const COUNTING_BOTH = 'both';
+
+    const COUNTING_SOURCES = [self::COUNTING_OPERATOR, self::COUNTING_MACHINE, self::COUNTING_BOTH];
+
     /** Statuses that allow operators to work on the order */
     const ACTIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_ACCEPTED, self::STATUS_IN_PROGRESS, self::STATUS_BLOCKED];
 
     /** Terminal statuses - no further transitions */
     const TERMINAL_STATUSES = [self::STATUS_DONE, self::STATUS_REJECTED, self::STATUS_CANCELLED];
+
+    /** All valid work order statuses (used for API filter validation). */
+    const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_ACCEPTED,
+        self::STATUS_IN_PROGRESS,
+        self::STATUS_BLOCKED,
+        self::STATUS_PAUSED,
+        self::STATUS_DONE,
+        self::STATUS_REJECTED,
+        self::STATUS_CANCELLED,
+    ];
 
     protected $fillable = [
         'order_no',
@@ -83,10 +104,12 @@ class WorkOrder extends Model
         'customer_id',
         'line_id',
         'product_type_id',
+        'product_revision_id',
         'process_snapshot',
         'planned_qty',
         'unit_price',
         'produced_qty',
+        'counting_source',
         'status',
         'line_status_id',
         'priority',
@@ -237,6 +260,26 @@ class WorkOrder extends Model
     }
 
     /**
+     * Whether machine counter signals should drive produced_qty for this order
+     * (counting_source is machine or both).
+     */
+    public function isMachineCounted(): bool
+    {
+        return in_array($this->counting_source, [self::COUNTING_MACHINE, self::COUNTING_BOTH], true);
+    }
+
+    /**
+     * Whether operators may manually enter produced quantities for this order
+     * (counting_source is operator or both). Machine-only orders block manual
+     * entry so the machine stays the single source of truth.
+     */
+    public function allowsOperatorEntry(): bool
+    {
+        return in_array($this->counting_source, [self::COUNTING_OPERATOR, self::COUNTING_BOTH], true)
+            || $this->counting_source === null;
+    }
+
+    /**
      * Extra schedule segments beyond the primary placement — the order also
      * runs on these lines/dates (a multi-line staircase or concurrent runs).
      */
@@ -251,6 +294,12 @@ class WorkOrder extends Model
     public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductType::class);
+    }
+
+    /** The product revision this order is producing (#180); null for legacy orders. */
+    public function productRevision(): BelongsTo
+    {
+        return $this->belongsTo(ProductRevision::class);
     }
 
     /**

@@ -57,11 +57,11 @@ class LineManagementController extends Controller
     {
         $cf = app(CustomFieldService::class);
         $validated = $request->validate(array_merge([
-            'code'        => 'required|string|max:50|unique:lines',
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:lines',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'area_id'     => 'nullable|exists:areas,id',
-            'is_active'   => 'boolean',
+            'area_id' => 'nullable|exists:areas,id',
+            'is_active' => 'boolean',
         ], $cf->rules('line')), [], $cf->attributeNames('line'));
 
         $validated['is_active'] = $request->boolean('is_active', true);
@@ -97,13 +97,13 @@ class LineManagementController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'username']);
 
-        $lineStatuses      = LineStatus::forLine($line->id)->get();
-        $allProductTypes   = ProductType::active()->orderBy('name')->get(['id', 'code', 'name']);
-        $assignedTypeIds   = $line->productTypes->pluck('id')->toArray();
-        $viewColumns       = $line->viewColumns;
-        $allViewTemplates  = \App\Models\ViewTemplate::orderBy('name')->get()->map(fn ($t) => [
-            'id'            => $t->id,
-            'name'          => $t->name,
+        $lineStatuses = LineStatus::forLine($line->id)->get();
+        $allProductTypes = ProductType::active()->orderBy('name')->get(['id', 'code', 'name']);
+        $assignedTypeIds = $line->productTypes->pluck('id')->toArray();
+        $viewColumns = $line->viewColumns;
+        $allViewTemplates = \App\Models\ViewTemplate::orderBy('name')->get()->map(fn ($t) => [
+            'id' => $t->id,
+            'name' => $t->name,
             'columns_count' => count($t->columns ?? []),
         ]);
 
@@ -114,36 +114,36 @@ class LineManagementController extends Controller
                 $line->only('id', 'code', 'name', 'description', 'is_active', 'default_operator_view', 'view_template_id', 'custom_fields'),
                 [
                     'workstations_count' => $line->workstations_count,
-                    'work_orders_count'  => $line->work_orders_count,
-                    'users_count'        => $line->users_count,
-                    'users'              => $line->users->map(fn ($u) => $u->only('id', 'name', 'username'))->values(),
-                    'product_types'      => $line->productTypes->map(fn ($p) => $p->only('id', 'code', 'name'))->values(),
+                    'work_orders_count' => $line->work_orders_count,
+                    'users_count' => $line->users_count,
+                    'users' => $line->users->map(fn ($u) => $u->only('id', 'name', 'username'))->values(),
+                    'product_types' => $line->productTypes->map(fn ($p) => $p->only('id', 'code', 'name'))->values(),
                 ]
             ),
-            'workOrders'          => $workOrders->map(fn ($wo) => [
-                'id'                => $wo->id,
+            'workOrders' => $workOrders->map(fn ($wo) => [
+                'id' => $wo->id,
                 'work_order_number' => $wo->order_no,
-                'product_name'      => $wo->productType?->name,
-                'planned_qty'       => $wo->planned_qty,
-                'status'            => $wo->status,
-                'created_at'        => $wo->created_at,
+                'product_name' => $wo->productType?->name,
+                'planned_qty' => $wo->planned_qty,
+                'status' => $wo->status,
+                'created_at' => $wo->created_at,
             ])->values(),
-            'availableOperators'  => $availableOperators->map(fn ($u) => $u->only('id', 'name', 'username'))->values(),
-            'lineStatuses'        => $lineStatuses->map(fn ($s) => [
-                'id'         => $s->id,
-                'name'       => $s->name,
-                'color'      => $s->color,
+            'availableOperators' => $availableOperators->map(fn ($u) => $u->only('id', 'name', 'username'))->values(),
+            'lineStatuses' => $lineStatuses->map(fn ($s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'color' => $s->color,
                 'is_default' => $s->is_default,
-                'line_id'    => $s->line_id,
+                'line_id' => $s->line_id,
             ])->values(),
-            'allProductTypes'     => $allProductTypes->map(fn ($p) => $p->only('id', 'code', 'name'))->values(),
-            'assignedTypeIds'     => $assignedTypeIds,
-            'viewColumns'         => $viewColumns->map(fn ($c) => $c->only('id', 'label', 'key', 'source', 'sort_order'))->values(),
-            'allViewTemplates'    => $allViewTemplates->values(),
+            'allProductTypes' => $allProductTypes->map(fn ($p) => $p->only('id', 'code', 'name'))->values(),
+            'assignedTypeIds' => $assignedTypeIds,
+            'viewColumns' => $viewColumns->map(fn ($c) => $c->only('id', 'label', 'key', 'source', 'sort_order'))->values(),
+            'allViewTemplates' => $allViewTemplates->values(),
             'effectiveWorkstations' => collect($effectiveWorkstations)->map(fn ($ws) => [
-                'id'           => $ws->id,
-                'name'         => $ws->name,
-                'code'         => $ws->code,
+                'id' => $ws->id,
+                'name' => $ws->name,
+                'code' => $ws->code,
                 'is_line_itself' => $ws->is_line_itself ?? false,
             ])->values(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
@@ -169,11 +169,11 @@ class LineManagementController extends Controller
     {
         $cf = app(CustomFieldService::class);
         $validated = $request->validate(array_merge([
-            'code'        => 'required|string|max:50|unique:lines,code,' . $line->id,
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:lines,code,'.$line->id,
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'area_id'     => 'nullable|exists:areas,id',
-            'is_active'   => 'boolean',
+            'area_id' => 'nullable|exists:areas,id',
+            'is_active' => 'boolean',
         ], $cf->rules('line')), [], $cf->attributeNames('line'));
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -210,7 +210,7 @@ class LineManagementController extends Controller
      */
     public function toggleActive(Line $line)
     {
-        $line->update(['is_active' => !$line->is_active]);
+        $line->update(['is_active' => ! $line->is_active]);
 
         $status = $line->is_active ? 'activated' : 'deactivated';
 
@@ -230,7 +230,7 @@ class LineManagementController extends Controller
         $user = \App\Models\User::findOrFail($validated['user_id']);
 
         // Check if user is an operator
-        if (!$user->hasRole('Operator')) {
+        if (! $user->hasRole('Operator')) {
             return redirect()->route('admin.lines.show', $line)
                 ->with('error', 'Only operators can be assigned to production lines.');
         }
@@ -243,6 +243,9 @@ class LineManagementController extends Controller
 
         $line->users()->attach($user->id);
 
+        // Module hook: a user was assigned to a production line.
+        \App\Events\User\UserAssignedToLine::dispatch($user, $line);
+
         return redirect()->route('admin.lines.show', $line)
             ->with('success', "Operator {$user->name} assigned successfully.");
     }
@@ -253,7 +256,7 @@ class LineManagementController extends Controller
     public function syncProductTypes(Request $request, Line $line)
     {
         $validated = $request->validate([
-            'product_type_ids'   => 'nullable|array',
+            'product_type_ids' => 'nullable|array',
             'product_type_ids.*' => 'exists:product_types,id',
         ]);
 
@@ -300,7 +303,7 @@ class LineManagementController extends Controller
 
         $line->update(['default_operator_view' => $validated['default_operator_view']]);
 
-        return back()->with('success', 'Default operator view set to ' . ucfirst($validated['default_operator_view']) . '.');
+        return back()->with('success', 'Default operator view set to '.ucfirst($validated['default_operator_view']).'.');
     }
 
     /**
@@ -309,19 +312,19 @@ class LineManagementController extends Controller
     public function saveViewColumns(Request $request, Line $line)
     {
         $validated = $request->validate([
-            'columns'              => 'nullable|array|max:20',
-            'columns.*.label'      => 'required|string|max:100',
-            'columns.*.key'        => 'required|string|max:100',
-            'columns.*.source'     => 'required|in:extra_data,field',
+            'columns' => 'nullable|array|max:20',
+            'columns.*.label' => 'required|string|max:100',
+            'columns.*.key' => 'required|string|max:100',
+            'columns.*.source' => 'required|in:extra_data,field',
         ]);
 
         $line->viewColumns()->delete();
 
         foreach (($validated['columns'] ?? []) as $i => $col) {
             $line->viewColumns()->create([
-                'label'      => $col['label'],
-                'key'        => $col['key'],
-                'source'     => $col['source'],
+                'label' => $col['label'],
+                'key' => $col['key'],
+                'source' => $col['source'],
                 'sort_order' => $i,
             ]);
         }

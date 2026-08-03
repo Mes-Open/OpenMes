@@ -18,6 +18,7 @@ export default function WorkerEdit() {
         pay_type: worker.pay_type ?? '',
         pay_rate: worker.pay_rate != null ? String(worker.pay_rate) : '',
         is_active: !!worker.is_active,
+        is_logistics: !!worker.is_logistics,
         skills: worker.skills ?? [],
         ...customFieldInitial(worker.custom_fields),
     });

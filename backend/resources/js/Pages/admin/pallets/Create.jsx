@@ -16,6 +16,7 @@ export default function PalletCreate() {
                     qty: 0,
                     status: 'open',
                     location: '',
+                    destination: '',
                     erp_reference: '',
                 }}
                 submitLabel="Create"

@@ -28,6 +28,7 @@ class PalletRequest extends FormRequest
             'qty' => ['nullable', 'integer', 'min:0'],
             'status' => ['required', Rule::enum(PalletStatus::class)],
             'location' => ['nullable', 'string', 'max:100'],
+            'destination' => ['nullable', 'string', 'max:100'],
             'erp_reference' => ['nullable', 'string', 'max:100'],
             // pallet_no is sequence-generated on create; editable but kept unique on update.
             'pallet_no' => [

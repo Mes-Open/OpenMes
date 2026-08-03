@@ -55,6 +55,7 @@ use App\Http\Controllers\Web\Admin\WorkstationTypeController;
 // Materials & BOM
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\IssueManagementController;
+use App\Http\Controllers\Web\Logistics\PalletMovementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
 // Gate 7 — Maintenance
@@ -149,6 +150,15 @@ Route::middleware('auth')->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+    // SPA live-sync snapshot — initial rows for a Reverb-synced collection (live
+    // deltas then arrive on the channel). Served in the *web* group so it
+    // authenticates via the plain session cookie, exactly like every Inertia
+    // page. The api-group equivalent relied on Sanctum stateful-domain matching,
+    // which can fail behind a reverse proxy or on a host APP_URL doesn't cover —
+    // leaving admin lists silently empty while the rest of the SPA works. #193
+    Route::get('/api/collections/{name}', [\App\Http\Controllers\Api\CollectionController::class, 'index'])
+        ->name('collections.index');
+
     // Maintenance upcoming count (for reminder polling — all authenticated users)
     Route::get('/maintenance/upcoming-count', function () {
         $count = \App\Models\MaintenanceEvent::whereIn('status', ['pending', 'in_progress'])
@@ -219,6 +229,8 @@ Route::middleware('auth')->group(function () {
     // Onboarding Wizard (Admin only)
     Route::prefix('onboarding')->name('onboarding.')->middleware('role:Admin')->group(function () {
         Route::get('/', [\App\Http\Controllers\Web\OnboardingController::class, 'index'])->name('index');
+        Route::get('/modules', [\App\Http\Controllers\Web\OnboardingController::class, 'modules'])->name('modules');
+        Route::post('/modules', [\App\Http\Controllers\Web\OnboardingController::class, 'storeModules']);
         Route::get('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'step1'])->name('step1');
         Route::post('/step/1', [\App\Http\Controllers\Web\OnboardingController::class, 'storeStep1']);
         Route::get('/step/2', [\App\Http\Controllers\Web\OnboardingController::class, 'step2'])->name('step2');
@@ -415,6 +427,11 @@ Route::middleware('auth')->group(function () {
         Route::resource('customers', CustomerController::class)->except(['show']);
         Route::post('/customers/{customer}/toggle-active', [CustomerController::class, 'toggleActive'])->name('customers.toggle-active');
 
+        // Product revisions (#180) — versioned released configuration per product type.
+        Route::resource('product-revisions', \App\Http\Controllers\Web\Admin\ProductRevisionController::class)->except(['show']);
+        Route::post('/product-revisions/{productRevision}/release', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'release'])->name('product-revisions.release');
+        Route::post('/product-revisions/{productRevision}/obsolete', [\App\Http\Controllers\Web\Admin\ProductRevisionController::class, 'obsolete'])->name('product-revisions.obsolete');
+
         // Priority Settings (scoring rules + score→priority band mapping)
         Route::post('/priority-rules/bands', [PriorityRuleController::class, 'updateBands'])->name('priority-rules.bands');
         Route::resource('priority-rules', PriorityRuleController::class)->except(['show']);
@@ -532,6 +549,9 @@ Route::middleware('auth')->group(function () {
 
         // Pallets
         Route::resource('pallets', AdminPalletController::class)->except(['show']);
+
+        // Physical pallet movement history (#103) — who moved which pallet where.
+        Route::get('pallet-movements', [PalletMovementController::class, 'index'])->name('pallet-movements.index');
 
         // ── ISA-95: Material Lots (physical lots) ───────────────────────────
         Route::resource('material-lots', AdminMaterialLotController::class);
@@ -774,6 +794,19 @@ Route::middleware('auth')->group(function () {
             ->name('maintenance-schedules.generate-now');
     });
 
+    // ── Logistics: shop-floor pallet movement terminal (#103) ────────────────
+    Route::name('logistics.')->prefix('logistics')
+        ->middleware('role:Operator|Supervisor|Admin')
+        ->group(function () {
+            Route::get('/move-pallet', [PalletMovementController::class, 'terminal'])->name('move-pallet');
+            Route::post('/movements', [PalletMovementController::class, 'store'])->name('movements.store');
+
+            // Pallet status / location / destination overview (#101).
+            Route::get('/pallets', [PalletMovementController::class, 'pallets'])->name('pallets');
+            Route::post('/pallets/destination', [PalletMovementController::class, 'assignDestination'])
+                ->name('pallets.destination');
+        });
+
     // ── Packaging ───────────────────────────────────────────────────────────
     Route::name('packaging.')->prefix('packaging')->group(function () {
         Route::middleware('role:Operator|Supervisor|Admin')->group(function () {
@@ -813,3 +846,25 @@ Route::middleware('auth')->group(function () {
         });
     });
 });
+
+// Engineering interactive-HTML viewer (#179 Phase 3). Reached ONLY via a
+// short-lived signed URL and loaded inside a sandboxed <iframe>. Session/cookie
+// middleware is stripped so the app's auth cookie is never handed to the
+// package; the signature is the sole authorization. The response carries a
+// strict CSP + nosniff (see EngineeringViewerController).
+Route::get('/engineering/viewer/{engineeringDocument}/{path}', [\App\Http\Controllers\EngineeringViewerController::class, 'serve'])
+    ->where('path', '.*')
+    ->middleware('signed')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\Session\Middleware\AuthenticateSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \App\Http\Middleware\SetLocale::class,
+        \App\Http\Middleware\LogRequest::class,
+        \App\Http\Middleware\HandleInertiaRequests::class,
+    ])
+    ->name('engineering.viewer');

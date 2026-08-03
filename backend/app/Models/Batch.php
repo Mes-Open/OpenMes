@@ -15,6 +15,14 @@ class Batch extends Model
     use Auditable, HasCustomFields, HasFactory;
     use SoftDeletesWithAudit;
 
+    /**
+     * Fire the BatchCreated domain event on creation so module hooks see every
+     * new batch, whatever path created it.
+     */
+    protected $dispatchesEvents = [
+        'created' => \App\Events\Batch\BatchCreated::class,
+    ];
+
     const STATUS_PENDING = 'PENDING';
 
     const STATUS_IN_PROGRESS = 'IN_PROGRESS';

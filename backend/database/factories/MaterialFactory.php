@@ -28,6 +28,18 @@ class MaterialFactory extends Factory
         return $this->state(fn () => ['is_active' => false]);
     }
 
+    /**
+     * A subassembly made in-house. Without a producing template it is still a
+     * leaf to BOM explosion — pass one to make it expandable.
+     */
+    public function manufactured(?int $producingTemplateId = null): static
+    {
+        return $this->state(fn () => [
+            'is_manufactured' => true,
+            'producing_process_template_id' => $producingTemplateId,
+        ]);
+    }
+
     public function withExternalCode(string $system = 'subiekt_gt'): static
     {
         return $this->state(fn () => [

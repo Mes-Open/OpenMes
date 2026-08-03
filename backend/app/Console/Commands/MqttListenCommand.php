@@ -10,143 +10,221 @@ use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\Exceptions\MqttClientException;
 use PhpMqtt\Client\MqttClient;
 
+/**
+ * Supervisor for MQTT machine connections. A single process services **all**
+ * active MQTT connections at once (non-blocking `loopOnce()` per client) and
+ * periodically reconciles against the database:
+ *
+ *   - a newly-created / newly-activated connection is connected + subscribed
+ *     automatically (no restart needed — #174),
+ *   - a deactivated / deleted connection is disconnected,
+ *   - a connection whose broker or topics changed is reconnected with the new
+ *     config on the next reconcile tick.
+ *
+ * Pass --connection=<id> to supervise a single connection (used by the
+ * per-connection `mqtt-listener` container); omit it to supervise every active
+ * MQTT connection in one process.
+ */
 class MqttListenCommand extends Command
 {
     protected $signature = 'mqtt:listen
-        {--connection= : ID of a specific machine_connection to listen on (omit for all active)}
+        {--connection= : Supervise only this machine_connection id (omit to supervise all active)}
         {--dry-run     : Connect and log received messages without dispatching jobs}';
 
-    protected $description = 'Start MQTT listener daemon — subscribes to all active MQTT connections';
+    protected $description = 'Start the MQTT listener supervisor — subscribes to all active MQTT connections and picks up new ones live';
+
+    /** How often (seconds) to reconcile managed clients against the database. */
+    private const RECONCILE_SECONDS = 5;
 
     private bool $shouldStop = false;
 
+    /** @var array<int, array{client: MqttClient, sig: string, conn: MachineConnection}> */
+    private array $managed = [];
+
     public function handle(): int
     {
-        if (!class_exists(MqttClient::class)) {
+        if (! class_exists(MqttClient::class)) {
             $this->error('Package php-mqtt/client is not installed.');
             $this->line('Run: composer require php-mqtt/client');
+
             return self::FAILURE;
         }
 
-        $connectionId = $this->option('connection');
-        $dryRun       = $this->option('dry-run');
+        $only = $this->option('connection');
+        $dryRun = (bool) $this->option('dry-run');
 
-        $query = MachineConnection::with('mqttConnection')
+        if (function_exists('pcntl_signal')) {
+            pcntl_signal(SIGTERM, fn () => $this->shouldStop = true);
+            pcntl_signal(SIGINT, fn () => $this->shouldStop = true);
+        }
+
+        $this->info($only
+            ? "Starting MQTT supervisor for connection [{$only}]"
+            : 'Starting MQTT supervisor for all active connections');
+        $this->line('Reconciling every '.self::RECONCILE_SECONDS.'s — new connections are picked up automatically.');
+
+        $lastReconcile = 0.0;
+
+        while (! $this->shouldStop) {
+            if (function_exists('pcntl_signal_dispatch')) {
+                pcntl_signal_dispatch();
+            }
+
+            $now = microtime(true);
+            if ($now - $lastReconcile >= self::RECONCILE_SECONDS) {
+                $this->reconcile($only, $dryRun);
+                $lastReconcile = $now;
+            }
+
+            if (empty($this->managed)) {
+                // Nothing to service yet — wait, then reconcile again.
+                usleep(200_000);
+
+                continue;
+            }
+
+            foreach ($this->managed as $id => $entry) {
+                try {
+                    $entry['client']->loopOnce(microtime(true), false);
+                } catch (\Throwable $e) {
+                    $this->error("[{$id}] loop error: {$e->getMessage()}");
+                    Log::warning('MQTT client loop error', ['connection_id' => $id, 'error' => $e->getMessage()]);
+                    $entry['conn']->markError($e->getMessage());
+                    $this->teardown($id); // dropped → retried on the next reconcile
+                }
+            }
+
+            usleep(50_000); // 50ms breather so the round-robin doesn't busy-spin
+        }
+
+        $this->shutdown();
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Bring the set of live clients in line with the active MQTT connections in
+     * the database: connect new ones, drop removed/deactivated ones, reconnect
+     * ones whose config changed.
+     */
+    private function reconcile(?string $only, bool $dryRun): void
+    {
+        $query = MachineConnection::with(['mqttConnection', 'activeTopics'])
             ->where('protocol', 'mqtt')
             ->where('is_active', true);
 
-        if ($connectionId) {
-            $query->where('id', $connectionId);
+        if ($only) {
+            $query->where('id', $only);
         }
 
-        $connections = $query->get();
+        $active = $query->get()->keyBy('id');
 
-        if ($connections->isEmpty()) {
-            $this->warn('No active MQTT connections found.');
-            return self::SUCCESS;
-        }
-
-        if ($connections->count() > 1) {
-            $this->error('This command handles one connection at a time.');
-            $this->line('Use --connection=<id> or run separate processes per connection.');
-            $this->line('Active connections:');
-            foreach ($connections as $conn) {
-                $this->line("  [{$conn->id}] {$conn->name}");
+        // Drop clients whose connection is no longer active/present.
+        foreach (array_keys($this->managed) as $id) {
+            if (! $active->has($id)) {
+                $this->line("[{$id}] no longer active — disconnecting.");
+                $conn = $this->managed[$id]['conn'];
+                $this->teardown($id);
+                $conn->markDisconnected('Connection deactivated or removed');
             }
-            return self::FAILURE;
         }
 
-        $machineConn = $connections->first();
-        $mqttConfig  = $machineConn->mqttConnection;
+        // Connect new connections and reconnect changed ones.
+        foreach ($active as $id => $conn) {
+            $cfg = $conn->mqttConnection;
+            if (! $cfg) {
+                $conn->markError('No MQTT configuration defined');
 
-        if (!$mqttConfig) {
-            $this->error("No MQTT configuration found for connection [{$machineConn->id}] {$machineConn->name}");
-            $machineConn->markError('No MQTT configuration defined');
-            return self::FAILURE;
-        }
+                continue;
+            }
 
-        // Register SIGTERM / SIGINT handlers for graceful shutdown
-        if (function_exists('pcntl_signal')) {
-            pcntl_signal(SIGTERM, fn() => $this->shouldStop = true);
-            pcntl_signal(SIGINT, fn() => $this->shouldStop = true);
-        }
+            $sig = $this->signature($conn);
 
-        $this->info("Starting MQTT listener for [{$machineConn->id}] {$machineConn->name}");
-        $this->line("  Broker: {$mqttConfig->broker_host}:{$mqttConfig->broker_port}");
-
-        while (!$this->shouldStop) {
-            $client = null;
-            try {
-                $machineConn->update(['status' => 'connecting', 'status_message' => null]);
-
-                $client   = $this->buildClient($mqttConfig);
-                $settings = $this->buildSettings($mqttConfig);
-
-                $client->connect($settings, $mqttConfig->clean_session);
-                $machineConn->markConnected();
-                $this->info('[' . now()->toTimeString() . '] Connected.');
-
-                // Subscribe to all active topics for this connection
-                $topics = $machineConn->activeTopics()->get();
-                foreach ($topics as $topic) {
-                    $client->subscribe(
-                        $topic->topic_pattern,
-                        function (string $incomingTopic, string $message) use ($machineConn, $dryRun) {
-                            if (function_exists('pcntl_signal_dispatch')) {
-                                pcntl_signal_dispatch();
-                            }
-
-                            $receivedAt = now()->toIso8601String();
-                            $this->line("[{$receivedAt}] {$incomingTopic}: " . substr($message, 0, 120));
-
-                            if (!$dryRun) {
-                                ProcessMqttMessageJob::dispatch(
-                                    $machineConn->id,
-                                    $incomingTopic,
-                                    $message,
-                                    $receivedAt,
-                                );
-                            }
-                        },
-                        $mqttConfig->qos_default,
-                    );
-                    $this->line("  Subscribed: {$topic->topic_pattern}");
+            if (isset($this->managed[$id])) {
+                if ($this->managed[$id]['sig'] === $sig) {
+                    continue; // unchanged — leave the live client alone
                 }
+                $this->line("[{$id}] config changed — reconnecting.");
+                $this->teardown($id);
+            }
 
-                // Main loop — exits on exception or stop signal
-                $client->loop(true, true);
-
+            try {
+                $conn->update(['status' => 'connecting', 'status_message' => null]);
+                $client = $this->connectAndSubscribe($conn, $cfg, $dryRun);
+                $this->managed[$id] = ['client' => $client, 'sig' => $sig, 'conn' => $conn];
+                $conn->markConnected();
+                $this->info("[{$id}] {$conn->name} connected → {$cfg->broker_host}:{$cfg->broker_port}");
             } catch (MqttClientException $e) {
-                $message = 'MQTT error: ' . $e->getMessage();
-                $this->error($message);
-                Log::error($message, ['connection_id' => $machineConn->id]);
-                $machineConn->markError($e->getMessage());
+                $this->error("[{$id}] connect failed: {$e->getMessage()}");
+                Log::error('MQTT connect failed', ['connection_id' => $id, 'error' => $e->getMessage()]);
+                $conn->markError($e->getMessage());
             } catch (\Throwable $e) {
-                $this->error('Unexpected error: ' . $e->getMessage());
-                Log::error('MQTT listener crashed', ['error' => $e->getMessage(), 'connection_id' => $machineConn->id]);
-                $machineConn->markError($e->getMessage());
-            } finally {
-                try {
-                    $client?->disconnect();
-                } catch (\Throwable) {}
+                $this->error("[{$id}] unexpected error: {$e->getMessage()}");
+                Log::error('MQTT listener error', ['connection_id' => $id, 'error' => $e->getMessage()]);
+                $conn->markError($e->getMessage());
             }
+        }
+    }
 
-            if ($this->shouldStop) {
-                break;
-            }
+    private function connectAndSubscribe(MachineConnection $conn, mixed $cfg, bool $dryRun): MqttClient
+    {
+        $client = $this->buildClient($cfg);
+        $client->connect($this->buildSettings($cfg), $cfg->clean_session);
 
-            $delay = $mqttConfig->reconnect_delay_seconds;
-            $this->line("Reconnecting in {$delay}s...");
-            sleep($delay);
+        foreach ($conn->activeTopics as $topic) {
+            $client->subscribe(
+                $topic->topic_pattern,
+                function (string $incomingTopic, string $message) use ($conn, $dryRun) {
+                    $receivedAt = now()->toIso8601String();
+                    $this->line("[{$conn->id}] {$incomingTopic}: ".substr($message, 0, 120));
 
-            // Reload config in case it was updated
-            $machineConn->refresh();
-            $mqttConfig = $machineConn->mqttConnection;
+                    if (! $dryRun) {
+                        ProcessMqttMessageJob::dispatch($conn->id, $incomingTopic, $message, $receivedAt);
+                    }
+                },
+                $cfg->qos_default,
+            );
+            $this->line("[{$conn->id}]   subscribed: {$topic->topic_pattern}");
         }
 
-        $machineConn->markDisconnected('Listener stopped');
-        $this->info('MQTT listener stopped.');
-        return self::SUCCESS;
+        return $client;
+    }
+
+    /**
+     * A fingerprint of everything that requires a reconnect when it changes:
+     * broker connection settings + the active topic subscriptions.
+     */
+    private function signature(MachineConnection $conn): string
+    {
+        $cfg = $conn->mqttConnection;
+        $topics = $conn->activeTopics->pluck('topic_pattern')->sort()->values()->implode('|');
+
+        return md5(implode('~', [
+            $cfg->broker_host, $cfg->broker_port, $cfg->username, $cfg->getPassword(),
+            $cfg->use_tls ? '1' : '0', $cfg->qos_default, $cfg->keep_alive_seconds,
+            $cfg->clean_session ? '1' : '0', $topics,
+        ]));
+    }
+
+    private function teardown(int $id): void
+    {
+        $entry = $this->managed[$id] ?? null;
+        if ($entry) {
+            try {
+                $entry['client']->disconnect();
+            } catch (\Throwable) {
+            }
+        }
+        unset($this->managed[$id]);
+    }
+
+    private function shutdown(): void
+    {
+        foreach ($this->managed as $id => $entry) {
+            $entry['conn']->markDisconnected('Listener stopped');
+            $this->teardown($id);
+        }
+        $this->info('MQTT supervisor stopped.');
     }
 
     private function buildClient(mixed $cfg): MqttClient
@@ -161,7 +239,7 @@ class MqttListenCommand extends Command
 
     private function buildSettings(mixed $cfg): ConnectionSettings
     {
-        $settings = (new ConnectionSettings())
+        $settings = (new ConnectionSettings)
             ->setKeepAliveInterval($cfg->keep_alive_seconds)
             ->setConnectTimeout($cfg->connect_timeout)
             ->setReconnectAutomatically(false);
@@ -178,7 +256,6 @@ class MqttListenCommand extends Command
         if ($cfg->use_tls) {
             $settings->setUseTls(true);
             if ($cfg->ca_cert) {
-                // Write CA cert to temp file
                 $caFile = tempnam(sys_get_temp_dir(), 'mqtt_ca_');
                 file_put_contents($caFile, $cfg->ca_cert);
                 $settings->setTlsCertificateAuthorityFile($caFile);

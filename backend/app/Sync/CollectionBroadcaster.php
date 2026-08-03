@@ -70,6 +70,7 @@ class CollectionBroadcaster
             'material_lots' => [Models\MaterialLot::class, null],
             'lot_sequences' => [Models\LotSequence::class, null],
             'pallets' => [Models\Pallet::class, null],
+            'pallet_movements' => [Models\PalletMovement::class, null],
             'process_segments' => [Models\ProcessSegment::class, null],
             'view_templates' => [Models\ViewTemplate::class, null],
             'inspection_plans' => [Models\InspectionPlan::class, null],
