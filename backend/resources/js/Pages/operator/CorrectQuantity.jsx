@@ -1,4 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { __ } from '../../lib/i18n';
 import OperatorLayout from '../../layouts/OperatorLayout';
 
 export default function CorrectQuantity() {
@@ -12,7 +13,7 @@ export default function CorrectQuantity() {
 
     return (
         <>
-            <Head title="Correct Quantity" />
+            <Head title={__("Correct Quantity")} />
             <div className="max-w-md mx-auto mt-8">
                 <div className="bg-om-card rounded-om-sm shadow-sm p-6">
                     <div className="flex items-center gap-3 mb-6">
@@ -22,23 +23,23 @@ export default function CorrectQuantity() {
                             </svg>
                         </Link>
                         <div>
-                            <h1 className="text-xl font-bold text-om-ink">Correct Quantity</h1>
-                            <p className="text-sm text-om-muted">Modify a previously reported production quantity.</p>
+                            <h1 className="text-xl font-bold text-om-ink">{__("Correct Quantity")}</h1>
+                            <p className="text-sm text-om-muted">{__("Modify a previously reported production quantity.")}</p>
                         </div>
                     </div>
 
                     <div className="space-y-3 mb-6">
-                        <Row label="Order No"><span className="font-bold font-mono">{workOrder.order_no}</span></Row>
-                        <Row label="Product"><span className="font-medium">{workOrder.product_name ?? '—'}</span></Row>
-                        <Row label="Shift"><span className="font-medium">{shiftEntry.shift.name ?? shiftEntry.shift.code}</span></Row>
-                        <Row label="Production Date"><span className="font-medium">{shiftEntry.production_date}</span></Row>
-                        <Row label="Current Quantity"><span className="font-bold text-om-accent">{Math.round(shiftEntry.quantity)}</span></Row>
+                        <Row label={__("Order No")}><span className="font-bold font-mono">{workOrder.order_no}</span></Row>
+                        <Row label={__("Product")}><span className="font-medium">{workOrder.product_name ?? '—'}</span></Row>
+                        <Row label={__("Shift")}><span className="font-medium">{shiftEntry.shift.name ?? shiftEntry.shift.code}</span></Row>
+                        <Row label={__("Production Date")}><span className="font-medium">{shiftEntry.production_date}</span></Row>
+                        <Row label={__("Current Quantity")}><span className="font-bold text-om-accent">{Math.round(shiftEntry.quantity)}</span></Row>
                     </div>
 
                     <form onSubmit={submit}>
                         <div className="mb-5">
                             <label className="block text-sm font-medium text-om-muted mb-1">
-                                New Quantity <span className="text-om-blocked">*</span>
+                                {__("New Quantity")} <span className="text-om-blocked">*</span>
                             </label>
                             <input
                                 type="number" min="0" max="99999999" step="1" required autoFocus inputMode="numeric"
@@ -51,10 +52,10 @@ export default function CorrectQuantity() {
 
                         <div className="flex gap-3">
                             <Link href="/operator/workstation" className="flex-1 py-3 text-base text-center rounded-om-sm bg-om-line2 hover:bg-om-line text-om-ink font-medium">
-                                Cancel
+                                {__("Cancel")}
                             </Link>
                             <button type="submit" disabled={form.processing} className="flex-1 bg-om-ink hover:bg-om-ink-hover text-om-on-ink font-bold rounded-om-sm py-3 text-base disabled:opacity-50">
-                                Save Correction
+                                {__("Save Correction")}
                             </button>
                         </div>
                     </form>

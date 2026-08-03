@@ -240,21 +240,21 @@ function StartModal({ modal, onClose }) {
                 className="relative w-full max-w-sm overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <ModalHeader title="Start Production" subtitle={modal.orderNo} onClose={onClose} />
+                <ModalHeader title={__("Start Production")} subtitle={modal.orderNo} onClose={onClose} />
                 <div className="px-[18px] py-4">
                     <p className="text-om-ink mb-2 text-[17px] font-semibold tracking-[-0.01em]">
                         {modal.product}
                     </p>
                     <p className="text-sm text-om-muted mb-1">
-                        Order: <span className="font-mono text-om-ink">{modal.orderNo}</span>
+                        {__("Order No")}: <span className="font-mono text-om-ink">{modal.orderNo}</span>
                     </p>
                     <p className="text-sm text-om-muted">
-                        Planned: <strong className="font-mono text-[15px] text-om-ink">{fmt(modal.qty)}</strong> units
+                        {__("Planned")}: <strong className="font-mono text-[15px] text-om-ink">{fmt(modal.qty)}</strong> {__("units")}
                     </p>
                 </div>
                 <div className={modalFooterCls}>
                     <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
-                        Cancel
+                        {__("Cancel")}
                     </Button>
                     <Button
                         variant="accent"
@@ -264,7 +264,7 @@ function StartModal({ modal, onClose }) {
                         }}
                         className="flex-1 px-6 py-4 text-[15px] font-semibold"
                     >
-                        Start
+                        {__("Start")}
                     </Button>
                 </div>
             </div>
@@ -328,7 +328,7 @@ function CompleteModal({ modal, onClose }) {
                     </div>
                     <div className={modalFooterCls}>
                         <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
-                            Cancel
+                            {__("Cancel")}
                         </Button>
                         <Button
                             type="submit"
@@ -336,7 +336,7 @@ function CompleteModal({ modal, onClose }) {
                             disabled={qty === '' || parseInt(qty, 10) < 0}
                             className="flex-1 px-6 py-4 text-[15px] font-semibold"
                         >
-                            Confirm
+                            {__("Confirm")}
                         </Button>
                     </div>
                 </form>
@@ -354,7 +354,7 @@ function InfoModal({ info, onClose }) {
                 className="relative w-full max-w-md overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <ModalHeader title="Order Details" subtitle={info.orderNo} onClose={onClose} />
+                <ModalHeader title={__("Order Details")} subtitle={info.orderNo} onClose={onClose} />
                 <div className="px-[18px] py-4 space-y-3">
                     <InfoRow label={__("Order #")}><span className="font-mono text-[13px] font-medium text-om-ink">{info.orderNo}</span></InfoRow>
                     <InfoRow label={__("Product")}><span className="text-sm font-medium text-om-ink">{info.product}</span></InfoRow>
@@ -362,15 +362,15 @@ function InfoModal({ info, onClose }) {
                     <InfoRow label={__("Status")}><span className="text-sm font-semibold text-om-ink">{info.status}</span></InfoRow>
                     <div className="grid grid-cols-3 gap-3 py-2">
                         <div className="text-center">
-                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Planned</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">{__("Planned")}</p>
                             <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-ink">{info.planned}</p>
                         </div>
                         <div className="text-center">
-                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Produced</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">{__("Produced")}</p>
                             <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-running">{info.produced}</p>
                         </div>
                         <div className="text-center">
-                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">Remaining</p>
+                            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-om-faint mb-1">{__("Remaining")}</p>
                             <p className="font-mono text-[22px] font-medium tracking-[-0.02em] text-om-accent">{info.remaining}</p>
                         </div>
                     </div>
@@ -502,7 +502,7 @@ function ReportModal({ report, issueTypes, onClose }) {
 
                     <div className={modalFooterCls}>
                         <Button variant="secondary" onClick={onClose} className="flex-1 px-6 py-4 text-[15px] font-semibold">
-                            Cancel
+                            {__("Cancel")}
                         </Button>
                         <Button
                             type="submit"
@@ -510,7 +510,7 @@ function ReportModal({ report, issueTypes, onClose }) {
                             disabled={!typeId || !title}
                             className="flex-1 px-6 py-4 text-[15px] font-semibold"
                         >
-                            Submit Report
+                            {__("Submit Report")}
                         </Button>
                     </div>
                 </form>
@@ -554,13 +554,13 @@ function ColumnPicker({ allColumns, visibleKeys, toggleColumn, resetColumns }) {
             {open && (
                 <div className="absolute right-0 mt-2 w-64 bg-om-card rounded-om shadow-[0_18px_44px_-18px_rgba(0,0,0,.3)] border border-om-line z-50 p-3">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-om-ink">Columns</span>
+                        <span className="text-sm font-semibold text-om-ink">{__("Columns")}</span>
                         <button
                             type="button"
                             onClick={resetColumns}
                             className="font-mono text-[10px] uppercase tracking-[0.08em] text-om-accent hover:underline cursor-pointer"
                         >
-                            Reset
+                            {__("Reset")}
                         </button>
                     </div>
 
@@ -832,10 +832,10 @@ export default function Workstation() {
                                     href="/operator/queue"
                                     className="px-3 py-1.5 rounded-[6px] text-sm font-medium text-om-muted hover:text-om-ink transition-colors"
                                 >
-                                    Queue
+                                    {__("Queue")}
                                 </Link>
                                 <span className="px-3 py-1.5 rounded-[6px] text-sm font-semibold bg-om-ink text-om-on-ink">
-                                    Workstation
+                                    {__("Workstation")}
                                 </span>
                             </div>
 
@@ -850,7 +850,7 @@ export default function Workstation() {
                                 href="/operator/select-line"
                                 className="px-4 py-2.5 rounded-om-sm text-sm font-medium text-om-ink border border-om-line bg-om-card hover:bg-om-chip transition-colors"
                             >
-                                Change Line
+                                {__("Change Line")}
                             </Link>
                         </div>
                     </div>
@@ -862,7 +862,7 @@ export default function Workstation() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">Select week:</span>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-om-faint">{__("Select week:")}</span>
 
                             <a
                                 href={weekUrl('all')}
@@ -872,7 +872,7 @@ export default function Workstation() {
                                         : 'border-transparent text-om-muted hover:bg-om-chip'
                                 }`}
                             >
-                                All weeks
+                                {__("All weeks")}
                             </a>
 
                             {availableWeeks.map((wk) => (
@@ -898,14 +898,14 @@ export default function Workstation() {
                             disabled
                             className="px-6 py-3.5 rounded-om-sm text-[14px] font-semibold bg-om-downtime-bg text-om-downtime opacity-60 cursor-not-allowed"
                         >
-                            Cleaning
+                            {__("Cleaning")}
                         </button>
                         <button
                             type="button"
                             disabled
                             className="px-6 py-3.5 rounded-om-sm text-[14px] font-semibold bg-om-blocked-bg text-om-blocked opacity-60 cursor-not-allowed"
                         >
-                            Failure
+                            {__("Failure")}
                         </button>
                     </div>
 

@@ -156,7 +156,7 @@ function DoneModal({ workOrder, onClose }) {
             <div className="bg-om-card border border-om-line rounded-om shadow-xl p-6 w-full max-w-md mx-4">
                 <h3 className="text-[16px] font-semibold text-om-ink mb-4">{__('Complete Work Order')}</h3>
                 <p className="text-sm text-om-muted mb-4">
-                    Enter the produced quantity for <strong className="font-mono text-om-ink">{workOrder.order_no}</strong>.
+                    {__('Enter the produced quantity for')} <strong className="font-mono text-om-ink">{workOrder.order_no}</strong>.
                 </p>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
@@ -269,7 +269,7 @@ export default function SupervisorWorkOrderShow() {
                             <StatusPill status={WO_PILL_STATUS[status] ?? 'pending'} label={status} />
                         </div>
                         <p className="text-om-muted mt-1">
-                            Created {timeAgo(workOrder.created_at)}
+                            {__('Created')} {timeAgo(workOrder.created_at)}
                             {workOrder.product_type_name ? ` · ${workOrder.product_type_name}` : ''}
                         </p>
                     </div>
@@ -282,7 +282,7 @@ export default function SupervisorWorkOrderShow() {
                                 </Button>
                                 <Button
                                     variant="danger"
-                                    onClick={() => { if (confirm('Reject this work order?')) post('reject'); }}
+                                    onClick={() => { if (confirm(__('Reject this work order?'))) post('reject'); }}
                                 >
                                     Reject
                                 </Button>
@@ -291,7 +291,7 @@ export default function SupervisorWorkOrderShow() {
                         {status === 'ACCEPTED' && (
                             <Button
                                 variant="danger"
-                                onClick={() => { if (confirm('Reject this work order?')) post('reject'); }}
+                                onClick={() => { if (confirm(__('Reject this work order?'))) post('reject'); }}
                             >
                                 Reject
                             </Button>
@@ -315,7 +315,7 @@ export default function SupervisorWorkOrderShow() {
                         {isTerminal ? (
                             <Button
                                 variant="primary"
-                                onClick={() => { if (confirm('Reopen this work order?')) post('reopen'); }}
+                                onClick={() => { if (confirm(__('Reopen this work order?'))) post('reopen'); }}
                             >
                                 Reopen
                             </Button>
@@ -328,7 +328,7 @@ export default function SupervisorWorkOrderShow() {
                                     Edit
                                 </Link>
                                 <button
-                                    onClick={() => { if (confirm('Cancel this work order?')) post('cancel'); }}
+                                    onClick={() => { if (confirm(__('Cancel this work order?'))) post('cancel'); }}
                                     className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold rounded-om-sm border border-om-line px-4 py-[9px] text-om-accent hover:bg-om-chip transition-colors cursor-pointer"
                                 >
                                     Cancel
@@ -397,7 +397,7 @@ export default function SupervisorWorkOrderShow() {
                         {/* Batches */}
                         <div className="bg-om-card border border-om-line rounded-om p-5">
                             <h2 className="text-[14px] font-semibold text-om-ink mb-4">
-                                Batches{' '}
+                                {__('Batches')}{' '}
                                 <span className="font-mono text-[12px] font-normal text-om-faint">({workOrder.batches.length})</span>
                             </h2>
                             {workOrder.batches.length === 0 ? (

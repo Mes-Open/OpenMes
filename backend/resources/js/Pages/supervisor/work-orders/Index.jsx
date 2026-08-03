@@ -45,7 +45,7 @@ export default function SupervisorWorkOrdersIndex() {
             a.push({
                 label: 'Complete',
                 onClick: () => {
-                    const qty = prompt('Produced quantity to complete with:', r.planned_qty);
+                    const qty = prompt(__('Produced quantity to complete with:'), r.planned_qty);
                     if (qty) post(r.id, 'complete', { produced_qty: qty });
                 },
             });
@@ -56,7 +56,7 @@ export default function SupervisorWorkOrdersIndex() {
         if (TERMINAL.includes(s)) {
             a.push({ label: 'Reopen', onClick: () => post(r.id, 'reopen') });
         } else {
-            a.push({ label: 'Cancel', variant: 'warning', onClick: () => { if (confirm(`Cancel work order ${r.order_no}?`)) post(r.id, 'cancel'); } });
+            a.push({ label: 'Cancel', variant: 'warning', onClick: () => { if (confirm(__('Cancel work order :no?', { no: r.order_no }))) post(r.id, 'cancel'); } });
         }
 
         return a;
@@ -69,7 +69,7 @@ export default function SupervisorWorkOrdersIndex() {
                 shape="work_orders_all"
                 title={__('Work Orders')}
                 createHref="/supervisor/work-orders/create"
-                createLabel="+ New Work Order"
+                createLabel={__('+ New Work Order')}
                 columns={columns}
                 orderBy="order_no"
                 actions={actions}

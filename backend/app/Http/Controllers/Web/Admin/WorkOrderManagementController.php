@@ -117,7 +117,7 @@ class WorkOrderManagementController extends Controller
         }
 
         return redirect()->route('admin.work-orders.index')
-            ->with('success', "Work order {$workOrder->order_no} created.");
+            ->with('success', __('Work order :code created.', ['code' => $workOrder->order_no]));
     }
 
     public function show(WorkOrder $workOrder, CustomFieldService $customFields)
